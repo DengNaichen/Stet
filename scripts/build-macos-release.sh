@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PROJECT_PATH="$ROOT_DIR/Stet.xcodeproj"
+PROJECT_PATH="$ROOT_DIR/apps/mac/Stet.xcodeproj"
 SCHEME="Stet"
 
 BUILD_ROOT="$ROOT_DIR/.build"
@@ -14,7 +14,18 @@ APP_PATH="$DIST_DIR/Stet.app"
 
 mkdir -p "$BUILD_ROOT" "$DIST_DIR"
 
-# Remove stale outputs from the previous airType product name before rebuilding.
+# Clear stale repo-local package caches after path or product renames.
+if [[ -f "$SOURCE_PACKAGES_PATH/workspace-state.json" ]] && \
+  grep -q "/Users/nd/Developer/airType" "$SOURCE_PACKAGES_PATH/workspace-state.json"; then
+  rm -rf "$SOURCE_PACKAGES_PATH" "$PACKAGE_CACHE_PATH"
+fi
+
+if [[ -f "$DERIVED_DATA_PATH/SourcePackages/workspace-state.json" ]] && \
+  grep -q "/Users/nd/Developer/airType" "$DERIVED_DATA_PATH/SourcePackages/workspace-state.json"; then
+  rm -rf "$DERIVED_DATA_PATH"
+fi
+
+# Remove stale outputs from earlier product names before rebuilding.
 rm -rf \
   "$DIST_DIR/Stet.app" \
   "$DIST_DIR/Stet.app.dSYM" \

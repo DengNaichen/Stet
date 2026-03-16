@@ -1,3 +1,4 @@
+# macOS / Xcode
 .DS_Store
 DerivedData/
 build/
@@ -5,6 +6,30 @@ build/
 dist/
 *.xcuserstate
 xcuserdata/
+
+# Local environment and secrets
 .env
+.env.local
+.env.*.local
+.env.keys
+
+# Editor / local tooling
+.vscode/
+.idea/
 .backup/
 
+# Node / web
+node_modules/
+.next/
+.svelte-kit/
+.turbo/
+.vercel/
+coverage/
+out/
+*.tsbuildinfo
+*.log
+
+# Supabase local state
+supabase/.branches/
+supabase/.temp/
+.supabase/

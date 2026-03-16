@@ -1,0 +1,468 @@
+@import "tailwindcss";
+
+:root {
+    --bg: #ffffff;
+    --surface: rgba(255, 255, 255, 0.46);
+    --surface-strong: rgba(255, 255, 255, 0.74);
+    --surface-dark: rgba(18, 22, 34, 0.74);
+    --border: rgba(89, 61, 66, 0.14);
+    --text: #051416;
+    --text-muted: #4f5d67;
+    --accent: #f05138;
+    --gold: #f6b349;
+    --shadow: 0 30px 80px rgba(80, 50, 78, 0.14);
+    --shadow-dark: 0 32px 90px rgba(31, 20, 51, 0.24);
+    --speckle-texture: url("/speckle-noise.svg");
+}
+
+@theme inline {
+    --color-bg: var(--bg);
+    --color-surface: var(--surface);
+    --color-surface-strong: var(--surface-strong);
+    --color-surface-dark: var(--surface-dark);
+    --color-border: var(--border);
+    --color-ink: var(--text);
+    --color-muted: var(--text-muted);
+    --color-accent: var(--accent);
+    --color-gold: var(--gold);
+    --shadow-soft: var(--shadow);
+    --font-sans:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans,
+        Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    --font-mono:
+        "SF Mono", "Anonymous Pro", ui-monospace, Menlo, Monaco, Consolas,
+        monospace;
+}
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        min-width: 320px;
+        min-height: 100vh;
+        overflow-x: clip;
+        background: var(--bg);
+        color: var(--text);
+    }
+
+    a,
+    button {
+        transition:
+            transform 180ms ease,
+            border-color 180ms ease,
+            background-color 180ms ease,
+            color 180ms ease,
+            box-shadow 180ms ease;
+    }
+
+    a:focus-visible,
+    button:focus-visible {
+        outline: 3px solid rgba(56, 79, 234, 0.35);
+        outline-offset: 4px;
+        border-radius: 999px;
+    }
+}
+
+@layer components {
+    .page-shell {
+        min-height: 100vh;
+    }
+
+    .section-heading h2,
+    .voice-card h2,
+    .trust-copy h2,
+    .cta-card h2 {
+        font-size: clamp(2rem, 4vw, 3.4rem);
+        line-height: 1.02;
+        letter-spacing: -0.05em;
+    }
+
+    .hero-title {
+        font-size: clamp(3.4rem, 8vw, 6.6rem);
+        line-height: 0.92;
+        letter-spacing: -0.07em;
+    }
+
+    .hero-art {
+        position: relative;
+        min-height: 620px;
+        isolation: isolate;
+    }
+
+    .hero-art::before {
+        content: "";
+        position: absolute;
+        inset: 7% 2% 14% 2%;
+        border-radius: 999px;
+        background: radial-gradient(
+            circle at 52% 48%,
+            rgba(255, 255, 255, 0.46),
+            transparent 62%
+        );
+        filter: blur(34px);
+        opacity: 0.95;
+        pointer-events: none;
+    }
+
+    .hero-glow,
+    .swift-swoop {
+        position: absolute;
+        border-radius: 9999px;
+        pointer-events: none;
+        background-repeat: no-repeat, repeat, repeat;
+        background-size:
+            100% 100%,
+            380px 380px,
+            640px 640px;
+        background-position:
+            0 0,
+            0 0,
+            150px 80px;
+        background-blend-mode: normal, multiply, screen;
+    }
+
+    .hero-glow {
+        filter: blur(8px) saturate(118%);
+        opacity: 0.96;
+    }
+
+    .hero-glow-orange {
+        top: 3%;
+        left: -3%;
+        width: 430px;
+        height: 94px;
+        transform: rotate(-14deg);
+        background-image:
+            linear-gradient(
+                90deg,
+                rgba(249, 208, 126, 0.98) 0%,
+                rgba(236, 151, 121, 0.9) 42%,
+                rgba(255, 255, 255, 0) 100%
+            ),
+            var(--speckle-texture), var(--speckle-texture);
+    }
+
+    .hero-glow-gold {
+        top: 16%;
+        left: 11%;
+        width: 520px;
+        height: 138px;
+        opacity: 0.78;
+        transform: rotate(-12deg);
+        background-image:
+            linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0.96) 0%,
+                rgba(255, 232, 219, 0.68) 38%,
+                rgba(255, 255, 255, 0.04) 100%
+            ),
+            var(--speckle-texture), var(--speckle-texture);
+    }
+
+    .mock-window,
+    .frost-panel,
+    .frost-panel-dark,
+    .quote-panel,
+    .frost-chip,
+    .dark-chip {
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+        backdrop-filter: blur(24px) saturate(135%);
+        -webkit-backdrop-filter: blur(24px) saturate(135%);
+    }
+
+    .mock-window::before,
+    .mock-window::after,
+    .frost-panel::before,
+    .frost-panel::after,
+    .frost-panel-dark::before,
+    .frost-panel-dark::after,
+    .quote-panel::before,
+    .quote-panel::after,
+    .frost-chip::before,
+    .dark-chip::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .mock-window > *,
+    .frost-panel > *,
+    .frost-panel-dark > *,
+    .quote-panel > *,
+    .frost-chip > *,
+    .dark-chip > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .frost-panel {
+        background:
+            linear-gradient(
+                180deg,
+                rgba(255, 255, 255, 0.68),
+                rgba(255, 255, 255, 0.46)
+            ),
+            radial-gradient(
+                circle at top left,
+                rgba(255, 255, 255, 0.3),
+                transparent 42%
+            );
+        box-shadow: var(--shadow);
+    }
+
+    .frost-panel::before,
+    .quote-panel::before,
+    .frost-chip::before {
+        background-image: var(--speckle-texture), var(--speckle-texture);
+        background-size:
+            340px 340px,
+            560px 560px;
+        background-position:
+            0 0,
+            140px 88px;
+        mix-blend-mode: multiply;
+        opacity: 0.3;
+    }
+
+    .frost-panel::after,
+    .quote-panel::after {
+        background: linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.38),
+            rgba(255, 255, 255, 0) 46%,
+            rgba(247, 194, 145, 0.14) 100%
+        );
+        opacity: 0.9;
+    }
+
+    .frost-panel-nav {
+        background:
+            linear-gradient(
+                180deg,
+                rgba(255, 255, 255, 0.62),
+                rgba(255, 255, 255, 0.44)
+            ),
+            radial-gradient(
+                circle at 18% 0%,
+                rgba(255, 255, 255, 0.3),
+                transparent 34%
+            );
+        box-shadow: 0 18px 40px rgba(92, 64, 79, 0.11);
+    }
+
+    .frost-chip {
+        background:
+            linear-gradient(
+                180deg,
+                rgba(255, 255, 255, 0.56),
+                rgba(255, 255, 255, 0.38)
+            ),
+            radial-gradient(
+                circle at top left,
+                rgba(255, 255, 255, 0.24),
+                transparent 40%
+            );
+        box-shadow: 0 12px 30px rgba(92, 64, 79, 0.08);
+    }
+
+    .frost-panel-dark {
+        background:
+            linear-gradient(
+                180deg,
+                rgba(30, 25, 47, 0.82),
+                rgba(12, 18, 31, 0.76)
+            ),
+            radial-gradient(
+                circle at top left,
+                rgba(255, 255, 255, 0.08),
+                transparent 44%
+            );
+        box-shadow: var(--shadow-dark);
+    }
+
+    .frost-panel-dark::before,
+    .dark-chip::before,
+    .mock-window::before {
+        background-image: var(--speckle-texture), var(--speckle-texture);
+        background-size:
+            340px 340px,
+            560px 560px;
+        background-position:
+            0 0,
+            140px 88px;
+        mix-blend-mode: screen;
+        opacity: 0.24;
+    }
+
+    .frost-panel-dark::after,
+    .mock-window::after {
+        background: linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.08),
+            rgba(255, 255, 255, 0) 46%,
+            rgba(255, 186, 137, 0.12) 100%
+        );
+    }
+
+    .dark-chip {
+        background:
+            linear-gradient(
+                180deg,
+                rgba(255, 255, 255, 0.08),
+                rgba(255, 255, 255, 0.03)
+            ),
+            radial-gradient(
+                circle at top left,
+                rgba(255, 255, 255, 0.06),
+                transparent 40%
+            );
+    }
+
+    .quote-panel {
+        background:
+            linear-gradient(
+                155deg,
+                rgba(255, 248, 241, 0.72) 0%,
+                rgba(255, 255, 255, 0.46) 38%,
+                rgba(241, 230, 255, 0.68) 100%
+            ),
+            radial-gradient(
+                circle at top left,
+                rgba(255, 255, 255, 0.3),
+                transparent 42%
+            );
+        box-shadow: var(--shadow);
+    }
+
+    .mock-window {
+        z-index: 1;
+        width: min(100%, 540px);
+        margin: 3rem auto 0;
+        border-radius: 34px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        background:
+            linear-gradient(
+                180deg,
+                rgba(20, 24, 38, 0.82),
+                rgba(12, 17, 29, 0.82)
+            ),
+            radial-gradient(
+                circle at top left,
+                rgba(255, 255, 255, 0.12),
+                transparent 42%
+            );
+        color: #f4f8f7;
+        box-shadow: var(--shadow-dark);
+    }
+
+    .mock-window-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.95rem 1.1rem;
+        background: rgba(255, 255, 255, 0.07);
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.72);
+    }
+
+    .mock-dots {
+        display: inline-flex;
+        gap: 0.42rem;
+    }
+
+    .mock-dots span {
+        width: 0.7rem;
+        height: 0.7rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.28);
+    }
+
+    .mock-window-body {
+        display: grid;
+        gap: 0.85rem;
+        padding: 1.35rem;
+        font-family: var(--font-mono);
+        font-size: 0.96rem;
+        line-height: 1.7;
+        color: rgba(244, 248, 247, 0.88);
+    }
+
+    .swift-swoop {
+        filter: blur(10px) saturate(120%);
+        opacity: 0.98;
+    }
+
+    .swift-swoop-top {
+        top: 31%;
+        right: -4%;
+        width: 550px;
+        height: 178px;
+        transform: rotate(-13deg);
+        background-image:
+            linear-gradient(
+                90deg,
+                rgba(182, 145, 240, 0.16) 0%,
+                rgba(112, 101, 223, 0.95) 32%,
+                rgba(236, 230, 255, 0.88) 68%,
+                rgba(255, 255, 255, 0.06) 100%
+            ),
+            var(--speckle-texture), var(--speckle-texture);
+    }
+
+    .swift-swoop-bottom {
+        bottom: 8%;
+        left: -4%;
+        width: 620px;
+        height: 118px;
+        transform: rotate(-10deg);
+        background-image:
+            linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0.88) 0%,
+                rgba(226, 193, 252, 0.92) 32%,
+                rgba(241, 168, 184, 0.84) 70%,
+                rgba(245, 193, 109, 0.84) 100%
+            ),
+            var(--speckle-texture), var(--speckle-texture);
+    }
+}
+
+@media (max-width: 768px) {
+    .hero-art {
+        min-height: 460px;
+    }
+
+    .hero-glow-orange {
+        width: 320px;
+        height: 74px;
+        left: -10%;
+    }
+
+    .hero-glow-gold {
+        width: 360px;
+        height: 100px;
+        left: 4%;
+    }
+
+    .swift-swoop-top {
+        top: 35%;
+        right: -22%;
+        width: 430px;
+        height: 138px;
+    }
+
+    .swift-swoop-bottom {
+        left: -18%;
+        width: 470px;
+        height: 94px;
+    }
+}

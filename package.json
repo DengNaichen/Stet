@@ -1,0 +1,16 @@
+{
+  "name": "stet",
+  "private": true,
+  "scripts": {
+    "mac:build": "xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' build",
+    "mac:release": "./scripts/build-macos-release.sh",
+    "web:install": "npm --prefix apps/web install",
+    "web:dev": "npm --prefix apps/web run dev",
+    "web:check": "npm --prefix apps/web run check",
+    "web:build": "npm --prefix apps/web run build",
+    "backend:start": "npx supabase start --workdir apps/backend",
+    "backend:stop": "npx supabase stop --workdir apps/backend",
+    "backend:db:reset": "npx supabase db reset --workdir apps/backend",
+    "backend:serve": "npx supabase functions serve relay --workdir apps/backend --env-file apps/backend/.env.local"
+  }
+}
