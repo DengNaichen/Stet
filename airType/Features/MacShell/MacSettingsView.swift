@@ -81,10 +81,8 @@ struct MacSettingsView: View {
     @AppStorage(MacPreferences.hotkeyDistinguishModifierSides) private var hotkeyDistinguishModifierSides = false
 
     @StateObject private var dictionaryViewModel = DictionaryViewModel()
+    @StateObject private var openAISettingsViewModel = MacOpenAISettingsViewModel()
     @State private var selectedTab: MacSettingsTab = .general
-    @State private var openAIAPIKey = ""
-    @State private var openAIKeyMessage = "Stored securely in Keychain."
-    @State private var openAIKeyMessageIsError = false
     @State private var hotkeyMessage: String?
     @State private var hotkeyMessageIsError = false
     @State private var generalMessage: String?
@@ -494,111 +492,14 @@ struct MacSettingsView: View {
     }
 
     private var openAITab: some View {
-        settingsCard(
-            title: "OpenAI Pipeline",
-            description: "Configure the OpenAI-compatible transcription, translation, and rewrite path. Use the default OpenAI URL for direct BYOK, or point to your managed relay base URL."
-        ) {
-            settingsValueRow(title: "Transcription") {
-                statusBadge(appModel.transcriptionProviderName, tint: .blue)
-            }
-
-            Toggle("Rewrite final transcript with OpenAI", isOn: $rewriteEnabled)
-            Toggle(
-                "Translate selected text directly when the translation shortcut is used",
-                isOn: $translateSelectedTextOnTranslationHotkey
-            )
-
-            settingsValueRow(title: "Target language") {
-                Picker("Target language", selection: translationTargetLanguageBinding) {
-                    ForEach(TranslationTargetLanguage.allCases) { language in
-                        Text(language.title).tag(language)
-                    }
-                }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .frame(width: 220, alignment: .trailing)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Translation model")
-                    .foregroundStyle(.secondary)
-
-                TextField("OpenAI model for translation", text: $openAITranslationModel)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(.body, design: .monospaced))
-            }
-
-            settingsValueRow(title: "Status") {
-                statusBadge(
-                    appModel.openAIStatusText,
-                    tint: appModel.openAIStatusText == "Configured" ? .green : .orange
-                )
-            }
-
-            settingsValueRow(title: "Rewrite") {
-                statusBadge(
-                    appModel.rewriteStatusText,
-                    tint: rewriteEnabled ? .blue : .gray
-                )
-            }
-
-            settingsValueRow(title: "Translation") {
-                statusBadge(
-                    translationTargetLanguage.title,
-                    tint: .blue
-                )
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("OpenAI-compatible base URL")
-                    .foregroundStyle(.secondary)
-
-                TextField("https://api.openai.com/v1", text: $openAIBaseURL)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(.body, design: .monospaced))
-            }
-
-            HStack(spacing: 8) {
-                Button("Use OpenAI Default URL") {
-                    openAIBaseURL = "https://api.openai.com/v1"
-                }
-
-                Button("Use Local Relay URL") {
-                    openAIBaseURL = "http://127.0.0.1:54321/functions/v1/relay/v1"
-                }
-            }
-            .controlSize(.small)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("OpenAI API key")
-                    .foregroundStyle(.secondary)
-
-                SecureField("OpenAI API key or managed access token", text: $openAIAPIKey)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(.body, design: .monospaced))
-            }
-
-            HStack(spacing: 8) {
-                Button("Save Key") {
-                    saveOpenAIAPIKey()
-                }
-
-                Button("Clear Key", role: .destructive) {
-                    clearOpenAIAPIKey()
-                }
-            }
-            .controlSize(.regular)
-
-            if shouldHighlightMissingOpenAIKey {
-                Text("Add an OpenAI API key or managed access token before using cloud transcription, translation, or rewrite.")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
-
-            Text(openAIKeyMessage)
-                .font(.caption)
-                .foregroundStyle(openAIKeyMessageIsError ? .red : .secondary)
-        }
+        MacOpenAISettingsView(
+            viewModel: openAISettingsViewModel,
+            rewriteEnabled: $rewriteEnabled,
+            openAIBaseURL: $openAIBaseURL,
+            translationTargetLanguage: translationTargetLanguageBinding,
+            translateSelectedTextOnTranslationHotkey: $translateSelectedTextOnTranslationHotkey,
+            openAITranslationModel: $openAITranslationModel
+        )
     }
 
     private var dictionaryTab: some View {
@@ -858,10 +759,6 @@ struct MacSettingsView: View {
             appModel.inputMonitoringNeedsAttention
     }
 
-    private var shouldHighlightMissingOpenAIKey: Bool {
-        openAIAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
     private var interactionSoundPresetBinding: Binding<InteractionSoundPreset> {
         Binding(
             get: { interactionSoundPreset },
@@ -898,7 +795,7 @@ struct MacSettingsView: View {
     }
 
     private func reloadStateFromPreferences() {
-        loadOpenAIAPIKey()
+        openAISettingsViewModel.load()
         dictionaryViewModel.load()
         appBranchRules = settingsStore.loadAppBranchRules()
         launchAtLogin = MacAppBehaviorController.launchAtLoginIsEnabled()
@@ -946,34 +843,6 @@ struct MacSettingsView: View {
         if !selectionExists {
             selectedAudioInputDeviceIDRaw = 0
         }
-    }
-
-    private func loadOpenAIAPIKey() {
-        openAIAPIKey = settingsStore.loadOpenAIAPIKey()
-        openAIKeyMessage = openAIAPIKey.isEmpty
-            ? "Add a key or managed access token to enable cloud features."
-            : "Credential is saved in Keychain."
-        openAIKeyMessageIsError = false
-    }
-
-    private func saveOpenAIAPIKey() {
-        do {
-            try settingsStore.saveOpenAIAPIKey(openAIAPIKey)
-            let trimmedKey = openAIAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-            openAIAPIKey = trimmedKey
-            openAIKeyMessage = trimmedKey.isEmpty
-                ? "Credential removed from Keychain."
-                : "Credential saved in Keychain."
-            openAIKeyMessageIsError = false
-        } catch {
-            openAIKeyMessage = error.localizedDescription
-            openAIKeyMessageIsError = true
-        }
-    }
-
-    private func clearOpenAIAPIKey() {
-        openAIAPIKey = ""
-        saveOpenAIAPIKey()
     }
 
     private func exportConfiguration() {
