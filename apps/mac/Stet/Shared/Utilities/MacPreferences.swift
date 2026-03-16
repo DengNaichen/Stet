@@ -25,10 +25,6 @@ enum MacPreferences {
     nonisolated static let interactionSoundPreset = "mac.interactionSoundPreset"
     nonisolated static let launchAtLogin = "mac.launchAtLogin"
     nonisolated static let showInDock = "mac.showInDock"
-    nonisolated static let proxyMode = "mac.proxyMode"
-    nonisolated static let customProxyScheme = "mac.customProxyScheme"
-    nonisolated static let customProxyHost = "mac.customProxyHost"
-    nonisolated static let customProxyPort = "mac.customProxyPort"
     nonisolated static let hotkeyDebugLoggingEnabled = "mac.hotkeyDebugLoggingEnabled"
     nonisolated static let openAIDebugLoggingEnabled = "mac.openAIDebugLoggingEnabled"
 }

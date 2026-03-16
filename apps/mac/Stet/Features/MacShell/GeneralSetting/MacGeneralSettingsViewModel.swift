@@ -4,13 +4,18 @@ import Foundation
 
 @MainActor
 final class MacGeneralSettingsViewModel: ObservableObject {
-    struct RestoredState {
-        let launchAtLogin: Bool
-        let selectedAudioInputDeviceID: Int
+    struct ManagedSettingsState {
+        var launchAtLogin = false
+        var showInDock = false
+        var selectedAudioInputDeviceID = 0
     }
 
-    @Published private(set) var message: String?
-    @Published private(set) var messageIsError = false
+    struct Feedback {
+        let message: String
+        let isError: Bool
+    }
+
+    @Published private(set) var feedback: Feedback?
     @Published private(set) var inputDevices: [AudioInputDevice] = []
 
     private let settingsStore: DictationSettingsStore
@@ -33,13 +38,8 @@ final class MacGeneralSettingsViewModel: ObservableObject {
         return "System Default"
     }
 
-    func load(currentSelectedAudioInputDeviceID: Int) -> RestoredState {
-        RestoredState(
-            launchAtLogin: MacAppBehaviorController.launchAtLoginIsEnabled(),
-            selectedAudioInputDeviceID: refreshInputDevices(
-                selectedAudioInputDeviceID: currentSelectedAudioInputDeviceID
-            )
-        )
+    func loadState() -> ManagedSettingsState {
+        currentState()
     }
 
     @discardableResult
@@ -52,8 +52,9 @@ final class MacGeneralSettingsViewModel: ObservableObject {
 
         let selectionExists = selectedAudioInputDeviceID == 0 ||
             inputDevices.contains(where: { Int($0.id) == selectedAudioInputDeviceID })
-
-        return selectionExists ? selectedAudioInputDeviceID : 0
+        let resolvedSelection = selectionExists ? selectedAudioInputDeviceID : 0
+        defaults.set(resolvedSelection, forKey: MacPreferences.selectedAudioInputDeviceID)
+        return resolvedSelection
     }
 
     func selectedAudioInputDeviceSummary(for selectedAudioInputDeviceID: Int) -> String? {
@@ -75,16 +76,13 @@ final class MacGeneralSettingsViewModel: ObservableObject {
     func exportConfiguration() {
         do {
             try MacConfigurationTransferManager.exportConfiguration(using: settingsStore)
-            setMessage("Configuration exported.")
+            setFeedback("Configuration exported.")
         } catch {
-            setMessage(error.localizedDescription, isError: true)
+            setFeedback(error.localizedDescription, isError: true)
         }
     }
 
-    func importConfiguration(
-        appModel: MacAppModel,
-        currentSelectedAudioInputDeviceID: Int
-    ) -> RestoredState {
+    func importConfiguration(appModel: MacAppModel) -> ManagedSettingsState {
         do {
             try MacConfigurationTransferManager.importConfiguration(using: settingsStore)
 
@@ -94,33 +92,19 @@ final class MacGeneralSettingsViewModel: ObservableObject {
             do {
                 try appModel.setLaunchAtLoginEnabled(importedLaunchAtLogin)
             } catch {
-                setMessage(error.localizedDescription, isError: true)
-                return RestoredState(
-                    launchAtLogin: MacAppBehaviorController.launchAtLoginIsEnabled(),
-                    selectedAudioInputDeviceID: refreshInputDevices(
-                        selectedAudioInputDeviceID: currentSelectedAudioInputDeviceID
-                    )
-                )
+                let currentLaunchAtLoginPreference = MacAppBehaviorController.launchAtLoginIsEnabled()
+                defaults.set(currentLaunchAtLoginPreference, forKey: MacPreferences.launchAtLogin)
+                appModel.refreshRuntimeFromSettings()
+                setFeedback(error.localizedDescription, isError: true)
+                return currentState()
             }
 
             appModel.refreshRuntimeFromSettings()
-            setMessage("Configuration imported. API keys are still managed separately in Keychain.")
-
-            let restoredSelection = defaults.integer(forKey: MacPreferences.selectedAudioInputDeviceID)
-            return RestoredState(
-                launchAtLogin: importedLaunchAtLogin,
-                selectedAudioInputDeviceID: refreshInputDevices(
-                    selectedAudioInputDeviceID: restoredSelection
-                )
-            )
+            setFeedback("Configuration imported. API keys are still managed separately in Keychain.")
+            return currentState()
         } catch {
-            setMessage(error.localizedDescription, isError: true)
-            return RestoredState(
-                launchAtLogin: MacAppBehaviorController.launchAtLoginIsEnabled(),
-                selectedAudioInputDeviceID: refreshInputDevices(
-                    selectedAudioInputDeviceID: currentSelectedAudioInputDeviceID
-                )
-            )
+            setFeedback(error.localizedDescription, isError: true)
+            return currentState()
         }
     }
 
@@ -131,26 +115,45 @@ final class MacGeneralSettingsViewModel: ObservableObject {
     ) -> Bool {
         do {
             try appModel.setLaunchAtLoginEnabled(newValue)
-            setMessage(newValue ? "Launch at Login enabled." : "Launch at Login disabled.")
+            defaults.set(newValue, forKey: MacPreferences.launchAtLogin)
+            setFeedback(newValue ? "Launch at Login enabled." : "Launch at Login disabled.")
             return newValue
         } catch {
-            setMessage(error.localizedDescription, isError: true)
+            defaults.set(oldValue, forKey: MacPreferences.launchAtLogin)
+            setFeedback(error.localizedDescription, isError: true)
             return oldValue
         }
     }
 
     func applyDockVisibilityChange(_ showInDock: Bool, appModel: MacAppModel) {
+        defaults.set(showInDock, forKey: MacPreferences.showInDock)
         appModel.applyDockVisibility(showInDock: showInDock)
-        setMessage(showInDock ? "Dock icon enabled." : "Dock icon hidden.")
+        setFeedback(showInDock ? "Dock icon enabled." : "Dock icon hidden.")
     }
 
-    func previewInteractionSound(_ preset: InteractionSoundPreset, appModel: MacAppModel) {
-        appModel.previewInteractionSound(preset)
+    func persistSelectedAudioInputDeviceID(_ selectedAudioInputDeviceID: Int) {
+        defaults.set(selectedAudioInputDeviceID, forKey: MacPreferences.selectedAudioInputDeviceID)
     }
 
-    private func setMessage(_ message: String, isError: Bool = false) {
-        self.message = message
-        messageIsError = isError
+    private var currentShowInDockPreference: Bool {
+        defaults.object(forKey: MacPreferences.showInDock) as? Bool ?? false
+    }
+
+    private func currentState() -> ManagedSettingsState {
+        let currentLaunchAtLoginPreference = MacAppBehaviorController.launchAtLoginIsEnabled()
+        defaults.set(currentLaunchAtLoginPreference, forKey: MacPreferences.launchAtLogin)
+
+        return ManagedSettingsState(
+            launchAtLogin: currentLaunchAtLoginPreference,
+            showInDock: currentShowInDockPreference,
+            selectedAudioInputDeviceID: refreshInputDevices(
+                selectedAudioInputDeviceID: defaults.integer(forKey: MacPreferences.selectedAudioInputDeviceID)
+            )
+        )
+    }
+
+    private func setFeedback(_ message: String, isError: Bool = false) {
+        feedback = Feedback(message: message, isError: isError)
     }
 }
 #endif

@@ -45,8 +45,6 @@ struct MacAppBootstrapper {
         .bool(MacPreferences.interactionSoundsEnabled, true),
         .string(MacPreferences.interactionSoundPreset, InteractionSoundPreset.soft.rawValue),
         .bool(MacPreferences.showInDock, false),
-        .string(MacPreferences.proxyMode, NetworkProxyMode.system.rawValue),
-        .string(MacPreferences.customProxyScheme, CustomProxyScheme.http.rawValue),
         .bool(MacPreferences.hotkeyDebugLoggingEnabled, false),
         .bool(MacPreferences.openAIDebugLoggingEnabled, false),
     ]

@@ -100,13 +100,6 @@ struct DictationSettingsStore: Sendable {
         )
     }
 
-//    nonisolated func loadGlobalHotkeyShortcut() -> GlobalHotkeyShortcut { ... }
-//    nonisolated func saveGlobalHotkeyShortcut(_ shortcut: GlobalHotkeyShortcut) { ... }
-//    nonisolated func loadHotkeyShortcut(for action: HotkeyChannelAction) -> GlobalHotkeyShortcut? { ... }
-//    nonisolated func saveHotkeyShortcut(_ shortcut: GlobalHotkeyShortcut?, for action: HotkeyChannelAction) { ... }
-//    nonisolated func loadHotkeyPreset() -> HotkeyPreset { ... }
-//    nonisolated func saveHotkeyPreset(_ preset: HotkeyPreset) { ... }
-
     nonisolated func loadPersonalDictionary() -> [String] {
         dictionaryModel.loadEntries()
     }
@@ -208,16 +201,11 @@ struct DictationSettingsStore: Sendable {
     }
 
     nonisolated func loadProxySettings() -> NetworkProxySettings {
-        let mode = NetworkProxyMode(rawValue: defaults.string(forKey: MacPreferences.proxyMode) ?? "") ?? .system
-        let customScheme = CustomProxyScheme(rawValue: defaults.string(forKey: MacPreferences.customProxyScheme) ?? "") ?? .http
-        let customHost = defaults.string(forKey: MacPreferences.customProxyHost) ?? ""
-        let customPortString = defaults.string(forKey: MacPreferences.customProxyPort) ?? ""
-
-        return NetworkProxySettings(
-            mode: mode,
-            customScheme: customScheme,
-            customHost: customHost,
-            customPort: Int(customPortString)
+        NetworkProxySettings(
+            mode: .system,
+            customScheme: .http,
+            customHost: "",
+            customPort: nil
         )
     }
 
@@ -232,7 +220,4 @@ struct DictationSettingsStore: Sendable {
     nonisolated func saveOpenAIAPIKey(_ apiKey: String) throws {
         try secretStore.saveString(apiKey, forAccount: SecretKey.openAIAPIKey)
     }
-
-//    nonisolated private func loadOptionalHotkeyShortcut(forKey key: String) -> GlobalHotkeyShortcut? { ... }
-//    nonisolated private func saveOptionalHotkeyShortcut(_ shortcut: GlobalHotkeyShortcut?, forKey key: String) { ... }
 }

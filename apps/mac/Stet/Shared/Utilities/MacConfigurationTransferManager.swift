@@ -35,10 +35,6 @@ enum MacConfigurationTransferManager {
         var showInDock: Bool
         var hotkeyDistinguishModifierSides: Bool
         var personalDictionary: [String]
-        var proxyMode: String
-        var customProxyScheme: String
-        var customProxyHost: String
-        var customProxyPort: String
         var hotkeyDebugLoggingEnabled: Bool
         var openAIDebugLoggingEnabled: Bool
         var openAIAPIKeyPlaceholder: String
@@ -95,7 +91,6 @@ enum MacConfigurationTransferManager {
         using store: DictationSettingsStore,
         defaults: UserDefaults
     ) -> ExportedConfiguration {
-        let proxySettings = store.loadProxySettings()
 
         return ExportedConfiguration(
             version: 1,
@@ -119,10 +114,6 @@ enum MacConfigurationTransferManager {
             showInDock: defaults.object(forKey: MacPreferences.showInDock) as? Bool ?? false,
             hotkeyDistinguishModifierSides: store.loadHotkeyDistinguishModifierSides(),
             personalDictionary: store.loadPersonalDictionary(),
-            proxyMode: proxySettings.mode.rawValue,
-            customProxyScheme: proxySettings.customScheme.rawValue,
-            customProxyHost: proxySettings.customHost,
-            customProxyPort: proxySettings.customPort.map(String.init) ?? "",
             hotkeyDebugLoggingEnabled: defaults.object(forKey: MacPreferences.hotkeyDebugLoggingEnabled) as? Bool ?? false,
             openAIDebugLoggingEnabled: defaults.object(forKey: MacPreferences.openAIDebugLoggingEnabled) as? Bool ?? false,
             openAIAPIKeyPlaceholder: store.loadOpenAIAPIKey().isEmpty ? "" : "set-manually"
@@ -159,10 +150,6 @@ enum MacConfigurationTransferManager {
         defaults.set(imported.hotkeyDebugLoggingEnabled, forKey: MacPreferences.hotkeyDebugLoggingEnabled)
         defaults.set(imported.openAIDebugLoggingEnabled, forKey: MacPreferences.openAIDebugLoggingEnabled)
         defaults.set(imported.hotkeyDistinguishModifierSides, forKey: MacPreferences.hotkeyDistinguishModifierSides)
-        defaults.set(imported.proxyMode, forKey: MacPreferences.proxyMode)
-        defaults.set(imported.customProxyScheme, forKey: MacPreferences.customProxyScheme)
-        defaults.set(imported.customProxyHost, forKey: MacPreferences.customProxyHost)
-        defaults.set(imported.customProxyPort, forKey: MacPreferences.customProxyPort)
 
         store.saveHotkeyDistinguishModifierSides(imported.hotkeyDistinguishModifierSides)
         store.saveTranslationTargetLanguage(
