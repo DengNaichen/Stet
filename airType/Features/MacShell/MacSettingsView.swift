@@ -7,7 +7,6 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable {
     case hotkey
     case openAI
     case dictionary
-    case appBranch
     case history
     case permissions
 
@@ -23,8 +22,6 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable {
             return "OpenAI"
         case .dictionary:
             return "Dictionary"
-        case .appBranch:
-            return "App Branch"
         case .history:
             return "History"
         case .permissions:
@@ -42,8 +39,6 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable {
             return "key.horizontal"
         case .dictionary:
             return "text.book.closed"
-        case .appBranch:
-            return "square.stack.3d.up"
         case .history:
             return "clock.arrow.circlepath"
         case .permissions:
@@ -69,7 +64,6 @@ struct MacSettingsView: View {
     @AppStorage(MacPreferences.historyRetentionPeriod) private var historyRetentionPeriodRawValue = HistoryRetentionPeriod.thirtyDays.rawValue
     @AppStorage(MacPreferences.interactionSoundsEnabled) private var interactionSoundsEnabled = true
     @AppStorage(MacPreferences.interactionSoundPreset) private var interactionSoundPresetRawValue = InteractionSoundPreset.soft.rawValue
-    @AppStorage(MacPreferences.appBranchEnabled) private var appBranchEnabled = false
     @AppStorage(MacPreferences.launchAtLogin) private var launchAtLogin = false
     @AppStorage(MacPreferences.showInDock) private var showInDock = false
     @AppStorage(MacPreferences.proxyMode) private var proxyModeRawValue = NetworkProxyMode.system.rawValue
@@ -88,23 +82,10 @@ struct MacSettingsView: View {
     @State private var generalMessage: String?
     @State private var generalMessageIsError = false
     @State private var inputDevices: [AudioInputDevice] = []
-    @State private var appBranchRules: [AppBranchRule] = []
-    @State private var editingRuleID: UUID?
-    @State private var ruleNameDraft = ""
-    @State private var rulePromptDraft = ""
-    @State private var rulePromptDeliveryDraft: AppBranchPromptDelivery = .userMessage
-    @State private var ruleAppsDraft = ""
-    @State private var ruleURLsDraft = ""
-    @State private var appBranchMessage: String?
-    @State private var appBranchMessageIsError = false
-    @State private var automationStates: [String: BrowserAutomationState] = [:]
-    @State private var automationMessages: [String: String] = [:]
-    @State private var automationLoadingTargets: Set<String> = []
     @State private var historyDisplayLimit = 20
     @State private var inspectedHistoryRecordID: UUID?
 
     private let settingsStore = DictationSettingsStore()
-    private let browserTargets = BrowserURLReader.builtInTargets()
 
     var body: some View {
         ZStack {
@@ -143,7 +124,6 @@ struct MacSettingsView: View {
         .task {
             reloadStateFromPreferences()
             refreshInputDevices()
-            refreshAutomationStates()
         }
         .onAppear {
             appModel.settingsDidAppear()
@@ -159,9 +139,6 @@ struct MacSettingsView: View {
             appModel.applyDockVisibility(showInDock: newValue)
             generalMessage = newValue ? "Dock icon enabled." : "Dock icon hidden."
             generalMessageIsError = false
-        }
-        .onChange(of: appBranchEnabled) { _, _ in
-            refreshAutomationStates()
         }
         .onChange(of: historyRetentionPeriodRawValue) { _, _ in
             historyDisplayLimit = 20
@@ -263,8 +240,6 @@ struct MacSettingsView: View {
             openAITab
         case .dictionary:
             dictionaryTab
-        case .appBranch:
-            appBranchTab
         case .history:
             historyTab
         case .permissions:
@@ -276,7 +251,7 @@ struct MacSettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             settingsCard(
                 title: "Configuration",
-                description: "Export or import your current hotkey, prompt routing, dictionary, and behavior settings."
+                description: "Export or import your current hotkey, dictionary, and behavior settings."
             ) {
                 HStack(spacing: 8) {
                     Button("Export Configuration") {
@@ -468,10 +443,10 @@ struct MacSettingsView: View {
 
             settingsCard(
                 title: "Debug Logging",
-                description: "Enable temporary logs while diagnosing shortcut handling or prompt routing."
+                description: "Enable temporary logs while diagnosing shortcut handling or OpenAI requests."
             ) {
                 Toggle("Hotkey debug logging", isOn: $hotkeyDebugLoggingEnabled)
-                Toggle("OpenAI and App Branch debug logging", isOn: $openAIDebugLoggingEnabled)
+                Toggle("OpenAI debug logging", isOn: $openAIDebugLoggingEnabled)
             }
         }
     }
@@ -504,98 +479,6 @@ struct MacSettingsView: View {
 
     private var dictionaryTab: some View {
         DictionaryView(viewModel: dictionaryViewModel)
-    }
-
-    private var appBranchTab: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            settingsCard(
-                title: "Context Routing",
-                description: "Switch OpenAI prompt guidance automatically based on the frontmost app or the current browser URL."
-            ) {
-                Toggle("Enable App Branch prompt routing", isOn: $appBranchEnabled)
-
-                Text("URL matching is checked before app matching. Browser URL routing requires macOS Automation permission for the target browser.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            settingsCard(
-                title: editingRuleID == nil ? "Create Rule" : "Edit Rule",
-                description: "Use app bundle identifiers, wildcard URL patterns like github.com/*, choose how the prompt is delivered, and reuse supported template variables."
-            ) {
-                TextField("Rule name", text: $ruleNameDraft)
-                    .textFieldStyle(.roundedBorder)
-
-                settingsValueRow(title: "Delivery") {
-                    Picker("Delivery", selection: $rulePromptDeliveryDraft) {
-                        ForEach(AppBranchPromptDelivery.allCases) { delivery in
-                            Text(delivery.title).tag(delivery)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    .frame(width: 220, alignment: .trailing)
-                }
-
-                TextEditor(text: $rulePromptDraft)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .frame(minHeight: 120)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                    )
-
-                TextField("Bundle IDs, comma or newline separated", text: $ruleAppsDraft)
-                    .textFieldStyle(.roundedBorder)
-
-                TextField("URL patterns, comma or newline separated", text: $ruleURLsDraft)
-                    .textFieldStyle(.roundedBorder)
-
-                Text("Available variables: {{RAW_TRANSCRIPTION}}, {{TEXT}}, {{SELECTED_TEXT}}, {{TARGET_LANGUAGE}}, {{APP_NAME}}, {{BUNDLE_ID}}, {{URL}}")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 8) {
-                    Button("Add Frontmost App") {
-                        appendFrontmostAppToDraft()
-                    }
-
-                    Spacer()
-
-                    if editingRuleID != nil {
-                        Button("Cancel") {
-                            clearRuleDrafts()
-                        }
-                    }
-
-                    Button(editingRuleID == nil ? "Save Rule" : "Update Rule") {
-                        saveAppBranchRule()
-                    }
-                    .disabled(rulePromptDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-
-                if let appBranchMessage {
-                    Text(appBranchMessage)
-                        .font(.caption)
-                        .foregroundStyle(appBranchMessageIsError ? .red : .secondary)
-                }
-            }
-
-            settingsCard(
-                title: "Rules",
-                description: appBranchRules.isEmpty ? "No App Branch rules yet." : nil
-            ) {
-                if appBranchRules.isEmpty {
-                    Text("Create your first rule above to bias OpenAI output toward a coding app, a chat app, or a specific website.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(appBranchRules) { rule in
-                        appBranchRuleCard(rule)
-                    }
-                }
-            }
-        }
     }
 
     private var historyTab: some View {
@@ -714,22 +597,6 @@ struct MacSettingsView: View {
                     }
                 }
             }
-
-            if appBranchEnabled {
-                settingsCard(
-                    title: "Browser Automation",
-                    description: "Grant browser automation permission so airType can read active-tab URLs for App Branch matching."
-                ) {
-                    ForEach(browserTargets) { target in
-                        browserAutomationRow(target)
-                    }
-
-                    Button("Open Automation Settings") {
-                        openAutomationSettings()
-                    }
-                    .controlSize(.small)
-                }
-            }
         }
     }
 
@@ -797,7 +664,6 @@ struct MacSettingsView: View {
     private func reloadStateFromPreferences() {
         openAISettingsViewModel.load()
         dictionaryViewModel.load()
-        appBranchRules = settingsStore.loadAppBranchRules()
         launchAtLogin = MacAppBehaviorController.launchAtLoginIsEnabled()
         historyDisplayLimit = 20
         inspectedHistoryRecordID = nil
@@ -883,252 +749,6 @@ struct MacSettingsView: View {
         }
     }
 
-    private func appendFrontmostAppToDraft() {
-        guard let app = NSWorkspace.shared.frontmostApplication,
-              let bundleID = app.bundleIdentifier,
-              bundleID != Bundle.main.bundleIdentifier else {
-            appBranchMessage = "Bring another app to the front, then try again."
-            appBranchMessageIsError = true
-            return
-        }
-
-        let existing = parsedRuleApps.map(\.bundleID)
-        guard !existing.contains(bundleID) else { return }
-
-        let appended = (parsedRuleApps + [AppBranchAppTarget(bundleID: bundleID, displayName: app.localizedName ?? bundleID)])
-            .map(\.bundleID)
-            .joined(separator: ", ")
-
-        ruleAppsDraft = appended
-    }
-
-    private var parsedRuleApps: [AppBranchAppTarget] {
-        DictationSettingsStore.words(from: ruleAppsDraft).map { bundleID in
-            AppBranchAppTarget(
-                bundleID: bundleID,
-                displayName: resolvedDisplayName(for: bundleID)
-            )
-        }
-    }
-
-    private var parsedRuleURLs: [String] {
-        DictationSettingsStore.words(from: ruleURLsDraft).map(AppBranchRule.canonicalizeURLPattern)
-    }
-
-    private func resolvedDisplayName(for bundleID: String) -> String {
-        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
-              let bundle = Bundle(url: appURL) else {
-            return bundleID
-        }
-
-        return (bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
-            ?? (bundle.object(forInfoDictionaryKey: kCFBundleNameKey as String) as? String)
-            ?? bundleID
-    }
-
-    private func saveAppBranchRule() {
-        let trimmedName = ruleNameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedPrompt = rulePromptDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !trimmedPrompt.isEmpty else {
-            appBranchMessage = "Prompt instructions cannot be empty."
-            appBranchMessageIsError = true
-            return
-        }
-
-        guard !parsedRuleApps.isEmpty || !parsedRuleURLs.isEmpty else {
-            appBranchMessage = "Add at least one app bundle identifier or one URL pattern."
-            appBranchMessageIsError = true
-            return
-        }
-
-        let rule = AppBranchRule(
-            id: editingRuleID ?? UUID(),
-            name: trimmedName.isEmpty ? "Untitled Rule" : trimmedName,
-            prompt: trimmedPrompt,
-            promptDelivery: rulePromptDeliveryDraft,
-            appTargets: parsedRuleApps,
-            urlPatterns: parsedRuleURLs,
-            isEnabled: true
-        )
-
-        if let editingRuleID,
-           let index = appBranchRules.firstIndex(where: { $0.id == editingRuleID }) {
-            appBranchRules[index] = rule
-            appBranchMessage = "Updated App Branch rule."
-        } else {
-            appBranchRules.append(rule)
-            appBranchMessage = "Created App Branch rule."
-        }
-
-        appBranchRules.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-        settingsStore.saveAppBranchRules(appBranchRules)
-        appBranchMessageIsError = false
-        clearRuleDrafts()
-    }
-
-    private func beginEditing(_ rule: AppBranchRule) {
-        editingRuleID = rule.id
-        ruleNameDraft = rule.name
-        rulePromptDraft = rule.prompt
-        rulePromptDeliveryDraft = rule.promptDelivery
-        ruleAppsDraft = rule.appTargets.map(\.bundleID).joined(separator: ", ")
-        ruleURLsDraft = rule.urlPatterns.joined(separator: ", ")
-        appBranchMessage = nil
-    }
-
-    private func deleteRule(_ rule: AppBranchRule) {
-        appBranchRules.removeAll { $0.id == rule.id }
-        settingsStore.saveAppBranchRules(appBranchRules)
-
-        if editingRuleID == rule.id {
-            clearRuleDrafts()
-        }
-    }
-
-    private func clearRuleDrafts() {
-        editingRuleID = nil
-        ruleNameDraft = ""
-        rulePromptDraft = ""
-        rulePromptDeliveryDraft = .userMessage
-        ruleAppsDraft = ""
-        ruleURLsDraft = ""
-    }
-
-    private func refreshAutomationStates() {
-        for target in browserTargets {
-            automationStates[target.bundleID] = BrowserURLReader.browserAutomationState(for: target.bundleID)
-        }
-    }
-
-    private func requestAutomationPermission(for target: BrowserAutomationTarget) {
-        automationLoadingTargets.insert(target.bundleID)
-
-        Task { @MainActor in
-            let state = BrowserURLReader.requestAutomationPermission(for: target.bundleID)
-            automationStates[target.bundleID] = state
-            automationMessages[target.bundleID] = state == .enabled ? "Authorization granted." : "Authorization not granted."
-            automationLoadingTargets.remove(target.bundleID)
-        }
-    }
-
-    private func testAutomation(for target: BrowserAutomationTarget) {
-        automationLoadingTargets.insert(target.bundleID)
-
-        Task { @MainActor in
-            let result = BrowserURLReader.testURLRead(for: target.bundleID)
-            if let url = result.url, !url.isEmpty {
-                automationStates[target.bundleID] = .enabled
-                automationMessages[target.bundleID] = "Browser URL read test succeeded."
-            } else if result.permissionDenied {
-                automationStates[target.bundleID] = .disabled
-                automationMessages[target.bundleID] = "Browser URL read test failed: permission denied."
-            } else if result.appNotRunning {
-                automationMessages[target.bundleID] = "Browser URL read test failed: browser is not running."
-            } else if let errorCode = result.lastErrorCode {
-                automationMessages[target.bundleID] = "Browser URL read test failed (error: \(errorCode))."
-            } else {
-                automationMessages[target.bundleID] = "Browser URL read test failed."
-            }
-
-            automationLoadingTargets.remove(target.bundleID)
-        }
-    }
-
-    private func openAutomationSettings() {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") else {
-            return
-        }
-
-        NSWorkspace.shared.open(url)
-    }
-
-    private func appBranchRuleCard(_ rule: AppBranchRule) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(rule.name)
-                    .font(.headline)
-
-                Spacer()
-
-                statusBadge(rule.promptDelivery.title, tint: rule.promptDelivery == .systemPrompt ? .blue : .green)
-
-                Button("Edit") {
-                    beginEditing(rule)
-                }
-                .controlSize(.small)
-
-                Button("Delete", role: .destructive) {
-                    deleteRule(rule)
-                }
-                .controlSize(.small)
-            }
-
-            Text(rule.prompt)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(.primary)
-
-            if !rule.appTargets.isEmpty {
-                Text("Apps: " + rule.appTargets.map(\.displayName).joined(separator: ", "))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            if !rule.urlPatterns.isEmpty {
-                Text("URLs: " + rule.urlPatterns.joined(separator: ", "))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.secondary.opacity(0.08))
-        )
-    }
-
-    private func browserAutomationRow(_ target: BrowserAutomationTarget) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(target.displayName)
-                    .font(.subheadline)
-
-                if let message = automationMessages[target.bundleID] {
-                    Text(message)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("Read the current active-tab URL from \(target.displayName).")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Spacer()
-
-            if automationLoadingTargets.contains(target.bundleID) {
-                ProgressView()
-                    .controlSize(.small)
-            }
-
-            statusBadge(
-                automationStates[target.bundleID] == .enabled ? "Enabled" : "Disabled",
-                tint: automationStates[target.bundleID] == .enabled ? .green : .orange
-            )
-
-            Button("Request") {
-                requestAutomationPermission(for: target)
-            }
-            .controlSize(.small)
-
-            Button("Test") {
-                testAutomation(for: target)
-            }
-            .controlSize(.small)
-        }
-        .padding(.vertical, 2)
-    }
-
     private func historyRow(for record: TranscriptionRecord) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
@@ -1173,12 +793,6 @@ struct MacSettingsView: View {
 
                 if let focusedAppName = record.metadata.focusedAppName, !focusedAppName.isEmpty {
                     Text("App: \(focusedAppName)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                if let matchedRule = record.metadata.matchedAppBranchRuleName, !matchedRule.isEmpty {
-                    Text("Rule: \(matchedRule)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -1300,8 +914,6 @@ struct MacSettingsView: View {
             metadataLine("Target Language", record.metadata.targetLanguage)
             metadataLine("Focused App", record.metadata.focusedAppName)
             metadataLine("Bundle ID", record.metadata.focusedBundleID)
-            metadataLine("App Branch Rule", record.metadata.matchedAppBranchRuleName)
-            metadataLine("Matched URL Pattern", record.metadata.matchedURLPattern)
         }
         .padding(10)
         .background(

@@ -71,8 +71,6 @@ struct TranscriptionRecordMetadata: Equatable, Codable, Sendable {
     let targetLanguage: String?
     let focusedAppName: String?
     let focusedBundleID: String?
-    let matchedAppBranchRuleName: String?
-    let matchedURLPattern: String?
 
     init(
         kind: TranscriptionRecordKind = .dictation,
@@ -83,9 +81,7 @@ struct TranscriptionRecordMetadata: Equatable, Codable, Sendable {
         rewriteModel: String? = nil,
         targetLanguage: String? = nil,
         focusedAppName: String? = nil,
-        focusedBundleID: String? = nil,
-        matchedAppBranchRuleName: String? = nil,
-        matchedURLPattern: String? = nil
+        focusedBundleID: String? = nil
     ) {
         self.kind = kind
         self.source = source
@@ -96,8 +92,6 @@ struct TranscriptionRecordMetadata: Equatable, Codable, Sendable {
         self.targetLanguage = targetLanguage
         self.focusedAppName = focusedAppName
         self.focusedBundleID = focusedBundleID
-        self.matchedAppBranchRuleName = matchedAppBranchRuleName
-        self.matchedURLPattern = matchedURLPattern
     }
 }
 

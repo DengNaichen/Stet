@@ -14,6 +14,11 @@ final class MacAppModel: ObservableObject {
         case hotkey
     }
 
+    private struct FocusedAppSnapshot {
+        let bundleID: String?
+        let appName: String?
+    }
+
     private enum CaptureWorkflow: Equatable {
         case dictation
         case translationFromSpeech
@@ -45,7 +50,6 @@ final class MacAppModel: ObservableObject {
     private let textInjectionService: any TextInjectionService
     private let mediaPlaybackController: any MediaPlaybackControlling
     private let settingsStore: DictationSettingsStore
-    private let captureContextStore: CaptureContextStore
     private let captureCoordinator: MacDictationCaptureCoordinator
     private let panelController = MacPanelController()
     private let interactionSoundPlayer = InteractionSoundPlayer()
@@ -55,7 +59,7 @@ final class MacAppModel: ObservableObject {
     private weak var lastTargetApplication: NSRunningApplication?
     private var activeRecordingSource: PrimaryActionSource?
     private var activeWorkflow: CaptureWorkflow = .dictation
-    private var activeContextSnapshot: AppBranchContextSnapshot?
+    private var activeContextSnapshot: FocusedAppSnapshot?
     private var panelPresentationMode: PanelPresentationMode = .manual
     private var previousDictationState: DictationState = .idle
     private var isSettingsVisible = false
@@ -66,18 +70,13 @@ final class MacAppModel: ObservableObject {
         let clipboardService = SystemClipboardService()
         let textInjectionService = SystemTextInjectionService(clipboardService: clipboardService)
         let historyStore = FileTranscriptionHistoryStore()
-        let captureContextStore = CaptureContextStore()
         self.init(
-            speechService: ConfigurableSpeechService(
-                settingsStore: settingsStore,
-                captureContextStore: captureContextStore
-            ),
+            speechService: ConfigurableSpeechService(settingsStore: settingsStore),
             clipboardService: clipboardService,
             textInjectionService: textInjectionService,
             historyStore: historyStore,
             mediaPlaybackController: MacMediaPlaybackController(),
             settingsStore: settingsStore,
-            captureContextStore: captureContextStore,
             captureCoordinator: MacDictationCaptureCoordinator(
                 clipboardService: clipboardService,
                 textInjectionService: textInjectionService,
@@ -93,7 +92,6 @@ final class MacAppModel: ObservableObject {
         historyStore: any TranscriptionHistoryStore,
         mediaPlaybackController: any MediaPlaybackControlling,
         settingsStore: DictationSettingsStore = DictationSettingsStore(),
-        captureContextStore: CaptureContextStore = CaptureContextStore(),
         captureCoordinator: MacDictationCaptureCoordinator? = nil
     ) {
         self.dictationViewModel = DictationViewModel(speechService: speechService)
@@ -101,7 +99,6 @@ final class MacAppModel: ObservableObject {
         self.textInjectionService = textInjectionService
         self.mediaPlaybackController = mediaPlaybackController
         self.settingsStore = settingsStore
-        self.captureContextStore = captureContextStore
         self.captureCoordinator = captureCoordinator ?? MacDictationCaptureCoordinator(
             clipboardService: clipboardService,
             textInjectionService: textInjectionService,
@@ -637,7 +634,7 @@ final class MacAppModel: ObservableObject {
         text: String,
         workflow: CaptureWorkflow
     ) async -> MacDictationCaptureCoordinator.CaptureOutcome {
-        let metadata = await makeHistoryMetadata(for: workflow)
+        let metadata = makeHistoryMetadata(for: workflow)
 
         if workflow.isSelectionReplacement {
             return await handleSelectedTextReplacementResult(text: text, metadata: metadata)
@@ -745,10 +742,6 @@ final class MacAppModel: ObservableObject {
             UserDefaults.standard.set(InteractionSoundPreset.soft.rawValue, forKey: MacPreferences.interactionSoundPreset)
         }
 
-        if UserDefaults.standard.object(forKey: MacPreferences.appBranchEnabled) == nil {
-            UserDefaults.standard.set(false, forKey: MacPreferences.appBranchEnabled)
-        }
-
         if UserDefaults.standard.string(forKey: MacPreferences.historyRetentionPeriod) == nil {
             settingsStore.saveHistoryRetentionPeriod(.thirtyDays)
         }
@@ -793,7 +786,7 @@ final class MacAppModel: ObservableObject {
     }
 
     @discardableResult
-    private func captureTargetApplicationSnapshot() -> AppBranchContextSnapshot {
+    private func captureTargetApplicationSnapshot() -> FocusedAppSnapshot {
         let frontmostApplication = NSWorkspace.shared.frontmostApplication
         let application: NSRunningApplication?
         if let frontmostApplication,
@@ -804,26 +797,14 @@ final class MacAppModel: ObservableObject {
         }
 
         guard let application else {
-            return activeContextSnapshot ?? AppBranchContextSnapshot(
-                context: AppBranchContext(bundleID: nil, appName: nil, browserURL: nil),
-                capturedAt: .now
-            )
+            return activeContextSnapshot ?? FocusedAppSnapshot(bundleID: nil, appName: nil)
         }
 
         lastTargetApplication = application
-        let bundleID = application.bundleIdentifier
-        let appName = application.localizedName
-        let browserURL = bundleID.flatMap { browserBundleID in
-            BrowserURLReader.supportedBrowserBundleIDs().contains(browserBundleID)
-                ? BrowserURLReader.readActiveURL(for: browserBundleID)
-                : nil
-        }
-        let context = AppBranchContext(bundleID: bundleID, appName: appName, browserURL: browserURL)
-        let snapshot = AppBranchContextSnapshot(context: context, capturedAt: .now)
-        Task { [captureContextStore] in
-            await captureContextStore.setContext(context)
-        }
-        return snapshot
+        return FocusedAppSnapshot(
+            bundleID: application.bundleIdentifier,
+            appName: application.localizedName
+        )
     }
 
     private var settingsSnapshot: DictationSettingsSnapshot {
@@ -913,19 +894,9 @@ final class MacAppModel: ObservableObject {
         return false
     }
 
-    private func makeHistoryMetadata(for workflow: CaptureWorkflow) async -> TranscriptionRecordMetadata {
+    private func makeHistoryMetadata(for workflow: CaptureWorkflow) -> TranscriptionRecordMetadata {
         let snapshot = settingsSnapshot
-        let contextSnapshot: AppBranchContextSnapshot
-
-        if let activeContextSnapshot {
-            contextSnapshot = activeContextSnapshot
-        } else {
-            contextSnapshot = await captureContextStore.snapshot()
-        }
-
-        let appBranchMatch = snapshot.appBranchEnabled
-            ? AppBranchResolver.match(in: snapshot.appBranchRules, context: contextSnapshot.context)
-            : nil
+        let contextSnapshot = activeContextSnapshot ?? captureTargetApplicationSnapshot()
 
         let kind: TranscriptionRecordKind
         let source: TranscriptionRecordSource
@@ -955,10 +926,8 @@ final class MacAppModel: ObservableObject {
             translationModel: kind == .translation ? snapshot.openAIConfiguration?.translationModel : nil,
             rewriteModel: kind == .rewrite ? snapshot.openAIConfiguration?.rewriteModel : nil,
             targetLanguage: kind == .translation ? snapshot.translationTargetLanguage.title : nil,
-            focusedAppName: contextSnapshot.context.appName,
-            focusedBundleID: contextSnapshot.context.bundleID,
-            matchedAppBranchRuleName: appBranchMatch?.rule.name,
-            matchedURLPattern: appBranchMatch?.matchedURLPattern
+            focusedAppName: contextSnapshot.appName,
+            focusedBundleID: contextSnapshot.bundleID
         )
     }
 }

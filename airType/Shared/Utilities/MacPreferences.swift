@@ -24,8 +24,6 @@ enum MacPreferences {
     nonisolated static let personalDictionaryEnabled = "mac.personalDictionaryEnabled"
     nonisolated static let interactionSoundsEnabled = "mac.interactionSoundsEnabled"
     nonisolated static let interactionSoundPreset = "mac.interactionSoundPreset"
-    nonisolated static let appBranchEnabled = "mac.appBranchEnabled"
-    nonisolated static let appBranchRules = "mac.appBranchRules"
     nonisolated static let historyRetentionPeriod = "mac.historyRetentionPeriod"
     nonisolated static let launchAtLogin = "mac.launchAtLogin"
     nonisolated static let showInDock = "mac.showInDock"

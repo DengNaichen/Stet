@@ -4,7 +4,6 @@ enum AppLoggerCategory {
     case general
     case hotkey
     case openAI
-    case appBranch
 
     nonisolated var label: String {
         switch self {
@@ -14,8 +13,6 @@ enum AppLoggerCategory {
             return "hotkey"
         case .openAI:
             return "openai"
-        case .appBranch:
-            return "app-branch"
         }
     }
 
@@ -25,7 +22,7 @@ enum AppLoggerCategory {
             return nil
         case .hotkey:
             return MacPreferences.hotkeyDebugLoggingEnabled
-        case .openAI, .appBranch:
+        case .openAI:
             return MacPreferences.openAIDebugLoggingEnabled
         }
     }

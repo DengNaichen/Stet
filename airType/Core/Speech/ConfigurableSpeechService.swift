@@ -35,12 +35,10 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
         let speechService: any SpeechService
         let rewriteService: (any TextRewriteService)?
         let preferredSpellings: [String]
-        let contextInstructionsProvider: (@Sendable () async -> String?)
     }
 
     private let settingsStore: DictationSettingsStore
     private let locale: Locale
-    private let captureContextStore: CaptureContextStore
     private let dependencies: Dependencies
     private let audioLevelBridge = AudioLevelBridge()
 
@@ -49,12 +47,10 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
 
     init(
         settingsStore: DictationSettingsStore = DictationSettingsStore(),
-        captureContextStore: CaptureContextStore = CaptureContextStore(),
         locale: Locale = .autoupdatingCurrent,
         dependencies: Dependencies = .live
     ) {
         self.settingsStore = settingsStore
-        self.captureContextStore = captureContextStore
         self.locale = locale
         self.dependencies = dependencies
     }
@@ -93,14 +89,12 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
         }
 
         var transcript = try await activeSession.speechService.stopRecording()
-        let contextInstructions = await activeSession.contextInstructionsProvider()
 
         if let rewriteService = activeSession.rewriteService {
             transcript = try await rewriteService.rewrite(
                 .cleanup(
                     transcript,
-                    preferredSpellings: activeSession.preferredSpellings,
-                    contextInstructions: contextInstructions
+                    preferredSpellings: activeSession.preferredSpellings
                 )
             )
         }
@@ -123,30 +117,6 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
     private func makeActiveSession(from snapshot: DictationSettingsSnapshot) async throws -> ActiveSession {
         let speechService: any SpeechService
         let networkSession = dependencies.makeNetworkSession(snapshot.proxySettings)
-        let contextInstructionsProvider: @Sendable () async -> String? = { [captureContextStore] in
-            guard snapshot.appBranchEnabled else { return nil }
-            let contextSnapshot = await captureContextStore.snapshot()
-            let resolution = AppBranchPromptResolver.resolve(
-                in: snapshot.appBranchRules,
-                snapshot: contextSnapshot,
-                inputs: AppBranchPromptInputs(
-                    rawTranscription: nil,
-                    text: nil,
-                    selectedText: nil,
-                    targetLanguage: nil,
-                    context: contextSnapshot.context
-                )
-            )
-
-            if let match = resolution.match {
-                AppLogger.info(
-                    "Matched app branch rule '\(match.rule.name)' for bundleID=\(contextSnapshot.context.bundleID ?? "nil"), url=\(contextSnapshot.context.browserURL ?? "nil"), delivery=\(match.rule.promptDelivery.rawValue)",
-                    category: .appBranch
-                )
-            }
-
-            return resolution.renderedPrompt
-        }
 
         guard let configuration = snapshot.openAIConfiguration else {
             throw OpenAIError.missingAPIKey
@@ -157,36 +127,13 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
             networkSession,
             locale,
             snapshot.preferredAudioInputDeviceID,
-            { [captureContextStore] in
-                guard snapshot.appBranchEnabled || !snapshot.personalDictionary.isEmpty else {
+            {
+                guard !snapshot.personalDictionary.isEmpty else {
                     return nil
                 }
 
-                let contextSnapshot = await captureContextStore.snapshot()
-                let resolution = snapshot.appBranchEnabled
-                    ? AppBranchPromptResolver.resolve(
-                        in: snapshot.appBranchRules,
-                        snapshot: contextSnapshot,
-                        inputs: AppBranchPromptInputs(
-                            rawTranscription: nil,
-                            text: nil,
-                            selectedText: nil,
-                            targetLanguage: nil,
-                            context: contextSnapshot.context
-                        )
-                    )
-                    : AppBranchPromptResolution(match: nil, renderedPrompt: nil)
-
-                if let match = resolution.match {
-                    AppLogger.info(
-                        "Using app branch rule '\(match.rule.name)' in transcription prompt. delivery=\(match.rule.promptDelivery.rawValue)",
-                        category: .appBranch
-                    )
-                }
-
                 return Self.makeTranscriptionPrompt(
-                    preferredSpellings: snapshot.personalDictionary,
-                    contextInstructions: resolution.renderedPrompt
+                    preferredSpellings: snapshot.personalDictionary
                 )
             }
         )
@@ -206,27 +153,18 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
         return ActiveSession(
             speechService: speechService,
             rewriteService: rewriteService,
-            preferredSpellings: snapshot.personalDictionary,
-            contextInstructionsProvider: contextInstructionsProvider
+            preferredSpellings: snapshot.personalDictionary
         )
     }
 
     nonisolated static func makeTranscriptionPrompt(
-        preferredSpellings: [String],
-        contextInstructions: String?
+        preferredSpellings: [String]
     ) -> String? {
         var sections: [String] = []
 
         if !preferredSpellings.isEmpty {
             sections.append(
                 "Use these exact spellings for names, brands, jargon, and technical terms when they are spoken or clearly intended: \(preferredSpellings.joined(separator: ", "))."
-            )
-        }
-
-        if let contextInstructions = contextInstructions?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !contextInstructions.isEmpty {
-            sections.append(
-                "Apply these app-specific dictation instructions when they are relevant to the current app or page:\n\(contextInstructions)"
             )
         }
 

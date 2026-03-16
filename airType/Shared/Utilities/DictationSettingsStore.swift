@@ -19,8 +19,6 @@ struct DictationSettingsSnapshot: Sendable {
     let personalDictionary: [String]
     let interactionSoundsEnabled: Bool
     let interactionSoundPreset: InteractionSoundPreset
-    let appBranchEnabled: Bool
-    let appBranchRules: [AppBranchRule]
     let proxySettings: NetworkProxySettings
 
     var isOpenAIConfigured: Bool {
@@ -63,8 +61,6 @@ struct DictationSettingsStore: Sendable {
         let interactionSoundsEnabled =
             defaults.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
         let interactionSoundPreset = loadInteractionSoundPreset()
-        let appBranchEnabled = defaults.object(forKey: MacPreferences.appBranchEnabled) as? Bool ?? false
-        let appBranchRules = loadAppBranchRules()
         let proxySettings = loadProxySettings()
 
         let configuration: OpenAIConfiguration? = apiKey.isEmpty
@@ -86,8 +82,6 @@ struct DictationSettingsStore: Sendable {
             personalDictionary: personalDictionary,
             interactionSoundsEnabled: interactionSoundsEnabled,
             interactionSoundPreset: interactionSoundPreset,
-            appBranchEnabled: appBranchEnabled,
-            appBranchRules: appBranchRules,
             proxySettings: proxySettings
         )
     }
@@ -193,20 +187,6 @@ struct DictationSettingsStore: Sendable {
 
     nonisolated func savePreferredAudioInputDeviceID(_ deviceID: UInt32?) {
         defaults.set(Int(deviceID ?? 0), forKey: MacPreferences.selectedAudioInputDeviceID)
-    }
-
-    nonisolated func loadAppBranchRules() -> [AppBranchRule] {
-        guard let data = defaults.data(forKey: MacPreferences.appBranchRules),
-              let decoded = try? JSONDecoder().decode([AppBranchRule].self, from: data) else {
-            return []
-        }
-
-        return decoded
-    }
-
-    nonisolated func saveAppBranchRules(_ rules: [AppBranchRule]) {
-        guard let data = try? JSONEncoder().encode(rules) else { return }
-        defaults.set(data, forKey: MacPreferences.appBranchRules)
     }
 
     nonisolated func loadProxySettings() -> NetworkProxySettings {

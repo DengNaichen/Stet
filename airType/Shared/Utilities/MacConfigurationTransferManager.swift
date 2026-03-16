@@ -35,8 +35,6 @@ enum MacConfigurationTransferManager {
         var showInDock: Bool
         var hotkeyDistinguishModifierSides: Bool
         var personalDictionary: [String]
-        var appBranchEnabled: Bool
-        var appBranchRules: [AppBranchRule]
         var historyRetentionPeriod: String
         var proxyMode: String
         var customProxyScheme: String
@@ -122,8 +120,6 @@ enum MacConfigurationTransferManager {
             showInDock: defaults.object(forKey: MacPreferences.showInDock) as? Bool ?? false,
             hotkeyDistinguishModifierSides: store.loadHotkeyDistinguishModifierSides(),
             personalDictionary: store.loadPersonalDictionary(),
-            appBranchEnabled: defaults.object(forKey: MacPreferences.appBranchEnabled) as? Bool ?? false,
-            appBranchRules: store.loadAppBranchRules(),
             historyRetentionPeriod: store.loadHistoryRetentionPeriod().rawValue,
             proxyMode: proxySettings.mode.rawValue,
             customProxyScheme: proxySettings.customScheme.rawValue,
@@ -162,7 +158,6 @@ enum MacConfigurationTransferManager {
         defaults.set(imported.interactionSoundPreset, forKey: MacPreferences.interactionSoundPreset)
         defaults.set(imported.launchAtLogin, forKey: MacPreferences.launchAtLogin)
         defaults.set(imported.showInDock, forKey: MacPreferences.showInDock)
-        defaults.set(imported.appBranchEnabled, forKey: MacPreferences.appBranchEnabled)
         defaults.set(imported.hotkeyDebugLoggingEnabled, forKey: MacPreferences.hotkeyDebugLoggingEnabled)
         defaults.set(imported.openAIDebugLoggingEnabled, forKey: MacPreferences.openAIDebugLoggingEnabled)
         defaults.set(imported.hotkeyDistinguishModifierSides, forKey: MacPreferences.hotkeyDistinguishModifierSides)
@@ -181,7 +176,6 @@ enum MacConfigurationTransferManager {
             HistoryRetentionPeriod(rawValue: imported.historyRetentionPeriod) ?? .thirtyDays
         )
         store.savePersonalDictionary(imported.personalDictionary)
-        store.saveAppBranchRules(imported.appBranchRules)
     }
 }
 #endif
