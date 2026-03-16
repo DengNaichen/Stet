@@ -14,53 +14,26 @@ final class MacAppModel: ObservableObject {
         static let historyRetentionPeriod = "mac.historyRetentionPeriod"
     }
 
-    enum PrimaryActionSource {
-        case interface
-        case hotkey
-    }
+    typealias PrimaryActionSource = MacDictationWorkflowController.PrimaryActionSource
+    typealias CaptureWorkflow = MacDictationWorkflowController.CaptureWorkflow
 
-    private enum CaptureWorkflow: Equatable {
-        case dictation
-        case translationFromSpeech
-        case translationFromSelection(sourceText: String)
-        case rewriteFromSelection(sourceText: String)
-
-        var isSelectionReplacement: Bool {
-            switch self {
-            case .translationFromSelection, .rewriteFromSelection:
-                return true
-            case .dictation, .translationFromSpeech:
-                return false
-            }
-        }
-    }
-
-    private enum PanelPresentationMode {
-        case manual
-        case transient
-    }
-
-    @Published private(set) var isPanelVisible = false
-
-    let dictationViewModel: DictationViewModel
-
-    private let clipboardService: any ClipboardService
     private let textInjectionService: any TextInjectionService
-    private let mediaPlaybackController: any MediaPlaybackControlling
     private let settingsStore: DictationSettingsStore
-    private let captureCoordinator: MacDictationCaptureCoordinator
-    private let panelController = MacPanelController()
-    private let interactionSoundPlayer = InteractionSoundPlayer()
+    private let workflowController: MacDictationWorkflowController
+    private let shellPresentationController: MacShellPresentationController
+    private let interactionSoundPlayer: InteractionSoundPlayer
     private var cancellables = Set<AnyCancellable>()
     private var stateResetTask: Task<Void, Never>?
-    private var panelHideTask: Task<Void, Never>?
-    private weak var lastTargetApplication: NSRunningApplication?
-    private var activeRecordingSource: PrimaryActionSource?
-    private var activeWorkflow: CaptureWorkflow = .dictation
-    private var panelPresentationMode: PanelPresentationMode = .manual
+    private var hotkeyInteraction = MacDictationHotkeyInteraction()
     private var previousDictationState: DictationState = .idle
-    private var isSettingsVisible = false
-    private var shouldRestoreAccessoryModeAfterSettings = false
+
+    var dictationViewModel: DictationViewModel {
+        workflowController.dictationViewModel
+    }
+
+    var isPanelVisible: Bool {
+        shellPresentationController.isPanelVisible
+    }
 
     convenience init() {
         let settingsStore = DictationSettingsStore()
@@ -87,14 +60,23 @@ final class MacAppModel: ObservableObject {
         settingsStore: DictationSettingsStore = DictationSettingsStore(),
         captureCoordinator: MacDictationCaptureCoordinator? = nil
     ) {
-        self.dictationViewModel = DictationViewModel(speechService: speechService)
-        self.clipboardService = clipboardService
+        let interactionSoundPlayer = InteractionSoundPlayer()
+        let shellPresentationController = MacShellPresentationController()
         self.textInjectionService = textInjectionService
-        self.mediaPlaybackController = mediaPlaybackController
         self.settingsStore = settingsStore
-        self.captureCoordinator = captureCoordinator ?? MacDictationCaptureCoordinator(
+        self.interactionSoundPlayer = interactionSoundPlayer
+        self.shellPresentationController = shellPresentationController
+        let captureCoordinator = captureCoordinator ?? MacDictationCaptureCoordinator(
             clipboardService: clipboardService,
             textInjectionService: textInjectionService
+        )
+        self.workflowController = MacDictationWorkflowController(
+            dictationViewModel: DictationViewModel(speechService: speechService),
+            captureCoordinator: captureCoordinator,
+            textInjectionService: textInjectionService,
+            mediaPlaybackController: mediaPlaybackController,
+            settingsStore: settingsStore,
+            interactionSoundPlayer: interactionSoundPlayer
         )
         configureDefaults()
         dictationViewModel.objectWillChange
@@ -103,11 +85,12 @@ final class MacAppModel: ObservableObject {
                 self?.objectWillChange.send()
             }
             .store(in: &cancellables)
+        shellPresentationController.onVisibilityChange = { [weak self] in
+            self?.objectWillChange.send()
+        }
         bindState()
         registerHotkeys()
-        MacAppBehaviorController.applyDockVisibility(
-            showInDock: UserDefaults.standard.object(forKey: MacPreferences.showInDock) as? Bool ?? false
-        )
+        shellPresentationController.applyInitialDockVisibility()
 
         if UserDefaults.standard.bool(forKey: MacPreferences.showPanelOnLaunch) {
             DispatchQueue.main.async { [weak self] in
@@ -117,39 +100,7 @@ final class MacAppModel: ObservableObject {
     }
 
     var statusText: String {
-        switch dictationViewModel.state {
-        case .idle:
-            return "Ready"
-        case .listening:
-            switch activeWorkflow {
-            case .rewriteFromSelection:
-                return "Listening for rewrite instructions..."
-            case .translationFromSpeech:
-                return "Listening for translation..."
-            case .dictation, .translationFromSelection:
-                return "Listening..."
-            }
-        case .processing:
-            switch activeWorkflow {
-            case .translationFromSpeech, .translationFromSelection:
-                return "Translating..."
-            case .rewriteFromSelection:
-                return "Rewriting selected text..."
-            case .dictation:
-                return "Processing..."
-            }
-        case .result:
-            switch activeWorkflow {
-            case .translationFromSpeech, .translationFromSelection:
-                return "Translation complete"
-            case .rewriteFromSelection:
-                return "Rewrite complete"
-            case .dictation:
-                return "Transcription complete"
-            }
-        case .error:
-            return "Something went wrong"
-        }
+        workflowController.statusText
     }
 
     var primaryButtonTitle: String {
@@ -208,18 +159,7 @@ final class MacAppModel: ObservableObject {
     }
 
     var processingStatusText: String {
-        switch activeWorkflow {
-        case .translationFromSpeech, .translationFromSelection:
-            return "Translating with OpenAI..."
-        case .rewriteFromSelection:
-            return "Rewriting selected text with OpenAI..."
-        case .dictation:
-            break
-        }
-
-        return settingsSnapshot.isRewriteEnabled
-            ? "Transcribing with OpenAI and rewriting..."
-            : "Transcribing with OpenAI..."
+        workflowController.processingStatusText
     }
 
     var autoPasteStatusText: String {
@@ -316,9 +256,8 @@ final class MacAppModel: ObservableObject {
     }
 
     func cancelActiveCapture() {
-        activeRecordingSource = nil
-//        activeHotkeyAction = nil
-        dictationViewModel.send(.resetTapped)
+        hotkeyInteraction.reset()
+        workflowController.cancelActiveCapture()
         hidePanel()
     }
 
@@ -354,64 +293,49 @@ final class MacAppModel: ObservableObject {
 
     private func performPrimaryAction(source: PrimaryActionSource) {
         switch dictationViewModel.state {
-        case .idle:
-            startDictationCapture(source: source)
+        case .idle, .result, .error:
+            requestDictationCaptureStart(from: source)
         case .listening:
-            activeRecordingSource = nil
-            dictationViewModel.stopCapture()
+            requestDictationCaptureStopIfListening()
         case .processing:
             break
-        case .result, .error:
-            dictationViewModel.send(.resetTapped)
-            startDictationCapture(source: source)
         }
     }
 
     private func handleHotkeyPressed() {
-        performPrimaryAction(source: .hotkey)
+        let action = hotkeyInteraction.handleKeyDown(
+            for: dictationViewModel.state,
+            now: ProcessInfo.processInfo.systemUptime
+        )
+        performHotkeyAction(action)
     }
 
     private func handleHotkeyReleased() {
-        // Dictation hotkey currently uses press-to-toggle behavior.
+        let action = hotkeyInteraction.handleKeyUp(
+            for: dictationViewModel.state,
+            now: ProcessInfo.processInfo.systemUptime
+        )
+        performHotkeyAction(action)
     }
 
     func showPanel() {
-        showPanel(mode: .manual)
+        shellPresentationController.showPanel(appModel: self)
     }
 
     private func showTransientPanel() {
-        showPanel(mode: .transient)
-    }
-
-    private func showPanel(mode: PanelPresentationMode) {
-        refreshTargetApplication()
-        panelPresentationMode = mode
-        panelController.show(
-            appModel: self,
-            mode: mode == .manual ? .manual : .transient
-        )
-        isPanelVisible = true
+        shellPresentationController.showTransientPanel(appModel: self)
     }
 
     func hidePanel() {
-        panelHideTask?.cancel()
-        panelHideTask = nil
-        panelController.hide()
-        isPanelVisible = false
-        panelPresentationMode = .manual
+        shellPresentationController.hidePanel()
     }
 
     func togglePanel() {
-        if isPanelVisible {
-            hidePanel()
-        } else {
-            showPanel()
-        }
+        shellPresentationController.togglePanel(appModel: self)
     }
 
     func panelDidHide() {
-        isPanelVisible = false
-        panelPresentationMode = .manual
+        shellPresentationController.panelDidHide()
     }
 
     func previewInteractionSound(_ preset: InteractionSoundPreset) {
@@ -423,35 +347,26 @@ final class MacAppModel: ObservableObject {
     }
 
     func applyDockVisibility(showInDock: Bool) {
-        if showInDock {
-            shouldRestoreAccessoryModeAfterSettings = false
-            MacAppBehaviorController.applyDockVisibility(showInDock: true)
-            return
-        }
-
-        if isSettingsVisible {
-            shouldRestoreAccessoryModeAfterSettings = true
-            MacAppBehaviorController.applyDockVisibility(showInDock: true)
-            return
-        }
-
-        shouldRestoreAccessoryModeAfterSettings = false
-        MacAppBehaviorController.applyDockVisibility(showInDock: false)
+        shellPresentationController.applyDockVisibility(showInDock: showInDock)
     }
 
     func openSettings(using action: () -> Void) {
-        prepareForSettingsPresentation()
-        action()
+        shellPresentationController.openSettings(
+            currentShowInDockPreference: currentShowInDockPreference,
+            using: action
+        )
     }
 
     func settingsDidAppear() {
-        isSettingsVisible = true
-        prepareForSettingsPresentation()
+        shellPresentationController.settingsDidAppear(
+            currentShowInDockPreference: currentShowInDockPreference
+        )
     }
 
     func settingsDidDisappear() {
-        isSettingsVisible = false
-        applyDockVisibility(showInDock: currentShowInDockPreference)
+        shellPresentationController.settingsDidDisappear(
+            currentShowInDockPreference: currentShowInDockPreference
+        )
     }
 
     func refreshRuntimeFromSettings() {
@@ -463,80 +378,73 @@ final class MacAppModel: ObservableObject {
         dictationViewModel.$state
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
-                guard let self else { return }
-                let previousState = previousDictationState
-                previousDictationState = state
-                stateResetTask?.cancel()
-                stateResetTask = nil
-                panelHideTask?.cancel()
-                panelHideTask = nil
-                handleMediaTransition(from: previousState, to: state)
-
-                if case .listening = state {
-                    showTransientPanel()
-                } else {
-                    activeRecordingSource = nil
-                }
-
-                if case .result(let text) = state {
-                    let completedWorkflow = activeWorkflow
-                    Task { @MainActor [weak self] in
-                        guard let self else { return }
-                        await handleCompletedResult(
-                            text: text,
-                            workflow: completedWorkflow
-                        )
-                    }
-
-                    stateResetTask = Task { @MainActor [weak self] in
-                        try? await Task.sleep(for: .milliseconds(900))
-                        guard let self else { return }
-                        guard case .result = dictationViewModel.state else { return }
-                        dictationViewModel.send(.resetTapped)
-                    }
-                } else if case .error = state {
-                    showTransientPanel()
-                } else if case .idle = state,
-                          activeRecordingSource == nil {
-                    activeWorkflow = .dictation
-
-                    if panelPresentationMode == .transient, isPanelVisible {
-                        panelHideTask = Task { @MainActor [weak self] in
-                            try? await Task.sleep(for: .milliseconds(180))
-                            guard let self else { return }
-                            guard case .idle = dictationViewModel.state else { return }
-                            guard panelPresentationMode == .transient else { return }
-                            hidePanel()
-                        }
-                    }
-                }
+                self?.handleDictationStateChange(state)
             }
             .store(in: &cancellables)
     }
 
-    private func startDictationCapture(source: PrimaryActionSource) {
-        refreshTargetApplication()
-        activeWorkflow = .dictation
-        activeRecordingSource = source
-        showTransientPanel()
-        dictationViewModel.startCapture()
+    private func handleDictationStateChange(_ state: DictationState) {
+        handleStateTransitionObservation(for: state)
+        handlePanelAndIdleLifecycle(for: state)
+        handleResultLifecycle(for: state)
     }
 
-    private func prepareForWorkflowStart() -> Bool {
-        switch dictationViewModel.state {
+    private func handleStateTransitionObservation(for state: DictationState) {
+        let previousState = previousDictationState
+        previousDictationState = state
+        hotkeyInteraction.sync(with: state)
+        cancelPendingStateTasks()
+        workflowController.handleStateTransition(from: previousState, to: state)
+    }
+
+    private func handlePanelAndIdleLifecycle(for state: DictationState) {
+        switch state {
+        case .listening, .error:
+            showTransientPanel()
         case .idle:
-            return true
-        case .result, .error:
-            dictationViewModel.send(.resetTapped)
-            return true
-        case .listening, .processing:
-            return false
+            guard workflowController.activeRecordingSource == nil else { return }
+            workflowController.resetWorkflowIfNeeded()
+            scheduleTransientPanelHideIfNeeded()
+        case .processing, .result:
+            break
         }
     }
 
-    private func presentWorkflowError(_ message: String) {
-        activeRecordingSource = nil
-        dictationViewModel.send(.transcriptionFailed(message))
+    private func handleResultLifecycle(for state: DictationState) {
+        guard case .result(let text) = state else { return }
+
+        let completedWorkflow = workflowController.activeWorkflow
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await workflowController.handleCompletedResult(
+                text: text,
+                workflow: completedWorkflow,
+                showTransientPanel: showTransientPanel
+            )
+        }
+
+        scheduleStateReset()
+    }
+
+    private func cancelPendingStateTasks() {
+        stateResetTask?.cancel()
+        stateResetTask = nil
+        shellPresentationController.cancelScheduledPanelHide()
+    }
+
+    private func scheduleStateReset() {
+        stateResetTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(900))
+            guard let self else { return }
+            guard case .result = dictationViewModel.state else { return }
+            dictationViewModel.send(.resetTapped)
+        }
+    }
+
+    private func scheduleTransientPanelHideIfNeeded() {
+        shellPresentationController.scheduleTransientPanelHideIfNeeded { [weak self] in
+            self?.dictationViewModel.state ?? .idle
+        }
     }
 
     private func registerHotkeys() {
@@ -553,50 +461,39 @@ final class MacAppModel: ObservableObject {
         }
     }
 
-    private func selectedTextIfAvailable() -> String? {
-        let selectedText = textInjectionService.selectedText()?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let selectedText, !selectedText.isEmpty else { return nil }
-        return selectedText
-    }
-
-    private func handleCompletedResult(
-        text: String,
-        workflow: CaptureWorkflow
-    ) async {
-        if workflow.isSelectionReplacement {
-            await handleSelectedTextReplacementResult(text: text)
-            return
-        }
-
-        await captureCoordinator.handleCompletedCapture(
-            text: text,
-            targetApplication: lastTargetApplication,
-            settings: captureSettings
-        ) { [weak self] in
-            self?.showTransientPanel()
+    private func performHotkeyAction(_ action: MacDictationHotkeyInteraction.Action) {
+        switch action {
+        case .none:
+            break
+        case .startCapture:
+            requestDictationCaptureStart(from: .hotkey)
+        case .stopCapture:
+            requestDictationCaptureStopIfListening()
         }
     }
 
-    private func handleSelectedTextReplacementResult(
-        text: String
-    ) async {
-        let keepResultInClipboard = captureSettings.shouldCopyToClipboard
-        let didReplaceSelection = await textInjectionService.replaceSelectedText(
-            text,
-            into: lastTargetApplication,
-            keepResultInClipboard: keepResultInClipboard
+    private func requestDictationCaptureStart(from source: PrimaryActionSource) {
+        switch dictationViewModel.state {
+        case .idle:
+            startDictationCapture(from: source)
+        case .result, .error:
+            dictationViewModel.send(.resetTapped)
+            startDictationCapture(from: source)
+        case .listening, .processing:
+            break
+        }
+    }
+
+    private func startDictationCapture(from source: PrimaryActionSource) {
+        workflowController.startDictationCapture(
+            source: source,
+            showTransientPanel: showTransientPanel
         )
+    }
 
-        if !didReplaceSelection {
-            if !textInjectionService.isAvailable {
-                textInjectionService.requestAccessIfNeeded()
-            }
-
-            if captureSettings.shouldRevealPanelOnCapture {
-                showTransientPanel()
-            }
-        }
+    private func requestDictationCaptureStopIfListening() {
+        guard case .listening = dictationViewModel.state else { return }
+        workflowController.stopActiveCapture()
     }
 
     private func configureDefaults() {
@@ -704,16 +601,6 @@ final class MacAppModel: ObservableObject {
         try? fileManager.removeItem(at: temporaryHistoryURL)
     }
 
-    private func refreshTargetApplication() {
-        let frontmostApplication = NSWorkspace.shared.frontmostApplication
-        guard let frontmostApplication,
-              frontmostApplication.bundleIdentifier != Bundle.main.bundleIdentifier else {
-            return
-        }
-
-        lastTargetApplication = frontmostApplication
-    }
-
     private var settingsSnapshot: DictationSettingsSnapshot {
         settingsStore.loadSnapshot()
     }
@@ -722,83 +609,12 @@ final class MacAppModel: ObservableObject {
         UserDefaults.standard.object(forKey: MacPreferences.showInDock) as? Bool ?? false
     }
 
-    private func prepareForSettingsPresentation() {
-        if !currentShowInDockPreference {
-            shouldRestoreAccessoryModeAfterSettings = true
-        }
-
-        MacAppBehaviorController.applyDockVisibility(showInDock: true)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
-    private var captureSettings: MacDictationCaptureCoordinator.CaptureSettings {
-        MacDictationCaptureCoordinator.CaptureSettings(
-            shouldCopyToClipboard: UserDefaults.standard.bool(forKey: MacPreferences.copyToClipboardOnCapture),
-            shouldAutoPaste: UserDefaults.standard.bool(forKey: MacPreferences.autoPasteOnCapture),
-            shouldRevealPanelOnCapture: UserDefaults.standard.bool(forKey: MacPreferences.revealPanelOnCapture)
-        )
-    }
-
-    private func handleMediaTransition(from previousState: DictationState, to newState: DictationState) {
-        if settingsSnapshot.interactionSoundsEnabled {
-            if case .idle = previousState, case .listening = newState {
-                interactionSoundPlayer.playStart(preset: settingsSnapshot.interactionSoundPreset)
-            } else if isActiveDictationState(previousState),
-                      shouldResumeMedia(after: newState),
-                      !matchesErrorState(newState) {
-                interactionSoundPlayer.playFinish(preset: settingsSnapshot.interactionSoundPreset)
-            }
-        }
-
-        if case .listening = newState {
-            if case .listening = previousState {
-                return
-            }
-
-            if settingsSnapshot.shouldPauseMediaDuringDictation {
-                mediaPlaybackController.pausePlaybackIfNeeded()
-            }
-            return
-        }
-
-        if isActiveDictationState(previousState),
-           shouldResumeMedia(after: newState) {
-            mediaPlaybackController.resumePlaybackIfNeeded()
-        }
-    }
-
-    private func isActiveDictationState(_ state: DictationState) -> Bool {
-        switch state {
-        case .listening, .processing:
-            return true
-        case .idle, .result, .error:
-            return false
-        }
-    }
-
-    private func shouldResumeMedia(after state: DictationState) -> Bool {
-        switch state {
-        case .idle, .result, .error:
-            return true
-        case .listening, .processing:
-            return false
-        }
-    }
-
     private var inputMonitoringGranted: Bool {
         if #available(macOS 10.15, *) {
             return CGPreflightListenEventAccess()
         }
 
         return true
-    }
-
-    private func matchesErrorState(_ state: DictationState) -> Bool {
-        if case .error = state {
-            return true
-        }
-
-        return false
     }
 }
 #endif
