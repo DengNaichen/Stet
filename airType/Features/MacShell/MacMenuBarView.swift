@@ -64,25 +64,6 @@ struct MacMenuBarView: View {
             )
             .disabled(appUpdateManager.isChecking || !appUpdateManager.canCheckForUpdates)
 
-            if appModel.hasHistory {
-                Divider()
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Recent Captures")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary)
-
-                    ForEach(appModel.displayedHistory.prefix(3)) { record in
-                        Button {
-                            appModel.copyToClipboard(record: record)
-                        } label: {
-                            recentCaptureRow(for: record)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-
             Divider()
 
             Button {
@@ -168,45 +149,6 @@ struct MacMenuBarView: View {
         .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
     }
 
-    private func recentCaptureRow(for record: TranscriptionRecord) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(record.metadata.kind.title)
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundStyle(historyBadgeColor(for: record))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(historyBadgeColor(for: record).opacity(0.12))
-                    )
-
-                Text(record.text)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-
-                Spacer(minLength: 8)
-
-                if appModel.didCopyRecord(record) {
-                    Text("Copied")
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        .foregroundStyle(Color.accentColor)
-                }
-            }
-
-            Text(Self.relativeFormatter.localizedString(for: record.createdAt, relativeTo: .now))
-                .font(.system(size: 10, weight: .medium, design: .rounded))
-                .foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.secondary.opacity(0.08))
-        )
-    }
-
     private var isBusy: Bool {
         if case .processing = appModel.dictationViewModel.state {
             return true
@@ -239,17 +181,6 @@ struct MacMenuBarView: View {
         }
     }
 
-    private func historyBadgeColor(for record: TranscriptionRecord) -> Color {
-        switch record.metadata.kind {
-        case .dictation:
-            return .blue
-        case .translation:
-            return .green
-        case .rewrite:
-            return .orange
-        }
-    }
-
     private var primarySymbolName: String {
         switch appModel.dictationViewModel.state {
         case .idle, .result, .error:
@@ -273,11 +204,5 @@ struct MacMenuBarView: View {
             return "Check for Updates…"
         }
     }
-
-    private static let relativeFormatter: RelativeDateTimeFormatter = {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter
-    }()
 }
 #endif

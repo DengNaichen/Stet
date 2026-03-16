@@ -35,7 +35,6 @@ enum MacConfigurationTransferManager {
         var showInDock: Bool
         var hotkeyDistinguishModifierSides: Bool
         var personalDictionary: [String]
-        var historyRetentionPeriod: String
         var proxyMode: String
         var customProxyScheme: String
         var customProxyHost: String
@@ -120,7 +119,6 @@ enum MacConfigurationTransferManager {
             showInDock: defaults.object(forKey: MacPreferences.showInDock) as? Bool ?? false,
             hotkeyDistinguishModifierSides: store.loadHotkeyDistinguishModifierSides(),
             personalDictionary: store.loadPersonalDictionary(),
-            historyRetentionPeriod: store.loadHistoryRetentionPeriod().rawValue,
             proxyMode: proxySettings.mode.rawValue,
             customProxyScheme: proxySettings.customScheme.rawValue,
             customProxyHost: proxySettings.customHost,
@@ -161,7 +159,6 @@ enum MacConfigurationTransferManager {
         defaults.set(imported.hotkeyDebugLoggingEnabled, forKey: MacPreferences.hotkeyDebugLoggingEnabled)
         defaults.set(imported.openAIDebugLoggingEnabled, forKey: MacPreferences.openAIDebugLoggingEnabled)
         defaults.set(imported.hotkeyDistinguishModifierSides, forKey: MacPreferences.hotkeyDistinguishModifierSides)
-        defaults.set(imported.historyRetentionPeriod, forKey: MacPreferences.historyRetentionPeriod)
         defaults.set(imported.proxyMode, forKey: MacPreferences.proxyMode)
         defaults.set(imported.customProxyScheme, forKey: MacPreferences.customProxyScheme)
         defaults.set(imported.customProxyHost, forKey: MacPreferences.customProxyHost)
@@ -172,9 +169,6 @@ enum MacConfigurationTransferManager {
             TranslationTargetLanguage(rawValue: imported.translationTargetLanguage) ?? .english
         )
         store.saveTranslateSelectedTextOnTranslationHotkey(imported.translateSelectedTextOnTranslationHotkey)
-        store.saveHistoryRetentionPeriod(
-            HistoryRetentionPeriod(rawValue: imported.historyRetentionPeriod) ?? .thirtyDays
-        )
         store.savePersonalDictionary(imported.personalDictionary)
     }
 }

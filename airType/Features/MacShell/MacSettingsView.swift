@@ -7,7 +7,6 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable {
     case hotkey
     case openAI
     case dictionary
-    case history
     case permissions
 
     var id: String { rawValue }
@@ -22,8 +21,6 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable {
             return "OpenAI"
         case .dictionary:
             return "Dictionary"
-        case .history:
-            return "History"
         case .permissions:
             return "Permissions"
         }
@@ -39,8 +36,6 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable {
             return "key.horizontal"
         case .dictionary:
             return "text.book.closed"
-        case .history:
-            return "clock.arrow.circlepath"
         case .permissions:
             return "lock.shield"
         }
@@ -61,7 +56,6 @@ struct MacSettingsView: View {
     @AppStorage(MacPreferences.translationTargetLanguage) private var translationTargetLanguageRawValue = TranslationTargetLanguage.english.rawValue
     @AppStorage(MacPreferences.translateSelectedTextOnTranslationHotkey) private var translateSelectedTextOnTranslationHotkey = true
     @AppStorage(MacPreferences.openAITranslationModel) private var openAITranslationModel = "gpt-5-mini"
-    @AppStorage(MacPreferences.historyRetentionPeriod) private var historyRetentionPeriodRawValue = HistoryRetentionPeriod.thirtyDays.rawValue
     @AppStorage(MacPreferences.interactionSoundsEnabled) private var interactionSoundsEnabled = true
     @AppStorage(MacPreferences.interactionSoundPreset) private var interactionSoundPresetRawValue = InteractionSoundPreset.soft.rawValue
     @AppStorage(MacPreferences.launchAtLogin) private var launchAtLogin = false
@@ -82,8 +76,6 @@ struct MacSettingsView: View {
     @State private var generalMessage: String?
     @State private var generalMessageIsError = false
     @State private var inputDevices: [AudioInputDevice] = []
-    @State private var historyDisplayLimit = 20
-    @State private var inspectedHistoryRecordID: UUID?
 
     private let settingsStore = DictationSettingsStore()
 
@@ -139,11 +131,6 @@ struct MacSettingsView: View {
             appModel.applyDockVisibility(showInDock: newValue)
             generalMessage = newValue ? "Dock icon enabled." : "Dock icon hidden."
             generalMessageIsError = false
-        }
-        .onChange(of: historyRetentionPeriodRawValue) { _, _ in
-            historyDisplayLimit = 20
-            inspectedHistoryRecordID = nil
-            appModel.refreshHistory()
         }
     }
 
@@ -240,8 +227,6 @@ struct MacSettingsView: View {
             openAITab
         case .dictionary:
             dictionaryTab
-        case .history:
-            historyTab
         case .permissions:
             permissionsTab
         }
@@ -481,66 +466,6 @@ struct MacSettingsView: View {
         DictionaryView(viewModel: dictionaryViewModel)
     }
 
-    private var historyTab: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            settingsCard(
-                title: "Retention",
-                description: "History stays local to this Mac. Older entries are trimmed automatically based on this retention window."
-            ) {
-                settingsValueRow(title: "Keep") {
-                    Picker("Keep", selection: historyRetentionPeriodBinding) {
-                        ForEach(HistoryRetentionPeriod.allCases) { retentionPeriod in
-                            Text(retentionPeriod.title).tag(retentionPeriod)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    .frame(width: 180, alignment: .trailing)
-                }
-
-                Text("Current entries: \(appModel.historyCount)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            settingsCard(
-                title: "Recent Captures",
-                description: "Copy, inspect, or delete recent dictation, translation, and rewrite results."
-            ) {
-                if appModel.hasHistory {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 12) {
-                            ForEach(Array(appModel.allHistory.prefix(historyDisplayLimit))) { record in
-                                historyRow(for: record)
-                            }
-
-                            if appModel.historyCount > historyDisplayLimit {
-                                Button("Load More") {
-                                    historyDisplayLimit += 20
-                                }
-                                .controlSize(.small)
-                                .padding(.top, 4)
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
-                    .frame(minHeight: 240, maxHeight: 420)
-
-                    Button("Clear Recent History", role: .destructive) {
-                        appModel.clearHistory()
-                    }
-                    .controlSize(.small)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                } else {
-                    Text("Recent dictation captures will appear here after you finish recording.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.vertical, 4)
-                }
-            }
-        }
-    }
-
     private var permissionsTab: some View {
         VStack(alignment: .leading, spacing: 16) {
             settingsCard(
@@ -600,10 +525,6 @@ struct MacSettingsView: View {
         }
     }
 
-    private var historyRetentionPeriod: HistoryRetentionPeriod {
-        HistoryRetentionPeriod(rawValue: historyRetentionPeriodRawValue) ?? .thirtyDays
-    }
-
     private var translationTargetLanguage: TranslationTargetLanguage {
         TranslationTargetLanguage(rawValue: translationTargetLanguageRawValue) ?? .english
     }
@@ -640,13 +561,6 @@ struct MacSettingsView: View {
         )
     }
 
-    private var historyRetentionPeriodBinding: Binding<HistoryRetentionPeriod> {
-        Binding(
-            get: { historyRetentionPeriod },
-            set: { historyRetentionPeriodRawValue = $0.rawValue }
-        )
-    }
-
     private var proxyModeBinding: Binding<NetworkProxyMode> {
         Binding(
             get: { proxyMode },
@@ -665,8 +579,6 @@ struct MacSettingsView: View {
         openAISettingsViewModel.load()
         dictionaryViewModel.load()
         launchAtLogin = MacAppBehaviorController.launchAtLoginIsEnabled()
-        historyDisplayLimit = 20
-        inspectedHistoryRecordID = nil
         refreshInputDevices()
     }
 
@@ -728,7 +640,6 @@ struct MacSettingsView: View {
             reloadStateFromPreferences()
             try? appModel.setLaunchAtLoginEnabled(launchAtLogin)
             appModel.refreshRuntimeFromSettings()
-            appModel.refreshHistory()
             generalMessage = "Configuration imported. API keys are still managed separately in Keychain."
             generalMessageIsError = false
         } catch {
@@ -746,63 +657,6 @@ struct MacSettingsView: View {
             launchAtLogin = fallback
             generalMessage = error.localizedDescription
             generalMessageIsError = true
-        }
-    }
-
-    private func historyRow(for record: TranscriptionRecord) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                HStack(spacing: 8) {
-                    statusBadge(historyBadgeTitle(for: record), tint: historyBadgeTint(for: record))
-
-                    Text(timestampString(for: record.createdAt))
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 12)
-
-                HStack(spacing: 8) {
-                    Button("Details") {
-                        inspectedHistoryRecordID = record.id
-                    }
-                    .controlSize(.small)
-
-                    Button(appModel.didCopyRecord(record) ? "Copied" : "Copy") {
-                        appModel.copyToClipboard(record: record)
-                    }
-                    .controlSize(.small)
-
-                    Button("Delete", role: .destructive) {
-                        appModel.deleteHistoryRecord(record)
-                    }
-                    .controlSize(.small)
-                }
-            }
-
-            Text(record.text)
-                .textSelection(.enabled)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            HStack(spacing: 8) {
-                Text(record.metadata.source.title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if let focusedAppName = record.metadata.focusedAppName, !focusedAppName.isEmpty {
-                    Text("App: \(focusedAppName)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            if inspectedHistoryRecordID == record.id {
-                historyMetadataDetails(for: record)
-            }
-
-            Divider()
         }
     }
 
@@ -884,66 +738,5 @@ struct MacSettingsView: View {
         .padding(.vertical, 2)
     }
 
-    private func timestampString(for date: Date) -> String {
-        Self.timestampFormatter.string(from: date)
-    }
-
-    private func historyBadgeTitle(for record: TranscriptionRecord) -> String {
-        record.metadata.kind.title
-    }
-
-    private func historyBadgeTint(for record: TranscriptionRecord) -> Color {
-        switch record.metadata.kind {
-        case .dictation:
-            return .blue
-        case .translation:
-            return .green
-        case .rewrite:
-            return .orange
-        }
-    }
-
-    @ViewBuilder
-    private func historyMetadataDetails(for record: TranscriptionRecord) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            metadataLine("Source", record.metadata.source.title)
-            metadataLine("Provider", record.metadata.transcriptionProvider)
-            metadataLine("Transcription Model", record.metadata.transcriptionModel)
-            metadataLine("Translation Model", record.metadata.translationModel)
-            metadataLine("Rewrite Model", record.metadata.rewriteModel)
-            metadataLine("Target Language", record.metadata.targetLanguage)
-            metadataLine("Focused App", record.metadata.focusedAppName)
-            metadataLine("Bundle ID", record.metadata.focusedBundleID)
-        }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.secondary.opacity(0.06))
-        )
-    }
-
-    @ViewBuilder
-    private func metadataLine(_ title: String, _ value: String?) -> some View {
-        let trimmedValue = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !trimmedValue.isEmpty {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 132, alignment: .leading)
-                Text(trimmedValue)
-                    .font(.caption)
-                    .foregroundStyle(.primary)
-                    .textSelection(.enabled)
-            }
-        }
-    }
-
-    private static let timestampFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter
-    }()
 }
 #endif

@@ -40,12 +40,6 @@ struct airTypeApp: App {
                     macAppModel.togglePanel()
                 }
                 .keyboardShortcut("d", modifiers: [.command, .shift])
-
-                Button("Copy Latest Capture") {
-                    macAppModel.copyLatestToClipboard()
-                }
-                .keyboardShortcut("c", modifiers: [.command, .shift])
-                .disabled(!macAppModel.hasHistory)
             }
 
             CommandGroup(replacing: .appTermination) {

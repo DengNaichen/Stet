@@ -171,15 +171,6 @@ struct DictationSettingsStore: Sendable {
         defaults.set(enabled, forKey: MacPreferences.hotkeyDistinguishModifierSides)
     }
 
-    nonisolated func loadHistoryRetentionPeriod() -> HistoryRetentionPeriod {
-        let rawValue = defaults.string(forKey: MacPreferences.historyRetentionPeriod) ?? ""
-        return HistoryRetentionPeriod(rawValue: rawValue) ?? .thirtyDays
-    }
-
-    nonisolated func saveHistoryRetentionPeriod(_ retentionPeriod: HistoryRetentionPeriod) {
-        defaults.set(retentionPeriod.rawValue, forKey: MacPreferences.historyRetentionPeriod)
-    }
-
     nonisolated func loadPreferredAudioInputDeviceID() -> UInt32? {
         let value = defaults.integer(forKey: MacPreferences.selectedAudioInputDeviceID)
         return value > 0 ? UInt32(value) : nil
