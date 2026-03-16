@@ -5,3 +5,6 @@ build/
 dist/
 *.xcuserstate
 xcuserdata/
+.env
+.backup/
+
