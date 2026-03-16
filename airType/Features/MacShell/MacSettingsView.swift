@@ -51,41 +51,29 @@ struct MacSettingsView: View {
 
     @StateObject private var dictionaryViewModel = DictionaryViewModel()
     @StateObject private var openAISettingsViewModel = MacOpenAISettingsViewModel()
-    @State private var selectedTab: MacSettingsTab = .general
+    @State private var selectedTab: MacSettingsTab? = .general
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color(nsColor: .windowBackgroundColor))
-
-            HStack(alignment: .top, spacing: 8) {
-                sidebar
-                    .frame(width: 184)
-                    .frame(maxHeight: .infinity, alignment: .top)
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(selectedTab.title)
-                        .font(.title3.weight(.semibold))
-                        .padding(.horizontal, 8)
-
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 16) {
-                            tabContent
-                        }
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                        .padding(.horizontal, 8)
-                        .padding(.top, 2)
-                        .padding(.bottom, 10)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        HSplitView {
+            List(MacSettingsTab.allCases, selection: $selectedTab) { tab in
+                sidebarLabel(for: tab)
+                    .tag(Optional(tab))
             }
-            .padding(.horizontal, 10)
-            .padding(.bottom, 10)
-            .padding(.top, 10)
+            .listStyle(.sidebar)
+            .frame(minWidth: 180, idealWidth: 200, maxWidth: 220)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(activeTab.title)
+                        .font(.title3.weight(.semibold))
+
+                    selectedContent
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(20)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .frame(minWidth: 860, minHeight: 760)
         .task {
             reloadStateFromPreferences()
@@ -98,91 +86,27 @@ struct MacSettingsView: View {
         }
     }
 
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                Circle()
-                    .fill(Color.accentColor)
-                    .frame(width: 10, height: 10)
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("airType")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    Text("Settings")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
+    @ViewBuilder
+    private func sidebarLabel(for tab: MacSettingsTab) -> some View {
+        if tab == .permissions, hasPermissionIssues {
+            Label {
+                Text(tab.title)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
             }
-            .padding(.horizontal, 10)
-            .padding(.top, 12)
-            .padding(.bottom, 6)
-
-            ForEach(MacSettingsTab.allCases) { tab in
-                Button {
-                    selectedTab = tab
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: tab.iconName)
-                            .font(.system(size: 13, weight: .semibold))
-                            .frame(width: 16)
-                        Text(tab.title)
-                            .font(.system(size: 13, weight: .medium))
-                        Spacer(minLength: 0)
-                    }
-                    .foregroundStyle(tab == selectedTab ? .white : .primary)
-                    .padding(.horizontal, 10)
-                    .frame(height: 34)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(tab == selectedTab ? Color.accentColor : Color.clear)
-                    )
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-
-            Spacer(minLength: 8)
-
-            if hasPermissionIssues {
-                Button {
-                    selectedTab = .permissions
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.orange)
-                        Text("Attention Needed")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.orange)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 10)
-                    .frame(height: 30)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.orange.opacity(0.10))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .strokeBorder(Color.orange.opacity(0.35), lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-            }
+        } else {
+            Label(tab.title, systemImage: tab.iconName)
         }
-        .padding(.horizontal, 10)
-        .padding(.bottom, 10)
-        .padding(.top, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.72))
-        )
+    }
+
+    private var activeTab: MacSettingsTab {
+        selectedTab ?? .general
     }
 
     @ViewBuilder
-    private var tabContent: some View {
-        switch selectedTab {
+    private var selectedContent: some View {
+        switch activeTab {
         case .general:
             generalTab
         case .hotkey:
