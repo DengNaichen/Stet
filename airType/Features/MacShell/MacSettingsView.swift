@@ -44,40 +44,17 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable {
 
 struct MacSettingsView: View {
     @EnvironmentObject private var appModel: MacAppModel
-    @EnvironmentObject private var appUpdateManager: AppUpdateManager
-    @AppStorage(MacPreferences.showPanelOnLaunch) private var showPanelOnLaunch = false
-    @AppStorage(MacPreferences.copyToClipboardOnCapture) private var copyToClipboardOnCapture = true
-    @AppStorage(MacPreferences.autoPasteOnCapture) private var autoPasteOnCapture = true
-    @AppStorage(MacPreferences.revealPanelOnCapture) private var revealPanelOnCapture = false
-    @AppStorage(MacPreferences.pauseMediaDuringDictation) private var pauseMediaDuringDictation = false
-    @AppStorage(MacPreferences.selectedAudioInputDeviceID) private var selectedAudioInputDeviceIDRaw = 0
     @AppStorage(MacPreferences.rewriteEnabled) private var rewriteEnabled = false
     @AppStorage(MacPreferences.openAIBaseURL) private var openAIBaseURL = "https://api.openai.com/v1"
     @AppStorage(MacPreferences.translationTargetLanguage) private var translationTargetLanguageRawValue = TranslationTargetLanguage.english.rawValue
     @AppStorage(MacPreferences.translateSelectedTextOnTranslationHotkey) private var translateSelectedTextOnTranslationHotkey = true
     @AppStorage(MacPreferences.openAITranslationModel) private var openAITranslationModel = "gpt-5-mini"
-    @AppStorage(MacPreferences.interactionSoundsEnabled) private var interactionSoundsEnabled = true
-    @AppStorage(MacPreferences.interactionSoundPreset) private var interactionSoundPresetRawValue = InteractionSoundPreset.soft.rawValue
-    @AppStorage(MacPreferences.launchAtLogin) private var launchAtLogin = false
-    @AppStorage(MacPreferences.showInDock) private var showInDock = false
-    @AppStorage(MacPreferences.proxyMode) private var proxyModeRawValue = NetworkProxyMode.system.rawValue
-    @AppStorage(MacPreferences.customProxyScheme) private var customProxySchemeRawValue = CustomProxyScheme.http.rawValue
-    @AppStorage(MacPreferences.customProxyHost) private var customProxyHost = ""
-    @AppStorage(MacPreferences.customProxyPort) private var customProxyPort = ""
-    @AppStorage(MacPreferences.hotkeyDebugLoggingEnabled) private var hotkeyDebugLoggingEnabled = false
-    @AppStorage(MacPreferences.openAIDebugLoggingEnabled) private var openAIDebugLoggingEnabled = false
-    @AppStorage(MacPreferences.hotkeyDistinguishModifierSides) private var hotkeyDistinguishModifierSides = false
 
     @StateObject private var dictionaryViewModel = DictionaryViewModel()
     @StateObject private var openAISettingsViewModel = MacOpenAISettingsViewModel()
     @State private var selectedTab: MacSettingsTab = .general
     @State private var hotkeyMessage: String?
     @State private var hotkeyMessageIsError = false
-    @State private var generalMessage: String?
-    @State private var generalMessageIsError = false
-    @State private var inputDevices: [AudioInputDevice] = []
-
-    private let settingsStore = DictationSettingsStore()
 
     var body: some View {
         ZStack {
@@ -115,22 +92,12 @@ struct MacSettingsView: View {
         .frame(minWidth: 860, minHeight: 760)
         .task {
             reloadStateFromPreferences()
-            refreshInputDevices()
         }
         .onAppear {
             appModel.settingsDidAppear()
         }
         .onDisappear {
             appModel.settingsDidDisappear()
-        }
-        .onChange(of: launchAtLogin) { oldValue, newValue in
-            guard oldValue != newValue else { return }
-            applyLaunchAtLogin(enabled: newValue, fallback: oldValue)
-        }
-        .onChange(of: showInDock) { _, newValue in
-            appModel.applyDockVisibility(showInDock: newValue)
-            generalMessage = newValue ? "Dock icon enabled." : "Dock icon hidden."
-            generalMessageIsError = false
         }
     }
 
@@ -233,207 +200,7 @@ struct MacSettingsView: View {
     }
 
     private var generalTab: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            settingsCard(
-                title: "Configuration",
-                description: "Export or import your current hotkey, dictionary, and behavior settings."
-            ) {
-                HStack(spacing: 8) {
-                    Button("Export Configuration") {
-                        exportConfiguration()
-                    }
-
-                    Button("Import Configuration") {
-                        importConfiguration()
-                    }
-                }
-
-                if let generalMessage {
-                    Text(generalMessage)
-                        .font(.caption)
-                        .foregroundStyle(generalMessageIsError ? .red : .secondary)
-                }
-            }
-
-            settingsCard(
-                title: "Audio",
-                description: "Choose which microphone airType should use on the next recording session."
-            ) {
-                settingsValueRow(title: "Microphone") {
-                    Picker("Microphone", selection: $selectedAudioInputDeviceIDRaw) {
-                        Text(systemDefaultInputDeviceLabel).tag(0)
-
-                        ForEach(inputDevices) { device in
-                            Text(device.name).tag(Int(device.id))
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    .frame(width: 240, alignment: .trailing)
-                }
-
-                HStack(spacing: 8) {
-                    Button("Refresh Devices") {
-                        refreshInputDevices()
-                    }
-                    .controlSize(.small)
-
-                    if let selectedAudioInputDeviceSummary {
-                        Text(selectedAudioInputDeviceSummary)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Text("The selected microphone is applied the next time dictation starts. On macOS this now feeds both the on-device and OpenAI recording paths.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            settingsCard(
-                title: "Output",
-                description: "Control where dictation results go after capture finishes."
-            ) {
-                Toggle("Show dictation capsule on launch", isOn: $showPanelOnLaunch)
-                Toggle("Copy final transcript automatically", isOn: $copyToClipboardOnCapture)
-                Toggle("Paste transcript back into the previous app", isOn: $autoPasteOnCapture)
-                Toggle("Keep the capsule visible when paste fails", isOn: $revealPanelOnCapture)
-                Toggle("Pause media during dictation and resume afterward", isOn: $pauseMediaDuringDictation)
-            }
-
-            settingsCard(
-                title: "Interaction Sounds",
-                description: "Play a short start and finish cue around each dictation session."
-            ) {
-                Toggle("Enable interaction sounds", isOn: $interactionSoundsEnabled)
-
-                settingsValueRow(title: "Preset") {
-                    Picker("Preset", selection: interactionSoundPresetBinding) {
-                        ForEach(InteractionSoundPreset.allCases) { preset in
-                            Text(preset.title).tag(preset)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    .frame(width: 180, alignment: .trailing)
-                }
-
-                Button("Try Sound") {
-                    appModel.previewInteractionSound(interactionSoundPreset)
-                }
-                .controlSize(.small)
-            }
-
-            settingsCard(
-                title: "App Behavior",
-                description: "Control whether airType starts with macOS and whether it appears in the Dock."
-            ) {
-                Toggle("Launch at Login", isOn: $launchAtLogin)
-                Toggle("Show in Dock", isOn: $showInDock)
-
-                Text("Dock visibility applies immediately. Launch at Login uses macOS app service registration.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            settingsCard(
-                title: "Network",
-                description: "Choose whether OpenAI requests follow the system proxy, bypass it, or use a custom endpoint."
-            ) {
-                settingsValueRow(title: "Proxy") {
-                    Picker("Proxy", selection: proxyModeBinding) {
-                        ForEach(NetworkProxyMode.allCases) { mode in
-                            Text(mode.title).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    .frame(width: 180, alignment: .trailing)
-                }
-
-                if proxyMode == .custom {
-                    settingsValueRow(title: "Scheme") {
-                        Picker("Scheme", selection: customProxySchemeBinding) {
-                            ForEach(CustomProxyScheme.allCases) { scheme in
-                                Text(scheme.title).tag(scheme)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .labelsHidden()
-                        .frame(width: 180, alignment: .trailing)
-                    }
-
-                    TextField("Proxy host", text: $customProxyHost)
-                        .textFieldStyle(.roundedBorder)
-
-                    TextField("Proxy port", text: $customProxyPort)
-                        .textFieldStyle(.roundedBorder)
-                }
-            }
-
-            settingsCard(
-                title: "Updates",
-                description: "Sparkle checks your signed appcast feed and can download or install updates for distributed builds."
-            ) {
-                Toggle(
-                    "Check for updates automatically",
-                    isOn: Binding(
-                        get: { appUpdateManager.automaticallyChecksForUpdates },
-                        set: { appUpdateManager.setAutomaticallyChecksForUpdates($0) }
-                    )
-                )
-                .disabled(!appUpdateManager.isConfigured)
-
-                Toggle(
-                    "Download and install updates automatically when possible",
-                    isOn: Binding(
-                        get: { appUpdateManager.automaticallyDownloadsUpdates },
-                        set: { appUpdateManager.setAutomaticallyDownloadsUpdates($0) }
-                    )
-                )
-                .disabled(!appUpdateManager.isConfigured)
-
-                settingsValueRow(title: "Appcast") {
-                    Text(appUpdateManager.configuredFeedURLString ?? "Missing")
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(appUpdateManager.isConfigured ? Color.secondary : Color.orange)
-                        .multilineTextAlignment(.trailing)
-                        .frame(maxWidth: 360, alignment: .trailing)
-                }
-
-                settingsValueRow(title: "Status") {
-                    statusBadge(
-                        appUpdateManager.statusLabel,
-                        tint: Color(nsColor: appUpdateManager.statusTint)
-                    )
-                }
-
-                if let detailText = appUpdateManager.detailText {
-                    Text(detailText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack(spacing: 8) {
-                    Button("Check Now") {
-                        appUpdateManager.checkForUpdates()
-                    }
-                    .disabled(appUpdateManager.isChecking || !appUpdateManager.canCheckForUpdates)
-                }
-
-                Text("Set SPARKLE_FEED_URL and SPARKLE_PUBLIC_ED_KEY in the build settings before shipping a Sparkle-enabled build.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            settingsCard(
-                title: "Debug Logging",
-                description: "Enable temporary logs while diagnosing shortcut handling or OpenAI requests."
-            ) {
-                Toggle("Hotkey debug logging", isOn: $hotkeyDebugLoggingEnabled)
-                Toggle("OpenAI debug logging", isOn: $openAIDebugLoggingEnabled)
-            }
-        }
+        MacGeneralSettingsView()
     }
 
     private var hotkeyTab: some View {
@@ -529,29 +296,10 @@ struct MacSettingsView: View {
         TranslationTargetLanguage(rawValue: translationTargetLanguageRawValue) ?? .english
     }
 
-    private var interactionSoundPreset: InteractionSoundPreset {
-        InteractionSoundPreset(rawValue: interactionSoundPresetRawValue) ?? .soft
-    }
-
-    private var proxyMode: NetworkProxyMode {
-        NetworkProxyMode(rawValue: proxyModeRawValue) ?? .system
-    }
-
-    private var customProxyScheme: CustomProxyScheme {
-        CustomProxyScheme(rawValue: customProxySchemeRawValue) ?? .http
-    }
-
     private var hasPermissionIssues: Bool {
         appModel.microphoneAccessNeedsAttention ||
             appModel.autoPasteAccessNeedsAttention ||
             appModel.inputMonitoringNeedsAttention
-    }
-
-    private var interactionSoundPresetBinding: Binding<InteractionSoundPreset> {
-        Binding(
-            get: { interactionSoundPreset },
-            set: { interactionSoundPresetRawValue = $0.rawValue }
-        )
     }
 
     private var translationTargetLanguageBinding: Binding<TranslationTargetLanguage> {
@@ -561,103 +309,9 @@ struct MacSettingsView: View {
         )
     }
 
-    private var proxyModeBinding: Binding<NetworkProxyMode> {
-        Binding(
-            get: { proxyMode },
-            set: { proxyModeRawValue = $0.rawValue }
-        )
-    }
-
-    private var customProxySchemeBinding: Binding<CustomProxyScheme> {
-        Binding(
-            get: { customProxyScheme },
-            set: { customProxySchemeRawValue = $0.rawValue }
-        )
-    }
-
     private func reloadStateFromPreferences() {
         openAISettingsViewModel.load()
         dictionaryViewModel.load()
-        launchAtLogin = MacAppBehaviorController.launchAtLoginIsEnabled()
-        refreshInputDevices()
-    }
-
-    private var systemDefaultInputDeviceLabel: String {
-        if let defaultDeviceID = AudioInputDeviceManager.defaultInputDeviceID(),
-           let device = inputDevices.first(where: { $0.id == defaultDeviceID }) {
-            return "System Default (\(device.name))"
-        }
-
-        return "System Default"
-    }
-
-    private var selectedAudioInputDeviceSummary: String? {
-        if selectedAudioInputDeviceIDRaw == 0 {
-            return AudioInputDeviceManager.defaultInputDeviceID()
-                .flatMap { defaultDeviceID in
-                    inputDevices.first(where: { $0.id == defaultDeviceID })?.name
-                }
-                .map { "Currently resolves to \($0)." }
-        }
-
-        if let selectedDevice = inputDevices.first(where: { Int($0.id) == selectedAudioInputDeviceIDRaw }) {
-            return "Using \(selectedDevice.name) on the next capture."
-        }
-
-        return "The selected input device is unavailable. Refresh or switch back to System Default."
-    }
-
-    private func refreshInputDevices() {
-        inputDevices = AudioInputDeviceManager.availableInputDevices()
-
-        if inputDevices.isEmpty {
-            selectedAudioInputDeviceIDRaw = 0
-            return
-        }
-
-        let selectionExists = selectedAudioInputDeviceIDRaw == 0 ||
-            inputDevices.contains(where: { Int($0.id) == selectedAudioInputDeviceIDRaw })
-
-        if !selectionExists {
-            selectedAudioInputDeviceIDRaw = 0
-        }
-    }
-
-    private func exportConfiguration() {
-        do {
-            try MacConfigurationTransferManager.exportConfiguration(using: settingsStore)
-            generalMessage = "Configuration exported."
-            generalMessageIsError = false
-        } catch {
-            generalMessage = error.localizedDescription
-            generalMessageIsError = true
-        }
-    }
-
-    private func importConfiguration() {
-        do {
-            try MacConfigurationTransferManager.importConfiguration(using: settingsStore)
-            reloadStateFromPreferences()
-            try? appModel.setLaunchAtLoginEnabled(launchAtLogin)
-            appModel.refreshRuntimeFromSettings()
-            generalMessage = "Configuration imported. API keys are still managed separately in Keychain."
-            generalMessageIsError = false
-        } catch {
-            generalMessage = error.localizedDescription
-            generalMessageIsError = true
-        }
-    }
-
-    private func applyLaunchAtLogin(enabled: Bool, fallback: Bool) {
-        do {
-            try appModel.setLaunchAtLoginEnabled(enabled)
-            generalMessage = enabled ? "Launch at Login enabled." : "Launch at Login disabled."
-            generalMessageIsError = false
-        } catch {
-            launchAtLogin = fallback
-            generalMessage = error.localizedDescription
-            generalMessageIsError = true
-        }
     }
 
     @ViewBuilder
