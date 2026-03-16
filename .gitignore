@@ -1,8 +1,5 @@
 .DS_Store
-default.profraw
 DerivedData/
 build/
 *.xcuserstate
 xcuserdata/
-* copy.swift
-* 2.swift
