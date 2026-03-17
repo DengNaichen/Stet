@@ -1,4 +1,4 @@
-import AVFoundation
+@preconcurrency import AVFoundation
 import Foundation
 #if os(macOS)
 import AudioToolbox
@@ -194,11 +194,39 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
         let inputNode = audioEngine.inputNode
         applyPreferredInputDeviceIfNeeded(inputNode: inputNode)
         let inputFormat = inputNode.outputFormat(forBus: 0)
+        guard let outputFormat = TranscriptionUploadAudioFormat.makeMacOutputFormat() else {
+            throw SpeechServiceError.unsupportedAudioFormat
+        }
+        guard let converter = AVAudioConverter(from: inputFormat, to: outputFormat) else {
+            throw SpeechServiceError.unsupportedAudioFormat
+        }
         let fileURL = makeRecordingFileURL()
-        let recordingFile = try AVAudioFile(forWriting: fileURL, settings: inputFormat.settings)
+        let recordingFile = try AVAudioFile(forWriting: fileURL, settings: outputFormat.settings)
+
+        AppLogger.info(
+            """
+            Configuring mac transcription capture. \
+            inputSampleRate=\(Int(inputFormat.sampleRate)), \
+            inputChannels=\(inputFormat.channelCount), \
+            targetSampleRate=\(Int(outputFormat.sampleRate)), \
+            targetChannels=\(outputFormat.channelCount), \
+            targetBitDepth=\(TranscriptionUploadAudioFormat.macLinearPCMBitDepth)
+            """,
+            category: .dictation
+        )
 
         inputNode.installTap(onBus: 0, bufferSize: 4_096, format: inputFormat) { buffer, _ in
-            try? recordingFile.write(from: buffer)
+            do {
+                if let convertedBuffer = try Self.convertMacInputBuffer(
+                    buffer,
+                    using: converter,
+                    outputFormat: outputFormat
+                ) {
+                    try recordingFile.write(from: convertedBuffer)
+                }
+            } catch {
+                AppLogger.warning("Failed to convert input buffer for transcription capture: \(error.localizedDescription)")
+            }
             self.audioLevelBridge.emit(Self.normalizedLevel(from: buffer))
         }
 
@@ -242,12 +270,7 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
     #endif
 
     private func makeRecorderSettings() -> [String: Any] {
-        [
-            AVFormatIDKey: kAudioFormatMPEG4AAC,
-            AVSampleRateKey: 44_100,
-            AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
-        ]
+        TranscriptionUploadAudioFormat.iOSRecorderSettings
     }
 
     private func makeRecordingFileURL() -> URL {
@@ -256,9 +279,9 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
             .appendingPathExtension(
                 {
                     #if os(macOS)
-                    "wav"
+                    TranscriptionUploadAudioFormat.macFileExtension
                     #else
-                    "m4a"
+                    TranscriptionUploadAudioFormat.iOSFileExtension
                     #endif
                 }()
             )
@@ -361,4 +384,50 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
         guard duration.isFinite, duration > 0 else { return nil }
         return duration
     }
+
+    #if os(macOS)
+    nonisolated private static func convertMacInputBuffer(
+        _ inputBuffer: AVAudioPCMBuffer,
+        using converter: AVAudioConverter,
+        outputFormat: AVAudioFormat
+    ) throws -> AVAudioPCMBuffer? {
+        let outputFrameCapacity = TranscriptionUploadAudioFormat.macConvertedFrameCapacity(
+            for: inputBuffer.frameLength,
+            inputSampleRate: inputBuffer.format.sampleRate
+        )
+        guard outputFrameCapacity > 0,
+              let outputBuffer = AVAudioPCMBuffer(
+                  pcmFormat: outputFormat,
+                  frameCapacity: outputFrameCapacity
+              ) else {
+            return nil
+        }
+
+        var didSupplyInput = false
+        var conversionError: NSError?
+        let status = converter.convert(to: outputBuffer, error: &conversionError) { _, outStatus in
+            if didSupplyInput {
+                outStatus.pointee = .endOfStream
+                return nil
+            }
+
+            didSupplyInput = true
+            outStatus.pointee = .haveData
+            return inputBuffer
+        }
+
+        if let conversionError {
+            throw conversionError
+        }
+
+        switch status {
+        case .haveData, .inputRanDry, .endOfStream:
+            return outputBuffer.frameLength > 0 ? outputBuffer : nil
+        case .error:
+            throw SpeechServiceError.unsupportedAudioFormat
+        @unknown default:
+            return nil
+        }
+    }
+    #endif
 }
