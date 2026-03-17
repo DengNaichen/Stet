@@ -21,6 +21,9 @@ enum OpenAIError: LocalizedError, Equatable {
         case .invalidResponse:
             return "The OpenAI API returned an invalid response."
         case .api(let statusCode, let message):
+            if statusCode <= 0 {
+                return "OpenAI API error: \(message)"
+            }
             return "OpenAI API error (\(statusCode)): \(message)"
         case .missingTranscriptionText:
             return "The transcription response did not contain any text."

@@ -6,48 +6,21 @@ import Testing
 @MainActor
 @Suite("OpenAI Adapters", .serialized)
 struct OpenAITests {
-    @Test func openAIClientBuildsJSONRequestHeadersAndRelativeURL() async throws {
-        let session = TestURLSessionFactory.makeSession()
+    @Test func openAIConfigurationBuildsSDKConfigurationFromBaseURL() throws {
         let configuration = OpenAIConfiguration(
             apiKey: "sk-test",
             baseURL: URL(string: "https://api.example.com/v1")!,
             organizationID: "org_123",
             projectID: "proj_123"
         )
-        let client = OpenAIClient(configuration: configuration, session: session)
+        let sdkConfiguration = try configuration.sdkConfiguration(additionalHeaders: ["X-Test": "1"])
 
-        URLProtocolStub.configure { request in
-            let body = try TestSupport.requestBodyData(from: request)
-            #expect(request.url?.absoluteString == "https://api.example.com/v1/responses")
-            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer sk-test")
-            #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
-            #expect(request.value(forHTTPHeaderField: "OpenAI-Organization") == "org_123")
-            #expect(request.value(forHTTPHeaderField: "OpenAI-Project") == "proj_123")
-            #expect(String(data: body, encoding: .utf8)?.contains("\"ping\":true") == true)
-
-            let response = HTTPURLResponse(url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
-            return (response, Data(#"{"ok":true}"#.utf8))
-        }
-        defer { URLProtocolStub.reset() }
-
-        let response: TestResponse = try await client.sendJSONRequest(path: "/responses", body: ["ping": true])
-
-        #expect(response.ok)
-    }
-
-    @Test func openAIClientParsesAPIEnvelopeErrors() async {
-        let session = TestURLSessionFactory.makeSession()
-        let client = OpenAIClient(configuration: OpenAIConfiguration(apiKey: "sk-test"), session: session)
-
-        URLProtocolStub.configure { request in
-            let response = HTTPURLResponse(url: try #require(request.url), statusCode: 401, httpVersion: nil, headerFields: nil)!
-            return (response, Data(#"{"error":{"message":"bad key"}}"#.utf8))
-        }
-        defer { URLProtocolStub.reset() }
-
-        await #expect(throws: OpenAIError.api(statusCode: 401, message: "bad key")) {
-            let _: TestResponse = try await client.sendJSONRequest(path: "/responses", body: ["ping": true])
-        }
+        #expect(sdkConfiguration.token == "sk-test")
+        #expect(sdkConfiguration.organizationIdentifier == "org_123")
+        #expect(sdkConfiguration.host == "api.example.com")
+        #expect(sdkConfiguration.basePath == "/v1")
+        #expect(sdkConfiguration.customHeaders["OpenAI-Project"] == "proj_123")
+        #expect(sdkConfiguration.customHeaders["X-Test"] == "1")
     }
 
     @Test func openAITranscriptionServiceSendsMultipartFields() async throws {
@@ -138,12 +111,29 @@ struct OpenAITests {
             .rewriteSelection(
                 sourceText: "hello",
                 instruction: "Make it concise",
-                preferredSpellings: ["OpenAI"],
-                contextInstructions: "Use docs tone"
+                preferredSpellings: ["OpenAI"]
             )
         )
 
         #expect(text == "rewritten")
+    }
+
+    @Test func openAIRewriteServiceMapsProviderErrors() async {
+        let session = TestURLSessionFactory.makeSession()
+        let service = OpenAIRewriteService(
+            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            session: session
+        )
+
+        URLProtocolStub.configure { request in
+            let response = HTTPURLResponse(url: try #require(request.url), statusCode: 401, httpVersion: nil, headerFields: nil)!
+            return (response, Data(#"{"error":{"message":"bad key","type":"invalid_request_error","param":null,"code":null}}"#.utf8))
+        }
+        defer { URLProtocolStub.reset() }
+
+        await #expect(throws: OpenAIError.api(statusCode: 0, message: "bad key")) {
+            try await service.rewrite(.rewriteSelection(sourceText: "hello", instruction: "Make it concise"))
+        }
     }
 
     @Test func openAITranslationServiceBuildsTargetLanguagePromptAndThrowsOnMissingText() async {
@@ -169,8 +159,4 @@ struct OpenAITests {
             try await service.translate(.translate("hello", to: .japanese))
         }
     }
-}
-
-private struct TestResponse: Decodable {
-    let ok: Bool
 }

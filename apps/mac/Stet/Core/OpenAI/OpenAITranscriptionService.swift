@@ -1,4 +1,5 @@
 import Foundation
+import OpenAI
 
 protocol AudioFileTranscriptionService: Sendable {
     func transcribe(
@@ -10,18 +11,14 @@ protocol AudioFileTranscriptionService: Sendable {
 }
 
 struct OpenAITranscriptionService: AudioFileTranscriptionService {
-    private struct ResponseEnvelope: Decodable {
-        let text: String?
-    }
-
-    private let client: OpenAIClient
+    private let clientFactory: OpenAISDKClientFactory
     private let defaultModel: String
 
     nonisolated init(
         configuration: OpenAIConfiguration,
         session: URLSession = .shared
     ) {
-        self.client = OpenAIClient(configuration: configuration, session: session)
+        self.clientFactory = OpenAISDKClientFactory(configuration: configuration, session: session)
         self.defaultModel = configuration.transcriptionModel
     }
 
@@ -33,37 +30,47 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
     ) async throws -> String {
         await DictationLatencyProbe.shared.record(.uploadStarted)
 
-        var fields = ["model": defaultModel]
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            throw OpenAIError.fileNotFound(fileURL)
+        }
+
+        guard let fileType = AudioTranscriptionQuery.FileType(fileURL: fileURL) else {
+            throw OpenAIError.missingTranscriptionText
+        }
+
+        let audioData = try Data(contentsOf: fileURL)
         var additionalHeaders: [String: String] = [:]
-
-        if let languageCode = languageCode?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !languageCode.isEmpty {
-            fields["language"] = languageCode
-        }
-
-        if let prompt = prompt?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !prompt.isEmpty {
-            fields["prompt"] = prompt
-        }
 
         if let audioDurationSeconds, audioDurationSeconds.isFinite, audioDurationSeconds > 0 {
             additionalHeaders["X-Stet-Audio-Duration-Seconds"] = String(Int(audioDurationSeconds.rounded(.up)))
         }
 
-        let response: ResponseEnvelope = try await client.sendMultipartRequest(
-            path: "/audio/transcriptions",
-            fields: fields,
-            file: .init(fileURL: fileURL),
-            additionalHeaders: additionalHeaders,
-            trackLatencyProbe: true
-        )
+        do {
+            let client = try clientFactory.makeClient(
+                additionalHeaders: additionalHeaders,
+                additionalMiddlewares: [OpenAIUploadCompletionMiddleware(note: "response_fallback")]
+            )
 
-        guard let text = response.text?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !text.isEmpty else {
-            throw OpenAIError.missingTranscriptionText
+            let response = try await client.audioTranscriptions(
+                query: AudioTranscriptionQuery(
+                    file: audioData,
+                    fileType: fileType,
+                    model: defaultModel,
+                    prompt: prompt?.trimmingCharacters(in: .whitespacesAndNewlines),
+                    language: languageCode?.trimmingCharacters(in: .whitespacesAndNewlines),
+                    responseFormat: .json
+                )
+            )
+
+            let text = response.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else {
+                throw OpenAIError.missingTranscriptionText
+            }
+
+            await DictationLatencyProbe.shared.record(.transcriptionCompleted)
+            return text
+        } catch {
+            throw OpenAISDKClientFactory.mapError(error)
         }
-
-        await DictationLatencyProbe.shared.record(.transcriptionCompleted)
-        return text
     }
 }
