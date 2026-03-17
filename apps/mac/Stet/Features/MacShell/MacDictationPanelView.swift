@@ -26,7 +26,7 @@ struct MacDictationPanelView: View {
 
     private var idleCapsule: some View {
         shell(style: .idle) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 controlButton(
                     systemName: "xmark",
                     isEmphasized: false,
@@ -50,15 +50,15 @@ struct MacDictationPanelView: View {
     }
 
     private var recordingCapsule: some View {
-        shell(style: .listening(level: normalizedRecordingLevel)) {
-            HStack(spacing: 14) {
+        shell(style: .listening(level: emphasizedRecordingLevel)) {
+            HStack(spacing: 12) {
                 controlButton(
                     systemName: "xmark",
                     isEmphasized: false,
                     action: appModel.cancelActiveCapture
                 )
 
-                VoiceLevelBarsView(level: normalizedRecordingLevel, layout: layout)
+                VoiceLevelBarsView(level: emphasizedRecordingLevel, layout: layout)
                     .frame(maxWidth: .infinity)
 
                 controlButton(
@@ -72,7 +72,7 @@ struct MacDictationPanelView: View {
 
     private var thinkingCapsule: some View {
         shell(style: .processing) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 ProgressView()
                     .controlSize(.small)
                     .tint(.white)
@@ -105,7 +105,7 @@ struct MacDictationPanelView: View {
 
     private func errorCapsule(message: String) -> some View {
         shell(style: .error) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 controlButton(
                     systemName: "xmark",
                     isEmphasized: false,
@@ -151,6 +151,14 @@ struct MacDictationPanelView: View {
         min(max(appModel.recordingLevel, 0), 1)
     }
 
+    private var emphasizedRecordingLevel: Double {
+        let silenceFloor = 0.08
+        let normalized = normalizedRecordingLevel
+        let lifted = max(normalized - silenceFloor, 0) / (1 - silenceFloor)
+        let emphasized = pow(lifted, 0.58)
+        return min(max(0.1 + emphasized * 0.9, 0.1), 1)
+    }
+
     private func controlButton(
         systemName: String,
         isEmphasized: Bool,
@@ -186,6 +194,9 @@ private struct ReactiveBlendCapsuleBackground: View {
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isActive)) { timeline in
             let time = timeline.date.timeIntervalSinceReferenceDate
+            let pulseScale = isActive ? (0.985 + 0.05 * energy) : 1
+            let shadowRadius = 14 + 12 * energy
+            let shadowYOffset = 6 + 5 * energy
 
             ZStack {
                 Capsule(style: .continuous)
@@ -227,8 +238,10 @@ private struct ReactiveBlendCapsuleBackground: View {
                 Capsule(style: .continuous)
                     .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
             }
+            .scaleEffect(x: 1, y: pulseScale, anchor: .center)
             .clipShape(Capsule(style: .continuous))
-            .shadow(color: Color.black.opacity(0.10), radius: 18, y: 8)
+            .shadow(color: Color.black.opacity(0.1 + 0.08 * energy), radius: shadowRadius, y: shadowYOffset)
+            .animation(.interactiveSpring(response: 0.18, dampingFraction: 0.72), value: energy)
         }
     }
 }
@@ -275,8 +288,8 @@ private struct ColorCloudField: View {
                     )
             }
             .drawingGroup(opaque: true, colorMode: .linear)
-            .saturation(1.04 + 0.12 * level)
-            .brightness(0.01 + 0.02 * level)
+            .saturation(1.08 + 0.2 * level)
+            .brightness(0.012 + 0.04 * level)
         }
     }
 }
@@ -297,7 +310,7 @@ private struct BlendBlob: Identifiable {
         isActive: Bool
     ) -> [BlendBlob] {
         let energy = CGFloat(min(max(level, 0), 1))
-        let motion = isActive ? (0.40 + 0.60 * energy) : 0.18
+        let motion = isActive ? (0.55 + 0.95 * energy) : 0.16
         let width = size.width
         let height = size.height
 
@@ -312,14 +325,14 @@ private struct BlendBlob: Identifiable {
         return anchors.enumerated().map { index, anchor in
             let seed = Double(index) * 11.73 + 0.91
 
-            let smoothX = width * (0.030 + 0.050 * motion) * smoothNoise(time, seed: seed)
-            let smoothY = height * (0.050 + 0.080 * motion) * smoothNoise(time * 1.17, seed: seed + 3.2)
+            let smoothX = width * (0.04 + 0.075 * motion) * smoothNoise(time, seed: seed)
+            let smoothY = height * (0.06 + 0.1 * motion) * smoothNoise(time * 1.17, seed: seed + 3.2)
 
-            let jumpX = width * (0.006 + 0.018 * motion) * steppedNoise(time * (4.0 + Double(level) * 9.0), seed: seed + 8.4)
-            let jumpY = height * (0.008 + 0.024 * motion) * steppedNoise(time * (5.0 + Double(level) * 12.0), seed: seed + 14.7)
+            let jumpX = width * (0.01 + 0.024 * motion) * steppedNoise(time * (4.4 + Double(level) * 10.0), seed: seed + 8.4)
+            let jumpY = height * (0.012 + 0.03 * motion) * steppedNoise(time * (5.6 + Double(level) * 13.0), seed: seed + 14.7)
 
-            let widthPulse = 1 + (0.04 + 0.13 * motion) * smoothNoise(time * (1.05 + Double(index) * 0.08), seed: seed + 1.6)
-            let heightPulse = 1 + (0.03 + 0.11 * motion) * smoothNoise(time * (0.92 + Double(index) * 0.07), seed: seed + 4.9)
+            let widthPulse = 1 + (0.06 + 0.18 * motion) * smoothNoise(time * (1.05 + Double(index) * 0.08), seed: seed + 1.6)
+            let heightPulse = 1 + (0.05 + 0.16 * motion) * smoothNoise(time * (0.92 + Double(index) * 0.07), seed: seed + 4.9)
 
             return BlendBlob(
                 id: index,
@@ -332,8 +345,8 @@ private struct BlendBlob: Identifiable {
                     height: height * anchor.3 * heightPulse
                 ),
                 color: palette[index % palette.count],
-                blur: height * (0.22 + 0.05 * motion),
-                opacity: Double(0.52 + 0.18 * motion + 0.04 * CGFloat(index % 2))
+                blur: height * (0.24 + 0.06 * motion),
+                opacity: Double(0.48 + 0.24 * motion + 0.05 * CGFloat(index % 2))
             )
         }
     }
@@ -433,23 +446,25 @@ private struct VoiceLevelBarsView: View {
     let level: Double
     let layout: MacDictationPanelLayout
 
-    private let multipliers: [CGFloat] = [0.35, 0.5, 0.72, 0.9, 1, 0.9, 0.72, 0.5, 0.35]
+    private let multipliers: [CGFloat] = [0.18, 0.34, 0.56, 0.82, 1, 0.82, 0.56, 0.34, 0.18]
 
     var body: some View {
-        HStack(alignment: .center, spacing: 4) {
+        HStack(alignment: .center, spacing: 3) {
             ForEach(Array(multipliers.enumerated()), id: \.offset) { _, multiplier in
                 Capsule()
                     .fill(Color.white)
-                    .frame(width: 4, height: barHeight(multiplier: multiplier))
+                    .frame(width: 5, height: barHeight(multiplier: multiplier))
+                    .opacity(0.68 + 0.32 * level)
             }
         }
         .frame(height: layout.voiceBarHeight)
-        .animation(.spring(response: 0.18, dampingFraction: 0.72), value: level)
+        .animation(.interactiveSpring(response: 0.16, dampingFraction: 0.68), value: level)
     }
 
     private func barHeight(multiplier: CGFloat) -> CGFloat {
-        let baseHeight: CGFloat = 5
-        let variableHeight = CGFloat(max(level, 0.08)) * (layout.voiceBarHeight - baseHeight) * multiplier
+        let baseHeight: CGFloat = 3
+        let responsiveLevel = CGFloat(pow(max(level, 0.02), 0.82))
+        let variableHeight = responsiveLevel * (layout.voiceBarHeight - baseHeight) * multiplier
         return baseHeight + variableHeight
     }
 }

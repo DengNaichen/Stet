@@ -17,39 +17,95 @@ protocol MediaPlaybackControlling: AnyObject {
 
 @MainActor
 final class MacMediaPlaybackController: MediaPlaybackControlling {
-    private let callbackQueue = DispatchQueue(label: "Stet.media-remote")
+    struct MediaRemoteClient {
+        let send: @Sendable (UInt32) -> Bool
+        let isPlaying: @Sendable () -> Bool
+    }
+
+    struct Dependencies {
+        let loadMediaRemoteClient: @Sendable () -> MediaRemoteClient?
+        let sendMediaKey: @Sendable () -> Bool
+
+        static func live(callbackQueue: DispatchQueue) -> Self {
+            Self(
+                loadMediaRemoteClient: {
+                    guard let mediaRemote = MacMediaPlaybackController.loadMediaRemote() else {
+                        return nil
+                    }
+
+                    return MediaRemoteClient(
+                        send: { command in
+                            mediaRemote.send(command, nil)
+                        },
+                        isPlaying: {
+                            MacMediaPlaybackController.checkIsPlaying(
+                                using: mediaRemote.isPlaying,
+                                callbackQueue: callbackQueue
+                            )
+                        }
+                    )
+                },
+                sendMediaKey: {
+                    MacMediaPlaybackController.sendMediaKey()
+                }
+            )
+        }
+    }
+
+    private let dependencies: Dependencies
+    private let systemAudioMuter: any SystemAudioMuting
     private var didPausePlayback = false
-    private lazy var mediaRemote = loadMediaRemote()
+    private var didMuteSystemAudio = false
+    private lazy var mediaRemote = dependencies.loadMediaRemoteClient()
+
+    init(
+        systemAudioMuter: (any SystemAudioMuting)? = nil,
+        callbackQueue: DispatchQueue = DispatchQueue(label: "Stet.media-remote"),
+        dependencies: Dependencies? = nil
+    ) {
+        self.systemAudioMuter = systemAudioMuter ?? SystemAudioMuteController()
+        self.dependencies = dependencies ?? .live(callbackQueue: callbackQueue)
+    }
 
     func pausePlaybackIfNeeded() {
         didPausePlayback = false
+        didMuteSystemAudio = systemAudioMuter.activateMuteIfNeeded()
 
         if let mediaRemote {
-            guard checkIsPlaying(using: mediaRemote.isPlaying) else {
+            guard mediaRemote.isPlaying() else {
                 return
             }
 
-            didPausePlayback = mediaRemote.send(mediaRemotePauseCommand, nil)
+            didPausePlayback = mediaRemote.send(mediaRemotePauseCommand)
             if didPausePlayback {
                 return
             }
         }
 
-        didPausePlayback = sendMediaKey()
+        didPausePlayback = dependencies.sendMediaKey()
     }
 
     func resumePlaybackIfNeeded() {
-        guard didPausePlayback else { return }
+        let shouldResumePlayback = didPausePlayback
         didPausePlayback = false
 
-        if let mediaRemote, mediaRemote.send(mediaRemotePlayCommand, nil) {
+        if didMuteSystemAudio {
+            systemAudioMuter.restoreMuteIfNeeded()
+            didMuteSystemAudio = false
+        }
+
+        guard shouldResumePlayback else {
             return
         }
 
-        _ = sendMediaKey()
+        if let mediaRemote, mediaRemote.send(mediaRemotePlayCommand) {
+            return
+        }
+
+        _ = dependencies.sendMediaKey()
     }
 
-    private func loadMediaRemote() -> (send: MediaRemoteSendCommand, isPlaying: MediaRemoteIsPlaying)? {
+    nonisolated private static func loadMediaRemote() -> (send: MediaRemoteSendCommand, isPlaying: MediaRemoteIsPlaying)? {
         let frameworkPath = "/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote"
 
         guard let handle = dlopen(frameworkPath, RTLD_NOW),
@@ -63,7 +119,10 @@ final class MacMediaPlaybackController: MediaPlaybackControlling {
         return (send: send, isPlaying: isPlaying)
     }
 
-    private func checkIsPlaying(using callback: MediaRemoteIsPlaying) -> Bool {
+    nonisolated private static func checkIsPlaying(
+        using callback: MediaRemoteIsPlaying,
+        callbackQueue: DispatchQueue
+    ) -> Bool {
         let semaphore = DispatchSemaphore(value: 0)
         var isPlaying = false
 
@@ -76,7 +135,7 @@ final class MacMediaPlaybackController: MediaPlaybackControlling {
         return isPlaying
     }
 
-    private func sendMediaKey() -> Bool {
+    nonisolated private static func sendMediaKey() -> Bool {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         process.arguments = ["-e", #"tell application "System Events" to key code 100"#]

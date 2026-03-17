@@ -14,29 +14,29 @@ struct MacDictationPanelLayout {
     let voiceBarHeight: CGFloat
 
     static let standard = MacDictationPanelLayout(
-        panelSize: CGSize(width: 328, height: 84),
-        capsuleSize: CGSize(width: 304, height: 56),
+        panelSize: CGSize(width: 304, height: 76),
+        capsuleSize: CGSize(width: 280, height: 48),
         bottomInset: 52,
-        horizontalPadding: 12,
-        verticalPadding: 8,
-        controlButtonSize: 40,
-        controlSymbolSize: 18,
-        statusFontSize: 13,
-        secondaryFontSize: 11,
-        voiceBarHeight: 26
+        horizontalPadding: 10,
+        verticalPadding: 6,
+        controlButtonSize: 34,
+        controlSymbolSize: 15,
+        statusFontSize: 12,
+        secondaryFontSize: 10,
+        voiceBarHeight: 20
     )
 
     static let compact = MacDictationPanelLayout(
-        panelSize: CGSize(width: 312, height: 80),
-        capsuleSize: CGSize(width: 288, height: 52),
+        panelSize: CGSize(width: 292, height: 72),
+        capsuleSize: CGSize(width: 268, height: 44),
         bottomInset: 44,
-        horizontalPadding: 10,
-        verticalPadding: 7,
-        controlButtonSize: 38,
-        controlSymbolSize: 17,
-        statusFontSize: 12,
+        horizontalPadding: 9,
+        verticalPadding: 6,
+        controlButtonSize: 32,
+        controlSymbolSize: 14,
+        statusFontSize: 11,
         secondaryFontSize: 10,
-        voiceBarHeight: 24
+        voiceBarHeight: 18
     )
 
     static func `for`(screen: NSScreen?) -> MacDictationPanelLayout {

@@ -429,6 +429,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType[sdk=macosx*]" = "public.app-category.productivity";
 				"INFOPLIST_KEY_LSUIElement[sdk=macosx*]" = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Stet uses System Events to paste your transcript back into the app you were using.";
+				"INFOPLIST_KEY_NSAudioCaptureUsageDescription[sdk=macosx*]" = "Stet temporarily silences other audio while dictation is active.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Stet uses the microphone to capture your dictation.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Stet uses on-device speech recognition to turn your voice into text.";
 				"INFOPLIST_KEY_SUAutomaticallyUpdate[sdk=macosx*]" = NO;
@@ -479,6 +480,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType[sdk=macosx*]" = "public.app-category.productivity";
 				"INFOPLIST_KEY_LSUIElement[sdk=macosx*]" = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Stet uses System Events to paste your transcript back into the app you were using.";
+				"INFOPLIST_KEY_NSAudioCaptureUsageDescription[sdk=macosx*]" = "Stet temporarily silences other audio while dictation is active.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Stet uses the microphone to capture your dictation.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Stet uses on-device speech recognition to turn your voice into text.";
 				"INFOPLIST_KEY_SUAutomaticallyUpdate[sdk=macosx*]" = NO;

@@ -62,11 +62,11 @@ struct MacGeneralSettingsView: View {
 
     private var captureSection: some View {
         Section {
-            Toggle("Pause media during dictation and resume afterward", isOn: $pauseMediaDuringDictation)
+            Toggle("Mute other audio during dictation and restore afterward", isOn: $pauseMediaDuringDictation)
         } header: {
             Text("Capture")
         } footer: {
-            Text("Pause external media automatically while dictation is active.")
+            Text("Pause media when possible and temporarily silence any remaining system audio while dictation is active.")
         }
     }
 
