@@ -13,36 +13,12 @@ struct MacMenuBarView: View {
 
             Divider()
 
-//            menuButton(
-//                title: appModel.primaryButtonTitle,
-//                systemImage: primarySymbolName,
-//                shortcut: appModel.hotkeyDisplayString,
-//                isProminent: true,
-//                action: appModel.performPrimaryAction
-//            )
-//            .disabled(isBusy)
-
             menuButton(
                 title: appModel.panelButtonTitle,
                 systemImage: "capsule.portrait",
                 action: appModel.togglePanel
             )
-
-//            menuButton(
-//                title: appModel.translationButtonTitle,
-//                systemImage: "globe",
-//                shortcut: appModel.hotkeyShortcut(for: .translation)?.displayString,
-//                action: appModel.performTranslationAction
-//            )
             .disabled(alternateActionsDisabled)
-
-//            menuButton(
-//                title: appModel.rewriteButtonTitle,
-//                systemImage: "wand.and.stars",
-//                shortcut: appModel.hotkeyShortcut(for: .rewrite)?.displayString,
-//                action: appModel.performRewriteAction
-//            )
-//            .disabled(alternateActionsDisabled)
 
             Button {
                 appModel.openSettings {

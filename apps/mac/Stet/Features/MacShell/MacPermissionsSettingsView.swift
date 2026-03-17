@@ -8,11 +8,9 @@ struct MacPermissionsSettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             settingsCard(
                 title: "Core Permissions",
-                description: "Stet uses separate permissions for capture, hotkeys, and writing text back into other apps."
             ) {
                 permissionRow(
                     title: "Microphone",
-                    detail: "Required to capture audio for dictation.",
                     statusText: appModel.microphoneAccessStatusText,
                     tint: appModel.microphoneAccessNeedsAttention ? .orange : .green
                 ) {
@@ -20,19 +18,8 @@ struct MacPermissionsSettingsView: View {
                         appModel.openMicrophoneSettings()
                     }
                 }
-
-                permissionRow(
-                    title: "Speech Recognition",
-                    detail: "The current on-device speech path does not require the legacy Speech Recognition permission.",
-                    statusText: appModel.speechRecognitionStatusText,
-                    tint: .gray
-                ) {
-                    EmptyView()
-                }
-
                 permissionRow(
                     title: "Text Injection",
-                    detail: "Accessibility helps read selected text directly. Input injection is used to paste captured text back into other apps automatically.",
                     statusText: appModel.autoPasteStatusText,
                     tint: appModel.autoPasteAccessNeedsAttention ? .orange : .green
                 ) {
@@ -47,7 +34,6 @@ struct MacPermissionsSettingsView: View {
 
                 permissionRow(
                     title: "Input Monitoring",
-                    detail: "Required for modifier-only shortcuts like fn and for the event-tap hotkey backend.",
                     statusText: appModel.inputMonitoringStatusText,
                     tint: appModel.inputMonitoringNeedsAttention ? .orange : .green
                 ) {
@@ -90,7 +76,6 @@ struct MacPermissionsSettingsView: View {
     @ViewBuilder
     private func permissionRow<Actions: View>(
         title: String,
-        detail: String,
         statusText: String,
         tint: Color,
         @ViewBuilder actions: () -> Actions
@@ -99,9 +84,6 @@ struct MacPermissionsSettingsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.subheadline)
-                Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             Spacer()

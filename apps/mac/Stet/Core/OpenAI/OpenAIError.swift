@@ -5,7 +5,7 @@ enum OpenAIError: LocalizedError, Equatable {
     case invalidBaseURL
     case fileNotFound(URL)
     case invalidResponse
-    case api(statusCode: Int, message: String)
+    case api(statusCode: Int?, message: String)
     case missingTranscriptionText
     case missingRewriteText
     case missingTranslationText
@@ -21,7 +21,7 @@ enum OpenAIError: LocalizedError, Equatable {
         case .invalidResponse:
             return "The OpenAI API returned an invalid response."
         case .api(let statusCode, let message):
-            if statusCode <= 0 {
+            guard let statusCode else {
                 return "OpenAI API error: \(message)"
             }
             return "OpenAI API error (\(statusCode)): \(message)"

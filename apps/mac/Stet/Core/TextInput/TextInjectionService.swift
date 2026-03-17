@@ -110,7 +110,7 @@ final class SystemTextInjectionService: TextInjectionService {
         guard !text.isEmpty else { return false }
 
         let pasteboard = NSPasteboard.general
-        let previous = pasteboard.string(forType: .string) ?? ""
+        let snapshot = PasteboardSnapshot.capture(from: pasteboard)
 
         clipboardService.copy(text)
         let didPaste = await pasteClipboard(into: application)
@@ -120,10 +120,7 @@ final class SystemTextInjectionService: TextInjectionService {
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            pasteboard.clearContents()
-            if !previous.isEmpty {
-                pasteboard.setString(previous, forType: .string)
-            }
+            snapshot.restore(to: pasteboard)
         }
 
         return didPaste
@@ -172,7 +169,7 @@ final class SystemTextInjectionService: TextInjectionService {
         guard accessState.canSimulateInput else { return nil }
 
         let pasteboard = NSPasteboard.general
-        let previous = pasteboard.string(forType: .string)
+        let snapshot = PasteboardSnapshot.capture(from: pasteboard)
         let originalChangeCount = pasteboard.changeCount
 
         guard simulateCommandKey(KeyCode.copy) else { return nil }
@@ -183,13 +180,12 @@ final class SystemTextInjectionService: TextInjectionService {
             return nil
         }
 
+        defer {
+            snapshot.restore(to: pasteboard)
+        }
+
         let copied = pasteboard.string(forType: .string)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        pasteboard.clearContents()
-        if let previous, !previous.isEmpty {
-            pasteboard.setString(previous, forType: .string)
-        }
 
         guard let copied, !copied.isEmpty else { return nil }
         return copied
@@ -225,6 +221,46 @@ final class SystemTextInjectionService: TextInjectionService {
                 kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true
             ] as CFDictionary
             _ = AXIsProcessTrustedWithOptions(options)
+        }
+    }
+
+    private struct PasteboardSnapshot {
+        private let items: [[NSPasteboard.PasteboardType: Data]]
+
+        static func capture(from pasteboard: NSPasteboard) -> Self {
+            let items = (pasteboard.pasteboardItems ?? []).map { item in
+                var payload: [NSPasteboard.PasteboardType: Data] = [:]
+
+                for type in item.types {
+                    if let data = item.data(forType: type) {
+                        payload[type] = data
+                    }
+                }
+
+                return payload
+            }
+
+            return Self(items: items)
+        }
+
+        func restore(to pasteboard: NSPasteboard) {
+            pasteboard.clearContents()
+
+            let restoredItems = items.compactMap { payload -> NSPasteboardItem? in
+                let item = NSPasteboardItem()
+                var hasContent = false
+
+                for (type, data) in payload {
+                    if item.setData(data, forType: type) {
+                        hasContent = true
+                    }
+                }
+
+                return hasContent ? item : nil
+            }
+
+            guard !restoredItems.isEmpty else { return }
+            pasteboard.writeObjects(restoredItems)
         }
     }
 }

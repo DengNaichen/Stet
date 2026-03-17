@@ -5,7 +5,7 @@ struct OpenAISDKClientFactory: Sendable {
     private let configuration: OpenAIConfiguration
     private let session: URLSession
 
-    init(
+    nonisolated init(
         configuration: OpenAIConfiguration,
         session: URLSession = .shared
     ) {
@@ -13,34 +13,97 @@ struct OpenAISDKClientFactory: Sendable {
         self.session = session
     }
 
-    func makeClient(
+    nonisolated func makeRequestContext(
         additionalHeaders: [String: String] = [:],
         additionalMiddlewares: [any OpenAIMiddleware] = []
-    ) throws -> OpenAI {
-        var middlewares: [any OpenAIMiddleware] = [OpenAILoggingMiddleware()]
+    ) throws -> OpenAISDKRequestContext {
+        let responseRecorder = OpenAIHTTPResponseRecorder()
+        var middlewares: [any OpenAIMiddleware] = [
+            OpenAILoggingMiddleware(),
+            OpenAIResponseRecordingMiddleware(responseRecorder: responseRecorder),
+        ]
         middlewares.append(contentsOf: additionalMiddlewares)
 
-        return OpenAI(
-            configuration: try configuration.sdkConfiguration(additionalHeaders: additionalHeaders),
-            session: session,
-            middlewares: middlewares
+        return OpenAISDKRequestContext(
+            client: OpenAI(
+                configuration: try configuration.sdkConfiguration(additionalHeaders: additionalHeaders),
+                session: session,
+                middlewares: middlewares
+            ),
+            responseRecorder: responseRecorder
         )
     }
+}
 
-    static func mapError(_ error: any Error) -> any Error {
+struct OpenAISDKRequestContext {
+    let client: OpenAI
+
+    private let responseRecorder: OpenAIHTTPResponseRecorder
+
+    fileprivate nonisolated init(client: OpenAI, responseRecorder: OpenAIHTTPResponseRecorder) {
+        self.client = client
+        self.responseRecorder = responseRecorder
+    }
+
+    nonisolated func mapError(_ error: any Error) -> any Error {
+        OpenAISDKErrorMapper.map(error, responseStatusCode: responseRecorder.statusCode)
+    }
+}
+
+private enum OpenAISDKErrorMapper {
+    static func map(_ error: any Error, responseStatusCode: Int?) -> any Error {
         if let error = error as? OpenAIError {
             return error
         }
 
         if let error = error as? APIErrorResponse {
-            return OpenAIError.api(statusCode: 0, message: error.error.message)
+            return OpenAIError.api(
+                statusCode: responseStatusCode,
+                message: error.error.message
+            )
         }
 
         if error is DecodingError {
+            if let responseStatusCode, responseStatusCode >= 400 {
+                return OpenAIError.api(
+                    statusCode: responseStatusCode,
+                    message: HTTPURLResponse.localizedString(forStatusCode: responseStatusCode)
+                )
+            }
             return OpenAIError.invalidResponse
         }
 
         return error
+    }
+}
+
+fileprivate final class OpenAIHTTPResponseRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var latestStatusCode: Int?
+
+    nonisolated init() {}
+
+    nonisolated var statusCode: Int? {
+        lock.lock()
+        defer { lock.unlock() }
+        return latestStatusCode
+    }
+
+    nonisolated func record(_ response: URLResponse?) {
+        guard let httpResponse = response as? HTTPURLResponse else { return }
+
+        lock.lock()
+        latestStatusCode = httpResponse.statusCode
+        lock.unlock()
+    }
+}
+
+private struct OpenAIResponseRecordingMiddleware: OpenAIMiddleware {
+    let responseRecorder: OpenAIHTTPResponseRecorder
+
+    func intercept(response: URLResponse?, request: URLRequest, data: Data?) -> (response: URLResponse?, data: Data?) {
+        responseRecorder.record(response)
+        return (response, data)
     }
 }
 
@@ -79,7 +142,7 @@ struct OpenAIUploadCompletionMiddleware: OpenAIMiddleware {
 }
 
 extension OpenAIConfiguration {
-    func sdkConfiguration(additionalHeaders: [String: String] = [:]) throws -> OpenAI.Configuration {
+    nonisolated func sdkConfiguration(additionalHeaders: [String: String] = [:]) throws -> OpenAI.Configuration {
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty else {
             throw OpenAIError.missingAPIKey

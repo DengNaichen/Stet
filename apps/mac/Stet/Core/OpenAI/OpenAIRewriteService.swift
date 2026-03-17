@@ -103,10 +103,10 @@ struct OpenAIRewriteService: TextRewriteService {
             instruction: instruction,
             sourceText: sourceText
         )
+        let requestContext = try clientFactory.makeRequestContext()
 
         do {
-            let client = try clientFactory.makeClient()
-            let response = try await client.responses.createResponse(
+            let response = try await requestContext.client.responses.createResponse(
                 query: CreateModelResponseQuery(
                     input: .inputItemList(messages),
                     model: request.model ?? defaultModel,
@@ -120,7 +120,7 @@ struct OpenAIRewriteService: TextRewriteService {
 
             throw OpenAIError.missingRewriteText
         } catch {
-            throw OpenAISDKClientFactory.mapError(error)
+            throw requestContext.mapError(error)
         }
     }
 
@@ -191,10 +191,10 @@ struct OpenAITranslationService: TextTranslationService {
             sourceText: sourceText,
             targetLanguage: request.targetLanguage
         )
+        let requestContext = try clientFactory.makeRequestContext()
 
         do {
-            let client = try clientFactory.makeClient()
-            let response = try await client.responses.createResponse(
+            let response = try await requestContext.client.responses.createResponse(
                 query: CreateModelResponseQuery(
                     input: .inputItemList(messages),
                     model: request.model ?? defaultModel,
@@ -208,7 +208,7 @@ struct OpenAITranslationService: TextTranslationService {
 
             throw OpenAIError.missingTranslationText
         } catch {
-            throw OpenAISDKClientFactory.mapError(error)
+            throw requestContext.mapError(error)
         }
     }
 

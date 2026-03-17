@@ -85,6 +85,7 @@ final class MacAppModel: ObservableObject {
             self?.objectWillChange.send()
         }
         bindState()
+        bindLifecycleNotifications()
         registerHotkeys()
         applyDockVisibility(showInDock: launchConfiguration.showInDock)
 
@@ -178,27 +179,11 @@ final class MacAppModel: ObservableObject {
     }
 
     var microphoneAccessStatusText: String {
-        switch AVCaptureDevice.authorizationStatus(for: .audio) {
-        case .authorized:
-            return "Allowed"
-        case .notDetermined:
-            return "Not Requested"
-        case .denied, .restricted:
-            return "Needs Access"
-        @unknown default:
-            return "Unknown"
-        }
+        microphoneAccessStatus.text
     }
 
     var microphoneAccessNeedsAttention: Bool {
-        switch AVCaptureDevice.authorizationStatus(for: .audio) {
-        case .denied, .restricted:
-            return true
-        case .authorized, .notDetermined:
-            return false
-        @unknown default:
-            return true
-        }
+        microphoneAccessStatus.needsAttention
     }
 
     var autoPasteAccessNeedsAttention: Bool {
@@ -206,11 +191,11 @@ final class MacAppModel: ObservableObject {
     }
 
     var inputMonitoringStatusText: String {
-        inputMonitoringGranted ? "Allowed" : "Needs Access"
+        inputMonitoringStatus.text
     }
 
     var inputMonitoringNeedsAttention: Bool {
-        false
+        inputMonitoringStatus.needsAttention
     }
 
     var menuBarSymbolName: String {
@@ -285,6 +270,7 @@ final class MacAppModel: ObservableObject {
                 "Input monitoring access request completed. granted=\(isGranted)",
                 category: .permissions
             )
+            refreshPermissionIndicators()
         }
     }
 
@@ -386,6 +372,36 @@ final class MacAppModel: ObservableObject {
                 self?.handleDictationStateChange(state)
             }
             .store(in: &cancellables)
+    }
+
+    private func bindLifecycleNotifications() {
+        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.refreshPermissionIndicators()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func refreshPermissionIndicators() {
+        objectWillChange.send()
+    }
+
+    private var microphoneAccessStatus: PermissionStatus {
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            return .allowed
+        case .notDetermined:
+            return .notRequested
+        case .denied, .restricted:
+            return .needsAccess
+        @unknown default:
+            return .unavailable
+        }
+    }
+
+    private var inputMonitoringStatus: PermissionStatus {
+        inputMonitoringGranted ? .allowed : .needsAccess
     }
 
     private func handleDictationStateChange(_ state: DictationState) {
@@ -515,6 +531,35 @@ final class MacAppModel: ObservableObject {
         }
 
         return true
+    }
+
+    private enum PermissionStatus {
+        case allowed
+        case notRequested
+        case needsAccess
+        case unavailable
+
+        var text: String {
+            switch self {
+            case .allowed:
+                return "Allowed"
+            case .notRequested:
+                return "Not Requested"
+            case .needsAccess:
+                return "Needs Access"
+            case .unavailable:
+                return "Unknown"
+            }
+        }
+
+        var needsAttention: Bool {
+            switch self {
+            case .allowed, .notRequested:
+                return false
+            case .needsAccess, .unavailable:
+                return true
+            }
+        }
     }
 }
 #endif

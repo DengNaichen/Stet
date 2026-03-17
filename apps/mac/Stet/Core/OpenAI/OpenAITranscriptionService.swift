@@ -45,13 +45,13 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
             additionalHeaders["X-Stet-Audio-Duration-Seconds"] = String(Int(audioDurationSeconds.rounded(.up)))
         }
 
-        do {
-            let client = try clientFactory.makeClient(
-                additionalHeaders: additionalHeaders,
-                additionalMiddlewares: [OpenAIUploadCompletionMiddleware(note: "response_fallback")]
-            )
+        let requestContext = try clientFactory.makeRequestContext(
+            additionalHeaders: additionalHeaders,
+            additionalMiddlewares: [OpenAIUploadCompletionMiddleware(note: "response_fallback")]
+        )
 
-            let response = try await client.audioTranscriptions(
+        do {
+            let response = try await requestContext.client.audioTranscriptions(
                 query: AudioTranscriptionQuery(
                     file: audioData,
                     fileType: fileType,
@@ -70,7 +70,7 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
             await DictationLatencyProbe.shared.record(.transcriptionCompleted)
             return text
         } catch {
-            throw OpenAISDKClientFactory.mapError(error)
+            throw requestContext.mapError(error)
         }
     }
 }
