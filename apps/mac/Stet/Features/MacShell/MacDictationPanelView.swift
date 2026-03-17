@@ -129,7 +129,7 @@ struct MacDictationPanelView: View {
     }
 
     private func shell<Content: View>(
-        style: LiquidCapsuleStyle,
+        style: BlendCapsuleStyle,
         @ViewBuilder content: () -> Content
     ) -> some View {
         content()
@@ -138,7 +138,7 @@ struct MacDictationPanelView: View {
             .padding(.vertical, layout.verticalPadding)
             .frame(width: layout.capsuleSize.width, height: layout.capsuleSize.height)
             .background(
-                ReactiveLiquidCapsuleBackground(
+                ReactiveBlendCapsuleBackground(
                     level: style.level,
                     isActive: style.isActive,
                     palette: style.palette
@@ -174,7 +174,7 @@ struct MacDictationPanelView: View {
     }
 }
 
-private struct ReactiveLiquidCapsuleBackground: View {
+private struct ReactiveBlendCapsuleBackground: View {
     let level: Double
     let isActive: Bool
     let palette: [Color]
@@ -189,45 +189,35 @@ private struct ReactiveLiquidCapsuleBackground: View {
 
             ZStack {
                 Capsule(style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.black.opacity(0.76),
-                                Color.black.opacity(0.92)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(BlendPalette.surface)
 
-                LiquidColorField(time: time, level: energy, palette: palette)
-                    .mask(
-                        LiquidMetaballMask(time: time, level: energy)
-                            .padding(-18)
-                    )
-                    .clipShape(Capsule(style: .continuous))
-                    .opacity(0.97)
+                ColorCloudField(
+                    time: time,
+                    level: energy,
+                    palette: palette,
+                    isActive: isActive
+                )
+                .clipShape(Capsule(style: .continuous))
 
                 Capsule(style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.18 + 0.10 * energy),
+                                Color.white.opacity(0.16),
                                 Color.white.opacity(0.05),
-                                .clear
+                                Color.clear
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
-                    .blendMode(.screen)
 
                 Capsule(style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.black.opacity(0.02),
-                                Color.black.opacity(0.16)
+                                Color.clear,
+                                Color.black.opacity(0.05)
                             ],
                             startPoint: .center,
                             endPoint: .bottom
@@ -235,238 +225,207 @@ private struct ReactiveLiquidCapsuleBackground: View {
                     )
 
                 Capsule(style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
             }
-            .compositingGroup()
-            .scaleEffect(CGFloat(1.0 + (isActive ? 0.014 * energy : 0)))
-            .shadow(
-                color: Color.white.opacity(0.04 + 0.10 * energy),
-                radius: CGFloat(10 + 14 * energy),
-                y: 2
-            )
+            .clipShape(Capsule(style: .continuous))
+            .shadow(color: Color.black.opacity(0.10), radius: 18, y: 8)
         }
     }
 }
 
-private struct LiquidColorField: View {
+private struct ColorCloudField: View {
     let time: TimeInterval
     let level: Double
     let palette: [Color]
+    let isActive: Bool
 
     var body: some View {
         GeometryReader { proxy in
-            let bubbles = LiquidBubble.colorBubbles(
+            let blobs = BlendBlob.makeBlobs(
                 in: proxy.size,
                 time: time,
                 level: level,
-                palette: palette
+                palette: palette,
+                isActive: isActive
             )
 
             ZStack {
-                ForEach(bubbles) { bubble in
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [
-                                    bubble.color.opacity(0.98),
-                                    bubble.color.opacity(0.62),
-                                    bubble.color.opacity(0.16),
-                                    .clear
-                                ],
-                                center: .center,
-                                startRadius: 0,
-                                endRadius: bubble.radius * 1.15
-                            )
+                Rectangle()
+                    .fill(BlendPalette.base)
+
+                ForEach(blobs) { blob in
+                    Ellipse()
+                        .fill(blob.color.opacity(blob.opacity))
+                        .frame(width: blob.size.width, height: blob.size.height)
+                        .position(x: blob.center.x, y: blob.center.y)
+                        .blur(radius: blob.blur)
+                }
+
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.04 + 0.06 * level),
+                                Color.clear,
+                                Color.black.opacity(0.04)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
-                        .frame(width: bubble.radius * 2.3, height: bubble.radius * 2.3)
-                        .position(x: bubble.center.x, y: bubble.center.y)
-                        .blendMode(.plusLighter)
-                }
+                    )
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .blur(radius: CGFloat(22 + level * 16), opaque: false)
-            .saturation(1.2 + level * 0.6)
+            .drawingGroup(opaque: true, colorMode: .linear)
+            .saturation(1.04 + 0.12 * level)
+            .brightness(0.01 + 0.02 * level)
         }
-        .compositingGroup()
     }
 }
 
-private struct LiquidMetaballMask: View {
-    let time: TimeInterval
-    let level: Double
-
-    var body: some View {
-        GeometryReader { proxy in
-            let bubbles = LiquidBubble.maskBubbles(
-                in: proxy.size,
-                time: time,
-                level: level
-            )
-
-            ZStack {
-                ForEach(bubbles) { bubble in
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: bubble.radius * 2.0, height: bubble.radius * 2.0)
-                        .position(x: bubble.center.x, y: bubble.center.y)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .blur(radius: CGFloat(18 + level * 16), opaque: false)
-            .contrast(14 + level * 10)
-            .saturation(0)
-        }
-        .compositingGroup()
-    }
-}
-
-private struct LiquidBubble: Identifiable {
+private struct BlendBlob: Identifiable {
     let id: Int
     let center: CGPoint
-    let radius: CGFloat
+    let size: CGSize
     let color: Color
+    let blur: CGFloat
+    let opacity: Double
 
-    static func colorBubbles(
+    static func makeBlobs(
         in size: CGSize,
         time: TimeInterval,
         level: Double,
-        palette: [Color]
-    ) -> [LiquidBubble] {
+        palette: [Color],
+        isActive: Bool
+    ) -> [BlendBlob] {
         let energy = CGFloat(min(max(level, 0), 1))
+        let motion = isActive ? (0.40 + 0.60 * energy) : 0.18
         let width = size.width
         let height = size.height
-        let anchors: [(CGFloat, CGFloat)] = [
-            (0.10, 0.32),
-            (0.28, 0.72),
-            (0.46, 0.34),
-            (0.68, 0.66),
-            (0.86, 0.38)
+
+        let anchors: [(CGFloat, CGFloat, CGFloat, CGFloat)] = [
+            (0.08, 0.22, 0.68, 1.28),
+            (0.28, 0.74, 0.62, 1.12),
+            (0.50, 0.34, 0.70, 1.30),
+            (0.72, 0.68, 0.62, 1.08),
+            (0.93, 0.28, 0.60, 1.02)
         ]
 
-        let baseRadius = max(height * 0.72, min(width * 0.22, height * 1.05))
-
         return anchors.enumerated().map { index, anchor in
-            let phase = Double(index) * 1.37
-            let xSwing = width * (0.05 + 0.09 * energy) * CGFloat(sin(time * (0.55 + Double(index) * 0.08) + phase))
-            let ySwing = height * (0.10 + 0.10 * energy) * CGFloat(cos(time * (0.74 + Double(index) * 0.06) + phase * 1.2))
-            let pulse = 0.5 + 0.5 * CGFloat(sin(time * (1.05 + Double(index) * 0.09) + phase * 0.7))
-            let radius = baseRadius + height * (0.08 + 0.16 * energy) * pulse
+            let seed = Double(index) * 11.73 + 0.91
 
-            return LiquidBubble(
+            let smoothX = width * (0.030 + 0.050 * motion) * smoothNoise(time, seed: seed)
+            let smoothY = height * (0.050 + 0.080 * motion) * smoothNoise(time * 1.17, seed: seed + 3.2)
+
+            let jumpX = width * (0.006 + 0.018 * motion) * steppedNoise(time * (4.0 + Double(level) * 9.0), seed: seed + 8.4)
+            let jumpY = height * (0.008 + 0.024 * motion) * steppedNoise(time * (5.0 + Double(level) * 12.0), seed: seed + 14.7)
+
+            let widthPulse = 1 + (0.04 + 0.13 * motion) * smoothNoise(time * (1.05 + Double(index) * 0.08), seed: seed + 1.6)
+            let heightPulse = 1 + (0.03 + 0.11 * motion) * smoothNoise(time * (0.92 + Double(index) * 0.07), seed: seed + 4.9)
+
+            return BlendBlob(
                 id: index,
                 center: CGPoint(
-                    x: width * anchor.0 + xSwing,
-                    y: height * anchor.1 + ySwing
+                    x: width * anchor.0 + smoothX + jumpX,
+                    y: height * anchor.1 + smoothY + jumpY
                 ),
-                radius: radius,
-                color: palette[index % palette.count]
+                size: CGSize(
+                    width: width * anchor.2 * widthPulse,
+                    height: height * anchor.3 * heightPulse
+                ),
+                color: palette[index % palette.count],
+                blur: height * (0.22 + 0.05 * motion),
+                opacity: Double(0.52 + 0.18 * motion + 0.04 * CGFloat(index % 2))
             )
         }
     }
 
-    static func maskBubbles(
-        in size: CGSize,
-        time: TimeInterval,
-        level: Double
-    ) -> [LiquidBubble] {
-        let energy = CGFloat(min(max(level, 0), 1))
-        let width = size.width
-        let height = size.height
-        let anchors: [CGFloat] = [0.07, 0.22, 0.36, 0.50, 0.64, 0.78, 0.93]
+    private static func smoothNoise(_ t: TimeInterval, seed: Double) -> CGFloat {
+        let value =
+            0.62 * sin(t * 0.82 + seed) +
+            0.26 * sin(t * 1.47 + seed * 1.31) +
+            0.12 * cos(t * 2.21 + seed * 0.73)
+        return CGFloat(value)
+    }
 
-        return anchors.enumerated().map { index, anchor in
-            let phase = Double(index) * 0.73
-            let xSwing = width * 0.028 * CGFloat(sin(time * (0.95 + Double(index) * 0.07) + phase))
-            let ySwing = height * (0.05 + 0.12 * energy) * CGFloat(cos(time * (1.35 + Double(index) * 0.08) + phase * 1.4))
-            let base = height * (0.40 + 0.03 * CGFloat(index % 2))
-            let pulse = height * (0.08 + 0.16 * energy) * (0.5 + 0.5 * CGFloat(sin(time * (1.75 + Double(index) * 0.10) + phase * 1.3)))
-
-            return LiquidBubble(
-                id: index,
-                center: CGPoint(
-                    x: width * anchor + xSwing,
-                    y: height * 0.50 + ySwing
-                ),
-                radius: base + pulse,
-                color: .white
-            )
-        }
+    private static func steppedNoise(_ t: TimeInterval, seed: Double) -> CGFloat {
+        let step = floor(t)
+        let raw = sin((step + seed) * 12.9898) * 43758.5453
+        let fractional = raw - floor(raw)
+        return CGFloat(fractional * 2 - 1)
     }
 }
 
-private struct LiquidCapsuleStyle {
+private struct BlendCapsuleStyle {
     let level: Double
     let isActive: Bool
     let palette: [Color]
 
-    static let idle = LiquidCapsuleStyle(
+    static let idle = BlendCapsuleStyle(
         level: 0.10,
         isActive: false,
-        palette: LiquidPalette.idle
+        palette: BlendPalette.sunsetPastel
     )
 
-    static func listening(level: Double) -> LiquidCapsuleStyle {
-        LiquidCapsuleStyle(
+    static func listening(level: Double) -> BlendCapsuleStyle {
+        BlendCapsuleStyle(
             level: max(0.12, min(max(level, 0), 1)),
             isActive: true,
-            palette: LiquidPalette.listening
+            palette: BlendPalette.sunsetPastel
         )
     }
 
-    static let processing = LiquidCapsuleStyle(
-        level: 0.30,
+    static let processing = BlendCapsuleStyle(
+        level: 0.28,
         isActive: true,
-        palette: LiquidPalette.processing
+        palette: BlendPalette.sunsetPastel
     )
 
-    static let result = LiquidCapsuleStyle(
+    static let result = BlendCapsuleStyle(
+        level: 0.16,
+        isActive: false,
+        palette: BlendPalette.sunsetPastel
+    )
+
+    static let error = BlendCapsuleStyle(
         level: 0.18,
         isActive: false,
-        palette: LiquidPalette.result
-    )
-
-    static let error = LiquidCapsuleStyle(
-        level: 0.20,
-        isActive: false,
-        palette: LiquidPalette.error
+        palette: BlendPalette.error
     )
 }
 
-private enum LiquidPalette {
-    static let idle: [Color] = [
-        Color(red: 0.36, green: 0.82, blue: 1.00),
-        Color(red: 0.46, green: 0.54, blue: 1.00),
-        Color(red: 0.86, green: 0.46, blue: 1.00),
-        Color(red: 0.50, green: 1.00, blue: 0.82)
-    ]
+private enum BlendPalette {
+    static let surface = LinearGradient(
+        colors: [
+            Color(red: 0.86, green: 0.84, blue: 0.93),
+            Color(red: 0.93, green: 0.77, blue: 0.73)
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 
-    static let listening: [Color] = [
-        Color(red: 0.34, green: 0.92, blue: 1.00),
-        Color(red: 0.44, green: 0.52, blue: 1.00),
-        Color(red: 1.00, green: 0.42, blue: 0.82),
-        Color(red: 0.60, green: 1.00, blue: 0.72),
-        Color(red: 1.00, green: 0.74, blue: 0.32)
-    ]
+    static let base = LinearGradient(
+        colors: [
+            Color(red: 0.82, green: 0.83, blue: 0.96),
+            Color(red: 0.90, green: 0.68, blue: 0.76),
+            Color(red: 0.93, green: 0.62, blue: 0.50)
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 
-    static let processing: [Color] = [
-        Color(red: 0.30, green: 0.82, blue: 1.00),
-        Color(red: 0.52, green: 0.40, blue: 1.00),
-        Color(red: 0.92, green: 0.50, blue: 1.00),
-        Color(red: 0.42, green: 0.98, blue: 0.90)
-    ]
-
-    static let result: [Color] = [
-        Color(red: 0.30, green: 0.94, blue: 0.78),
-        Color(red: 0.28, green: 0.78, blue: 1.00),
-        Color(red: 0.72, green: 1.00, blue: 0.54),
-        Color(red: 0.98, green: 0.84, blue: 0.40)
+    static let sunsetPastel: [Color] = [
+        Color(red: 0.74, green: 0.78, blue: 0.98),
+        Color(red: 0.88, green: 0.67, blue: 0.84),
+        Color(red: 0.92, green: 0.64, blue: 0.62),
+        Color(red: 0.93, green: 0.61, blue: 0.39),
+        Color(red: 0.95, green: 0.78, blue: 0.44)
     ]
 
     static let error: [Color] = [
-        Color(red: 1.00, green: 0.44, blue: 0.48),
-        Color(red: 1.00, green: 0.56, blue: 0.78),
-        Color(red: 0.98, green: 0.66, blue: 0.36),
-        Color(red: 0.66, green: 0.44, blue: 1.00)
+        Color(red: 0.96, green: 0.66, blue: 0.72),
+        Color(red: 0.95, green: 0.56, blue: 0.56),
+        Color(red: 0.96, green: 0.66, blue: 0.46),
+        Color(red: 0.82, green: 0.62, blue: 0.96),
+        Color(red: 0.93, green: 0.78, blue: 0.50)
     ]
 }
 
