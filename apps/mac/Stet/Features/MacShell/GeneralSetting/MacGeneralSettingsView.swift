@@ -18,17 +18,19 @@ struct MacGeneralSettingsView: View {
     @State private var suppressShowInDockChange = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        Form {
             configurationSection
-            audioSection
+            microphoneSection
             captureSection
             interactionSoundsSection
             appBehaviorSection
             updatesSection
             debugLoggingSection
-            feedbackView
+            feedbackSection
         }
-        .toggleStyle(.switch)
+        .formStyle(.grouped)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 28)
         .task {
             managedSettings = viewModel.loadState()
             hasLoadedManagedSettings = true
@@ -42,11 +44,8 @@ struct MacGeneralSettingsView: View {
     }
 
     private var configurationSection: some View {
-        MacSettingsCard(
-            title: "Configuration",
-            description: "Export or import your current hotkey, dictionary, and behavior settings."
-        ) {
-            HStack(spacing: 8) {
+        Section {
+            HStack(spacing: 10) {
                 Button("Export Configuration") {
                     viewModel.exportConfiguration()
                 }
@@ -55,14 +54,16 @@ struct MacGeneralSettingsView: View {
                     importConfiguration()
                 }
             }
+        } header: {
+            Text("Configuration")
+        } footer: {
+            Text("Export or import your current hotkey, dictionary, and behavior settings.")
         }
     }
 
-    private var audioSection: some View {
-        MacSettingsCard(
-            title: "Microphone",
-        ) {
-            MacSettingsValueRow(title: "Microphone") {
+    private var microphoneSection: some View {
+        Section {
+            LabeledContent("Microphone") {
                 Picker("Microphone", selection: selectedAudioInputDeviceIDBinding) {
                     Text(viewModel.systemDefaultInputDeviceLabel).tag(0)
 
@@ -72,42 +73,42 @@ struct MacGeneralSettingsView: View {
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
-                .frame(width: 240, alignment: .trailing)
+                .frame(width: 280)
             }
+        } header: {
+            Text("Microphone")
         }
     }
 
     private var captureSection: some View {
-        MacSettingsCard(
-            title: "Capture",
-            description: "Pause external media automatically while dictation is active."
-        ) {
+        Section {
             Toggle("Pause media during dictation and resume afterward", isOn: $pauseMediaDuringDictation)
+        } header: {
+            Text("Capture")
+        } footer: {
+            Text("Pause external media automatically while dictation is active.")
         }
     }
 
     private var interactionSoundsSection: some View {
-        MacSettingsCard(
-            title: "Interaction Sounds",
-        ) {
+        Section {
             Toggle("Enable interaction sounds", isOn: $interactionSoundsEnabled)
+        } header: {
+            Text("Interaction Sounds")
         }
     }
 
     private var appBehaviorSection: some View {
-        MacSettingsCard(
-            title: "App Behavior",
-        ) {
+        Section {
             Toggle("Launch at Login", isOn: $managedSettings.launchAtLogin)
             Toggle("Show in Dock", isOn: $managedSettings.showInDock)
+        } header: {
+            Text("App Behavior")
         }
     }
 
     private var updatesSection: some View {
-        MacSettingsCard(
-            title: "Updates",
-            description: "Automatically check for app updates, or run a manual check at any time."
-        ) {
+        Section {
             Toggle(
                 "Check for updates automatically",
                 isOn: Binding(
@@ -121,26 +122,31 @@ struct MacGeneralSettingsView: View {
                 appUpdateManager.checkForUpdates()
             }
             .disabled(appUpdateManager.isChecking || !appUpdateManager.canCheckForUpdates)
+        } header: {
+            Text("Updates")
+        } footer: {
+            Text("Automatically check for app updates, or run a manual check at any time.")
         }
     }
 
     private var debugLoggingSection: some View {
-        MacSettingsCard(
-            title: "Debug Logging",
-            description: "Enable temporary logs while diagnosing shortcut handling or OpenAI requests."
-        ) {
+        Section {
             Toggle("Hotkey debug logging", isOn: $hotkeyDebugLoggingEnabled)
             Toggle("OpenAI debug logging", isOn: $openAIDebugLoggingEnabled)
+        } header: {
+            Text("Debug Logging")
+        } footer: {
+            Text("Enable temporary logs while diagnosing shortcut handling or OpenAI requests.")
         }
     }
 
     @ViewBuilder
-    private var feedbackView: some View {
+    private var feedbackSection: some View {
         if let feedback = viewModel.feedback {
-            Text(feedback.message)
-                .font(.caption)
-                .foregroundStyle(feedback.isError ? .red : .secondary)
-                .padding(.horizontal, 4)
+            Section {
+                Text(feedback.message)
+                    .foregroundStyle(feedback.isError ? .red : .secondary)
+            }
         }
     }
 

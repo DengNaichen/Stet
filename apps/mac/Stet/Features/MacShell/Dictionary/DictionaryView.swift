@@ -16,23 +16,11 @@ struct DictionaryView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            MacSettingsCard(
-                title: "Personal Dictionary",
-                description:
-                    "Add exact spellings for names, brands, jargon, and phrases you want OpenAI transcription and rewrite to preserve."
-            ) {
+        Form {
+            Section {
                 Toggle("Enable Personal Dictionary", isOn: isEnabledBinding)
 
-                Text(
-                    viewModel.isEnabled
-                        ? "When enabled, saved entries are used during transcription and rewrite."
-                        : "When disabled, saved entries stay on this Mac but are ignored during transcription and rewrite."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-                MacSettingsValueRow(title: "Entries") {
+                LabeledContent("Entries") {
                     MacSettingsStatusBadge(
                         text: "\(viewModel.entries.count)",
                         tint: viewModel.isEnabled && !viewModel.entries.isEmpty
@@ -55,24 +43,20 @@ struct DictionaryView: View {
                     }
                     .disabled(!viewModel.canAddDraftEntries)
                 }
-
+            } header: {
+                Text("Personal Dictionary")
+            } footer: {
                 Text(
-                    "Separate multiple entries with commas. These terms are stored locally on this Mac."
+                    viewModel.isEnabled
+                        ? "When enabled, saved entries are used during transcription and rewrite."
+                        : "When disabled, saved entries stay on this Mac but are ignored during transcription and rewrite."
                 )
-                .font(.caption)
-                .foregroundStyle(.secondary)
             }
 
-            MacSettingsCard(
-                title: "Current Entries",
-                description: viewModel.entries.isEmpty ? "Your dictionary is empty." : nil
-            ) {
+            Section {
                 if viewModel.entries.isEmpty {
-                    Text(
-                        "Once you add words here, Stet will reuse them in OpenAI transcription and rewrite."
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    Text("Once you add words here, Stet will reuse them in OpenAI transcription and rewrite.")
+                        .foregroundStyle(.secondary)
                 } else {
                     LazyVGrid(columns: dictionaryColumns, alignment: .leading, spacing: 8) {
                         ForEach(viewModel.entries, id: \.self) { entry in
@@ -83,11 +67,16 @@ struct DictionaryView: View {
                     Button("Clear Dictionary", role: .destructive) {
                         viewModel.clearEntries()
                     }
-                    .controlSize(.small)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
                 }
+            } header: {
+                Text("Current Entries")
+            } footer: {
+                Text("Separate multiple entries with commas. These terms are stored locally on this Mac.")
             }
         }
+        .formStyle(.grouped)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 28)
     }
 
     private func dictionaryChip(for entry: String) -> some View {

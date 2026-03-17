@@ -5,17 +5,27 @@ struct MacHotkeySettingsView: View {
     @State private var message: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            MacHotKeySettingsSectionView(hotkey: .dictation) { shortcut in
-                message = shortcut.map { "Shortcut updated to \($0)." } ?? "Shortcut cleared."
+        Form {
+            Section {
+                MacHotKeySettingsSectionView(hotkey: .dictation) { shortcut in
+                    message = shortcut.map { "Shortcut updated to \($0)." } ?? "Shortcut cleared."
+                }
+            } header: {
+                Text("Shortcut Engine")
+            } footer: {
+                Text("Choose the global shortcut that starts dictation. The recorder handles conflict detection and stores the selection automatically.")
             }
 
             if let message {
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Section {
+                    Text(message)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
+        .formStyle(.grouped)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 28)
     }
 }
 #endif

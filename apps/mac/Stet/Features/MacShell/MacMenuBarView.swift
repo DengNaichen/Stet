@@ -5,7 +5,7 @@ import SwiftUI
 struct MacMenuBarView: View {
     @EnvironmentObject private var appModel: MacAppModel
     @EnvironmentObject private var appUpdateManager: AppUpdateManager
-    @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -22,7 +22,7 @@ struct MacMenuBarView: View {
 
             Button {
                 appModel.openSettings {
-                    openSettings()
+                    openWindow(id: MacWindowSceneID.preferences)
                 }
             } label: {
                 menuRow(

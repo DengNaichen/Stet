@@ -6,10 +6,8 @@ struct MacPermissionsSettingsView: View {
     @EnvironmentObject private var appModel: MacAppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            MacSettingsCard(
-                title: "Core Permissions",
-            ) {
+        Form {
+            Section {
                 permissionRow(
                     title: "Microphone",
                     statusText: appModel.microphoneAccessStatusText,
@@ -19,6 +17,7 @@ struct MacPermissionsSettingsView: View {
                         appModel.resolveMicrophoneAccess()
                     }
                 }
+
                 permissionRow(
                     title: "Text Injection",
                     statusText: appModel.autoPasteStatusText,
@@ -32,8 +31,15 @@ struct MacPermissionsSettingsView: View {
                         appModel.openAccessibilitySettings()
                     }
                 }
+            } header: {
+                Text("Core Permissions")
+            } footer: {
+                Text("Stet needs microphone access to capture dictation and accessibility access to write text back into your current app.")
             }
         }
+        .formStyle(.grouped)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 28)
     }
 
     @ViewBuilder
@@ -43,18 +49,16 @@ struct MacPermissionsSettingsView: View {
         tint: Color,
         @ViewBuilder actions: () -> Actions
     ) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.subheadline)
+        VStack(alignment: .leading, spacing: 12) {
+            LabeledContent(title) {
+                MacSettingsStatusBadge(text: statusText, tint: tint)
             }
 
-            Spacer()
-
-            MacSettingsStatusBadge(text: statusText, tint: tint)
-            actions()
+            HStack(spacing: 10) {
+                actions()
+            }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
     }
 }
 
