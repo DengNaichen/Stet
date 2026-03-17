@@ -1,10 +1,6 @@
 import Foundation
 
 enum MacPreferences {
-    nonisolated static let showPanelOnLaunch = "mac.showPanelOnLaunch"
-    nonisolated static let copyToClipboardOnCapture = "mac.copyToClipboardOnCapture"
-    nonisolated static let autoPasteOnCapture = "mac.autoPasteOnCapture"
-    nonisolated static let revealPanelOnCapture = "mac.revealPanelOnCapture"
     nonisolated static let pauseMediaDuringDictation = "mac.pauseMediaDuringDictation"
     nonisolated static let selectedAudioInputDeviceID = "mac.selectedAudioInputDeviceID"
     nonisolated static let transcriptionProvider = "mac.transcriptionProvider"

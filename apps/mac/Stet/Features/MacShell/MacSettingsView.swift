@@ -156,8 +156,7 @@ struct MacSettingsView: View {
 
     private var hasPermissionIssues: Bool {
         appModel.microphoneAccessNeedsAttention ||
-            appModel.autoPasteAccessNeedsAttention ||
-            appModel.inputMonitoringNeedsAttention
+            appModel.autoPasteAccessNeedsAttention
     }
 
     private var translationTargetLanguageBinding: Binding<TranslationTargetLanguage> {

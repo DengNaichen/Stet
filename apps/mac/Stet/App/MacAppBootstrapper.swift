@@ -5,11 +5,14 @@ struct MacAppBootstrapper {
     private enum LegacyPreferenceKey {
         static let copyLatestCaptureHotkeyShortcut = "mac.copyLatestCaptureHotkeyShortcut"
         static let historyRetentionPeriod = "mac.historyRetentionPeriod"
+        static let showPanelOnLaunch = "mac.showPanelOnLaunch"
+        static let copyToClipboardOnCapture = "mac.copyToClipboardOnCapture"
+        static let autoPasteOnCapture = "mac.autoPasteOnCapture"
+        static let revealPanelOnCapture = "mac.revealPanelOnCapture"
     }
 
     struct LaunchConfiguration: Equatable {
         let showInDock: Bool
-        let shouldShowPanelOnLaunch: Bool
     }
 
     private enum DefaultPreference {
@@ -33,10 +36,6 @@ struct MacAppBootstrapper {
     }
 
     private static let defaultPreferences: [DefaultPreference] = [
-        .bool(MacPreferences.showPanelOnLaunch, false),
-        .bool(MacPreferences.copyToClipboardOnCapture, true),
-        .bool(MacPreferences.autoPasteOnCapture, true),
-        .bool(MacPreferences.revealPanelOnCapture, false),
         .bool(MacPreferences.pauseMediaDuringDictation, false),
         .integer(MacPreferences.selectedAudioInputDeviceID, 0),
         .string(MacPreferences.transcriptionProvider, DictationProvider.openAI.rawValue),
@@ -74,8 +73,7 @@ struct MacAppBootstrapper {
         applyDefaultPreferences()
 
         return LaunchConfiguration(
-            showInDock: defaults.object(forKey: MacPreferences.showInDock) as? Bool ?? false,
-            shouldShowPanelOnLaunch: defaults.bool(forKey: MacPreferences.showPanelOnLaunch)
+            showInDock: defaults.object(forKey: MacPreferences.showInDock) as? Bool ?? false
         )
     }
 
@@ -102,6 +100,10 @@ struct MacAppBootstrapper {
     private func removeLegacyArtifacts() {
         defaults.removeObject(forKey: LegacyPreferenceKey.copyLatestCaptureHotkeyShortcut)
         defaults.removeObject(forKey: LegacyPreferenceKey.historyRetentionPeriod)
+        defaults.removeObject(forKey: LegacyPreferenceKey.showPanelOnLaunch)
+        defaults.removeObject(forKey: LegacyPreferenceKey.copyToClipboardOnCapture)
+        defaults.removeObject(forKey: LegacyPreferenceKey.autoPasteOnCapture)
+        defaults.removeObject(forKey: LegacyPreferenceKey.revealPanelOnCapture)
 
         for url in legacyHistoryURLs {
             try? fileManager.removeItem(at: url)

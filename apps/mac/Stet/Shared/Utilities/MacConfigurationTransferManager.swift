@@ -17,10 +17,6 @@ enum MacConfigurationTransferError: LocalizedError, Equatable {
 enum MacConfigurationTransferManager {
     private struct ExportedConfiguration: Codable {
         var version: Int
-        var showPanelOnLaunch: Bool
-        var copyToClipboardOnCapture: Bool
-        var autoPasteOnCapture: Bool
-        var revealPanelOnCapture: Bool
         var pauseMediaDuringDictation: Bool
         var selectedAudioInputDeviceID: Int
         var transcriptionProvider: String
@@ -93,11 +89,7 @@ enum MacConfigurationTransferManager {
     ) -> ExportedConfiguration {
 
         return ExportedConfiguration(
-            version: 1,
-            showPanelOnLaunch: defaults.bool(forKey: MacPreferences.showPanelOnLaunch),
-            copyToClipboardOnCapture: defaults.bool(forKey: MacPreferences.copyToClipboardOnCapture),
-            autoPasteOnCapture: defaults.bool(forKey: MacPreferences.autoPasteOnCapture),
-            revealPanelOnCapture: defaults.bool(forKey: MacPreferences.revealPanelOnCapture),
+            version: 2,
             pauseMediaDuringDictation: defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation),
             selectedAudioInputDeviceID: defaults.integer(forKey: MacPreferences.selectedAudioInputDeviceID),
             transcriptionProvider: DictationProvider(
@@ -125,10 +117,6 @@ enum MacConfigurationTransferManager {
         using store: DictationSettingsStore,
         defaults: UserDefaults
     ) {
-        defaults.set(imported.showPanelOnLaunch, forKey: MacPreferences.showPanelOnLaunch)
-        defaults.set(imported.copyToClipboardOnCapture, forKey: MacPreferences.copyToClipboardOnCapture)
-        defaults.set(imported.autoPasteOnCapture, forKey: MacPreferences.autoPasteOnCapture)
-        defaults.set(imported.revealPanelOnCapture, forKey: MacPreferences.revealPanelOnCapture)
         defaults.set(imported.pauseMediaDuringDictation, forKey: MacPreferences.pauseMediaDuringDictation)
         defaults.set(imported.selectedAudioInputDeviceID, forKey: MacPreferences.selectedAudioInputDeviceID)
         defaults.set(

@@ -6,10 +6,6 @@ struct MacGeneralSettingsView: View {
     @EnvironmentObject private var appModel: MacAppModel
     @EnvironmentObject private var appUpdateManager: AppUpdateManager
 
-    @AppStorage(MacPreferences.showPanelOnLaunch) private var showPanelOnLaunch = false
-    @AppStorage(MacPreferences.copyToClipboardOnCapture) private var copyToClipboardOnCapture = true
-    @AppStorage(MacPreferences.autoPasteOnCapture) private var autoPasteOnCapture = true
-    @AppStorage(MacPreferences.revealPanelOnCapture) private var revealPanelOnCapture = false
     @AppStorage(MacPreferences.pauseMediaDuringDictation) private var pauseMediaDuringDictation = false
     @AppStorage(MacPreferences.interactionSoundsEnabled) private var interactionSoundsEnabled = true
     @AppStorage(MacPreferences.hotkeyDebugLoggingEnabled) private var hotkeyDebugLoggingEnabled = false
@@ -25,7 +21,7 @@ struct MacGeneralSettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             configurationSection
             audioSection
-            outputSection
+            captureSection
             interactionSoundsSection
             appBehaviorSection
             updatesSection
@@ -64,8 +60,7 @@ struct MacGeneralSettingsView: View {
 
     private var audioSection: some View {
         settingsCard(
-            title: "Audio",
-            description: "Choose which microphone Stet should use on the next recording session."
+            title: "Microphone",
         ) {
             settingsValueRow(title: "Microphone") {
                 Picker("Microphone", selection: selectedAudioInputDeviceIDBinding) {
@@ -79,37 +74,14 @@ struct MacGeneralSettingsView: View {
                 .labelsHidden()
                 .frame(width: 240, alignment: .trailing)
             }
-
-            HStack(spacing: 8) {
-                Button("Refresh Devices") {
-                    managedSettings.selectedAudioInputDeviceID = viewModel.refreshInputDevices(
-                        selectedAudioInputDeviceID: managedSettings.selectedAudioInputDeviceID
-                    )
-                }
-                .controlSize(.small)
-
-                if let summary = viewModel.selectedAudioInputDeviceSummary(for: managedSettings.selectedAudioInputDeviceID) {
-                    Text(summary)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Text("The selected microphone is applied the next time dictation starts. On macOS this now feeds both the on-device and OpenAI recording paths.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
     }
 
-    private var outputSection: some View {
+    private var captureSection: some View {
         settingsCard(
-            title: "Output",
-            description: "Control where dictation results go after capture finishes."
+            title: "Capture",
+            description: "Pause external media automatically while dictation is active."
         ) {
-            Toggle("Show dictation capsule on launch", isOn: $showPanelOnLaunch)
-            Toggle("Copy final transcript automatically", isOn: $copyToClipboardOnCapture)
-            Toggle("Paste transcript back into the previous app", isOn: $autoPasteOnCapture)
-            Toggle("Keep the capsule visible when paste fails", isOn: $revealPanelOnCapture)
             Toggle("Pause media during dictation and resume afterward", isOn: $pauseMediaDuringDictation)
         }
     }
@@ -117,7 +89,6 @@ struct MacGeneralSettingsView: View {
     private var interactionSoundsSection: some View {
         settingsCard(
             title: "Interaction Sounds",
-            description: "Play short start and finish cues around each dictation session."
         ) {
             Toggle("Enable interaction sounds", isOn: $interactionSoundsEnabled)
         }
@@ -126,7 +97,6 @@ struct MacGeneralSettingsView: View {
     private var appBehaviorSection: some View {
         settingsCard(
             title: "App Behavior",
-            description: "Control whether Stet starts with macOS and whether it appears in the Dock."
         ) {
             Toggle("Launch at Login", isOn: $managedSettings.launchAtLogin)
             Toggle("Show in Dock", isOn: $managedSettings.showInDock)

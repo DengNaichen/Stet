@@ -14,7 +14,8 @@ struct MacConfigurationTransferManagerTests {
         let sourceSecretStore = TestSecretStore()
         let sourceStore = DictationSettingsStore(defaults: sourceDefaults, secretStore: sourceSecretStore)
 
-        sourceDefaults.set(true, forKey: MacPreferences.showPanelOnLaunch)
+        sourceDefaults.set(true, forKey: MacPreferences.pauseMediaDuringDictation)
+        sourceDefaults.set(true, forKey: MacPreferences.showInDock)
         sourceDefaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
         sourceDefaults.set("http://127.0.0.1:54321/functions/v1/relay/v1", forKey: MacPreferences.openAIBaseURL)
         sourceDefaults.set(CustomProxyScheme.https.rawValue, forKey: MacPreferences.customProxyScheme)
@@ -48,7 +49,8 @@ struct MacConfigurationTransferManagerTests {
             defaults: targetDefaults
         )
 
-        #expect(targetDefaults.bool(forKey: MacPreferences.showPanelOnLaunch))
+        #expect(targetDefaults.bool(forKey: MacPreferences.pauseMediaDuringDictation))
+        #expect(targetDefaults.bool(forKey: MacPreferences.showInDock))
         #expect(targetDefaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.openAI.rawValue)
         #expect(targetDefaults.string(forKey: MacPreferences.openAIBaseURL) == "http://127.0.0.1:54321/functions/v1/relay/v1")
         #expect(targetStore.loadTranslationTargetLanguage() == .french)
