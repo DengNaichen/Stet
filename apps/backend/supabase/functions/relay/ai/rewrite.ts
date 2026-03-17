@@ -1,6 +1,4 @@
-import { SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "../error.ts";
-import { checkAndRecordUsage } from "../usage.ts";
 import { log } from "../log.ts";
 import type { AIProvider } from "../providers/provider.ts";
 
@@ -24,7 +22,6 @@ export function buildRewritePrompt(options?: {
 
 export async function performRewrite(args: {
     requestId: string;
-    admin: SupabaseClient;
     userId: string;
     rawText: string;
     provider: AIProvider;
@@ -36,13 +33,6 @@ export async function performRewrite(args: {
         log("info", "rewrite_skipped_empty", args.requestId, { userId: args.userId });
         return { text: "" };
     }
-
-    const usage = await checkAndRecordUsage(args.admin, {
-        userId: args.userId,
-        requestId: args.requestId,
-        routeKind: "responses",
-        audioSeconds: 0
-    });
 
     const systemPrompt = buildRewritePrompt({
         customPrompt: args.customPrompt,
@@ -60,12 +50,11 @@ export async function performRewrite(args: {
 
         log("info", "rewrite_completed", args.requestId, {
             userId: args.userId,
-            usageEventId: usage.usage_event_id
+            outputLength: result.text.length,
         });
 
         return {
             text: result.text,
-            usageEventId: usage.usage_event_id
         };
 
     } catch (error) {

@@ -18,8 +18,8 @@ import type { HonoVariables } from "./type.ts";
 
 type ProviderName = "openai" | "groq";
 
-const PROVIDER_NAME: ProviderName =
-	(Deno.env.get("AI_PROVIDER")?.trim().toLowerCase() as ProviderName) || "openai";
+const configuredProvider = Deno.env.get("AI_PROVIDER")?.trim().toLowerCase();
+const PROVIDER_NAME: ProviderName = configuredProvider === "groq" ? "groq" : "openai";
 
 function makeProvider(): AIProvider {
 	switch (PROVIDER_NAME) {
@@ -39,7 +39,7 @@ const app = new Hono<{ Variables: HonoVariables }>();
 
 // Request-ID middleware
 app.use("*", async (c, next) => {
-	const requestId = c.req.header("x-request-id")?.trim() || crypto.randomUUID();
+	const requestId = sanitizeRequestId(c.req.header("x-request-id"));
 	c.set("requestId", requestId);
 	await next();
 	c.header("x-request-id", requestId);
@@ -105,9 +105,6 @@ app.get("/me/quota", async (c) => {
 //   rewrite               "true" to enable post-transcription cleanup (optional)
 //   preferred_spellings   comma-separated list of names/terms (optional)
 //
-// Custom header:
-//   X-Stet-Audio-Duration-Seconds  positive integer (required)
-//
 // Response: { text, rewritten }
 // ---------------------------------------------------------------------------
 
@@ -115,9 +112,6 @@ app.post("/audio/transcriptions", async (c) => {
 	const requestId = c.get("requestId");
 	const admin = c.get("admin");
 	const user = c.get("user");
-	const durationSeconds = parseAudioDurationSeconds(
-		c.req.header("x-stet-audio-duration-seconds")
-	);
 
 	// Parse multipart form
 	const formData = await c.req.raw.formData();
@@ -139,7 +133,6 @@ app.post("/audio/transcriptions", async (c) => {
 		provider: PROVIDER_NAME,
 		fileName: file.name,
 		fileSize: file.size,
-		durationSeconds,
 		language,
 		hasPrompt: Boolean(prompt),
 		rewrite: shouldRewrite,
@@ -157,7 +150,7 @@ app.post("/audio/transcriptions", async (c) => {
 			prompt: prompt ?? undefined,
 		},
 		provider,
-		audioSeconds: durationSeconds,
+		providerName: PROVIDER_NAME,
 	});
 
 	let finalText = transcription.text;
@@ -167,7 +160,6 @@ app.post("/audio/transcriptions", async (c) => {
 	if (shouldRewrite && finalText.trim()) {
 		const rewriteResult = await performRewrite({
 			requestId,
-			admin,
 			userId: user.id,
 			rawText: finalText,
 			provider,
@@ -181,6 +173,8 @@ app.post("/audio/transcriptions", async (c) => {
 	log("info", "dictation_pipeline_completed", requestId, {
 		userId: user.id,
 		textLength: finalText.length,
+		transcriptionChars: transcription.transcriptionChars,
+		billedChars: transcription.billedChars,
 		rewritten,
 	});
 
@@ -255,25 +249,17 @@ function rewriteForRelayBasePath(request: Request): Request {
 	return new Request(url, request);
 }
 
-function parseAudioDurationSeconds(value: string | undefined): number {
-	if (!value) {
-		throw new ApiError(
-			400,
-			"missing_audio_duration",
-			"The transcription request requires X-Stet-Audio-Duration-Seconds."
-		);
+function sanitizeRequestId(value: string | undefined): string {
+	const trimmed = value?.trim();
+	if (!trimmed) {
+		return crypto.randomUUID();
 	}
 
-	const parsed = Number.parseInt(value, 10);
-	if (!Number.isFinite(parsed) || parsed <= 0) {
-		throw new ApiError(
-			400,
-			"invalid_audio_duration",
-			"X-Stet-Audio-Duration-Seconds must be a positive integer."
-		);
+	if (trimmed.length > 128) {
+		return crypto.randomUUID();
 	}
 
-	return parsed;
+	return trimmed;
 }
 
 function readFormDataString(formData: FormData, key: string): string | null {

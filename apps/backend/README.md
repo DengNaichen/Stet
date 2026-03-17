@@ -6,7 +6,7 @@ Managed-mode relay backend for `Stet`, built on Supabase Edge Functions.
 
 - validates Supabase access tokens
 - lazily provisions per-user managed entitlements
-- enforces request and audio quotas
+- enforces request-rate and weekly transcription quotas
 - transcribes audio via AI SDK (OpenAI / Groq)
 - optionally rewrites transcripts (controlled by client)
 - stores usage metadata only
@@ -65,7 +65,6 @@ The main dictation pipeline endpoint. Requires auth.
 | Header | Required | Description |
 |--------|----------|-------------|
 | `Authorization` | Yes | `Bearer <supabase-access-token>` |
-| `X-Stet-Audio-Duration-Seconds` | Yes | Positive integer, audio duration |
 
 **Form fields (multipart/form-data):**
 
@@ -96,4 +95,5 @@ The main dictation pipeline endpoint. Requires auth.
 ## Notes
 
 - Set `AI_PROVIDER` env var to `openai` (default) or `groq`.
+- Weekly transcription quota is billed from the raw transcription text using `max(min_billed_chars_per_transcription, normalized_transcription_chars)`.
 - `BYOK` is out of scope for this backend and remains a direct path.

@@ -1,6 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "../error.ts";
-import { checkAndRecordUsage, markUsageEventStatus } from "../usage.ts";
+import { beginTranscriptionUsage, finalizeTranscriptionUsage } from "../usage.ts";
 import { log } from "../log.ts";
 import type { AIProvider, TranscribeOptions } from "../providers/provider.ts";
 
@@ -11,41 +11,51 @@ export async function performTranscription(args: {
     audio: Uint8Array;
     options?: TranscribeOptions;
     provider: AIProvider;
-    audioSeconds: number;
+    providerName: "openai" | "groq";
 }) {
-    const usage = await checkAndRecordUsage(args.admin, {
+    const usage = await beginTranscriptionUsage(args.admin, {
         userId: args.userId,
         requestId: args.requestId,
-        routeKind: "audio_transcriptions",
-        audioSeconds: args.audioSeconds,
+        provider: args.providerName,
     });
 
     log("info", "transcription_started", args.requestId, {
         userId: args.userId,
         audioBytes: args.audio.length,
-        audioSeconds: args.audioSeconds,
         language: args.options?.language ?? null,
         hasPrompt: Boolean(args.options?.prompt),
+        reservedBilledChars: usage.reserved_billed_chars,
     });
 
     try {
         const result = await args.provider.transcribe(args.audio, args.options);
-
-        await markUsageEventStatus(args.admin, usage.usage_event_id!, 200);
+        const finalizedUsage = await finalizeTranscriptionUsage(args.admin, {
+            usageEventId: usage.usage_event_id,
+            upstreamStatus: 200,
+            rawText: result.text,
+            reservedBilledChars: usage.reserved_billed_chars,
+        });
 
         log("info", "transcription_completed", args.requestId, {
             userId: args.userId,
             textLength: result.text.length,
+            transcriptionChars: finalizedUsage.transcription_chars,
+            billedChars: finalizedUsage.billed_chars,
         });
 
         return {
             text: result.text,
             usageEventId: usage.usage_event_id,
+            transcriptionChars: finalizedUsage.transcription_chars,
+            billedChars: finalizedUsage.billed_chars,
         };
     } catch (error) {
-        if (usage.usage_event_id) {
-            await markUsageEventStatus(args.admin, usage.usage_event_id, 502).catch(() => { });
-        }
+        await finalizeTranscriptionUsage(args.admin, {
+            usageEventId: usage.usage_event_id,
+            upstreamStatus: 502,
+            rawText: "",
+            reservedBilledChars: usage.reserved_billed_chars,
+        }).catch(() => { });
 
         log("error", "transcription_failed", args.requestId, {
             userId: args.userId,
