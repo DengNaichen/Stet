@@ -5,11 +5,11 @@ struct MacOpenAISettingsView: View {
     @ObservedObject var viewModel: MacOpenAISettingsViewModel
 
     var body: some View {
-        settingsCard(
+        MacSettingsCard(
             title: "AI Provider",
             description: viewModel.providerDescription
         ) {
-            settingsValueRow(title: "Provider") {
+            MacSettingsValueRow(title: "Provider") {
                 Picker("Provider", selection: $viewModel.provider) {
                     ForEach(DictationProvider.allCases) { provider in
                         Text(provider.displayName).tag(provider)
@@ -20,9 +20,9 @@ struct MacOpenAISettingsView: View {
                 .frame(width: 220, alignment: .trailing)
             }
 
-            settingsValueRow(title: "Connection") {
-                statusBadge(
-                    viewModel.connectionStatusText,
+            MacSettingsValueRow(title: "Connection") {
+                MacSettingsStatusBadge(
+                    text: viewModel.connectionStatusText,
                     tint: viewModel.shouldHighlightMissingCredential ? .orange : .green
                 )
             }
@@ -38,7 +38,7 @@ struct MacOpenAISettingsView: View {
                 isOn: $viewModel.translateSelectedTextOnTranslationHotkey
             )
 
-            settingsValueRow(title: "Target language") {
+            MacSettingsValueRow(title: "Target language") {
                 Picker("Target language", selection: $viewModel.translationTargetLanguage) {
                     ForEach(TranslationTargetLanguage.allCases) { language in
                         Text(language.title).tag(language)
@@ -79,59 +79,6 @@ struct MacOpenAISettingsView: View {
                 .font(.caption)
                 .foregroundStyle(viewModel.credentialMessageIsError ? .red : .secondary)
         }
-    }
-
-    @ViewBuilder
-    private func settingsCard<Content: View>(
-        title: String,
-        description: String? = nil,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(title)
-                    .font(.headline)
-
-                if let description {
-                    Text(description)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                content()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(8)
-        }
-    }
-
-    @ViewBuilder
-    private func settingsValueRow<Value: View>(
-        title: String,
-        @ViewBuilder value: () -> Value
-    ) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(title)
-                .foregroundStyle(.secondary)
-            Spacer()
-            value()
-        }
-    }
-
-    private func statusBadge(_ text: String, tint: Color) -> some View {
-        Text(text)
-            .font(.system(size: 11, weight: .semibold, design: .rounded))
-            .foregroundStyle(tint)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(tint.opacity(0.12))
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(tint.opacity(0.22), lineWidth: 1)
-            )
     }
 }
 #endif

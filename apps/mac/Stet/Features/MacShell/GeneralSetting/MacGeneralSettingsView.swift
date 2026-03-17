@@ -42,7 +42,7 @@ struct MacGeneralSettingsView: View {
     }
 
     private var configurationSection: some View {
-        settingsCard(
+        MacSettingsCard(
             title: "Configuration",
             description: "Export or import your current hotkey, dictionary, and behavior settings."
         ) {
@@ -59,10 +59,10 @@ struct MacGeneralSettingsView: View {
     }
 
     private var audioSection: some View {
-        settingsCard(
+        MacSettingsCard(
             title: "Microphone",
         ) {
-            settingsValueRow(title: "Microphone") {
+            MacSettingsValueRow(title: "Microphone") {
                 Picker("Microphone", selection: selectedAudioInputDeviceIDBinding) {
                     Text(viewModel.systemDefaultInputDeviceLabel).tag(0)
 
@@ -78,7 +78,7 @@ struct MacGeneralSettingsView: View {
     }
 
     private var captureSection: some View {
-        settingsCard(
+        MacSettingsCard(
             title: "Capture",
             description: "Pause external media automatically while dictation is active."
         ) {
@@ -87,7 +87,7 @@ struct MacGeneralSettingsView: View {
     }
 
     private var interactionSoundsSection: some View {
-        settingsCard(
+        MacSettingsCard(
             title: "Interaction Sounds",
         ) {
             Toggle("Enable interaction sounds", isOn: $interactionSoundsEnabled)
@@ -95,7 +95,7 @@ struct MacGeneralSettingsView: View {
     }
 
     private var appBehaviorSection: some View {
-        settingsCard(
+        MacSettingsCard(
             title: "App Behavior",
         ) {
             Toggle("Launch at Login", isOn: $managedSettings.launchAtLogin)
@@ -104,7 +104,7 @@ struct MacGeneralSettingsView: View {
     }
 
     private var updatesSection: some View {
-        settingsCard(
+        MacSettingsCard(
             title: "Updates",
             description: "Automatically check for app updates, or run a manual check at any time."
         ) {
@@ -125,7 +125,7 @@ struct MacGeneralSettingsView: View {
     }
 
     private var debugLoggingSection: some View {
-        settingsCard(
+        MacSettingsCard(
             title: "Debug Logging",
             description: "Enable temporary logs while diagnosing shortcut handling or OpenAI requests."
         ) {
@@ -199,43 +199,6 @@ struct MacGeneralSettingsView: View {
         }
 
         viewModel.applyDockVisibilityChange(newValue, appModel: appModel)
-    }
-
-    @ViewBuilder
-    private func settingsCard<Content: View>(
-        title: String,
-        description: String? = nil,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(title)
-                    .font(.headline)
-
-                if let description {
-                    Text(description)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                content()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(8)
-        }
-    }
-
-    @ViewBuilder
-    private func settingsValueRow<Value: View>(
-        title: String,
-        @ViewBuilder value: () -> Value
-    ) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(title)
-                .foregroundStyle(.secondary)
-            Spacer()
-            value()
-        }
     }
 }
 #endif

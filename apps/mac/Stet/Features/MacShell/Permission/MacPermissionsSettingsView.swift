@@ -7,7 +7,7 @@ struct MacPermissionsSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            settingsCard(
+            MacSettingsCard(
                 title: "Core Permissions",
             ) {
                 permissionRow(
@@ -37,30 +37,6 @@ struct MacPermissionsSettingsView: View {
     }
 
     @ViewBuilder
-    private func settingsCard<Content: View>(
-        title: String,
-        description: String? = nil,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(title)
-                    .font(.headline)
-
-                if let description {
-                    Text(description)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                content()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(8)
-        }
-    }
-
-    @ViewBuilder
     private func permissionRow<Actions: View>(
         title: String,
         statusText: String,
@@ -75,26 +51,10 @@ struct MacPermissionsSettingsView: View {
 
             Spacer()
 
-            statusBadge(statusText, tint: tint)
+            MacSettingsStatusBadge(text: statusText, tint: tint)
             actions()
         }
         .padding(.vertical, 2)
-    }
-
-    private func statusBadge(_ text: String, tint: Color) -> some View {
-        Text(text)
-            .font(.system(size: 11, weight: .semibold, design: .rounded))
-            .foregroundStyle(tint)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(tint.opacity(0.12))
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(tint.opacity(0.22), lineWidth: 1)
-            )
     }
 }
 
@@ -185,7 +145,7 @@ struct MacRequiredPermissionsGateView: View {
 
                 Spacer()
 
-                permissionGateBadge(statusText, tint: tint)
+                MacSettingsStatusBadge(text: statusText, tint: tint)
             }
 
             HStack(spacing: 8) {
@@ -194,20 +154,5 @@ struct MacRequiredPermissionsGateView: View {
         }
     }
 
-    private func permissionGateBadge(_ text: String, tint: Color) -> some View {
-        Text(text)
-            .font(.system(size: 11, weight: .semibold, design: .rounded))
-            .foregroundStyle(tint)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(tint.opacity(0.12))
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(tint.opacity(0.22), lineWidth: 1)
-            )
-    }
 }
 #endif
