@@ -119,22 +119,6 @@ final class TestSecretStore: DictationSecretStore, @unchecked Sendable {
     }
 }
 
-actor TestHistoryStore: TranscriptionHistoryStore {
-    var records: [TranscriptionRecord]
-
-    init(records: [TranscriptionRecord] = []) {
-        self.records = records
-    }
-
-    func loadHistory() async -> [TranscriptionRecord] {
-        records
-    }
-
-    func saveHistory(_ records: [TranscriptionRecord]) async {
-        self.records = records
-    }
-}
-
 @MainActor
 final class TestClipboardService: ClipboardService {
     var copiedTexts: [String] = []

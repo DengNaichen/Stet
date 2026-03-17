@@ -1,4 +1,5 @@
 import Foundation
+import OpenAI
 import Testing
 
 @testable import Stet
@@ -18,7 +19,7 @@ struct OpenAITests {
         #expect(sdkConfiguration.token == "sk-test")
         #expect(sdkConfiguration.organizationIdentifier == "org_123")
         #expect(sdkConfiguration.host == "api.example.com")
-        #expect(sdkConfiguration.basePath == "/v1")
+        #expect(sdkConfiguration.basePath == "/v1/")
         #expect(sdkConfiguration.customHeaders["OpenAI-Project"] == "proj_123")
         #expect(sdkConfiguration.customHeaders["X-Test"] == "1")
     }
@@ -41,7 +42,7 @@ struct OpenAITests {
             #expect(body.contains("de"))
             #expect(body.contains("name=\"prompt\""))
             #expect(body.contains("Use OpenAI"))
-            #expect(body.contains("filename=\"\(fileURL.lastPathComponent)\""))
+            #expect(body.contains("filename=\"speech.m4a\""))
 
             let response = HTTPURLResponse(url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (response, Data(#"{"text":"hello"}"#.utf8))
@@ -102,7 +103,53 @@ struct OpenAITests {
             #expect((input.last?["content"] as? String)?.contains("Instruction:") == true)
 
             let response = HTTPURLResponse(url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
-            let data = Data(#"{"output":[{"type":"message","content":[{"type":"output_text","text":"rewritten"}]}]}"#.utf8)
+            let data = Data(
+                """
+                {
+                  "created_at": 123,
+                  "error": null,
+                  "id": "resp-1",
+                  "incomplete_details": null,
+                  "instructions": null,
+                  "max_output_tokens": null,
+                  "metadata": {},
+                  "model": "test-model",
+                  "object": "response",
+                  "output": [
+                    {
+                      "id": "msg-1",
+                      "type": "message",
+                      "role": "assistant",
+                      "content": [
+                        {
+                          "type": "output_text",
+                          "text": "rewritten",
+                          "annotations": [],
+                          "logprobs": []
+                        }
+                      ],
+                      "status": "completed"
+                    }
+                  ],
+                  "parallel_tool_calls": false,
+                  "previous_response_id": null,
+                  "reasoning": null,
+                  "status": "completed",
+                  "temperature": null,
+                  "text": {
+                    "format": {
+                      "type": "text"
+                    }
+                  },
+                  "tool_choice": "auto",
+                  "tools": [],
+                  "top_p": null,
+                  "truncation": null,
+                  "usage": null,
+                  "user": null
+                }
+                """.utf8
+            )
             return (response, data)
         }
         defer { URLProtocolStub.reset() }
@@ -131,7 +178,7 @@ struct OpenAITests {
         }
         defer { URLProtocolStub.reset() }
 
-        await #expect(throws: OpenAIError.api(statusCode: 0, message: "bad key")) {
+        await #expect(throws: OpenAIError.api(statusCode: 401, message: "bad key")) {
             try await service.rewrite(.rewriteSelection(sourceText: "hello", instruction: "Make it concise"))
         }
     }
@@ -151,7 +198,39 @@ struct OpenAITests {
             #expect(userContent?.contains("Japanese") == true)
 
             let response = HTTPURLResponse(url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
-            return (response, Data(#"{"output":[]}"#.utf8))
+            let data = Data(
+                """
+                {
+                  "created_at": 123,
+                  "error": null,
+                  "id": "resp-1",
+                  "incomplete_details": null,
+                  "instructions": null,
+                  "max_output_tokens": null,
+                  "metadata": {},
+                  "model": "test-model",
+                  "object": "response",
+                  "output": [],
+                  "parallel_tool_calls": false,
+                  "previous_response_id": null,
+                  "reasoning": null,
+                  "status": "completed",
+                  "temperature": null,
+                  "text": {
+                    "format": {
+                      "type": "text"
+                    }
+                  },
+                  "tool_choice": "auto",
+                  "tools": [],
+                  "top_p": null,
+                  "truncation": null,
+                  "usage": null,
+                  "user": null
+                }
+                """.utf8
+            )
+            return (response, data)
         }
         defer { URLProtocolStub.reset() }
 

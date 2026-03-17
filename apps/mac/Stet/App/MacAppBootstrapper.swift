@@ -42,6 +42,8 @@ struct MacAppBootstrapper {
         .integer(MacPreferences.selectedAudioInputDeviceID, 0),
         .string(MacPreferences.transcriptionProvider, DictationProvider.openAI.rawValue),
         .bool(MacPreferences.rewriteEnabled, false),
+        .string(MacPreferences.proxyMode, NetworkProxyMode.system.rawValue),
+        .string(MacPreferences.customProxyScheme, CustomProxyScheme.http.rawValue),
         .bool(MacPreferences.interactionSoundsEnabled, true),
         .string(MacPreferences.interactionSoundPreset, InteractionSoundPreset.soft.rawValue),
         .bool(MacPreferences.showInDock, false),

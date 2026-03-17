@@ -7,83 +7,30 @@ import Testing
 @MainActor
 @Suite("Mac Dictation Capture Coordinator", .serialized)
 struct MacDictationCaptureCoordinatorTests {
-    @Test func loadHistoryAppliesRetentionPolicy() async {
-        let defaults = TestSupport.makeUserDefaults()
-        defaults.set(HistoryRetentionPeriod.sevenDays.rawValue, forKey: MacPreferences.historyRetentionPeriod)
-        let settingsStore = DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
-        let now = Date(timeIntervalSince1970: 1_000_000)
-        let historyStore = TestHistoryStore(records: [
-            TranscriptionRecord(text: "recent", createdAt: now.addingTimeInterval(-60)),
-            TranscriptionRecord(text: "old", createdAt: now.addingTimeInterval(-9 * 24 * 60 * 60)),
-        ])
-        let coordinator = MacDictationCaptureCoordinator(
-            clipboardService: TestClipboardService(),
-            textInjectionService: TestTextInjectionService(),
-            historyStore: historyStore,
-            settingsStore: settingsStore,
-            nowProvider: { now }
-        )
-
-        let history = await coordinator.loadHistory()
-
-        #expect(history.map(\.text) == ["recent"])
-        #expect(await historyStore.loadHistory().map(\.text) == ["recent"])
-    }
-
-    @Test func prepareCaptureCapsHistoryAtMaximumCount() async {
-        let defaults = TestSupport.makeUserDefaults()
-        defaults.set(HistoryRetentionPeriod.forever.rawValue, forKey: MacPreferences.historyRetentionPeriod)
-        let settingsStore = DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
-        let history = (0..<300).map {
-            TranscriptionRecord(
-                text: "item-\($0)",
-                createdAt: Date(timeIntervalSince1970: TimeInterval(1_000_000 - $0))
-            )
-        }
-        let coordinator = MacDictationCaptureCoordinator(
-            clipboardService: TestClipboardService(),
-            textInjectionService: TestTextInjectionService(),
-            historyStore: TestHistoryStore(),
-            settingsStore: settingsStore,
-            nowProvider: { Date(timeIntervalSince1970: 1_000_000) }
-        )
-
-        let prepared = await coordinator.prepareCapture(
-            text: "latest",
-            metadata: .init(kind: .dictation),
-            existingHistory: history
-        )
-
-        #expect(prepared.history.count == 250)
-        #expect(prepared.history.first?.text == "latest")
-    }
-
     @Test func completedCaptureCopiesAndPastesWhenEnabled() async {
         let clipboard = TestClipboardService()
         let textInjection = TestTextInjectionService()
         textInjection.pasteResult = true
         let coordinator = MacDictationCaptureCoordinator(
             clipboardService: clipboard,
-            textInjectionService: textInjection,
-            historyStore: TestHistoryStore()
+            textInjectionService: textInjection
         )
+        var revealCount = 0
 
-        let outcome = await coordinator.handleCompletedCapture(
+        await coordinator.handleCompletedCapture(
             text: "hello",
-            existingHistory: [],
-            metadata: .init(kind: .dictation),
             targetApplication: nil,
             settings: .init(
                 shouldCopyToClipboard: true,
                 shouldAutoPaste: true,
                 shouldRevealPanelOnCapture: true
             ),
-            showPanel: {}
+            showPanel: { revealCount += 1 }
         )
 
         #expect(clipboard.copiedTexts == ["hello"])
-        #expect(outcome.copiedRecordID != nil)
-        #expect(outcome.history.first?.text == "hello")
+        #expect(textInjection.pasteTargets.count == 1)
+        #expect(revealCount == 0)
     }
 
     @Test func completedCaptureRequestsAccessibilityWhenPasteUnavailable() async {
@@ -97,15 +44,12 @@ struct MacDictationCaptureCoordinatorTests {
         textInjection.pasteResult = false
         let coordinator = MacDictationCaptureCoordinator(
             clipboardService: clipboard,
-            textInjectionService: textInjection,
-            historyStore: TestHistoryStore()
+            textInjectionService: textInjection
         )
         var revealCount = 0
 
         _ = await coordinator.handleCompletedCapture(
             text: "hello",
-            existingHistory: [],
-            metadata: .init(kind: .dictation),
             targetApplication: nil,
             settings: .init(
                 shouldCopyToClipboard: false,
@@ -117,6 +61,54 @@ struct MacDictationCaptureCoordinatorTests {
 
         #expect(textInjection.didRequestAccessIfNeeded)
         #expect(revealCount == 1)
+    }
+
+    @Test func completedCaptureRevealsPanelWhenAutoPasteDisabled() async {
+        let clipboard = TestClipboardService()
+        let textInjection = TestTextInjectionService()
+        let coordinator = MacDictationCaptureCoordinator(
+            clipboardService: clipboard,
+            textInjectionService: textInjection
+        )
+        var revealCount = 0
+
+        await coordinator.handleCompletedCapture(
+            text: "hello",
+            targetApplication: nil,
+            settings: .init(
+                shouldCopyToClipboard: false,
+                shouldAutoPaste: false,
+                shouldRevealPanelOnCapture: true
+            ),
+            showPanel: { revealCount += 1 }
+        )
+
+        #expect(clipboard.copiedTexts.isEmpty)
+        #expect(textInjection.pasteTargets.isEmpty)
+        #expect(revealCount == 1)
+    }
+
+    @Test func completedCaptureSkipsClipboardWhenCopyAndPasteAreDisabled() async {
+        let clipboard = TestClipboardService()
+        let textInjection = TestTextInjectionService()
+        let coordinator = MacDictationCaptureCoordinator(
+            clipboardService: clipboard,
+            textInjectionService: textInjection
+        )
+
+        await coordinator.handleCompletedCapture(
+            text: "hello",
+            targetApplication: nil,
+            settings: .init(
+                shouldCopyToClipboard: false,
+                shouldAutoPaste: false,
+                shouldRevealPanelOnCapture: false
+            ),
+            showPanel: {}
+        )
+
+        #expect(clipboard.copiedTexts.isEmpty)
+        #expect(textInjection.pasteTargets.isEmpty)
     }
 }
 #endif

@@ -3,6 +3,23 @@ import Testing
 
 @testable import Stet
 
+private final class CapturedProxySettingsBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: NetworkProxySettings?
+
+    func set(_ value: NetworkProxySettings) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.value = value
+    }
+
+    func get() -> NetworkProxySettings? {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
+    }
+}
+
 private actor CapturedPromptBox {
     private(set) var value: String?
 
@@ -18,15 +35,19 @@ private actor CapturedPromptBox {
 @MainActor
 @Suite("Configurable Speech Service", .serialized)
 struct ConfigurableSpeechServiceTests {
-    @Test func makeTranscriptionPromptCombinesDictionaryAndContext() {
+    @Test func makeTranscriptionPromptIncludesPreferredSpellings() {
         let prompt = ConfigurableSpeechService.makeTranscriptionPrompt(
-            preferredSpellings: ["OpenAI", "Groq"],
-            contextInstructions: "Write tersely."
+            preferredSpellings: ["OpenAI", "Groq"]
         )
 
         let rendered = try! #require(prompt)
         #expect(rendered.contains("OpenAI, Groq"))
-        #expect(rendered.contains("Write tersely."))
+    }
+
+    @Test func makeTranscriptionPromptReturnsNilWithoutPreferredSpellings() {
+        #expect(
+            ConfigurableSpeechService.makeTranscriptionPrompt(preferredSpellings: []) == nil
+        )
     }
 
     @Test func openAIProviderRequiresAPIKey() async {
@@ -41,32 +62,59 @@ struct ConfigurableSpeechServiceTests {
         }
     }
 
+    @Test func startRecordingUsesLoadedProxySettings() async throws {
+        let defaults = TestSupport.makeUserDefaults()
+        defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
+        defaults.set(NetworkProxyMode.custom.rawValue, forKey: MacPreferences.proxyMode)
+        defaults.set(CustomProxyScheme.socks5.rawValue, forKey: MacPreferences.customProxyScheme)
+        defaults.set("localhost", forKey: MacPreferences.customProxyHost)
+        defaults.set("1080", forKey: MacPreferences.customProxyPort)
+
+        let secretStore = TestSecretStore()
+        try secretStore.saveString("sk-test", forAccount: "openai.api_key")
+        let settingsStore = DictationSettingsStore(defaults: defaults, secretStore: secretStore)
+        let proxyBox = CapturedProxySettingsBox()
+        let speech = ControllableSpeechService()
+        let service = ConfigurableSpeechService(
+            settingsStore: settingsStore,
+            dependencies: .init(
+                makeNetworkSession: { settings in
+                    proxyBox.set(settings)
+                    return TestURLSessionFactory.makeSession()
+                },
+                makeOpenAISpeechService: { _, _, _, _, _ in speech },
+                makeRewriteService: { _, _ in RecordingRewriteService() }
+            )
+        )
+
+        try await service.startRecording()
+        let proxy = try #require(proxyBox.get())
+
+        #expect(proxy.mode == .custom)
+        #expect(proxy.customScheme == .socks5)
+        #expect(proxy.customHost == "localhost")
+        #expect(proxy.customPort == 1080)
+
+        await service.cancelRecording()
+    }
+
     @Test func openAIProviderBuildsPromptAndUsesRewriteService() async throws {
         let defaults = TestSupport.makeUserDefaults()
         defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
         defaults.set(true, forKey: MacPreferences.rewriteEnabled)
-        defaults.set(true, forKey: MacPreferences.appBranchEnabled)
         let secretStore = TestSecretStore()
         try secretStore.saveString("sk-test", forAccount: "openai.api_key")
         let settingsStore = DictationSettingsStore(defaults: defaults, secretStore: secretStore)
         settingsStore.savePersonalDictionary(["OpenAI", "Groq"])
-        settingsStore.saveAppBranchRules([
-            .init(name: "Docs", prompt: "Use docs tone for {{APP_NAME}}", urlPatterns: ["docs.example.com/*"])
-        ])
 
         let openAISpeech = ControllableSpeechService()
         await openAISpeech.setStopBehavior(.immediate("source transcript"))
         let rewriteService = RecordingRewriteService()
         await rewriteService.setResult("rewritten transcript")
         let promptBox = CapturedPromptBox()
-        let captureContextStore = CaptureContextStore()
-        await captureContextStore.setContext(
-            .init(bundleID: "com.apple.Safari", appName: "Safari", browserURL: "https://docs.example.com/page")
-        )
 
         let service = ConfigurableSpeechService(
             settingsStore: settingsStore,
-            captureContextStore: captureContextStore,
             dependencies: .init(
                 makeNetworkSession: { _ in TestURLSessionFactory.makeSession() },
                 makeOpenAISpeechService: { _, _, _, _, promptProvider in
@@ -85,9 +133,7 @@ struct ConfigurableSpeechServiceTests {
         #expect(result == "rewritten transcript")
         #expect(rewriteRequest.sourceText == "source transcript")
         #expect(rewriteRequest.systemPrompt?.contains("OpenAI, Groq") == true)
-        #expect(rewriteRequest.systemPrompt?.contains("Use docs tone for Safari") == true)
         #expect(capturedPrompt.contains("OpenAI, Groq"))
-        #expect(capturedPrompt.contains("Use docs tone for Safari"))
     }
 
     @Test func emptyTranscriptThrowsEmptyTranscription() async throws {

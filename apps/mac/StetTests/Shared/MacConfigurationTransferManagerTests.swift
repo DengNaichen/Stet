@@ -1,6 +1,5 @@
 #if os(macOS)
 import AppKit
-import Carbon
 import Foundation
 import Testing
 
@@ -17,20 +16,16 @@ struct MacConfigurationTransferManagerTests {
         sourceDefaults.set(true, forKey: MacPreferences.pauseMediaDuringDictation)
         sourceDefaults.set(true, forKey: MacPreferences.showInDock)
         sourceDefaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
-        sourceDefaults.set(CustomProxyScheme.https.rawValue, forKey: MacPreferences.customProxyScheme)
-        sourceDefaults.set(NetworkProxyMode.custom.rawValue, forKey: MacPreferences.proxyMode)
-        sourceDefaults.set("proxy.example.com", forKey: MacPreferences.customProxyHost)
-        sourceDefaults.set("8443", forKey: MacPreferences.customProxyPort)
+        sourceStore.saveProxySettings(
+            .init(
+                mode: .custom,
+                customScheme: .https,
+                customHost: "proxy.example.com",
+                customPort: 8443
+            )
+        )
         sourceStore.saveTranslationTargetLanguage(.french)
         sourceStore.savePersonalDictionary(["OpenAI", "Groq"])
-        sourceStore.saveAppBranchRules([
-            .init(
-                name: "Docs",
-                prompt: "Follow {{APP_NAME}} style",
-                appTargets: [.init(bundleID: "com.apple.Safari", displayName: "Safari")],
-                urlPatterns: ["docs.example.com/*"]
-            )
-        ])
         try sourceStore.saveOpenAIAPIKey("sk-secret")
 
         let data = try MacConfigurationTransferManager.exportData(
@@ -53,7 +48,10 @@ struct MacConfigurationTransferManagerTests {
         #expect(targetDefaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.openAI.rawValue)
         #expect(targetStore.loadTranslationTargetLanguage() == .french)
         #expect(targetStore.loadPersonalDictionary() == ["OpenAI", "Groq"])
+        #expect(targetStore.loadProxySettings().mode == .custom)
+        #expect(targetStore.loadProxySettings().customScheme == .https)
         #expect(targetStore.loadProxySettings().customHost == "proxy.example.com")
+        #expect(targetStore.loadProxySettings().customPort == 8443)
         #expect(targetStore.loadOpenAIAPIKey().isEmpty)
     }
 
@@ -68,6 +66,24 @@ struct MacConfigurationTransferManagerTests {
                 defaults: defaults
             )
         }
+    }
+
+    @Test func exportDataIncludesProxyFields() throws {
+        let defaults = TestSupport.makeUserDefaults()
+        let store = DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
+        store.saveProxySettings(
+            .init(mode: .disabled, customScheme: .http, customHost: "", customPort: nil)
+        )
+
+        let data = try MacConfigurationTransferManager.exportData(using: store, defaults: defaults)
+        let payload = try #require(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+
+        #expect(payload["proxyMode"] as? String == NetworkProxyMode.disabled.rawValue)
+        #expect(payload["customProxyScheme"] as? String == CustomProxyScheme.http.rawValue)
+        #expect(payload["customProxyHost"] as? String == "")
+        #expect(payload["customProxyPort"] == nil)
     }
 }
 #endif

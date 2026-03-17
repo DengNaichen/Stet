@@ -21,6 +21,10 @@ enum MacConfigurationTransferManager {
         var selectedAudioInputDeviceID: Int
         var transcriptionProvider: String
         var rewriteEnabled: Bool
+        var proxyMode: String?
+        var customProxyScheme: String?
+        var customProxyHost: String?
+        var customProxyPort: String?
         var translationTargetLanguage: String
         var translateSelectedTextOnTranslationHotkey: Bool
         var interactionSoundsEnabled: Bool
@@ -85,15 +89,20 @@ enum MacConfigurationTransferManager {
         using store: DictationSettingsStore,
         defaults: UserDefaults
     ) -> ExportedConfiguration {
+        let proxySettings = store.loadProxySettings()
 
         return ExportedConfiguration(
-            version: 3,
+            version: 4,
             pauseMediaDuringDictation: defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation),
             selectedAudioInputDeviceID: defaults.integer(forKey: MacPreferences.selectedAudioInputDeviceID),
             transcriptionProvider: DictationProvider(
                 rawValue: defaults.string(forKey: MacPreferences.transcriptionProvider) ?? ""
             )?.rawValue ?? DictationProvider.openAI.rawValue,
             rewriteEnabled: defaults.bool(forKey: MacPreferences.rewriteEnabled),
+            proxyMode: proxySettings.mode.rawValue,
+            customProxyScheme: proxySettings.customScheme.rawValue,
+            customProxyHost: proxySettings.customHost,
+            customProxyPort: proxySettings.customPort.map(String.init),
             translationTargetLanguage: store.loadTranslationTargetLanguage().rawValue,
             translateSelectedTextOnTranslationHotkey: store.loadTranslateSelectedTextOnTranslationHotkey(),
             interactionSoundsEnabled: defaults.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true,
@@ -113,6 +122,15 @@ enum MacConfigurationTransferManager {
         using store: DictationSettingsStore,
         defaults: UserDefaults
     ) {
+        store.saveProxySettings(
+            NetworkProxySettings(
+                mode: NetworkProxyMode(rawValue: imported.proxyMode ?? "") ?? .system,
+                customScheme: CustomProxyScheme(rawValue: imported.customProxyScheme ?? "") ?? .http,
+                customHost: imported.customProxyHost ?? "",
+                customPort: imported.customProxyPort.flatMap(Int.init)
+            )
+        )
+
         defaults.set(imported.pauseMediaDuringDictation, forKey: MacPreferences.pauseMediaDuringDictation)
         defaults.set(imported.selectedAudioInputDeviceID, forKey: MacPreferences.selectedAudioInputDeviceID)
         defaults.set(
@@ -120,7 +138,6 @@ enum MacConfigurationTransferManager {
             forKey: MacPreferences.transcriptionProvider
         )
         defaults.set(imported.rewriteEnabled, forKey: MacPreferences.rewriteEnabled)
-        defaults.set(imported.translationTargetLanguage, forKey: MacPreferences.translationTargetLanguage)
         defaults.set(
             imported.translateSelectedTextOnTranslationHotkey,
             forKey: MacPreferences.translateSelectedTextOnTranslationHotkey

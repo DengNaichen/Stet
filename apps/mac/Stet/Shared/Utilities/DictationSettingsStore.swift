@@ -168,11 +168,34 @@ struct DictationSettingsStore: Sendable {
 
     nonisolated func loadProxySettings() -> NetworkProxySettings {
         NetworkProxySettings(
-            mode: .system,
-            customScheme: .http,
-            customHost: "",
-            customPort: nil
+            mode: NetworkProxyMode(
+                rawValue: defaults.string(forKey: MacPreferences.proxyMode) ?? ""
+            ) ?? .system,
+            customScheme: CustomProxyScheme(
+                rawValue: defaults.string(forKey: MacPreferences.customProxyScheme) ?? ""
+            ) ?? .http,
+            customHost: defaults.string(forKey: MacPreferences.customProxyHost)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
+            customPort: loadCustomProxyPort()
         )
+    }
+
+    nonisolated func saveProxySettings(_ settings: NetworkProxySettings) {
+        defaults.set(settings.mode.rawValue, forKey: MacPreferences.proxyMode)
+        defaults.set(settings.customScheme.rawValue, forKey: MacPreferences.customProxyScheme)
+
+        let trimmedHost = settings.customHost.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedHost.isEmpty {
+            defaults.removeObject(forKey: MacPreferences.customProxyHost)
+        } else {
+            defaults.set(trimmedHost, forKey: MacPreferences.customProxyHost)
+        }
+
+        if let port = settings.customPort, port > 0 {
+            defaults.set(String(port), forKey: MacPreferences.customProxyPort)
+        } else {
+            defaults.removeObject(forKey: MacPreferences.customProxyPort)
+        }
     }
 
     nonisolated static func words(from rawInput: String) -> [String] {
@@ -193,5 +216,21 @@ struct DictationSettingsStore: Sendable {
 
     nonisolated func saveOpenAIAPIKey(_ apiKey: String) throws {
         try saveAPIKey(apiKey, for: .openAI)
+    }
+
+    nonisolated private func loadCustomProxyPort() -> Int? {
+        if let number = defaults.object(forKey: MacPreferences.customProxyPort) as? NSNumber {
+            let port = number.intValue
+            return port > 0 ? port : nil
+        }
+
+        guard let rawValue = defaults.string(forKey: MacPreferences.customProxyPort)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            let port = Int(rawValue),
+            port > 0 else {
+            return nil
+        }
+
+        return port
     }
 }
