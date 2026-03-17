@@ -119,7 +119,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
         let networkSession = dependencies.makeNetworkSession(snapshot.proxySettings)
 
         guard let configuration = snapshot.openAIConfiguration else {
-            throw OpenAIError.missingAPIKey
+            throw OpenAIError.missingAPIKey(provider: snapshot.provider)
         }
 
         speechService = await dependencies.makeOpenAISpeechService(
@@ -128,13 +128,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
             locale,
             snapshot.preferredAudioInputDeviceID,
             {
-                guard !snapshot.personalDictionary.isEmpty else {
-                    return nil
-                }
-
-                return Self.makeTranscriptionPrompt(
-                    preferredSpellings: snapshot.personalDictionary
-                )
+                nil
             }
         )
 
@@ -142,7 +136,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
 
         if snapshot.isRewriteEnabled {
             guard let configuration = snapshot.openAIConfiguration else {
-                throw OpenAIError.missingAPIKey
+                throw OpenAIError.missingAPIKey(provider: snapshot.provider)
             }
 
             rewriteService = dependencies.makeRewriteService(configuration, networkSession)

@@ -57,7 +57,19 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
         )
 
-        await #expect(throws: OpenAIError.missingAPIKey) {
+        await #expect(throws: OpenAIError.missingAPIKey(provider: .openAI)) {
+            try await service.startRecording()
+        }
+    }
+
+    @Test func groqProviderRequiresGroqAPIKey() async {
+        let defaults = TestSupport.makeUserDefaults()
+        defaults.set(DictationProvider.groq.rawValue, forKey: MacPreferences.transcriptionProvider)
+        let service = ConfigurableSpeechService(
+            settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
+        )
+
+        await #expect(throws: OpenAIError.missingAPIKey(provider: .groq)) {
             try await service.startRecording()
         }
     }
@@ -98,7 +110,7 @@ struct ConfigurableSpeechServiceTests {
         await service.cancelRecording()
     }
 
-    @Test func openAIProviderBuildsPromptAndUsesRewriteService() async throws {
+    @Test func openAIProviderSkipsTranscriptionPromptAndUsesRewriteService() async throws {
         let defaults = TestSupport.makeUserDefaults()
         defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
         defaults.set(true, forKey: MacPreferences.rewriteEnabled)
@@ -128,12 +140,41 @@ struct ConfigurableSpeechServiceTests {
         try await service.startRecording()
         let result = try await service.stopRecording()
         let rewriteRequest = try #require(await rewriteService.recordedRequests().first)
-        let capturedPrompt = try #require(await promptBox.get())
 
         #expect(result == "rewritten transcript")
         #expect(rewriteRequest.sourceText == "source transcript")
         #expect(rewriteRequest.systemPrompt?.contains("OpenAI, Groq") == true)
-        #expect(capturedPrompt.contains("OpenAI, Groq"))
+        #expect(await promptBox.get() == nil)
+    }
+
+    @Test func groqProviderSkipsTranscriptionPrompt() async throws {
+        let defaults = TestSupport.makeUserDefaults()
+        defaults.set(DictationProvider.groq.rawValue, forKey: MacPreferences.transcriptionProvider)
+        let secretStore = TestSecretStore()
+        try secretStore.saveString("gsk-test", forAccount: "groq.api_key")
+        let settingsStore = DictationSettingsStore(defaults: defaults, secretStore: secretStore)
+        settingsStore.savePersonalDictionary(["OpenAI", "Groq"])
+
+        let groqSpeech = ControllableSpeechService()
+        let promptBox = CapturedPromptBox()
+
+        let service = ConfigurableSpeechService(
+            settingsStore: settingsStore,
+            dependencies: .init(
+                makeNetworkSession: { _ in TestURLSessionFactory.makeSession() },
+                makeOpenAISpeechService: { _, _, _, _, promptProvider in
+                    await promptBox.set(await promptProvider())
+                    return groqSpeech
+                },
+                makeRewriteService: { _, _ in RecordingRewriteService() }
+            )
+        )
+
+        try await service.startRecording()
+
+        #expect(await promptBox.get() == nil)
+
+        await service.cancelRecording()
     }
 
     @Test func emptyTranscriptThrowsEmptyTranscription() async throws {

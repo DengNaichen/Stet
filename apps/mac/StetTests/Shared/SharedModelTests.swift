@@ -72,6 +72,17 @@ struct SharedModelTests {
         #expect(configuration.rewriteModel == "llama-3.3-70b-versatile")
     }
 
+    @Test func providerAwareAPIErrorDescriptionsUseActiveProviderName() {
+        #expect(
+            OpenAIError.api(provider: .groq, statusCode: 401, message: "Unauthorized").localizedDescription
+                == "Groq API error (401): Unauthorized"
+        )
+        #expect(
+            OpenAIError.invalidResponse(provider: .groq).localizedDescription
+                == "The Groq API returned an invalid response."
+        )
+    }
+
     @Test(arguments: [
         (InteractionSoundPreset.soft, "Soft"),
         (.glass, "Glass"),

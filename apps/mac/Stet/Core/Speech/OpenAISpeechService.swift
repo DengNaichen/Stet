@@ -80,8 +80,13 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
 
         let audioDurationSeconds = Self.recordingDurationSeconds(at: recordingFileURL)
         let durationDescription = Self.durationDescription(audioDurationSeconds)
+        let recordingFileSizeBytes = Self.recordingFileSizeBytes(at: recordingFileURL)
         AppLogger.info(
-            "Stopping dictation capture and starting transcription. durationSeconds=\(durationDescription)",
+            """
+            Stopping dictation capture and starting transcription. \
+            durationSeconds=\(durationDescription), \
+            fileSizeBytes=\(recordingFileSizeBytes.map(String.init) ?? "unknown")
+            """,
             category: .dictation
         )
 
@@ -106,6 +111,10 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
             } else {
                 nil
             }
+            AppLogger.info(
+                "Submitting transcription request. promptProvided=\(transcriptionPrompt != nil)",
+                category: .dictation
+            )
 
             let transcript = try await transcriptionService.transcribe(
                 audioFileAt: recordingFileURL,
@@ -194,40 +203,25 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
         let inputNode = audioEngine.inputNode
         applyPreferredInputDeviceIfNeeded(inputNode: inputNode)
         let inputFormat = inputNode.outputFormat(forBus: 0)
-        guard let outputFormat = TranscriptionUploadAudioFormat.makeMacOutputFormat() else {
-            throw SpeechServiceError.unsupportedAudioFormat
-        }
-        guard let converter = AVAudioConverter(from: inputFormat, to: outputFormat) else {
-            throw SpeechServiceError.unsupportedAudioFormat
-        }
         let fileURL = makeRecordingFileURL()
-        let recordingFile = try AVAudioFile(forWriting: fileURL, settings: outputFormat.settings)
+        let recordingFile = try AVAudioFile(forWriting: fileURL, settings: inputFormat.settings)
+        let audioLevelBridge = self.audioLevelBridge
 
         AppLogger.info(
             """
             Configuring mac transcription capture. \
             inputSampleRate=\(Int(inputFormat.sampleRate)), \
             inputChannels=\(inputFormat.channelCount), \
-            targetSampleRate=\(Int(outputFormat.sampleRate)), \
-            targetChannels=\(outputFormat.channelCount), \
-            targetBitDepth=\(TranscriptionUploadAudioFormat.macLinearPCMBitDepth)
+            fileSampleRate=\(Int(recordingFile.fileFormat.sampleRate)), \
+            fileChannels=\(recordingFile.fileFormat.channelCount), \
+            fileInterleaved=\(recordingFile.processingFormat.isInterleaved)
             """,
             category: .dictation
         )
 
         inputNode.installTap(onBus: 0, bufferSize: 4_096, format: inputFormat) { buffer, _ in
-            do {
-                if let convertedBuffer = try Self.convertMacInputBuffer(
-                    buffer,
-                    using: converter,
-                    outputFormat: outputFormat
-                ) {
-                    try recordingFile.write(from: convertedBuffer)
-                }
-            } catch {
-                AppLogger.warning("Failed to convert input buffer for transcription capture: \(error.localizedDescription)")
-            }
-            self.audioLevelBridge.emit(Self.normalizedLevel(from: buffer))
+            try? recordingFile.write(from: buffer)
+            audioLevelBridge.emit(Self.normalizedLevel(from: buffer))
         }
 
         isTapInstalled = true
@@ -385,49 +379,12 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
         return duration
     }
 
-    #if os(macOS)
-    nonisolated private static func convertMacInputBuffer(
-        _ inputBuffer: AVAudioPCMBuffer,
-        using converter: AVAudioConverter,
-        outputFormat: AVAudioFormat
-    ) throws -> AVAudioPCMBuffer? {
-        let outputFrameCapacity = TranscriptionUploadAudioFormat.macConvertedFrameCapacity(
-            for: inputBuffer.frameLength,
-            inputSampleRate: inputBuffer.format.sampleRate
-        )
-        guard outputFrameCapacity > 0,
-              let outputBuffer = AVAudioPCMBuffer(
-                  pcmFormat: outputFormat,
-                  frameCapacity: outputFrameCapacity
-              ) else {
+    nonisolated private static func recordingFileSizeBytes(at fileURL: URL) -> Int64? {
+        guard let resourceValues = try? fileURL.resourceValues(forKeys: [.fileSizeKey]),
+              let fileSize = resourceValues.fileSize else {
             return nil
         }
 
-        var didSupplyInput = false
-        var conversionError: NSError?
-        let status = converter.convert(to: outputBuffer, error: &conversionError) { _, outStatus in
-            if didSupplyInput {
-                outStatus.pointee = .endOfStream
-                return nil
-            }
-
-            didSupplyInput = true
-            outStatus.pointee = .haveData
-            return inputBuffer
-        }
-
-        if let conversionError {
-            throw conversionError
-        }
-
-        switch status {
-        case .haveData, .inputRanDry, .endOfStream:
-            return outputBuffer.frameLength > 0 ? outputBuffer : nil
-        case .error:
-            throw SpeechServiceError.unsupportedAudioFormat
-        @unknown default:
-            return nil
-        }
+        return Int64(fileSize)
     }
-    #endif
 }

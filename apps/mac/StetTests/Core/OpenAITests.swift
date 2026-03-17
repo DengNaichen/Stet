@@ -178,7 +178,7 @@ struct OpenAITests {
         }
         defer { URLProtocolStub.reset() }
 
-        await #expect(throws: OpenAIError.api(statusCode: 401, message: "bad key")) {
+        await #expect(throws: OpenAIError.api(provider: .openAI, statusCode: 401, message: "bad key")) {
             try await service.rewrite(.rewriteSelection(sourceText: "hello", instruction: "Make it concise"))
         }
     }
