@@ -1,18 +1,15 @@
 import Foundation
 
 enum MacPreferences {
-    nonisolated static let showPanelOnLaunch = "mac.showPanelOnLaunch"
-    nonisolated static let copyToClipboardOnCapture = "mac.copyToClipboardOnCapture"
-    nonisolated static let autoPasteOnCapture = "mac.autoPasteOnCapture"
-    nonisolated static let revealPanelOnCapture = "mac.revealPanelOnCapture"
     nonisolated static let pauseMediaDuringDictation = "mac.pauseMediaDuringDictation"
-    nonisolated static let selectedAudioInputDeviceID = "mac.selectedAudioInputDeviceID"
     nonisolated static let transcriptionProvider = "mac.transcriptionProvider"
     nonisolated static let rewriteEnabled = "mac.rewriteEnabled"
-    nonisolated static let openAIBaseURL = "mac.openAIBaseURL"
+    nonisolated static let proxyMode = "mac.proxyMode"
+    nonisolated static let customProxyScheme = "mac.customProxyScheme"
+    nonisolated static let customProxyHost = "mac.customProxyHost"
+    nonisolated static let customProxyPort = "mac.customProxyPort"
     nonisolated static let translationTargetLanguage = "mac.translationTargetLanguage"
     nonisolated static let translateSelectedTextOnTranslationHotkey = "mac.translateSelectedTextOnTranslationHotkey"
-    nonisolated static let openAITranslationModel = "mac.openAITranslationModel"
     nonisolated static let globalHotkeyShortcut = "mac.globalHotkeyShortcut"
     nonisolated static let togglePanelHotkeyShortcut = "mac.togglePanelHotkeyShortcut"
     nonisolated static let translationHotkeyShortcut = "mac.translationHotkeyShortcut"
@@ -25,10 +22,6 @@ enum MacPreferences {
     nonisolated static let interactionSoundPreset = "mac.interactionSoundPreset"
     nonisolated static let launchAtLogin = "mac.launchAtLogin"
     nonisolated static let showInDock = "mac.showInDock"
-    nonisolated static let proxyMode = "mac.proxyMode"
-    nonisolated static let customProxyScheme = "mac.customProxyScheme"
-    nonisolated static let customProxyHost = "mac.customProxyHost"
-    nonisolated static let customProxyPort = "mac.customProxyPort"
     nonisolated static let hotkeyDebugLoggingEnabled = "mac.hotkeyDebugLoggingEnabled"
     nonisolated static let openAIDebugLoggingEnabled = "mac.openAIDebugLoggingEnabled"
 }

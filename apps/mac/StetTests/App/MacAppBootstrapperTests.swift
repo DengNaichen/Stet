@@ -19,16 +19,11 @@ struct MacAppBootstrapperTests {
 
         let launchConfiguration = bootstrapper.prepareForLaunch()
 
-        #expect(launchConfiguration == .init(showInDock: false, shouldShowPanelOnLaunch: false))
-        #expect(defaults.bool(forKey: MacPreferences.copyToClipboardOnCapture))
-        #expect(defaults.bool(forKey: MacPreferences.autoPasteOnCapture))
-        #expect(!defaults.bool(forKey: MacPreferences.revealPanelOnCapture))
+        #expect(launchConfiguration == .init(showInDock: false))
         #expect(!defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation))
-        #expect(defaults.integer(forKey: MacPreferences.selectedAudioInputDeviceID) == 0)
         #expect(defaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.openAI.rawValue)
         #expect(defaults.string(forKey: MacPreferences.translationTargetLanguage) == TranslationTargetLanguage.english.rawValue)
         #expect(defaults.bool(forKey: MacPreferences.translateSelectedTextOnTranslationHotkey))
-        #expect(defaults.string(forKey: MacPreferences.openAITranslationModel) == "gpt-5-mini")
         #expect(!defaults.bool(forKey: MacPreferences.hotkeyDistinguishModifierSides))
         #expect(defaults.bool(forKey: MacPreferences.interactionSoundsEnabled))
         #expect(defaults.string(forKey: MacPreferences.interactionSoundPreset) == InteractionSoundPreset.soft.rawValue)
@@ -46,7 +41,12 @@ struct MacAppBootstrapperTests {
 
         defaults.set("legacy", forKey: "mac.copyLatestCaptureHotkeyShortcut")
         defaults.set("forever", forKey: "mac.historyRetentionPeriod")
-        defaults.set(true, forKey: MacPreferences.showPanelOnLaunch)
+        defaults.set(true, forKey: "mac.showPanelOnLaunch")
+        defaults.set(true, forKey: "mac.copyToClipboardOnCapture")
+        defaults.set(true, forKey: "mac.autoPasteOnCapture")
+        defaults.set(true, forKey: "mac.revealPanelOnCapture")
+        defaults.set("https://api.groq.com/openai/v1", forKey: "mac.openAIBaseURL")
+        defaults.set("llama-3.3-70b-versatile", forKey: "mac.openAITranslationModel")
         defaults.set(true, forKey: MacPreferences.showInDock)
 
         let bootstrapper = MacAppBootstrapper(
@@ -58,9 +58,15 @@ struct MacAppBootstrapperTests {
 
         let launchConfiguration = bootstrapper.prepareForLaunch()
 
-        #expect(launchConfiguration == .init(showInDock: true, shouldShowPanelOnLaunch: true))
+        #expect(launchConfiguration == .init(showInDock: true))
         #expect(defaults.object(forKey: "mac.copyLatestCaptureHotkeyShortcut") == nil)
         #expect(defaults.object(forKey: "mac.historyRetentionPeriod") == nil)
+        #expect(defaults.object(forKey: "mac.showPanelOnLaunch") == nil)
+        #expect(defaults.object(forKey: "mac.copyToClipboardOnCapture") == nil)
+        #expect(defaults.object(forKey: "mac.autoPasteOnCapture") == nil)
+        #expect(defaults.object(forKey: "mac.revealPanelOnCapture") == nil)
+        #expect(defaults.object(forKey: "mac.openAIBaseURL") == nil)
+        #expect(defaults.object(forKey: "mac.openAITranslationModel") == nil)
         #expect(!FileManager.default.fileExists(atPath: legacyHistoryURL.path))
     }
 }

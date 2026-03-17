@@ -1,6 +1,14 @@
 #if os(macOS)
 import SwiftUI
 
+private enum MacSettingsSidebarGroup: String, CaseIterable, Identifiable {
+    case workspace = "Workspace"
+    case automation = "Automation"
+    case privacy = "Privacy"
+
+    var id: String { rawValue }
+}
+
 private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
     case general
     case hotkey
@@ -10,6 +18,17 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
 
     var id: String { rawValue }
 
+    var group: MacSettingsSidebarGroup {
+        switch self {
+        case .general, .openAI, .dictionary:
+            return .workspace
+        case .hotkey:
+            return .automation
+        case .permissions:
+            return .privacy
+        }
+    }
+
     var title: String {
         switch self {
         case .general:
@@ -17,11 +36,26 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
         case .hotkey:
             return "Hotkey"
         case .openAI:
-            return "OpenAI"
+            return "AI"
         case .dictionary:
             return "Dictionary"
         case .permissions:
             return "Permissions"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .general:
+            return "Behavior, audio routing, updates, and shell preferences."
+        case .hotkey:
+            return "Global keyboard shortcuts for starting dictation."
+        case .openAI:
+            return "Cloud provider, rewrite behavior, translation, and credentials."
+        case .dictionary:
+            return "Personal dictionary entries used during transcription and rewrite."
+        case .permissions:
+            return "Microphone and accessibility access required by the shell."
         }
     }
 
@@ -39,47 +73,54 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
             return "lock.shield"
         }
     }
+
+    var searchTokens: [String] {
+        switch self {
+        case .general:
+            return ["configuration", "microphone", "updates", "dock", "launch at login", "sounds"]
+        case .hotkey:
+            return ["shortcut", "keyboard", "recorder", "dictation"]
+        case .openAI:
+            return ["provider", "api key", "translation", "rewrite", "groq", "openai"]
+        case .dictionary:
+            return ["entries", "personal dictionary", "names", "brands"]
+        case .permissions:
+            return ["microphone", "accessibility", "text injection", "privacy"]
+        }
+    }
+
+    func matches(searchText: String) -> Bool {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return true }
+
+        let terms = [title, subtitle] + searchTokens
+        return terms.contains { $0.localizedCaseInsensitiveContains(query) }
+    }
 }
 
 struct MacSettingsView: View {
     @EnvironmentObject private var appModel: MacAppModel
-    @AppStorage(MacPreferences.rewriteEnabled) private var rewriteEnabled = false
-    @AppStorage(MacPreferences.openAIBaseURL) private var openAIBaseURL = "https://api.openai.com/v1"
-    @AppStorage(MacPreferences.translationTargetLanguage) private var translationTargetLanguageRawValue = TranslationTargetLanguage.english.rawValue
-    @AppStorage(MacPreferences.translateSelectedTextOnTranslationHotkey) private var translateSelectedTextOnTranslationHotkey = true
-    @AppStorage(MacPreferences.openAITranslationModel) private var openAITranslationModel = "gpt-5-mini"
 
     @StateObject private var dictionaryViewModel = DictionaryViewModel()
     @StateObject private var openAISettingsViewModel = MacOpenAISettingsViewModel()
     @State private var selectedTab: MacSettingsTab? = .general
+    @State private var searchText = ""
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $selectedTab) {
-                ForEach(MacSettingsTab.allCases) { tab in
-                    sidebarLabel(for: tab)
-                        .tag(tab)
-                        .contentShape(Rectangle())
-                }
-            }
-            .listStyle(.sidebar)
-            .frame(minWidth: 180, idealWidth: 200, maxWidth: 220)
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            sidebar
         } detail: {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text(activeTab.title)
-                        .font(.title3.weight(.semibold))
-
-                    selectedContent
-                }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-                .padding(20)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            detail
         }
-        .frame(minWidth: 860, minHeight: 760)
+        .searchable(text: $searchText, prompt: "Search settings")
+        .frame(minWidth: 920, minHeight: 700)
         .task {
             reloadStateFromPreferences()
+            synchronizeSelectionWithFilter()
+        }
+        .onChange(of: searchText) { _, _ in
+            synchronizeSelectionWithFilter()
         }
         .onAppear {
             appModel.settingsDidAppear()
@@ -89,8 +130,56 @@ struct MacSettingsView: View {
         }
     }
 
+    private var sidebar: some View {
+        List(selection: $selectedTab) {
+            if filteredTabs.isEmpty {
+                ContentUnavailableView(
+                    "No Results",
+                    systemImage: "magnifyingglass",
+                    description: Text("Try a different keyword.")
+                )
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .tag(Optional<MacSettingsTab>.none)
+            } else {
+                ForEach(MacSettingsSidebarGroup.allCases) { group in
+                    let tabs = filteredTabs(in: group)
+
+                    if !tabs.isEmpty {
+                        Section(group.rawValue) {
+                            ForEach(tabs) { tab in
+                                NavigationLink(value: tab) {
+                                    sidebarRow(for: tab)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .environment(\.sidebarRowSize, .large)
+        .listStyle(.sidebar)
+        .navigationSplitViewColumnWidth(min: 220, ideal: 250, max: 320)
+    }
+
     @ViewBuilder
-    private func sidebarLabel(for tab: MacSettingsTab) -> some View {
+    private var detail: some View {
+        if let activeTab {
+            selectedContent(for: activeTab)
+                .navigationTitle(activeTab.title)
+                .navigationSubtitle(activeTab.subtitle)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else {
+            ContentUnavailableView(
+                "Select a Section",
+                systemImage: "sidebar.left",
+                description: Text("Choose a destination from the sidebar.")
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func sidebarRow(for tab: MacSettingsTab) -> some View {
         if tab == .permissions, hasPermissionIssues {
             Label {
                 Text(tab.title)
@@ -103,73 +192,54 @@ struct MacSettingsView: View {
         }
     }
 
-    private var activeTab: MacSettingsTab {
-        selectedTab ?? .general
-    }
-
     @ViewBuilder
-    private var selectedContent: some View {
-        switch activeTab {
+    private func selectedContent(for tab: MacSettingsTab) -> some View {
+        switch tab {
         case .general:
-            generalTab
+            MacGeneralSettingsView()
         case .hotkey:
-            hotkeyTab
+            MacHotkeySettingsView()
         case .openAI:
-            openAITab
+            MacOpenAISettingsView(viewModel: openAISettingsViewModel)
         case .dictionary:
-            dictionaryTab
+            DictionaryView(viewModel: dictionaryViewModel)
         case .permissions:
-            permissionsTab
+            MacPermissionsSettingsView()
         }
     }
 
-    private var generalTab: some View {
-        MacGeneralSettingsView()
+    private var activeTab: MacSettingsTab? {
+        if let selectedTab, filteredTabs.contains(selectedTab) {
+            return selectedTab
+        }
+
+        return filteredTabs.first
     }
 
-    private var hotkeyTab: some View {
-        MacHotkeySettingsView()
+    private var filteredTabs: [MacSettingsTab] {
+        MacSettingsTab.allCases.filter { $0.matches(searchText: searchText) }
     }
 
-    private var openAITab: some View {
-        MacOpenAISettingsView(
-            viewModel: openAISettingsViewModel,
-            rewriteEnabled: $rewriteEnabled,
-            openAIBaseURL: $openAIBaseURL,
-            translationTargetLanguage: translationTargetLanguageBinding,
-            translateSelectedTextOnTranslationHotkey: $translateSelectedTextOnTranslationHotkey,
-            openAITranslationModel: $openAITranslationModel
-        )
-    }
-
-    private var dictionaryTab: some View {
-        DictionaryView(viewModel: dictionaryViewModel)
-    }
-
-    private var permissionsTab: some View {
-        MacPermissionsSettingsView()
-    }
-
-    private var translationTargetLanguage: TranslationTargetLanguage {
-        TranslationTargetLanguage(rawValue: translationTargetLanguageRawValue) ?? .english
+    private func filteredTabs(in group: MacSettingsSidebarGroup) -> [MacSettingsTab] {
+        filteredTabs.filter { $0.group == group }
     }
 
     private var hasPermissionIssues: Bool {
         appModel.microphoneAccessNeedsAttention ||
-            appModel.autoPasteAccessNeedsAttention ||
-            appModel.inputMonitoringNeedsAttention
-    }
-
-    private var translationTargetLanguageBinding: Binding<TranslationTargetLanguage> {
-        Binding(
-            get: { translationTargetLanguage },
-            set: { translationTargetLanguageRawValue = $0.rawValue }
-        )
+            appModel.autoPasteAccessNeedsAttention
     }
 
     private func reloadStateFromPreferences() {
         openAISettingsViewModel.load()
         dictionaryViewModel.load()
+    }
+
+    private func synchronizeSelectionWithFilter() {
+        if let selectedTab, filteredTabs.contains(selectedTab) {
+            return
+        }
+
+        selectedTab = filteredTabs.first
     }
 }
 #endif

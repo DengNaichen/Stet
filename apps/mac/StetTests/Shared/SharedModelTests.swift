@@ -22,7 +22,8 @@ struct SharedModelTests {
     }
 
     @Test(arguments: [
-        (DictationProvider.openAI, "OpenAI API", "Audio capture + OpenAI transcription"),
+        (DictationProvider.openAI, "OpenAI", "Audio capture + OpenAI transcription"),
+        (.groq, "Groq", "Audio capture + Groq transcription"),
     ])
     func dictationProviderMetadata(
         _ provider: DictationProvider,
@@ -33,61 +34,24 @@ struct SharedModelTests {
         #expect(provider.pipelineDescription == expectedPipelineDescription)
     }
 
-    @Test func historyRetentionPeriodUsesRelativeClock() {
-        let now = Date(timeIntervalSince1970: 1_000_000)
-        let sixDaysAgo = now.addingTimeInterval(-6 * 24 * 60 * 60)
-        let eightDaysAgo = now.addingTimeInterval(-8 * 24 * 60 * 60)
-
-        #expect(HistoryRetentionPeriod.sevenDays.includes(sixDaysAgo, relativeTo: now))
-        #expect(!HistoryRetentionPeriod.sevenDays.includes(eightDaysAgo, relativeTo: now))
-        #expect(HistoryRetentionPeriod.forever.includes(eightDaysAgo, relativeTo: now))
+    @Test(arguments: [
+        (NetworkProxyMode.system, "System"),
+        (.disabled, "Direct"),
+        (.custom, "Custom"),
+    ])
+    func networkProxyModeMetadata(_ mode: NetworkProxyMode, expectedTitle: String) {
+        #expect(mode.id == mode.rawValue)
+        #expect(mode.title == expectedTitle)
     }
 
-    @Test func transcriptionRecordDecodesMissingMetadataAsDefault() throws {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let json = """
-        {
-          "id": "F58E2B7F-42F0-46C8-97ED-4F26F1C6533F",
-          "text": "hello world",
-          "createdAt": "2026-03-12T12:00:00Z"
-        }
-        """.data(using: .utf8)!
-
-        let record = try decoder.decode(TranscriptionRecord.self, from: json)
-
-        #expect(record.text == "hello world")
-        #expect(record.metadata == .init())
-    }
-
-    @Test func transcriptionRecordRoundTripsMetadata() throws {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-
-        let record = TranscriptionRecord(
-            text: "translated",
-            createdAt: Date(timeIntervalSince1970: 1_234_567),
-            metadata: .init(
-                kind: .translation,
-                source: .selection,
-                transcriptionProvider: "openai",
-                transcriptionModel: "gpt-4o-mini-transcribe",
-                translationModel: "gpt-5-mini",
-                rewriteModel: nil,
-                targetLanguage: "English",
-                focusedAppName: "Safari",
-                focusedBundleID: "com.apple.Safari",
-                matchedAppBranchRuleName: "Docs",
-                matchedURLPattern: "example.com/*"
-            )
-        )
-
-        let data = try encoder.encode(record)
-        let decoded = try decoder.decode(TranscriptionRecord.self, from: data)
-
-        #expect(decoded == record)
+    @Test(arguments: [
+        (CustomProxyScheme.http, "HTTP"),
+        (.https, "HTTPS"),
+        (.socks5, "SOCKS5"),
+    ])
+    func customProxySchemeMetadata(_ scheme: CustomProxyScheme, expectedTitle: String) {
+        #expect(scheme.id == scheme.rawValue)
+        #expect(scheme.title == expectedTitle)
     }
 
     @Test func openAIConfigurationProvidesExpectedDefaults() {
@@ -97,6 +61,26 @@ struct SharedModelTests {
         #expect(configuration.transcriptionModel == "gpt-4o-mini-transcribe")
         #expect(configuration.translationModel == "gpt-5-mini")
         #expect(configuration.rewriteModel == "gpt-5-mini")
+    }
+
+    @Test func groqConfigurationProvidesExpectedDefaults() {
+        let configuration = OpenAIConfiguration(apiKey: "gsk_test", provider: .groq)
+
+        #expect(configuration.baseURL.absoluteString == "https://api.groq.com/openai/v1")
+        #expect(configuration.transcriptionModel == "whisper-large-v3-turbo")
+        #expect(configuration.translationModel == "llama-3.3-70b-versatile")
+        #expect(configuration.rewriteModel == "llama-3.3-70b-versatile")
+    }
+
+    @Test func providerAwareAPIErrorDescriptionsUseActiveProviderName() {
+        #expect(
+            OpenAIError.api(provider: .groq, statusCode: 401, message: "Unauthorized").localizedDescription
+                == "Groq API error (401): Unauthorized"
+        )
+        #expect(
+            OpenAIError.invalidResponse(provider: .groq).localizedDescription
+                == "The Groq API returned an invalid response."
+        )
     }
 
     @Test(arguments: [

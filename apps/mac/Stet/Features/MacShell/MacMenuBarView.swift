@@ -5,7 +5,7 @@ import SwiftUI
 struct MacMenuBarView: View {
     @EnvironmentObject private var appModel: MacAppModel
     @EnvironmentObject private var appUpdateManager: AppUpdateManager
-    @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -13,40 +13,16 @@ struct MacMenuBarView: View {
 
             Divider()
 
-//            menuButton(
-//                title: appModel.primaryButtonTitle,
-//                systemImage: primarySymbolName,
-//                shortcut: appModel.hotkeyDisplayString,
-//                isProminent: true,
-//                action: appModel.performPrimaryAction
-//            )
-//            .disabled(isBusy)
-
             menuButton(
                 title: appModel.panelButtonTitle,
                 systemImage: "capsule.portrait",
                 action: appModel.togglePanel
             )
-
-//            menuButton(
-//                title: appModel.translationButtonTitle,
-//                systemImage: "globe",
-//                shortcut: appModel.hotkeyShortcut(for: .translation)?.displayString,
-//                action: appModel.performTranslationAction
-//            )
             .disabled(alternateActionsDisabled)
-
-//            menuButton(
-//                title: appModel.rewriteButtonTitle,
-//                systemImage: "wand.and.stars",
-//                shortcut: appModel.hotkeyShortcut(for: .rewrite)?.displayString,
-//                action: appModel.performRewriteAction
-//            )
-//            .disabled(alternateActionsDisabled)
 
             Button {
                 appModel.openSettings {
-                    openSettings()
+                    openWindow(id: MacWindowSceneID.preferences)
                 }
             } label: {
                 menuRow(

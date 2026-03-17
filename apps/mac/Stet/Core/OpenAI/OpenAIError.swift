@@ -1,27 +1,30 @@
 import Foundation
 
 enum OpenAIError: LocalizedError, Equatable {
-    case missingAPIKey
-    case invalidBaseURL
+    case missingAPIKey(provider: DictationProvider)
+    case invalidBaseURL(provider: DictationProvider)
     case fileNotFound(URL)
-    case invalidResponse
-    case api(statusCode: Int, message: String)
+    case invalidResponse(provider: DictationProvider)
+    case api(provider: DictationProvider, statusCode: Int?, message: String)
     case missingTranscriptionText
     case missingRewriteText
     case missingTranslationText
 
     var errorDescription: String? {
         switch self {
-        case .missingAPIKey:
-            return "An OpenAI API key is required before making a cloud request."
-        case .invalidBaseURL:
-            return "The OpenAI base URL is invalid."
+        case .missingAPIKey(let provider):
+            return "A \(provider.displayName) API key is required before making a cloud request."
+        case .invalidBaseURL(let provider):
+            return "The \(provider.displayName) base URL is invalid."
         case .fileNotFound(let url):
             return "The audio file could not be found at \(url.path)."
-        case .invalidResponse:
-            return "The OpenAI API returned an invalid response."
-        case .api(let statusCode, let message):
-            return "OpenAI API error (\(statusCode)): \(message)"
+        case .invalidResponse(let provider):
+            return "The \(provider.displayName) API returned an invalid response."
+        case .api(let provider, let statusCode, let message):
+            guard let statusCode else {
+                return "\(provider.displayName) API error: \(message)"
+            }
+            return "\(provider.displayName) API error (\(statusCode)): \(message)"
         case .missingTranscriptionText:
             return "The transcription response did not contain any text."
         case .missingRewriteText:

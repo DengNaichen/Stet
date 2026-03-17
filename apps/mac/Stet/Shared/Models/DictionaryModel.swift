@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-nonisolated private let sharedDictionaryModelContainer: ModelContainer = {
+nonisolated private let sharedDictionaryModelContainer: ModelContainer? = {
     let schema = Schema([DictionaryEntryRecord.self])
     let configuration = ModelConfiguration(schema: schema)
 
@@ -11,7 +11,10 @@ nonisolated private let sharedDictionaryModelContainer: ModelContainer = {
             configurations: [configuration]
         )
     } catch {
-        fatalError("Failed to create DictionaryModel container: \(error)")
+        AppLogger.error(
+            "Failed to create DictionaryModel container. Falling back to UserDefaults-backed dictionary. error=\(error)"
+        )
+        return nil
     }
 }()
 
@@ -29,7 +32,7 @@ final class DictionaryEntryRecord {
 }
 
 struct DictionaryModel: @unchecked Sendable {
-    nonisolated private let modelContainer: ModelContainer
+    nonisolated private let modelContainer: ModelContainer?
     nonisolated(unsafe) private let defaults: UserDefaults
 
     nonisolated init() {
@@ -47,7 +50,7 @@ struct DictionaryModel: @unchecked Sendable {
     }
 
     nonisolated init(
-        modelContainer: ModelContainer,
+        modelContainer: ModelContainer?,
         defaults: UserDefaults
     ) {
         self.modelContainer = modelContainer
@@ -55,7 +58,12 @@ struct DictionaryModel: @unchecked Sendable {
     }
 
     nonisolated func loadEntries() -> [String] {
-        let context = ModelContext(modelContainer)
+        guard let context = modelContext else {
+            return Self.normalizeEntries(
+                defaults.stringArray(forKey: MacPreferences.personalDictionary) ?? []
+            )
+        }
+
         let storedEntries = fetchEntries(using: context)
 
         guard storedEntries.isEmpty else {
@@ -80,7 +88,13 @@ struct DictionaryModel: @unchecked Sendable {
     }
 
     nonisolated func saveEntries(_ entries: [String]) {
-        let context = ModelContext(modelContainer)
+        let normalizedEntries = Self.normalizeEntries(entries)
+
+        guard let context = modelContext else {
+            defaults.set(normalizedEntries, forKey: MacPreferences.personalDictionary)
+            return
+        }
+
         replaceEntries(entries, using: context)
         defaults.removeObject(forKey: MacPreferences.personalDictionary)
     }
@@ -127,6 +141,14 @@ struct DictionaryModel: @unchecked Sendable {
             for: schema,
             configurations: [configuration]
         )
+    }
+
+    nonisolated private var modelContext: ModelContext? {
+        guard let modelContainer else {
+            return nil
+        }
+
+        return ModelContext(modelContainer)
     }
 
     nonisolated private func fetchEntries(using context: ModelContext) -> [String] {

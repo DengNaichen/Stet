@@ -1,8 +1,6 @@
 #if os(macOS)
 import AVFoundation
 import AppKit
-import ApplicationServices
-import Carbon
 import Combine
 import Foundation
 import KeyboardShortcuts
@@ -16,6 +14,7 @@ final class MacAppModel: ObservableObject {
     private let settingsStore: DictationSettingsStore
     private let workflowController: MacDictationWorkflowController
     private let shellPresentationController: MacShellPresentationController
+    private let permissionGateController: MacPermissionGateController
     private let interactionSoundPlayer: InteractionSoundPlayer
     private var cancellables = Set<AnyCancellable>()
     private var stateResetTask: Task<Void, Never>?
@@ -57,11 +56,13 @@ final class MacAppModel: ObservableObject {
     ) {
         let interactionSoundPlayer = InteractionSoundPlayer()
         let shellPresentationController = MacShellPresentationController()
+        let permissionGateController = MacPermissionGateController()
         let bootstrapper = MacAppBootstrapper(settingsStore: settingsStore)
         self.textInjectionService = textInjectionService
         self.settingsStore = settingsStore
         self.interactionSoundPlayer = interactionSoundPlayer
         self.shellPresentationController = shellPresentationController
+        self.permissionGateController = permissionGateController
         let captureCoordinator = captureCoordinator ?? MacDictationCaptureCoordinator(
             clipboardService: clipboardService,
             textInjectionService: textInjectionService
@@ -85,21 +86,29 @@ final class MacAppModel: ObservableObject {
             self?.objectWillChange.send()
         }
         bindState()
+        bindLifecycleNotifications()
         registerHotkeys()
         applyDockVisibility(showInDock: launchConfiguration.showInDock)
 
-        if launchConfiguration.shouldShowPanelOnLaunch {
-            DispatchQueue.main.async { [weak self] in
-                self?.showPanel()
-            }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            refreshPermissionIndicators()
         }
     }
 
     var statusText: String {
-        workflowController.statusText
+        guard hasRequiredPermissions else {
+            return "Permissions Required"
+        }
+
+        return workflowController.statusText
     }
 
     var primaryButtonTitle: String {
+        guard hasRequiredPermissions else {
+            return "Grant Permissions"
+        }
+
         switch dictationViewModel.state {
         case .idle:
             return "Start Dictation"
@@ -113,7 +122,11 @@ final class MacAppModel: ObservableObject {
     }
 
     var panelButtonTitle: String {
-        isPanelVisible ? "Hide Capsule" : "Show Capsule"
+        guard hasRequiredPermissions else {
+            return "Open Permissions"
+        }
+
+        return isPanelVisible ? "Hide Capsule" : "Show Capsule"
     }
 
     var translationButtonTitle: String {
@@ -128,34 +141,23 @@ final class MacAppModel: ObservableObject {
         settingsSnapshot.translationTargetLanguage
     }
 
-    var transcriptionProviderName: String {
-        settingsSnapshot.provider.displayName
-    }
-
-    var pipelineDescription: String {
-        settingsSnapshot.provider.pipelineDescription
-    }
-
-    var rewriteStatusText: String {
-        settingsSnapshot.isRewriteEnabled ? "Enabled" : "Disabled"
-    }
-
-    var openAIStatusText: String {
-        settingsSnapshot.isOpenAIConfigured ? "Configured" : "Missing Credential"
-    }
-
     var idleHintText: String {
         let hotkeyAction = "use"
+        let providerName = settingsSnapshot.provider.displayName
 
         if settingsSnapshot.isRewriteEnabled {
-            return "Use the main button or \(hotkeyAction) the hotkey to capture audio, send it to OpenAI for transcription, and then rewrite the final text."
+            return "Use the main button or \(hotkeyAction) the hotkey to capture audio, send it to \(providerName) for transcription, and then rewrite the final text."
         }
 
-        return "Use the main button or \(hotkeyAction) the hotkey to capture audio and send it to OpenAI for transcription."
+        return "Use the main button or \(hotkeyAction) the hotkey to capture audio and send it to \(providerName) for transcription."
     }
 
     var processingStatusText: String {
         workflowController.processingStatusText
+    }
+
+    var hasRequiredPermissions: Bool {
+        microphoneAccessStatus.isAllowed && textInjectionService.accessState.canSimulateInput
     }
 
     var autoPasteStatusText: String {
@@ -178,42 +180,26 @@ final class MacAppModel: ObservableObject {
     }
 
     var microphoneAccessStatusText: String {
-        switch AVCaptureDevice.authorizationStatus(for: .audio) {
-        case .authorized:
-            return "Allowed"
-        case .notDetermined:
-            return "Not Requested"
-        case .denied, .restricted:
-            return "Needs Access"
-        @unknown default:
-            return "Unknown"
-        }
+        microphoneAccessStatus.text
     }
 
     var microphoneAccessNeedsAttention: Bool {
-        switch AVCaptureDevice.authorizationStatus(for: .audio) {
-        case .denied, .restricted:
-            return true
-        case .authorized, .notDetermined:
-            return false
-        @unknown default:
-            return true
-        }
+        microphoneAccessStatus.needsAttention
+    }
+
+    var microphonePermissionActionTitle: String {
+        microphoneAccessStatus.canRequestInApp ? "Request Access" : "Open Settings"
     }
 
     var autoPasteAccessNeedsAttention: Bool {
         !textInjectionService.accessState.canSimulateInput
     }
 
-    var inputMonitoringStatusText: String {
-        inputMonitoringGranted ? "Allowed" : "Needs Access"
-    }
-
-    var inputMonitoringNeedsAttention: Bool {
-        false
-    }
-
     var menuBarSymbolName: String {
+        guard hasRequiredPermissions else {
+            return "lock.shield"
+        }
+
         switch dictationViewModel.state {
         case .idle:
             return "mic"
@@ -229,6 +215,10 @@ final class MacAppModel: ObservableObject {
     }
 
     var stateAccentName: String {
+        guard hasRequiredPermissions else {
+            return "Permissions"
+        }
+
         switch dictationViewModel.state {
         case .idle:
             return "Standby"
@@ -259,6 +249,15 @@ final class MacAppModel: ObservableObject {
 
     func requestAutoPasteAccess() {
         textInjectionService.requestAccess()
+        refreshPermissionIndicators()
+    }
+
+    func resolveMicrophoneAccess() {
+        if microphoneAccessStatus.canRequestInApp {
+            requestMicrophoneAccess()
+        } else {
+            openMicrophoneSettings()
+        }
     }
 
     func openAccessibilitySettings() {
@@ -267,29 +266,6 @@ final class MacAppModel: ObservableObject {
 
     func openMicrophoneSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") else {
-            return
-        }
-
-        NSWorkspace.shared.open(url)
-    }
-
-    func requestInputMonitoringAccess() {
-        if #available(macOS 10.15, *) {
-            let wasGranted = CGPreflightListenEventAccess()
-            AppLogger.info(
-                "Requesting input monitoring access. alreadyGranted=\(wasGranted)",
-                category: .permissions
-            )
-            let isGranted = CGRequestListenEventAccess()
-            AppLogger.info(
-                "Input monitoring access request completed. granted=\(isGranted)",
-                category: .permissions
-            )
-        }
-    }
-
-    func openInputMonitoringSettings() {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") else {
             return
         }
 
@@ -324,6 +300,11 @@ final class MacAppModel: ObservableObject {
     }
 
     func showPanel() {
+        guard hasRequiredPermissions else {
+            presentRequiredPermissionsGateIfNeeded()
+            return
+        }
+
         shellPresentationController.showPanel(appModel: self)
     }
 
@@ -336,6 +317,11 @@ final class MacAppModel: ObservableObject {
     }
 
     func togglePanel() {
+        guard hasRequiredPermissions || isPanelVisible else {
+            presentRequiredPermissionsGateIfNeeded()
+            return
+        }
+
         shellPresentationController.togglePanel(appModel: self)
     }
 
@@ -386,6 +372,38 @@ final class MacAppModel: ObservableObject {
                 self?.handleDictationStateChange(state)
             }
             .store(in: &cancellables)
+    }
+
+    private func bindLifecycleNotifications() {
+        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.refreshPermissionIndicators()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func refreshPermissionIndicators() {
+        if hasRequiredPermissions {
+            permissionGateController.hide()
+        } else {
+            presentRequiredPermissionsGateIfNeeded()
+        }
+
+        objectWillChange.send()
+    }
+
+    private var microphoneAccessStatus: PermissionStatus {
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            return .allowed
+        case .notDetermined:
+            return .notRequested
+        case .denied, .restricted:
+            return .needsAccess
+        @unknown default:
+            return .unavailable
+        }
     }
 
     private func handleDictationStateChange(_ state: DictationState) {
@@ -478,6 +496,11 @@ final class MacAppModel: ObservableObject {
     }
 
     private func requestDictationCaptureStart(from source: PrimaryActionSource) {
+        guard hasRequiredPermissions else {
+            presentRequiredPermissionsGateIfNeeded()
+            return
+        }
+
         switch dictationViewModel.state {
         case .idle:
             startDictationCapture(from: source)
@@ -509,12 +532,84 @@ final class MacAppModel: ObservableObject {
         UserDefaults.standard.object(forKey: MacPreferences.showInDock) as? Bool ?? false
     }
 
-    private var inputMonitoringGranted: Bool {
-        if #available(macOS 10.15, *) {
-            return CGPreflightListenEventAccess()
+    private func presentRequiredPermissionsGateIfNeeded() {
+        guard !hasRequiredPermissions else {
+            permissionGateController.hide()
+            return
         }
 
-        return true
+        if isPanelVisible {
+            shellPresentationController.hidePanel()
+        }
+
+        permissionGateController.show(appModel: self)
+    }
+
+    private func requestMicrophoneAccess() {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            AppLogger.info("Requesting microphone access from permissions gate", category: .permissions)
+            _ = await requestMicrophonePermission()
+            refreshPermissionIndicators()
+        }
+    }
+
+    private func requestMicrophonePermission() async -> Bool {
+        await withCheckedContinuation { continuation in
+            AVAudioApplication.requestRecordPermission { granted in
+                continuation.resume(returning: granted)
+            }
+        }
+    }
+
+    private enum PermissionStatus {
+        case allowed
+        case notRequested
+        case needsAccess
+        case unavailable
+
+        var text: String {
+            switch self {
+            case .allowed:
+                return "Allowed"
+            case .notRequested:
+                return "Not Requested"
+            case .needsAccess:
+                return "Needs Access"
+            case .unavailable:
+                return "Unknown"
+            }
+        }
+
+        var needsAttention: Bool {
+            switch self {
+            case .allowed:
+                return false
+            case .notRequested, .needsAccess, .unavailable:
+                return true
+            }
+        }
+
+        var isAllowed: Bool {
+            switch self {
+            case .allowed:
+                return true
+            case .notRequested, .needsAccess, .unavailable:
+                return false
+            }
+        }
+
+        var canRequestInApp: Bool {
+            switch self {
+            case .notRequested:
+                return true
+            case .needsAccess, .unavailable:
+                return false
+            case .allowed:
+                return false
+            }
+        }
     }
 }
 #endif

@@ -18,9 +18,6 @@ final class AppUpdateManager: NSObject, ObservableObject, SPUStandardUserDriverD
     @Published private(set) var state: State
     @Published private(set) var canCheckForUpdates = false
     @Published private(set) var automaticallyChecksForUpdates = false
-    @Published private(set) var automaticallyDownloadsUpdates = false
-
-    let configuredFeedURLString: String?
 
     private lazy var updaterController: SPUStandardUpdaterController? = {
         guard configurationIssue == nil else {
@@ -36,11 +33,6 @@ final class AppUpdateManager: NSObject, ObservableObject, SPUStandardUserDriverD
 
     override init() {
         let infoDictionary = Bundle.main.infoDictionary ?? [:]
-        let feedURLString = (infoDictionary["SUFeedURL"] as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nonEmpty
-        configuredFeedURLString = feedURLString
-
         if let configurationIssue = Self.configurationIssue(in: infoDictionary) {
             state = .unavailable(configurationIssue)
         } else {
@@ -50,6 +42,7 @@ final class AppUpdateManager: NSObject, ObservableObject, SPUStandardUserDriverD
         super.init()
 
         if updaterController != nil {
+            configureUpdaterDefaults()
             syncFromUpdater()
         }
     }
@@ -66,55 +59,6 @@ final class AppUpdateManager: NSObject, ObservableObject, SPUStandardUserDriverD
 
     var isConfigured: Bool {
         configurationIssue == nil
-    }
-
-    var statusLabel: String {
-        switch state {
-        case .unavailable:
-            return "Unavailable"
-        case .idle:
-            return "Ready"
-        case .checking:
-            return "Checking"
-        case .upToDate:
-            return "Up to Date"
-        case .updateAvailable:
-            return "Update Available"
-        case .failed:
-            return "Check Failed"
-        }
-    }
-
-    var statusTint: NSColor {
-        switch state {
-        case .unavailable:
-            return .secondaryLabelColor
-        case .idle:
-            return .systemBlue
-        case .checking:
-            return .systemBlue
-        case .upToDate:
-            return .systemGreen
-        case .updateAvailable:
-            return .systemOrange
-        case .failed:
-            return .systemRed
-        }
-    }
-
-    var detailText: String? {
-        switch state {
-        case .unavailable(let message), .failed(let message):
-            return message
-        case .idle:
-            return configuredFeedURLString.map { "Sparkle is configured with appcast \($0)." }
-        case .checking:
-            return "Sparkle is checking the configured appcast feed."
-        case .upToDate(let version):
-            return "Current version \(version) is up to date."
-        case .updateAvailable(let currentVersion, let latestVersion):
-            return "Current version \(currentVersion), latest appcast version \(latestVersion)."
-        }
     }
 
     func checkForUpdates() {
@@ -136,12 +80,6 @@ final class AppUpdateManager: NSObject, ObservableObject, SPUStandardUserDriverD
     func setAutomaticallyChecksForUpdates(_ enabled: Bool) {
         guard let updater = updaterController?.updater else { return }
         updater.automaticallyChecksForUpdates = enabled
-        syncFromUpdater()
-    }
-
-    func setAutomaticallyDownloadsUpdates(_ enabled: Bool) {
-        guard let updater = updaterController?.updater else { return }
-        updater.automaticallyDownloadsUpdates = enabled
         syncFromUpdater()
     }
 
@@ -191,11 +129,15 @@ final class AppUpdateManager: NSObject, ObservableObject, SPUStandardUserDriverD
             .nonEmpty ?? "0"
     }
 
+    private func configureUpdaterDefaults() {
+        guard let updater = updaterController?.updater else { return }
+        updater.automaticallyDownloadsUpdates = false
+    }
+
     private func syncFromUpdater() {
         guard let updater = updaterController?.updater else { return }
         canCheckForUpdates = updater.canCheckForUpdates
         automaticallyChecksForUpdates = updater.automaticallyChecksForUpdates
-        automaticallyDownloadsUpdates = updater.automaticallyDownloadsUpdates
     }
 
     static func configurationIssue(in infoDictionary: [String: Any]) -> String? {

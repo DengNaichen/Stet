@@ -12,7 +12,6 @@ struct DictationSettingsSnapshot: Sendable {
     let provider: DictationProvider
     let isRewriteEnabled: Bool
     let shouldPauseMediaDuringDictation: Bool
-    let preferredAudioInputDeviceID: UInt32?
     let openAIConfiguration: OpenAIConfiguration?
     let translationTargetLanguage: TranslationTargetLanguage
     let translateSelectedTextOnTranslationHotkey: Bool
@@ -28,7 +27,14 @@ struct DictationSettingsSnapshot: Sendable {
 
 struct DictationSettingsStore: Sendable {
     private enum SecretKey {
-        nonisolated static let openAIAPIKey = "openai.api_key"
+        nonisolated static func apiKey(for provider: DictationProvider) -> String {
+            switch provider {
+            case .openAI:
+                return "openai.api_key"
+            case .groq:
+                return "groq.api_key"
+            }
+        }
     }
 
     nonisolated(unsafe) private let defaults: UserDefaults
@@ -54,19 +60,11 @@ struct DictationSettingsStore: Sendable {
     }
 
     nonisolated func loadSnapshot() -> DictationSettingsSnapshot {
-        let providerRawValue = defaults.string(forKey: MacPreferences.transcriptionProvider) ?? ""
-        let provider = DictationProvider(rawValue: providerRawValue) ?? .openAI
-        let isRewriteEnabled = defaults.object(forKey: MacPreferences.rewriteEnabled) as? Bool ?? false
+        let provider = loadProvider()
+        let isRewriteEnabled = loadRewriteEnabled()
         let shouldPauseMediaDuringDictation =
             defaults.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
-        let preferredAudioInputDeviceID = loadPreferredAudioInputDeviceID()
-        let apiKey = loadOpenAIAPIKey().trimmingCharacters(in: .whitespacesAndNewlines)
-        let baseURL = loadOpenAIBaseURL()
-        let providerDefaults = OpenAIConfiguration.providerDefaults(for: baseURL)
-        let translationModel = loadOpenAITranslationModel(
-            providerDefault: providerDefaults.translationModel,
-            isGroqBaseURL: OpenAIConfiguration.isGroqBaseURL(baseURL)
-        )
+        let apiKey = loadAPIKey(for: provider).trimmingCharacters(in: .whitespacesAndNewlines)
         let translationTargetLanguage = loadTranslationTargetLanguage()
         let translateSelectedTextOnTranslationHotkey = loadTranslateSelectedTextOnTranslationHotkey()
         let personalDictionary = loadPersonalDictionaryEnabled() ? loadPersonalDictionary() : []
@@ -77,19 +75,12 @@ struct DictationSettingsStore: Sendable {
 
         let configuration: OpenAIConfiguration? = apiKey.isEmpty
             ? nil
-            : OpenAIConfiguration(
-                apiKey: apiKey,
-                baseURL: baseURL,
-                transcriptionModel: providerDefaults.transcriptionModel,
-                translationModel: translationModel,
-                rewriteModel: providerDefaults.rewriteModel
-            )
+            : OpenAIConfiguration(apiKey: apiKey, provider: provider)
 
         return DictationSettingsSnapshot(
             provider: provider,
             isRewriteEnabled: isRewriteEnabled,
             shouldPauseMediaDuringDictation: shouldPauseMediaDuringDictation,
-            preferredAudioInputDeviceID: preferredAudioInputDeviceID,
             openAIConfiguration: configuration,
             translationTargetLanguage: translationTargetLanguage,
             translateSelectedTextOnTranslationHotkey: translateSelectedTextOnTranslationHotkey,
@@ -99,13 +90,6 @@ struct DictationSettingsStore: Sendable {
             proxySettings: proxySettings
         )
     }
-
-//    nonisolated func loadGlobalHotkeyShortcut() -> GlobalHotkeyShortcut { ... }
-//    nonisolated func saveGlobalHotkeyShortcut(_ shortcut: GlobalHotkeyShortcut) { ... }
-//    nonisolated func loadHotkeyShortcut(for action: HotkeyChannelAction) -> GlobalHotkeyShortcut? { ... }
-//    nonisolated func saveHotkeyShortcut(_ shortcut: GlobalHotkeyShortcut?, for action: HotkeyChannelAction) { ... }
-//    nonisolated func loadHotkeyPreset() -> HotkeyPreset { ... }
-//    nonisolated func saveHotkeyPreset(_ preset: HotkeyPreset) { ... }
 
     nonisolated func loadPersonalDictionary() -> [String] {
         dictionaryModel.loadEntries()
@@ -133,53 +117,25 @@ struct DictationSettingsStore: Sendable {
         return TranslationTargetLanguage(rawValue: rawValue) ?? .english
     }
 
+    nonisolated func loadProvider() -> DictationProvider {
+        let rawValue = defaults.string(forKey: MacPreferences.transcriptionProvider) ?? ""
+        return DictationProvider(rawValue: rawValue) ?? .openAI
+    }
+
+    nonisolated func saveProvider(_ provider: DictationProvider) {
+        defaults.set(provider.rawValue, forKey: MacPreferences.transcriptionProvider)
+    }
+
     nonisolated func saveTranslationTargetLanguage(_ language: TranslationTargetLanguage) {
         defaults.set(language.rawValue, forKey: MacPreferences.translationTargetLanguage)
     }
 
-    nonisolated func loadOpenAITranslationModel(
-        providerDefault: String = "gpt-5-mini",
-        isGroqBaseURL: Bool = false
-    ) -> String {
-        let rawValue = defaults.string(forKey: MacPreferences.openAITranslationModel)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard let rawValue, !rawValue.isEmpty else {
-            return providerDefault
-        }
-
-        // Treat the old OpenAI default as a placeholder when the user switches to Groq.
-        if isGroqBaseURL, rawValue == "gpt-5-mini" {
-            return providerDefault
-        }
-
-        return rawValue
+    nonisolated func loadRewriteEnabled() -> Bool {
+        defaults.object(forKey: MacPreferences.rewriteEnabled) as? Bool ?? false
     }
 
-    nonisolated func loadOpenAIBaseURL() -> URL {
-        let rawValue = defaults.string(forKey: MacPreferences.openAIBaseURL)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard let rawValue, !rawValue.isEmpty else {
-            return URL(string: "https://api.openai.com/v1")!
-        }
-
-        guard let parsed = URL(string: rawValue), parsed.scheme != nil else {
-            return URL(string: "https://api.openai.com/v1")!
-        }
-
-        return parsed
-    }
-
-    nonisolated func saveOpenAIBaseURL(_ urlString: String) {
-        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !trimmed.isEmpty else {
-            defaults.set("https://api.openai.com/v1", forKey: MacPreferences.openAIBaseURL)
-            return
-        }
-
-        defaults.set(trimmed, forKey: MacPreferences.openAIBaseURL)
+    nonisolated func saveRewriteEnabled(_ enabled: Bool) {
+        defaults.set(enabled, forKey: MacPreferences.rewriteEnabled)
     }
 
     nonisolated func loadTranslateSelectedTextOnTranslationHotkey() -> Bool {
@@ -198,41 +154,71 @@ struct DictationSettingsStore: Sendable {
         defaults.set(enabled, forKey: MacPreferences.hotkeyDistinguishModifierSides)
     }
 
-    nonisolated func loadPreferredAudioInputDeviceID() -> UInt32? {
-        let value = defaults.integer(forKey: MacPreferences.selectedAudioInputDeviceID)
-        return value > 0 ? UInt32(value) : nil
-    }
-
-    nonisolated func savePreferredAudioInputDeviceID(_ deviceID: UInt32?) {
-        defaults.set(Int(deviceID ?? 0), forKey: MacPreferences.selectedAudioInputDeviceID)
-    }
-
     nonisolated func loadProxySettings() -> NetworkProxySettings {
-        let mode = NetworkProxyMode(rawValue: defaults.string(forKey: MacPreferences.proxyMode) ?? "") ?? .system
-        let customScheme = CustomProxyScheme(rawValue: defaults.string(forKey: MacPreferences.customProxyScheme) ?? "") ?? .http
-        let customHost = defaults.string(forKey: MacPreferences.customProxyHost) ?? ""
-        let customPortString = defaults.string(forKey: MacPreferences.customProxyPort) ?? ""
-
-        return NetworkProxySettings(
-            mode: mode,
-            customScheme: customScheme,
-            customHost: customHost,
-            customPort: Int(customPortString)
+        NetworkProxySettings(
+            mode: NetworkProxyMode(
+                rawValue: defaults.string(forKey: MacPreferences.proxyMode) ?? ""
+            ) ?? .system,
+            customScheme: CustomProxyScheme(
+                rawValue: defaults.string(forKey: MacPreferences.customProxyScheme) ?? ""
+            ) ?? .http,
+            customHost: defaults.string(forKey: MacPreferences.customProxyHost)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
+            customPort: loadCustomProxyPort()
         )
+    }
+
+    nonisolated func saveProxySettings(_ settings: NetworkProxySettings) {
+        defaults.set(settings.mode.rawValue, forKey: MacPreferences.proxyMode)
+        defaults.set(settings.customScheme.rawValue, forKey: MacPreferences.customProxyScheme)
+
+        let trimmedHost = settings.customHost.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedHost.isEmpty {
+            defaults.removeObject(forKey: MacPreferences.customProxyHost)
+        } else {
+            defaults.set(trimmedHost, forKey: MacPreferences.customProxyHost)
+        }
+
+        if let port = settings.customPort, port > 0 {
+            defaults.set(String(port), forKey: MacPreferences.customProxyPort)
+        } else {
+            defaults.removeObject(forKey: MacPreferences.customProxyPort)
+        }
     }
 
     nonisolated static func words(from rawInput: String) -> [String] {
         DictionaryModel.words(from: rawInput)
     }
 
+    nonisolated func loadAPIKey(for provider: DictationProvider) -> String {
+        (try? secretStore.loadString(forAccount: SecretKey.apiKey(for: provider))) ?? ""
+    }
+
+    nonisolated func saveAPIKey(_ apiKey: String, for provider: DictationProvider) throws {
+        try secretStore.saveString(apiKey, forAccount: SecretKey.apiKey(for: provider))
+    }
+
     nonisolated func loadOpenAIAPIKey() -> String {
-        (try? secretStore.loadString(forAccount: SecretKey.openAIAPIKey)) ?? ""
+        loadAPIKey(for: .openAI)
     }
 
     nonisolated func saveOpenAIAPIKey(_ apiKey: String) throws {
-        try secretStore.saveString(apiKey, forAccount: SecretKey.openAIAPIKey)
+        try saveAPIKey(apiKey, for: .openAI)
     }
 
-//    nonisolated private func loadOptionalHotkeyShortcut(forKey key: String) -> GlobalHotkeyShortcut? { ... }
-//    nonisolated private func saveOptionalHotkeyShortcut(_ shortcut: GlobalHotkeyShortcut?, forKey key: String) { ... }
+    nonisolated private func loadCustomProxyPort() -> Int? {
+        if let number = defaults.object(forKey: MacPreferences.customProxyPort) as? NSNumber {
+            let port = number.intValue
+            return port > 0 ? port : nil
+        }
+
+        guard let rawValue = defaults.string(forKey: MacPreferences.customProxyPort)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            let port = Int(rawValue),
+            port > 0 else {
+            return nil
+        }
+
+        return port
+    }
 }

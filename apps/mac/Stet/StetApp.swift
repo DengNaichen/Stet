@@ -23,11 +23,15 @@ struct StetApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        Settings {
+        Window("Stet", id: MacWindowSceneID.preferences) {
             MacSettingsView()
                 .environmentObject(macAppModel)
                 .environmentObject(appUpdateManager)
         }
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
+        .defaultSize(width: 1180, height: 820)
+        .windowResizability(.contentMinSize)
 
         .commands {
             CommandMenu("Dictation") {
@@ -48,6 +52,8 @@ struct StetApp: App {
                 }
                 .keyboardShortcut("q", modifiers: .command)
             }
+
+            MacPreferencesCommand(appModel: macAppModel)
         }
         #else
         WindowGroup {
@@ -56,3 +62,21 @@ struct StetApp: App {
         #endif
     }
 }
+
+#if os(macOS)
+private struct MacPreferencesCommand: Commands {
+    @Environment(\.openWindow) private var openWindow
+    let appModel: MacAppModel
+
+    var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            Button("Settings…") {
+                appModel.openSettings {
+                    openWindow(id: MacWindowSceneID.preferences)
+                }
+            }
+            .keyboardShortcut(",", modifiers: .command)
+        }
+    }
+}
+#endif

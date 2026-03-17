@@ -7,21 +7,19 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
             OpenAIConfiguration,
             URLSession,
             Locale,
-            UInt32?,
             @escaping @Sendable () async -> String?
         ) async -> any SpeechService
         var makeRewriteService: @Sendable (OpenAIConfiguration, URLSession) -> any TextRewriteService
 
         static let live = Dependencies(
             makeNetworkSession: OpenAINetworkSession.makeSession,
-            makeOpenAISpeechService: { configuration, session, locale, preferredInputDeviceID, promptProvider in
+            makeOpenAISpeechService: { configuration, session, locale, promptProvider in
                 await OpenAISpeechService(
                     transcriptionService: OpenAITranscriptionService(
                         configuration: configuration,
                         session: session
                     ),
                     locale: locale,
-                    preferredInputDeviceID: preferredInputDeviceID,
                     transcriptionPromptProvider: promptProvider
                 )
             },
@@ -119,22 +117,15 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
         let networkSession = dependencies.makeNetworkSession(snapshot.proxySettings)
 
         guard let configuration = snapshot.openAIConfiguration else {
-            throw OpenAIError.missingAPIKey
+            throw OpenAIError.missingAPIKey(provider: snapshot.provider)
         }
 
         speechService = await dependencies.makeOpenAISpeechService(
             configuration,
             networkSession,
             locale,
-            snapshot.preferredAudioInputDeviceID,
             {
-                guard !snapshot.personalDictionary.isEmpty else {
-                    return nil
-                }
-
-                return Self.makeTranscriptionPrompt(
-                    preferredSpellings: snapshot.personalDictionary
-                )
+                nil
             }
         )
 
@@ -142,7 +133,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
 
         if snapshot.isRewriteEnabled {
             guard let configuration = snapshot.openAIConfiguration else {
-                throw OpenAIError.missingAPIKey
+                throw OpenAIError.missingAPIKey(provider: snapshot.provider)
             }
 
             rewriteService = dependencies.makeRewriteService(configuration, networkSession)

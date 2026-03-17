@@ -17,28 +17,21 @@ enum MacConfigurationTransferError: LocalizedError, Equatable {
 enum MacConfigurationTransferManager {
     private struct ExportedConfiguration: Codable {
         var version: Int
-        var showPanelOnLaunch: Bool
-        var copyToClipboardOnCapture: Bool
-        var autoPasteOnCapture: Bool
-        var revealPanelOnCapture: Bool
         var pauseMediaDuringDictation: Bool
-        var selectedAudioInputDeviceID: Int
         var transcriptionProvider: String
         var rewriteEnabled: Bool
-        var openAIBaseURL: String?
+        var proxyMode: String?
+        var customProxyScheme: String?
+        var customProxyHost: String?
+        var customProxyPort: String?
         var translationTargetLanguage: String
         var translateSelectedTextOnTranslationHotkey: Bool
-        var openAITranslationModel: String
         var interactionSoundsEnabled: Bool
         var interactionSoundPreset: String
         var launchAtLogin: Bool
         var showInDock: Bool
         var hotkeyDistinguishModifierSides: Bool
         var personalDictionary: [String]
-        var proxyMode: String
-        var customProxyScheme: String
-        var customProxyHost: String
-        var customProxyPort: String
         var hotkeyDebugLoggingEnabled: Bool
         var openAIDebugLoggingEnabled: Bool
         var openAIAPIKeyPlaceholder: String
@@ -98,34 +91,27 @@ enum MacConfigurationTransferManager {
         let proxySettings = store.loadProxySettings()
 
         return ExportedConfiguration(
-            version: 1,
-            showPanelOnLaunch: defaults.bool(forKey: MacPreferences.showPanelOnLaunch),
-            copyToClipboardOnCapture: defaults.bool(forKey: MacPreferences.copyToClipboardOnCapture),
-            autoPasteOnCapture: defaults.bool(forKey: MacPreferences.autoPasteOnCapture),
-            revealPanelOnCapture: defaults.bool(forKey: MacPreferences.revealPanelOnCapture),
+            version: 4,
             pauseMediaDuringDictation: defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation),
-            selectedAudioInputDeviceID: defaults.integer(forKey: MacPreferences.selectedAudioInputDeviceID),
             transcriptionProvider: DictationProvider(
                 rawValue: defaults.string(forKey: MacPreferences.transcriptionProvider) ?? ""
             )?.rawValue ?? DictationProvider.openAI.rawValue,
             rewriteEnabled: defaults.bool(forKey: MacPreferences.rewriteEnabled),
-            openAIBaseURL: store.loadOpenAIBaseURL().absoluteString,
+            proxyMode: proxySettings.mode.rawValue,
+            customProxyScheme: proxySettings.customScheme.rawValue,
+            customProxyHost: proxySettings.customHost,
+            customProxyPort: proxySettings.customPort.map(String.init),
             translationTargetLanguage: store.loadTranslationTargetLanguage().rawValue,
             translateSelectedTextOnTranslationHotkey: store.loadTranslateSelectedTextOnTranslationHotkey(),
-            openAITranslationModel: store.loadOpenAITranslationModel(),
             interactionSoundsEnabled: defaults.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true,
             interactionSoundPreset: defaults.string(forKey: MacPreferences.interactionSoundPreset) ?? InteractionSoundPreset.soft.rawValue,
             launchAtLogin: defaults.object(forKey: MacPreferences.launchAtLogin) as? Bool ?? false,
             showInDock: defaults.object(forKey: MacPreferences.showInDock) as? Bool ?? false,
             hotkeyDistinguishModifierSides: store.loadHotkeyDistinguishModifierSides(),
             personalDictionary: store.loadPersonalDictionary(),
-            proxyMode: proxySettings.mode.rawValue,
-            customProxyScheme: proxySettings.customScheme.rawValue,
-            customProxyHost: proxySettings.customHost,
-            customProxyPort: proxySettings.customPort.map(String.init) ?? "",
             hotkeyDebugLoggingEnabled: defaults.object(forKey: MacPreferences.hotkeyDebugLoggingEnabled) as? Bool ?? false,
             openAIDebugLoggingEnabled: defaults.object(forKey: MacPreferences.openAIDebugLoggingEnabled) as? Bool ?? false,
-            openAIAPIKeyPlaceholder: store.loadOpenAIAPIKey().isEmpty ? "" : "set-manually"
+            openAIAPIKeyPlaceholder: store.loadAPIKey(for: store.loadProvider()).isEmpty ? "" : "set-manually"
         )
     }
 
@@ -134,24 +120,25 @@ enum MacConfigurationTransferManager {
         using store: DictationSettingsStore,
         defaults: UserDefaults
     ) {
-        defaults.set(imported.showPanelOnLaunch, forKey: MacPreferences.showPanelOnLaunch)
-        defaults.set(imported.copyToClipboardOnCapture, forKey: MacPreferences.copyToClipboardOnCapture)
-        defaults.set(imported.autoPasteOnCapture, forKey: MacPreferences.autoPasteOnCapture)
-        defaults.set(imported.revealPanelOnCapture, forKey: MacPreferences.revealPanelOnCapture)
+        store.saveProxySettings(
+            NetworkProxySettings(
+                mode: NetworkProxyMode(rawValue: imported.proxyMode ?? "") ?? .system,
+                customScheme: CustomProxyScheme(rawValue: imported.customProxyScheme ?? "") ?? .http,
+                customHost: imported.customProxyHost ?? "",
+                customPort: imported.customProxyPort.flatMap(Int.init)
+            )
+        )
+
         defaults.set(imported.pauseMediaDuringDictation, forKey: MacPreferences.pauseMediaDuringDictation)
-        defaults.set(imported.selectedAudioInputDeviceID, forKey: MacPreferences.selectedAudioInputDeviceID)
         defaults.set(
             DictationProvider(rawValue: imported.transcriptionProvider)?.rawValue ?? DictationProvider.openAI.rawValue,
             forKey: MacPreferences.transcriptionProvider
         )
         defaults.set(imported.rewriteEnabled, forKey: MacPreferences.rewriteEnabled)
-        defaults.set(imported.openAIBaseURL ?? "https://api.openai.com/v1", forKey: MacPreferences.openAIBaseURL)
-        defaults.set(imported.translationTargetLanguage, forKey: MacPreferences.translationTargetLanguage)
         defaults.set(
             imported.translateSelectedTextOnTranslationHotkey,
             forKey: MacPreferences.translateSelectedTextOnTranslationHotkey
         )
-        defaults.set(imported.openAITranslationModel, forKey: MacPreferences.openAITranslationModel)
         defaults.set(imported.interactionSoundsEnabled, forKey: MacPreferences.interactionSoundsEnabled)
         defaults.set(imported.interactionSoundPreset, forKey: MacPreferences.interactionSoundPreset)
         defaults.set(imported.launchAtLogin, forKey: MacPreferences.launchAtLogin)
@@ -159,10 +146,6 @@ enum MacConfigurationTransferManager {
         defaults.set(imported.hotkeyDebugLoggingEnabled, forKey: MacPreferences.hotkeyDebugLoggingEnabled)
         defaults.set(imported.openAIDebugLoggingEnabled, forKey: MacPreferences.openAIDebugLoggingEnabled)
         defaults.set(imported.hotkeyDistinguishModifierSides, forKey: MacPreferences.hotkeyDistinguishModifierSides)
-        defaults.set(imported.proxyMode, forKey: MacPreferences.proxyMode)
-        defaults.set(imported.customProxyScheme, forKey: MacPreferences.customProxyScheme)
-        defaults.set(imported.customProxyHost, forKey: MacPreferences.customProxyHost)
-        defaults.set(imported.customProxyPort, forKey: MacPreferences.customProxyPort)
 
         store.saveHotkeyDistinguishModifierSides(imported.hotkeyDistinguishModifierSides)
         store.saveTranslationTargetLanguage(

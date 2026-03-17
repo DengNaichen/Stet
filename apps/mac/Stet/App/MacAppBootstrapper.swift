@@ -5,11 +5,16 @@ struct MacAppBootstrapper {
     private enum LegacyPreferenceKey {
         static let copyLatestCaptureHotkeyShortcut = "mac.copyLatestCaptureHotkeyShortcut"
         static let historyRetentionPeriod = "mac.historyRetentionPeriod"
+        static let showPanelOnLaunch = "mac.showPanelOnLaunch"
+        static let copyToClipboardOnCapture = "mac.copyToClipboardOnCapture"
+        static let autoPasteOnCapture = "mac.autoPasteOnCapture"
+        static let revealPanelOnCapture = "mac.revealPanelOnCapture"
+        static let openAIBaseURL = "mac.openAIBaseURL"
+        static let openAITranslationModel = "mac.openAITranslationModel"
     }
 
     struct LaunchConfiguration: Equatable {
         let showInDock: Bool
-        let shouldShowPanelOnLaunch: Bool
     }
 
     private enum DefaultPreference {
@@ -33,20 +38,14 @@ struct MacAppBootstrapper {
     }
 
     private static let defaultPreferences: [DefaultPreference] = [
-        .bool(MacPreferences.showPanelOnLaunch, false),
-        .bool(MacPreferences.copyToClipboardOnCapture, true),
-        .bool(MacPreferences.autoPasteOnCapture, true),
-        .bool(MacPreferences.revealPanelOnCapture, false),
         .bool(MacPreferences.pauseMediaDuringDictation, false),
-        .integer(MacPreferences.selectedAudioInputDeviceID, 0),
         .string(MacPreferences.transcriptionProvider, DictationProvider.openAI.rawValue),
         .bool(MacPreferences.rewriteEnabled, false),
-        .string(MacPreferences.openAITranslationModel, "gpt-5-mini"),
+        .string(MacPreferences.proxyMode, NetworkProxyMode.system.rawValue),
+        .string(MacPreferences.customProxyScheme, CustomProxyScheme.http.rawValue),
         .bool(MacPreferences.interactionSoundsEnabled, true),
         .string(MacPreferences.interactionSoundPreset, InteractionSoundPreset.soft.rawValue),
         .bool(MacPreferences.showInDock, false),
-        .string(MacPreferences.proxyMode, NetworkProxyMode.system.rawValue),
-        .string(MacPreferences.customProxyScheme, CustomProxyScheme.http.rawValue),
         .bool(MacPreferences.hotkeyDebugLoggingEnabled, false),
         .bool(MacPreferences.openAIDebugLoggingEnabled, false),
     ]
@@ -76,8 +75,7 @@ struct MacAppBootstrapper {
         applyDefaultPreferences()
 
         return LaunchConfiguration(
-            showInDock: defaults.object(forKey: MacPreferences.showInDock) as? Bool ?? false,
-            shouldShowPanelOnLaunch: defaults.bool(forKey: MacPreferences.showPanelOnLaunch)
+            showInDock: defaults.object(forKey: MacPreferences.showInDock) as? Bool ?? false
         )
     }
 
@@ -104,6 +102,12 @@ struct MacAppBootstrapper {
     private func removeLegacyArtifacts() {
         defaults.removeObject(forKey: LegacyPreferenceKey.copyLatestCaptureHotkeyShortcut)
         defaults.removeObject(forKey: LegacyPreferenceKey.historyRetentionPeriod)
+        defaults.removeObject(forKey: LegacyPreferenceKey.showPanelOnLaunch)
+        defaults.removeObject(forKey: LegacyPreferenceKey.copyToClipboardOnCapture)
+        defaults.removeObject(forKey: LegacyPreferenceKey.autoPasteOnCapture)
+        defaults.removeObject(forKey: LegacyPreferenceKey.revealPanelOnCapture)
+        defaults.removeObject(forKey: LegacyPreferenceKey.openAIBaseURL)
+        defaults.removeObject(forKey: LegacyPreferenceKey.openAITranslationModel)
 
         for url in legacyHistoryURLs {
             try? fileManager.removeItem(at: url)

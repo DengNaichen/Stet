@@ -32,7 +32,6 @@ final class MacDictationWorkflowController {
     private let mediaPlaybackController: any MediaPlaybackControlling
     private let settingsStore: DictationSettingsStore
     private let interactionSoundPlayer: InteractionSoundPlayer
-    private let defaults: UserDefaults
 
     private weak var lastTargetApplication: NSRunningApplication?
     private(set) var activeRecordingSource: PrimaryActionSource?
@@ -44,8 +43,7 @@ final class MacDictationWorkflowController {
         textInjectionService: any TextInjectionService,
         mediaPlaybackController: any MediaPlaybackControlling,
         settingsStore: DictationSettingsStore,
-        interactionSoundPlayer: InteractionSoundPlayer,
-        defaults: UserDefaults = .standard
+        interactionSoundPlayer: InteractionSoundPlayer
     ) {
         self.dictationViewModel = dictationViewModel
         self.captureCoordinator = captureCoordinator
@@ -53,7 +51,6 @@ final class MacDictationWorkflowController {
         self.mediaPlaybackController = mediaPlaybackController
         self.settingsStore = settingsStore
         self.interactionSoundPlayer = interactionSoundPlayer
-        self.defaults = defaults
     }
 
     var statusText: String {
@@ -93,18 +90,20 @@ final class MacDictationWorkflowController {
     }
 
     var processingStatusText: String {
+        let providerName = settingsSnapshot.provider.displayName
+
         switch activeWorkflow {
         case .translationFromSpeech, .translationFromSelection:
-            return "Translating with OpenAI..."
+            return "Translating with \(providerName)..."
         case .rewriteFromSelection:
-            return "Rewriting selected text with OpenAI..."
+            return "Rewriting selected text with \(providerName)..."
         case .dictation:
             break
         }
 
         return settingsSnapshot.isRewriteEnabled
-            ? "Transcribing with OpenAI and rewriting..."
-            : "Transcribing with OpenAI..."
+            ? "Transcribing with \(providerName) and rewriting..."
+            : "Transcribing with \(providerName)..."
     }
 
     func startDictationCapture(
@@ -205,9 +204,9 @@ final class MacDictationWorkflowController {
 
     private var captureSettings: MacDictationCaptureCoordinator.CaptureSettings {
         MacDictationCaptureCoordinator.CaptureSettings(
-            shouldCopyToClipboard: defaults.bool(forKey: MacPreferences.copyToClipboardOnCapture),
-            shouldAutoPaste: defaults.bool(forKey: MacPreferences.autoPasteOnCapture),
-            shouldRevealPanelOnCapture: defaults.bool(forKey: MacPreferences.revealPanelOnCapture)
+            shouldCopyToClipboard: false,
+            shouldAutoPaste: true,
+            shouldRevealPanelOnCapture: false
         )
     }
 

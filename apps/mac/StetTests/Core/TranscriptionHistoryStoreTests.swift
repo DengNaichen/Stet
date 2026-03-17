@@ -1,44 +1,72 @@
+#if os(macOS)
 import Foundation
 import Testing
 
 @testable import Stet
 
 @MainActor
-@Suite("Transcription History Store", .serialized)
-struct TranscriptionHistoryStoreTests {
-    @Test func fileHistoryStoreRoundTripsRecords() async {
-        let fileURL = TestSupport.temporaryFileURL(ext: "json")
-        let store = FileTranscriptionHistoryStore(fileURL: fileURL)
-        let records = [
-            TranscriptionRecord(text: "hello", createdAt: Date(timeIntervalSince1970: 1_000_000)),
-            TranscriptionRecord(
-                text: "world",
-                createdAt: Date(timeIntervalSince1970: 1_000_001),
-                metadata: .init(kind: .rewrite)
-            ),
-        ]
+@Suite("Mac OpenAI Settings View Model", .serialized)
+struct MacOpenAISettingsViewModelTests {
+    @Test func loadReadsStoredValues() throws {
+        let defaults = TestSupport.makeUserDefaults()
+        let secretStore = TestSecretStore()
+        try secretStore.saveString("gsk-live", forAccount: "groq.api_key")
+        defaults.set(DictationProvider.groq.rawValue, forKey: MacPreferences.transcriptionProvider)
+        defaults.set(true, forKey: MacPreferences.rewriteEnabled)
+        defaults.set(
+            TranslationTargetLanguage.german.rawValue,
+            forKey: MacPreferences.translationTargetLanguage
+        )
+        defaults.set(false, forKey: MacPreferences.translateSelectedTextOnTranslationHotkey)
 
-        await store.saveHistory(records)
-        let loaded = await store.loadHistory()
+        let viewModel = MacOpenAISettingsViewModel(
+            settingsStore: DictationSettingsStore(defaults: defaults, secretStore: secretStore)
+        )
 
-        #expect(loaded == records)
-        try? FileManager.default.removeItem(at: fileURL)
+        viewModel.load()
+
+        #expect(viewModel.provider == .groq)
+        #expect(viewModel.rewriteEnabled)
+        #expect(viewModel.translationTargetLanguage == .german)
+        #expect(!viewModel.translateSelectedTextOnTranslationHotkey)
+        #expect(viewModel.apiKey == "gsk-live")
+        #expect(viewModel.connectionStatusText == "Configured")
     }
 
-    @Test func fileHistoryStoreReturnsEmptyOnCorruptData() async throws {
-        let fileURL = TestSupport.temporaryFileURL(ext: "json")
-        try Data("bad json".utf8).write(to: fileURL)
+    @Test func switchingProviderLoadsProviderSpecificCredential() throws {
+        let defaults = TestSupport.makeUserDefaults()
+        let secretStore = TestSecretStore()
+        try secretStore.saveString("sk-openai", forAccount: "openai.api_key")
+        try secretStore.saveString("gsk-groq", forAccount: "groq.api_key")
 
-        let store = FileTranscriptionHistoryStore(fileURL: fileURL)
-        let loaded = await store.loadHistory()
+        let viewModel = MacOpenAISettingsViewModel(
+            settingsStore: DictationSettingsStore(defaults: defaults, secretStore: secretStore)
+        )
+        viewModel.load()
 
-        #expect(loaded.isEmpty)
-        try? FileManager.default.removeItem(at: fileURL)
+        viewModel.provider = .groq
+
+        #expect(defaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.groq.rawValue)
+        #expect(viewModel.apiKey == "gsk-groq")
+        #expect(viewModel.credentialFieldTitle == "Groq API key")
     }
 
-    @Test func defaultFileURLPointsIntoApplicationSupport() {
-        let url = FileTranscriptionHistoryStore.defaultFileURL()
-        #expect(url.lastPathComponent == "transcription-history.json")
-        #expect(url.path.contains("Application Support") || url.path.contains("/tmp/"))
+    @Test func saveCredentialTrimsAndPersistsKey() throws {
+        let defaults = TestSupport.makeUserDefaults()
+        let secretStore = TestSecretStore()
+        let store = DictationSettingsStore(defaults: defaults, secretStore: secretStore)
+        let viewModel = MacOpenAISettingsViewModel(settingsStore: store)
+
+        viewModel.load()
+        viewModel.apiKey = "  sk-live  "
+        viewModel.saveCredential()
+
+        #expect(store.loadOpenAIAPIKey() == "sk-live")
+        #expect(viewModel.connectionStatusText == "Configured")
+
+        viewModel.clearCredential()
+        #expect(store.loadOpenAIAPIKey().isEmpty)
+        #expect(viewModel.connectionStatusText == "Missing Key")
     }
 }
+#endif

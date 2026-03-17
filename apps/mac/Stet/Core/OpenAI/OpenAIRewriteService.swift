@@ -1,4 +1,5 @@
 import Foundation
+import OpenAI
 
 struct TextRewriteRequest: Sendable, Equatable {
     var sourceText: String
@@ -77,38 +78,7 @@ protocol TextTranslationService: Sendable {
 }
 
 struct OpenAIRewriteService: TextRewriteService {
-    private struct ResponsesRequest: Encodable {
-        struct Message: Encodable {
-            let role: String
-            let content: String
-        }
-
-        let model: String
-        let input: [Message]
-        let store: Bool?
-    }
-
-    private struct ResponsesResponse: Decodable {
-        struct OutputItem: Decodable {
-            struct ContentItem: Decodable {
-                let type: String
-                let text: String?
-            }
-
-            let type: String
-            let content: [ContentItem]?
-        }
-
-        let outputText: String?
-        let output: [OutputItem]?
-
-        enum CodingKeys: String, CodingKey {
-            case outputText = "output_text"
-            case output
-        }
-    }
-
-    private let client: OpenAIClient
+    private let clientFactory: OpenAISDKClientFactory
     private let defaultModel: String
     private let supportsResponsesStore: Bool
 
@@ -116,7 +86,7 @@ struct OpenAIRewriteService: TextRewriteService {
         configuration: OpenAIConfiguration,
         session: URLSession = .shared
     ) {
-        self.client = OpenAIClient(configuration: configuration, session: session)
+        self.clientFactory = OpenAISDKClientFactory(configuration: configuration, session: session)
         self.defaultModel = configuration.rewriteModel
         self.supportsResponsesStore = configuration.supportsResponsesStore
     }
@@ -133,33 +103,25 @@ struct OpenAIRewriteService: TextRewriteService {
             instruction: instruction,
             sourceText: sourceText
         )
+        let requestContext = try clientFactory.makeRequestContext()
 
-        let response: ResponsesResponse = try await client.sendJSONRequest(
-            path: "/responses",
-            body: ResponsesRequest(
-                model: request.model ?? defaultModel,
-                input: messages,
-                store: supportsResponsesStore ? false : nil
+        do {
+            let response = try await requestContext.client.responses.createResponse(
+                query: CreateModelResponseQuery(
+                    input: .inputItemList(messages),
+                    model: request.model ?? defaultModel,
+                    store: supportsResponsesStore ? false : nil
+                )
             )
-        )
 
-        if let outputText = response.outputText?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !outputText.isEmpty {
-            return outputText
-        }
-
-        if let output = response.output {
-            for item in output where item.type == "message" {
-                for content in item.content ?? [] where content.type == "output_text" {
-                    if let text = content.text?.trimmingCharacters(in: .whitespacesAndNewlines),
-                       !text.isEmpty {
-                        return text
-                    }
-                }
+            if let outputText = response.stetOutputText {
+                return outputText
             }
-        }
 
-        throw OpenAIError.missingRewriteText
+            throw OpenAIError.missingRewriteText
+        } catch {
+            throw requestContext.mapError(error)
+        }
     }
 
     private func makeMessages(
@@ -167,11 +129,15 @@ struct OpenAIRewriteService: TextRewriteService {
         additionalUserContext: String?,
         instruction: String,
         sourceText: String
-    ) -> [ResponsesRequest.Message] {
-        var messages: [ResponsesRequest.Message] = []
+    ) -> [InputItem] {
+        var messages: [InputItem] = []
 
         if let systemPrompt, !systemPrompt.isEmpty {
-            messages.append(.init(role: "system", content: systemPrompt))
+            messages.append(
+                .inputMessage(
+                    EasyInputMessage(role: .system, content: .textInput(systemPrompt))
+                )
+            )
         }
 
         var userPrompt = """
@@ -191,44 +157,17 @@ struct OpenAIRewriteService: TextRewriteService {
             """
         }
 
-        messages.append(.init(role: "user", content: userPrompt))
+        messages.append(
+            .inputMessage(
+                EasyInputMessage(role: .user, content: .textInput(userPrompt))
+            )
+        )
         return messages
     }
 }
 
 struct OpenAITranslationService: TextTranslationService {
-    private struct ResponsesRequest: Encodable {
-        struct Message: Encodable {
-            let role: String
-            let content: String
-        }
-
-        let model: String
-        let input: [Message]
-        let store: Bool?
-    }
-
-    private struct ResponsesResponse: Decodable {
-        struct OutputItem: Decodable {
-            struct ContentItem: Decodable {
-                let type: String
-                let text: String?
-            }
-
-            let type: String
-            let content: [ContentItem]?
-        }
-
-        let outputText: String?
-        let output: [OutputItem]?
-
-        enum CodingKeys: String, CodingKey {
-            case outputText = "output_text"
-            case output
-        }
-    }
-
-    private let client: OpenAIClient
+    private let clientFactory: OpenAISDKClientFactory
     private let defaultModel: String
     private let supportsResponsesStore: Bool
 
@@ -236,7 +175,7 @@ struct OpenAITranslationService: TextTranslationService {
         configuration: OpenAIConfiguration,
         session: URLSession = .shared
     ) {
-        self.client = OpenAIClient(configuration: configuration, session: session)
+        self.clientFactory = OpenAISDKClientFactory(configuration: configuration, session: session)
         self.defaultModel = configuration.translationModel
         self.supportsResponsesStore = configuration.supportsResponsesStore
     }
@@ -252,33 +191,25 @@ struct OpenAITranslationService: TextTranslationService {
             sourceText: sourceText,
             targetLanguage: request.targetLanguage
         )
+        let requestContext = try clientFactory.makeRequestContext()
 
-        let response: ResponsesResponse = try await client.sendJSONRequest(
-            path: "/responses",
-            body: ResponsesRequest(
-                model: request.model ?? defaultModel,
-                input: messages,
-                store: supportsResponsesStore ? false : nil
+        do {
+            let response = try await requestContext.client.responses.createResponse(
+                query: CreateModelResponseQuery(
+                    input: .inputItemList(messages),
+                    model: request.model ?? defaultModel,
+                    store: supportsResponsesStore ? false : nil
+                )
             )
-        )
 
-        if let outputText = response.outputText?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !outputText.isEmpty {
-            return outputText
-        }
-
-        if let output = response.output {
-            for item in output where item.type == "message" {
-                for content in item.content ?? [] where content.type == "output_text" {
-                    if let text = content.text?.trimmingCharacters(in: .whitespacesAndNewlines),
-                       !text.isEmpty {
-                        return text
-                    }
-                }
+            if let outputText = response.stetOutputText {
+                return outputText
             }
-        }
 
-        throw OpenAIError.missingTranslationText
+            throw OpenAIError.missingTranslationText
+        } catch {
+            throw requestContext.mapError(error)
+        }
     }
 
     private func makeMessages(
@@ -286,11 +217,15 @@ struct OpenAITranslationService: TextTranslationService {
         additionalUserContext: String?,
         sourceText: String,
         targetLanguage: TranslationTargetLanguage
-    ) -> [ResponsesRequest.Message] {
-        var messages: [ResponsesRequest.Message] = []
+    ) -> [InputItem] {
+        var messages: [InputItem] = []
 
         if let systemPrompt, !systemPrompt.isEmpty {
-            messages.append(.init(role: "system", content: systemPrompt))
+            messages.append(
+                .inputMessage(
+                    EasyInputMessage(role: .system, content: .textInput(systemPrompt))
+                )
+            )
         }
 
         var userPrompt = """
@@ -310,7 +245,11 @@ struct OpenAITranslationService: TextTranslationService {
             """
         }
 
-        messages.append(.init(role: "user", content: userPrompt))
+        messages.append(
+            .inputMessage(
+                EasyInputMessage(role: .user, content: .textInput(userPrompt))
+            )
+        )
         return messages
     }
 }
