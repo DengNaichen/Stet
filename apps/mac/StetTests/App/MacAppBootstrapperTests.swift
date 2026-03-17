@@ -25,7 +25,6 @@ struct MacAppBootstrapperTests {
         #expect(defaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.openAI.rawValue)
         #expect(defaults.string(forKey: MacPreferences.translationTargetLanguage) == TranslationTargetLanguage.english.rawValue)
         #expect(defaults.bool(forKey: MacPreferences.translateSelectedTextOnTranslationHotkey))
-        #expect(defaults.string(forKey: MacPreferences.openAITranslationModel) == "gpt-5-mini")
         #expect(!defaults.bool(forKey: MacPreferences.hotkeyDistinguishModifierSides))
         #expect(defaults.bool(forKey: MacPreferences.interactionSoundsEnabled))
         #expect(defaults.string(forKey: MacPreferences.interactionSoundPreset) == InteractionSoundPreset.soft.rawValue)
@@ -47,6 +46,8 @@ struct MacAppBootstrapperTests {
         defaults.set(true, forKey: "mac.copyToClipboardOnCapture")
         defaults.set(true, forKey: "mac.autoPasteOnCapture")
         defaults.set(true, forKey: "mac.revealPanelOnCapture")
+        defaults.set("https://api.groq.com/openai/v1", forKey: "mac.openAIBaseURL")
+        defaults.set("llama-3.3-70b-versatile", forKey: "mac.openAITranslationModel")
         defaults.set(true, forKey: MacPreferences.showInDock)
 
         let bootstrapper = MacAppBootstrapper(
@@ -65,6 +66,8 @@ struct MacAppBootstrapperTests {
         #expect(defaults.object(forKey: "mac.copyToClipboardOnCapture") == nil)
         #expect(defaults.object(forKey: "mac.autoPasteOnCapture") == nil)
         #expect(defaults.object(forKey: "mac.revealPanelOnCapture") == nil)
+        #expect(defaults.object(forKey: "mac.openAIBaseURL") == nil)
+        #expect(defaults.object(forKey: "mac.openAITranslationModel") == nil)
         #expect(!FileManager.default.fileExists(atPath: legacyHistoryURL.path))
     }
 }

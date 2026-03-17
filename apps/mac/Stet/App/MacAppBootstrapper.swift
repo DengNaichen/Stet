@@ -9,6 +9,8 @@ struct MacAppBootstrapper {
         static let copyToClipboardOnCapture = "mac.copyToClipboardOnCapture"
         static let autoPasteOnCapture = "mac.autoPasteOnCapture"
         static let revealPanelOnCapture = "mac.revealPanelOnCapture"
+        static let openAIBaseURL = "mac.openAIBaseURL"
+        static let openAITranslationModel = "mac.openAITranslationModel"
     }
 
     struct LaunchConfiguration: Equatable {
@@ -40,7 +42,6 @@ struct MacAppBootstrapper {
         .integer(MacPreferences.selectedAudioInputDeviceID, 0),
         .string(MacPreferences.transcriptionProvider, DictationProvider.openAI.rawValue),
         .bool(MacPreferences.rewriteEnabled, false),
-        .string(MacPreferences.openAITranslationModel, "gpt-5-mini"),
         .bool(MacPreferences.interactionSoundsEnabled, true),
         .string(MacPreferences.interactionSoundPreset, InteractionSoundPreset.soft.rawValue),
         .bool(MacPreferences.showInDock, false),
@@ -104,6 +105,8 @@ struct MacAppBootstrapper {
         defaults.removeObject(forKey: LegacyPreferenceKey.copyToClipboardOnCapture)
         defaults.removeObject(forKey: LegacyPreferenceKey.autoPasteOnCapture)
         defaults.removeObject(forKey: LegacyPreferenceKey.revealPanelOnCapture)
+        defaults.removeObject(forKey: LegacyPreferenceKey.openAIBaseURL)
+        defaults.removeObject(forKey: LegacyPreferenceKey.openAITranslationModel)
 
         for url in legacyHistoryURLs {
             try? fileManager.removeItem(at: url)

@@ -88,14 +88,24 @@ struct DictationSettingsStoreTests {
         #expect(store.loadOpenAIAPIKey().isEmpty)
     }
 
+    @Test func providerCredentialsAreStoredSeparately() throws {
+        let defaults = TestSupport.makeUserDefaults()
+        let secretStore = TestSecretStore()
+        let store = DictationSettingsStore(defaults: defaults, secretStore: secretStore)
+
+        try store.saveAPIKey("sk-openai", for: .openAI)
+        try store.saveAPIKey("gsk-groq", for: .groq)
+
+        #expect(store.loadAPIKey(for: .openAI) == "sk-openai")
+        #expect(store.loadAPIKey(for: .groq) == "gsk-groq")
+    }
+
     @Test func loadSnapshotBuildsOpenAIConfigurationFromStoredValues() throws {
         let defaults = TestSupport.makeUserDefaults()
         let secretStore = TestSecretStore()
         try secretStore.saveString("sk-live", forAccount: "openai.api_key")
         defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
         defaults.set(true, forKey: MacPreferences.rewriteEnabled)
-        defaults.set("gpt-4.1-mini", forKey: MacPreferences.openAITranslationModel)
-        defaults.set("http://127.0.0.1:54321/functions/v1/relay/v1", forKey: MacPreferences.openAIBaseURL)
         defaults.set(TranslationTargetLanguage.german.rawValue, forKey: MacPreferences.translationTargetLanguage)
 
         let store = DictationSettingsStore(defaults: defaults, secretStore: secretStore)
@@ -106,7 +116,24 @@ struct DictationSettingsStoreTests {
         #expect(snapshot.isRewriteEnabled)
         #expect(snapshot.translationTargetLanguage == .german)
         #expect(configuration.apiKey == "sk-live")
-        #expect(configuration.baseURL.absoluteString == "http://127.0.0.1:54321/functions/v1/relay/v1")
-        #expect(configuration.translationModel == "gpt-4.1-mini")
+        #expect(configuration.baseURL.absoluteString == "https://api.openai.com/v1")
+        #expect(configuration.translationModel == "gpt-5-mini")
+    }
+
+    @Test func loadSnapshotBuildsGroqConfigurationFromStoredValues() throws {
+        let defaults = TestSupport.makeUserDefaults()
+        let secretStore = TestSecretStore()
+        try secretStore.saveString("gsk-live", forAccount: "groq.api_key")
+        defaults.set(DictationProvider.groq.rawValue, forKey: MacPreferences.transcriptionProvider)
+
+        let store = DictationSettingsStore(defaults: defaults, secretStore: secretStore)
+        let snapshot = store.loadSnapshot()
+
+        let configuration = try #require(snapshot.openAIConfiguration)
+        #expect(snapshot.provider == .groq)
+        #expect(configuration.apiKey == "gsk-live")
+        #expect(configuration.baseURL.absoluteString == "https://api.groq.com/openai/v1")
+        #expect(configuration.transcriptionModel == "whisper-large-v3-turbo")
+        #expect(configuration.translationModel == "llama-3.3-70b-versatile")
     }
 }

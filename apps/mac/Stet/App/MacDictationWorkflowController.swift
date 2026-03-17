@@ -90,18 +90,20 @@ final class MacDictationWorkflowController {
     }
 
     var processingStatusText: String {
+        let providerName = settingsSnapshot.provider.displayName
+
         switch activeWorkflow {
         case .translationFromSpeech, .translationFromSelection:
-            return "Translating with OpenAI..."
+            return "Translating with \(providerName)..."
         case .rewriteFromSelection:
-            return "Rewriting selected text with OpenAI..."
+            return "Rewriting selected text with \(providerName)..."
         case .dictation:
             break
         }
 
         return settingsSnapshot.isRewriteEnabled
-            ? "Transcribing with OpenAI and rewriting..."
-            : "Transcribing with OpenAI..."
+            ? "Transcribing with \(providerName) and rewriting..."
+            : "Transcribing with \(providerName)..."
     }
 
     func startDictationCapture(

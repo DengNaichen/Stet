@@ -141,30 +141,15 @@ final class MacAppModel: ObservableObject {
         settingsSnapshot.translationTargetLanguage
     }
 
-    var transcriptionProviderName: String {
-        settingsSnapshot.provider.displayName
-    }
-
-    var pipelineDescription: String {
-        settingsSnapshot.provider.pipelineDescription
-    }
-
-    var rewriteStatusText: String {
-        settingsSnapshot.isRewriteEnabled ? "Enabled" : "Disabled"
-    }
-
-    var openAIStatusText: String {
-        settingsSnapshot.isOpenAIConfigured ? "Configured" : "Missing Credential"
-    }
-
     var idleHintText: String {
         let hotkeyAction = "use"
+        let providerName = settingsSnapshot.provider.displayName
 
         if settingsSnapshot.isRewriteEnabled {
-            return "Use the main button or \(hotkeyAction) the hotkey to capture audio, send it to OpenAI for transcription, and then rewrite the final text."
+            return "Use the main button or \(hotkeyAction) the hotkey to capture audio, send it to \(providerName) for transcription, and then rewrite the final text."
         }
 
-        return "Use the main button or \(hotkeyAction) the hotkey to capture audio and send it to OpenAI for transcription."
+        return "Use the main button or \(hotkeyAction) the hotkey to capture audio and send it to \(providerName) for transcription."
     }
 
     var processingStatusText: String {

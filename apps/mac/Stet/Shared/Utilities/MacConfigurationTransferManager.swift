@@ -21,10 +21,8 @@ enum MacConfigurationTransferManager {
         var selectedAudioInputDeviceID: Int
         var transcriptionProvider: String
         var rewriteEnabled: Bool
-        var openAIBaseURL: String?
         var translationTargetLanguage: String
         var translateSelectedTextOnTranslationHotkey: Bool
-        var openAITranslationModel: String
         var interactionSoundsEnabled: Bool
         var interactionSoundPreset: String
         var launchAtLogin: Bool
@@ -89,17 +87,15 @@ enum MacConfigurationTransferManager {
     ) -> ExportedConfiguration {
 
         return ExportedConfiguration(
-            version: 2,
+            version: 3,
             pauseMediaDuringDictation: defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation),
             selectedAudioInputDeviceID: defaults.integer(forKey: MacPreferences.selectedAudioInputDeviceID),
             transcriptionProvider: DictationProvider(
                 rawValue: defaults.string(forKey: MacPreferences.transcriptionProvider) ?? ""
             )?.rawValue ?? DictationProvider.openAI.rawValue,
             rewriteEnabled: defaults.bool(forKey: MacPreferences.rewriteEnabled),
-            openAIBaseURL: store.loadOpenAIBaseURL().absoluteString,
             translationTargetLanguage: store.loadTranslationTargetLanguage().rawValue,
             translateSelectedTextOnTranslationHotkey: store.loadTranslateSelectedTextOnTranslationHotkey(),
-            openAITranslationModel: store.loadOpenAITranslationModel(),
             interactionSoundsEnabled: defaults.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true,
             interactionSoundPreset: defaults.string(forKey: MacPreferences.interactionSoundPreset) ?? InteractionSoundPreset.soft.rawValue,
             launchAtLogin: defaults.object(forKey: MacPreferences.launchAtLogin) as? Bool ?? false,
@@ -108,7 +104,7 @@ enum MacConfigurationTransferManager {
             personalDictionary: store.loadPersonalDictionary(),
             hotkeyDebugLoggingEnabled: defaults.object(forKey: MacPreferences.hotkeyDebugLoggingEnabled) as? Bool ?? false,
             openAIDebugLoggingEnabled: defaults.object(forKey: MacPreferences.openAIDebugLoggingEnabled) as? Bool ?? false,
-            openAIAPIKeyPlaceholder: store.loadOpenAIAPIKey().isEmpty ? "" : "set-manually"
+            openAIAPIKeyPlaceholder: store.loadAPIKey(for: store.loadProvider()).isEmpty ? "" : "set-manually"
         )
     }
 
@@ -124,13 +120,11 @@ enum MacConfigurationTransferManager {
             forKey: MacPreferences.transcriptionProvider
         )
         defaults.set(imported.rewriteEnabled, forKey: MacPreferences.rewriteEnabled)
-        defaults.set(imported.openAIBaseURL ?? "https://api.openai.com/v1", forKey: MacPreferences.openAIBaseURL)
         defaults.set(imported.translationTargetLanguage, forKey: MacPreferences.translationTargetLanguage)
         defaults.set(
             imported.translateSelectedTextOnTranslationHotkey,
             forKey: MacPreferences.translateSelectedTextOnTranslationHotkey
         )
-        defaults.set(imported.openAITranslationModel, forKey: MacPreferences.openAITranslationModel)
         defaults.set(imported.interactionSoundsEnabled, forKey: MacPreferences.interactionSoundsEnabled)
         defaults.set(imported.interactionSoundPreset, forKey: MacPreferences.interactionSoundPreset)
         defaults.set(imported.launchAtLogin, forKey: MacPreferences.launchAtLogin)

@@ -22,7 +22,8 @@ struct SharedModelTests {
     }
 
     @Test(arguments: [
-        (DictationProvider.openAI, "OpenAI API", "Audio capture + OpenAI transcription"),
+        (DictationProvider.openAI, "OpenAI", "Audio capture + OpenAI transcription"),
+        (.groq, "Groq", "Audio capture + Groq transcription"),
     ])
     func dictationProviderMetadata(
         _ provider: DictationProvider,
@@ -97,6 +98,15 @@ struct SharedModelTests {
         #expect(configuration.transcriptionModel == "gpt-4o-mini-transcribe")
         #expect(configuration.translationModel == "gpt-5-mini")
         #expect(configuration.rewriteModel == "gpt-5-mini")
+    }
+
+    @Test func groqConfigurationProvidesExpectedDefaults() {
+        let configuration = OpenAIConfiguration(apiKey: "gsk_test", provider: .groq)
+
+        #expect(configuration.baseURL.absoluteString == "https://api.groq.com/openai/v1")
+        #expect(configuration.transcriptionModel == "whisper-large-v3-turbo")
+        #expect(configuration.translationModel == "llama-3.3-70b-versatile")
+        #expect(configuration.rewriteModel == "llama-3.3-70b-versatile")
     }
 
     @Test(arguments: [

@@ -28,7 +28,14 @@ struct DictationSettingsSnapshot: Sendable {
 
 struct DictationSettingsStore: Sendable {
     private enum SecretKey {
-        nonisolated static let openAIAPIKey = "openai.api_key"
+        nonisolated static func apiKey(for provider: DictationProvider) -> String {
+            switch provider {
+            case .openAI:
+                return "openai.api_key"
+            case .groq:
+                return "groq.api_key"
+            }
+        }
     }
 
     nonisolated(unsafe) private let defaults: UserDefaults
@@ -54,19 +61,12 @@ struct DictationSettingsStore: Sendable {
     }
 
     nonisolated func loadSnapshot() -> DictationSettingsSnapshot {
-        let providerRawValue = defaults.string(forKey: MacPreferences.transcriptionProvider) ?? ""
-        let provider = DictationProvider(rawValue: providerRawValue) ?? .openAI
-        let isRewriteEnabled = defaults.object(forKey: MacPreferences.rewriteEnabled) as? Bool ?? false
+        let provider = loadProvider()
+        let isRewriteEnabled = loadRewriteEnabled()
         let shouldPauseMediaDuringDictation =
             defaults.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
         let preferredAudioInputDeviceID = loadPreferredAudioInputDeviceID()
-        let apiKey = loadOpenAIAPIKey().trimmingCharacters(in: .whitespacesAndNewlines)
-        let baseURL = loadOpenAIBaseURL()
-        let providerDefaults = OpenAIConfiguration.providerDefaults(for: baseURL)
-        let translationModel = loadOpenAITranslationModel(
-            providerDefault: providerDefaults.translationModel,
-            isGroqBaseURL: OpenAIConfiguration.isGroqBaseURL(baseURL)
-        )
+        let apiKey = loadAPIKey(for: provider).trimmingCharacters(in: .whitespacesAndNewlines)
         let translationTargetLanguage = loadTranslationTargetLanguage()
         let translateSelectedTextOnTranslationHotkey = loadTranslateSelectedTextOnTranslationHotkey()
         let personalDictionary = loadPersonalDictionaryEnabled() ? loadPersonalDictionary() : []
@@ -77,13 +77,7 @@ struct DictationSettingsStore: Sendable {
 
         let configuration: OpenAIConfiguration? = apiKey.isEmpty
             ? nil
-            : OpenAIConfiguration(
-                apiKey: apiKey,
-                baseURL: baseURL,
-                transcriptionModel: providerDefaults.transcriptionModel,
-                translationModel: translationModel,
-                rewriteModel: providerDefaults.rewriteModel
-            )
+            : OpenAIConfiguration(apiKey: apiKey, provider: provider)
 
         return DictationSettingsSnapshot(
             provider: provider,
@@ -126,53 +120,25 @@ struct DictationSettingsStore: Sendable {
         return TranslationTargetLanguage(rawValue: rawValue) ?? .english
     }
 
+    nonisolated func loadProvider() -> DictationProvider {
+        let rawValue = defaults.string(forKey: MacPreferences.transcriptionProvider) ?? ""
+        return DictationProvider(rawValue: rawValue) ?? .openAI
+    }
+
+    nonisolated func saveProvider(_ provider: DictationProvider) {
+        defaults.set(provider.rawValue, forKey: MacPreferences.transcriptionProvider)
+    }
+
     nonisolated func saveTranslationTargetLanguage(_ language: TranslationTargetLanguage) {
         defaults.set(language.rawValue, forKey: MacPreferences.translationTargetLanguage)
     }
 
-    nonisolated func loadOpenAITranslationModel(
-        providerDefault: String = "gpt-5-mini",
-        isGroqBaseURL: Bool = false
-    ) -> String {
-        let rawValue = defaults.string(forKey: MacPreferences.openAITranslationModel)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard let rawValue, !rawValue.isEmpty else {
-            return providerDefault
-        }
-
-        // Treat the old OpenAI default as a placeholder when the user switches to Groq.
-        if isGroqBaseURL, rawValue == "gpt-5-mini" {
-            return providerDefault
-        }
-
-        return rawValue
+    nonisolated func loadRewriteEnabled() -> Bool {
+        defaults.object(forKey: MacPreferences.rewriteEnabled) as? Bool ?? false
     }
 
-    nonisolated func loadOpenAIBaseURL() -> URL {
-        let rawValue = defaults.string(forKey: MacPreferences.openAIBaseURL)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard let rawValue, !rawValue.isEmpty else {
-            return URL(string: "https://api.openai.com/v1")!
-        }
-
-        guard let parsed = URL(string: rawValue), parsed.scheme != nil else {
-            return URL(string: "https://api.openai.com/v1")!
-        }
-
-        return parsed
-    }
-
-    nonisolated func saveOpenAIBaseURL(_ urlString: String) {
-        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !trimmed.isEmpty else {
-            defaults.set("https://api.openai.com/v1", forKey: MacPreferences.openAIBaseURL)
-            return
-        }
-
-        defaults.set(trimmed, forKey: MacPreferences.openAIBaseURL)
+    nonisolated func saveRewriteEnabled(_ enabled: Bool) {
+        defaults.set(enabled, forKey: MacPreferences.rewriteEnabled)
     }
 
     nonisolated func loadTranslateSelectedTextOnTranslationHotkey() -> Bool {
@@ -213,11 +179,19 @@ struct DictationSettingsStore: Sendable {
         DictionaryModel.words(from: rawInput)
     }
 
+    nonisolated func loadAPIKey(for provider: DictationProvider) -> String {
+        (try? secretStore.loadString(forAccount: SecretKey.apiKey(for: provider))) ?? ""
+    }
+
+    nonisolated func saveAPIKey(_ apiKey: String, for provider: DictationProvider) throws {
+        try secretStore.saveString(apiKey, forAccount: SecretKey.apiKey(for: provider))
+    }
+
     nonisolated func loadOpenAIAPIKey() -> String {
-        (try? secretStore.loadString(forAccount: SecretKey.openAIAPIKey)) ?? ""
+        loadAPIKey(for: .openAI)
     }
 
     nonisolated func saveOpenAIAPIKey(_ apiKey: String) throws {
-        try secretStore.saveString(apiKey, forAccount: SecretKey.openAIAPIKey)
+        try saveAPIKey(apiKey, for: .openAI)
     }
 }

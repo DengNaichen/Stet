@@ -17,7 +17,7 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
         case .hotkey:
             return "Hotkey"
         case .openAI:
-            return "OpenAI"
+            return "AI"
         case .dictionary:
             return "Dictionary"
         case .permissions:
@@ -43,11 +43,6 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
 
 struct MacSettingsView: View {
     @EnvironmentObject private var appModel: MacAppModel
-    @AppStorage(MacPreferences.rewriteEnabled) private var rewriteEnabled = false
-    @AppStorage(MacPreferences.openAIBaseURL) private var openAIBaseURL = "https://api.openai.com/v1"
-    @AppStorage(MacPreferences.translationTargetLanguage) private var translationTargetLanguageRawValue = TranslationTargetLanguage.english.rawValue
-    @AppStorage(MacPreferences.translateSelectedTextOnTranslationHotkey) private var translateSelectedTextOnTranslationHotkey = true
-    @AppStorage(MacPreferences.openAITranslationModel) private var openAITranslationModel = "gpt-5-mini"
 
     @StateObject private var dictionaryViewModel = DictionaryViewModel()
     @StateObject private var openAISettingsViewModel = MacOpenAISettingsViewModel()
@@ -132,14 +127,7 @@ struct MacSettingsView: View {
     }
 
     private var openAITab: some View {
-        MacOpenAISettingsView(
-            viewModel: openAISettingsViewModel,
-            rewriteEnabled: $rewriteEnabled,
-            openAIBaseURL: $openAIBaseURL,
-            translationTargetLanguage: translationTargetLanguageBinding,
-            translateSelectedTextOnTranslationHotkey: $translateSelectedTextOnTranslationHotkey,
-            openAITranslationModel: $openAITranslationModel
-        )
+        MacOpenAISettingsView(viewModel: openAISettingsViewModel)
     }
 
     private var dictionaryTab: some View {
@@ -150,20 +138,9 @@ struct MacSettingsView: View {
         MacPermissionsSettingsView()
     }
 
-    private var translationTargetLanguage: TranslationTargetLanguage {
-        TranslationTargetLanguage(rawValue: translationTargetLanguageRawValue) ?? .english
-    }
-
     private var hasPermissionIssues: Bool {
         appModel.microphoneAccessNeedsAttention ||
             appModel.autoPasteAccessNeedsAttention
-    }
-
-    private var translationTargetLanguageBinding: Binding<TranslationTargetLanguage> {
-        Binding(
-            get: { translationTargetLanguage },
-            set: { translationTargetLanguageRawValue = $0.rawValue }
-        )
     }
 
     private func reloadStateFromPreferences() {

@@ -84,12 +84,47 @@ struct OpenAIConfiguration: Sendable {
         self.projectID = projectID
     }
 
+    nonisolated init(
+        apiKey: String,
+        provider: DictationProvider,
+        organizationID: String? = nil,
+        projectID: String? = nil
+    ) {
+        let providerDefaults = Self.providerDefaults(for: provider)
+        self.init(
+            apiKey: apiKey,
+            baseURL: Self.baseURL(for: provider),
+            transcriptionModel: providerDefaults.transcriptionModel,
+            translationModel: providerDefaults.translationModel,
+            rewriteModel: providerDefaults.rewriteModel,
+            organizationID: organizationID,
+            projectID: projectID
+        )
+    }
+
     nonisolated var supportsResponsesStore: Bool {
         Self.providerDefaults(for: baseURL).supportsResponsesStore
     }
 
-    nonisolated static func providerDefaults(for baseURL: URL) -> ProviderDefaults {
-        if isGroqBaseURL(baseURL) {
+    nonisolated static func baseURL(for provider: DictationProvider) -> URL {
+        switch provider {
+        case .openAI:
+            return URL(string: "https://api.openai.com/v1")!
+        case .groq:
+            return URL(string: "https://api.groq.com/openai/v1")!
+        }
+    }
+
+    nonisolated static func providerDefaults(for provider: DictationProvider) -> ProviderDefaults {
+        switch provider {
+        case .openAI:
+            return ProviderDefaults(
+                transcriptionModel: "gpt-4o-mini-transcribe",
+                translationModel: "gpt-5-mini",
+                rewriteModel: "gpt-5-mini",
+                supportsResponsesStore: true
+            )
+        case .groq:
             return ProviderDefaults(
                 transcriptionModel: "whisper-large-v3-turbo",
                 translationModel: "llama-3.3-70b-versatile",
@@ -97,13 +132,14 @@ struct OpenAIConfiguration: Sendable {
                 supportsResponsesStore: false
             )
         }
+    }
 
-        return ProviderDefaults(
-            transcriptionModel: "gpt-4o-mini-transcribe",
-            translationModel: "gpt-5-mini",
-            rewriteModel: "gpt-5-mini",
-            supportsResponsesStore: true
-        )
+    nonisolated static func providerDefaults(for baseURL: URL) -> ProviderDefaults {
+        if isGroqBaseURL(baseURL) {
+            return providerDefaults(for: .groq)
+        }
+
+        return providerDefaults(for: .openAI)
     }
 
     nonisolated static func isGroqBaseURL(_ url: URL) -> Bool {
