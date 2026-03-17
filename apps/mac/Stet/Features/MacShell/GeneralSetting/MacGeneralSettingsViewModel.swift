@@ -3,6 +3,15 @@ import Combine
 import Foundation
 
 @MainActor
+protocol MacGeneralSettingsAppModeling {
+    func setLaunchAtLoginEnabled(_ enabled: Bool) throws
+    func refreshRuntimeFromSettings()
+    func applyDockVisibility(showInDock: Bool)
+}
+
+extension MacAppModel: MacGeneralSettingsAppModeling {}
+
+@MainActor
 final class MacGeneralSettingsViewModel: ObservableObject {
     struct ManagedSettingsState {
         var launchAtLogin = false
@@ -15,23 +24,44 @@ final class MacGeneralSettingsViewModel: ObservableObject {
         let isError: Bool
     }
 
+    struct Dependencies {
+        var availableInputDevices: @MainActor () -> [AudioInputDevice] = {
+            AudioInputDeviceManager.availableInputDevices()
+        }
+        var defaultInputDeviceID: @MainActor () -> Int? = {
+            AudioInputDeviceManager.defaultInputDeviceID().map(Int.init)
+        }
+        var launchAtLoginIsEnabled: @MainActor () -> Bool = {
+            MacAppBehaviorController.launchAtLoginIsEnabled()
+        }
+        var exportConfiguration: @MainActor (DictationSettingsStore) throws -> Void = {
+            try MacConfigurationTransferManager.exportConfiguration(using: $0)
+        }
+        var importConfiguration: @MainActor (DictationSettingsStore) throws -> Void = {
+            try MacConfigurationTransferManager.importConfiguration(using: $0)
+        }
+    }
+
     @Published private(set) var feedback: Feedback?
     @Published private(set) var inputDevices: [AudioInputDevice] = []
 
     private let settingsStore: DictationSettingsStore
     private let defaults: UserDefaults
+    private let dependencies: Dependencies
 
     init(
         settingsStore: DictationSettingsStore = DictationSettingsStore(),
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard,
+        dependencies: Dependencies = Dependencies()
     ) {
         self.settingsStore = settingsStore
         self.defaults = defaults
+        self.dependencies = dependencies
     }
 
     var systemDefaultInputDeviceLabel: String {
-        if let defaultDeviceID = AudioInputDeviceManager.defaultInputDeviceID(),
-           let device = inputDevices.first(where: { $0.id == defaultDeviceID }) {
+        if let defaultDeviceID = dependencies.defaultInputDeviceID(),
+           let device = inputDevices.first(where: { Int($0.id) == defaultDeviceID }) {
             return "System Default (\(device.name))"
         }
 
@@ -44,7 +74,7 @@ final class MacGeneralSettingsViewModel: ObservableObject {
 
     @discardableResult
     func refreshInputDevices(selectedAudioInputDeviceID: Int) -> Int {
-        inputDevices = AudioInputDeviceManager.availableInputDevices()
+        inputDevices = dependencies.availableInputDevices()
 
         guard !inputDevices.isEmpty else {
             return 0
@@ -59,9 +89,9 @@ final class MacGeneralSettingsViewModel: ObservableObject {
 
     func selectedAudioInputDeviceSummary(for selectedAudioInputDeviceID: Int) -> String? {
         if selectedAudioInputDeviceID == 0 {
-            return AudioInputDeviceManager.defaultInputDeviceID()
+            return dependencies.defaultInputDeviceID()
                 .flatMap { defaultDeviceID in
-                    inputDevices.first(where: { $0.id == defaultDeviceID })?.name
+                    inputDevices.first(where: { Int($0.id) == defaultDeviceID })?.name
                 }
                 .map { "Currently resolves to \($0)." }
         }
@@ -75,24 +105,24 @@ final class MacGeneralSettingsViewModel: ObservableObject {
 
     func exportConfiguration() {
         do {
-            try MacConfigurationTransferManager.exportConfiguration(using: settingsStore)
+            try dependencies.exportConfiguration(settingsStore)
             setFeedback("Configuration exported.")
         } catch {
             setFeedback(error.localizedDescription, isError: true)
         }
     }
 
-    func importConfiguration(appModel: MacAppModel) -> ManagedSettingsState {
+    func importConfiguration(appModel: any MacGeneralSettingsAppModeling) -> ManagedSettingsState {
         do {
-            try MacConfigurationTransferManager.importConfiguration(using: settingsStore)
+            try dependencies.importConfiguration(settingsStore)
 
             let importedLaunchAtLogin = defaults.object(forKey: MacPreferences.launchAtLogin) as? Bool
-                ?? MacAppBehaviorController.launchAtLoginIsEnabled()
+                ?? dependencies.launchAtLoginIsEnabled()
 
             do {
                 try appModel.setLaunchAtLoginEnabled(importedLaunchAtLogin)
             } catch {
-                let currentLaunchAtLoginPreference = MacAppBehaviorController.launchAtLoginIsEnabled()
+                let currentLaunchAtLoginPreference = dependencies.launchAtLoginIsEnabled()
                 defaults.set(currentLaunchAtLoginPreference, forKey: MacPreferences.launchAtLogin)
                 appModel.refreshRuntimeFromSettings()
                 setFeedback(error.localizedDescription, isError: true)
@@ -111,7 +141,7 @@ final class MacGeneralSettingsViewModel: ObservableObject {
     func applyLaunchAtLoginChange(
         oldValue: Bool,
         newValue: Bool,
-        appModel: MacAppModel
+        appModel: any MacGeneralSettingsAppModeling
     ) -> Bool {
         do {
             try appModel.setLaunchAtLoginEnabled(newValue)
@@ -125,7 +155,7 @@ final class MacGeneralSettingsViewModel: ObservableObject {
         }
     }
 
-    func applyDockVisibilityChange(_ showInDock: Bool, appModel: MacAppModel) {
+    func applyDockVisibilityChange(_ showInDock: Bool, appModel: any MacGeneralSettingsAppModeling) {
         defaults.set(showInDock, forKey: MacPreferences.showInDock)
         appModel.applyDockVisibility(showInDock: showInDock)
         setFeedback(showInDock ? "Dock icon enabled." : "Dock icon hidden.")
@@ -140,7 +170,7 @@ final class MacGeneralSettingsViewModel: ObservableObject {
     }
 
     private func currentState() -> ManagedSettingsState {
-        let currentLaunchAtLoginPreference = MacAppBehaviorController.launchAtLoginIsEnabled()
+        let currentLaunchAtLoginPreference = dependencies.launchAtLoginIsEnabled()
         defaults.set(currentLaunchAtLoginPreference, forKey: MacPreferences.launchAtLogin)
 
         return ManagedSettingsState(
