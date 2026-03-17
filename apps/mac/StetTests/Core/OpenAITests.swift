@@ -4,6 +4,24 @@ import Testing
 
 @testable import Stet
 
+private final class RequestAttemptCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    func increment() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        count += 1
+        return count
+    }
+
+    func value() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return count
+    }
+}
+
 @MainActor
 @Suite("OpenAI Adapters", .serialized)
 struct OpenAITests {
@@ -35,6 +53,8 @@ struct OpenAITests {
 
         URLProtocolStub.configure { request in
             let body = String(data: try TestSupport.requestBodyData(from: request), encoding: .utf8) ?? ""
+            #expect(request.url?.absoluteString == "https://api.example.com/v1/audio/transcriptions")
+            #expect((request.value(forHTTPHeaderField: "Content-Type") ?? "").contains("multipart/form-data"))
             #expect(body.contains("name=\"model\""))
             #expect(body.contains("gpt-4o-mini-transcribe"))
             #expect(request.value(forHTTPHeaderField: "X-Stet-Audio-Duration-Seconds") == "3")
@@ -43,6 +63,7 @@ struct OpenAITests {
             #expect(body.contains("name=\"prompt\""))
             #expect(body.contains("Use OpenAI"))
             #expect(body.contains("filename=\"speech.m4a\""))
+            #expect(!body.contains("name=\"stream\""))
 
             let response = HTTPURLResponse(url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (response, Data(#"{"text":"hello"}"#.utf8))
@@ -59,6 +80,39 @@ struct OpenAITests {
             audioDurationSeconds: 2.4
         )
         #expect(text == "hello")
+    }
+
+    @Test func openAITranscriptionServiceMapsAPIErrorBody() async throws {
+        let fileURL = TestSupport.temporaryFileURL(ext: "wav")
+        try Data("audio-bytes".utf8).write(to: fileURL)
+        let session = TestURLSessionFactory.makeSession()
+        let service = OpenAITranscriptionService(
+            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            session: session
+        )
+
+        URLProtocolStub.configure { request in
+            let response = HTTPURLResponse(
+                url: try #require(request.url),
+                statusCode: 400,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            return (response, Data(#"{"error":{"message":"unknown param `stream`"}}"#.utf8))
+        }
+        defer {
+            URLProtocolStub.reset()
+            try? FileManager.default.removeItem(at: fileURL)
+        }
+
+        await #expect(throws: OpenAIError.api(provider: .openAI, statusCode: 400, message: "unknown param `stream`")) {
+            try await service.transcribe(
+                audioFileAt: fileURL,
+                languageCode: nil,
+                prompt: nil,
+                audioDurationSeconds: 1.2
+            )
+        }
     }
 
     @Test func openAITranscriptionServiceThrowsWhenTextIsMissing() async throws {
@@ -87,6 +141,86 @@ struct OpenAITests {
                 audioDurationSeconds: nil
             )
         }
+    }
+
+    @Test func openAITranscriptionServiceFallsBackToPlainTextBodyWhenSDKDecodingFails() async throws {
+        let fileURL = TestSupport.temporaryFileURL(ext: "wav")
+        try Data("audio-bytes".utf8).write(to: fileURL)
+        let session = TestURLSessionFactory.makeSession()
+        let service = OpenAITranscriptionService(
+            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            session: session
+        )
+
+        URLProtocolStub.configure { request in
+            let response = HTTPURLResponse(
+                url: try #require(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "text/plain"]
+            )!
+            return (response, Data("  recovered via fallback  ".utf8))
+        }
+        defer {
+            URLProtocolStub.reset()
+            try? FileManager.default.removeItem(at: fileURL)
+        }
+
+        let text = try await service.transcribe(
+            audioFileAt: fileURL,
+            languageCode: nil,
+            prompt: nil,
+            audioDurationSeconds: nil
+        )
+
+        #expect(text == "recovered via fallback")
+    }
+
+    @Test func openAITranscriptionServiceRetriesTransientFailures() async throws {
+        let fileURL = TestSupport.temporaryFileURL(ext: "wav")
+        try Data("audio-bytes".utf8).write(to: fileURL)
+        let session = TestURLSessionFactory.makeSession()
+        let service = OpenAITranscriptionService(
+            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            session: session
+        )
+        let attempts = RequestAttemptCounter()
+
+        URLProtocolStub.configure { request in
+            let attempt = attempts.increment()
+
+            if attempt == 1 {
+                let response = HTTPURLResponse(
+                    url: try #require(request.url),
+                    statusCode: 503,
+                    httpVersion: nil,
+                    headerFields: ["Content-Type": "application/json"]
+                )!
+                return (response, Data(#"{"error":{"message":"try again later","type":"server_error","param":null,"code":null}}"#.utf8))
+            }
+
+            let response = HTTPURLResponse(
+                url: try #require(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            return (response, Data(#"{"text":"retried successfully"}"#.utf8))
+        }
+        defer {
+            URLProtocolStub.reset()
+            try? FileManager.default.removeItem(at: fileURL)
+        }
+
+        let text = try await service.transcribe(
+            audioFileAt: fileURL,
+            languageCode: nil,
+            prompt: nil,
+            audioDurationSeconds: 12
+        )
+
+        #expect(text == "retried successfully")
+        #expect(attempts.value() == 2)
     }
 
     @Test func openAIRewriteServiceUsesFallbackOutputParsing() async throws {

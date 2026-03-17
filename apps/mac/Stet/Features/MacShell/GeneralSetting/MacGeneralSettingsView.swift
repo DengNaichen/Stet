@@ -20,7 +20,6 @@ struct MacGeneralSettingsView: View {
     var body: some View {
         Form {
             configurationSection
-            microphoneSection
             captureSection
             interactionSoundsSection
             appBehaviorSection
@@ -58,25 +57,6 @@ struct MacGeneralSettingsView: View {
             Text("Configuration")
         } footer: {
             Text("Export or import your current hotkey, dictionary, and behavior settings.")
-        }
-    }
-
-    private var microphoneSection: some View {
-        Section {
-            LabeledContent("Microphone") {
-                Picker("Microphone", selection: selectedAudioInputDeviceIDBinding) {
-                    Text(viewModel.systemDefaultInputDeviceLabel).tag(0)
-
-                    ForEach(viewModel.inputDevices) { device in
-                        Text(device.name).tag(Int(device.id))
-                    }
-                }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .frame(width: 280)
-            }
-        } header: {
-            Text("Microphone")
         }
     }
 
@@ -149,17 +129,6 @@ struct MacGeneralSettingsView: View {
             }
         }
     }
-
-    private var selectedAudioInputDeviceIDBinding: Binding<Int> {
-        Binding(
-            get: { managedSettings.selectedAudioInputDeviceID },
-            set: { newValue in
-                managedSettings.selectedAudioInputDeviceID = newValue
-                viewModel.persistSelectedAudioInputDeviceID(newValue)
-            }
-        )
-    }
-
     private func importConfiguration() {
         let previousLaunchAtLogin = managedSettings.launchAtLogin
         let previousShowInDock = managedSettings.showInDock

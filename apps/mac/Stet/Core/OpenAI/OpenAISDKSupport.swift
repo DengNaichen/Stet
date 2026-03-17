@@ -15,7 +15,8 @@ struct OpenAISDKClientFactory: Sendable {
 
     nonisolated func makeRequestContext(
         additionalHeaders: [String: String] = [:],
-        additionalMiddlewares: [any OpenAIMiddleware] = []
+        additionalMiddlewares: [any OpenAIMiddleware] = [],
+        timeoutInterval: TimeInterval? = nil
     ) throws -> OpenAISDKRequestContext {
         let responseRecorder = OpenAIHTTPResponseRecorder()
         var middlewares: [any OpenAIMiddleware] = [
@@ -26,7 +27,10 @@ struct OpenAISDKClientFactory: Sendable {
 
         return OpenAISDKRequestContext(
             client: OpenAI(
-                configuration: try configuration.sdkConfiguration(additionalHeaders: additionalHeaders),
+                configuration: try configuration.sdkConfiguration(
+                    additionalHeaders: additionalHeaders,
+                    timeoutInterval: timeoutInterval
+                ),
                 session: session,
                 middlewares: middlewares
             ),
@@ -59,10 +63,18 @@ struct OpenAISDKRequestContext {
             provider: provider
         )
     }
+
+    nonisolated var responseStatusCode: Int? {
+        responseRecorder.statusCode
+    }
+
+    nonisolated var responseData: Data? {
+        responseRecorder.data
+    }
 }
 
 private enum OpenAISDKErrorMapper {
-    static func map(
+    nonisolated static func map(
         _ error: any Error,
         responseStatusCode: Int?,
         provider: DictationProvider
@@ -96,7 +108,8 @@ private enum OpenAISDKErrorMapper {
 
 fileprivate final class OpenAIHTTPResponseRecorder: @unchecked Sendable {
     private let lock = NSLock()
-    private var latestStatusCode: Int?
+    nonisolated(unsafe) private var latestStatusCode: Int?
+    nonisolated(unsafe) private var latestData: Data?
 
     nonisolated init() {}
 
@@ -106,11 +119,18 @@ fileprivate final class OpenAIHTTPResponseRecorder: @unchecked Sendable {
         return latestStatusCode
     }
 
-    nonisolated func record(_ response: URLResponse?) {
+    nonisolated var data: Data? {
+        lock.lock()
+        defer { lock.unlock() }
+        return latestData
+    }
+
+    nonisolated func record(_ response: URLResponse?, data: Data?) {
         guard let httpResponse = response as? HTTPURLResponse else { return }
 
         lock.lock()
         latestStatusCode = httpResponse.statusCode
+        latestData = data
         lock.unlock()
     }
 }
@@ -119,7 +139,7 @@ private struct OpenAIResponseRecordingMiddleware: OpenAIMiddleware {
     let responseRecorder: OpenAIHTTPResponseRecorder
 
     func intercept(response: URLResponse?, request: URLRequest, data: Data?) -> (response: URLResponse?, data: Data?) {
-        responseRecorder.record(response)
+        responseRecorder.record(response, data: data)
         return (response, data)
     }
 }
@@ -161,7 +181,10 @@ struct OpenAIUploadCompletionMiddleware: OpenAIMiddleware {
 }
 
 extension OpenAIConfiguration {
-    nonisolated func sdkConfiguration(additionalHeaders: [String: String] = [:]) throws -> OpenAI.Configuration {
+    nonisolated func sdkConfiguration(
+        additionalHeaders: [String: String] = [:],
+        timeoutInterval: TimeInterval? = nil
+    ) throws -> OpenAI.Configuration {
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty else {
             throw OpenAIError.missingAPIKey(provider: provider)
@@ -196,7 +219,7 @@ extension OpenAIConfiguration {
             port: components.port ?? Self.defaultPort(for: scheme),
             scheme: scheme,
             basePath: components.percentEncodedPath.isEmpty ? "/" : components.percentEncodedPath,
-            timeoutInterval: 60,
+            timeoutInterval: timeoutInterval ?? 60,
             customHeaders: customHeaders,
             parsingOptions: Self.requiresRelaxedParsing(for: normalizedBaseURL) ? .relaxed : []
         )
@@ -206,12 +229,12 @@ extension OpenAIConfiguration {
         Self.isGroqBaseURL(baseURL) ? .groq : .openAI
     }
 
-    private static func requiresRelaxedParsing(for baseURL: URL) -> Bool {
+    nonisolated private static func requiresRelaxedParsing(for baseURL: URL) -> Bool {
         guard let host = baseURL.host?.lowercased() else { return false }
         return host != "api.openai.com" && !host.hasSuffix(".openai.com")
     }
 
-    private static func defaultPort(for scheme: String) -> Int {
+    nonisolated private static func defaultPort(for scheme: String) -> Int {
         switch scheme.lowercased() {
         case "http":
             return 80
@@ -222,7 +245,7 @@ extension OpenAIConfiguration {
         }
     }
 
-    private func trimmedValue(_ value: String?) -> String? {
+    nonisolated private func trimmedValue(_ value: String?) -> String? {
         guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
               !value.isEmpty else {
             return nil
@@ -278,6 +301,36 @@ extension AudioTranscriptionQuery.FileType {
             self = .webm
         default:
             return nil
+        }
+    }
+
+    var stetFileName: String {
+        switch self {
+        case .mpga:
+            return "speech.mp3"
+        default:
+            return "speech.\(rawValue)"
+        }
+    }
+
+    var stetContentType: String {
+        switch self {
+        case .flac:
+            return "audio/flac"
+        case .m4a:
+            return "audio/m4a"
+        case .mp3, .mpga:
+            return "audio/mp3"
+        case .mp4:
+            return "audio/mp4"
+        case .mpeg:
+            return "audio/mpeg"
+        case .ogg:
+            return "audio/ogg"
+        case .wav:
+            return "audio/wav"
+        case .webm:
+            return "audio/webm"
         }
     }
 }

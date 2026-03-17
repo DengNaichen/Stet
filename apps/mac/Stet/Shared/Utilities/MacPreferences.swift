@@ -2,7 +2,6 @@ import Foundation
 
 enum MacPreferences {
     nonisolated static let pauseMediaDuringDictation = "mac.pauseMediaDuringDictation"
-    nonisolated static let selectedAudioInputDeviceID = "mac.selectedAudioInputDeviceID"
     nonisolated static let transcriptionProvider = "mac.transcriptionProvider"
     nonisolated static let rewriteEnabled = "mac.rewriteEnabled"
     nonisolated static let proxyMode = "mac.proxyMode"

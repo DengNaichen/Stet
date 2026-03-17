@@ -21,7 +21,6 @@ struct MacAppBootstrapperTests {
 
         #expect(launchConfiguration == .init(showInDock: false))
         #expect(!defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation))
-        #expect(defaults.integer(forKey: MacPreferences.selectedAudioInputDeviceID) == 0)
         #expect(defaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.openAI.rawValue)
         #expect(defaults.string(forKey: MacPreferences.translationTargetLanguage) == TranslationTargetLanguage.english.rawValue)
         #expect(defaults.bool(forKey: MacPreferences.translateSelectedTextOnTranslationHotkey))

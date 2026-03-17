@@ -16,7 +16,6 @@ final class MacGeneralSettingsViewModel: ObservableObject {
     struct ManagedSettingsState {
         var launchAtLogin = false
         var showInDock = false
-        var selectedAudioInputDeviceID = 0
     }
 
     struct Feedback {
@@ -25,12 +24,6 @@ final class MacGeneralSettingsViewModel: ObservableObject {
     }
 
     struct Dependencies {
-        var availableInputDevices: @MainActor () -> [AudioInputDevice] = {
-            AudioInputDeviceManager.availableInputDevices()
-        }
-        var defaultInputDeviceID: @MainActor () -> Int? = {
-            AudioInputDeviceManager.defaultInputDeviceID().map(Int.init)
-        }
         var launchAtLoginIsEnabled: @MainActor () -> Bool = {
             MacAppBehaviorController.launchAtLoginIsEnabled()
         }
@@ -43,7 +36,6 @@ final class MacGeneralSettingsViewModel: ObservableObject {
     }
 
     @Published private(set) var feedback: Feedback?
-    @Published private(set) var inputDevices: [AudioInputDevice] = []
 
     private let settingsStore: DictationSettingsStore
     private let defaults: UserDefaults
@@ -59,48 +51,8 @@ final class MacGeneralSettingsViewModel: ObservableObject {
         self.dependencies = dependencies
     }
 
-    var systemDefaultInputDeviceLabel: String {
-        if let defaultDeviceID = dependencies.defaultInputDeviceID(),
-           let device = inputDevices.first(where: { Int($0.id) == defaultDeviceID }) {
-            return "System Default (\(device.name))"
-        }
-
-        return "System Default"
-    }
-
     func loadState() -> ManagedSettingsState {
         currentState()
-    }
-
-    @discardableResult
-    func refreshInputDevices(selectedAudioInputDeviceID: Int) -> Int {
-        inputDevices = dependencies.availableInputDevices()
-
-        guard !inputDevices.isEmpty else {
-            return 0
-        }
-
-        let selectionExists = selectedAudioInputDeviceID == 0 ||
-            inputDevices.contains(where: { Int($0.id) == selectedAudioInputDeviceID })
-        let resolvedSelection = selectionExists ? selectedAudioInputDeviceID : 0
-        defaults.set(resolvedSelection, forKey: MacPreferences.selectedAudioInputDeviceID)
-        return resolvedSelection
-    }
-
-    func selectedAudioInputDeviceSummary(for selectedAudioInputDeviceID: Int) -> String? {
-        if selectedAudioInputDeviceID == 0 {
-            return dependencies.defaultInputDeviceID()
-                .flatMap { defaultDeviceID in
-                    inputDevices.first(where: { Int($0.id) == defaultDeviceID })?.name
-                }
-                .map { "Currently resolves to \($0)." }
-        }
-
-        if let selectedDevice = inputDevices.first(where: { Int($0.id) == selectedAudioInputDeviceID }) {
-            return "Using \(selectedDevice.name) on the next capture."
-        }
-
-        return "The selected input device is unavailable. Refresh or switch back to System Default."
     }
 
     func exportConfiguration() {
@@ -161,10 +113,6 @@ final class MacGeneralSettingsViewModel: ObservableObject {
         setFeedback(showInDock ? "Dock icon enabled." : "Dock icon hidden.")
     }
 
-    func persistSelectedAudioInputDeviceID(_ selectedAudioInputDeviceID: Int) {
-        defaults.set(selectedAudioInputDeviceID, forKey: MacPreferences.selectedAudioInputDeviceID)
-    }
-
     private var currentShowInDockPreference: Bool {
         defaults.object(forKey: MacPreferences.showInDock) as? Bool ?? false
     }
@@ -175,10 +123,7 @@ final class MacGeneralSettingsViewModel: ObservableObject {
 
         return ManagedSettingsState(
             launchAtLogin: currentLaunchAtLoginPreference,
-            showInDock: currentShowInDockPreference,
-            selectedAudioInputDeviceID: refreshInputDevices(
-                selectedAudioInputDeviceID: defaults.integer(forKey: MacPreferences.selectedAudioInputDeviceID)
-            )
+            showInDock: currentShowInDockPreference
         )
     }
 

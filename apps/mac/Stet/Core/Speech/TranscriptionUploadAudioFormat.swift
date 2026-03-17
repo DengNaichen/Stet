@@ -21,7 +21,27 @@ enum TranscriptionUploadAudioFormat {
     }
 
     nonisolated static func makeMacOutputFormat() -> AVAudioFormat? {
-        AVAudioFormat(settings: macOutputSettings)
+        AVAudioFormat(
+            commonFormat: .pcmFormatInt16,
+            sampleRate: macSampleRate,
+            channels: macChannelCount,
+            interleaved: true
+        )
+    }
+
+    nonisolated static func makeMacConverter(
+        from inputFormat: AVAudioFormat,
+        to outputFormat: AVAudioFormat
+    ) -> AVAudioConverter? {
+        guard let converter = AVAudioConverter(from: inputFormat, to: outputFormat) else {
+            return nil
+        }
+
+        if inputFormat.channelCount != outputFormat.channelCount {
+            converter.downmix = true
+        }
+
+        return converter
     }
 
     nonisolated static func macConvertedFrameCapacity(

@@ -1,5 +1,4 @@
 #if os(macOS)
-import CoreAudio
 import Foundation
 import Testing
 
@@ -36,8 +35,6 @@ private final class TestMacGeneralSettingsAppModel: MacGeneralSettingsAppModelin
 struct MacGeneralSettingsViewModelTests {
     private func makeViewModel(
         defaults: UserDefaults,
-        devices: [AudioInputDevice] = [],
-        defaultInputDeviceID: Int? = nil,
         launchAtLoginIsEnabled: @escaping @MainActor () -> Bool = { false },
         exportConfiguration: @escaping @MainActor (DictationSettingsStore) throws -> Void = { _ in },
         importConfiguration: @escaping @MainActor (DictationSettingsStore) throws -> Void = { _ in }
@@ -49,8 +46,6 @@ struct MacGeneralSettingsViewModelTests {
             ),
             defaults: defaults,
             dependencies: .init(
-                availableInputDevices: { devices },
-                defaultInputDeviceID: { defaultInputDeviceID },
                 launchAtLoginIsEnabled: launchAtLoginIsEnabled,
                 exportConfiguration: exportConfiguration,
                 importConfiguration: importConfiguration
@@ -58,40 +53,17 @@ struct MacGeneralSettingsViewModelTests {
         )
     }
 
-    @Test func loadStateResolvesUnavailableInputDeviceAndBuildsDefaultLabel() {
+    @Test func loadStateReflectsManagedSettings() {
         let defaults = TestSupport.makeUserDefaults()
-        defaults.set(42, forKey: MacPreferences.selectedAudioInputDeviceID)
         let viewModel = makeViewModel(
             defaults: defaults,
-            devices: [AudioInputDevice(id: 7, name: "Studio Mic")],
-            defaultInputDeviceID: 7,
             launchAtLoginIsEnabled: { true }
         )
 
         let state = viewModel.loadState()
 
         #expect(state.launchAtLogin)
-        #expect(state.selectedAudioInputDeviceID == 0)
-        #expect(defaults.integer(forKey: MacPreferences.selectedAudioInputDeviceID) == 0)
-        #expect(viewModel.inputDevices == [AudioInputDevice(id: 7, name: "Studio Mic")])
-        #expect(viewModel.systemDefaultInputDeviceLabel == "System Default (Studio Mic)")
-    }
-
-    @Test func selectedAudioInputDeviceSummaryCoversDefaultSelectedAndUnavailableCases() {
-        let defaults = TestSupport.makeUserDefaults()
-        let viewModel = makeViewModel(
-            defaults: defaults,
-            devices: [AudioInputDevice(id: 7, name: "Studio Mic")],
-            defaultInputDeviceID: 7
-        )
-        _ = viewModel.loadState()
-
-        #expect(viewModel.selectedAudioInputDeviceSummary(for: 0) == "Currently resolves to Studio Mic.")
-        #expect(viewModel.selectedAudioInputDeviceSummary(for: 7) == "Using Studio Mic on the next capture.")
-        #expect(
-            viewModel.selectedAudioInputDeviceSummary(for: 99)
-                == "The selected input device is unavailable. Refresh or switch back to System Default."
-        )
+        #expect(state.showInDock == false)
     }
 
     @Test func importConfigurationRefreshesRuntimeAndReturnsImportedState() {
@@ -101,13 +73,10 @@ struct MacGeneralSettingsViewModelTests {
         appModel.onSetLaunchAtLogin = { runtimeLaunchAtLogin = $0 }
         let viewModel = makeViewModel(
             defaults: defaults,
-            devices: [AudioInputDevice(id: 7, name: "Studio Mic")],
-            defaultInputDeviceID: 7,
             launchAtLoginIsEnabled: { runtimeLaunchAtLogin },
             importConfiguration: { _ in
                 defaults.set(true, forKey: MacPreferences.launchAtLogin)
                 defaults.set(true, forKey: MacPreferences.showInDock)
-                defaults.set(99, forKey: MacPreferences.selectedAudioInputDeviceID)
             }
         )
 
@@ -117,7 +86,6 @@ struct MacGeneralSettingsViewModelTests {
         #expect(appModel.refreshRuntimeCallCount == 1)
         #expect(state.launchAtLogin)
         #expect(state.showInDock)
-        #expect(state.selectedAudioInputDeviceID == 0)
         #expect(
             viewModel.feedback?.message
                 == "Configuration imported. API keys are still managed separately in Keychain."
@@ -145,8 +113,6 @@ struct MacGeneralSettingsViewModelTests {
         #expect(appModel.refreshRuntimeCallCount == 1)
         #expect(viewModel.feedback?.message == TestError.expected.localizedDescription)
         #expect(viewModel.feedback?.isError == true)
-
-        runtimeLaunchAtLogin = false
     }
 
     @Test func applyLaunchAtLoginChangePersistsSuccessAndRollsBackFailure() {

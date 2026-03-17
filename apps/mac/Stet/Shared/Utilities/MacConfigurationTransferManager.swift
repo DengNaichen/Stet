@@ -18,7 +18,6 @@ enum MacConfigurationTransferManager {
     private struct ExportedConfiguration: Codable {
         var version: Int
         var pauseMediaDuringDictation: Bool
-        var selectedAudioInputDeviceID: Int
         var transcriptionProvider: String
         var rewriteEnabled: Bool
         var proxyMode: String?
@@ -94,7 +93,6 @@ enum MacConfigurationTransferManager {
         return ExportedConfiguration(
             version: 4,
             pauseMediaDuringDictation: defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation),
-            selectedAudioInputDeviceID: defaults.integer(forKey: MacPreferences.selectedAudioInputDeviceID),
             transcriptionProvider: DictationProvider(
                 rawValue: defaults.string(forKey: MacPreferences.transcriptionProvider) ?? ""
             )?.rawValue ?? DictationProvider.openAI.rawValue,
@@ -132,7 +130,6 @@ enum MacConfigurationTransferManager {
         )
 
         defaults.set(imported.pauseMediaDuringDictation, forKey: MacPreferences.pauseMediaDuringDictation)
-        defaults.set(imported.selectedAudioInputDeviceID, forKey: MacPreferences.selectedAudioInputDeviceID)
         defaults.set(
             DictationProvider(rawValue: imported.transcriptionProvider)?.rawValue ?? DictationProvider.openAI.rawValue,
             forKey: MacPreferences.transcriptionProvider

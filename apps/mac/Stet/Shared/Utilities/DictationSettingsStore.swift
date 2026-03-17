@@ -12,7 +12,6 @@ struct DictationSettingsSnapshot: Sendable {
     let provider: DictationProvider
     let isRewriteEnabled: Bool
     let shouldPauseMediaDuringDictation: Bool
-    let preferredAudioInputDeviceID: UInt32?
     let openAIConfiguration: OpenAIConfiguration?
     let translationTargetLanguage: TranslationTargetLanguage
     let translateSelectedTextOnTranslationHotkey: Bool
@@ -65,7 +64,6 @@ struct DictationSettingsStore: Sendable {
         let isRewriteEnabled = loadRewriteEnabled()
         let shouldPauseMediaDuringDictation =
             defaults.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
-        let preferredAudioInputDeviceID = loadPreferredAudioInputDeviceID()
         let apiKey = loadAPIKey(for: provider).trimmingCharacters(in: .whitespacesAndNewlines)
         let translationTargetLanguage = loadTranslationTargetLanguage()
         let translateSelectedTextOnTranslationHotkey = loadTranslateSelectedTextOnTranslationHotkey()
@@ -83,7 +81,6 @@ struct DictationSettingsStore: Sendable {
             provider: provider,
             isRewriteEnabled: isRewriteEnabled,
             shouldPauseMediaDuringDictation: shouldPauseMediaDuringDictation,
-            preferredAudioInputDeviceID: preferredAudioInputDeviceID,
             openAIConfiguration: configuration,
             translationTargetLanguage: translationTargetLanguage,
             translateSelectedTextOnTranslationHotkey: translateSelectedTextOnTranslationHotkey,
@@ -155,15 +152,6 @@ struct DictationSettingsStore: Sendable {
 
     nonisolated func saveHotkeyDistinguishModifierSides(_ enabled: Bool) {
         defaults.set(enabled, forKey: MacPreferences.hotkeyDistinguishModifierSides)
-    }
-
-    nonisolated func loadPreferredAudioInputDeviceID() -> UInt32? {
-        let value = defaults.integer(forKey: MacPreferences.selectedAudioInputDeviceID)
-        return value > 0 ? UInt32(value) : nil
-    }
-
-    nonisolated func savePreferredAudioInputDeviceID(_ deviceID: UInt32?) {
-        defaults.set(Int(deviceID ?? 0), forKey: MacPreferences.selectedAudioInputDeviceID)
     }
 
     nonisolated func loadProxySettings() -> NetworkProxySettings {

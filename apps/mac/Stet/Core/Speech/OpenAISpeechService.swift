@@ -1,17 +1,102 @@
 @preconcurrency import AVFoundation
 import Foundation
-#if os(macOS)
-import AudioToolbox
-#endif
 
 actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
+    #if os(macOS)
+    private final class MacRecordingResources {
+        private let lock = NSLock()
+        private let outputFormat: AVAudioFormat
+        private var converter: AVAudioConverter?
+        private var converterInputFormatSignature: String?
+        private var recordingFile: AVAudioFile?
+        private var writtenFrameCount: AVAudioFramePosition = 0
+        private var droppedBufferLogCount = 0
+
+        init(recordingFile: AVAudioFile, outputFormat: AVAudioFormat) {
+            self.recordingFile = recordingFile
+            self.outputFormat = outputFormat
+        }
+
+        func snapshot(
+            for inputFormat: AVAudioFormat
+        ) throws -> (converter: AVAudioConverter, recordingFile: AVAudioFile, didCreateConverter: Bool)? {
+            lock.lock()
+            defer { lock.unlock() }
+
+            guard let recordingFile else {
+                return nil
+            }
+
+            let inputFormatSignature = Self.formatSignature(inputFormat)
+            let didCreateConverter: Bool
+
+            if converterInputFormatSignature != inputFormatSignature || converter == nil {
+                guard let converter = TranscriptionUploadAudioFormat.makeMacConverter(
+                    from: inputFormat,
+                    to: outputFormat
+                ) else {
+                    throw SpeechServiceError.unsupportedAudioFormat
+                }
+
+                self.converter = converter
+                self.converterInputFormatSignature = inputFormatSignature
+                didCreateConverter = true
+            } else {
+                didCreateConverter = false
+            }
+
+            guard let converter else {
+                throw SpeechServiceError.unsupportedAudioFormat
+            }
+
+            return (converter, recordingFile, didCreateConverter)
+        }
+
+        func recordWrite(frameLength: AVAudioFrameCount) {
+            lock.lock()
+            writtenFrameCount += AVAudioFramePosition(frameLength)
+            lock.unlock()
+        }
+
+        func shouldLogDroppedBuffer() -> Bool {
+            lock.lock()
+            defer { lock.unlock() }
+
+            guard droppedBufferLogCount < 3 else {
+                return false
+            }
+
+            droppedBufferLogCount += 1
+            return true
+        }
+
+        func close() {
+            lock.lock()
+            converter = nil
+            converterInputFormatSignature = nil
+            recordingFile = nil
+            lock.unlock()
+        }
+
+        func totalWrittenFrames() -> AVAudioFramePosition {
+            lock.lock()
+            defer { lock.unlock() }
+            return writtenFrameCount
+        }
+
+        private static func formatSignature(_ format: AVAudioFormat) -> String {
+            "\(String(describing: format.commonFormat)):\(Int(format.sampleRate)):\(format.channelCount):\(format.isInterleaved)"
+        }
+    }
+    #endif
+
     private let transcriptionService: any AudioFileTranscriptionService
     private let locale: Locale
     private let transcriptionPromptProvider: (@Sendable () async -> String?)?
     #if os(macOS)
-    private let preferredInputDeviceID: AudioDeviceID?
     private let audioEngine = AVAudioEngine()
     private var isTapInstalled = false
+    private var macRecordingResources: MacRecordingResources?
     #endif
     private let audioLevelBridge = AudioLevelBridge()
 
@@ -23,14 +108,10 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
     init(
         transcriptionService: any AudioFileTranscriptionService,
         locale: Locale = .autoupdatingCurrent,
-        preferredInputDeviceID: UInt32? = nil,
         transcriptionPromptProvider: (@Sendable () async -> String?)? = nil
     ) {
         self.transcriptionService = transcriptionService
         self.locale = locale
-        #if os(macOS)
-        self.preferredInputDeviceID = preferredInputDeviceID
-        #endif
         self.transcriptionPromptProvider = transcriptionPromptProvider
     }
 
@@ -78,21 +159,10 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
             throw SpeechServiceError.notRecording
         }
 
-        let audioDurationSeconds = Self.recordingDurationSeconds(at: recordingFileURL)
-        let durationDescription = Self.durationDescription(audioDurationSeconds)
-        let recordingFileSizeBytes = Self.recordingFileSizeBytes(at: recordingFileURL)
-        AppLogger.info(
-            """
-            Stopping dictation capture and starting transcription. \
-            durationSeconds=\(durationDescription), \
-            fileSizeBytes=\(recordingFileSizeBytes.map(String.init) ?? "unknown")
-            """,
-            category: .dictation
-        )
-
         #if os(macOS)
-        finishInput()
+        let writtenFrameCount = finishInput()
         self.isRecording = false
+        await Self.waitForRecordingFileToStabilize(at: recordingFileURL)
         #else
         guard let recorder else {
             throw SpeechServiceError.notRecording
@@ -101,7 +171,55 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
         self.recorder = nil
         self.isRecording = false
         stopMetering()
+        let writtenFrameCount: AVAudioFramePosition = 0
         #endif
+
+        let audioDurationSeconds = Self.recordingDurationSeconds(at: recordingFileURL) ?? {
+            #if os(macOS)
+            guard writtenFrameCount > 0 else { return nil }
+            return TimeInterval(writtenFrameCount) / TranscriptionUploadAudioFormat.macSampleRate
+            #else
+            return nil
+            #endif
+        }()
+        let durationDescription = Self.durationDescription(audioDurationSeconds)
+        let recordingFileSizeBytes = Self.recordingFileSizeBytes(at: recordingFileURL)
+        AppLogger.info(
+            """
+            Stopping dictation capture and starting transcription. \
+            durationSeconds=\(durationDescription), \
+            fileSizeBytes=\(recordingFileSizeBytes.map(String.init) ?? "unknown"), \
+            writtenFrames=\(writtenFrameCount)
+            """,
+            category: .dictation
+        )
+
+        if writtenFrameCount == 0 {
+            cleanupRecordingFile()
+            AppLogger.warning(
+                "Skipping transcription because no audio frames were written to disk.",
+                category: .dictation
+            )
+            throw SpeechServiceError.emptyTranscription
+        }
+
+        if let audioDurationSeconds, audioDurationSeconds < 0.1 {
+            cleanupRecordingFile()
+            AppLogger.warning(
+                "Skipping transcription because the captured audio is too short. durationSeconds=\(durationDescription), writtenFrames=\(writtenFrameCount)",
+                category: .dictation
+            )
+            throw SpeechServiceError.emptyTranscription
+        }
+
+        if let recordingFileSizeBytes, recordingFileSizeBytes <= 64 {
+            cleanupRecordingFile()
+            AppLogger.warning(
+                "Skipping transcription because the captured audio file is effectively empty. fileSizeBytes=\(recordingFileSizeBytes), writtenFrames=\(writtenFrameCount)",
+                category: .dictation
+            )
+            throw SpeechServiceError.emptyTranscription
+        }
 
         await DictationLatencyProbe.shared.beginSession(audioDurationSeconds: audioDurationSeconds)
 
@@ -130,7 +248,7 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
             }
 
             AppLogger.info(
-                "Transcription completed successfully. durationSeconds=\(durationDescription)",
+                "Transcription completed successfully. durationSeconds=\(durationDescription), fileSizeBytes=\(recordingFileSizeBytes.map(String.init) ?? "unknown"), writtenFrames=\(writtenFrameCount)",
                 category: .dictation
             )
             return transcript
@@ -141,7 +259,7 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
             )
             cleanupRecordingFile()
             AppLogger.error(
-                "Transcription failed. durationSeconds=\(durationDescription), error=\(error.localizedDescription)",
+                "Transcription failed. durationSeconds=\(durationDescription), fileSizeBytes=\(recordingFileSizeBytes.map(String.init) ?? "unknown"), writtenFrames=\(writtenFrameCount), error=\(error.localizedDescription)",
                 category: .dictation
             )
             throw error
@@ -151,7 +269,7 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
     func cancelRecording() async {
         AppLogger.info("Cancelling active dictation capture", category: .dictation)
         #if os(macOS)
-        finishInput()
+        _ = finishInput()
         isRecording = false
         cleanupRecordingFile()
         audioLevelBridge.emit(0)
@@ -201,17 +319,31 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
     #if os(macOS)
     private func startMacRecording() throws {
         let inputNode = audioEngine.inputNode
-        applyPreferredInputDeviceIfNeeded(inputNode: inputNode)
-        let inputFormat = inputNode.outputFormat(forBus: 0)
+        let reportedInputFormat = inputNode.outputFormat(forBus: 0)
+        guard let outputFormat = TranscriptionUploadAudioFormat.makeMacOutputFormat() else {
+            throw SpeechServiceError.unsupportedAudioFormat
+        }
+
         let fileURL = makeRecordingFileURL()
-        let recordingFile = try AVAudioFile(forWriting: fileURL, settings: inputFormat.settings)
+        let recordingFile = try AVAudioFile(
+            forWriting: fileURL,
+            settings: outputFormat.settings,
+            commonFormat: outputFormat.commonFormat,
+            interleaved: outputFormat.isInterleaved
+        )
+        let recordingResources = MacRecordingResources(
+            recordingFile: recordingFile,
+            outputFormat: outputFormat
+        )
         let audioLevelBridge = self.audioLevelBridge
 
         AppLogger.info(
             """
             Configuring mac transcription capture. \
-            inputSampleRate=\(Int(inputFormat.sampleRate)), \
-            inputChannels=\(inputFormat.channelCount), \
+            reportedInputSampleRate=\(Int(reportedInputFormat.sampleRate)), \
+            reportedInputChannels=\(reportedInputFormat.channelCount), \
+            outputSampleRate=\(Int(outputFormat.sampleRate)), \
+            outputChannels=\(outputFormat.channelCount), \
             fileSampleRate=\(Int(recordingFile.fileFormat.sampleRate)), \
             fileChannels=\(recordingFile.fileFormat.channelCount), \
             fileInterleaved=\(recordingFile.processingFormat.isInterleaved)
@@ -219,19 +351,70 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
             category: .dictation
         )
 
-        inputNode.installTap(onBus: 0, bufferSize: 4_096, format: inputFormat) { buffer, _ in
-            try? recordingFile.write(from: buffer)
+        inputNode.installTap(onBus: 0, bufferSize: 4_096, format: nil) { buffer, _ in
             audioLevelBridge.emit(Self.normalizedLevel(from: buffer))
+
+            do {
+                guard let snapshot = try recordingResources.snapshot(for: buffer.format) else {
+                    return
+                }
+
+                if snapshot.didCreateConverter {
+                    AppLogger.info(
+                        """
+                        Prepared mac transcription converter from tap buffer. \
+                        actualInputSampleRate=\(Int(buffer.format.sampleRate)), \
+                        actualInputChannels=\(buffer.format.channelCount), \
+                        actualInputCommonFormat=\(String(describing: buffer.format.commonFormat)), \
+                        actualInputInterleaved=\(buffer.format.isInterleaved)
+                        """,
+                        category: .dictation
+                    )
+                }
+
+                let convertedBuffer = try Self.convertForTranscription(
+                    buffer,
+                    using: snapshot.converter,
+                    outputFormat: outputFormat
+                )
+                guard convertedBuffer.frameLength > 0 else {
+                    return
+                }
+
+                try snapshot.recordingFile.write(from: convertedBuffer)
+                recordingResources.recordWrite(frameLength: convertedBuffer.frameLength)
+            } catch {
+                guard recordingResources.shouldLogDroppedBuffer() else {
+                    return
+                }
+
+                AppLogger.warning(
+                    """
+                    Dropping captured audio buffer before transcription write. \
+                    inputSampleRate=\(Int(buffer.format.sampleRate)), \
+                    inputChannels=\(buffer.format.channelCount), \
+                    inputCommonFormat=\(String(describing: buffer.format.commonFormat)), \
+                    inputInterleaved=\(buffer.format.isInterleaved), \
+                    frameLength=\(buffer.frameLength), \
+                    error=\(error.localizedDescription)
+                    """,
+                    category: .dictation
+                )
+                return
+            }
         }
 
         isTapInstalled = true
+        macRecordingResources = recordingResources
         recordingFileURL = fileURL
         audioEngine.prepare()
         try audioEngine.start()
         isRecording = true
     }
 
-    private func finishInput() {
+    private func finishInput() -> AVAudioFramePosition {
+        let writtenFrameCount = macRecordingResources?.totalWrittenFrames() ?? 0
+
         if audioEngine.isRunning {
             audioEngine.stop()
         }
@@ -242,23 +425,51 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
         }
 
         audioEngine.reset()
+        macRecordingResources?.close()
+        macRecordingResources = nil
+        return writtenFrameCount
     }
 
-    private func applyPreferredInputDeviceIfNeeded(inputNode: AVAudioInputNode) {
-        guard let preferredInputDeviceID else { return }
-        guard let audioUnit = inputNode.audioUnit else { return }
-
-        var deviceID = preferredInputDeviceID
-        let status = AudioUnitSetProperty(
-            audioUnit,
-            kAudioOutputUnitProperty_CurrentDevice,
-            kAudioUnitScope_Global,
-            0,
-            &deviceID,
-            UInt32(MemoryLayout<AudioDeviceID>.size)
+    nonisolated private static func convertForTranscription(
+        _ inputBuffer: AVAudioPCMBuffer,
+        using converter: AVAudioConverter,
+        outputFormat: AVAudioFormat
+    ) throws -> AVAudioPCMBuffer {
+        let outputFrameCapacity = TranscriptionUploadAudioFormat.macConvertedFrameCapacity(
+            for: inputBuffer.frameLength,
+            inputSampleRate: inputBuffer.format.sampleRate
         )
-        if status != noErr {
-            AppLogger.warning("Unable to switch input device. status=\(status)")
+        guard let outputBuffer = AVAudioPCMBuffer(
+            pcmFormat: outputFormat,
+            frameCapacity: outputFrameCapacity
+        ) else {
+            throw SpeechServiceError.unsupportedAudioFormat
+        }
+
+        var didProvideInput = false
+        var conversionError: NSError?
+        let status = converter.convert(to: outputBuffer, error: &conversionError) { _, outStatus in
+            if didProvideInput {
+                outStatus.pointee = .noDataNow
+                return nil
+            }
+
+            didProvideInput = true
+            outStatus.pointee = .haveData
+            return inputBuffer
+        }
+
+        if let conversionError {
+            throw conversionError
+        }
+
+        switch status {
+        case .haveData, .inputRanDry, .endOfStream:
+            return outputBuffer
+        case .error:
+            throw SpeechServiceError.unsupportedAudioFormat
+        @unknown default:
+            throw SpeechServiceError.unsupportedAudioFormat
         }
     }
     #endif
@@ -386,5 +597,27 @@ actor OpenAISpeechService: SpeechService, AudioLevelStreaming {
         }
 
         return Int64(fileSize)
+    }
+
+    nonisolated private static func waitForRecordingFileToStabilize(at fileURL: URL) async {
+        var previousFileSize: Int64?
+
+        for _ in 0..<40 {
+            let currentFileSize = recordingFileSizeBytes(at: fileURL)
+            let currentDuration = recordingDurationSeconds(at: fileURL)
+
+            if let currentDuration, currentDuration > 0 {
+                return
+            }
+
+            if let currentFileSize,
+               currentFileSize > 0,
+               previousFileSize == currentFileSize {
+                return
+            }
+
+            previousFileSize = currentFileSize
+            try? await Task.sleep(for: .milliseconds(50))
+        }
     }
 }

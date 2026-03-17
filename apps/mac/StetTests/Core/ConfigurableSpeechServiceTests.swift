@@ -94,7 +94,7 @@ struct ConfigurableSpeechServiceTests {
                     proxyBox.set(settings)
                     return TestURLSessionFactory.makeSession()
                 },
-                makeOpenAISpeechService: { _, _, _, _, _ in speech },
+                makeOpenAISpeechService: { _, _, _, _ in speech },
                 makeRewriteService: { _, _ in RecordingRewriteService() }
             )
         )
@@ -129,7 +129,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: settingsStore,
             dependencies: .init(
                 makeNetworkSession: { _ in TestURLSessionFactory.makeSession() },
-                makeOpenAISpeechService: { _, _, _, _, promptProvider in
+                makeOpenAISpeechService: { _, _, _, promptProvider in
                     await promptBox.set(await promptProvider())
                     return openAISpeech
                 },
@@ -162,7 +162,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: settingsStore,
             dependencies: .init(
                 makeNetworkSession: { _ in TestURLSessionFactory.makeSession() },
-                makeOpenAISpeechService: { _, _, _, _, promptProvider in
+                makeOpenAISpeechService: { _, _, _, promptProvider in
                     await promptBox.set(await promptProvider())
                     return groqSpeech
                 },
@@ -186,7 +186,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: DictationSettingsStore(defaults: TestSupport.makeUserDefaults(), secretStore: secretStore),
             dependencies: .init(
                 makeNetworkSession: { _ in TestURLSessionFactory.makeSession() },
-                makeOpenAISpeechService: { _, _, _, _, _ in speech },
+                makeOpenAISpeechService: { _, _, _, _ in speech },
                 makeRewriteService: { _, _ in RecordingRewriteService() }
             )
         )

@@ -68,18 +68,16 @@ struct DictationSettingsStoreTests {
         #expect(snapshot.proxySettings.customHost == "127.0.0.1")
     }
 
-    @Test func translationAndDeviceSettingsRoundTrip() {
+    @Test func translationAndDictionarySettingsRoundTrip() {
         let defaults = TestSupport.makeUserDefaults()
         let store = makeStore(defaults: defaults)
 
         store.saveTranslationTargetLanguage(.japanese)
         store.saveTranslateSelectedTextOnTranslationHotkey(false)
-        store.savePreferredAudioInputDeviceID(123)
         store.savePersonalDictionary([" OpenAI ", "groq", "Groq"])
 
         #expect(store.loadTranslationTargetLanguage() == .japanese)
         #expect(store.loadTranslateSelectedTextOnTranslationHotkey() == false)
-        #expect(store.loadPreferredAudioInputDeviceID() == 123)
         #expect(store.loadPersonalDictionary() == ["OpenAI", "groq"])
     }
 
