@@ -14,11 +14,33 @@ export const authGuard = async (
         throw new ApiError(401, "unauthorized", "A supabase access token is required");
     }
     const admin = createAdminClient();
-    const { data, error } = await admin.auth.getUser(token);
+    let data;
+    let error;
+    try {
+        ({ data, error } = await admin.auth.getUser(token));
+    } catch (authLookupError) {
+        log("error", "auth_lookup_failed", c.get("requestId"), {
+            path: c.req.path,
+            message: authLookupError instanceof Error ? authLookupError.message : String(authLookupError),
+        });
+        throw new ApiError(500, "auth_lookup_failed", "The relay could not validate the Supabase session.");
+    }
     if (error || !data.user) {
         throw new ApiError(401, "unauthorized", "The Supabase access token is invalid or expired.")
     }
-    const entitlement = await ensureEntitlement(admin, data.user.id);
+    let entitlement;
+    try {
+        entitlement = await ensureEntitlement(admin, data.user.id);
+    } catch (entitlementError) {
+        if (entitlementError instanceof ApiError) {
+            throw entitlementError;
+        }
+        log("error", "entitlement_lookup_failed", c.get("requestId"), {
+            userId: data.user.id,
+            message: entitlementError instanceof Error ? entitlementError.message : String(entitlementError),
+        });
+        throw new ApiError(500, "entitlement_lookup_failed", "The relay could not resolve account entitlements.");
+    }
     if (!entitlement.managed_enabled) {
         throw new ApiError(403, "managed_disabled", "Managed mode is disabled for this account.");
     }
@@ -71,7 +93,6 @@ async function ensureEntitlement(
     }
     return data as ManagedEntitlement
 }
-
 
 
 

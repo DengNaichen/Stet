@@ -12,9 +12,15 @@ export async function getUsageSummary(
     admin: SupabaseClient,
     userId: string
 ): Promise<UsageSummary> {
-    const { data, error } = await admin.rpc("get_managed_usage_summary", {
-        p_user_id: userId,
-    });
+    let data;
+    let error;
+    try {
+        ({ data, error } = await admin.rpc("get_managed_usage_summary", {
+            p_user_id: userId,
+        }));
+    } catch {
+        throw new ApiError(500, "usage_summary_rpc_failed", "The relay could not load quota usage from the database.");
+    }
 
     if (error || !data || !Array.isArray(data) || !data[0]) {
         throw new ApiError(500, "usage_summary_error", "The relay could not load quota usage.");
@@ -31,11 +37,17 @@ export async function beginTranscriptionUsage(
         provider: ProviderName;
     }
 ): Promise<TranscriptionUsageReservation> {
-    const { data, error } = await admin.rpc("begin_managed_transcription_usage", {
-        p_user_id: args.userId,
-        p_request_id: args.requestId,
-        p_provider: args.provider,
-    });
+    let data;
+    let error;
+    try {
+        ({ data, error } = await admin.rpc("begin_managed_transcription_usage", {
+            p_user_id: args.userId,
+            p_request_id: args.requestId,
+            p_provider: args.provider,
+        }));
+    } catch {
+        throw new ApiError(500, "quota_rpc_failed", "The relay could not evaluate the current quota in the database.");
+    }
 
     if (error?.code === "23505") {
         throw new ApiError(409, "duplicate_request", "This request has already been processed.");
@@ -82,12 +94,17 @@ export async function finalizeTranscriptionUsage(
             ? Math.max(args.reservedBilledChars, transcriptionChars)
             : 0;
 
-    const { error } = await admin.rpc("finalize_managed_transcription_usage", {
-        p_usage_event_id: args.usageEventId,
-        p_transcription_chars: transcriptionChars,
-        p_billed_chars: billedChars,
-        p_upstream_status: args.upstreamStatus,
-    });
+    let error;
+    try {
+        ({ error } = await admin.rpc("finalize_managed_transcription_usage", {
+            p_usage_event_id: args.usageEventId,
+            p_transcription_chars: transcriptionChars,
+            p_billed_chars: billedChars,
+            p_upstream_status: args.upstreamStatus,
+        }));
+    } catch {
+        throw new ApiError(500, "usage_finalize_rpc_failed", "The relay could not finalize usage in the database.");
+    }
 
     if (error) {
         throw new ApiError(500, "usage_finalize_error", "The relay could not finalize usage.");

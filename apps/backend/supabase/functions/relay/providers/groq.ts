@@ -1,21 +1,22 @@
 import { generateText, experimental_transcribe as transcribe } from "npm:ai";
-import { groq } from "npm:@ai-sdk/groq";
+import { createGroq } from "npm:@ai-sdk/groq";
 import { AIProvider, TranscribeOptions } from "./provider.ts";
 import { requireEnv } from "../utils.ts";
 import { GroqModels } from "./models.ts";
 
 export class GroqProvider implements AIProvider {
+    private client: any;
     private model: any;
     private transcriptionModelId: string;
 
     constructor(options?: { modelId?: string; transcriptionModelId?: string }) {
         const apiKey = requireEnv("GROQ_API_KEY");
 
-        const client = groq({
+        this.client = createGroq({
             apiKey: apiKey,
         });
 
-        this.model = client(options?.modelId || GroqModels.REWRITE);
+        this.model = this.client(options?.modelId || GroqModels.REWRITE);
         this.transcriptionModelId = options?.transcriptionModelId || GroqModels.TRANSCRIBE;
     }
 
@@ -35,7 +36,7 @@ export class GroqProvider implements AIProvider {
         if (options?.prompt) providerOpts.prompt = options.prompt;
 
         const { text } = await transcribe({
-            model: groq.transcription(this.transcriptionModelId),
+            model: this.client.transcription(this.transcriptionModelId),
             audio: audio,
             ...(Object.keys(providerOpts).length > 0
                 ? { providerOptions: { groq: providerOpts } }
@@ -45,4 +46,3 @@ export class GroqProvider implements AIProvider {
         return { text };
     }
 }
-

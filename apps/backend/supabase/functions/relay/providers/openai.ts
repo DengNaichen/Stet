@@ -1,20 +1,21 @@
 import { generateText, experimental_transcribe as transcribe } from "npm:ai";
-import { openai } from "npm:@ai-sdk/openai";
+import { createOpenAI } from "npm:@ai-sdk/openai";
 import { AIProvider, TranscribeOptions } from "./provider.ts";
 import { requireEnv } from "../utils.ts";
 import { OpenAIModels } from "./models.ts";
 
 export class OpenAIProvider implements AIProvider {
+    private client: any;
     private model: any;
     private transcriptionModelId: string;
 
     constructor(options?: { modelId?: string; transcriptionModelId?: string }) {
         const apiKey = requireEnv("OPENAI_API_KEY");
 
-        const client = openai({
+        this.client = createOpenAI({
             apiKey: apiKey,
         });
-        this.model = client(options?.modelId || OpenAIModels.REWRITE);
+        this.model = this.client(options?.modelId || OpenAIModels.REWRITE);
         this.transcriptionModelId = options?.transcriptionModelId || OpenAIModels.TRANSCRIBE;
     }
 
@@ -34,7 +35,7 @@ export class OpenAIProvider implements AIProvider {
         if (options?.prompt) providerOpts.prompt = options.prompt;
 
         const { text } = await transcribe({
-            model: openai.transcription(this.transcriptionModelId),
+            model: this.client.transcription(this.transcriptionModelId),
             audio: audio,
             ...(Object.keys(providerOpts).length > 0
                 ? { providerOptions: { openai: providerOpts } }
@@ -44,4 +45,3 @@ export class OpenAIProvider implements AIProvider {
         return { text };
     }
 }
-

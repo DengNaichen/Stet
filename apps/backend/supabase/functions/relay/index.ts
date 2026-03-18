@@ -19,7 +19,7 @@ import type { HonoVariables } from "./type.ts";
 type ProviderName = "openai" | "groq";
 
 const configuredProvider = Deno.env.get("AI_PROVIDER")?.trim().toLowerCase();
-const PROVIDER_NAME: ProviderName = configuredProvider === "groq" ? "groq" : "openai";
+const PROVIDER_NAME: ProviderName = configuredProvider === "openai" ? "openai" : "groq";
 
 function makeProvider(): AIProvider {
 	switch (PROVIDER_NAME) {
@@ -114,7 +114,16 @@ app.post("/audio/transcriptions", async (c) => {
 	const user = c.get("user");
 
 	// Parse multipart form
-	const formData = await c.req.raw.formData();
+	let formData: FormData;
+	try {
+		formData = await c.req.raw.formData();
+	} catch (error) {
+		log("error", "invalid_multipart_body", requestId, {
+			userId: user.id,
+			message: error instanceof Error ? error.message : String(error),
+		});
+		throw new ApiError(400, "invalid_multipart_body", "The transcription upload body could not be parsed.");
+	}
 	const file = formData.get("file");
 	if (!(file instanceof File)) {
 		throw new ApiError(400, "missing_file", "The transcription request must include a file.");
@@ -126,7 +135,16 @@ app.post("/audio/transcriptions", async (c) => {
 	const preferredSpellings = parsePreferredSpellings(formData);
 
 	const provider = makeProvider();
-	const audioBytes = new Uint8Array(await file.arrayBuffer());
+	let audioBytes: Uint8Array;
+	try {
+		audioBytes = new Uint8Array(await file.arrayBuffer());
+	} catch (error) {
+		log("error", "audio_buffer_read_failed", requestId, {
+			userId: user.id,
+			message: error instanceof Error ? error.message : String(error),
+		});
+		throw new ApiError(400, "invalid_audio_body", "The transcription audio upload could not be read.");
+	}
 
 	log("info", "dictation_pipeline_started", requestId, {
 		userId: user.id,
@@ -198,6 +216,10 @@ app.notFound(() => {
 
 app.onError((error, c) => {
 	const requestId = c.get("requestId") || crypto.randomUUID();
+	const internalMessage =
+		error instanceof Error
+			? `${error.name}: ${error.message}`
+			: String(error);
 
 	if (error instanceof ApiError) {
 		log(error.status >= 500 ? "error" : "warn", "api_error", requestId, {
@@ -216,11 +238,16 @@ app.onError((error, c) => {
 		);
 	}
 
-	log("error", "unhandled_error", requestId, { message: error.message });
+	log("error", "unhandled_error", requestId, {
+		path: c.req.path,
+		message: internalMessage,
+		name: error instanceof Error ? error.name : typeof error,
+		stack: error instanceof Error ? error.stack ?? null : null,
+	});
 	return c.json(
 		{
 			code: "internal_error",
-			message: "The relay encountered an unexpected error.",
+			message: internalMessage,
 			request_id: requestId,
 		},
 		500
@@ -231,7 +258,43 @@ app.onError((error, c) => {
 // Serve
 // ---------------------------------------------------------------------------
 
-Deno.serve((request) => app.fetch(rewriteForRelayBasePath(request)));
+Deno.serve(async (request) => {
+	const requestId = sanitizeRequestId(request.headers.get("x-request-id"));
+
+	try {
+		const response = await app.fetch(rewriteForRelayBasePath(request));
+		if (!response.headers.has("x-request-id")) {
+			response.headers.set("x-request-id", requestId);
+		}
+		return response;
+	} catch (error) {
+		const message =
+			error instanceof Error
+				? `${error.name}: ${error.message}`
+				: String(error);
+
+		log("error", "serve_wrapper_error", requestId, {
+			path: new URL(request.url).pathname,
+			message,
+			name: error instanceof Error ? error.name : typeof error,
+			stack: error instanceof Error ? error.stack ?? null : null,
+		});
+
+		return Response.json(
+			{
+				code: "serve_wrapper_error",
+				message,
+				request_id: requestId,
+			},
+			{
+				status: 500,
+				headers: {
+					"x-request-id": requestId,
+				},
+			}
+		);
+	}
+});
 
 // ---------------------------------------------------------------------------
 // Helpers

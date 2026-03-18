@@ -94,6 +94,6 @@ The main dictation pipeline endpoint. Requires auth.
 
 ## Notes
 
-- Set `AI_PROVIDER` env var to `openai` (default) or `groq`.
+- Set `AI_PROVIDER` env var to `groq` (default) or `openai`.
 - Weekly transcription quota is billed from the raw transcription text using `max(min_billed_chars_per_transcription, normalized_transcription_chars)`.
 - `BYOK` is out of scope for this backend and remains a direct path.
