@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 6D3A1A982F675F44005DA839 /* KeyboardShortcuts */; };
+		6D8230732F69F4A00096571A /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 6D8230722F69F4A00096571A /* Supabase */; };
 		A7D90C1E4B4D4E5F8A1B2C30 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */; };
 		C80A4F64301851B7005C2101 /* OpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = C80A4F66301851B7005C2101 /* OpenAI */; };
 /* End PBXBuildFile section */
@@ -58,6 +59,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6D8230732F69F4A00096571A /* Supabase in Frameworks */,
 				C80A4F64301851B7005C2101 /* OpenAI in Frameworks */,
 				A7D90C1E4B4D4E5F8A1B2C30 /* Sparkle in Frameworks */,
 				6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */,
@@ -124,6 +126,7 @@
 				C80A4F66301851B7005C2101 /* OpenAI */,
 				A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */,
 				6D3A1A982F675F44005DA839 /* KeyboardShortcuts */,
+				6D8230722F69F4A00096571A /* Supabase */,
 			);
 			productName = Stet;
 			productReference = 6D29DC7D2F5FA23000267DEA /* Stet.app */;
@@ -211,6 +214,7 @@
 				C80A4F65301851B7005C2101 /* XCRemoteSwiftPackageReference "OpenAI" */,
 				A7D90C1E4B4D4E5F8A1B2C32 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+				6D82306D2F69F4A00096571A /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6D29DC7E2F5FA23000267DEA /* Products */;
@@ -426,12 +430,15 @@
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Stet/Info.plist;
 				"INFOPLIST_KEY_LSApplicationCategoryType[sdk=macosx*]" = "public.app-category.productivity";
 				"INFOPLIST_KEY_LSUIElement[sdk=macosx*]" = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Stet uses System Events to paste your transcript back into the app you were using.";
 				"INFOPLIST_KEY_NSAudioCaptureUsageDescription[sdk=macosx*]" = "Stet temporarily silences other audio while dictation is active.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Stet uses the microphone to capture your dictation.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Stet uses on-device speech recognition to turn your voice into text.";
+				INFOPLIST_KEY_SUPABASE_PUBLISHABLE_KEY = "$(SUPABASE_PUBLISHABLE_KEY)";
+				INFOPLIST_KEY_SUPABASE_URL = "$(SUPABASE_URL)";
 				"INFOPLIST_KEY_SUAutomaticallyUpdate[sdk=macosx*]" = NO;
 				"INFOPLIST_KEY_SUEnableAutomaticChecks[sdk=macosx*]" = NO;
 				"INFOPLIST_KEY_SUEnableInstallerLauncherService[sdk=macosx*]" = YES;
@@ -456,6 +463,8 @@
 				SPARKLE_PUBLIC_ED_KEY = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPABASE_PUBLISHABLE_KEY = sb_publishable_DiDRWukKUQrcdBDUjYmJGw_5N51MiHP;
+				SUPABASE_URL = "https://qtffabmkvbkzarwevfrk.supabase.co";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -477,12 +486,15 @@
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Stet/Info.plist;
 				"INFOPLIST_KEY_LSApplicationCategoryType[sdk=macosx*]" = "public.app-category.productivity";
 				"INFOPLIST_KEY_LSUIElement[sdk=macosx*]" = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Stet uses System Events to paste your transcript back into the app you were using.";
 				"INFOPLIST_KEY_NSAudioCaptureUsageDescription[sdk=macosx*]" = "Stet temporarily silences other audio while dictation is active.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Stet uses the microphone to capture your dictation.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Stet uses on-device speech recognition to turn your voice into text.";
+				INFOPLIST_KEY_SUPABASE_PUBLISHABLE_KEY = "$(SUPABASE_PUBLISHABLE_KEY)";
+				INFOPLIST_KEY_SUPABASE_URL = "$(SUPABASE_URL)";
 				"INFOPLIST_KEY_SUAutomaticallyUpdate[sdk=macosx*]" = NO;
 				"INFOPLIST_KEY_SUEnableAutomaticChecks[sdk=macosx*]" = NO;
 				"INFOPLIST_KEY_SUEnableInstallerLauncherService[sdk=macosx*]" = YES;
@@ -507,6 +519,8 @@
 				SPARKLE_PUBLIC_ED_KEY = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPABASE_PUBLISHABLE_KEY = "";
+				SUPABASE_URL = "";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -655,6 +669,14 @@
 				minimumVersion = 2.4.0;
 			};
 		};
+		6D82306D2F69F4A00096571A /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase-community/supabase-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
 		A7D90C1E4B4D4E5F8A1B2C32 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle.git";
@@ -678,6 +700,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
 			productName = KeyboardShortcuts;
+		};
+		6D8230722F69F4A00096571A /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6D82306D2F69F4A00096571A /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
 		};
 		A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -1,5 +1,6 @@
 #if os(macOS)
 import SwiftUI
+internal import Auth
 
 private enum MacSettingsSidebarGroup: String, CaseIterable, Identifiable {
     case workspace = "Workspace"
@@ -103,7 +104,9 @@ struct MacSettingsView: View {
 
     @StateObject private var dictionaryViewModel = DictionaryViewModel()
     @StateObject private var openAISettingsViewModel = MacOpenAISettingsViewModel()
+    private let supabase = SupabaseService.shared
     @State private var selectedTab: MacSettingsTab? = .general
+    @State private var isShowingAccountSheet = false
     @State private var searchText = ""
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
@@ -119,6 +122,10 @@ struct MacSettingsView: View {
             reloadStateFromPreferences()
             synchronizeSelectionWithFilter()
         }
+        .sheet(isPresented: $isShowingAccountSheet) {
+            AuthView()
+                .frame(minWidth: 520, minHeight: 480)
+        }
         .onChange(of: searchText) { _, _ in
             synchronizeSelectionWithFilter()
         }
@@ -131,34 +138,48 @@ struct MacSettingsView: View {
     }
 
     private var sidebar: some View {
-        List(selection: $selectedTab) {
-            if filteredTabs.isEmpty {
-                ContentUnavailableView(
-                    "No Results",
-                    systemImage: "magnifyingglass",
-                    description: Text("Try a different keyword.")
-                )
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-                .tag(Optional<MacSettingsTab>.none)
-            } else {
-                ForEach(MacSettingsSidebarGroup.allCases) { group in
-                    let tabs = filteredTabs(in: group)
+        VStack(spacing: 0) {
+            Button {
+                isShowingAccountSheet = true
+            } label: {
+                sidebarAccountRow
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+            }
+            .buttonStyle(.plain)
 
-                    if !tabs.isEmpty {
-                        Section(group.rawValue) {
-                            ForEach(tabs) { tab in
-                                NavigationLink(value: tab) {
-                                    sidebarRow(for: tab)
+            Divider()
+
+            List(selection: $selectedTab) {
+                if filteredTabs.isEmpty {
+                    ContentUnavailableView(
+                        "No Results",
+                        systemImage: "magnifyingglass",
+                        description: Text("Try a different keyword.")
+                    )
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .tag(Optional<MacSettingsTab>.none)
+                } else {
+                    ForEach(MacSettingsSidebarGroup.allCases) { group in
+                        let tabs = filteredTabs(in: group)
+
+                        if !tabs.isEmpty {
+                            Section(group.rawValue) {
+                                ForEach(tabs) { tab in
+                                    NavigationLink(value: tab) {
+                                        sidebarRow(for: tab)
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+            .environment(\.sidebarRowSize, .large)
+            .listStyle(.sidebar)
         }
-        .environment(\.sidebarRowSize, .large)
-        .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 220, ideal: 250, max: 320)
     }
 
@@ -190,6 +211,55 @@ struct MacSettingsView: View {
         } else {
             Label(tab.title, systemImage: tab.iconName)
         }
+    }
+
+    private var sidebarAccountRow: some View {
+        HStack(spacing: 12) {
+            accountAvatar
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(accountTitle)
+                    .font(.headline)
+                    .lineLimit(1)
+
+                Text(accountSubtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+
+    private var accountAvatar: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: accountAvatarGradient,
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 42, height: 42)
+                .overlay {
+                    Text(accountInitials)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                }
+
+            Circle()
+                .fill(supabase.currentSession == nil ? Color.secondary.opacity(0.6) : Color.green)
+                .frame(width: 10, height: 10)
+                .overlay {
+                    Circle()
+                        .stroke(Color(nsColor: .controlBackgroundColor), lineWidth: 2)
+                }
+        }
+        .accessibilityHidden(true)
     }
 
     @ViewBuilder
@@ -240,6 +310,45 @@ struct MacSettingsView: View {
         }
 
         selectedTab = filteredTabs.first
+    }
+
+    private var accountTitle: String {
+        if let email = supabase.currentSession?.user.email, !email.isEmpty {
+            return email
+        }
+
+        return "Stet Account"
+    }
+
+    private var accountSubtitle: String {
+        if supabase.currentSession == nil {
+            return supabase.isConfigured ? "Sign in for relay-backed features" : "Supabase setup required"
+        }
+
+        return "Signed in"
+    }
+
+    private var accountInitials: String {
+        let source = supabase.currentSession?.user.email ?? "Stet"
+        let components = source
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init)
+            .filter { !$0.isEmpty }
+
+        let letters = components
+            .prefix(2)
+            .compactMap { $0.first.map { String($0).uppercased() } }
+            .joined()
+
+        return letters.isEmpty ? "S" : letters
+    }
+
+    private var accountAvatarGradient: [Color] {
+        if supabase.currentSession == nil {
+            return [Color.secondary.opacity(0.75), Color.secondary.opacity(0.45)]
+        }
+
+        return [Color.accentColor.opacity(0.95), Color.accentColor.opacity(0.65)]
     }
 }
 #endif
