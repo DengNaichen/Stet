@@ -70,6 +70,8 @@ struct DictationView: View {
             return .resetTapped
         case .result, .error:
             return .startTapped
+        case .clipboardPending:
+            return .resetTapped
         }
     }
 
@@ -83,6 +85,8 @@ struct DictationView: View {
             return "Wait"
         case .result, .error:
             return "Again"
+        case .clipboardPending:
+            return "Dismiss"
         }
     }
 
@@ -96,6 +100,8 @@ struct DictationView: View {
             return .orange
         case .result:
             return .green
+        case .clipboardPending:
+            return .mint
         case .error:
             return .gray
         }
@@ -103,7 +109,7 @@ struct DictationView: View {
 
     private var showsReset: Bool {
         switch viewModel.state {
-        case .idle, .listening, .processing, .result, .error:
+        case .idle, .listening, .processing, .result, .clipboardPending, .error:
             return false
         }
     }
@@ -123,6 +129,10 @@ struct DictationView: View {
             ProgressView("Finalizing transcription...")
 
         case .result(let text):
+            Text(text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+        case .clipboardPending(let text):
             Text(text)
                 .frame(maxWidth: .infinity, alignment: .leading)
 

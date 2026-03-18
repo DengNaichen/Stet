@@ -85,6 +85,8 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
             return "Stop Recording"
         case .processing:
             return "Processing"
+        case .clipboardPending:
+            return "Copy to Clipboard"
         case .result, .error:
             return "Start Again"
         }
@@ -168,6 +170,8 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
             return "Live"
         case .processing:
             return "Finishing"
+        case .clipboardPending:
+            return "Copy"
         case .result:
             return "Captured"
         case .error:
@@ -213,6 +217,10 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
 
     func hidePanel() {
         sessionController.hidePanel()
+    }
+
+    func dismissPendingCopy() {
+        sessionController.dismissPendingCopy()
     }
 
     func togglePanel() {

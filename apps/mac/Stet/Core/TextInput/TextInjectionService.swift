@@ -115,7 +115,14 @@ final class SystemTextInjectionService: TextInjectionService {
         clipboardService.copy(text)
         let didPaste = await pasteClipboard(into: application)
 
-        guard didPaste, !keepResultInClipboard else {
+        guard didPaste else {
+            if !keepResultInClipboard {
+                snapshot.restore(to: pasteboard)
+            }
+            return false
+        }
+
+        guard !keepResultInClipboard else {
             return didPaste
         }
 

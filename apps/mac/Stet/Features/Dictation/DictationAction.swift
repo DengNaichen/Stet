@@ -5,5 +5,6 @@ enum DictationAction: Equatable {
     case stopTapped
     case resetTapped
     case transcriptionSucceeded(String)
+    case clipboardPending(String)
     case transcriptionFailed(String)
 }

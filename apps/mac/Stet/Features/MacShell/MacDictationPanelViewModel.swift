@@ -34,6 +34,10 @@ final class MacDictationPanelViewModel: ObservableObject {
         appModel.hidePanel()
     }
 
+    func dismissPendingCopy() {
+        appModel.dismissPendingCopy()
+    }
+
     func cancelActiveCapture() {
         appModel.cancelActiveCapture()
     }

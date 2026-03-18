@@ -22,6 +22,8 @@ struct MacDictationPanelView: View {
                 thinkingCapsule
             case .result:
                 insertedCapsule
+            case .clipboardPending:
+                clipboardPendingCapsule
             case .error(let message):
                 errorCapsule(message: message)
             }
@@ -108,6 +110,30 @@ struct MacDictationPanelView: View {
         }
     }
 
+    private var clipboardPendingCapsule: some View {
+        shell(style: .clipboardPending) {
+            HStack(spacing: 10) {
+                controlButton(
+                    systemName: "xmark",
+                    isEmphasized: false,
+                    action: viewModel.dismissPendingCopy
+                )
+
+                Text(viewModel.statusText)
+                    .font(statusFont(weight: .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.9)
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                actionButton(
+                    title: "Copy",
+                    action: viewModel.performPrimaryAction
+                )
+            }
+        }
+    }
+
     private func errorCapsule(message: String) -> some View {
         shell(style: .error) {
             HStack(spacing: 10) {
@@ -177,6 +203,24 @@ struct MacDictationPanelView: View {
                 .background(
                     Circle()
                         .fill(isEmphasized ? Color.white : Color.white.opacity(0.12))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func actionButton(
+        title: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: layout.secondaryFontSize + 1, weight: .bold, design: .rounded))
+                .foregroundStyle(.black)
+                .frame(minWidth: layout.controlButtonSize + 18, minHeight: layout.controlButtonSize)
+                .padding(.horizontal, 8)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(Color.white)
                 )
         }
         .buttonStyle(.plain)
@@ -399,6 +443,12 @@ private struct BlendCapsuleStyle {
 
     static let result = BlendCapsuleStyle(
         level: 0.16,
+        isActive: false,
+        palette: BlendPalette.sunsetPastel
+    )
+
+    static let clipboardPending = BlendCapsuleStyle(
+        level: 0.18,
         isActive: false,
         palette: BlendPalette.sunsetPastel
     )

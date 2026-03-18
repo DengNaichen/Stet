@@ -124,13 +124,14 @@ struct MacDictationWorkflowControllerTests {
         let subject = makeController(textInjectionService: textInjectionService)
         var showPanelCount = 0
 
-        await subject.controller.handleCompletedResult(
+        let outcome = await subject.controller.handleCompletedResult(
             text: "hello",
             workflow: .dictation
         ) {
             showPanelCount += 1
         }
 
+        #expect(outcome == .completed)
         #expect(subject.clipboard.copiedTexts == ["hello"])
         #expect(subject.textInjectionService.pasteTargets.count == 1)
         #expect(showPanelCount == 0)
@@ -147,13 +148,14 @@ struct MacDictationWorkflowControllerTests {
         let subject = makeController(textInjectionService: textInjectionService)
         var showPanelCount = 0
 
-        await subject.controller.handleCompletedResult(
+        let outcome = await subject.controller.handleCompletedResult(
             text: "rewritten",
             workflow: .rewriteFromSelection(sourceText: "hello")
         ) {
             showPanelCount += 1
         }
 
+        #expect(outcome == .clipboardPending)
         #expect(subject.textInjectionService.replacementTexts == ["rewritten"])
         #expect(subject.textInjectionService.didRequestAccessIfNeeded)
         #expect(showPanelCount == 0)

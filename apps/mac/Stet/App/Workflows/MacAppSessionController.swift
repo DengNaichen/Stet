@@ -17,7 +17,7 @@ final class MacAppSessionController {
     private let notificationCenter: NotificationCenter
     private let hotkeyRegistrar: any MacDictationHotkeyRegistering
     private var cancellables = Set<AnyCancellable>()
-    private var stateResetTask: Task<Void, Never>?
+    private var completionHandlingTask: Task<Void, Never>?
     private var hotkeyInteraction = MacDictationHotkeyInteraction()
     private var previousDictationState: DictationState = .idle
     private weak var presentationModel: (any MacAppPresentationModeling)?
@@ -157,6 +157,16 @@ final class MacAppSessionController {
         shellPresentationController.hidePanel()
     }
 
+    func dismissPendingCopy() {
+        guard case .clipboardPending = dictationState else {
+            hidePanel()
+            return
+        }
+
+        hidePanel()
+        workflowController.dictationViewModel.send(.resetTapped)
+    }
+
     func togglePanel() {
         guard hasRequiredPermissions || isPanelVisible else {
             presentRequiredPermissionsGateIfNeeded()
@@ -211,6 +221,8 @@ final class MacAppSessionController {
         switch dictationState {
         case .idle, .result, .error:
             requestDictationCaptureStart(from: source)
+        case .clipboardPending(let text):
+            commitPendingCopy(text)
         case .listening:
             requestDictationCaptureStopIfListening()
         case .processing:
@@ -285,6 +297,10 @@ final class MacAppSessionController {
         switch state {
         case .listening, .error:
             showTransientPanel()
+        case .clipboardPending:
+            if !isPanelVisible {
+                showTransientPanel()
+            }
         case .idle:
             guard workflowController.activeRecordingSource == nil else { return }
             workflowController.resetWorkflowIfNeeded()
@@ -298,31 +314,34 @@ final class MacAppSessionController {
         guard case .result(let text) = state else { return }
 
         let completedWorkflow = workflowController.activeWorkflow
-        Task { @MainActor [weak self] in
+        completionHandlingTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            await workflowController.handleCompletedResult(
+            let outcome = await workflowController.handleCompletedResult(
                 text: text,
                 workflow: completedWorkflow,
                 showTransientPanel: showTransientPanel
             )
-        }
 
-        scheduleStateReset()
+            guard !Task.isCancelled else { return }
+            guard case .result = dictationState else { return }
+
+            switch outcome {
+            case .completed:
+                hidePanel()
+                workflowController.dictationViewModel.send(.resetTapped)
+            case .clipboardPending:
+                if !isPanelVisible {
+                    showTransientPanel()
+                }
+                workflowController.dictationViewModel.send(.clipboardPending(text))
+            }
+        }
     }
 
     private func cancelPendingStateTasks() {
-        stateResetTask?.cancel()
-        stateResetTask = nil
+        completionHandlingTask?.cancel()
+        completionHandlingTask = nil
         shellPresentationController.cancelScheduledPanelHide()
-    }
-
-    private func scheduleStateReset() {
-        stateResetTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(900))
-            guard let self else { return }
-            guard case .result = dictationState else { return }
-            workflowController.dictationViewModel.send(.resetTapped)
-        }
     }
 
     private func scheduleTransientPanelHideIfNeeded() {
@@ -364,7 +383,7 @@ final class MacAppSessionController {
         case .result, .error:
             workflowController.dictationViewModel.send(.resetTapped)
             startDictationCapture(from: source)
-        case .listening, .processing:
+        case .clipboardPending, .listening, .processing:
             break
         }
     }
@@ -379,6 +398,12 @@ final class MacAppSessionController {
     private func requestDictationCaptureStopIfListening() {
         guard case .listening = dictationState else { return }
         workflowController.stopActiveCapture()
+    }
+
+    private func commitPendingCopy(_ text: String) {
+        workflowController.copyPendingResultToClipboard(text)
+        hidePanel()
+        workflowController.dictationViewModel.send(.resetTapped)
     }
 
     private func presentRequiredPermissionsGateIfNeeded() {

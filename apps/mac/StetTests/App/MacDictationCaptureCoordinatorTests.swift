@@ -17,7 +17,7 @@ struct MacDictationCaptureCoordinatorTests {
         )
         var revealCount = 0
 
-        await coordinator.handleCompletedCapture(
+        let outcome = await coordinator.handleCompletedCapture(
             text: "hello",
             targetApplication: nil,
             settings: .init(
@@ -28,6 +28,7 @@ struct MacDictationCaptureCoordinatorTests {
             showPanel: { revealCount += 1 }
         )
 
+        #expect(outcome == .completed)
         #expect(clipboard.copiedTexts == ["hello"])
         #expect(textInjection.pasteTargets.count == 1)
         #expect(revealCount == 0)
@@ -48,7 +49,7 @@ struct MacDictationCaptureCoordinatorTests {
         )
         var revealCount = 0
 
-        _ = await coordinator.handleCompletedCapture(
+        let outcome = await coordinator.handleCompletedCapture(
             text: "hello",
             targetApplication: nil,
             settings: .init(
@@ -59,6 +60,7 @@ struct MacDictationCaptureCoordinatorTests {
             showPanel: { revealCount += 1 }
         )
 
+        #expect(outcome == .clipboardPending)
         #expect(textInjection.didRequestAccessIfNeeded)
         #expect(revealCount == 1)
     }
@@ -72,7 +74,7 @@ struct MacDictationCaptureCoordinatorTests {
         )
         var revealCount = 0
 
-        await coordinator.handleCompletedCapture(
+        let outcome = await coordinator.handleCompletedCapture(
             text: "hello",
             targetApplication: nil,
             settings: .init(
@@ -83,6 +85,7 @@ struct MacDictationCaptureCoordinatorTests {
             showPanel: { revealCount += 1 }
         )
 
+        #expect(outcome == .clipboardPending)
         #expect(clipboard.copiedTexts.isEmpty)
         #expect(textInjection.pasteTargets.isEmpty)
         #expect(revealCount == 1)
@@ -96,7 +99,7 @@ struct MacDictationCaptureCoordinatorTests {
             textInjectionService: textInjection
         )
 
-        await coordinator.handleCompletedCapture(
+        let outcome = await coordinator.handleCompletedCapture(
             text: "hello",
             targetApplication: nil,
             settings: .init(
@@ -107,6 +110,7 @@ struct MacDictationCaptureCoordinatorTests {
             showPanel: {}
         )
 
+        #expect(outcome == .clipboardPending)
         #expect(clipboard.copiedTexts.isEmpty)
         #expect(textInjection.pasteTargets.isEmpty)
     }

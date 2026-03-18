@@ -5,6 +5,7 @@ enum DictationState: Equatable {
     case listening
     case processing
     case result(String)
+    case clipboardPending(String)
     case error(String)
 
     var statusText: String {
@@ -17,12 +18,10 @@ enum DictationState: Equatable {
             return "Processing..."
         case .result:
             return "Transcription complete"
+        case .clipboardPending:
+            return "Copy to clipboard"
         case .error:
             return "Something went wrong"
         }
     }
 }
-
-
-
-

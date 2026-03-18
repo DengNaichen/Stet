@@ -4,6 +4,11 @@ import Foundation
 
 @MainActor
 final class MacDictationCaptureCoordinator {
+    enum CompletionOutcome: Equatable {
+        case completed
+        case clipboardPending
+    }
+
     struct CaptureSettings {
         let shouldCopyToClipboard: Bool
         let shouldAutoPaste: Bool
@@ -26,7 +31,7 @@ final class MacDictationCaptureCoordinator {
         targetApplication: NSRunningApplication?,
         settings: CaptureSettings,
         showPanel: @escaping @MainActor () -> Void
-    ) async {
+    ) async -> CompletionOutcome {
         let shouldRestoreClipboardAfterSuccessfulPaste = settings.shouldAutoPaste && !settings.shouldCopyToClipboard
         let pasteboardSnapshot = shouldRestoreClipboardAfterSuccessfulPaste
             ? PasteboardSnapshot.capture(from: NSPasteboard.general)
@@ -46,7 +51,11 @@ final class MacDictationCaptureCoordinator {
                     }
                 }
                 await DictationLatencyProbe.shared.record(.systemWriteCompleted)
+                return .completed
             } else {
+                if let pasteboardSnapshot {
+                    pasteboardSnapshot.restore(to: NSPasteboard.general)
+                }
                 await DictationLatencyProbe.shared.record(.systemWriteFailed, note: "paste_failed")
             }
 
@@ -57,12 +66,20 @@ final class MacDictationCaptureCoordinator {
             if settings.shouldRevealPanelOnCapture && !didPaste {
                 showPanel()
             }
+
+            return settings.shouldCopyToClipboard ? .completed : .clipboardPending
         } else if settings.shouldRevealPanelOnCapture {
             await DictationLatencyProbe.shared.record(.systemWriteSkipped, note: "auto_paste_disabled")
             showPanel()
         } else {
             await DictationLatencyProbe.shared.record(.systemWriteSkipped, note: "auto_paste_disabled")
         }
+
+        return settings.shouldCopyToClipboard ? .completed : .clipboardPending
+    }
+
+    func copyToClipboard(_ text: String) {
+        clipboardService.copy(text)
     }
 
     private struct PasteboardSnapshot {

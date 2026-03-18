@@ -80,4 +80,13 @@ struct DictationViewModelTests {
 
         #expect(viewModel.state == .error(TestError.expected.localizedDescription))
     }
+
+    @Test func clipboardPendingActionPublishesClipboardPendingState() {
+        let speechService = ControllableSpeechService()
+        let viewModel = DictationViewModel(speechService: speechService)
+
+        viewModel.send(.clipboardPending("hello"))
+
+        #expect(viewModel.state == .clipboardPending("hello"))
+    }
 }
