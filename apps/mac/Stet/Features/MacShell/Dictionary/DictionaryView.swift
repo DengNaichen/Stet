@@ -5,7 +5,11 @@ struct DictionaryView: View {
     @ObservedObject var viewModel: DictionaryViewModel
 
     private let dictionaryColumns = [
-        GridItem(.adaptive(minimum: 180), spacing: 8, alignment: .leading)
+        GridItem(
+            .adaptive(minimum: MacUI.DictionaryViewMetrics.gridMinColumnWidth),
+            spacing: MacUI.DictionaryViewMetrics.gridSpacing,
+            alignment: .leading
+        )
     ]
 
     private var isEnabledBinding: Binding<Bool> {
@@ -28,7 +32,7 @@ struct DictionaryView: View {
                     )
                 }
 
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: MacUI.DictionaryViewMetrics.entryInputSpacing) {
                     TextField(
                         "Add names, brands, jargon, or phrases",
                         text: $viewModel.draft
@@ -45,20 +49,14 @@ struct DictionaryView: View {
                 }
             } header: {
                 Text("Personal Dictionary")
-            } footer: {
-                Text(
-                    viewModel.isEnabled
-                        ? "When enabled, saved entries are used during transcription and rewrite."
-                        : "When disabled, saved entries stay on this Mac but are ignored during transcription and rewrite."
-                )
             }
 
             Section {
                 if viewModel.entries.isEmpty {
-                    Text("Once you add words here, Stet will reuse them in OpenAI transcription and rewrite.")
+                    Text("Once you add words here, Stet will reuse them in transcription and rewrite.")
                         .foregroundStyle(.secondary)
                 } else {
-                    LazyVGrid(columns: dictionaryColumns, alignment: .leading, spacing: 8) {
+                    LazyVGrid(columns: dictionaryColumns, alignment: .leading, spacing: MacUI.DictionaryViewMetrics.gridSpacing) {
                         ForEach(viewModel.entries, id: \.self) { entry in
                             dictionaryChip(for: entry)
                         }
@@ -70,20 +68,18 @@ struct DictionaryView: View {
                 }
             } header: {
                 Text("Current Entries")
-            } footer: {
-                Text("Separate multiple entries with commas. These terms are stored locally on this Mac.")
             }
         }
         .formStyle(.grouped)
-        .padding(.horizontal, 20)
-        .padding(.bottom, 28)
+        .padding(.horizontal, MacUI.DictionaryViewMetrics.formHorizontalPadding)
+        .padding(.bottom, MacUI.DictionaryViewMetrics.formBottomPadding)
     }
 
     private func dictionaryChip(for entry: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: MacUI.DictionaryViewMetrics.chipSpacing) {
             Text(entry)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .lineLimit(2)
+                .font(MacUI.DictionaryViewMetrics.chipTextFont)
+                .lineLimit(MacUI.DictionaryViewMetrics.entryLineLimit)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -91,21 +87,22 @@ struct DictionaryView: View {
                 viewModel.removeEntry(entry)
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(MacUI.DictionaryViewMetrics.chipButtonIconFont)
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.horizontal, MacUI.DictionaryViewMetrics.chipHorizontalPadding)
+        .padding(.vertical, MacUI.DictionaryViewMetrics.chipVerticalPadding)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.secondary.opacity(0.08))
+            RoundedRectangle(cornerRadius: MacUI.DictionaryViewMetrics.chipCornerRadius, style: .continuous)
+                .fill(Color.secondary.opacity(MacUI.DictionaryViewMetrics.chipFillOpacity))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+            RoundedRectangle(cornerRadius: MacUI.DictionaryViewMetrics.chipCornerRadius, style: .continuous)
+                .strokeBorder(Color.primary.opacity(MacUI.DictionaryViewMetrics.chipStrokeOpacity), lineWidth: MacUI.DictionaryViewMetrics.chipStrokeLineWidth)
         )
     }
 }
 #endif
+

@@ -1,5 +1,4 @@
 import SwiftUI
-internal import Auth
 
 struct AuthView: View {
     private enum Field: Hashable {
@@ -8,7 +7,6 @@ struct AuthView: View {
     }
 
     @State private var viewModel = AuthViewModel()
-    private let supabase = SupabaseService.shared
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: Field?
     @State private var shouldDismissAfterAuthentication = false
@@ -17,8 +15,8 @@ struct AuthView: View {
         VStack(spacing: 20) {
             headerCard
 
-            if let session = supabase.currentSession {
-                signedInCard(session: session)
+            if viewModel.isSignedIn {
+                signedInCard
             } else {
                 signedOutCard
             }
@@ -27,13 +25,12 @@ struct AuthView: View {
         .frame(maxWidth: 460)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(nsColor: .windowBackgroundColor))
-        .onChange(of: supabase.currentSession == nil) { _, isSignedOut in
-            if !isSignedOut {
-                viewModel.clearFeedback()
-                if shouldDismissAfterAuthentication {
-                    shouldDismissAfterAuthentication = false
-                    dismiss()
-                }
+        .onChange(of: viewModel.isSignedIn) { _, isSignedIn in
+            guard isSignedIn else { return }
+            viewModel.clearFeedback()
+            if shouldDismissAfterAuthentication {
+                shouldDismissAfterAuthentication = false
+                dismiss()
             }
         }
     }
@@ -59,7 +56,6 @@ struct AuthView: View {
                 Text("Stet Account")
                     .font(.title3.weight(.semibold))
 
-                Text("Use your Supabase account to sign in on this Mac and access cloud-backed features.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -78,14 +74,13 @@ struct AuthView: View {
         )
     }
 
-    private func signedInCard(session: Session) -> some View {
+    private var signedInCard: some View {
         MacSettingsCard(
-            title: "You're signed in",
-            description: "This Mac is currently connected to your Stet account."
+            title: "You're signed in"
         ) {
             VStack(alignment: .leading, spacing: 14) {
                 MacSettingsValueRow(title: "Email") {
-                    Text(session.user.email ?? "Unknown user")
+                    Text(viewModel.accountEmailText)
                         .font(.system(.body, design: .monospaced))
                 }
 
@@ -116,14 +111,13 @@ struct AuthView: View {
 
     private var signedOutCard: some View {
         MacSettingsCard(
-            title: "Continue with Email",
-            description: "Enter the email and password for your Supabase account."
+            title: "Continue with Email"
         ) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     MacSettingsStatusBadge(
-                        text: supabase.isConfigured ? "Supabase Ready" : "Setup Required",
-                        tint: supabase.isConfigured ? .green : .orange
+                        text: viewModel.configurationStatusText,
+                        tint: viewModel.configurationStatusTint ? .green : .orange
                     )
 
                     Spacer()
@@ -183,10 +177,8 @@ struct AuthView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(!viewModel.canSubmit)
                 }
-
-                Text("New accounts may require email confirmation before the first sign-in.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
         .onSubmit {
@@ -229,7 +221,6 @@ struct AuthView: View {
             )
     }
 }
-
 
 #Preview("Signed Out State") {
     AuthView()

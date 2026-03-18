@@ -30,8 +30,7 @@ final class MacPanelController: NSObject, NSWindowDelegate {
         guard let panel else { return }
 
         panel.contentViewController = NSHostingController(
-            rootView: MacDictationPanelView(layout: layout)
-                .environmentObject(appModel)
+            rootView: MacDictationPanelView(layout: layout, appModel: appModel)
         )
 
         positionPanel(panel, screen: screen, layout: layout)
@@ -77,8 +76,7 @@ final class MacPanelController: NSObject, NSWindowDelegate {
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
         panel.standardWindowButton(.zoomButton)?.isHidden = true
         panel.contentViewController = NSHostingController(
-            rootView: MacDictationPanelView(layout: layout)
-                .environmentObject(appModel)
+            rootView: MacDictationPanelView(layout: layout, appModel: appModel)
         )
 
         return panel

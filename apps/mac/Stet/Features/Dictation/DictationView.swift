@@ -3,7 +3,7 @@ import SwiftUI
 struct DictationView: View {
     @StateObject private var viewModel: DictationViewModel
 
-    init(speechService: any SpeechService = ConfigurableSpeechService()) {
+    init(speechService: any SpeechService = ConfigurableSpeechService.live()) {
         _viewModel = StateObject(wrappedValue: DictationViewModel(speechService: speechService))
     }
 

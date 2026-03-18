@@ -6,16 +6,7 @@ struct MacGeneralSettingsView: View {
     @EnvironmentObject private var appModel: MacAppModel
     @EnvironmentObject private var appUpdateManager: AppUpdateManager
 
-    @AppStorage(MacPreferences.pauseMediaDuringDictation) private var pauseMediaDuringDictation = false
-    @AppStorage(MacPreferences.interactionSoundsEnabled) private var interactionSoundsEnabled = true
-    @AppStorage(MacPreferences.hotkeyDebugLoggingEnabled) private var hotkeyDebugLoggingEnabled = false
-    @AppStorage(MacPreferences.openAIDebugLoggingEnabled) private var openAIDebugLoggingEnabled = false
-
     @StateObject private var viewModel = MacGeneralSettingsViewModel()
-    @State private var managedSettings = MacGeneralSettingsViewModel.ManagedSettingsState()
-    @State private var hasLoadedManagedSettings = false
-    @State private var suppressLaunchAtLoginChange = false
-    @State private var suppressShowInDockChange = false
 
     var body: some View {
         Form {
@@ -31,14 +22,8 @@ struct MacGeneralSettingsView: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 28)
         .task {
-            managedSettings = viewModel.loadState()
-            hasLoadedManagedSettings = true
-        }
-        .onChange(of: managedSettings.launchAtLogin) { oldValue, newValue in
-            handleLaunchAtLoginChange(oldValue: oldValue, newValue: newValue)
-        }
-        .onChange(of: managedSettings.showInDock) { _, newValue in
-            handleShowInDockChange(newValue)
+            viewModel.configure(appModel: appModel, appUpdateManager: appUpdateManager)
+            viewModel.load()
         }
     }
 
@@ -50,29 +35,28 @@ struct MacGeneralSettingsView: View {
                 }
 
                 Button("Import Configuration") {
-                    importConfiguration()
+                    viewModel.importConfiguration()
                 }
             }
         } header: {
             Text("Configuration")
-        } footer: {
-            Text("Export or import your current hotkey, dictionary, and behavior settings.")
         }
     }
 
     private var captureSection: some View {
         Section {
-            Toggle("Mute other audio during dictation and restore afterward", isOn: $pauseMediaDuringDictation)
+            Toggle(
+                "Mute other audio during dictation and restore afterward",
+                isOn: $viewModel.pauseMediaDuringDictation
+            )
         } header: {
             Text("Capture")
-        } footer: {
-            Text("Pause media when possible and temporarily silence any remaining system audio while dictation is active.")
         }
     }
 
     private var interactionSoundsSection: some View {
         Section {
-            Toggle("Enable interaction sounds", isOn: $interactionSoundsEnabled)
+            Toggle("Enable interaction sounds", isOn: $viewModel.interactionSoundsEnabled)
         } header: {
             Text("Interaction Sounds")
         }
@@ -80,8 +64,8 @@ struct MacGeneralSettingsView: View {
 
     private var appBehaviorSection: some View {
         Section {
-            Toggle("Launch at Login", isOn: $managedSettings.launchAtLogin)
-            Toggle("Show in Dock", isOn: $managedSettings.showInDock)
+            Toggle("Launch at Login", isOn: $viewModel.managedSettings.launchAtLogin)
+            Toggle("Show in Dock", isOn: $viewModel.managedSettings.showInDock)
         } header: {
             Text("App Behavior")
         }
@@ -92,31 +76,27 @@ struct MacGeneralSettingsView: View {
             Toggle(
                 "Check for updates automatically",
                 isOn: Binding(
-                    get: { appUpdateManager.automaticallyChecksForUpdates },
-                    set: { appUpdateManager.setAutomaticallyChecksForUpdates($0) }
+                    get: { viewModel.updateSettings.automaticallyChecksForUpdates },
+                    set: { viewModel.setAutomaticallyChecksForUpdates($0) }
                 )
             )
-            .disabled(!appUpdateManager.isConfigured)
+            .disabled(!viewModel.updateSettings.isConfigured)
 
             Button("Check for Updates") {
-                appUpdateManager.checkForUpdates()
+                viewModel.checkForUpdates()
             }
-            .disabled(appUpdateManager.isChecking || !appUpdateManager.canCheckForUpdates)
+            .disabled(viewModel.updateSettings.isCheckingForUpdates || !viewModel.updateSettings.canCheckForUpdates)
         } header: {
             Text("Updates")
-        } footer: {
-            Text("Automatically check for app updates, or run a manual check at any time.")
         }
     }
 
     private var debugLoggingSection: some View {
         Section {
-            Toggle("Hotkey debug logging", isOn: $hotkeyDebugLoggingEnabled)
-            Toggle("OpenAI debug logging", isOn: $openAIDebugLoggingEnabled)
+            Toggle("Hotkey debug logging", isOn: $viewModel.hotkeyDebugLoggingEnabled)
+            Toggle("OpenAI debug logging", isOn: $viewModel.openAIDebugLoggingEnabled)
         } header: {
             Text("Debug Logging")
-        } footer: {
-            Text("Enable temporary logs while diagnosing shortcut handling or OpenAI requests.")
         }
     }
 
@@ -128,52 +108,6 @@ struct MacGeneralSettingsView: View {
                     .foregroundStyle(feedback.isError ? .red : .secondary)
             }
         }
-    }
-    private func importConfiguration() {
-        let previousLaunchAtLogin = managedSettings.launchAtLogin
-        let previousShowInDock = managedSettings.showInDock
-        let restoredSettings = viewModel.importConfiguration(appModel: appModel)
-
-        if restoredSettings.launchAtLogin != previousLaunchAtLogin {
-            suppressLaunchAtLoginChange = true
-        }
-
-        if restoredSettings.showInDock != previousShowInDock {
-            suppressShowInDockChange = true
-        }
-
-        managedSettings = restoredSettings
-    }
-
-    private func handleLaunchAtLoginChange(oldValue: Bool, newValue: Bool) {
-        guard hasLoadedManagedSettings else { return }
-
-        if suppressLaunchAtLoginChange {
-            suppressLaunchAtLoginChange = false
-            return
-        }
-
-        let resolvedValue = viewModel.applyLaunchAtLoginChange(
-            oldValue: oldValue,
-            newValue: newValue,
-            appModel: appModel
-        )
-
-        if resolvedValue != newValue {
-            suppressLaunchAtLoginChange = true
-            managedSettings.launchAtLogin = resolvedValue
-        }
-    }
-
-    private func handleShowInDockChange(_ newValue: Bool) {
-        guard hasLoadedManagedSettings else { return }
-
-        if suppressShowInDockChange {
-            suppressShowInDockChange = false
-            return
-        }
-
-        viewModel.applyDockVisibilityChange(newValue, appModel: appModel)
     }
 }
 #endif

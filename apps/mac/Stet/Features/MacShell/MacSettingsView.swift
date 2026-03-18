@@ -5,7 +5,6 @@ internal import Auth
 private enum MacSettingsSidebarGroup: String, CaseIterable, Identifiable {
     case workspace = "Workspace"
     case automation = "Automation"
-    case privacy = "Privacy"
 
     var id: String { rawValue }
 }
@@ -15,7 +14,6 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
     case hotkey
     case openAI
     case dictionary
-    case permissions
 
     var id: String { rawValue }
 
@@ -25,8 +23,6 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
             return .workspace
         case .hotkey:
             return .automation
-        case .permissions:
-            return .privacy
         }
     }
 
@@ -40,8 +36,6 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
             return "AI"
         case .dictionary:
             return "Dictionary"
-        case .permissions:
-            return "Permissions"
         }
     }
 
@@ -55,8 +49,6 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
             return "Cloud provider, rewrite behavior, translation, and credentials."
         case .dictionary:
             return "Personal dictionary entries used during transcription and rewrite."
-        case .permissions:
-            return "Microphone and accessibility access required by the shell."
         }
     }
 
@@ -70,8 +62,6 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
             return "key.horizontal"
         case .dictionary:
             return "text.book.closed"
-        case .permissions:
-            return "lock.shield"
         }
     }
 
@@ -85,8 +75,6 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
             return ["provider", "api key", "translation", "rewrite", "groq", "openai"]
         case .dictionary:
             return ["entries", "personal dictionary", "names", "brands"]
-        case .permissions:
-            return ["microphone", "accessibility", "text injection", "privacy"]
         }
     }
 
@@ -201,16 +189,7 @@ struct MacSettingsView: View {
 
     @ViewBuilder
     private func sidebarRow(for tab: MacSettingsTab) -> some View {
-        if tab == .permissions, hasPermissionIssues {
-            Label {
-                Text(tab.title)
-            } icon: {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-            }
-        } else {
-            Label(tab.title, systemImage: tab.iconName)
-        }
+        Label(tab.title, systemImage: tab.iconName)
     }
 
     private var sidebarAccountRow: some View {
@@ -273,8 +252,6 @@ struct MacSettingsView: View {
             MacOpenAISettingsView(viewModel: openAISettingsViewModel)
         case .dictionary:
             DictionaryView(viewModel: dictionaryViewModel)
-        case .permissions:
-            MacPermissionsSettingsView()
         }
     }
 
@@ -292,11 +269,6 @@ struct MacSettingsView: View {
 
     private func filteredTabs(in group: MacSettingsSidebarGroup) -> [MacSettingsTab] {
         filteredTabs.filter { $0.group == group }
-    }
-
-    private var hasPermissionIssues: Bool {
-        appModel.microphoneAccessNeedsAttention ||
-            appModel.autoPasteAccessNeedsAttention
     }
 
     private func reloadStateFromPreferences() {

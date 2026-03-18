@@ -34,26 +34,6 @@ struct SharedModelTests {
         #expect(provider.pipelineDescription == expectedPipelineDescription)
     }
 
-    @Test(arguments: [
-        (NetworkProxyMode.system, "System"),
-        (.disabled, "Direct"),
-        (.custom, "Custom"),
-    ])
-    func networkProxyModeMetadata(_ mode: NetworkProxyMode, expectedTitle: String) {
-        #expect(mode.id == mode.rawValue)
-        #expect(mode.title == expectedTitle)
-    }
-
-    @Test(arguments: [
-        (CustomProxyScheme.http, "HTTP"),
-        (.https, "HTTPS"),
-        (.socks5, "SOCKS5"),
-    ])
-    func customProxySchemeMetadata(_ scheme: CustomProxyScheme, expectedTitle: String) {
-        #expect(scheme.id == scheme.rawValue)
-        #expect(scheme.title == expectedTitle)
-    }
-
     @Test func openAIConfigurationProvidesExpectedDefaults() {
         let configuration = OpenAIConfiguration(apiKey: "sk-test")
 

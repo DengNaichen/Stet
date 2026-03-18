@@ -12,10 +12,7 @@ struct MacHotkeySettingsView: View {
                 }
             } header: {
                 Text("Shortcut Engine")
-            } footer: {
-                Text("Choose the global shortcut that starts dictation. The recorder handles conflict detection and stores the selection automatically.")
             }
-
             if let message {
                 Section {
                     Text(message)

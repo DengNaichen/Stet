@@ -2,13 +2,18 @@
 import SwiftUI
 
 struct MacDictationPanelView: View {
-    @EnvironmentObject private var appModel: MacAppModel
+    @StateObject private var viewModel: MacDictationPanelViewModel
 
     let layout: MacDictationPanelLayout
 
+    init(layout: MacDictationPanelLayout, appModel: MacAppModel) {
+        self.layout = layout
+        _viewModel = StateObject(wrappedValue: MacDictationPanelViewModel(appModel: appModel))
+    }
+
     var body: some View {
         Group {
-            switch appModel.dictationViewModel.state {
+            switch viewModel.state {
             case .idle:
                 idleCapsule
             case .listening:
@@ -30,7 +35,7 @@ struct MacDictationPanelView: View {
                 controlButton(
                     systemName: "xmark",
                     isEmphasized: false,
-                    action: appModel.hidePanel
+                    action: viewModel.hidePanel
                 )
 
                 Text("Ready")
@@ -43,7 +48,7 @@ struct MacDictationPanelView: View {
                 controlButton(
                     systemName: "mic.fill",
                     isEmphasized: true,
-                    action: appModel.performPrimaryAction
+                    action: viewModel.performPrimaryAction
                 )
             }
         }
@@ -55,7 +60,7 @@ struct MacDictationPanelView: View {
                 controlButton(
                     systemName: "xmark",
                     isEmphasized: false,
-                    action: appModel.cancelActiveCapture
+                    action: viewModel.cancelActiveCapture
                 )
 
                 VoiceLevelBarsView(level: emphasizedRecordingLevel, layout: layout)
@@ -64,7 +69,7 @@ struct MacDictationPanelView: View {
                 controlButton(
                     systemName: "checkmark",
                     isEmphasized: true,
-                    action: appModel.performPrimaryAction
+                    action: viewModel.performPrimaryAction
                 )
             }
         }
@@ -77,7 +82,7 @@ struct MacDictationPanelView: View {
                     .controlSize(.small)
                     .tint(.white)
 
-                Text(appModel.statusText)
+                Text(viewModel.statusText)
                     .font(statusFont(weight: .semibold))
                     .foregroundStyle(.white)
                     .lineLimit(1)
@@ -93,7 +98,7 @@ struct MacDictationPanelView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.white)
 
-                Text(appModel.statusText)
+                Text(viewModel.statusText)
                     .font(statusFont(weight: .semibold))
                     .foregroundStyle(.white)
                     .lineLimit(1)
@@ -109,7 +114,7 @@ struct MacDictationPanelView: View {
                 controlButton(
                     systemName: "xmark",
                     isEmphasized: false,
-                    action: appModel.hidePanel
+                    action: viewModel.hidePanel
                 )
 
                 Text(message)
@@ -122,7 +127,7 @@ struct MacDictationPanelView: View {
                 controlButton(
                     systemName: "arrow.clockwise",
                     isEmphasized: true,
-                    action: appModel.performPrimaryAction
+                    action: viewModel.performPrimaryAction
                 )
             }
         }
@@ -148,7 +153,7 @@ struct MacDictationPanelView: View {
     }
 
     private var normalizedRecordingLevel: Double {
-        min(max(appModel.recordingLevel, 0), 1)
+        min(max(viewModel.recordingLevel, 0), 1)
     }
 
     private var emphasizedRecordingLevel: Double {

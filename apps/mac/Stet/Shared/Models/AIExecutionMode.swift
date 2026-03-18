@@ -21,11 +21,11 @@ enum AIExecutionMode: String, CaseIterable, Identifiable, Codable, Sendable {
     nonisolated var subtitle: String {
         switch self {
         case .automatic:
-            return "Use Managed Relay for dictation when signed in. Otherwise fall back to the local provider API key."
+            return "Managed Relay"
         case .managed:
-            return "Use the authenticated relay for dictation. Current relay coverage is limited to the dictation pipeline and requires a signed-in Supabase session."
+            return "authenticated relay"
         case .byok:
-            return "Always use the local provider API key and bypass the relay."
+            return "local provider API key"
         }
     }
 

@@ -30,8 +30,6 @@ struct MacAppBootstrapperTests {
         #expect(defaults.string(forKey: MacPreferences.interactionSoundPreset) == InteractionSoundPreset.soft.rawValue)
         #expect(defaults.bool(forKey: MacPreferences.launchAtLogin))
         #expect(!defaults.bool(forKey: MacPreferences.showInDock))
-        #expect(defaults.string(forKey: MacPreferences.proxyMode) == NetworkProxyMode.system.rawValue)
-        #expect(defaults.string(forKey: MacPreferences.customProxyScheme) == CustomProxyScheme.http.rawValue)
     }
 
     @Test func prepareForLaunchRemovesLegacyArtifactsAndKeepsExplicitPreferences() throws {

@@ -41,32 +41,6 @@ struct DictationSettingsStoreTests {
         #expect(snapshot.translationTargetLanguage == .english)
         #expect(snapshot.personalDictionary.isEmpty)
         #expect(snapshot.providerConfiguration == nil)
-        #expect(snapshot.proxySettings.mode == .system)
-        #expect(snapshot.proxySettings.customScheme == .http)
-    }
-
-    @Test func proxySettingsRoundTrip() {
-        let defaults = TestSupport.makeUserDefaults()
-        let store = makeStore(defaults: defaults)
-
-        store.saveProxySettings(
-            .init(
-                mode: .custom,
-                customScheme: .socks5,
-                customHost: " 127.0.0.1 ",
-                customPort: 1080
-            )
-        )
-
-        let proxy = store.loadProxySettings()
-        let snapshot = store.loadSnapshot()
-
-        #expect(proxy.mode == .custom)
-        #expect(proxy.customScheme == .socks5)
-        #expect(proxy.customHost == "127.0.0.1")
-        #expect(proxy.customPort == 1080)
-        #expect(snapshot.proxySettings.mode == .custom)
-        #expect(snapshot.proxySettings.customHost == "127.0.0.1")
     }
 
     @Test func translationAndDictionarySettingsRoundTrip() {

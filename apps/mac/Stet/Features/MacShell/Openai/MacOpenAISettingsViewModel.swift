@@ -111,32 +111,31 @@ final class MacOpenAISettingsViewModel: ObservableObject {
     }
 
     var modelSummary: String {
-        let providerDefaults = OpenAIConfiguration.providerDefaults(for: provider)
         switch executionMode {
         case .automatic:
-            return "Automatic uses Managed Relay for dictation while you are signed in. If you are signed out, Stet falls back to \(providerDefaults.transcriptionModel) for transcription and \(providerDefaults.translationModel) for direct translation and rewrite."
+            return "Automatic"
         case .managed:
-            return "Managed Relay currently covers the dictation pipeline only. Local provider and API key settings are retained for Automatic fallback or BYOK."
+            return "Managed Relay"
         case .byok:
-            return "BYOK uses \(providerDefaults.transcriptionModel) for transcription and \(providerDefaults.translationModel) for translation and rewrite."
+            return "BYOK"
         }
     }
 
     var providerDescription: String {
         switch executionMode {
         case .automatic:
-            return "Automatic uses the provider below only when you are signed out and dictation falls back to the local API path."
+            return "Automatic"
         case .managed:
-            return "Managed Relay ignores the provider below for dictation. Keep it configured for when you switch back to Automatic or BYOK."
+            return "Managed Relay"
         case .byok:
-            return "BYOK uses the provider below as the active local API path. Stet still manages the endpoint and model selection automatically."
+            return "BYOK"
         }
     }
 
     var rewriteToggleTitle: String {
         switch executionMode {
         case .automatic:
-            return "Rewrite final transcript automatically"
+            return "Rewriteuselly"
         case .managed:
             return "Rewrite final transcript with Managed Relay"
         case .byok:
@@ -154,17 +153,6 @@ final class MacOpenAISettingsViewModel: ObservableObject {
 
     var executionModeDescription: String {
         executionMode.subtitle
-    }
-
-    var credentialSectionDescription: String {
-        switch executionMode {
-        case .automatic:
-            return "Automatic uses this local API key only when you are signed out and dictation falls back to the direct provider path."
-        case .managed:
-            return "Managed Relay does not use local provider credentials for dictation. Switch to Automatic or BYOK to use this key directly."
-        case .byok:
-            return "BYOK uses this provider and API key directly."
-        }
     }
 
     var missingCredentialMessage: String? {

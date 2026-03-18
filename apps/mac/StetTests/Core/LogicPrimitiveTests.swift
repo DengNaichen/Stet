@@ -29,9 +29,4 @@ struct LogicPrimitiveTests {
         }
     }
 
-    @Test func networkProxySettingsHasCustomEndpointOnlyWhenComplete() {
-        #expect(!NetworkProxySettings(mode: .custom, customScheme: .http, customHost: "", customPort: 8080).hasCustomEndpoint)
-        #expect(!NetworkProxySettings(mode: .custom, customScheme: .http, customHost: "localhost", customPort: nil).hasCustomEndpoint)
-        #expect(NetworkProxySettings(mode: .custom, customScheme: .http, customHost: "localhost", customPort: 8080).hasCustomEndpoint)
-    }
 }

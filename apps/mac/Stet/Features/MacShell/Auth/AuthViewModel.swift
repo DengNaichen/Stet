@@ -1,6 +1,8 @@
 import Foundation
 import Observation
+internal import Auth
 
+@MainActor
 @Observable
 final class AuthViewModel {
     private enum AuthAction {
@@ -43,13 +45,44 @@ final class AuthViewModel {
     var errorMessage: String? = nil
     var statusMessage: String? = nil
 
-    private let supabase: SupabaseService = .shared
+    private let supabase: SupabaseService
+
+    init(supabase: SupabaseService) {
+        self.supabase = supabase
+    }
+
+    convenience init() {
+        self.init(supabase: .shared)
+    }
 
     var canSubmit: Bool {
         !normalizedEmail.isEmpty && !password.isEmpty && !isLoading
     }
 
-    @MainActor
+    var isSignedIn: Bool {
+        supabase.currentSession != nil
+    }
+
+    var accountEmail: String? {
+        supabase.currentSession?.user.email
+    }
+
+    var accountEmailText: String {
+        accountEmail ?? "Unknown user"
+    }
+
+    var isSupabaseConfigured: Bool {
+        supabase.isConfigured
+    }
+
+    var configurationStatusText: String {
+        isSupabaseConfigured ? "Supabase Ready" : "Setup Required"
+    }
+
+    var configurationStatusTint: Bool {
+        isSupabaseConfigured
+    }
+
     func signIn() async {
         await perform(.signIn) { email, password in
             try await supabase.signIn(email: email, password: password)
@@ -57,7 +90,6 @@ final class AuthViewModel {
         }
     }
 
-    @MainActor
     func signUp() async {
         await perform(.signUp) { email, password in
             try await supabase.signUp(email: email, password: password)
@@ -66,14 +98,12 @@ final class AuthViewModel {
         }
     }
 
-    @MainActor
     func signOut() async {
         await perform(.signOut) { _, _ in
             try await supabase.signOut()
         }
     }
 
-    @MainActor
     func clearFeedback() {
         errorMessage = nil
         statusMessage = nil
@@ -83,7 +113,6 @@ final class AuthViewModel {
         email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
-    @MainActor
     private func perform(
         _ action: AuthAction,
         operation: (_ email: String, _ password: String) async throws -> Void
@@ -129,4 +158,5 @@ final class AuthViewModel {
 
         return "\(action.failurePrefix): \(description)"
     }
+
 }

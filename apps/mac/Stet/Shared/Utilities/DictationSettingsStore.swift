@@ -19,7 +19,6 @@ struct DictationSettingsSnapshot: Sendable {
     let personalDictionary: [String]
     let interactionSoundsEnabled: Bool
     let interactionSoundPreset: InteractionSoundPreset
-    let proxySettings: NetworkProxySettings
 
     var hasLocalProviderConfiguration: Bool {
         providerConfiguration != nil
@@ -73,7 +72,6 @@ struct DictationSettingsStore: Sendable {
         let interactionSoundsEnabled =
             defaults.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
         let interactionSoundPreset = loadInteractionSoundPreset()
-        let proxySettings = loadProxySettings()
 
         let configuration: OpenAIConfiguration? = apiKey.isEmpty
             ? nil
@@ -89,8 +87,7 @@ struct DictationSettingsStore: Sendable {
             translateSelectedTextOnTranslationHotkey: translateSelectedTextOnTranslationHotkey,
             personalDictionary: personalDictionary,
             interactionSoundsEnabled: interactionSoundsEnabled,
-            interactionSoundPreset: interactionSoundPreset,
-            proxySettings: proxySettings
+            interactionSoundPreset: interactionSoundPreset
         )
     }
 
@@ -166,38 +163,6 @@ struct DictationSettingsStore: Sendable {
         defaults.set(enabled, forKey: MacPreferences.hotkeyDistinguishModifierSides)
     }
 
-    nonisolated func loadProxySettings() -> NetworkProxySettings {
-        NetworkProxySettings(
-            mode: NetworkProxyMode(
-                rawValue: defaults.string(forKey: MacPreferences.proxyMode) ?? ""
-            ) ?? .system,
-            customScheme: CustomProxyScheme(
-                rawValue: defaults.string(forKey: MacPreferences.customProxyScheme) ?? ""
-            ) ?? .http,
-            customHost: defaults.string(forKey: MacPreferences.customProxyHost)?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
-            customPort: loadCustomProxyPort()
-        )
-    }
-
-    nonisolated func saveProxySettings(_ settings: NetworkProxySettings) {
-        defaults.set(settings.mode.rawValue, forKey: MacPreferences.proxyMode)
-        defaults.set(settings.customScheme.rawValue, forKey: MacPreferences.customProxyScheme)
-
-        let trimmedHost = settings.customHost.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedHost.isEmpty {
-            defaults.removeObject(forKey: MacPreferences.customProxyHost)
-        } else {
-            defaults.set(trimmedHost, forKey: MacPreferences.customProxyHost)
-        }
-
-        if let port = settings.customPort, port > 0 {
-            defaults.set(String(port), forKey: MacPreferences.customProxyPort)
-        } else {
-            defaults.removeObject(forKey: MacPreferences.customProxyPort)
-        }
-    }
-
     nonisolated static func words(from rawInput: String) -> [String] {
         DictionaryModel.words(from: rawInput)
     }
@@ -218,19 +183,19 @@ struct DictationSettingsStore: Sendable {
         try saveAPIKey(apiKey, for: .openAI)
     }
 
-    nonisolated private func loadCustomProxyPort() -> Int? {
-        if let number = defaults.object(forKey: MacPreferences.customProxyPort) as? NSNumber {
-            let port = number.intValue
-            return port > 0 ? port : nil
-        }
-
-        guard let rawValue = defaults.string(forKey: MacPreferences.customProxyPort)?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-            let port = Int(rawValue),
-            port > 0 else {
-            return nil
-        }
-
-        return port
-    }
+//    nonisolated private func loadCustomProxyPort() -> Int? {
+//        if let number = defaults.object(forKey: MacPreferences.customProxyPort) as? NSNumber {
+//            let port = number.intValue
+//            return port > 0 ? port : nil
+//        }
+//
+//        guard let rawValue = defaults.string(forKey: MacPreferences.customProxyPort)?
+//            .trimmingCharacters(in: .whitespacesAndNewlines),
+//            let port = Int(rawValue),
+//            port > 0 else {
+//            return nil
+//        }
+//
+//        return port
+//    }
 }

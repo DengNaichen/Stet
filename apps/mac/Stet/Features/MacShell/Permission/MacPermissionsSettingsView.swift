@@ -2,66 +2,6 @@
 import AppKit
 import SwiftUI
 
-struct MacPermissionsSettingsView: View {
-    @EnvironmentObject private var appModel: MacAppModel
-
-    var body: some View {
-        Form {
-            Section {
-                permissionRow(
-                    title: "Microphone",
-                    statusText: appModel.microphoneAccessStatusText,
-                    tint: appModel.microphoneAccessNeedsAttention ? .orange : .green
-                ) {
-                    Button(appModel.microphonePermissionActionTitle) {
-                        appModel.resolveMicrophoneAccess()
-                    }
-                }
-
-                permissionRow(
-                    title: "Text Injection",
-                    statusText: appModel.autoPasteStatusText,
-                    tint: appModel.autoPasteAccessNeedsAttention ? .orange : .green
-                ) {
-                    Button("Request Access") {
-                        appModel.requestAutoPasteAccess()
-                    }
-
-                    Button("Open Settings") {
-                        appModel.openAccessibilitySettings()
-                    }
-                }
-            } header: {
-                Text("Core Permissions")
-            } footer: {
-                Text("Stet needs microphone access to capture dictation and accessibility access to write text back into your current app.")
-            }
-        }
-        .formStyle(.grouped)
-        .padding(.horizontal, 20)
-        .padding(.bottom, 28)
-    }
-
-    @ViewBuilder
-    private func permissionRow<Actions: View>(
-        title: String,
-        statusText: String,
-        tint: Color,
-        @ViewBuilder actions: () -> Actions
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            LabeledContent(title) {
-                MacSettingsStatusBadge(text: statusText, tint: tint)
-            }
-
-            HStack(spacing: 10) {
-                actions()
-            }
-        }
-        .padding(.vertical, 4)
-    }
-}
-
 struct MacRequiredPermissionsGateView: View {
     @EnvironmentObject private var appModel: MacAppModel
 

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppKit
 
 @main
 struct StetApp: App {
@@ -16,22 +17,23 @@ struct StetApp: App {
 
     var body: some Scene {
         #if os(macOS)
-        MenuBarExtra("Stet", systemImage: macAppModel.menuBarSymbolName) {
+        MenuBarExtra("", systemImage: macAppModel.menuBarSymbolName) {
             MacMenuBarView()
                 .environmentObject(macAppModel)
                 .environmentObject(appUpdateManager)
         }
-        .menuBarExtraStyle(.window)
+        .menuBarExtraStyle(.menu)
 
-        Window("Stet", id: MacWindowSceneID.preferences) {
+        Window("Settings", id: MacWindowSceneID.preferences) {
             MacSettingsView()
                 .environmentObject(macAppModel)
                 .environmentObject(appUpdateManager)
         }
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
-        .defaultSize(width: 1180, height: 820)
-        .windowResizability(.contentMinSize)
+        .defaultSize(width: MacUI.WindowMetrics.preferencesDefaultSize(for: NSScreen.main).width,
+                     height: MacUI.WindowMetrics.preferencesDefaultSize(for: NSScreen.main).height)
+        .windowResizability(.automatic)
 
         .commands {
             CommandMenu("Dictation") {
@@ -46,12 +48,7 @@ struct StetApp: App {
                 .keyboardShortcut("d", modifiers: [.command, .shift])
             }
 
-            CommandGroup(replacing: .appTermination) {
-                Button("Quit Stet") {
-                    NSApplication.shared.terminate(nil)
-                }
-                .keyboardShortcut("q", modifiers: .command)
-            }
+            MacUpdatesCommand(appUpdateManager: appUpdateManager)
 
             MacPreferencesCommand(appModel: macAppModel)
         }
@@ -76,6 +73,32 @@ private struct MacPreferencesCommand: Commands {
                 }
             }
             .keyboardShortcut(",", modifiers: .command)
+        }
+    }
+}
+
+private struct MacUpdatesCommand: Commands {
+    @ObservedObject var appUpdateManager: AppUpdateManager
+
+    var body: some Commands {
+        CommandGroup(after: .appSettings) {
+            Button(updateMenuTitle) {
+                appUpdateManager.checkForUpdates()
+            }
+            .disabled(appUpdateManager.isChecking || !appUpdateManager.canCheckForUpdates)
+        }
+    }
+
+    private var updateMenuTitle: String {
+        switch appUpdateManager.state {
+        case .updateAvailable(_, let latestVersion):
+            return "Update Available (\(latestVersion))"
+        case .checking:
+            return "Checking for Updates…"
+        case .unavailable:
+            return "Updates Unavailable"
+        default:
+            return "Check for Updates…"
         }
     }
 }

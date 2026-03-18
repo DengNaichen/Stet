@@ -48,7 +48,7 @@ struct MacOpenAISettingsView: View {
                 Toggle(viewModel.rewriteToggleTitle, isOn: $viewModel.rewriteEnabled)
 
                 Toggle(
-                    "Translate selected text directly when the translation shortcut is used",
+                    "Translate",
                     isOn: $viewModel.translateSelectedTextOnTranslationHotkey
                 )
 
@@ -95,8 +95,6 @@ struct MacOpenAISettingsView: View {
                     .foregroundStyle(viewModel.credentialMessageIsError ? .red : .secondary)
             } header: {
                 Text(viewModel.credentialFieldTitle)
-            } footer: {
-                Text(viewModel.credentialSectionDescription)
             }
         }
         .formStyle(.grouped)
