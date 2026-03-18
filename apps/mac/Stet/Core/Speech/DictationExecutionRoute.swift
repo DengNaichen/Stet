@@ -1,0 +1,124 @@
+import Foundation
+
+struct RelayAuthenticationContext: Sendable, Equatable {
+    let functionsBaseURL: URL
+    let publishableKey: String
+    let accessToken: String
+
+    nonisolated var relayBaseURL: URL {
+        functionsBaseURL.appendingPathComponent("relay/v1")
+    }
+}
+
+enum AIExecutionError: LocalizedError, Equatable {
+    case managedRequiresAuthenticatedSession
+    case relayNotConfigured
+    case relayInvocationFailed(statusCode: Int?, message: String, requestID: String?)
+    case unsupportedFlowInManagedMode(flow: String)
+
+    nonisolated var errorDescription: String? {
+        switch self {
+        case .managedRequiresAuthenticatedSession:
+            return "Managed Relay requires a signed-in Stet account."
+        case .relayNotConfigured:
+            return "Managed Relay is not configured for this build."
+        case .relayInvocationFailed(let statusCode, let message, let requestID):
+            let requestIDSuffix = requestID.map { " Request ID: \($0)." } ?? ""
+
+            if let statusCode {
+                return "Managed Relay error (\(statusCode)): \(message).\(requestIDSuffix)"
+            }
+
+            return "Managed Relay error: \(message).\(requestIDSuffix)"
+        case .unsupportedFlowInManagedMode(let flow):
+            return "\(flow) is not available in Managed Relay mode yet."
+        }
+    }
+}
+
+enum DictationExecutionRoute: Sendable {
+    struct Direct: Sendable {
+        let configuration: OpenAIConfiguration
+        let proxySettings: NetworkProxySettings
+        let rewriteEnabled: Bool
+        let preferredSpellings: [String]
+    }
+
+    struct Relay: Sendable {
+        let authentication: RelayAuthenticationContext
+        let proxySettings: NetworkProxySettings
+        let rewriteEnabled: Bool
+        let preferredSpellings: [String]
+    }
+
+    case direct(Direct)
+    case relay(Relay)
+}
+
+enum DictationExecutionRouteResolver {
+    nonisolated static func resolve(
+        snapshot: DictationSettingsSnapshot,
+        relayAuthentication: RelayAuthenticationContext?
+    ) throws -> DictationExecutionRoute {
+        if snapshot.executionMode.requiresAuthenticatedSession, relayAuthentication == nil {
+            throw AIExecutionError.managedRequiresAuthenticatedSession
+        }
+
+        if snapshot.executionMode.requiresLocalAPIKey, snapshot.providerConfiguration == nil {
+            throw OpenAIError.missingAPIKey(provider: snapshot.provider)
+        }
+
+        switch snapshot.executionMode {
+        case .automatic:
+            if let relayAuthentication {
+                return .relay(
+                    .init(
+                        authentication: relayAuthentication,
+                        proxySettings: snapshot.proxySettings,
+                        rewriteEnabled: snapshot.isRewriteEnabled,
+                        preferredSpellings: snapshot.personalDictionary
+                    )
+                )
+            }
+
+            guard let configuration = snapshot.providerConfiguration else {
+                throw OpenAIError.missingAPIKey(provider: snapshot.provider)
+            }
+
+            return .direct(
+                .init(
+                    configuration: configuration,
+                    proxySettings: snapshot.proxySettings,
+                    rewriteEnabled: snapshot.isRewriteEnabled,
+                    preferredSpellings: snapshot.personalDictionary
+                )
+            )
+        case .managed:
+            guard let relayAuthentication else {
+                throw AIExecutionError.managedRequiresAuthenticatedSession
+            }
+
+            return .relay(
+                .init(
+                    authentication: relayAuthentication,
+                    proxySettings: snapshot.proxySettings,
+                    rewriteEnabled: snapshot.isRewriteEnabled,
+                    preferredSpellings: snapshot.personalDictionary
+                )
+            )
+        case .byok:
+            guard let configuration = snapshot.providerConfiguration else {
+                throw OpenAIError.missingAPIKey(provider: snapshot.provider)
+            }
+
+            return .direct(
+                .init(
+                    configuration: configuration,
+                    proxySettings: snapshot.proxySettings,
+                    rewriteEnabled: snapshot.isRewriteEnabled,
+                    preferredSpellings: snapshot.personalDictionary
+                )
+            )
+        }
+    }
+}

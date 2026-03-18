@@ -3,6 +3,7 @@ import Foundation
 enum MacPreferences {
     nonisolated static let pauseMediaDuringDictation = "mac.pauseMediaDuringDictation"
     nonisolated static let transcriptionProvider = "mac.transcriptionProvider"
+    nonisolated static let aiExecutionMode = "mac.aiExecutionMode"
     nonisolated static let rewriteEnabled = "mac.rewriteEnabled"
     nonisolated static let proxyMode = "mac.proxyMode"
     nonisolated static let customProxyScheme = "mac.customProxyScheme"

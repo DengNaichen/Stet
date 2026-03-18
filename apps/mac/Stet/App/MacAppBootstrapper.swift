@@ -40,6 +40,7 @@ struct MacAppBootstrapper {
     private static let defaultPreferences: [DefaultPreference] = [
         .bool(MacPreferences.pauseMediaDuringDictation, false),
         .string(MacPreferences.transcriptionProvider, DictationProvider.openAI.rawValue),
+        .string(MacPreferences.aiExecutionMode, AIExecutionMode.automatic.rawValue),
         .bool(MacPreferences.rewriteEnabled, false),
         .string(MacPreferences.proxyMode, NetworkProxyMode.system.rawValue),
         .string(MacPreferences.customProxyScheme, CustomProxyScheme.http.rawValue),

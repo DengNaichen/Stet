@@ -19,6 +19,7 @@ enum MacConfigurationTransferManager {
         var version: Int
         var pauseMediaDuringDictation: Bool
         var transcriptionProvider: String
+        var aiExecutionMode: String?
         var rewriteEnabled: Bool
         var proxyMode: String?
         var customProxyScheme: String?
@@ -91,11 +92,12 @@ enum MacConfigurationTransferManager {
         let proxySettings = store.loadProxySettings()
 
         return ExportedConfiguration(
-            version: 4,
+            version: 5,
             pauseMediaDuringDictation: defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation),
             transcriptionProvider: DictationProvider(
                 rawValue: defaults.string(forKey: MacPreferences.transcriptionProvider) ?? ""
             )?.rawValue ?? DictationProvider.openAI.rawValue,
+            aiExecutionMode: store.loadExecutionMode().rawValue,
             rewriteEnabled: defaults.bool(forKey: MacPreferences.rewriteEnabled),
             proxyMode: proxySettings.mode.rawValue,
             customProxyScheme: proxySettings.customScheme.rawValue,
@@ -134,6 +136,10 @@ enum MacConfigurationTransferManager {
             DictationProvider(rawValue: imported.transcriptionProvider)?.rawValue ?? DictationProvider.openAI.rawValue,
             forKey: MacPreferences.transcriptionProvider
         )
+        defaults.set(
+            AIExecutionMode(rawValue: imported.aiExecutionMode ?? "")?.rawValue ?? AIExecutionMode.automatic.rawValue,
+            forKey: MacPreferences.aiExecutionMode
+        )
         defaults.set(imported.rewriteEnabled, forKey: MacPreferences.rewriteEnabled)
         defaults.set(
             imported.translateSelectedTextOnTranslationHotkey,
@@ -148,6 +154,9 @@ enum MacConfigurationTransferManager {
         defaults.set(imported.hotkeyDistinguishModifierSides, forKey: MacPreferences.hotkeyDistinguishModifierSides)
 
         store.saveHotkeyDistinguishModifierSides(imported.hotkeyDistinguishModifierSides)
+        store.saveExecutionMode(
+            AIExecutionMode(rawValue: imported.aiExecutionMode ?? "") ?? .automatic
+        )
         store.saveTranslationTargetLanguage(
             TranslationTargetLanguage(rawValue: imported.translationTargetLanguage) ?? .english
         )

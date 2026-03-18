@@ -7,6 +7,20 @@ struct MacOpenAISettingsView: View {
     var body: some View {
         Form {
             Section {
+                LabeledContent("Execution Mode") {
+                    Picker("Execution Mode", selection: $viewModel.executionMode) {
+                        ForEach(AIExecutionMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .frame(width: 240)
+                }
+
+                Text(viewModel.executionModeDescription)
+                    .foregroundStyle(.secondary)
+
                 LabeledContent("Provider") {
                     Picker("Provider", selection: $viewModel.provider) {
                         ForEach(DictationProvider.allCases) { provider in
@@ -21,7 +35,7 @@ struct MacOpenAISettingsView: View {
                 LabeledContent("Connection") {
                     MacSettingsStatusBadge(
                         text: viewModel.connectionStatusText,
-                        tint: viewModel.shouldHighlightMissingCredential ? .orange : .green
+                        tint: viewModel.connectionNeedsAttention ? .orange : .green
                     )
                 }
             } header: {
@@ -55,22 +69,25 @@ struct MacOpenAISettingsView: View {
             }
 
             Section {
-                SecureField(viewModel.credentialPlaceholder, text: $viewModel.apiKey)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(.body, design: .monospaced))
+                Group {
+                    SecureField(viewModel.credentialPlaceholder, text: $viewModel.apiKey)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(.body, design: .monospaced))
 
-                HStack(spacing: 10) {
-                    Button("Save Key") {
-                        viewModel.saveCredential()
-                    }
+                    HStack(spacing: 10) {
+                        Button("Save Key") {
+                            viewModel.saveCredential()
+                        }
 
-                    Button("Clear Key", role: .destructive) {
-                        viewModel.clearCredential()
+                        Button("Clear Key", role: .destructive) {
+                            viewModel.clearCredential()
+                        }
                     }
                 }
+                .disabled(viewModel.isCredentialEditingDisabled)
 
-                if viewModel.shouldHighlightMissingCredential {
-                    Text("Add a \(viewModel.provider.displayName) API key before using cloud transcription, translation, or rewrite.")
+                if let missingCredentialMessage = viewModel.missingCredentialMessage {
+                    Text(missingCredentialMessage)
                         .foregroundStyle(.orange)
                 }
 
@@ -78,6 +95,8 @@ struct MacOpenAISettingsView: View {
                     .foregroundStyle(viewModel.credentialMessageIsError ? .red : .secondary)
             } header: {
                 Text(viewModel.credentialFieldTitle)
+            } footer: {
+                Text(viewModel.credentialSectionDescription)
             }
         }
         .formStyle(.grouped)
