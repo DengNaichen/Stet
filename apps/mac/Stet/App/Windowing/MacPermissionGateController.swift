@@ -3,10 +3,10 @@ import AppKit
 import SwiftUI
 
 @MainActor
-final class MacPermissionGateController {
+final class MacPermissionGateController: MacPermissionGatePresenting {
     private var windowController: NSWindowController?
 
-    func show(appModel: MacAppModel) {
+    func show(appModel: any MacPermissionsCoordinating) {
         if windowController == nil {
             let window = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 560, height: 400),
@@ -20,13 +20,12 @@ final class MacPermissionGateController {
             window.center()
             window.level = .floating
 
-            let view = MacRequiredPermissionsGateView()
-                .environmentObject(appModel)
-            window.contentView = NSHostingView(rootView: view)
-
             windowController = NSWindowController(window: window)
         }
-        
+
+        windowController?.window?.contentView = NSHostingView(
+            rootView: MacRequiredPermissionsGateView(appModel: appModel)
+        )
         windowController?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
     }

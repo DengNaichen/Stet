@@ -4,7 +4,7 @@ import Foundation
 import SwiftUI
 
 @MainActor
-final class MacShellPresentationController {
+final class MacShellPresentationController: MacShellPresenting {
     private enum PanelPresentationMode {
         case manual
         case transient
@@ -27,13 +27,16 @@ final class MacShellPresentationController {
 
     init() {
         self.panelController = MacPanelController()
+        self.panelController.onHide = { [weak self] in
+            self?.panelDidHide()
+        }
     }
 
-    func showPanel(appModel: MacAppModel) {
+    func showPanel(appModel: any MacDictationPanelCoordinating) {
         showPanel(appModel: appModel, mode: .manual)
     }
 
-    func showTransientPanel(appModel: MacAppModel) {
+    func showTransientPanel(appModel: any MacDictationPanelCoordinating) {
         showPanel(appModel: appModel, mode: .transient)
     }
 
@@ -44,7 +47,7 @@ final class MacShellPresentationController {
         panelPresentationMode = .manual
     }
 
-    func togglePanel(appModel: MacAppModel) {
+    func togglePanel(appModel: any MacDictationPanelCoordinating) {
         if isPanelVisible {
             hidePanel()
         } else {
@@ -110,7 +113,7 @@ final class MacShellPresentationController {
     }
 
     private func showPanel(
-        appModel: MacAppModel,
+        appModel: any MacDictationPanelCoordinating,
         mode: PanelPresentationMode
     ) {
         cancelScheduledPanelHide()

@@ -4,13 +4,13 @@ import Foundation
 
 @MainActor
 final class MacDictationPanelViewModel: ObservableObject {
-    private let appModel: MacAppModel
+    private let appModel: any MacDictationPanelCoordinating
     private var cancellables = Set<AnyCancellable>()
 
-    init(appModel: MacAppModel) {
+    init(appModel: any MacDictationPanelCoordinating) {
         self.appModel = appModel
 
-        appModel.objectWillChange
+        appModel.updates
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.objectWillChange.send()
@@ -19,7 +19,7 @@ final class MacDictationPanelViewModel: ObservableObject {
     }
 
     var state: DictationState {
-        appModel.dictationViewModel.state
+        appModel.dictationState
     }
 
     var statusText: String {

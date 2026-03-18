@@ -3,7 +3,7 @@ import AppKit
 import SwiftUI
 
 struct MacGeneralSettingsView: View {
-    @EnvironmentObject private var appModel: MacAppModel
+    @EnvironmentObject private var settingsShellViewModel: MacSettingsShellViewModel
     @EnvironmentObject private var appUpdateManager: AppUpdateManager
 
     @StateObject private var viewModel = MacGeneralSettingsViewModel()
@@ -22,7 +22,7 @@ struct MacGeneralSettingsView: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 28)
         .task {
-            viewModel.configure(appModel: appModel, appUpdateManager: appUpdateManager)
+            viewModel.configure(appModel: settingsShellViewModel, appUpdateManager: appUpdateManager)
             viewModel.load()
         }
     }

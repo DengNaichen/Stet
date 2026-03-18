@@ -11,22 +11,35 @@ import AppKit
 @main
 struct StetApp: App {
     #if os(macOS)
-    @StateObject private var macAppModel = MacAppModel()
+    @StateObject private var appModel: MacAppModel
+    @StateObject private var dictationCommandsViewModel: MacDictationCommandsViewModel
+    @StateObject private var settingsShellViewModel: MacSettingsShellViewModel
     @StateObject private var appUpdateManager = AppUpdateManager()
+
+    init() {
+        let appModel = MacAppModel()
+        _appModel = StateObject(wrappedValue: appModel)
+        _dictationCommandsViewModel = StateObject(
+            wrappedValue: MacDictationCommandsViewModel(coordinator: appModel)
+        )
+        _settingsShellViewModel = StateObject(
+            wrappedValue: MacSettingsShellViewModel(coordinator: appModel)
+        )
+    }
     #endif
 
     var body: some Scene {
         #if os(macOS)
-        MenuBarExtra("", systemImage: macAppModel.menuBarSymbolName) {
+        MenuBarExtra("", systemImage: dictationCommandsViewModel.menuBarSymbolName) {
             MacMenuBarView()
-                .environmentObject(macAppModel)
+                .environmentObject(settingsShellViewModel)
                 .environmentObject(appUpdateManager)
         }
         .menuBarExtraStyle(.menu)
 
         Window("Settings", id: MacWindowSceneID.preferences) {
             MacSettingsView()
-                .environmentObject(macAppModel)
+                .environmentObject(settingsShellViewModel)
                 .environmentObject(appUpdateManager)
         }
         .defaultLaunchBehavior(.suppressed)
@@ -37,20 +50,20 @@ struct StetApp: App {
 
         .commands {
             CommandMenu("Dictation") {
-                Button(macAppModel.primaryButtonTitle) {
-                    macAppModel.performPrimaryAction()
+                Button(dictationCommandsViewModel.primaryButtonTitle) {
+                    dictationCommandsViewModel.performPrimaryAction()
                 }
                 .keyboardShortcut(.return, modifiers: [.command])
 
-                Button(macAppModel.panelButtonTitle) {
-                    macAppModel.togglePanel()
+                Button(dictationCommandsViewModel.panelButtonTitle) {
+                    dictationCommandsViewModel.togglePanel()
                 }
                 .keyboardShortcut("d", modifiers: [.command, .shift])
             }
 
             MacUpdatesCommand(appUpdateManager: appUpdateManager)
 
-            MacPreferencesCommand(appModel: macAppModel)
+            MacPreferencesCommand(settingsShellViewModel: settingsShellViewModel)
         }
         #else
         WindowGroup {
@@ -63,12 +76,12 @@ struct StetApp: App {
 #if os(macOS)
 private struct MacPreferencesCommand: Commands {
     @Environment(\.openWindow) private var openWindow
-    let appModel: MacAppModel
+    let settingsShellViewModel: MacSettingsShellViewModel
 
     var body: some Commands {
         CommandGroup(replacing: .appSettings) {
             Button("Settings…") {
-                appModel.openSettings {
+                settingsShellViewModel.openSettings {
                     openWindow(id: MacWindowSceneID.preferences)
                 }
             }

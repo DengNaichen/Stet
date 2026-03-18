@@ -3,14 +3,14 @@ import Foundation
 import SwiftUI
 
 struct MacMenuBarView: View {
-    @EnvironmentObject private var appModel: MacAppModel
+    @EnvironmentObject private var settingsShellViewModel: MacSettingsShellViewModel
     @EnvironmentObject private var appUpdateManager: AppUpdateManager
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         Group {
             Button("Settings…") {
-                appModel.openSettings {
+                settingsShellViewModel.openSettings {
                     openWindow(id: MacWindowSceneID.preferences)
                 }
             }

@@ -2,17 +2,6 @@
 import Foundation
 
 struct MacAppBootstrapper {
-    private enum LegacyPreferenceKey {
-        static let copyLatestCaptureHotkeyShortcut = "mac.copyLatestCaptureHotkeyShortcut"
-        static let historyRetentionPeriod = "mac.historyRetentionPeriod"
-        static let showPanelOnLaunch = "mac.showPanelOnLaunch"
-        static let copyToClipboardOnCapture = "mac.copyToClipboardOnCapture"
-        static let autoPasteOnCapture = "mac.autoPasteOnCapture"
-        static let revealPanelOnCapture = "mac.revealPanelOnCapture"
-        static let openAIBaseURL = "mac.openAIBaseURL"
-        static let openAITranslationModel = "mac.openAITranslationModel"
-    }
-
     struct LaunchConfiguration: Equatable {
         let showInDock: Bool
     }
@@ -42,8 +31,6 @@ struct MacAppBootstrapper {
         .string(MacPreferences.transcriptionProvider, DictationProvider.openAI.rawValue),
         .string(MacPreferences.aiExecutionMode, AIExecutionMode.automatic.rawValue),
         .bool(MacPreferences.rewriteEnabled, false),
-//        .string(MacPreferences.proxyMode, NetworkProxyMode.system.rawValue),
-//        .string(MacPreferences.customProxyScheme, CustomProxyScheme.http.rawValue),
         .bool(MacPreferences.interactionSoundsEnabled, true),
         .string(MacPreferences.interactionSoundPreset, InteractionSoundPreset.soft.rawValue),
         .bool(MacPreferences.showInDock, false),
@@ -53,26 +40,19 @@ struct MacAppBootstrapper {
 
     private let defaults: UserDefaults
     private let settingsStore: DictationSettingsStore
-    private let fileManager: FileManager
     private let launchAtLoginStatusProvider: () -> Bool
-    private let legacyHistoryURLs: [URL]
 
     init(
         defaults: UserDefaults = .standard,
         settingsStore: DictationSettingsStore,
-        fileManager: FileManager = .default,
-        launchAtLoginStatusProvider: @escaping () -> Bool = { MacAppBehaviorController.launchAtLoginIsEnabled() },
-        legacyHistoryURLs: [URL]? = nil
+        launchAtLoginStatusProvider: @escaping () -> Bool = { MacAppBehaviorController.launchAtLoginIsEnabled() }
     ) {
         self.defaults = defaults
         self.settingsStore = settingsStore
-        self.fileManager = fileManager
         self.launchAtLoginStatusProvider = launchAtLoginStatusProvider
-        self.legacyHistoryURLs = legacyHistoryURLs ?? Self.makeLegacyHistoryURLs(fileManager: fileManager)
     }
 
     func prepareForLaunch() -> LaunchConfiguration {
-        removeLegacyArtifacts()
         applyDefaultPreferences()
 
         return LaunchConfiguration(
@@ -98,42 +78,6 @@ struct MacAppBootstrapper {
         if defaults.object(forKey: MacPreferences.launchAtLogin) == nil {
             defaults.set(launchAtLoginStatusProvider(), forKey: MacPreferences.launchAtLogin)
         }
-    }
-
-    private func removeLegacyArtifacts() {
-        defaults.removeObject(forKey: LegacyPreferenceKey.copyLatestCaptureHotkeyShortcut)
-        defaults.removeObject(forKey: LegacyPreferenceKey.historyRetentionPeriod)
-        defaults.removeObject(forKey: LegacyPreferenceKey.showPanelOnLaunch)
-        defaults.removeObject(forKey: LegacyPreferenceKey.copyToClipboardOnCapture)
-        defaults.removeObject(forKey: LegacyPreferenceKey.autoPasteOnCapture)
-        defaults.removeObject(forKey: LegacyPreferenceKey.revealPanelOnCapture)
-        defaults.removeObject(forKey: LegacyPreferenceKey.openAIBaseURL)
-        defaults.removeObject(forKey: LegacyPreferenceKey.openAITranslationModel)
-
-        for url in legacyHistoryURLs {
-            try? fileManager.removeItem(at: url)
-        }
-    }
-
-    private static func makeLegacyHistoryURLs(fileManager: FileManager) -> [URL] {
-        var urls: [URL] = [
-            fileManager.temporaryDirectory.appendingPathComponent("Stet-transcription-history.json")
-        ]
-
-        if let applicationSupport = try? fileManager.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: false
-        ) {
-            urls.append(
-                applicationSupport
-                    .appendingPathComponent("Stet", isDirectory: true)
-                    .appendingPathComponent("transcription-history.json")
-            )
-        }
-
-        return urls
     }
 }
 #endif

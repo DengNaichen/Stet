@@ -9,8 +9,6 @@ protocol MacGeneralSettingsAppModeling: AnyObject {
     func applyDockVisibility(showInDock: Bool)
 }
 
-extension MacAppModel: MacGeneralSettingsAppModeling {}
-
 @MainActor
 final class MacGeneralSettingsViewModel: ObservableObject {
     struct ManagedSettingsState {

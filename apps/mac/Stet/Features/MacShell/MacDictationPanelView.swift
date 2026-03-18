@@ -6,7 +6,7 @@ struct MacDictationPanelView: View {
 
     let layout: MacDictationPanelLayout
 
-    init(layout: MacDictationPanelLayout, appModel: MacAppModel) {
+    init(layout: MacDictationPanelLayout, appModel: any MacDictationPanelCoordinating) {
         self.layout = layout
         _viewModel = StateObject(wrappedValue: MacDictationPanelViewModel(appModel: appModel))
     }

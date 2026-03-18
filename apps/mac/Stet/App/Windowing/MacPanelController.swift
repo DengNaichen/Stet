@@ -4,6 +4,8 @@ import SwiftUI
 
 @MainActor
 final class MacPanelController: NSObject, NSWindowDelegate {
+    var onHide: (() -> Void)?
+
     enum PresentationMode {
         case manual
         case transient
@@ -15,11 +17,8 @@ final class MacPanelController: NSObject, NSWindowDelegate {
     }
 
     private var panel: NSPanel?
-    private weak var appModel: MacAppModel?
 
-    func show(appModel: MacAppModel, mode: PresentationMode) {
-        self.appModel = appModel
-
+    func show(appModel: any MacDictationPanelCoordinating, mode: PresentationMode) {
         let screen = targetScreen()
         let layout = MacDictationPanelLayout.for(screen: screen)
 
@@ -43,7 +42,7 @@ final class MacPanelController: NSObject, NSWindowDelegate {
 
     func hide() {
         panel?.orderOut(nil)
-        appModel?.panelDidHide()
+        onHide?()
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
@@ -51,7 +50,7 @@ final class MacPanelController: NSObject, NSWindowDelegate {
         return false
     }
 
-    private func makePanel(appModel: MacAppModel, layout: MacDictationPanelLayout) -> NSPanel {
+    private func makePanel(appModel: any MacDictationPanelCoordinating, layout: MacDictationPanelLayout) -> NSPanel {
         let panel = CapsulePanel(
             contentRect: NSRect(origin: .zero, size: layout.panelSize),
             styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],

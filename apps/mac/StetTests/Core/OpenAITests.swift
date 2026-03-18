@@ -37,7 +37,7 @@ struct OpenAITests {
         #expect(sdkConfiguration.token == "sk-test")
         #expect(sdkConfiguration.organizationIdentifier == "org_123")
         #expect(sdkConfiguration.host == "api.example.com")
-        #expect(sdkConfiguration.basePath == "/v1/")
+        #expect(sdkConfiguration.basePath == "/v1")
         #expect(sdkConfiguration.customHeaders["OpenAI-Project"] == "proj_123")
         #expect(sdkConfiguration.customHeaders["X-Test"] == "1")
     }

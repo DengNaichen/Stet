@@ -3,7 +3,11 @@ import AppKit
 import SwiftUI
 
 struct MacRequiredPermissionsGateView: View {
-    @EnvironmentObject private var appModel: MacAppModel
+    @StateObject private var viewModel: MacPermissionsViewModel
+
+    init(appModel: any MacPermissionsCoordinating) {
+        _viewModel = StateObject(wrappedValue: MacPermissionsViewModel(coordinator: appModel))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -22,12 +26,12 @@ struct MacRequiredPermissionsGateView: View {
                     permissionGateRow(
                         title: "Microphone",
                         description: "Required before any recording can start.",
-                        statusText: appModel.microphoneAccessStatusText,
-                        tint: appModel.microphoneAccessNeedsAttention ? .orange : .green
+                        statusText: viewModel.microphoneAccessStatusText,
+                        tint: viewModel.microphoneAccessNeedsAttention ? .orange : .green
                     ) {
-                        if appModel.microphoneAccessNeedsAttention {
-                            Button(appModel.microphonePermissionActionTitle) {
-                                appModel.resolveMicrophoneAccess()
+                        if viewModel.microphoneAccessNeedsAttention {
+                            Button(viewModel.microphonePermissionActionTitle) {
+                                viewModel.resolveMicrophoneAccess()
                             }
                         }
                     }
@@ -35,16 +39,16 @@ struct MacRequiredPermissionsGateView: View {
                     permissionGateRow(
                         title: "Text Injection",
                         description: "Required so Stet can paste or replace text in other apps.",
-                        statusText: appModel.autoPasteStatusText,
-                        tint: appModel.autoPasteAccessNeedsAttention ? .orange : .green
+                        statusText: viewModel.autoPasteStatusText,
+                        tint: viewModel.autoPasteAccessNeedsAttention ? .orange : .green
                     ) {
-                        if appModel.autoPasteAccessNeedsAttention {
+                        if viewModel.autoPasteAccessNeedsAttention {
                             Button("Request Access") {
-                                appModel.requestAutoPasteAccess()
+                                viewModel.requestAutoPasteAccess()
                             }
 
                             Button("Open Settings") {
-                                appModel.openAccessibilitySettings()
+                                viewModel.openAccessibilitySettings()
                             }
                         }
                     }

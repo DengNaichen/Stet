@@ -3,95 +3,93 @@ import Testing
 
 @testable import Stet
 
-private final class CapturedProxySettingsBox: @unchecked Sendable {
-    private let lock = NSLock()
-    private var value: NetworkProxySettings?
+private let relayAuthentication = RelayAuthenticationContext(
+    functionsBaseURL: URL(string: "https://example.supabase.co/functions/v1")!,
+    publishableKey: "anon-key",
+    accessToken: "access-token"
+)
 
-    func set(_ value: NetworkProxySettings) {
-        lock.lock()
-        defer { lock.unlock() }
-        self.value = value
-    }
-
-    func get() -> NetworkProxySettings? {
-        lock.lock()
-        defer { lock.unlock() }
-        return value
-    }
+private func makeAudioFileURL() -> URL {
+    let fileURL = TestSupport.temporaryFileURL("speech", ext: "wav")
+    try? Data("audio-bytes".utf8).write(to: fileURL)
+    return fileURL
 }
 
-private actor CapturedPromptBox {
-    private(set) var value: String?
+private func makeSettingsStore(
+    provider: DictationProvider = .openAI,
+    executionMode: AIExecutionMode = .automatic,
+    rewriteEnabled: Bool = false,
+    apiKey: String? = "sk-test",
+    preferredSpellings: [String] = []
+) throws -> (DictationSettingsStore, TestSecretStore, UserDefaults) {
+    let defaults = TestSupport.makeUserDefaults()
+    let secretStore = TestSecretStore()
+    defaults.set(provider.rawValue, forKey: MacPreferences.transcriptionProvider)
+    defaults.set(executionMode.rawValue, forKey: MacPreferences.aiExecutionMode)
+    defaults.set(rewriteEnabled, forKey: MacPreferences.rewriteEnabled)
 
-    func set(_ value: String?) {
-        self.value = value
+    if let apiKey {
+        try secretStore.saveString(
+            apiKey,
+            forAccount: provider == .openAI ? "openai.api_key" : "groq.api_key"
+        )
     }
 
-    func get() -> String? {
-        value
+    let store = DictationSettingsStore(defaults: defaults, secretStore: secretStore)
+    if !preferredSpellings.isEmpty {
+        store.savePersonalDictionaryEnabled(true)
+        store.savePersonalDictionary(preferredSpellings)
     }
+
+    return (store, secretStore, defaults)
 }
 
-@MainActor
-@Suite("Configurable Speech Service", .serialized)
-struct ConfigurableSpeechServiceTests {
-    private let relayAuthentication = RelayAuthenticationContext(
-        functionsBaseURL: URL(string: "https://example.supabase.co/functions/v1")!,
-        publishableKey: "anon-key",
-        accessToken: "access-token"
+private func makeDictationService(
+    settingsStore: DictationSettingsStore,
+    relayAuthentication: RelayAuthenticationContext? = nil,
+    directTranscriptionService: TestTranscriptionService,
+    relayTranscriptionService: TestTranscriptionService,
+    rewriteService: RecordingRewriteService
+) -> ConfigurableSpeechService {
+    let factory = DictationPipelineFactory(
+        relayAuthenticationContext: {
+            relayAuthentication
+        },
+        makeDirectTranscriptionService: { _, _ in
+            directTranscriptionService
+        },
+        makeRelayTranscriptionService: { _, _, _, _ in
+            relayTranscriptionService
+        },
+        makeRewriteService: { _, _ in
+            rewriteService
+        }
     )
 
-    private func makeDependencies(
-        relayAuthentication: RelayAuthenticationContext? = nil,
-        makeNetworkSession: @escaping @Sendable (NetworkProxySettings) -> URLSession = { _ in
-            TestURLSessionFactory.makeSession()
-        },
-        directSpeech: ControllableSpeechService = ControllableSpeechService(),
-        relaySpeech: ControllableSpeechService = ControllableSpeechService(),
-        directPromptBox: CapturedPromptBox? = nil,
-        relayPromptBox: CapturedPromptBox? = nil,
-        rewriteService: RecordingRewriteService = RecordingRewriteService()
-    ) -> ConfigurableSpeechService.Dependencies {
-        .init(
-            relayAuthenticationContext: { relayAuthentication },
-            makeNetworkSession: makeNetworkSession,
-            makeDirectSpeechService: { _, _, _, promptProvider in
-                if let directPromptBox {
-                    await directPromptBox.set(await promptProvider())
-                }
-                return directSpeech
-            },
-            makeRelaySpeechService: { _, _, _, _, _, promptProvider in
-                if let relayPromptBox {
-                    await relayPromptBox.set(await promptProvider())
-                }
-                return relaySpeech
-            },
-            makeRewriteService: { _, _ in rewriteService }
-        )
-    }
+    return ConfigurableSpeechService(
+        settingsStore: settingsStore,
+        pipelineFactory: factory,
+        captureService: TestAudioCaptureService(audioFileURL: makeAudioFileURL())
+    )
+}
 
-    @Test func makeTranscriptionPromptIncludesPreferredSpellings() {
-        let prompt = ConfigurableSpeechService.makeTranscriptionPrompt(
-            preferredSpellings: ["OpenAI", "Groq"]
-        )
-
-        let rendered = try! #require(prompt)
-        #expect(rendered.contains("OpenAI, Groq"))
-    }
-
-    @Test func makeTranscriptionPromptReturnsNilWithoutPreferredSpellings() {
-        #expect(
-            ConfigurableSpeechService.makeTranscriptionPrompt(preferredSpellings: []) == nil
-        )
-    }
-
+@Suite("Configurable Speech Service", .serialized)
+struct ConfigurableSpeechServiceTests {
     @Test func automaticWithoutSessionRequiresOpenAIAPIKey() async {
         let defaults = TestSupport.makeUserDefaults()
         defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
+
+        let store = DictationSettingsStore(
+            defaults: defaults,
+            secretStore: TestSecretStore()
+        )
+
         let service = ConfigurableSpeechService(
-            settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
-            dependencies: makeDependencies()
+            settingsStore: store,
+            pipelineFactory: .live(
+                relayAuthenticationContext: { nil }
+            ),
+            captureService: TestAudioCaptureService(audioFileURL: makeAudioFileURL())
         )
 
         await #expect(throws: OpenAIError.missingAPIKey(provider: .openAI)) {
@@ -99,26 +97,15 @@ struct ConfigurableSpeechServiceTests {
         }
     }
 
-    @Test func automaticWithoutSessionRequiresGroqAPIKey() async {
-        let defaults = TestSupport.makeUserDefaults()
-        defaults.set(DictationProvider.groq.rawValue, forKey: MacPreferences.transcriptionProvider)
-        let service = ConfigurableSpeechService(
-            settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
-            dependencies: makeDependencies()
-        )
-
-        await #expect(throws: OpenAIError.missingAPIKey(provider: .groq)) {
-            try await service.startRecording()
-        }
-    }
-
     @Test func managedModeRequiresAuthenticatedSession() async {
-        let defaults = TestSupport.makeUserDefaults()
-        defaults.set(AIExecutionMode.managed.rawValue, forKey: MacPreferences.aiExecutionMode)
+        let (store, _, _) = try! makeSettingsStore(executionMode: .managed)
 
         let service = ConfigurableSpeechService(
-            settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
-            dependencies: makeDependencies(relayAuthentication: nil)
+            settingsStore: store,
+            pipelineFactory: .live(
+                relayAuthenticationContext: { nil }
+            ),
+            captureService: TestAudioCaptureService(audioFileURL: makeAudioFileURL())
         )
 
         await #expect(throws: AIExecutionError.managedRequiresAuthenticatedSession) {
@@ -126,123 +113,148 @@ struct ConfigurableSpeechServiceTests {
         }
     }
 
-    @Test func startRecordingUsesLoadedProxySettings() async throws {
-        let defaults = TestSupport.makeUserDefaults()
-        defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
-        defaults.set(NetworkProxyMode.custom.rawValue, forKey: MacPreferences.proxyMode)
-        defaults.set(CustomProxyScheme.socks5.rawValue, forKey: MacPreferences.customProxyScheme)
-        defaults.set("localhost", forKey: MacPreferences.customProxyHost)
-        defaults.set("1080", forKey: MacPreferences.customProxyPort)
-
-        let secretStore = TestSecretStore()
-        try secretStore.saveString("sk-test", forAccount: "openai.api_key")
-        let settingsStore = DictationSettingsStore(defaults: defaults, secretStore: secretStore)
-        let proxyBox = CapturedProxySettingsBox()
-        let directSpeech = ControllableSpeechService()
+    @Test func startRecordingCanBeCalledOnlyOnceUntilStopOrCancel() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+        let direct = TestTranscriptionService(result: "source")
+        let relay = TestTranscriptionService(result: "relay")
+        let rewrite = RecordingRewriteService()
+        let (store, _, _) = try makeSettingsStore()
+        let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
         let service = ConfigurableSpeechService(
-            settingsStore: settingsStore,
-            dependencies: makeDependencies(
-                makeNetworkSession: { settings in
-                    proxyBox.set(settings)
-                    return TestURLSessionFactory.makeSession()
-                },
-                directSpeech: directSpeech
-            )
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { nil },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            captureService: capture
         )
 
         try await service.startRecording()
-        let proxy = try #require(proxyBox.get())
+        await #expect(throws: SpeechServiceError.alreadyRecording) {
+            try await service.startRecording()
+        }
 
-        #expect(proxy.mode == .custom)
-        #expect(proxy.customScheme == .socks5)
-        #expect(proxy.customHost == "localhost")
-        #expect(proxy.customPort == 1080)
-        #expect(await directSpeech.counts().start == 1)
-
+        await #expect(await capture.counts().start == 1)
         await service.cancelRecording()
+    }
+
+    @Test func cancelRecordingClearsPipelineAndPreventsStop() async throws {
+        let audioFileURL = makeAudioFileURL()
+        let direct = TestTranscriptionService(result: "source")
+        let relay = TestTranscriptionService(result: "relay")
+        let rewrite = RecordingRewriteService()
+        let (store, _, _) = try makeSettingsStore()
+        let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { nil },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            captureService: capture
+        )
+
+        try await service.startRecording()
+        await service.cancelRecording()
+
+        #expect(await capture.counts().cancel == 1)
+        await #expect(throws: SpeechServiceError.notRecording) {
+            try await service.stopRecording()
+        }
     }
 
     @Test func automaticWithoutSessionUsesDirectPathAndLocalRewrite() async throws {
-        let defaults = TestSupport.makeUserDefaults()
-        defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
-        defaults.set(true, forKey: MacPreferences.rewriteEnabled)
-        let secretStore = TestSecretStore()
-        try secretStore.saveString("sk-test", forAccount: "openai.api_key")
-        let settingsStore = DictationSettingsStore(defaults: defaults, secretStore: secretStore)
-        settingsStore.savePersonalDictionary(["OpenAI", "Groq"])
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
 
-        let directSpeech = ControllableSpeechService()
-        await directSpeech.setStopBehavior(.immediate("source transcript"))
-        let relaySpeech = ControllableSpeechService()
-        let rewriteService = RecordingRewriteService()
-        await rewriteService.setResult("rewritten transcript")
-        let directPromptBox = CapturedPromptBox()
+        let direct = TestTranscriptionService(result: "source transcript")
+        let relay = TestTranscriptionService(result: "relay transcript")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setResult("rewritten transcript")
+        let (store, _, _) = try makeSettingsStore(preferredSpellings: ["OpenAI", "Groq"])
+        let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
 
         let service = ConfigurableSpeechService(
-            settingsStore: settingsStore,
-            dependencies: makeDependencies(
-                relayAuthentication: nil,
-                directSpeech: directSpeech,
-                relaySpeech: relaySpeech,
-                directPromptBox: directPromptBox,
-                rewriteService: rewriteService
-            )
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { nil },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            captureService: capture
         )
 
         try await service.startRecording()
-        let result = try await service.stopRecording()
-        let rewriteRequest = try #require(await rewriteService.recordedRequests().first)
+        let transcript = try await service.stopRecording()
+        let rewriteRequests = await rewrite.recordedRequests()
+        let directInvocation = await direct.lastInvocation()
 
-        #expect(result == "rewritten transcript")
-        #expect(rewriteRequest.sourceText == "source transcript")
-        #expect(rewriteRequest.systemPrompt?.contains("OpenAI, Groq") == true)
-        #expect(await directPromptBox.get() == nil)
-        #expect(await directSpeech.counts().start == 1)
-        #expect(await relaySpeech.counts().start == 0)
+        #expect(transcript == "rewritten transcript")
+        #expect(directInvocation?.prompt == nil)
+        #expect(await direct.callCount() == 1)
+        #expect(await relay.callCount() == 0)
+        #expect(await capture.counts().stop == 1)
+        #expect(rewriteRequests.count == 1)
+        #expect(rewriteRequests.first?.sourceText == "source transcript")
     }
 
     @Test func automaticWithSessionPrefersRelayEvenWhenLocalKeyExists() async throws {
-        let defaults = TestSupport.makeUserDefaults()
-        defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
-        let secretStore = TestSecretStore()
-        try secretStore.saveString("sk-test", forAccount: "openai.api_key")
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
 
-        let directSpeech = ControllableSpeechService()
-        let relaySpeech = ControllableSpeechService()
+        let direct = TestTranscriptionService(result: "source")
+        let relay = TestTranscriptionService(result: "relay transcript")
+        let rewrite = RecordingRewriteService()
+        let (store, _, _) = try makeSettingsStore(preferredSpellings: ["OpenAI", "Groq"])
+        let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
+
         let service = ConfigurableSpeechService(
-            settingsStore: DictationSettingsStore(defaults: defaults, secretStore: secretStore),
-            dependencies: makeDependencies(
-                relayAuthentication: relayAuthentication,
-                directSpeech: directSpeech,
-                relaySpeech: relaySpeech
-            )
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { relayAuthentication },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            captureService: capture
         )
 
         try await service.startRecording()
+        _ = try await service.stopRecording()
+        let relayInvocation = await relay.lastInvocation()
 
-        #expect(await directSpeech.counts().start == 0)
-        #expect(await relaySpeech.counts().start == 1)
-
-        await service.cancelRecording()
+        #expect(await direct.callCount() == 0)
+        #expect(await relay.callCount() == 1)
+        #expect(await rewrite.recordedRequests().isEmpty)
+        #expect(relayInvocation?.prompt?.contains("OpenAI, Groq") == true)
+        #expect(await capture.counts().stop == 1)
     }
 
     @Test func automaticWithSessionDoesNotFallbackAfterRelayFailure() async throws {
-        let defaults = TestSupport.makeUserDefaults()
-        defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
-        let secretStore = TestSecretStore()
-        try secretStore.saveString("sk-test", forAccount: "openai.api_key")
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
 
-        let directSpeech = ControllableSpeechService()
-        let relaySpeech = ControllableSpeechService()
-        await relaySpeech.setStopBehavior(.fail(TestError.expected))
+        let direct = TestTranscriptionService(result: "source")
+        let relay = TestTranscriptionService(outcome: .failure(TestError.expected))
+        let rewrite = RecordingRewriteService()
+        let (store, _, _) = try makeSettingsStore()
+        let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
 
         let service = ConfigurableSpeechService(
-            settingsStore: DictationSettingsStore(defaults: defaults, secretStore: secretStore),
-            dependencies: makeDependencies(
-                relayAuthentication: relayAuthentication,
-                directSpeech: directSpeech,
-                relaySpeech: relaySpeech
-            )
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { relayAuthentication },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            captureService: capture
         )
 
         try await service.startRecording()
@@ -250,55 +262,219 @@ struct ConfigurableSpeechServiceTests {
             try await service.stopRecording()
         }
 
-        #expect(await directSpeech.counts().start == 0)
-        #expect(await directSpeech.counts().stop == 0)
-        #expect(await relaySpeech.counts().start == 1)
-        #expect(await relaySpeech.counts().stop == 1)
+        #expect(await direct.callCount() == 0)
+        #expect(await relay.callCount() == 1)
     }
 
-    @Test func relayPathBuildsTranscriptionPromptAndSkipsLocalRewrite() async throws {
-        let defaults = TestSupport.makeUserDefaults()
+    @Test func relayPathBuildsPromptAndSkipsLocalRewrite() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+        var defaults = try TestSupport.makeUserDefaults()
         defaults.set(AIExecutionMode.managed.rawValue, forKey: MacPreferences.aiExecutionMode)
         defaults.set(true, forKey: MacPreferences.rewriteEnabled)
-        let settingsStore = DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
-        settingsStore.savePersonalDictionary(["OpenAI", "Groq"])
 
-        let relaySpeech = ControllableSpeechService()
-        await relaySpeech.setStopBehavior(.immediate("relay transcript"))
-        let rewriteService = RecordingRewriteService()
-        let relayPromptBox = CapturedPromptBox()
+        let store = DictationSettingsStore(
+            defaults: defaults,
+            secretStore: TestSecretStore()
+        )
+        store.savePersonalDictionary(["OpenAI", "Groq"])
+
+        let direct = TestTranscriptionService(result: "source")
+        let relay = TestTranscriptionService(result: "relay transcript")
+        let rewrite = RecordingRewriteService()
+        let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
 
         let service = ConfigurableSpeechService(
-            settingsStore: settingsStore,
-            dependencies: makeDependencies(
-                relayAuthentication: relayAuthentication,
-                relaySpeech: relaySpeech,
-                relayPromptBox: relayPromptBox,
-                rewriteService: rewriteService
-            )
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { relayAuthentication },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            captureService: capture
         )
 
         try await service.startRecording()
         let result = try await service.stopRecording()
+        let relayInvocation = await relay.lastInvocation()
 
         #expect(result == "relay transcript")
-        #expect(await rewriteService.recordedRequests().isEmpty)
-        #expect(await relayPromptBox.get()?.contains("OpenAI, Groq") == true)
+        #expect(await relay.callCount() == 1)
+        #expect(await direct.callCount() == 0)
+        #expect(await rewrite.recordedRequests().isEmpty)
+        #expect(relayInvocation?.prompt?.contains("OpenAI, Groq") == true)
     }
 
     @Test func emptyTranscriptThrowsEmptyTranscription() async throws {
-        let directSpeech = ControllableSpeechService()
-        await directSpeech.setStopBehavior(.immediate("   "))
-        let secretStore = TestSecretStore()
-        try secretStore.saveString("sk-test", forAccount: "openai.api_key")
+        let audioFileURL = makeAudioFileURL()
+        let direct = TestTranscriptionService(outcome: .success("   "))
+        let relay = TestTranscriptionService(result: "relay")
+        let rewrite = RecordingRewriteService()
+        let (store, _, _) = try makeSettingsStore()
+        let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
         let service = ConfigurableSpeechService(
-            settingsStore: DictationSettingsStore(defaults: TestSupport.makeUserDefaults(), secretStore: secretStore),
-            dependencies: makeDependencies(directSpeech: directSpeech)
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { nil },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            captureService: capture
         )
 
         try await service.startRecording()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
         await #expect(throws: SpeechServiceError.emptyTranscription) {
             try await service.stopRecording()
         }
+    }
+
+    @Test func rewriteFailureThrows() async throws {
+        let audioFileURL = makeAudioFileURL()
+        let direct = TestTranscriptionService(result: "source")
+        let relay = TestTranscriptionService(result: "relay")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setError(TestError.expected)
+        let (store, _, _) = try makeSettingsStore(rewriteEnabled: true)
+        let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
+
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { nil },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            captureService: capture
+        )
+
+        try await service.startRecording()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        await #expect(throws: TestError.expected) {
+            try await service.stopRecording()
+        }
+
+        #expect(await direct.callCount() == 1)
+        #expect(await rewrite.recordedRequests().count == 1)
+    }
+
+    @Test func transcriptionFailurePropagatesAndCannotRetryLocally() async throws {
+        let audioFileURL = makeAudioFileURL()
+        let direct = TestTranscriptionService(outcome: .failure(TestError.expected))
+        let relay = TestTranscriptionService(result: "relay")
+        let rewrite = RecordingRewriteService()
+        let (store, _, _) = try makeSettingsStore()
+        let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { nil },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            captureService: capture
+        )
+
+        try await service.startRecording()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        await #expect(throws: TestError.expected) {
+            try await service.stopRecording()
+        }
+
+        #expect(await direct.callCount() == 1)
+        #expect(await relay.callCount() == 0)
+        #expect(await rewrite.recordedRequests().isEmpty)
+    }
+}
+
+private actor TestAudioCaptureService: AudioCaptureService, AudioLevelSource {
+    private let audioFileURL: URL
+    private var startCount = 0
+    private var stopCount = 0
+    private var cancelCount = 0
+    private let audioDurationSeconds: TimeInterval?
+
+    init(audioFileURL: URL, audioDurationSeconds: TimeInterval? = 1.2) {
+        self.audioFileURL = audioFileURL
+        self.audioDurationSeconds = audioDurationSeconds
+    }
+
+    func startRecording() async throws {
+        startCount += 1
+    }
+
+    func stopRecording() async throws -> (url: URL, duration: TimeInterval?) {
+        stopCount += 1
+        return (audioFileURL, audioDurationSeconds)
+    }
+
+    func cancelRecording() async {
+        cancelCount += 1
+    }
+
+    func counts() -> (start: Int, stop: Int, cancel: Int) {
+        (startCount, stopCount, cancelCount)
+    }
+
+    func makeAudioLevelStream() async -> AsyncStream<Double> {
+        AsyncStream { continuation in
+            continuation.finish()
+        }
+    }
+}
+
+private actor TestTranscriptionService: AudioFileTranscriptionService {
+    enum Outcome: Sendable {
+        case success(String)
+        case failure(any Error & Sendable)
+    }
+
+    private(set) var outcome: Outcome
+    private var callCountValue = 0
+    private var lastInvocationValue: (languageCode: String?, prompt: String?, duration: TimeInterval?)?
+
+    init(result: String) {
+        self.outcome = .success(result)
+    }
+
+    init(outcome: Outcome) {
+        self.outcome = outcome
+    }
+
+    func setOutcome(_ outcome: Outcome) {
+        self.outcome = outcome
+    }
+
+    func transcribe(
+        audioFileAt fileURL: URL,
+        languageCode: String?,
+        prompt: String?,
+        audioDurationSeconds: TimeInterval?
+    ) async throws -> String {
+        callCountValue += 1
+        lastInvocationValue = (languageCode: languageCode, prompt: prompt, duration: audioDurationSeconds)
+        #expect(!fileURL.path.isEmpty)
+
+        switch outcome {
+        case .success(let value):
+            return value
+        case .failure(let error):
+            throw error
+        }
+    }
+
+    func callCount() -> Int {
+        callCountValue
+    }
+
+    func lastInvocation() -> (languageCode: String?, prompt: String?, duration: TimeInterval?)? {
+        lastInvocationValue
     }
 }

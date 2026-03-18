@@ -88,7 +88,7 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
 }
 
 struct MacSettingsView: View {
-    @EnvironmentObject private var appModel: MacAppModel
+    @EnvironmentObject private var settingsShellViewModel: MacSettingsShellViewModel
 
     @StateObject private var dictionaryViewModel = DictionaryViewModel()
     @StateObject private var openAISettingsViewModel = MacOpenAISettingsViewModel()
@@ -118,10 +118,10 @@ struct MacSettingsView: View {
             synchronizeSelectionWithFilter()
         }
         .onAppear {
-            appModel.settingsDidAppear()
+            settingsShellViewModel.settingsDidAppear()
         }
         .onDisappear {
-            appModel.settingsDidDisappear()
+            settingsShellViewModel.settingsDidDisappear()
         }
     }
 
