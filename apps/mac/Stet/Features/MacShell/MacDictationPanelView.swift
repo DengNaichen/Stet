@@ -12,515 +12,511 @@ struct MacDictationPanelView: View {
     }
 
     var body: some View {
-        Group {
-            switch viewModel.state {
-            case .idle:
-                idleCapsule
-            case .listening:
-                recordingCapsule
-            case .processing:
-                thinkingCapsule
-            case .result:
-                insertedCapsule
-            case .clipboardPending:
-                clipboardPendingCapsule
-            case .error(let message):
-                errorCapsule(message: message)
-            }
-        }
-        .frame(width: layout.panelSize.width, height: layout.panelSize.height)
+        let panelSize = layout.panelSize(for: viewModel.state)
+
+        MacDictationCapsuleSurface(
+            layout: layout,
+            panelSize: panelSize,
+            state: viewModel.state,
+            statusText: viewModel.statusText,
+            recordingLevel: viewModel.recordingLevel,
+            leadingOrb: leadingOrb,
+            trailingOrb: trailingOrb
+        )
+        .frame(width: panelSize.width, height: panelSize.height)
     }
 
-    private var idleCapsule: some View {
-        shell(style: .idle) {
-            HStack(spacing: 10) {
-                controlButton(
-                    systemName: "xmark",
-                    isEmphasized: false,
-                    action: viewModel.hidePanel
-                )
-
-                Text("Ready")
-                    .font(statusFont(weight: .semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.9)
-                    .frame(maxWidth: .infinity)
-
-                controlButton(
-                    systemName: "mic.fill",
-                    isEmphasized: true,
-                    action: viewModel.performPrimaryAction
-                )
-            }
-        }
-    }
-
-    private var recordingCapsule: some View {
-        shell(style: .listening(level: emphasizedRecordingLevel)) {
-            HStack(spacing: 12) {
-                controlButton(
-                    systemName: "xmark",
-                    isEmphasized: false,
-                    action: viewModel.cancelActiveCapture
-                )
-
-                VoiceLevelBarsView(level: emphasizedRecordingLevel, layout: layout)
-                    .frame(maxWidth: .infinity)
-
-                controlButton(
-                    systemName: "checkmark",
-                    isEmphasized: true,
-                    action: viewModel.performPrimaryAction
-                )
-            }
-        }
-    }
-
-    private var thinkingCapsule: some View {
-        shell(style: .processing) {
-            HStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                    .tint(.white)
-
-                Text(viewModel.statusText)
-                    .font(statusFont(weight: .semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.9)
-            }
-            .frame(maxWidth: .infinity, alignment: .center)
-        }
-    }
-
-    private var insertedCapsule: some View {
-        shell(style: .result) {
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.white)
-
-                Text(viewModel.statusText)
-                    .font(statusFont(weight: .semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.9)
-            }
-            .frame(maxWidth: .infinity, alignment: .center)
-        }
-    }
-
-    private var clipboardPendingCapsule: some View {
-        shell(style: .clipboardPending) {
-            HStack(spacing: 10) {
-                controlButton(
-                    systemName: "xmark",
-                    isEmphasized: false,
-                    action: viewModel.dismissPendingCopy
-                )
-
-                Text(viewModel.statusText)
-                    .font(statusFont(weight: .semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.9)
-                    .frame(maxWidth: .infinity, alignment: .center)
-
-                actionButton(
-                    title: "Copy",
-                    action: viewModel.performPrimaryAction
-                )
-            }
-        }
-    }
-
-    private func errorCapsule(message: String) -> some View {
-        shell(style: .error) {
-            HStack(spacing: 10) {
-                controlButton(
-                    systemName: "xmark",
-                    isEmphasized: false,
-                    action: viewModel.hidePanel
-                )
-
-                Text(message)
-                    .font(.system(size: layout.secondaryFontSize, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.88))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                controlButton(
-                    systemName: "arrow.clockwise",
-                    isEmphasized: true,
-                    action: viewModel.performPrimaryAction
-                )
-            }
-        }
-    }
-
-    private func shell<Content: View>(
-        style: BlendCapsuleStyle,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        content()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal, layout.horizontalPadding)
-            .padding(.vertical, layout.verticalPadding)
-            .frame(width: layout.capsuleSize.width, height: layout.capsuleSize.height)
-            .background(
-                ReactiveBlendCapsuleBackground(
-                    level: style.level,
-                    isActive: style.isActive,
-                    palette: style.palette
-                )
+    private var leadingOrb: CapsuleOrbConfiguration? {
+        switch viewModel.state {
+        case .idle:
+            CapsuleOrbConfiguration(
+                systemName: "xmark",
+                tint: .cancel,
+                action: viewModel.hidePanel
             )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .listening:
+            CapsuleOrbConfiguration(
+                systemName: "xmark",
+                tint: .cancel,
+                action: viewModel.cancelActiveCapture
+            )
+        case .processing:
+            nil
+        case .result:
+            nil
+        case .clipboardPending:
+            CapsuleOrbConfiguration(
+                systemName: "xmark",
+                tint: .cancel,
+                action: viewModel.dismissPendingCopy
+            )
+        case .error:
+            CapsuleOrbConfiguration(
+                systemName: "xmark",
+                tint: .cancel,
+                action: viewModel.hidePanel
+            )
+        }
+    }
+
+    private var trailingOrb: CapsuleOrbConfiguration? {
+        switch viewModel.state {
+        case .idle:
+            CapsuleOrbConfiguration(
+                systemName: "mic.fill",
+                tint: .primaryAction,
+                action: viewModel.performPrimaryAction
+            )
+        case .listening:
+            CapsuleOrbConfiguration(
+                systemName: "checkmark",
+                tint: .primaryAction,
+                action: viewModel.performPrimaryAction
+            )
+        case .processing:
+            nil
+        case .result:
+            nil
+        case .clipboardPending:
+            CapsuleOrbConfiguration(
+                systemName: "doc.on.doc",
+                tint: .copyAction,
+                action: viewModel.performPrimaryAction
+            )
+        case .error:
+            CapsuleOrbConfiguration(
+                systemName: "arrow.clockwise",
+                tint: .retryAction,
+                action: viewModel.performPrimaryAction
+            )
+        }
+    }
+}
+
+private struct MacDictationCapsuleSurface: View {
+    let layout: MacDictationPanelLayout
+    let panelSize: CGSize
+    let state: DictationState
+    let statusText: String
+    let recordingLevel: Double
+    let leadingOrb: CapsuleOrbConfiguration?
+    let trailingOrb: CapsuleOrbConfiguration?
+
+    @State private var appeared = false
+    @State private var startDate = Date()
+
+    private var scale: CGFloat {
+        layout.scale
+    }
+
+    private var canvasSize: CGSize {
+        panelSize
+    }
+
+    private var isClipboardPending: Bool {
+        if case .clipboardPending = state {
+            return true
+        }
+
+        return false
+    }
+
+    private var isProcessing: Bool {
+        if case .processing = state {
+            return true
+        }
+
+        return false
+    }
+
+    private var isError: Bool {
+        if case .error = state {
+            return true
+        }
+
+        return false
     }
 
     private var normalizedRecordingLevel: Double {
-        min(max(viewModel.recordingLevel, 0), 1)
+        min(max(recordingLevel, 0), 1)
     }
 
-    private var emphasizedRecordingLevel: Double {
-        let silenceFloor = 0.08
-        let normalized = normalizedRecordingLevel
-        let lifted = max(normalized - silenceFloor, 0) / (1 - silenceFloor)
-        let emphasized = pow(lifted, 0.58)
-        return min(max(0.1 + emphasized * 0.9, 0.1), 1)
-    }
-
-    private func controlButton(
-        systemName: String,
-        isEmphasized: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: layout.controlSymbolSize, weight: .bold))
-                .foregroundStyle(isEmphasized ? .black : .white)
-                .frame(width: layout.controlButtonSize, height: layout.controlButtonSize)
-                .background(
-                    Circle()
-                        .fill(isEmphasized ? Color.white : Color.white.opacity(0.12))
-                )
+    private var displayLevel: Double {
+        switch state {
+        case .idle:
+            return 0.14
+        case .listening:
+            return min(max(0.12 + normalizedRecordingLevel * 0.88, 0), 1)
+        case .processing:
+            return 0.08
+        case .result:
+            return 0.12
+        case .clipboardPending, .error:
+            return 0
         }
-        .buttonStyle(.plain)
     }
 
-    private func actionButton(
-        title: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: layout.secondaryFontSize + 1, weight: .bold, design: .rounded))
-                .foregroundStyle(.black)
-                .frame(minWidth: layout.controlButtonSize + 18, minHeight: layout.controlButtonSize)
-                .padding(.horizontal, 8)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(Color.white)
-                )
+    private var mainWidth: CGFloat {
+        switch state {
+        case .idle:
+            scaled(250)
+        case .listening:
+            scaled(250)
+        case .processing:
+            scaled(228)
+        case .result:
+            scaled(270)
+        case .clipboardPending:
+            scaled(320)
+        case .error:
+            scaled(300)
         }
-        .buttonStyle(.plain)
     }
 
-    private func statusFont(weight: Font.Weight) -> Font {
-        .system(size: layout.statusFontSize, weight: weight, design: .rounded)
+    private var mainHeight: CGFloat {
+        isClipboardPending ? scaled(118) : scaled(52)
     }
-}
 
-private struct ReactiveBlendCapsuleBackground: View {
-    let level: Double
-    let isActive: Bool
-    let palette: [Color]
+    private var mainCornerRadius: CGFloat {
+        isClipboardPending ? scaled(30) : mainHeight / 2
+    }
 
-    private var energy: Double {
-        min(max(level, 0), 1)
+    private var mainOffsetX: CGFloat {
+        switch state {
+        case .idle, .listening:
+            scaled(12)
+        case .clipboardPending:
+            0
+        case .processing, .result, .error:
+            scaled(24)
+        }
+    }
+
+    private var mainOffsetY: CGFloat {
+        isClipboardPending ? scaled(-2) : scaled(-4)
+    }
+
+    private var leadingOrbProgress: CGFloat {
+        leadingOrb == nil ? 0 : 1
+    }
+
+    private var trailingOrbProgress: CGFloat {
+        trailingOrb == nil ? 0 : 1
+    }
+
+    private var leadingOrbX: CGFloat {
+        let startX = mainOffsetX - (mainWidth / 2) + scaled(18)
+        let targetX = mainOffsetX - (mainWidth / 2) - scaled(isClipboardPending ? 46 : 55)
+        return startX + (targetX - startX) * leadingOrbProgress
+    }
+
+    private var trailingOrbX: CGFloat {
+        let startX = mainOffsetX + (mainWidth / 2) - scaled(18)
+        let targetX = mainOffsetX + (mainWidth / 2) + scaled(isClipboardPending ? 46 : 55)
+        return startX + (targetX - startX) * trailingOrbProgress
+    }
+
+    private var orbSize: CGFloat {
+        scaled(52)
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isActive)) { timeline in
-            let time = timeline.date.timeIntervalSinceReferenceDate
-            let pulseScale = isActive ? (0.985 + 0.05 * energy) : 1
-            let shadowRadius = 14 + 12 * energy
-            let shadowYOffset = 6 + 5 * energy
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { timeline in
+            let elapsed = timeline.date.timeIntervalSince(startDate)
 
             ZStack {
-                Capsule(style: .continuous)
-                    .fill(BlendPalette.surface)
+                GlassEffectContainer(spacing: scaled(28)) {
+                    ZStack {
+                        if let leadingOrb {
+                            capsuleOrbButton(leadingOrb, elapsed: elapsed)
+                                .offset(x: leadingOrbX, y: mainOffsetY)
+                                .scaleEffect(0.24 + 0.76 * leadingOrbProgress)
+                                .opacity(leadingOrbProgress)
+                                .allowsHitTesting(leadingOrbProgress > 0.01)
+                        }
 
-                ColorCloudField(
-                    time: time,
-                    level: energy,
-                    palette: palette,
-                    isActive: isActive
-                )
-                .clipShape(Capsule(style: .continuous))
+                        mainCapsule(elapsed: elapsed)
+                            .offset(x: mainOffsetX, y: mainOffsetY)
 
-                Capsule(style: .continuous)
+                        if let trailingOrb {
+                            capsuleOrbButton(trailingOrb, elapsed: elapsed)
+                                .offset(x: trailingOrbX, y: mainOffsetY)
+                                .scaleEffect(0.24 + 0.76 * trailingOrbProgress)
+                                .opacity(trailingOrbProgress)
+                                .allowsHitTesting(trailingOrbProgress > 0.01)
+                        }
+                    }
+                    .frame(width: canvasSize.width, height: canvasSize.height)
+                }
+
+                mainContent(elapsed: elapsed)
+                    .frame(width: mainWidth, height: mainHeight)
+                    .offset(x: mainOffsetX, y: mainOffsetY)
+            }
+            .frame(width: canvasSize.width, height: canvasSize.height)
+        }
+        .scaleEffect(appeared ? 1.0 : 0.94)
+        .opacity(appeared ? 1.0 : 0.0)
+        .onAppear {
+            if !appeared {
+                withAnimation(.spring(response: 0.46, dampingFraction: 0.78)) {
+                    appeared = true
+                }
+            }
+        }
+        .animation(.spring(response: 0.56, dampingFraction: 0.82), value: state)
+    }
+
+    @ViewBuilder
+    private func mainCapsule(elapsed: Double) -> some View {
+        GeometryReader { proxy in
+            if isClipboardPending {
+                Rectangle()
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.16),
-                                Color.white.opacity(0.05),
-                                Color.clear
+                                .white.opacity(0.18),
+                                .white.opacity(0.10)
                             ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-
-                Capsule(style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.clear,
-                                Color.black.opacity(0.05)
-                            ],
-                            startPoint: .center,
+                            startPoint: .top,
                             endPoint: .bottom
                         )
                     )
-
-                Capsule(style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
-            }
-            .scaleEffect(x: 1, y: pulseScale, anchor: .center)
-            .clipShape(Capsule(style: .continuous))
-            .shadow(color: Color.black.opacity(0.1 + 0.08 * energy), radius: shadowRadius, y: shadowYOffset)
-            .animation(.interactiveSpring(response: 0.18, dampingFraction: 0.72), value: energy)
-        }
-    }
-}
-
-private struct ColorCloudField: View {
-    let time: TimeInterval
-    let level: Double
-    let palette: [Color]
-    let isActive: Bool
-
-    var body: some View {
-        GeometryReader { proxy in
-            let blobs = BlendBlob.makeBlobs(
-                in: proxy.size,
-                time: time,
-                level: level,
-                palette: palette,
-                isActive: isActive
-            )
-
-            ZStack {
-                Rectangle()
-                    .fill(BlendPalette.base)
-
-                ForEach(blobs) { blob in
-                    Ellipse()
-                        .fill(blob.color.opacity(blob.opacity))
-                        .frame(width: blob.size.width, height: blob.size.height)
-                        .position(x: blob.center.x, y: blob.center.y)
-                        .blur(radius: blob.blur)
-                }
-
+            } else if isError {
                 Rectangle()
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.04 + 0.06 * level),
-                                Color.clear,
-                                Color.black.opacity(0.04)
+                                Color(red: 0.78, green: 0.42, blue: 0.52).opacity(0.42),
+                                Color(red: 0.93, green: 0.48, blue: 0.34).opacity(0.24)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
+            } else {
+                Rectangle()
+                    .fill(.white)
+                    .colorEffect(
+                        ShaderLibrary.cloudOrbGlassWide(
+                            .float2(proxy.size),
+                            .float(elapsed),
+                            .float(displayLevel)
+                        )
+                    )
             }
-            .drawingGroup(opaque: true, colorMode: .linear)
-            .saturation(1.08 + 0.2 * level)
-            .brightness(0.012 + 0.04 * level)
         }
-    }
-}
-
-private struct BlendBlob: Identifiable {
-    let id: Int
-    let center: CGPoint
-    let size: CGSize
-    let color: Color
-    let blur: CGFloat
-    let opacity: Double
-
-    static func makeBlobs(
-        in size: CGSize,
-        time: TimeInterval,
-        level: Double,
-        palette: [Color],
-        isActive: Bool
-    ) -> [BlendBlob] {
-        let energy = CGFloat(min(max(level, 0), 1))
-        let motion = isActive ? (0.55 + 0.95 * energy) : 0.16
-        let width = size.width
-        let height = size.height
-
-        let anchors: [(CGFloat, CGFloat, CGFloat, CGFloat)] = [
-            (0.08, 0.22, 0.68, 1.28),
-            (0.28, 0.74, 0.62, 1.12),
-            (0.50, 0.34, 0.70, 1.30),
-            (0.72, 0.68, 0.62, 1.08),
-            (0.93, 0.28, 0.60, 1.02)
-        ]
-
-        return anchors.enumerated().map { index, anchor in
-            let seed = Double(index) * 11.73 + 0.91
-
-            let smoothX = width * (0.04 + 0.075 * motion) * smoothNoise(time, seed: seed)
-            let smoothY = height * (0.06 + 0.1 * motion) * smoothNoise(time * 1.17, seed: seed + 3.2)
-
-            let jumpX = width * (0.01 + 0.024 * motion) * steppedNoise(time * (4.4 + Double(level) * 10.0), seed: seed + 8.4)
-            let jumpY = height * (0.012 + 0.03 * motion) * steppedNoise(time * (5.6 + Double(level) * 13.0), seed: seed + 14.7)
-
-            let widthPulse = 1 + (0.06 + 0.18 * motion) * smoothNoise(time * (1.05 + Double(index) * 0.08), seed: seed + 1.6)
-            let heightPulse = 1 + (0.05 + 0.16 * motion) * smoothNoise(time * (0.92 + Double(index) * 0.07), seed: seed + 4.9)
-
-            return BlendBlob(
-                id: index,
-                center: CGPoint(
-                    x: width * anchor.0 + smoothX + jumpX,
-                    y: height * anchor.1 + smoothY + jumpY
-                ),
-                size: CGSize(
-                    width: width * anchor.2 * widthPulse,
-                    height: height * anchor.3 * heightPulse
-                ),
-                color: palette[index % palette.count],
-                blur: height * (0.24 + 0.06 * motion),
-                opacity: Double(0.48 + 0.24 * motion + 0.05 * CGFloat(index % 2))
-            )
+        .frame(width: mainWidth, height: mainHeight)
+        .clipShape(RoundedRectangle(cornerRadius: mainCornerRadius, style: .continuous))
+        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: mainCornerRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: mainCornerRadius, style: .continuous)
+                .strokeBorder(.white.opacity(isClipboardPending ? 0.18 : 0.08), lineWidth: scaled(0.9))
         }
-    }
-
-    private static func smoothNoise(_ t: TimeInterval, seed: Double) -> CGFloat {
-        let value =
-            0.62 * sin(t * 0.82 + seed) +
-            0.26 * sin(t * 1.47 + seed * 1.31) +
-            0.12 * cos(t * 2.21 + seed * 0.73)
-        return CGFloat(value)
-    }
-
-    private static func steppedNoise(_ t: TimeInterval, seed: Double) -> CGFloat {
-        let step = floor(t)
-        let raw = sin((step + seed) * 12.9898) * 43758.5453
-        let fractional = raw - floor(raw)
-        return CGFloat(fractional * 2 - 1)
-    }
-}
-
-private struct BlendCapsuleStyle {
-    let level: Double
-    let isActive: Bool
-    let palette: [Color]
-
-    static let idle = BlendCapsuleStyle(
-        level: 0.10,
-        isActive: false,
-        palette: BlendPalette.sunsetPastel
-    )
-
-    static func listening(level: Double) -> BlendCapsuleStyle {
-        BlendCapsuleStyle(
-            level: max(0.12, min(max(level, 0), 1)),
-            isActive: true,
-            palette: BlendPalette.sunsetPastel
+        .shadow(
+            color: .black.opacity(isClipboardPending ? 0.22 : 0.12),
+            radius: isClipboardPending ? scaled(18) : scaled(8),
+            y: isClipboardPending ? scaled(10) : scaled(4)
         )
     }
 
-    static let processing = BlendCapsuleStyle(
-        level: 0.28,
-        isActive: true,
-        palette: BlendPalette.sunsetPastel
-    )
+    @ViewBuilder
+    private func mainContent(elapsed: Double) -> some View {
+        switch state {
+        case .processing:
+            processingContent(elapsed: elapsed)
+        case .clipboardPending(let text):
+            clipboardContent(text: text)
+        case .error(let message):
+            messageText(
+                message,
+                fontSize: 13,
+                lineLimit: 3,
+                minimumScaleFactor: 0.9
+            )
+            .padding(.horizontal, scaled(24))
+        case .result:
+            HStack(spacing: scaled(8)) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: scaled(16), weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.96))
 
-    static let result = BlendCapsuleStyle(
-        level: 0.16,
-        isActive: false,
-        palette: BlendPalette.sunsetPastel
-    )
+                messageText(statusText, fontSize: 13, lineLimit: 1, minimumScaleFactor: 0.92)
+            }
+            .padding(.horizontal, scaled(20))
+        case .idle, .listening:
+            messageText(statusText, fontSize: 13, lineLimit: 1, minimumScaleFactor: 0.86)
+                .padding(.horizontal, scaled(22))
+        }
+    }
 
-    static let clipboardPending = BlendCapsuleStyle(
-        level: 0.18,
-        isActive: false,
-        palette: BlendPalette.sunsetPastel
-    )
+    @ViewBuilder
+    private func processingContent(elapsed: Double) -> some View {
+        VStack(spacing: scaled(8)) {
+            processingDots(elapsed: elapsed)
 
-    static let error = BlendCapsuleStyle(
-        level: 0.18,
-        isActive: false,
-        palette: BlendPalette.error
-    )
-}
-
-private enum BlendPalette {
-    static let surface = LinearGradient(
-        colors: [
-            Color(red: 0.86, green: 0.84, blue: 0.93),
-            Color(red: 0.93, green: 0.77, blue: 0.73)
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    static let base = LinearGradient(
-        colors: [
-            Color(red: 0.82, green: 0.83, blue: 0.96),
-            Color(red: 0.90, green: 0.68, blue: 0.76),
-            Color(red: 0.93, green: 0.62, blue: 0.50)
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    static let sunsetPastel: [Color] = [
-        Color(red: 0.74, green: 0.78, blue: 0.98),
-        Color(red: 0.88, green: 0.67, blue: 0.84),
-        Color(red: 0.92, green: 0.64, blue: 0.62),
-        Color(red: 0.93, green: 0.61, blue: 0.39),
-        Color(red: 0.95, green: 0.78, blue: 0.44)
-    ]
-
-    static let error: [Color] = [
-        Color(red: 0.96, green: 0.66, blue: 0.72),
-        Color(red: 0.95, green: 0.56, blue: 0.56),
-        Color(red: 0.96, green: 0.66, blue: 0.46),
-        Color(red: 0.82, green: 0.62, blue: 0.96),
-        Color(red: 0.93, green: 0.78, blue: 0.50)
-    ]
-}
-
-private struct VoiceLevelBarsView: View {
-    let level: Double
-    let layout: MacDictationPanelLayout
-
-    private let multipliers: [CGFloat] = [0.18, 0.34, 0.56, 0.82, 1, 0.82, 0.56, 0.34, 0.18]
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 3) {
-            ForEach(Array(multipliers.enumerated()), id: \.offset) { _, multiplier in
-                Capsule()
-                    .fill(Color.white)
-                    .frame(width: 5, height: barHeight(multiplier: multiplier))
-                    .opacity(0.68 + 0.32 * level)
+            if statusText != DictationState.processing.statusText {
+                messageText(statusText, fontSize: 11, lineLimit: 1, minimumScaleFactor: 0.85)
+                    .opacity(0.82)
             }
         }
-        .frame(height: layout.voiceBarHeight)
-        .animation(.interactiveSpring(response: 0.16, dampingFraction: 0.68), value: level)
+        .padding(.horizontal, scaled(16))
     }
 
-    private func barHeight(multiplier: CGFloat) -> CGFloat {
-        let baseHeight: CGFloat = 3
-        let responsiveLevel = CGFloat(pow(max(level, 0.02), 0.82))
-        let variableHeight = responsiveLevel * (layout.voiceBarHeight - baseHeight) * multiplier
-        return baseHeight + variableHeight
+    @ViewBuilder
+    private func clipboardContent(text: String) -> some View {
+        Text(text)
+            .font(.system(size: scaled(15), weight: .medium, design: .rounded))
+            .foregroundStyle(.white.opacity(0.96))
+            .multilineTextAlignment(.center)
+            .lineSpacing(scaled(4))
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, scaled(24))
+            .padding(.vertical, scaled(18))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
+
+    @ViewBuilder
+    private func messageText(
+        _ text: String,
+        fontSize: CGFloat,
+        lineLimit: Int,
+        minimumScaleFactor: CGFloat
+    ) -> some View {
+        Text(text)
+            .font(.system(size: scaled(fontSize), weight: .semibold, design: .rounded))
+            .foregroundStyle(.white.opacity(0.96))
+            .lineLimit(lineLimit)
+            .minimumScaleFactor(minimumScaleFactor)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .multilineTextAlignment(.center)
+            .shadow(color: .black.opacity(0.16), radius: scaled(10), y: scaled(4))
+    }
+
+    @ViewBuilder
+    private func processingDots(elapsed: Double) -> some View {
+        HStack(spacing: scaled(5)) {
+            let cadence = elapsed * 3.2
+            let head = Int(floor(cadence)).quotientAndRemainder(dividingBy: 3).remainder
+            let progress = cadence - floor(cadence)
+
+            ForEach(0..<3, id: \.self) { index in
+                let isHead = index == head
+                let isTrailing = index == (head + 2) % 3
+                let headGlow = isHead ? (0.72 + 0.28 * progress) : 0.0
+                let trailingGlow = isTrailing ? (0.42 * (1.0 - progress)) : 0.0
+                let intensity = max(headGlow, trailingGlow)
+                let opacity = 0.36 + intensity * 0.64
+                let scale = 0.82 + intensity * 0.34
+                let yOffset = -1.2 * intensity
+
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                .white.opacity(min(1.0, opacity + 0.18)),
+                                Color.primaryAction.opacity(opacity)
+                            ],
+                            center: .center,
+                            startRadius: scaled(0.5),
+                            endRadius: scaled(4)
+                        )
+                    )
+                    .frame(width: scaled(6.5), height: scaled(6.5))
+                    .scaleEffect(scale)
+                    .offset(y: scaled(yOffset))
+                    .shadow(color: Color.primaryAction.opacity(0.26 + intensity * 0.34), radius: scaled(6))
+            }
+        }
+        .frame(height: scaled(18))
+    }
+
+    @ViewBuilder
+    private func capsuleOrbButton(
+        _ configuration: CapsuleOrbConfiguration,
+        elapsed: Double
+    ) -> some View {
+        Button(action: configuration.action) {
+            Color.clear
+                .frame(width: orbSize, height: orbSize)
+                .glassEffect(.clear, in: Circle())
+                .overlay {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [
+                                        configuration.tint.opacity(0.38 + displayLevel * 0.10),
+                                        configuration.tint.opacity(0.18 + displayLevel * 0.06),
+                                        configuration.tint.opacity(0.04),
+                                        .clear
+                                    ],
+                                    center: .center,
+                                    startRadius: scaled(2),
+                                    endRadius: orbSize * 0.48
+                                )
+                            )
+                            .frame(width: orbSize - scaled(6), height: orbSize - scaled(6))
+                            .scaleEffect(1.0 + displayLevel * 0.07)
+
+                        Circle()
+                            .fill(.white.opacity(0.06))
+                            .frame(width: orbSize - scaled(20), height: orbSize - scaled(20))
+
+                        Circle()
+                            .strokeBorder(configuration.tint.opacity(0.36), lineWidth: scaled(1.2))
+                            .frame(width: orbSize - scaled(16), height: orbSize - scaled(16))
+
+                        Circle()
+                            .strokeBorder(.white.opacity(0.14), lineWidth: scaled(0.8))
+                            .frame(width: orbSize - scaled(8), height: orbSize - scaled(8))
+
+                        Image(systemName: configuration.systemName)
+                            .font(.system(size: scaled(16), weight: .bold))
+                            .foregroundStyle(.white.opacity(0.96))
+                            .shadow(color: configuration.tint.opacity(0.45), radius: scaled(6))
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .shadow(color: configuration.tint.opacity(0.16), radius: scaled(10))
+        .accessibilityLabel(configuration.systemName)
+    }
+
+    private func scaled(_ value: CGFloat) -> CGFloat {
+        value * scale
+    }
+}
+
+private struct CapsuleOrbConfiguration {
+    let systemName: String
+    let tint: Color
+    let action: () -> Void
+}
+
+private extension Color {
+    static let cancel = Color(
+        red: 218.0 / 255.0,
+        green: 152.0 / 255.0,
+        blue: 218.0 / 255.0
+    )
+
+    static let primaryAction = Color(
+        red: 179.0 / 255.0,
+        green: 190.0 / 255.0,
+        blue: 250.0 / 255.0
+    )
+
+    static let copyAction = Color(
+        red: 192.0 / 255.0,
+        green: 218.0 / 255.0,
+        blue: 1.0
+    )
+
+    static let retryAction = Color(
+        red: 1.0,
+        green: 180.0 / 255.0,
+        blue: 124.0 / 255.0
+    )
 }
 #endif

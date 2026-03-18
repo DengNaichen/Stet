@@ -5,7 +5,8 @@ import ServiceManagement
 enum MacAppBehaviorController {
     @MainActor
     static func applyDockVisibility(showInDock: Bool) {
-        NSApp.setActivationPolicy(showInDock ? .regular : .accessory)
+        // `NSApp` can still be nil while the SwiftUI `App` type is initializing.
+        NSApplication.shared.setActivationPolicy(showInDock ? .regular : .accessory)
         AppLogger.info("Dock visibility updated: showInDock=\(showInDock)")
     }
 

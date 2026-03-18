@@ -298,9 +298,7 @@ final class MacAppSessionController {
         case .listening, .error:
             showTransientPanel()
         case .clipboardPending:
-            if !isPanelVisible {
-                showTransientPanel()
-            }
+            showTransientPanel()
         case .idle:
             guard workflowController.activeRecordingSource == nil else { return }
             workflowController.resetWorkflowIfNeeded()

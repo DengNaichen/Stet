@@ -37,6 +37,27 @@ final class SystemTextInjectionService: TextInjectionService {
         static let paste: CGKeyCode = 9
     }
 
+    private struct SelectionRange: Equatable {
+        let location: Int
+        let length: Int
+    }
+
+    private struct FocusedElementSnapshot: Equatable {
+        let value: String?
+        let selectedText: String?
+        let selectionRange: SelectionRange?
+
+        var canVerifyPaste: Bool {
+            value != nil || selectedText != nil || selectionRange != nil
+        }
+
+        func indicatesMutation(comparedTo previous: Self) -> Bool {
+            value != previous.value
+                || selectedText != previous.selectedText
+                || selectionRange != previous.selectionRange
+        }
+    }
+
     private let clipboardService: any ClipboardService
     private var didPromptForMissingAccessThisSession = false
 
@@ -82,6 +103,8 @@ final class SystemTextInjectionService: TextInjectionService {
             return false
         }
 
+        let snapshotBeforePaste = focusedElementSnapshot()
+
         if let application,
            !application.isTerminated,
            application.bundleIdentifier != Bundle.main.bundleIdentifier {
@@ -90,7 +113,22 @@ final class SystemTextInjectionService: TextInjectionService {
         }
 
         try? await Task.sleep(for: .milliseconds(60))
-        return simulateCommandKey(KeyCode.paste)
+        guard simulateCommandKey(KeyCode.paste) else {
+            return false
+        }
+
+        // Posting Command+V only tells us the event was emitted, not that the target accepted it.
+        guard let snapshotBeforePaste, snapshotBeforePaste.canVerifyPaste else {
+            return false
+        }
+
+        try? await Task.sleep(for: .milliseconds(180))
+
+        guard let snapshotAfterPaste = focusedElementSnapshot() else {
+            return false
+        }
+
+        return snapshotAfterPaste.indicatesMutation(comparedTo: snapshotBeforePaste)
     }
 
     func selectedText() -> String? {
@@ -210,6 +248,84 @@ final class SystemTextInjectionService: TextInjectionService {
         keyDown.post(tap: .cghidEventTap)
         keyUp.post(tap: .cghidEventTap)
         return true
+    }
+
+    private func focusedElementSnapshot() -> FocusedElementSnapshot? {
+        guard accessState.hasAccessibilityAccess,
+              let focusedElement = focusedAXElement() else {
+            return nil
+        }
+
+        return FocusedElementSnapshot(
+            value: stringAttribute(kAXValueAttribute as CFString, from: focusedElement),
+            selectedText: stringAttribute(kAXSelectedTextAttribute as CFString, from: focusedElement),
+            selectionRange: selectedRange(from: focusedElement)
+        )
+    }
+
+    private func focusedAXElement() -> AXUIElement? {
+        let systemWide = AXUIElementCreateSystemWide()
+        var focusedElementRef: CFTypeRef?
+        let status = AXUIElementCopyAttributeValue(
+            systemWide,
+            kAXFocusedUIElementAttribute as CFString,
+            &focusedElementRef
+        )
+
+        guard status == .success,
+              let focusedElementRef,
+              CFGetTypeID(focusedElementRef) == AXUIElementGetTypeID() else {
+            return nil
+        }
+
+        return unsafeBitCast(focusedElementRef, to: AXUIElement.self)
+    }
+
+    private func stringAttribute(_ attribute: CFString, from element: AXUIElement) -> String? {
+        var valueRef: CFTypeRef?
+        let status = AXUIElementCopyAttributeValue(element, attribute, &valueRef)
+
+        guard status == .success,
+              let valueRef else {
+            return nil
+        }
+
+        if let value = valueRef as? String, !value.isEmpty {
+            return value
+        }
+
+        if let value = valueRef as? NSAttributedString, !value.string.isEmpty {
+            return value.string
+        }
+
+        return nil
+    }
+
+    private func selectedRange(from element: AXUIElement) -> SelectionRange? {
+        var rangeRef: CFTypeRef?
+        let status = AXUIElementCopyAttributeValue(
+            element,
+            kAXSelectedTextRangeAttribute as CFString,
+            &rangeRef
+        )
+
+        guard status == .success,
+              let rangeRef,
+              CFGetTypeID(rangeRef) == AXValueGetTypeID() else {
+            return nil
+        }
+
+        let axValue = unsafeBitCast(rangeRef, to: AXValue.self)
+        guard AXValueGetType(axValue) == .cfRange else {
+            return nil
+        }
+
+        var range = CFRange()
+        guard AXValueGetValue(axValue, .cfRange, &range) else {
+            return nil
+        }
+
+        return SelectionRange(location: range.location, length: range.length)
     }
 
     private func requestMissingAccesses(trigger: String) {
