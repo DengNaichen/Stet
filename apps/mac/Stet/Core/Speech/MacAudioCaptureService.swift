@@ -1,10 +1,8 @@
 @preconcurrency import AVFoundation
 import Foundation
 
-actor OpenAISpeechService: SpeechService, AudioLevelSource {
-    private let transcriptionService: any AudioFileTranscriptionService
+actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     private let locale: Locale
-    private let transcriptionPromptProvider: (@Sendable () async -> String?)?
     private let audioLevelBridge: AudioLevelBridge
     #if os(macOS)
     private let macAudioFileRecorder: MacAudioFileRecorder
@@ -15,14 +13,8 @@ actor OpenAISpeechService: SpeechService, AudioLevelSource {
     private var isRecording = false
     private var meteringTask: Task<Void, Never>?
 
-    init(
-        transcriptionService: any AudioFileTranscriptionService,
-        locale: Locale = .autoupdatingCurrent,
-        transcriptionPromptProvider: (@Sendable () async -> String?)? = nil
-    ) {
-        self.transcriptionService = transcriptionService
+    init(locale: Locale = .autoupdatingCurrent) {
         self.locale = locale
-        self.transcriptionPromptProvider = transcriptionPromptProvider
         let audioLevelBridge = AudioLevelBridge()
         self.audioLevelBridge = audioLevelBridge
         #if os(macOS)
@@ -41,7 +33,7 @@ actor OpenAISpeechService: SpeechService, AudioLevelSource {
             throw SpeechServiceError.alreadyRecording
         }
 
-        AppLogger.info("Starting dictation capture", category: .dictation)
+        AppLogger.info("Starting audio capture", category: .dictation)
         let microphoneGranted = await requestMicrophonePermission()
         guard microphoneGranted else {
             AppLogger.warning("Microphone permission denied before recording start", category: .permissions)
@@ -68,10 +60,10 @@ actor OpenAISpeechService: SpeechService, AudioLevelSource {
         self.isRecording = true
         startMetering(with: recorder)
         #endif
-        AppLogger.info("Dictation capture started successfully", category: .dictation)
+        AppLogger.info("Audio capture started successfully", category: .dictation)
     }
 
-    func stopRecording() async throws -> String {
+    func stopRecording() async throws -> (url: URL, duration: TimeInterval?) {
         guard isRecording, let recordingFileURL else {
             throw SpeechServiceError.notRecording
         }
@@ -100,9 +92,10 @@ actor OpenAISpeechService: SpeechService, AudioLevelSource {
         }()
         let durationDescription = Self.durationDescription(audioDurationSeconds)
         let recordingFileSizeBytes = Self.recordingFileSizeBytes(at: recordingFileURL)
+        
         AppLogger.info(
             """
-            Stopping dictation capture and starting transcription. \
+            Stopping audio capture. \
             durationSeconds=\(durationDescription), \
             fileSizeBytes=\(recordingFileSizeBytes.map(String.init) ?? "unknown"), \
             writtenFrames=\(writtenFrameCount)
@@ -110,80 +103,20 @@ actor OpenAISpeechService: SpeechService, AudioLevelSource {
             category: .dictation
         )
 
-        if writtenFrameCount == 0 {
-            cleanupRecordingFile()
-            AppLogger.warning(
-                "Skipping transcription because no audio frames were written to disk.",
-                category: .dictation
-            )
+        if writtenFrameCount == 0 || (audioDurationSeconds ?? 0) < 0.1 || (recordingFileSizeBytes ?? 0) <= 64 {
+            AppLogger.warning("Skipping file because audio frames were insignificant.", category: .dictation)
+            try? FileManager.default.removeItem(at: recordingFileURL)
+            self.recordingFileURL = nil
             throw SpeechServiceError.emptyTranscription
         }
 
-        if let audioDurationSeconds, audioDurationSeconds < 0.1 {
-            cleanupRecordingFile()
-            AppLogger.warning(
-                "Skipping transcription because the captured audio is too short. durationSeconds=\(durationDescription), writtenFrames=\(writtenFrameCount)",
-                category: .dictation
-            )
-            throw SpeechServiceError.emptyTranscription
-        }
-
-        if let recordingFileSizeBytes, recordingFileSizeBytes <= 64 {
-            cleanupRecordingFile()
-            AppLogger.warning(
-                "Skipping transcription because the captured audio file is effectively empty. fileSizeBytes=\(recordingFileSizeBytes), writtenFrames=\(writtenFrameCount)",
-                category: .dictation
-            )
-            throw SpeechServiceError.emptyTranscription
-        }
-
-        await DictationLatencyProbe.shared.beginSession(audioDurationSeconds: audioDurationSeconds)
-
-        do {
-            let transcriptionPrompt: String? = if let transcriptionPromptProvider {
-                await transcriptionPromptProvider()
-            } else {
-                nil
-            }
-            AppLogger.info(
-                "Submitting transcription request. promptProvided=\(transcriptionPrompt != nil)",
-                category: .dictation
-            )
-
-            let transcript = try await transcriptionService.transcribe(
-                audioFileAt: recordingFileURL,
-                languageCode: languageCode,
-                prompt: transcriptionPrompt,
-                audioDurationSeconds: audioDurationSeconds
-            ).trimmingCharacters(in: .whitespacesAndNewlines)
-
-            cleanupRecordingFile()
-
-            guard !transcript.isEmpty else {
-                throw SpeechServiceError.emptyTranscription
-            }
-
-            AppLogger.info(
-                "Transcription completed successfully. durationSeconds=\(durationDescription), fileSizeBytes=\(recordingFileSizeBytes.map(String.init) ?? "unknown"), writtenFrames=\(writtenFrameCount)",
-                category: .dictation
-            )
-            return transcript
-        } catch {
-            await DictationLatencyProbe.shared.record(
-                .transcriptionFailed,
-                note: error.localizedDescription
-            )
-            cleanupRecordingFile()
-            AppLogger.error(
-                "Transcription failed. durationSeconds=\(durationDescription), fileSizeBytes=\(recordingFileSizeBytes.map(String.init) ?? "unknown"), writtenFrames=\(writtenFrameCount), error=\(error.localizedDescription)",
-                category: .dictation
-            )
-            throw error
-        }
+        let finalURL = recordingFileURL
+        self.recordingFileURL = nil
+        return (url: finalURL, duration: audioDurationSeconds)
     }
 
     func cancelRecording() async {
-        AppLogger.info("Cancelling active dictation capture", category: .dictation)
+        AppLogger.info("Cancelling active audio capture", category: .dictation)
         #if os(macOS)
         macAudioFileRecorder.cancelRecording()
         isRecording = false
@@ -199,10 +132,6 @@ actor OpenAISpeechService: SpeechService, AudioLevelSource {
         #endif
     }
 
-    private var languageCode: String? {
-        locale.language.languageCode?.identifier
-    }
-
     private func requestMicrophonePermission() async -> Bool {
         let currentStatus = Self.microphoneAuthorizationStatusDescription
         AppLogger.info(
@@ -215,11 +144,6 @@ actor OpenAISpeechService: SpeechService, AudioLevelSource {
                 continuation.resume(returning: granted)
             }
         }
-
-        AppLogger.info(
-            "Microphone permission request completed. granted=\(granted)",
-            category: .permissions
-        )
 
         return granted
     }
@@ -260,7 +184,7 @@ actor OpenAISpeechService: SpeechService, AudioLevelSource {
 
     private func makeRecordingFileURL() -> URL {
         FileManager.default.temporaryDirectory
-            .appendingPathComponent("Stet-openai-\(UUID().uuidString)")
+            .appendingPathComponent("Stet-capture-\(UUID().uuidString)")
             .appendingPathExtension(
                 {
                     #if os(macOS)
@@ -288,7 +212,6 @@ actor OpenAISpeechService: SpeechService, AudioLevelSource {
                 recorder?.updateMeters()
                 let averagePower = recorder?.averagePower(forChannel: 0) ?? -160
                 audioLevelBridge.emit(AudioLevelNormalizer.normalizedPowerLevel(averagePower))
-
                 try? await Task.sleep(for: .milliseconds(60))
             }
         }
@@ -303,24 +226,16 @@ actor OpenAISpeechService: SpeechService, AudioLevelSource {
 
     nonisolated private static var microphoneAuthorizationStatusDescription: String {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
-        case .authorized:
-            return "authorized"
-        case .notDetermined:
-            return "notDetermined"
-        case .denied:
-            return "denied"
-        case .restricted:
-            return "restricted"
-        @unknown default:
-            return "unknown"
+        case .authorized: return "authorized"
+        case .notDetermined: return "notDetermined"
+        case .denied: return "denied"
+        case .restricted: return "restricted"
+        @unknown default: return "unknown"
         }
     }
 
     nonisolated private static func durationDescription(_ durationSeconds: TimeInterval?) -> String {
-        guard let durationSeconds else {
-            return "unknown"
-        }
-
+        guard let durationSeconds else { return "unknown" }
         return String(format: "%.2f", durationSeconds)
     }
 
@@ -328,9 +243,7 @@ actor OpenAISpeechService: SpeechService, AudioLevelSource {
         guard let audioFile = try? AVAudioFile(forReading: fileURL) else { return nil }
         let sampleRate = audioFile.fileFormat.sampleRate
         guard sampleRate > 0 else { return nil }
-        let duration = TimeInterval(audioFile.length) / sampleRate
-        guard duration.isFinite, duration > 0 else { return nil }
-        return duration
+        return TimeInterval(audioFile.length) / sampleRate
     }
 
     nonisolated private static func recordingFileSizeBytes(at fileURL: URL) -> Int64? {
@@ -338,7 +251,6 @@ actor OpenAISpeechService: SpeechService, AudioLevelSource {
               let fileSize = resourceValues.fileSize else {
             return nil
         }
-
         return Int64(fileSize)
     }
 }
