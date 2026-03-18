@@ -12,16 +12,12 @@ struct RelayAuthenticationContext: Sendable, Equatable {
 
 enum AIExecutionError: LocalizedError, Equatable {
     case managedRequiresAuthenticatedSession
-    case relayNotConfigured
     case relayInvocationFailed(statusCode: Int?, message: String, requestID: String?)
-    case unsupportedFlowInManagedMode(flow: String)
 
     nonisolated var errorDescription: String? {
         switch self {
         case .managedRequiresAuthenticatedSession:
             return "Managed Relay requires a signed-in Stet account."
-        case .relayNotConfigured:
-            return "Managed Relay is not configured for this build."
         case .relayInvocationFailed(let statusCode, let message, let requestID):
             let requestIDSuffix = requestID.map { " Request ID: \($0)." } ?? ""
 
@@ -30,8 +26,6 @@ enum AIExecutionError: LocalizedError, Equatable {
             }
 
             return "Managed Relay error: \(message).\(requestIDSuffix)"
-        case .unsupportedFlowInManagedMode(let flow):
-            return "\(flow) is not available in Managed Relay mode yet."
         }
     }
 }
@@ -39,14 +33,12 @@ enum AIExecutionError: LocalizedError, Equatable {
 enum DictationExecutionRoute: Sendable {
     struct Direct: Sendable {
         let configuration: OpenAIConfiguration
-        let proxySettings: NetworkProxySettings
         let rewriteEnabled: Bool
         let preferredSpellings: [String]
     }
 
     struct Relay: Sendable {
         let authentication: RelayAuthenticationContext
-        let proxySettings: NetworkProxySettings
         let rewriteEnabled: Bool
         let preferredSpellings: [String]
     }
@@ -74,7 +66,6 @@ enum DictationExecutionRouteResolver {
                 return .relay(
                     .init(
                         authentication: relayAuthentication,
-                        proxySettings: snapshot.proxySettings,
                         rewriteEnabled: snapshot.isRewriteEnabled,
                         preferredSpellings: snapshot.personalDictionary
                     )
@@ -88,7 +79,6 @@ enum DictationExecutionRouteResolver {
             return .direct(
                 .init(
                     configuration: configuration,
-                    proxySettings: snapshot.proxySettings,
                     rewriteEnabled: snapshot.isRewriteEnabled,
                     preferredSpellings: snapshot.personalDictionary
                 )
@@ -101,7 +91,6 @@ enum DictationExecutionRouteResolver {
             return .relay(
                 .init(
                     authentication: relayAuthentication,
-                    proxySettings: snapshot.proxySettings,
                     rewriteEnabled: snapshot.isRewriteEnabled,
                     preferredSpellings: snapshot.personalDictionary
                 )
@@ -114,7 +103,6 @@ enum DictationExecutionRouteResolver {
             return .direct(
                 .init(
                     configuration: configuration,
-                    proxySettings: snapshot.proxySettings,
                     rewriteEnabled: snapshot.isRewriteEnabled,
                     preferredSpellings: snapshot.personalDictionary
                 )
