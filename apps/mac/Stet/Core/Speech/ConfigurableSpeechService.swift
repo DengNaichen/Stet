@@ -13,7 +13,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     init(
         settingsStore: DictationSettingsStore = DictationSettingsStore(),
         locale: Locale = .autoupdatingCurrent,
-        pipelineFactory: DictationPipelineFactory = .live,
+        pipelineFactory: DictationPipelineFactory,
         captureService: (any AudioCaptureService)? = nil
     ) {
         self.settingsStore = settingsStore
@@ -88,21 +88,27 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             throw error
         }
 
-        if let rewriteService = pipeline.rewriteService {
-            transcript = try await rewriteService.rewrite(
-                .cleanup(
-                    transcript,
-                    preferredSpellings: pipeline.preferredSpellings
+        do {
+            if let rewriteService = pipeline.rewriteService {
+                transcript = try await rewriteService.rewrite(
+                    .cleanup(
+                        transcript,
+                        preferredSpellings: pipeline.preferredSpellings
+                    )
                 )
-            )
-        }
+            }
 
-        let trimmedTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedTranscript.isEmpty else {
-            throw SpeechServiceError.emptyTranscription
-        }
+            let trimmedTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedTranscript.isEmpty else {
+                throw SpeechServiceError.emptyTranscription
+            }
 
-        return trimmedTranscript
+            return trimmedTranscript
+        } catch {
+            await DictationLatencyProbe.shared.record(.transcriptionFailed, note: error.localizedDescription)
+            AppLogger.error("Post-transcription processing failed: \(error.localizedDescription)", category: .dictation)
+            throw error
+        }
     }
 
     func cancelRecording() async {

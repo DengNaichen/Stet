@@ -2,7 +2,6 @@
 import Foundation
 
 actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
-    private let locale: Locale
     private let audioLevelBridge: AudioLevelBridge
     #if os(macOS)
     private let macAudioFileRecorder: MacAudioFileRecorder
@@ -13,8 +12,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     private var isRecording = false
     private var meteringTask: Task<Void, Never>?
 
-    init(locale: Locale = .autoupdatingCurrent) {
-        self.locale = locale
+    init() {
         let audioLevelBridge = AudioLevelBridge()
         self.audioLevelBridge = audioLevelBridge
         #if os(macOS)
