@@ -249,8 +249,8 @@ final class MacDictationWorkflowController {
             return
         }
 
-        if isActiveDictationState(previousState),
-           shouldResumeMedia(after: newState) {
+        if case .listening = previousState,
+           !matchesListeningState(newState) {
             mediaPlaybackController.resumePlaybackIfNeeded()
         }
     }
@@ -271,6 +271,14 @@ final class MacDictationWorkflowController {
         case .listening, .processing:
             return false
         }
+    }
+
+    private func matchesListeningState(_ state: DictationState) -> Bool {
+        if case .listening = state {
+            return true
+        }
+
+        return false
     }
 
     private func matchesErrorState(_ state: DictationState) -> Bool {

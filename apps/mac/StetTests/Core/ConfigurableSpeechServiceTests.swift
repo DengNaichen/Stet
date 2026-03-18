@@ -113,6 +113,39 @@ struct ConfigurableSpeechServiceTests {
         }
     }
 
+    @Test func defaultCaptureServiceFactoryIsNotInvokedUntilRecordingStarts() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: "source")
+        let relay = TestTranscriptionService(result: "relay")
+        let rewrite = RecordingRewriteService()
+        let (store, _, _) = try makeSettingsStore()
+        let factory = CountingAudioCaptureFactory(audioFileURL: audioFileURL)
+
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { nil },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            captureServiceFactory: {
+                factory.makeCaptureService()
+            }
+        )
+
+        #expect(factory.invocationCount == 0)
+        _ = await service.makeAudioLevelStream()
+        #expect(factory.invocationCount == 0)
+
+        try await service.startRecording()
+
+        #expect(factory.invocationCount == 1)
+        await service.cancelRecording()
+    }
+
     @Test func startRecordingCanBeCalledOnlyOnceUntilStopOrCancel() async throws {
         let audioFileURL = makeAudioFileURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
@@ -427,6 +460,29 @@ private actor TestAudioCaptureService: AudioCaptureService, AudioLevelSource {
         AsyncStream { continuation in
             continuation.finish()
         }
+    }
+}
+
+private final class CountingAudioCaptureFactory: @unchecked Sendable {
+    private let lock = NSLock()
+    private let audioFileURL: URL
+    private var invocationCountValue = 0
+
+    init(audioFileURL: URL) {
+        self.audioFileURL = audioFileURL
+    }
+
+    var invocationCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return invocationCountValue
+    }
+
+    func makeCaptureService() -> any AudioCaptureService {
+        lock.lock()
+        invocationCountValue += 1
+        lock.unlock()
+        return TestAudioCaptureService(audioFileURL: audioFileURL)
     }
 }
 
