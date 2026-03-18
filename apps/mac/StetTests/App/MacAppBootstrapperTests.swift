@@ -13,8 +13,7 @@ struct MacAppBootstrapperTests {
         let bootstrapper = MacAppBootstrapper(
             defaults: defaults,
             settingsStore: settingsStore,
-            launchAtLoginStatusProvider: { true },
-            legacyHistoryURLs: []
+            launchAtLoginStatusProvider: { true }
         )
 
         let launchConfiguration = bootstrapper.prepareForLaunch()
@@ -32,12 +31,9 @@ struct MacAppBootstrapperTests {
         #expect(!defaults.bool(forKey: MacPreferences.showInDock))
     }
 
-    @Test func prepareForLaunchRemovesLegacyArtifactsAndKeepsExplicitPreferences() throws {
+    @Test func prepareForLaunchKeepsExplicitPreferencesAndAppliesMissingDefaults() throws {
         let defaults = TestSupport.makeUserDefaults()
         let settingsStore = DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
-        let legacyHistoryURL = TestSupport.temporaryFileURL("airtype-legacy-history", ext: "json")
-        try Data("[]".utf8).write(to: legacyHistoryURL)
-
         defaults.set("legacy", forKey: "mac.copyLatestCaptureHotkeyShortcut")
         defaults.set("forever", forKey: "mac.historyRetentionPeriod")
         defaults.set(true, forKey: "mac.showPanelOnLaunch")
@@ -52,23 +48,25 @@ struct MacAppBootstrapperTests {
         let bootstrapper = MacAppBootstrapper(
             defaults: defaults,
             settingsStore: settingsStore,
-            launchAtLoginStatusProvider: { false },
-            legacyHistoryURLs: [legacyHistoryURL]
+            launchAtLoginStatusProvider: { false }
         )
 
         let launchConfiguration = bootstrapper.prepareForLaunch()
 
         #expect(launchConfiguration == .init(showInDock: true))
         #expect(defaults.string(forKey: MacPreferences.aiExecutionMode) == AIExecutionMode.managed.rawValue)
-        #expect(defaults.object(forKey: "mac.copyLatestCaptureHotkeyShortcut") == nil)
-        #expect(defaults.object(forKey: "mac.historyRetentionPeriod") == nil)
-        #expect(defaults.object(forKey: "mac.showPanelOnLaunch") == nil)
-        #expect(defaults.object(forKey: "mac.copyToClipboardOnCapture") == nil)
-        #expect(defaults.object(forKey: "mac.autoPasteOnCapture") == nil)
-        #expect(defaults.object(forKey: "mac.revealPanelOnCapture") == nil)
-        #expect(defaults.object(forKey: "mac.openAIBaseURL") == nil)
-        #expect(defaults.object(forKey: "mac.openAITranslationModel") == nil)
-        #expect(!FileManager.default.fileExists(atPath: legacyHistoryURL.path))
+        #expect(defaults.object(forKey: "mac.copyLatestCaptureHotkeyShortcut") as? String == "legacy")
+        #expect(defaults.object(forKey: "mac.historyRetentionPeriod") as? String == "forever")
+        #expect(defaults.object(forKey: "mac.showPanelOnLaunch") as? Bool == true)
+        #expect(defaults.object(forKey: "mac.copyToClipboardOnCapture") as? Bool == true)
+        #expect(defaults.object(forKey: "mac.autoPasteOnCapture") as? Bool == true)
+        #expect(defaults.object(forKey: "mac.revealPanelOnCapture") as? Bool == true)
+        #expect(defaults.object(forKey: "mac.openAIBaseURL") as? String == "https://api.groq.com/openai/v1")
+        #expect(defaults.object(forKey: "mac.openAITranslationModel") as? String == "llama-3.3-70b-versatile")
+        #expect(defaults.string(forKey: MacPreferences.translationTargetLanguage) == TranslationTargetLanguage.english.rawValue)
+        #expect(defaults.object(forKey: MacPreferences.translateSelectedTextOnTranslationHotkey) as? Bool == true)
+        #expect(defaults.object(forKey: MacPreferences.hotkeyDistinguishModifierSides) as? Bool == false)
+        #expect(defaults.bool(forKey: MacPreferences.launchAtLogin) == false)
     }
 }
 #endif

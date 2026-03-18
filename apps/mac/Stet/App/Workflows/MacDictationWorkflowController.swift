@@ -25,6 +25,8 @@ final class MacDictationWorkflowController {
         }
     }
 
+    typealias CompletionOutcome = MacDictationCaptureCoordinator.CompletionOutcome
+
     let dictationViewModel: DictationViewModel
 
     private let captureCoordinator: MacDictationCaptureCoordinator
@@ -83,6 +85,15 @@ final class MacDictationWorkflowController {
                 return "Rewrite complete"
             case .dictation:
                 return "Transcription complete"
+            }
+        case .clipboardPending:
+            switch activeWorkflow {
+            case .translationFromSpeech, .translationFromSelection:
+                return "Copy translation"
+            case .rewriteFromSelection:
+                return "Copy rewritten text"
+            case .dictation:
+                return "Copy to clipboard"
             }
         case .error:
             return "Something went wrong"
@@ -146,13 +157,12 @@ final class MacDictationWorkflowController {
         text: String,
         workflow: CaptureWorkflow,
         showTransientPanel: @escaping @MainActor () -> Void
-    ) async {
+    ) async -> CompletionOutcome {
         if workflow.isSelectionReplacement {
-            await handleSelectedTextReplacementResult(text: text, showTransientPanel: showTransientPanel)
-            return
+            return await handleSelectedTextReplacementResult(text: text, showTransientPanel: showTransientPanel)
         }
 
-        await captureCoordinator.handleCompletedCapture(
+        return await captureCoordinator.handleCompletedCapture(
             text: text,
             targetApplication: lastTargetApplication,
             settings: captureSettings,
@@ -160,10 +170,14 @@ final class MacDictationWorkflowController {
         )
     }
 
+    func copyPendingResultToClipboard(_ text: String) {
+        captureCoordinator.copyToClipboard(text)
+    }
+
     private func handleSelectedTextReplacementResult(
         text: String,
         showTransientPanel: @escaping @MainActor () -> Void
-    ) async {
+    ) async -> CompletionOutcome {
         let keepResultInClipboard = captureSettings.shouldCopyToClipboard
         let didReplaceSelection = await textInjectionService.replaceSelectedText(
             text,
@@ -173,6 +187,7 @@ final class MacDictationWorkflowController {
 
         if didReplaceSelection {
             await DictationLatencyProbe.shared.record(.systemWriteCompleted)
+            return .completed
         } else {
             await DictationLatencyProbe.shared.record(.systemWriteFailed, note: "replace_selected_text_failed")
         }
@@ -186,6 +201,8 @@ final class MacDictationWorkflowController {
                 showTransientPanel()
             }
         }
+
+        return keepResultInClipboard ? .completed : .clipboardPending
     }
 
     private func refreshTargetApplication() {
@@ -232,8 +249,8 @@ final class MacDictationWorkflowController {
             return
         }
 
-        if isActiveDictationState(previousState),
-           shouldResumeMedia(after: newState) {
+        if case .listening = previousState,
+           !matchesListeningState(newState) {
             mediaPlaybackController.resumePlaybackIfNeeded()
         }
     }
@@ -242,18 +259,26 @@ final class MacDictationWorkflowController {
         switch state {
         case .listening, .processing:
             return true
-        case .idle, .result, .error:
+        case .idle, .result, .clipboardPending, .error:
             return false
         }
     }
 
     private func shouldResumeMedia(after state: DictationState) -> Bool {
         switch state {
-        case .idle, .result, .error:
+        case .idle, .result, .clipboardPending, .error:
             return true
         case .listening, .processing:
             return false
         }
+    }
+
+    private func matchesListeningState(_ state: DictationState) -> Bool {
+        if case .listening = state {
+            return true
+        }
+
+        return false
     }
 
     private func matchesErrorState(_ state: DictationState) -> Bool {

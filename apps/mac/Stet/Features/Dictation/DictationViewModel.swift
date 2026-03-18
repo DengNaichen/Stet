@@ -36,6 +36,9 @@ final class DictationViewModel: ObservableObject {
         case .transcriptionSucceeded(let text):
             state = .result(text)
 
+        case .clipboardPending(let text):
+            state = .clipboardPending(text)
+
         case .transcriptionFailed(let message):
             state = .error(message)
         }

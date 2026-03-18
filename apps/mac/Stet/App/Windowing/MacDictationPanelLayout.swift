@@ -2,41 +2,41 @@
 import AppKit
 
 struct MacDictationPanelLayout {
-    let panelSize: CGSize
-    let capsuleSize: CGSize
+    let panelWidth: CGFloat
+    let collapsedPanelHeight: CGFloat
+    let expandedPanelHeight: CGFloat
     let bottomInset: CGFloat
-    let horizontalPadding: CGFloat
-    let verticalPadding: CGFloat
-    let controlButtonSize: CGFloat
-    let controlSymbolSize: CGFloat
-    let statusFontSize: CGFloat
-    let secondaryFontSize: CGFloat
-    let voiceBarHeight: CGFloat
+    let scale: CGFloat
+
+    func panelSize(for state: DictationState) -> CGSize {
+        CGSize(
+            width: panelWidth,
+            height: isExpanded(state) ? expandedPanelHeight : collapsedPanelHeight
+        )
+    }
+
+    private func isExpanded(_ state: DictationState) -> Bool {
+        if case .clipboardPending = state {
+            return true
+        }
+
+        return false
+    }
 
     static let standard = MacDictationPanelLayout(
-        panelSize: CGSize(width: 304, height: 76),
-        capsuleSize: CGSize(width: 280, height: 48),
-        bottomInset: 52,
-        horizontalPadding: 10,
-        verticalPadding: 6,
-        controlButtonSize: 34,
-        controlSymbolSize: 15,
-        statusFontSize: 12,
-        secondaryFontSize: 10,
-        voiceBarHeight: 20
+        panelWidth: 460,
+        collapsedPanelHeight: 92,
+        expandedPanelHeight: 140,
+        bottomInset: 18,
+        scale: 1
     )
 
     static let compact = MacDictationPanelLayout(
-        panelSize: CGSize(width: 292, height: 72),
-        capsuleSize: CGSize(width: 268, height: 44),
-        bottomInset: 44,
-        horizontalPadding: 9,
-        verticalPadding: 6,
-        controlButtonSize: 32,
-        controlSymbolSize: 14,
-        statusFontSize: 11,
-        secondaryFontSize: 10,
-        voiceBarHeight: 18
+        panelWidth: 424,
+        collapsedPanelHeight: 86,
+        expandedPanelHeight: 129,
+        bottomInset: 14,
+        scale: 0.92
     )
 
     static func `for`(screen: NSScreen?) -> MacDictationPanelLayout {

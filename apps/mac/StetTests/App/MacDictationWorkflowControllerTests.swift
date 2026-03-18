@@ -110,7 +110,7 @@ struct MacDictationWorkflowControllerTests {
 
         #expect(subject.mediaPlaybackController.pauseCallCount == 1)
 
-        subject.controller.handleStateTransition(from: .listening, to: .result("done"))
+        subject.controller.handleStateTransition(from: .listening, to: .processing)
 
         #expect(subject.mediaPlaybackController.resumeCallCount == 1)
         #expect(subject.controller.activeRecordingSource == nil)
@@ -124,13 +124,14 @@ struct MacDictationWorkflowControllerTests {
         let subject = makeController(textInjectionService: textInjectionService)
         var showPanelCount = 0
 
-        await subject.controller.handleCompletedResult(
+        let outcome = await subject.controller.handleCompletedResult(
             text: "hello",
             workflow: .dictation
         ) {
             showPanelCount += 1
         }
 
+        #expect(outcome == .completed)
         #expect(subject.clipboard.copiedTexts == ["hello"])
         #expect(subject.textInjectionService.pasteTargets.count == 1)
         #expect(showPanelCount == 0)
@@ -147,16 +148,100 @@ struct MacDictationWorkflowControllerTests {
         let subject = makeController(textInjectionService: textInjectionService)
         var showPanelCount = 0
 
-        await subject.controller.handleCompletedResult(
+        let outcome = await subject.controller.handleCompletedResult(
             text: "rewritten",
             workflow: .rewriteFromSelection(sourceText: "hello")
         ) {
             showPanelCount += 1
         }
 
+        #expect(outcome == .clipboardPending)
         #expect(subject.textInjectionService.replacementTexts == ["rewritten"])
         #expect(subject.textInjectionService.didRequestAccessIfNeeded)
         #expect(showPanelCount == 0)
+    }
+
+    @Test func resetWorkflowIfNeededNoopWhenSourceIsActive() {
+        let defaults = TestSupport.makeUserDefaults()
+        defaults.set(true, forKey: MacPreferences.pauseMediaDuringDictation)
+        let subject = makeController(defaults: defaults)
+
+        subject.controller.startDictationCapture(source: .hotkey) {}
+
+        subject.controller.resetWorkflowIfNeeded()
+
+        #expect(subject.controller.activeWorkflow == .dictation)
+        #expect(subject.controller.activeRecordingSource == .hotkey)
+    }
+
+    @Test func resetWorkflowIfNeededResetsWhenNoSource() {
+        let subject = makeController()
+        subject.controller.startDictationCapture(source: .hotkey) {}
+        subject.controller.stopActiveCapture()
+
+        subject.controller.resetWorkflowIfNeeded()
+
+        #expect(subject.controller.activeWorkflow == .dictation)
+        #expect(subject.controller.activeRecordingSource == nil)
+    }
+
+    @Test func copyPendingResultToClipboardForwardsText() {
+        let subject = makeController()
+
+        subject.controller.copyPendingResultToClipboard("needs-review")
+
+        #expect(subject.clipboard.copiedTexts == ["needs-review"])
+    }
+
+    @Test func statusTextReflectsDictationStateTransitions() {
+        let subject = makeController()
+
+        #expect(subject.controller.statusText == "Ready")
+
+        subject.controller.startDictationCapture(source: .interface) {}
+        #expect(subject.controller.statusText == "Listening...")
+
+        subject.viewModel.send(.stopTapped)
+        #expect(subject.controller.statusText == "Processing...")
+
+        subject.viewModel.send(.transcriptionSucceeded("hello"))
+        #expect(subject.controller.statusText == "Transcription complete")
+
+        subject.viewModel.send(.clipboardPending("hello"))
+        #expect(subject.controller.statusText == "Copy to clipboard")
+
+        subject.viewModel.send(.transcriptionFailed("failure"))
+        #expect(subject.controller.statusText == "Something went wrong")
+    }
+
+    @Test func listeningToProcessingTransitionResumesPlaybackImmediately() {
+        let defaults = TestSupport.makeUserDefaults()
+        defaults.set(true, forKey: MacPreferences.pauseMediaDuringDictation)
+        let subject = makeController(defaults: defaults)
+
+        subject.controller.startDictationCapture(source: .interface) {}
+        subject.controller.handleStateTransition(from: .idle, to: .listening)
+
+        #expect(subject.mediaPlaybackController.pauseCallCount == 1)
+
+        subject.controller.handleStateTransition(from: .listening, to: .processing)
+
+        #expect(subject.mediaPlaybackController.pauseCallCount == 1)
+        #expect(subject.mediaPlaybackController.resumeCallCount == 1)
+    }
+
+    @Test func processingToResultTransitionDoesNotResumePlaybackAgain() {
+        let defaults = TestSupport.makeUserDefaults()
+        defaults.set(true, forKey: MacPreferences.pauseMediaDuringDictation)
+        let subject = makeController(defaults: defaults)
+
+        subject.controller.startDictationCapture(source: .interface) {}
+        subject.controller.handleStateTransition(from: .idle, to: .listening)
+        subject.controller.handleStateTransition(from: .listening, to: .processing)
+        subject.controller.handleStateTransition(from: .processing, to: .result("done"))
+
+        #expect(subject.mediaPlaybackController.pauseCallCount == 1)
+        #expect(subject.mediaPlaybackController.resumeCallCount == 1)
     }
 }
 #endif

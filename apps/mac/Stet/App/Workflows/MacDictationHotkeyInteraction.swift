@@ -34,6 +34,8 @@ struct MacDictationHotkeyInteraction {
             guard case .idle = state else { return .none }
             state = .pressCandidate(startedAt: now)
             return .startCapture
+        case .clipboardPending:
+            return .none
         case .processing:
             return .none
         }
