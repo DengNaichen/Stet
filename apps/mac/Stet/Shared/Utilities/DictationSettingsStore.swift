@@ -10,9 +10,10 @@ extension KeychainSecretStore: DictationSecretStore {}
 
 struct DictationSettingsSnapshot: Sendable {
     let provider: DictationProvider
+    let executionMode: AIExecutionMode
     let isRewriteEnabled: Bool
     let shouldPauseMediaDuringDictation: Bool
-    let openAIConfiguration: OpenAIConfiguration?
+    let providerConfiguration: OpenAIConfiguration?
     let translationTargetLanguage: TranslationTargetLanguage
     let translateSelectedTextOnTranslationHotkey: Bool
     let personalDictionary: [String]
@@ -20,8 +21,8 @@ struct DictationSettingsSnapshot: Sendable {
     let interactionSoundPreset: InteractionSoundPreset
     let proxySettings: NetworkProxySettings
 
-    var isOpenAIConfigured: Bool {
-        openAIConfiguration != nil
+    var hasLocalProviderConfiguration: Bool {
+        providerConfiguration != nil
     }
 }
 
@@ -61,6 +62,7 @@ struct DictationSettingsStore: Sendable {
 
     nonisolated func loadSnapshot() -> DictationSettingsSnapshot {
         let provider = loadProvider()
+        let executionMode = loadExecutionMode()
         let isRewriteEnabled = loadRewriteEnabled()
         let shouldPauseMediaDuringDictation =
             defaults.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
@@ -79,9 +81,10 @@ struct DictationSettingsStore: Sendable {
 
         return DictationSettingsSnapshot(
             provider: provider,
+            executionMode: executionMode,
             isRewriteEnabled: isRewriteEnabled,
             shouldPauseMediaDuringDictation: shouldPauseMediaDuringDictation,
-            openAIConfiguration: configuration,
+            providerConfiguration: configuration,
             translationTargetLanguage: translationTargetLanguage,
             translateSelectedTextOnTranslationHotkey: translateSelectedTextOnTranslationHotkey,
             personalDictionary: personalDictionary,
@@ -122,8 +125,17 @@ struct DictationSettingsStore: Sendable {
         return DictationProvider(rawValue: rawValue) ?? .openAI
     }
 
+    nonisolated func loadExecutionMode() -> AIExecutionMode {
+        let rawValue = defaults.string(forKey: MacPreferences.aiExecutionMode) ?? ""
+        return AIExecutionMode(rawValue: rawValue) ?? .automatic
+    }
+
     nonisolated func saveProvider(_ provider: DictationProvider) {
         defaults.set(provider.rawValue, forKey: MacPreferences.transcriptionProvider)
+    }
+
+    nonisolated func saveExecutionMode(_ mode: AIExecutionMode) {
+        defaults.set(mode.rawValue, forKey: MacPreferences.aiExecutionMode)
     }
 
     nonisolated func saveTranslationTargetLanguage(_ language: TranslationTargetLanguage) {

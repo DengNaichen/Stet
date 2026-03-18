@@ -36,10 +36,11 @@ struct DictationSettingsStoreTests {
         let snapshot = store.loadSnapshot()
 
         #expect(snapshot.provider == .openAI)
+        #expect(snapshot.executionMode == .automatic)
         #expect(snapshot.isRewriteEnabled == false)
         #expect(snapshot.translationTargetLanguage == .english)
         #expect(snapshot.personalDictionary.isEmpty)
-        #expect(snapshot.openAIConfiguration == nil)
+        #expect(snapshot.providerConfiguration == nil)
         #expect(snapshot.proxySettings.mode == .system)
         #expect(snapshot.proxySettings.customScheme == .http)
     }
@@ -72,10 +73,12 @@ struct DictationSettingsStoreTests {
         let defaults = TestSupport.makeUserDefaults()
         let store = makeStore(defaults: defaults)
 
+        store.saveExecutionMode(.managed)
         store.saveTranslationTargetLanguage(.japanese)
         store.saveTranslateSelectedTextOnTranslationHotkey(false)
         store.savePersonalDictionary([" OpenAI ", "groq", "Groq"])
 
+        #expect(store.loadExecutionMode() == .managed)
         #expect(store.loadTranslationTargetLanguage() == .japanese)
         #expect(store.loadTranslateSelectedTextOnTranslationHotkey() == false)
         #expect(store.loadPersonalDictionary() == ["OpenAI", "groq"])
@@ -110,14 +113,16 @@ struct DictationSettingsStoreTests {
         let secretStore = TestSecretStore()
         try secretStore.saveString("sk-live", forAccount: "openai.api_key")
         defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
+        defaults.set(AIExecutionMode.byok.rawValue, forKey: MacPreferences.aiExecutionMode)
         defaults.set(true, forKey: MacPreferences.rewriteEnabled)
         defaults.set(TranslationTargetLanguage.german.rawValue, forKey: MacPreferences.translationTargetLanguage)
 
         let store = makeStore(defaults: defaults, secretStore: secretStore)
         let snapshot = store.loadSnapshot()
 
-        let configuration = try #require(snapshot.openAIConfiguration)
+        let configuration = try #require(snapshot.providerConfiguration)
         #expect(snapshot.provider == .openAI)
+        #expect(snapshot.executionMode == .byok)
         #expect(snapshot.isRewriteEnabled)
         #expect(snapshot.translationTargetLanguage == .german)
         #expect(configuration.apiKey == "sk-live")
@@ -130,12 +135,14 @@ struct DictationSettingsStoreTests {
         let secretStore = TestSecretStore()
         try secretStore.saveString("gsk-live", forAccount: "groq.api_key")
         defaults.set(DictationProvider.groq.rawValue, forKey: MacPreferences.transcriptionProvider)
+        defaults.set(AIExecutionMode.managed.rawValue, forKey: MacPreferences.aiExecutionMode)
 
         let store = makeStore(defaults: defaults, secretStore: secretStore)
         let snapshot = store.loadSnapshot()
 
-        let configuration = try #require(snapshot.openAIConfiguration)
+        let configuration = try #require(snapshot.providerConfiguration)
         #expect(snapshot.provider == .groq)
+        #expect(snapshot.executionMode == .managed)
         #expect(configuration.apiKey == "gsk-live")
         #expect(configuration.baseURL.absoluteString == "https://api.groq.com/openai/v1")
         #expect(configuration.transcriptionModel == "whisper-large-v3-turbo")

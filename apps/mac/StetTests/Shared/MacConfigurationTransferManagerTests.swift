@@ -16,6 +16,7 @@ struct MacConfigurationTransferManagerTests {
         sourceDefaults.set(true, forKey: MacPreferences.pauseMediaDuringDictation)
         sourceDefaults.set(true, forKey: MacPreferences.showInDock)
         sourceDefaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
+        sourceDefaults.set(AIExecutionMode.byok.rawValue, forKey: MacPreferences.aiExecutionMode)
         sourceStore.saveProxySettings(
             .init(
                 mode: .custom,
@@ -46,6 +47,8 @@ struct MacConfigurationTransferManagerTests {
         #expect(targetDefaults.bool(forKey: MacPreferences.pauseMediaDuringDictation))
         #expect(targetDefaults.bool(forKey: MacPreferences.showInDock))
         #expect(targetDefaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.openAI.rawValue)
+        #expect(targetDefaults.string(forKey: MacPreferences.aiExecutionMode) == AIExecutionMode.byok.rawValue)
+        #expect(targetStore.loadExecutionMode() == .byok)
         #expect(targetStore.loadTranslationTargetLanguage() == .french)
         #expect(targetStore.loadPersonalDictionary() == ["OpenAI", "Groq"])
         #expect(targetStore.loadProxySettings().mode == .custom)
@@ -80,6 +83,7 @@ struct MacConfigurationTransferManagerTests {
             JSONSerialization.jsonObject(with: data) as? [String: Any]
         )
 
+        #expect(payload["aiExecutionMode"] as? String == AIExecutionMode.automatic.rawValue)
         #expect(payload["proxyMode"] as? String == NetworkProxyMode.disabled.rawValue)
         #expect(payload["customProxyScheme"] as? String == CustomProxyScheme.http.rawValue)
         #expect(payload["customProxyHost"] as? String == "")

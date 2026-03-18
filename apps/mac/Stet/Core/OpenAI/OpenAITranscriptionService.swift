@@ -182,24 +182,31 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
             additionalHeaders: additionalHeaders,
             timeoutInterval: timeoutInterval
         )
-        let boundary = "StetBoundary-\(UUID().uuidString)"
         let url = try transcriptionURL(from: sdkConfiguration)
-        let body = multipartFormBody(
-            boundary: boundary,
-            audioData: audioData,
-            fileType: fileType,
-            model: model,
-            prompt: prompt,
-            languageCode: languageCode
+        let multipart = MultipartFormRequestBody.make(
+            fields: makeMultipartFields(
+                model: model,
+                prompt: prompt,
+                languageCode: languageCode
+            ),
+            file: MultipartFormFile(
+                name: "file",
+                fileName: fileType.stetFileName,
+                contentType: fileType.stetContentType,
+                data: audioData
+            )
         )
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = timeoutInterval
-        request.httpBody = body
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.httpBody = multipart.body
+        request.setValue(
+            "multipart/form-data; boundary=\(multipart.boundary)",
+            forHTTPHeaderField: "Content-Type"
+        )
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue(String(body.count), forHTTPHeaderField: "Content-Length")
+        request.setValue(String(multipart.body.count), forHTTPHeaderField: "Content-Length")
 
         if let token = sdkConfiguration.token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -244,71 +251,25 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
         return url
     }
 
-    private static func multipartFormBody(
-        boundary: String,
-        audioData: Data,
-        fileType: AudioTranscriptionQuery.FileType,
+    private static func makeMultipartFields(
         model: String,
         prompt: String?,
         languageCode: String?
-    ) -> Data {
-        var body = Data()
-
-        appendMultipartFile(
-            named: "file",
-            fileName: fileType.stetFileName,
-            contentType: fileType.stetContentType,
-            fileData: audioData,
-            boundary: boundary,
-            to: &body
-        )
-        appendMultipartField(named: "model", value: model, boundary: boundary, to: &body)
-        appendMultipartField(named: "response_format", value: "json", boundary: boundary, to: &body)
+    ) -> [MultipartFormField] {
+        var fields: [MultipartFormField] = [
+            .init(name: "model", value: model),
+            .init(name: "response_format", value: "json"),
+        ]
 
         if let prompt {
-            appendMultipartField(named: "prompt", value: prompt, boundary: boundary, to: &body)
+            fields.append(.init(name: "prompt", value: prompt))
         }
 
         if let languageCode {
-            appendMultipartField(named: "language", value: languageCode, boundary: boundary, to: &body)
+            fields.append(.init(name: "language", value: languageCode))
         }
 
-        appendString("--\(boundary)--\r\n", to: &body)
-        return body
-    }
-
-    private static func appendMultipartField(
-        named name: String,
-        value: String,
-        boundary: String,
-        to body: inout Data
-    ) {
-        appendString("--\(boundary)\r\n", to: &body)
-        appendString("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n", to: &body)
-        appendString(value, to: &body)
-        appendString("\r\n", to: &body)
-    }
-
-    private static func appendMultipartFile(
-        named name: String,
-        fileName: String,
-        contentType: String,
-        fileData: Data,
-        boundary: String,
-        to body: inout Data
-    ) {
-        appendString("--\(boundary)\r\n", to: &body)
-        appendString(
-            "Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(fileName)\"\r\n",
-            to: &body
-        )
-        appendString("Content-Type: \(contentType)\r\n\r\n", to: &body)
-        body.append(fileData)
-        appendString("\r\n", to: &body)
-    }
-
-    private static func appendString(_ string: String, to body: inout Data) {
-        body.append(Data(string.utf8))
+        return fields
     }
 
     private static func transcriptionText(from responseData: Data, statusCode: Int) -> String? {

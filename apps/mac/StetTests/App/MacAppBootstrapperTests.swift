@@ -22,6 +22,7 @@ struct MacAppBootstrapperTests {
         #expect(launchConfiguration == .init(showInDock: false))
         #expect(!defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation))
         #expect(defaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.openAI.rawValue)
+        #expect(defaults.string(forKey: MacPreferences.aiExecutionMode) == AIExecutionMode.automatic.rawValue)
         #expect(defaults.string(forKey: MacPreferences.translationTargetLanguage) == TranslationTargetLanguage.english.rawValue)
         #expect(defaults.bool(forKey: MacPreferences.translateSelectedTextOnTranslationHotkey))
         #expect(!defaults.bool(forKey: MacPreferences.hotkeyDistinguishModifierSides))
@@ -48,6 +49,7 @@ struct MacAppBootstrapperTests {
         defaults.set("https://api.groq.com/openai/v1", forKey: "mac.openAIBaseURL")
         defaults.set("llama-3.3-70b-versatile", forKey: "mac.openAITranslationModel")
         defaults.set(true, forKey: MacPreferences.showInDock)
+        defaults.set(AIExecutionMode.managed.rawValue, forKey: MacPreferences.aiExecutionMode)
 
         let bootstrapper = MacAppBootstrapper(
             defaults: defaults,
@@ -59,6 +61,7 @@ struct MacAppBootstrapperTests {
         let launchConfiguration = bootstrapper.prepareForLaunch()
 
         #expect(launchConfiguration == .init(showInDock: true))
+        #expect(defaults.string(forKey: MacPreferences.aiExecutionMode) == AIExecutionMode.managed.rawValue)
         #expect(defaults.object(forKey: "mac.copyLatestCaptureHotkeyShortcut") == nil)
         #expect(defaults.object(forKey: "mac.historyRetentionPeriod") == nil)
         #expect(defaults.object(forKey: "mac.showPanelOnLaunch") == nil)

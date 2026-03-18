@@ -2,22 +2,54 @@ import Foundation
 
 actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
     struct Dependencies: Sendable {
+        var relayAuthenticationContext: @Sendable () async -> RelayAuthenticationContext?
         var makeNetworkSession: @Sendable (NetworkProxySettings) -> URLSession
-        var makeOpenAISpeechService: @Sendable (
+        var makeDirectSpeechService: @Sendable (
             OpenAIConfiguration,
             URLSession,
             Locale,
             @escaping @Sendable () async -> String?
         ) async -> any SpeechService
+        var makeRelaySpeechService: @Sendable (
+            RelayAuthenticationContext,
+            URLSession,
+            Locale,
+            Bool,
+            [String],
+            @escaping @Sendable () async -> String?
+        ) async -> any SpeechService
         var makeRewriteService: @Sendable (OpenAIConfiguration, URLSession) -> any TextRewriteService
 
         static let live = Dependencies(
+            relayAuthenticationContext: {
+                await MainActor.run {
+                    SupabaseService.shared.relayAuthenticationContext
+                }
+            },
             makeNetworkSession: OpenAINetworkSession.makeSession,
-            makeOpenAISpeechService: { configuration, session, locale, promptProvider in
+            makeDirectSpeechService: { configuration, session, locale, promptProvider in
                 await OpenAISpeechService(
                     transcriptionService: OpenAITranscriptionService(
                         configuration: configuration,
                         session: session
+                    ),
+                    locale: locale,
+                    transcriptionPromptProvider: promptProvider
+                )
+            },
+            makeRelaySpeechService: {
+                authentication,
+                session,
+                locale,
+                rewriteEnabled,
+                preferredSpellings,
+                promptProvider in
+                await OpenAISpeechService(
+                    transcriptionService: RelayDictationTranscriptionService(
+                        authentication: authentication,
+                        session: session,
+                        rewriteEnabled: rewriteEnabled,
+                        preferredSpellings: preferredSpellings
                     ),
                     locale: locale,
                     transcriptionPromptProvider: promptProvider
@@ -113,38 +145,53 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
     }
 
     private func makeActiveSession(from snapshot: DictationSettingsSnapshot) async throws -> ActiveSession {
-        let speechService: any SpeechService
-        let networkSession = dependencies.makeNetworkSession(snapshot.proxySettings)
-
-        guard let configuration = snapshot.openAIConfiguration else {
-            throw OpenAIError.missingAPIKey(provider: snapshot.provider)
-        }
-
-        speechService = await dependencies.makeOpenAISpeechService(
-            configuration,
-            networkSession,
-            locale,
-            {
-                nil
-            }
+        let relayAuthentication = await dependencies.relayAuthenticationContext()
+        let route = try DictationExecutionRouteResolver.resolve(
+            snapshot: snapshot,
+            relayAuthentication: relayAuthentication
         )
-
+        let speechService: any SpeechService
         let rewriteService: (any TextRewriteService)?
+        let preferredSpellings: [String]
 
-        if snapshot.isRewriteEnabled {
-            guard let configuration = snapshot.openAIConfiguration else {
-                throw OpenAIError.missingAPIKey(provider: snapshot.provider)
+        switch route {
+        case .direct(let direct):
+            let networkSession = dependencies.makeNetworkSession(direct.proxySettings)
+            speechService = await dependencies.makeDirectSpeechService(
+                direct.configuration,
+                networkSession,
+                locale,
+                {
+                    nil
+                }
+            )
+            preferredSpellings = direct.preferredSpellings
+
+            if direct.rewriteEnabled {
+                rewriteService = dependencies.makeRewriteService(direct.configuration, networkSession)
+            } else {
+                rewriteService = nil
             }
-
-            rewriteService = dependencies.makeRewriteService(configuration, networkSession)
-        } else {
+        case .relay(let relay):
+            let networkSession = dependencies.makeNetworkSession(relay.proxySettings)
+            speechService = await dependencies.makeRelaySpeechService(
+                relay.authentication,
+                networkSession,
+                locale,
+                relay.rewriteEnabled,
+                relay.preferredSpellings,
+                {
+                    Self.makeTranscriptionPrompt(preferredSpellings: relay.preferredSpellings)
+                }
+            )
             rewriteService = nil
+            preferredSpellings = relay.preferredSpellings
         }
 
         return ActiveSession(
             speechService: speechService,
             rewriteService: rewriteService,
-            preferredSpellings: snapshot.personalDictionary
+            preferredSpellings: preferredSpellings
         )
     }
 

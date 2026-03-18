@@ -4,6 +4,13 @@ import Foundation
 
 @MainActor
 final class MacOpenAISettingsViewModel: ObservableObject {
+    @Published var executionMode: AIExecutionMode = .automatic {
+        didSet {
+            guard hasLoadedState else { return }
+            settingsStore.saveExecutionMode(executionMode)
+            updateCredentialMessage()
+        }
+    }
     @Published var provider: DictationProvider = .openAI {
         didSet {
             guard hasLoadedState else { return }
@@ -35,18 +42,33 @@ final class MacOpenAISettingsViewModel: ObservableObject {
     @Published private(set) var credentialMessageIsError = false
 
     private let settingsStore: DictationSettingsStore
+    private let relaySessionProvider: @MainActor @Sendable () -> Bool
     private var hasLoadedState = false
 
-    init(settingsStore: DictationSettingsStore = DictationSettingsStore()) {
+    init(
+        settingsStore: DictationSettingsStore = DictationSettingsStore(),
+        relaySessionProvider: @escaping @MainActor @Sendable () -> Bool = {
+            SupabaseService.shared.currentSession != nil
+        }
+    ) {
         self.settingsStore = settingsStore
+        self.relaySessionProvider = relaySessionProvider
     }
 
-    var shouldHighlightMissingCredential: Bool {
-        apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    var connectionNeedsAttention: Bool {
+        switch executionMode {
+        case .automatic:
+            return !hasRelaySession && apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .managed:
+            return !hasRelaySession
+        case .byok:
+            return apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
     }
 
     func load() {
         hasLoadedState = false
+        executionMode = settingsStore.loadExecutionMode()
         provider = settingsStore.loadProvider()
         rewriteEnabled = settingsStore.loadRewriteEnabled()
         translationTargetLanguage = settingsStore.loadTranslationTargetLanguage()
@@ -57,7 +79,14 @@ final class MacOpenAISettingsViewModel: ObservableObject {
     }
 
     var connectionStatusText: String {
-        shouldHighlightMissingCredential ? "Missing Key" : "Configured"
+        switch executionMode {
+        case .automatic:
+            return hasRelaySession ? "Relay Active" : (connectionNeedsAttention ? "Missing Key" : "Direct Fallback")
+        case .managed:
+            return hasRelaySession ? "Relay Only" : "Sign In Required"
+        case .byok:
+            return connectionNeedsAttention ? "Missing Key" : "Configured"
+        }
     }
 
     func saveCredential() {
@@ -83,15 +112,36 @@ final class MacOpenAISettingsViewModel: ObservableObject {
 
     var modelSummary: String {
         let providerDefaults = OpenAIConfiguration.providerDefaults(for: provider)
-        return "Stet uses \(providerDefaults.transcriptionModel) for transcription and \(providerDefaults.translationModel) for translation and rewrite."
+        switch executionMode {
+        case .automatic:
+            return "Automatic uses Managed Relay for dictation while you are signed in. If you are signed out, Stet falls back to \(providerDefaults.transcriptionModel) for transcription and \(providerDefaults.translationModel) for direct translation and rewrite."
+        case .managed:
+            return "Managed Relay currently covers the dictation pipeline only. Local provider and API key settings are retained for Automatic fallback or BYOK."
+        case .byok:
+            return "BYOK uses \(providerDefaults.transcriptionModel) for transcription and \(providerDefaults.translationModel) for translation and rewrite."
+        }
     }
 
     var providerDescription: String {
-        "Choose between OpenAI and Groq. Stet manages the endpoint and model selection automatically."
+        switch executionMode {
+        case .automatic:
+            return "Automatic uses the provider below only when you are signed out and dictation falls back to the local API path."
+        case .managed:
+            return "Managed Relay ignores the provider below for dictation. Keep it configured for when you switch back to Automatic or BYOK."
+        case .byok:
+            return "BYOK uses the provider below as the active local API path. Stet still manages the endpoint and model selection automatically."
+        }
     }
 
     var rewriteToggleTitle: String {
-        "Rewrite final transcript with \(provider.displayName)"
+        switch executionMode {
+        case .automatic:
+            return "Rewrite final transcript automatically"
+        case .managed:
+            return "Rewrite final transcript with Managed Relay"
+        case .byok:
+            return "Rewrite final transcript with \(provider.displayName)"
+        }
     }
 
     var credentialFieldTitle: String {
@@ -102,11 +152,73 @@ final class MacOpenAISettingsViewModel: ObservableObject {
         provider.apiKeyPlaceholder
     }
 
+    var executionModeDescription: String {
+        executionMode.subtitle
+    }
+
+    var credentialSectionDescription: String {
+        switch executionMode {
+        case .automatic:
+            return "Automatic uses this local API key only when you are signed out and dictation falls back to the direct provider path."
+        case .managed:
+            return "Managed Relay does not use local provider credentials for dictation. Switch to Automatic or BYOK to use this key directly."
+        case .byok:
+            return "BYOK uses this provider and API key directly."
+        }
+    }
+
+    var missingCredentialMessage: String? {
+        switch executionMode {
+        case .automatic:
+            guard !hasRelaySession,
+                  apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return nil
+            }
+            return "Add a \(provider.displayName) API key to enable local dictation when you are signed out."
+        case .managed:
+            return hasRelaySession ? nil : "Sign in with your Stet account to use Managed Relay for dictation."
+        case .byok:
+            guard apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            return "Add a \(provider.displayName) API key before using direct transcription, translation, or rewrite."
+        }
+    }
+
+    var isCredentialEditingDisabled: Bool {
+        executionMode == .managed
+    }
+
     private func updateCredentialMessage() {
-        credentialMessage = apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? "Add a \(provider.displayName) API key to enable cloud features."
-            : "\(provider.displayName) API key is saved in Keychain."
+        let hasCredential = !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+        switch executionMode {
+        case .automatic:
+            if hasCredential {
+                credentialMessage = "\(provider.displayName) API key is saved in Keychain for local fallback."
+            } else if hasRelaySession {
+                credentialMessage = "Managed Relay is active for dictation. No local fallback key is currently saved."
+            } else {
+                credentialMessage = "No \(provider.displayName) API key is saved for local fallback."
+            }
+        case .managed:
+            if hasRelaySession {
+                credentialMessage = hasCredential
+                    ? "A \(provider.displayName) API key is saved in Keychain but ignored by Managed Relay."
+                    : "Managed Relay is active for dictation."
+            } else if hasCredential {
+                credentialMessage = "Sign in to use Managed Relay. A \(provider.displayName) API key is saved for future Automatic fallback or BYOK use."
+            } else {
+                credentialMessage = "Sign in to use Managed Relay. No local provider API key is saved."
+            }
+        case .byok:
+            credentialMessage = hasCredential
+                ? "\(provider.displayName) API key is saved in Keychain."
+                : "No \(provider.displayName) API key is saved in Keychain."
+        }
         credentialMessageIsError = false
+    }
+
+    private var hasRelaySession: Bool {
+        relaySessionProvider()
     }
 }
 #endif
