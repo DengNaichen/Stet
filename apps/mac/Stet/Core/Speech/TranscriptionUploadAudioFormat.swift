@@ -29,33 +29,6 @@ enum TranscriptionUploadAudioFormat {
         )
     }
 
-    nonisolated static func makeMacConverter(
-        from inputFormat: AVAudioFormat,
-        to outputFormat: AVAudioFormat
-    ) -> AVAudioConverter? {
-        guard let converter = AVAudioConverter(from: inputFormat, to: outputFormat) else {
-            return nil
-        }
-
-        if inputFormat.channelCount != outputFormat.channelCount {
-            converter.downmix = true
-        }
-
-        return converter
-    }
-
-    nonisolated static func macConvertedFrameCapacity(
-        for inputFrameCount: AVAudioFrameCount,
-        inputSampleRate: Double
-    ) -> AVAudioFrameCount {
-        guard inputFrameCount > 0, inputSampleRate > 0, inputSampleRate.isFinite else {
-            return 0
-        }
-
-        let ratio = macSampleRate / inputSampleRate
-        let scaledFrameCount = ceil(Double(inputFrameCount) * ratio)
-        return max(AVAudioFrameCount(scaledFrameCount) + 32, 32)
-    }
     #endif
 
     nonisolated static let iOSFileExtension = "m4a"

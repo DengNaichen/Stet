@@ -150,7 +150,7 @@ final class DictationViewModel: ObservableObject {
     }
 
     private func startLevelMonitoring() {
-        guard let streamingService = speechService as? any AudioLevelStreaming else { return }
+        guard let streamingService = speechService as? any AudioLevelSource else { return }
 
         levelTask = Task { @MainActor [weak self] in
             let stream = await streamingService.makeAudioLevelStream()

@@ -1,6 +1,6 @@
 import Foundation
 
-actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
+actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     struct Dependencies: Sendable {
         var relayAuthenticationContext: @Sendable () async -> RelayAuthenticationContext?
         var makeNetworkSession: @Sendable (NetworkProxySettings) -> URLSession
@@ -213,7 +213,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelStreaming {
     private func startAudioLevelForwarding(for session: ActiveSession) {
         stopAudioLevelForwarding()
 
-        guard let streamingService = session.speechService as? any AudioLevelStreaming else { return }
+        guard let streamingService = session.speechService as? any AudioLevelSource else { return }
         let audioLevelBridge = self.audioLevelBridge
 
         audioLevelTask = Task {

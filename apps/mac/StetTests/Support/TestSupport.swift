@@ -175,7 +175,7 @@ final class TestTextInjectionService: TextInjectionService {
     }
 }
 
-actor ControllableSpeechService: SpeechService, AudioLevelStreaming {
+actor ControllableSpeechService: SpeechService, AudioLevelSource {
     enum StartBehavior: Sendable {
         case immediate
         case suspended
