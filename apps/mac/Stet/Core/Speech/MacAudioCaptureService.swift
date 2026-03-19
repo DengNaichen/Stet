@@ -78,7 +78,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         #endif
         AppLogger.info("Audio capture started successfully", category: .dictation)
         Task {
-            await DictationRuntimeProbe.shared.recordCaptureStarted()
+            await DictationRuntimeProbe.shared.markCaptureStarted()
         }
         await DictationStartupProbe.shared.record(.audioCaptureStarted)
     }
