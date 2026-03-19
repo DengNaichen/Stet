@@ -32,12 +32,14 @@ struct MacDictationPanelView: View {
             CapsuleOrbConfiguration(
                 systemName: "xmark",
                 tint: .cancel,
+                accessibilityLabel: "Cancel",
                 action: viewModel.hidePanel
             )
         case .listening:
             CapsuleOrbConfiguration(
                 systemName: "xmark",
                 tint: .cancel,
+                accessibilityLabel: "Cancel",
                 action: viewModel.cancelActiveCapture
             )
         case .processing:
@@ -48,12 +50,14 @@ struct MacDictationPanelView: View {
             CapsuleOrbConfiguration(
                 systemName: "xmark",
                 tint: .cancel,
+                accessibilityLabel: "Cancel",
                 action: viewModel.dismissPendingCopy
             )
         case .error:
             CapsuleOrbConfiguration(
                 systemName: "xmark",
                 tint: .cancel,
+                accessibilityLabel: "Cancel",
                 action: viewModel.hidePanel
             )
         }
@@ -65,12 +69,14 @@ struct MacDictationPanelView: View {
             CapsuleOrbConfiguration(
                 systemName: "mic.fill",
                 tint: .primaryAction,
+                accessibilityLabel: "Start Dictation",
                 action: viewModel.performPrimaryAction
             )
         case .listening:
             CapsuleOrbConfiguration(
                 systemName: "checkmark",
                 tint: .primaryAction,
+                accessibilityLabel: "Finish Dictation",
                 action: viewModel.performPrimaryAction
             )
         case .processing:
@@ -81,12 +87,14 @@ struct MacDictationPanelView: View {
             CapsuleOrbConfiguration(
                 systemName: "doc.on.doc",
                 tint: .copyAction,
+                accessibilityLabel: "Copy",
                 action: viewModel.performPrimaryAction
             )
         case .error:
             CapsuleOrbConfiguration(
                 systemName: "arrow.clockwise",
                 tint: .retryAction,
+                accessibilityLabel: "Retry",
                 action: viewModel.performPrimaryAction
             )
         }
@@ -106,6 +114,9 @@ private struct MacDictationCapsuleSurface: View {
     @State private var sideOrbProgress: CGFloat = 0
     @State private var hasAnimatedEntrance = false
     @State private var entranceTask: Task<Void, Never>?
+    @State private var orbTransitionTask: Task<Void, Never>?
+    @State private var visibleLeadingOrb: CapsuleOrbConfiguration?
+    @State private var visibleTrailingOrb: CapsuleOrbConfiguration?
     @State private var startDate = Date()
 
     private var scale: CGFloat {
@@ -200,11 +211,11 @@ private struct MacDictationCapsuleSurface: View {
     }
 
     private var leadingOrbProgress: CGFloat {
-        leadingOrb == nil ? 0 : sideOrbProgress
+        visibleLeadingOrb == nil ? 0 : sideOrbProgress
     }
 
     private var trailingOrbProgress: CGFloat {
-        trailingOrb == nil ? 0 : sideOrbProgress
+        visibleTrailingOrb == nil ? 0 : sideOrbProgress
     }
 
     private var leadingOrbX: CGFloat {
@@ -230,8 +241,8 @@ private struct MacDictationCapsuleSurface: View {
             ZStack {
                 GlassEffectContainer(spacing: scaled(28)) {
                     ZStack {
-                        if let leadingOrb {
-                            capsuleOrbButton(leadingOrb, elapsed: elapsed)
+                        if let leadingOrb = visibleLeadingOrb {
+                            capsuleOrbButton(leadingOrb)
                                 .offset(x: leadingOrbX, y: mainOffsetY)
                                 .scaleEffect(0.24 + 0.76 * leadingOrbProgress)
                                 .opacity(leadingOrbProgress)
@@ -241,8 +252,8 @@ private struct MacDictationCapsuleSurface: View {
                         mainCapsule(elapsed: elapsed)
                             .offset(x: mainOffsetX, y: mainOffsetY)
 
-                        if let trailingOrb {
-                            capsuleOrbButton(trailingOrb, elapsed: elapsed)
+                        if let trailingOrb = visibleTrailingOrb {
+                            capsuleOrbButton(trailingOrb)
                                 .offset(x: trailingOrbX, y: mainOffsetY)
                                 .scaleEffect(0.24 + 0.76 * trailingOrbProgress)
                                 .opacity(trailingOrbProgress)
@@ -262,6 +273,9 @@ private struct MacDictationCapsuleSurface: View {
         .opacity(appeared ? 1.0 : 0.0)
         .onAppear {
             runEntranceAnimationIfNeeded()
+        }
+        .onChange(of: state) {
+            syncSideOrbVisibility()
         }
         .onDisappear(perform: resetEntranceAnimation)
         .animation(.spring(response: 0.56, dampingFraction: 0.82), value: state)
@@ -432,55 +446,17 @@ private struct MacDictationCapsuleSurface: View {
     }
 
     @ViewBuilder
-    private func capsuleOrbButton(
-        _ configuration: CapsuleOrbConfiguration,
-        elapsed: Double
-    ) -> some View {
+    private func capsuleOrbButton(_ configuration: CapsuleOrbConfiguration) -> some View {
         Button(action: configuration.action) {
-            Color.clear
+            Image(systemName: configuration.systemName)
+                .symbolRenderingMode(.monochrome)
+                .font(.system(size: scaled(16), weight: .semibold))
                 .frame(width: orbSize, height: orbSize)
-                .glassEffect(.clear, in: Circle())
-                .overlay {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                RadialGradient(
-                                    colors: [
-                                        configuration.tint.opacity(0.38 + displayLevel * 0.10),
-                                        configuration.tint.opacity(0.18 + displayLevel * 0.06),
-                                        configuration.tint.opacity(0.04),
-                                        .clear
-                                    ],
-                                    center: .center,
-                                    startRadius: scaled(2),
-                                    endRadius: orbSize * 0.48
-                                )
-                            )
-                            .frame(width: orbSize - scaled(6), height: orbSize - scaled(6))
-                            .scaleEffect(1.0 + displayLevel * 0.07)
-
-                        Circle()
-                            .fill(.white.opacity(0.06))
-                            .frame(width: orbSize - scaled(20), height: orbSize - scaled(20))
-
-                        Circle()
-                            .strokeBorder(configuration.tint.opacity(0.36), lineWidth: scaled(1.2))
-                            .frame(width: orbSize - scaled(16), height: orbSize - scaled(16))
-
-                        Circle()
-                            .strokeBorder(.white.opacity(0.14), lineWidth: scaled(0.8))
-                            .frame(width: orbSize - scaled(8), height: orbSize - scaled(8))
-
-                        Image(systemName: configuration.systemName)
-                            .font(.system(size: scaled(16), weight: .bold))
-                            .foregroundStyle(.white.opacity(0.96))
-                            .shadow(color: configuration.tint.opacity(0.45), radius: scaled(6))
-                    }
-                }
         }
-        .buttonStyle(.plain)
-        .shadow(color: configuration.tint.opacity(0.16), radius: scaled(10))
-        .accessibilityLabel(configuration.systemName)
+        .buttonStyle(.glass)
+        .buttonBorderShape(.circle)
+        .tint(configuration.tint)
+        .accessibilityLabel(configuration.accessibilityLabel)
     }
 
     private func scaled(_ value: CGFloat) -> CGFloat {
@@ -494,6 +470,8 @@ private struct MacDictationCapsuleSurface: View {
         startDate = Date()
         appeared = false
         sideOrbProgress = 0
+        visibleLeadingOrb = leadingOrb
+        visibleTrailingOrb = trailingOrb
 
         withAnimation(.spring(response: 0.50, dampingFraction: 0.68)) {
             appeared = true
@@ -510,18 +488,54 @@ private struct MacDictationCapsuleSurface: View {
         }
     }
 
+    private func syncSideOrbVisibility() {
+        entranceTask?.cancel()
+        orbTransitionTask?.cancel()
+
+        let shouldShowSideOrbs = leadingOrb != nil || trailingOrb != nil
+
+        if shouldShowSideOrbs {
+            visibleLeadingOrb = leadingOrb
+            visibleTrailingOrb = trailingOrb
+
+            withAnimation(.spring(response: 0.56, dampingFraction: 0.78)) {
+                sideOrbProgress = 1
+            }
+            return
+        }
+
+        guard visibleLeadingOrb != nil || visibleTrailingOrb != nil else { return }
+
+        withAnimation(.spring(response: 0.56, dampingFraction: 0.80)) {
+            sideOrbProgress = 0
+        }
+
+        orbTransitionTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 220_000_000)
+            guard !Task.isCancelled else { return }
+
+            visibleLeadingOrb = nil
+            visibleTrailingOrb = nil
+        }
+    }
+
     private func resetEntranceAnimation() {
         entranceTask?.cancel()
+        orbTransitionTask?.cancel()
         entranceTask = nil
+        orbTransitionTask = nil
         hasAnimatedEntrance = false
         appeared = false
         sideOrbProgress = 0
+        visibleLeadingOrb = nil
+        visibleTrailingOrb = nil
     }
 }
 
 private struct CapsuleOrbConfiguration {
     let systemName: String
     let tint: Color
+    let accessibilityLabel: String
     let action: () -> Void
 }
 
