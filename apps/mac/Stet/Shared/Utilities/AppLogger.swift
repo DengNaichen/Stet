@@ -76,7 +76,7 @@ enum AppLogger {
     }
 
     nonisolated private static func log(level: Level, _ message: String, category: AppLoggerCategory) {
-        guard shouldEmit(category: category) else { return }
+        guard shouldEmit(level: level, category: category) else { return }
         let logger = Logger(subsystem: subsystem, category: category.label)
 
         switch level {
@@ -89,12 +89,20 @@ enum AppLogger {
         }
     }
 
-    nonisolated static func shouldEmit(
+    nonisolated private static func shouldEmit(
+        level: Level,
         category: AppLoggerCategory,
         defaults: UserDefaults = .standard
     ) -> Bool {
-        guard let key = category.preferenceKey else {
+        switch level {
+        case .warning, .error:
             return true
+        case .info:
+            break
+        }
+
+        guard let key = category.preferenceKey else {
+            return false
         }
 
         return defaults.object(forKey: key) as? Bool ?? false
