@@ -519,7 +519,7 @@ final class MacAppSessionController {
         Task {
             await DictationRuntimeProbe.shared.markStateTransition(from: previousState, to: state)
             if state == .idle, previousState != .idle {
-                await DictationRuntimeProbe.shared.endRun(reason: "state_idle", additional: "from=\(stateLabel(previousState))")
+                await DictationRuntimeProbe.shared.endRun(reason: "state_idle", details: "from=\(stateLabel(previousState))")
             }
         }
         cancelPendingStateTasks()
