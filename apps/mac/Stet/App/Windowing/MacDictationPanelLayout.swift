@@ -2,7 +2,8 @@
 import AppKit
 
 struct MacDictationPanelLayout {
-    let panelWidth: CGFloat
+    let collapsedPanelWidth: CGFloat
+    let expandedPanelWidth: CGFloat
     let collapsedPanelHeight: CGFloat
     let expandedPanelHeight: CGFloat
     let bottomInset: CGFloat
@@ -10,7 +11,7 @@ struct MacDictationPanelLayout {
 
     func panelSize(for state: DictationState) -> CGSize {
         CGSize(
-            width: panelWidth,
+            width: isExpanded(state) ? expandedPanelWidth : collapsedPanelWidth,
             height: isExpanded(state) ? expandedPanelHeight : collapsedPanelHeight
         )
     }
@@ -24,7 +25,8 @@ struct MacDictationPanelLayout {
     }
 
     static let standard = MacDictationPanelLayout(
-        panelWidth: 460,
+        collapsedPanelWidth: 520,
+        expandedPanelWidth: 520,
         collapsedPanelHeight: 92,
         expandedPanelHeight: 140,
         bottomInset: 18,
@@ -32,7 +34,8 @@ struct MacDictationPanelLayout {
     )
 
     static let compact = MacDictationPanelLayout(
-        panelWidth: 424,
+        collapsedPanelWidth: 484,
+        expandedPanelWidth: 484,
         collapsedPanelHeight: 86,
         expandedPanelHeight: 129,
         bottomInset: 14,

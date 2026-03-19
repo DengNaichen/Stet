@@ -47,12 +47,7 @@ struct MacDictationPanelView: View {
         case .result:
             nil
         case .clipboardPending:
-            CapsuleOrbConfiguration(
-                systemName: "xmark",
-                tint: .cancel,
-                accessibilityLabel: "Cancel",
-                action: viewModel.dismissPendingCopy
-            )
+            nil
         case .error:
             CapsuleOrbConfiguration(
                 systemName: "xmark",
@@ -115,8 +110,10 @@ private struct MacDictationCapsuleSurface: View {
     @State private var hasAnimatedEntrance = false
     @State private var entranceTask: Task<Void, Never>?
     @State private var orbTransitionTask: Task<Void, Never>?
+    @State private var clipboardRevealTask: Task<Void, Never>?
     @State private var visibleLeadingOrb: CapsuleOrbConfiguration?
     @State private var visibleTrailingOrb: CapsuleOrbConfiguration?
+    @State private var clipboardContentVisible = false
     @State private var startDate = Date()
 
     private var scale: CGFloat {
@@ -273,9 +270,11 @@ private struct MacDictationCapsuleSurface: View {
         .opacity(appeared ? 1.0 : 0.0)
         .onAppear {
             runEntranceAnimationIfNeeded()
+            syncClipboardPresentation(animated: false)
         }
         .onChange(of: state) {
             syncSideOrbVisibility()
+            syncClipboardPresentation(animated: true)
         }
         .onDisappear(perform: resetEntranceAnimation)
         .animation(.spring(response: 0.56, dampingFraction: 0.82), value: state)
@@ -388,6 +387,9 @@ private struct MacDictationCapsuleSurface: View {
             .padding(.horizontal, scaled(24))
             .padding(.vertical, scaled(18))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .opacity(clipboardContentVisible ? 1 : 0)
+            .offset(y: clipboardContentVisible ? 0 : scaled(8))
+            .scaleEffect(clipboardContentVisible ? 1 : 0.985)
     }
 
     @ViewBuilder
@@ -519,14 +521,41 @@ private struct MacDictationCapsuleSurface: View {
         }
     }
 
+    private func syncClipboardPresentation(animated: Bool) {
+        clipboardRevealTask?.cancel()
+
+        guard isClipboardPending else {
+            clipboardContentVisible = false
+            return
+        }
+
+        guard animated else {
+            clipboardContentVisible = true
+            return
+        }
+
+        clipboardContentVisible = false
+        clipboardRevealTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 90_000_000)
+            guard !Task.isCancelled else { return }
+
+            withAnimation(.spring(response: 0.30, dampingFraction: 0.90)) {
+                clipboardContentVisible = true
+            }
+        }
+    }
+
     private func resetEntranceAnimation() {
         entranceTask?.cancel()
         orbTransitionTask?.cancel()
+        clipboardRevealTask?.cancel()
         entranceTask = nil
         orbTransitionTask = nil
+        clipboardRevealTask = nil
         hasAnimatedEntrance = false
         appeared = false
         sideOrbProgress = 0
+        clipboardContentVisible = false
         visibleLeadingOrb = nil
         visibleTrailingOrb = nil
     }
