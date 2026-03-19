@@ -32,12 +32,14 @@ struct MacDictationPanelView: View {
             CapsuleOrbConfiguration(
                 systemName: "xmark",
                 accessibilityLabel: "Cancel",
+                triggersSymmetricClose: true,
                 action: viewModel.hidePanel
             )
         case .listening:
             CapsuleOrbConfiguration(
                 systemName: "xmark",
                 accessibilityLabel: "Cancel",
+                triggersSymmetricClose: true,
                 action: viewModel.cancelActiveCapture
             )
         case .processing:
@@ -50,6 +52,7 @@ struct MacDictationPanelView: View {
             CapsuleOrbConfiguration(
                 systemName: "xmark",
                 accessibilityLabel: "Cancel",
+                triggersSymmetricClose: true,
                 action: viewModel.hidePanel
             )
         }
@@ -104,9 +107,11 @@ private struct MacDictationCapsuleSurface: View {
     @State private var entranceTask: Task<Void, Never>?
     @State private var orbTransitionTask: Task<Void, Never>?
     @State private var clipboardRevealTask: Task<Void, Never>?
+    @State private var exitTask: Task<Void, Never>?
     @State private var visibleLeadingOrb: CapsuleOrbConfiguration?
     @State private var visibleTrailingOrb: CapsuleOrbConfiguration?
     @State private var clipboardContentVisible = false
+    @State private var isExitAnimating = false
     @State private var startDate = Date()
 
     private var scale: CGFloat {
@@ -270,6 +275,7 @@ private struct MacDictationCapsuleSurface: View {
             syncClipboardPresentation(animated: false)
         }
         .onChange(of: state) {
+            guard !isExitAnimating else { return }
             syncSideOrbVisibility()
             syncClipboardPresentation(animated: true)
         }
@@ -446,7 +452,7 @@ private struct MacDictationCapsuleSurface: View {
 
     @ViewBuilder
     private func capsuleOrbButton(_ configuration: CapsuleOrbConfiguration) -> some View {
-        Button(action: configuration.action) {
+        Button(action: { handleOrbAction(configuration) }) {
             orbSymbol(configuration.systemName)
                 .frame(width: orbSize, height: orbSize)
                 .glassEffect(.regular, in: Circle())
@@ -468,10 +474,20 @@ private struct MacDictationCapsuleSurface: View {
         value * scale
     }
 
+    private func handleOrbAction(_ configuration: CapsuleOrbConfiguration) {
+        if configuration.triggersSymmetricClose {
+            runSymmetricCloseAnimation(perform: configuration.action)
+            return
+        }
+
+        configuration.action()
+    }
+
     private func runEntranceAnimationIfNeeded() {
         guard !hasAnimatedEntrance else { return }
 
         hasAnimatedEntrance = true
+        isExitAnimating = false
         startDate = Date()
         appeared = false
         sideOrbProgress = 0
@@ -552,21 +568,53 @@ private struct MacDictationCapsuleSurface: View {
         entranceTask?.cancel()
         orbTransitionTask?.cancel()
         clipboardRevealTask?.cancel()
+        exitTask?.cancel()
         entranceTask = nil
         orbTransitionTask = nil
         clipboardRevealTask = nil
+        exitTask = nil
         hasAnimatedEntrance = false
         appeared = false
         sideOrbProgress = 0
         clipboardContentVisible = false
+        isExitAnimating = false
         visibleLeadingOrb = nil
         visibleTrailingOrb = nil
+    }
+
+    private func runSymmetricCloseAnimation(perform action: @escaping () -> Void) {
+        guard !isExitAnimating else { return }
+
+        isExitAnimating = true
+        entranceTask?.cancel()
+        orbTransitionTask?.cancel()
+        clipboardRevealTask?.cancel()
+        exitTask?.cancel()
+
+        withAnimation(.spring(response: 0.56, dampingFraction: 0.78)) {
+            sideOrbProgress = 0
+        }
+
+        exitTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 90_000_000)
+            guard !Task.isCancelled else { return }
+
+            withAnimation(.spring(response: 0.50, dampingFraction: 0.68)) {
+                appeared = false
+            }
+
+            try? await Task.sleep(nanoseconds: 240_000_000)
+            guard !Task.isCancelled else { return }
+
+            action()
+        }
     }
 }
 
 private struct CapsuleOrbConfiguration {
     let systemName: String
     let accessibilityLabel: String
+    var triggersSymmetricClose: Bool = false
     let action: () -> Void
 }
 
