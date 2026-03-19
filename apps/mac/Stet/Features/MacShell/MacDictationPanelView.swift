@@ -31,14 +31,12 @@ struct MacDictationPanelView: View {
         case .idle:
             CapsuleOrbConfiguration(
                 systemName: "xmark",
-                tint: .cancel,
                 accessibilityLabel: "Cancel",
                 action: viewModel.hidePanel
             )
         case .listening:
             CapsuleOrbConfiguration(
                 systemName: "xmark",
-                tint: .cancel,
                 accessibilityLabel: "Cancel",
                 action: viewModel.cancelActiveCapture
             )
@@ -51,7 +49,6 @@ struct MacDictationPanelView: View {
         case .error:
             CapsuleOrbConfiguration(
                 systemName: "xmark",
-                tint: .cancel,
                 accessibilityLabel: "Cancel",
                 action: viewModel.hidePanel
             )
@@ -63,14 +60,12 @@ struct MacDictationPanelView: View {
         case .idle:
             CapsuleOrbConfiguration(
                 systemName: "mic.fill",
-                tint: .primaryAction,
                 accessibilityLabel: "Start Dictation",
                 action: viewModel.performPrimaryAction
             )
         case .listening:
             CapsuleOrbConfiguration(
                 systemName: "checkmark",
-                tint: .primaryAction,
                 accessibilityLabel: "Finish Dictation",
                 action: viewModel.performPrimaryAction
             )
@@ -81,14 +76,12 @@ struct MacDictationPanelView: View {
         case .clipboardPending:
             CapsuleOrbConfiguration(
                 systemName: "doc.on.doc",
-                tint: .copyAction,
                 accessibilityLabel: "Copy",
                 action: viewModel.performPrimaryAction
             )
         case .error:
             CapsuleOrbConfiguration(
                 systemName: "arrow.clockwise",
-                tint: .retryAction,
                 accessibilityLabel: "Retry",
                 action: viewModel.performPrimaryAction
             )
@@ -184,8 +177,12 @@ private struct MacDictationCapsuleSurface: View {
         }
     }
 
+    private var controlHeight: CGFloat {
+        scaled(52)
+    }
+
     private var mainHeight: CGFloat {
-        isClipboardPending ? scaled(118) : scaled(52)
+        isClipboardPending ? scaled(118) : controlHeight
     }
 
     private var mainCornerRadius: CGFloat {
@@ -228,7 +225,7 @@ private struct MacDictationCapsuleSurface: View {
     }
 
     private var orbSize: CGFloat {
-        scaled(52)
+        controlHeight
     }
 
     var body: some View {
@@ -450,15 +447,21 @@ private struct MacDictationCapsuleSurface: View {
     @ViewBuilder
     private func capsuleOrbButton(_ configuration: CapsuleOrbConfiguration) -> some View {
         Button(action: configuration.action) {
-            Image(systemName: configuration.systemName)
-                .symbolRenderingMode(.monochrome)
-                .font(.system(size: scaled(16), weight: .semibold))
+            orbSymbol(configuration.systemName)
                 .frame(width: orbSize, height: orbSize)
+                .glassEffect(.regular, in: Circle())
+                .contentShape(Circle())
         }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .tint(configuration.tint)
+        .buttonStyle(.plain)
         .accessibilityLabel(configuration.accessibilityLabel)
+    }
+
+    @ViewBuilder
+    private func orbSymbol(_ systemName: String) -> some View {
+        Image(systemName: systemName)
+            .symbolRenderingMode(.monochrome)
+            .font(.system(size: scaled(16), weight: .semibold))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     private func scaled(_ value: CGFloat) -> CGFloat {
@@ -563,34 +566,15 @@ private struct MacDictationCapsuleSurface: View {
 
 private struct CapsuleOrbConfiguration {
     let systemName: String
-    let tint: Color
     let accessibilityLabel: String
     let action: () -> Void
 }
 
 private extension Color {
-    static let cancel = Color(
-        red: 218.0 / 255.0,
-        green: 152.0 / 255.0,
-        blue: 218.0 / 255.0
-    )
-
     static let primaryAction = Color(
         red: 179.0 / 255.0,
         green: 190.0 / 255.0,
         blue: 250.0 / 255.0
-    )
-
-    static let copyAction = Color(
-        red: 192.0 / 255.0,
-        green: 218.0 / 255.0,
-        blue: 1.0
-    )
-
-    static let retryAction = Color(
-        red: 1.0,
-        green: 180.0 / 255.0,
-        blue: 124.0 / 255.0
     )
 }
 #endif
