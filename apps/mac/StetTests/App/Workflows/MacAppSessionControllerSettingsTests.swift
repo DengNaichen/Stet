@@ -149,7 +149,8 @@ struct MacAppSessionControllerSettingsTests {
             textInjectionService: textInjectionService,
             mediaPlaybackController: TestMediaPlaybackController(),
             settingsStore: settingsStore,
-            interactionSoundPlayer: InteractionSoundPlayer()
+            interactionSoundPlayer: InteractionSoundPlayer(),
+            mediaResumeDelay: .zero
         )
         let permissionManager = MacPermissionManager(textInjectionService: textInjectionService)
 

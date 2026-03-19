@@ -45,6 +45,20 @@ struct MacOpenAISettingsView: View {
             }
 
             Section {
+                LabeledContent("Dictation language") {
+                    Picker("Dictation language", selection: $viewModel.dictationLanguageMode) {
+                        ForEach(DictationLanguageMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .frame(width: 240)
+                }
+
+                Text(viewModel.dictationLanguageDescription)
+                    .foregroundStyle(.secondary)
+
                 Toggle(viewModel.rewriteToggleTitle, isOn: $viewModel.rewriteEnabled)
 
                 Toggle(

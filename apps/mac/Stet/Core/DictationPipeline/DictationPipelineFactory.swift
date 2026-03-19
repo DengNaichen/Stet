@@ -2,8 +2,10 @@ import Foundation
 
 struct DictationPipeline: Sendable {
     let transcriptionService: any AudioFileTranscriptionService
+    let transcriptionLanguageCode: String?
     let promptProvider: (@Sendable () async -> String?)?
     let rewriteService: (any TextRewriteService)?
+    let rewriteAdditionalContext: String?
     let preferredSpellings: [String]
 }
 
@@ -59,8 +61,10 @@ struct DictationPipelineFactory: Sendable {
             relayAuthentication: relayAuthentication
         )
         let transcriptionService: any AudioFileTranscriptionService
+        let transcriptionLanguageCode: String?
         let promptProvider: (@Sendable () async -> String?)?
         let rewriteService: (any TextRewriteService)?
+        let rewriteAdditionalContext: String?
         let preferredSpellings: [String]
 
         let networkSession = URLSession(configuration: .ephemeral)
@@ -71,8 +75,10 @@ struct DictationPipelineFactory: Sendable {
                 direct.configuration,
                 networkSession
             )
+            transcriptionLanguageCode = direct.languageMode.transcriptionLanguageCode
             promptProvider = nil
             preferredSpellings = direct.preferredSpellings
+            rewriteAdditionalContext = direct.languageMode.rewriteAdditionalContext
 
             if direct.rewriteEnabled {
                 rewriteService = makeRewriteService(direct.configuration, networkSession)
@@ -86,16 +92,20 @@ struct DictationPipelineFactory: Sendable {
                 relay.rewriteEnabled,
                 relay.preferredSpellings
             )
+            transcriptionLanguageCode = relay.languageMode.transcriptionLanguageCode
             // Let ASR auto-detect language without an English-side prompt bias.
             promptProvider = nil
             rewriteService = nil
+            rewriteAdditionalContext = relay.languageMode.rewriteAdditionalContext
             preferredSpellings = relay.preferredSpellings
         }
 
         return DictationPipeline(
             transcriptionService: transcriptionService,
+            transcriptionLanguageCode: transcriptionLanguageCode,
             promptProvider: promptProvider,
             rewriteService: rewriteService,
+            rewriteAdditionalContext: rewriteAdditionalContext,
             preferredSpellings: preferredSpellings
         )
     }

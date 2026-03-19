@@ -17,7 +17,7 @@ struct RelayDictationTranscriptionServiceTests {
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
         var capturedRequest: URLRequest?
-        URLProtocolStub.configure { request in
+        let session = TestURLSessionFactory.makeSession { request in
             capturedRequest = request
             return (
                 HTTPURLResponse(
@@ -29,11 +29,10 @@ struct RelayDictationTranscriptionServiceTests {
                 Data(#"{"text":"Relay transcript","rewritten":true}"#.utf8)
             )
         }
-        defer { URLProtocolStub.reset() }
 
         let service = RelayDictationTranscriptionService(
             authentication: authentication,
-            session: TestURLSessionFactory.makeSession(),
+            session: session,
             rewriteEnabled: true,
             preferredSpellings: ["OpenAI", "Groq"]
         )
@@ -72,7 +71,7 @@ struct RelayDictationTranscriptionServiceTests {
         try? Data("wav-data".utf8).write(to: fileURL)
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
-        URLProtocolStub.configure { request in
+        let session = TestURLSessionFactory.makeSession { request in
             (
                 HTTPURLResponse(
                     url: request.url!,
@@ -83,11 +82,10 @@ struct RelayDictationTranscriptionServiceTests {
                 Data(#"{"code":"quota_error","message":"quota exceeded","request_id":"req_payload"}"#.utf8)
             )
         }
-        defer { URLProtocolStub.reset() }
 
         let service = RelayDictationTranscriptionService(
             authentication: authentication,
-            session: TestURLSessionFactory.makeSession(),
+            session: session,
             rewriteEnabled: false,
             preferredSpellings: []
         )
@@ -111,7 +109,7 @@ struct RelayDictationTranscriptionServiceTests {
         try? Data("wav-data".utf8).write(to: fileURL)
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
-        URLProtocolStub.configure { request in
+        let session = TestURLSessionFactory.makeSession { request in
             (
                 HTTPURLResponse(
                     url: request.url!,
@@ -122,11 +120,10 @@ struct RelayDictationTranscriptionServiceTests {
                 Data(#"{"text":"   ","rewritten":false}"#.utf8)
             )
         }
-        defer { URLProtocolStub.reset() }
 
         let service = RelayDictationTranscriptionService(
             authentication: authentication,
-            session: TestURLSessionFactory.makeSession(),
+            session: session,
             rewriteEnabled: false,
             preferredSpellings: []
         )

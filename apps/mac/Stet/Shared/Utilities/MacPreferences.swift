@@ -6,6 +6,7 @@ enum MacPreferences {
     nonisolated static let transcriptionProvider = "mac.transcriptionProvider"
     nonisolated static let aiExecutionMode = "mac.aiExecutionMode"
     nonisolated static let rewriteEnabled = "mac.rewriteEnabled"
+    nonisolated static let dictationLanguageMode = "mac.dictationLanguageMode"
     nonisolated static let translationTargetLanguage = "mac.translationTargetLanguage"
     nonisolated static let translateSelectedTextOnTranslationHotkey = "mac.translateSelectedTextOnTranslationHotkey"
     nonisolated static let globalHotkeyShortcut = "mac.globalHotkeyShortcut"

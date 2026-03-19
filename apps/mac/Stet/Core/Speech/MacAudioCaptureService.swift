@@ -1,10 +1,13 @@
 @preconcurrency import AVFoundation
+#if os(macOS)
+@preconcurrency import AudioToolbox
+#endif
 import Foundation
 
 actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     private let audioLevelBridge: AudioLevelBridge
     #if os(macOS)
-    private let macAudioFileRecorder: MacAudioFileRecorder
+    private let macAudioQueueRecorder: MacAudioQueueRecorder
     #endif
 
     private var recorder: AVAudioRecorder?
@@ -16,8 +19,10 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         let audioLevelBridge = AudioLevelBridge()
         self.audioLevelBridge = audioLevelBridge
         #if os(macOS)
-        self.macAudioFileRecorder = MacAudioFileRecorder { level in
-            audioLevelBridge.emit(level)
+        self.macAudioQueueRecorder = MacAudioQueueRecorder {
+            Task {
+                await DictationStartupProbe.shared.record(.firstBufferWritten)
+            }
         }
         #endif
     }
@@ -33,6 +38,10 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
 
         AppLogger.info("Starting audio capture", category: .dictation)
         let microphoneGranted = await requestMicrophonePermission()
+        await DictationStartupProbe.shared.record(
+            .microphonePermissionResolved,
+            note: "granted=\(microphoneGranted)"
+        )
         guard microphoneGranted else {
             AppLogger.warning("Microphone permission denied before recording start", category: .permissions)
             throw SpeechServiceError.microphonePermissionDenied
@@ -59,6 +68,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         startMetering(with: recorder)
         #endif
         AppLogger.info("Audio capture started successfully", category: .dictation)
+        await DictationStartupProbe.shared.record(.audioCaptureStarted)
     }
 
     func stopRecording() async throws -> (url: URL, duration: TimeInterval?) {
@@ -66,9 +76,20 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             throw SpeechServiceError.notRecording
         }
 
+        let finalURL: URL
         #if os(macOS)
-        let writtenFrameCount = await macAudioFileRecorder.stopRecording(writtenFileAt: recordingFileURL)
+        let sourceRecordingFileURL = recordingFileURL
+        self.recordingFileURL = nil
+        defer {
+            try? FileManager.default.removeItem(at: sourceRecordingFileURL)
+        }
+        macAudioQueueRecorder.stopRecording()
         self.isRecording = false
+        stopMetering()
+        finalURL = try Self.convertMacCaptureToUploadFormat(
+            from: sourceRecordingFileURL,
+            to: makeUploadRecordingFileURL()
+        )
         #else
         guard let recorder else {
             throw SpeechServiceError.notRecording
@@ -77,50 +98,46 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         self.recorder = nil
         self.isRecording = false
         stopMetering()
-        let writtenFrameCount: AVAudioFramePosition = 0
+        finalURL = recordingFileURL
         #endif
 
-        let audioDurationSeconds = Self.recordingDurationSeconds(at: recordingFileURL) ?? {
-            #if os(macOS)
-            guard writtenFrameCount > 0 else { return nil }
-            return TimeInterval(writtenFrameCount) / TranscriptionUploadAudioFormat.macSampleRate
-            #else
-            return nil
-            #endif
-        }()
+        let audioDurationSeconds = Self.recordingDurationSeconds(at: finalURL)
         let durationDescription = Self.durationDescription(audioDurationSeconds)
-        let recordingFileSizeBytes = Self.recordingFileSizeBytes(at: recordingFileURL)
-        
+        let recordingFileSizeBytes = Self.recordingFileSizeBytes(at: finalURL)
+
         AppLogger.info(
             """
             Stopping audio capture. \
             durationSeconds=\(durationDescription), \
             fileSizeBytes=\(recordingFileSizeBytes.map(String.init) ?? "unknown"), \
-            writtenFrames=\(writtenFrameCount)
+            recorderType=\({
+                #if os(macOS)
+                "AudioQueue"
+                #else
+                "AVAudioRecorder"
+                #endif
+            }())
             """,
             category: .dictation
         )
 
-        if writtenFrameCount == 0 || (audioDurationSeconds ?? 0) < 0.1 || (recordingFileSizeBytes ?? 0) <= 64 {
+        if (audioDurationSeconds ?? 0) < 0.1 || (recordingFileSizeBytes ?? 0) <= 64 {
             AppLogger.warning("Skipping file because audio frames were insignificant.", category: .dictation)
-            try? FileManager.default.removeItem(at: recordingFileURL)
-            self.recordingFileURL = nil
+            try? FileManager.default.removeItem(at: finalURL)
             throw SpeechServiceError.emptyTranscription
         }
 
-        let finalURL = recordingFileURL
-        self.recordingFileURL = nil
         return (url: finalURL, duration: audioDurationSeconds)
     }
 
     func cancelRecording() async {
         AppLogger.info("Cancelling active audio capture", category: .dictation)
         #if os(macOS)
-        macAudioFileRecorder.cancelRecording()
+        macAudioQueueRecorder.cancelRecording()
+        recorder = nil
         isRecording = false
+        stopMetering()
         cleanupRecordingFile()
-        audioLevelBridge.emit(0)
-        audioLevelBridge.finish()
         #else
         recorder?.stop()
         recorder = nil
@@ -156,22 +173,31 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
 
     #if os(macOS)
     private func startMacRecording() throws {
-        guard let outputFormat = TranscriptionUploadAudioFormat.makeMacOutputFormat() else {
-            throw SpeechServiceError.unsupportedAudioFormat
-        }
-
-        let fileURL = makeRecordingFileURL()
+        let fileURL = makeRawMacRecordingFileURL()
+        let inputDeviceSelection = AudioInputDeviceManager.preferredInputDeviceForDictation()
+        let captureFormat = Self.makeMacCaptureFormat(
+            deviceID: inputDeviceSelection?.device.id
+        )
+        try macAudioQueueRecorder.startRecording(
+            to: fileURL,
+            outputFormat: captureFormat,
+            inputDeviceUID: inputDeviceSelection?.device.uid,
+            fileType: kAudioFileCAFType
+        )
         recordingFileURL = fileURL
+        isRecording = true
+        startMacMetering()
 
-        do {
-            try macAudioFileRecorder.startRecording(
-                to: fileURL,
-                outputFormat: outputFormat
+        if let inputDeviceSelection {
+            AppLogger.info(
+                """
+                Selected macOS dictation input device. \
+                name=\(inputDeviceSelection.device.name), \
+                transportType=\(inputDeviceSelection.device.transportType), \
+                reason=\(inputDeviceSelection.reason.rawValue)
+                """,
+                category: .dictation
             )
-            isRecording = true
-        } catch {
-            cleanupRecordingFile()
-            throw error
         }
     }
     #endif
@@ -180,18 +206,22 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         TranscriptionUploadAudioFormat.iOSRecorderSettings
     }
 
-    private func makeRecordingFileURL() -> URL {
+    private func makeRecordingFileURL(fileExtension: String) -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent("Stet-capture-\(UUID().uuidString)")
-            .appendingPathExtension(
-                {
-                    #if os(macOS)
-                    TranscriptionUploadAudioFormat.macFileExtension
-                    #else
-                    TranscriptionUploadAudioFormat.iOSFileExtension
-                    #endif
-                }()
-            )
+            .appendingPathExtension(fileExtension)
+    }
+
+    private func makeRecordingFileURL() -> URL {
+        makeRecordingFileURL(
+            fileExtension: {
+                #if os(macOS)
+                TranscriptionUploadAudioFormat.macFileExtension
+                #else
+                TranscriptionUploadAudioFormat.iOSFileExtension
+                #endif
+            }()
+        )
     }
 
     private func cleanupRecordingFile() {
@@ -199,6 +229,123 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         try? FileManager.default.removeItem(at: recordingFileURL)
         self.recordingFileURL = nil
     }
+
+    #if os(macOS)
+    private func makeRawMacRecordingFileURL() -> URL {
+        makeRecordingFileURL(fileExtension: TranscriptionUploadAudioFormat.macCaptureFileExtension)
+    }
+
+    private func makeUploadRecordingFileURL() -> URL {
+        makeRecordingFileURL(fileExtension: TranscriptionUploadAudioFormat.macFileExtension)
+    }
+
+    nonisolated private static func makeMacCaptureFormat(deviceID: AudioDeviceID?) -> AudioStreamBasicDescription {
+        if let deviceID,
+           let deviceFormat = AudioInputDeviceManager.inputStreamFormat(for: deviceID),
+           Self.isUsableMacCaptureFormat(deviceFormat) {
+            return deviceFormat
+        }
+
+        if let deviceFormat = AudioInputDeviceManager.defaultInputStreamFormat(),
+           Self.isUsableMacCaptureFormat(deviceFormat) {
+            return deviceFormat
+        }
+
+        return AudioStreamBasicDescription(
+            mSampleRate: 48_000,
+            mFormatID: kAudioFormatLinearPCM,
+            mFormatFlags: kLinearPCMFormatFlagIsFloat | kLinearPCMFormatFlagIsPacked,
+            mBytesPerPacket: 4,
+            mFramesPerPacket: 1,
+            mBytesPerFrame: 4,
+            mChannelsPerFrame: 1,
+            mBitsPerChannel: 32,
+            mReserved: 0
+        )
+    }
+
+    nonisolated private static func isUsableMacCaptureFormat(_ format: AudioStreamBasicDescription) -> Bool {
+        format.mFormatID == kAudioFormatLinearPCM &&
+        format.mSampleRate > 0 &&
+        format.mChannelsPerFrame > 0 &&
+        format.mBytesPerFrame > 0 &&
+        format.mFramesPerPacket > 0 &&
+        format.mBytesPerPacket > 0
+    }
+
+    nonisolated private static func convertMacCaptureToUploadFormat(
+        from sourceURL: URL,
+        to destinationURL: URL
+    ) throws -> URL {
+        let sourceFile = try AVAudioFile(forReading: sourceURL)
+        guard let outputFormat = TranscriptionUploadAudioFormat.makeMacOutputFormat() else {
+            throw SpeechServiceError.failedToStart
+        }
+        guard let converter = LinearPCMConversion.makeConverter(
+            from: sourceFile.processingFormat,
+            to: outputFormat
+        ) else {
+            throw LinearPCMConversion.ConversionError.conversionFailed
+        }
+
+        AppLogger.info(
+            """
+            Converting mac capture to upload format. \
+            sourceSampleRate=\(Int(sourceFile.processingFormat.sampleRate)), \
+            sourceChannels=\(sourceFile.processingFormat.channelCount), \
+            sourceCommonFormat=\(String(describing: sourceFile.processingFormat.commonFormat)), \
+            destinationSampleRate=\(Int(outputFormat.sampleRate)), \
+            destinationChannels=\(outputFormat.channelCount), \
+            destinationCommonFormat=\(String(describing: outputFormat.commonFormat))
+            """,
+            category: .dictation
+        )
+
+        do {
+            let destinationFile = try AVAudioFile(
+                forWriting: destinationURL,
+                settings: outputFormat.settings,
+                commonFormat: outputFormat.commonFormat,
+                interleaved: outputFormat.isInterleaved
+            )
+            let inputFormat = sourceFile.processingFormat
+            let inputBufferCapacity: AVAudioFrameCount = 4_096
+
+            while sourceFile.framePosition < sourceFile.length {
+                let remainingFrameCount = sourceFile.length - sourceFile.framePosition
+                let frameCountToRead = AVAudioFrameCount(
+                    min(Int64(inputBufferCapacity), remainingFrameCount)
+                )
+                guard let inputBuffer = AVAudioPCMBuffer(
+                    pcmFormat: inputFormat,
+                    frameCapacity: frameCountToRead
+                ) else {
+                    throw LinearPCMConversion.ConversionError.outputBufferCreationFailed
+                }
+
+                try sourceFile.read(into: inputBuffer, frameCount: frameCountToRead)
+                guard inputBuffer.frameLength > 0 else {
+                    break
+                }
+
+                let convertedBuffer = try LinearPCMConversion.convert(
+                    inputBuffer,
+                    using: converter,
+                    outputFormat: outputFormat
+                )
+
+                if convertedBuffer.frameLength > 0 {
+                    try destinationFile.write(from: convertedBuffer)
+                }
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: destinationURL)
+            throw error
+        }
+
+        return destinationURL
+    }
+    #endif
 
     private func startMetering(with recorder: AVAudioRecorder) {
         meteringTask?.cancel()
@@ -214,6 +361,23 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             }
         }
     }
+
+    #if os(macOS)
+    private func startMacMetering() {
+        meteringTask?.cancel()
+        audioLevelBridge.emit(0.08)
+        let audioLevelBridge = self.audioLevelBridge
+        let macAudioQueueRecorder = self.macAudioQueueRecorder
+
+        meteringTask = Task {
+            while !Task.isCancelled {
+                let averagePower = macAudioQueueRecorder.currentAveragePowerLevel() ?? -160
+                audioLevelBridge.emit(AudioLevelNormalizer.normalizedPowerLevel(averagePower))
+                try? await Task.sleep(for: .milliseconds(60))
+            }
+        }
+    }
+    #endif
 
     private func stopMetering() {
         meteringTask?.cancel()

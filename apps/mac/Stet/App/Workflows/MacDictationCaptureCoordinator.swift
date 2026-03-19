@@ -17,13 +17,19 @@ final class MacDictationCaptureCoordinator {
 
     private let clipboardService: any ClipboardService
     private let textInjectionService: any TextInjectionService
+    private let pasteboard: NSPasteboard
+    private let pasteboardRestoreCoordinator: PasteboardRestoreCoordinator
 
     init(
         clipboardService: any ClipboardService,
-        textInjectionService: any TextInjectionService
+        textInjectionService: any TextInjectionService,
+        pasteboard: NSPasteboard = .general,
+        pasteboardRestoreCoordinator: PasteboardRestoreCoordinator? = nil
     ) {
         self.clipboardService = clipboardService
         self.textInjectionService = textInjectionService
+        self.pasteboard = pasteboard
+        self.pasteboardRestoreCoordinator = pasteboardRestoreCoordinator ?? PasteboardRestoreCoordinator()
     }
 
     func handleCompletedCapture(
@@ -33,9 +39,12 @@ final class MacDictationCaptureCoordinator {
         showPanel: @escaping @MainActor () -> Void
     ) async -> CompletionOutcome {
         let shouldRestoreClipboardAfterSuccessfulPaste = settings.shouldAutoPaste && !settings.shouldCopyToClipboard
-        let pasteboardSnapshot = shouldRestoreClipboardAfterSuccessfulPaste
-            ? PasteboardSnapshot.capture(from: NSPasteboard.general)
-            : nil
+
+        if shouldRestoreClipboardAfterSuccessfulPaste {
+            pasteboardRestoreCoordinator.prepareForTemporaryOverride(on: pasteboard)
+        } else if settings.shouldCopyToClipboard || settings.shouldAutoPaste {
+            pasteboardRestoreCoordinator.discardPendingRestore()
+        }
 
         if settings.shouldCopyToClipboard || settings.shouldAutoPaste {
             clipboardService.copy(text)
@@ -45,16 +54,14 @@ final class MacDictationCaptureCoordinator {
             let didPaste = await textInjectionService.pasteClipboard(into: targetApplication)
 
             if didPaste {
-                if let pasteboardSnapshot {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                        pasteboardSnapshot.restore(to: NSPasteboard.general)
-                    }
+                if shouldRestoreClipboardAfterSuccessfulPaste {
+                    pasteboardRestoreCoordinator.scheduleRestoreIfNeeded(on: pasteboard)
                 }
                 await DictationLatencyProbe.shared.record(.systemWriteCompleted)
                 return .completed
             } else {
-                if let pasteboardSnapshot {
-                    pasteboardSnapshot.restore(to: NSPasteboard.general)
+                if shouldRestoreClipboardAfterSuccessfulPaste {
+                    pasteboardRestoreCoordinator.restoreImmediatelyIfNeeded(on: pasteboard)
                 }
                 await DictationLatencyProbe.shared.record(.systemWriteFailed, note: "paste_failed")
             }
@@ -79,48 +86,8 @@ final class MacDictationCaptureCoordinator {
     }
 
     func copyToClipboard(_ text: String) {
+        pasteboardRestoreCoordinator.discardPendingRestore()
         clipboardService.copy(text)
-    }
-
-    private struct PasteboardSnapshot {
-        private let items: [[NSPasteboard.PasteboardType: Data]]
-
-        static func capture(from pasteboard: NSPasteboard) -> Self {
-            let items = (pasteboard.pasteboardItems ?? []).map { item in
-                var payload: [NSPasteboard.PasteboardType: Data] = [:]
-
-                for type in item.types {
-                    if let data = item.data(forType: type) {
-                        payload[type] = data
-                    }
-                }
-
-                return payload
-            }
-
-            return Self(items: items)
-        }
-
-        func restore(to pasteboard: NSPasteboard) {
-            pasteboard.clearContents()
-
-            let restoredItems = items.compactMap { payload -> NSPasteboardItem? in
-                let item = NSPasteboardItem()
-                var hasContent = false
-
-                for (type, data) in payload {
-                    if item.setData(data, forType: type) {
-                        hasContent = true
-                    }
-                }
-
-                return hasContent ? item : nil
-            }
-
-            if !restoredItems.isEmpty {
-                pasteboard.writeObjects(restoredItems)
-            }
-        }
     }
 }
 #endif

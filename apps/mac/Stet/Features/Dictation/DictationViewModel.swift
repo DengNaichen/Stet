@@ -27,7 +27,7 @@ final class DictationViewModel: ObservableObject {
             startCapture()
 
         case .stopTapped:
-            guard case .listening = state else { return }
+            guard state.isCaptureInFlight else { return }
             stopCapture()
 
         case .resetTapped:
@@ -39,8 +39,8 @@ final class DictationViewModel: ObservableObject {
         case .clipboardPending(let text):
             state = .clipboardPending(text)
 
-        case .transcriptionFailed(let message):
-            state = .error(message)
+        case .transcriptionFailed(let failure):
+            state = .error(failure)
         }
     }
 
@@ -50,9 +50,8 @@ final class DictationViewModel: ObservableObject {
         isStartingRecording = true
         pendingStopAfterStart = false
         resultTransformer = transform
-        recordingLevel = 0.08
-        state = .listening
-        startLevelMonitoring()
+        recordingLevel = 0
+        state = .starting
 
         activeTask = Task {
             do {
@@ -60,6 +59,12 @@ final class DictationViewModel: ObservableObject {
                 if Task.isCancelled { return }
 
                 isStartingRecording = false
+                recordingLevel = 0.08
+                startLevelMonitoring()
+                state = .listening
+                Task {
+                    await DictationStartupProbe.shared.record(.listeningStateEntered)
+                }
 
                 if pendingStopAfterStart {
                     pendingStopAfterStart = false
@@ -71,12 +76,18 @@ final class DictationViewModel: ObservableObject {
                 resultTransformer = nil
                 finishLevelMonitoring()
                 state = .idle
+                Task {
+                    await DictationStartupProbe.shared.record(.cancelled)
+                }
             } catch {
                 isStartingRecording = false
                 pendingStopAfterStart = false
                 resultTransformer = nil
                 finishLevelMonitoring()
-                state = .error(error.localizedDescription)
+                state = .error(.from(error))
+                Task {
+                    await DictationStartupProbe.shared.record(.failed, note: error.localizedDescription)
+                }
             }
         }
     }
@@ -84,8 +95,6 @@ final class DictationViewModel: ObservableObject {
     func stopCapture() {
         if isStartingRecording {
             pendingStopAfterStart = true
-            finishLevelMonitoring()
-            state = .processing
             return
         }
 
@@ -109,10 +118,14 @@ final class DictationViewModel: ObservableObject {
                 resultTransformer = nil
                 finishLevelMonitoring()
                 state = .idle
+            } catch let error as SpeechServiceError where error == .emptyTranscription {
+                resultTransformer = nil
+                finishLevelMonitoring()
+                state = .idle
             } catch {
                 resultTransformer = nil
                 finishLevelMonitoring()
-                send(.transcriptionFailed(error.localizedDescription))
+                send(.transcriptionFailed(.from(error)))
             }
         }
     }
@@ -135,7 +148,7 @@ final class DictationViewModel: ObservableObject {
                 state = .idle
             } catch {
                 finishLevelMonitoring()
-                send(.transcriptionFailed(error.localizedDescription))
+                send(.transcriptionFailed(.from(error)))
             }
         }
     }

@@ -34,10 +34,12 @@ final class MacDictationWorkflowController {
     private let mediaPlaybackController: any MediaPlaybackControlling
     private let settingsStore: DictationSettingsStore
     private let interactionSoundPlayer: InteractionSoundPlayer
+    private let mediaResumeDelay: Duration
 
     private weak var lastTargetApplication: NSRunningApplication?
     private(set) var activeRecordingSource: PrimaryActionSource?
     private(set) var activeWorkflow: CaptureWorkflow = .dictation
+    private var mediaResumeTask: Task<Void, Never>?
 
     init(
         dictationViewModel: DictationViewModel,
@@ -45,7 +47,8 @@ final class MacDictationWorkflowController {
         textInjectionService: any TextInjectionService,
         mediaPlaybackController: any MediaPlaybackControlling,
         settingsStore: DictationSettingsStore,
-        interactionSoundPlayer: InteractionSoundPlayer
+        interactionSoundPlayer: InteractionSoundPlayer,
+        mediaResumeDelay: Duration = .seconds(1)
     ) {
         self.dictationViewModel = dictationViewModel
         self.captureCoordinator = captureCoordinator
@@ -53,12 +56,26 @@ final class MacDictationWorkflowController {
         self.mediaPlaybackController = mediaPlaybackController
         self.settingsStore = settingsStore
         self.interactionSoundPlayer = interactionSoundPlayer
+        self.mediaResumeDelay = mediaResumeDelay
+    }
+
+    deinit {
+        mediaResumeTask?.cancel()
     }
 
     var statusText: String {
         switch dictationViewModel.state {
         case .idle:
             return "Ready"
+        case .starting:
+            switch activeWorkflow {
+            case .rewriteFromSelection:
+                return "Preparing rewrite capture..."
+            case .translationFromSpeech:
+                return "Preparing translation capture..."
+            case .dictation, .translationFromSelection:
+                return "Starting microphone..."
+            }
         case .listening:
             switch activeWorkflow {
             case .rewriteFromSelection:
@@ -95,8 +112,8 @@ final class MacDictationWorkflowController {
             case .dictation:
                 return "Copy to clipboard"
             }
-        case .error:
-            return "Something went wrong"
+        case .error(let failure):
+            return failure.statusText
         }
     }
 
@@ -141,7 +158,7 @@ final class MacDictationWorkflowController {
     func handleStateTransition(from previousState: DictationState, to newState: DictationState) {
         handleMediaTransition(from: previousState, to: newState)
 
-        if case .listening = newState {
+        if newState.isCaptureInFlight {
             return
         }
 
@@ -228,8 +245,13 @@ final class MacDictationWorkflowController {
     }
 
     private func handleMediaTransition(from previousState: DictationState, to newState: DictationState) {
+        if newState.isCaptureInFlight, !previousState.isCaptureInFlight {
+            mediaResumeTask?.cancel()
+            mediaResumeTask = nil
+        }
+
         if settingsSnapshot.interactionSoundsEnabled {
-            if case .idle = previousState, case .listening = newState {
+            if newState == .listening, !matchesListeningState(previousState) {
                 interactionSoundPlayer.playStart(preset: settingsSnapshot.interactionSoundPreset)
             } else if isActiveDictationState(previousState),
                       shouldResumeMedia(after: newState),
@@ -251,7 +273,30 @@ final class MacDictationWorkflowController {
 
         if case .listening = previousState,
            !matchesListeningState(newState) {
+            scheduleMediaResumeIfNeeded()
+        }
+    }
+
+    private func scheduleMediaResumeIfNeeded() {
+        let delay = mediaResumeDelay
+
+        mediaResumeTask?.cancel()
+
+        mediaResumeTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            // Let macOS release capture-side routing before restoring external audio.
+            if delay > .zero {
+                try? await Task.sleep(for: delay)
+            }
+
+            guard !Task.isCancelled,
+                  !matchesListeningState(dictationViewModel.state) else {
+                return
+            }
+
             mediaPlaybackController.resumePlaybackIfNeeded()
+            mediaResumeTask = nil
         }
     }
 
@@ -259,14 +304,14 @@ final class MacDictationWorkflowController {
         switch state {
         case .listening, .processing:
             return true
-        case .idle, .result, .clipboardPending, .error:
+        case .idle, .starting, .result, .clipboardPending, .error:
             return false
         }
     }
 
     private func shouldResumeMedia(after state: DictationState) -> Bool {
         switch state {
-        case .idle, .result, .clipboardPending, .error:
+        case .idle, .starting, .result, .clipboardPending, .error:
             return true
         case .listening, .processing:
             return false

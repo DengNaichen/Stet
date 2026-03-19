@@ -3,6 +3,7 @@ import Foundation
 
 enum TranscriptionUploadAudioFormat {
     #if os(macOS)
+    nonisolated static let macCaptureFileExtension = "caf"
     nonisolated static let macSampleRate: Double = 16_000
     nonisolated static let macChannelCount: AVAudioChannelCount = 1
     nonisolated static let macLinearPCMBitDepth: UInt32 = 16

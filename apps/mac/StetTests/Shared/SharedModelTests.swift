@@ -22,6 +22,22 @@ struct SharedModelTests {
     }
 
     @Test(arguments: [
+        (DictationLanguageMode.automatic, "Automatic", nil as String?),
+        (.mixedChineseEnglish, "Mixed Chinese + English", nil),
+        (.primarilyChinese, "Primary Chinese", "zh"),
+        (.primarilyEnglish, "Primary English", "en"),
+    ])
+    func dictationLanguageModeMetadata(
+        _ mode: DictationLanguageMode,
+        expectedTitle: String,
+        expectedLanguageCode: String?
+    ) {
+        #expect(mode.title == expectedTitle)
+        #expect(mode.transcriptionLanguageCode == expectedLanguageCode)
+        #expect(mode.id == mode.rawValue)
+    }
+
+    @Test(arguments: [
         (DictationProvider.openAI, "OpenAI", "Audio capture + OpenAI transcription"),
         (.groq, "Groq", "Audio capture + Groq transcription"),
     ])
@@ -73,10 +89,11 @@ struct SharedModelTests {
 
     @Test(arguments: [
         (DictationState.idle, "Ready"),
+        (.starting, "Starting microphone..."),
         (.listening, "Listening..."),
         (.processing, "Processing..."),
         (.result("done"), "Transcription complete"),
-        (.error("boom"), "Something went wrong"),
+        (.error(.unknown(message: "boom")), "Something went wrong"),
     ])
     func dictationStateStatusText(_ state: DictationState, expectedText: String) {
         #expect(state.statusText == expectedText)

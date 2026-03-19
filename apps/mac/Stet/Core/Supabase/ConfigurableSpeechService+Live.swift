@@ -1,12 +1,14 @@
 import Foundation
 
 extension ConfigurableSpeechService {
-    nonisolated static func live(
+    static func live(
         settingsStore: DictationSettingsStore = DictationSettingsStore(),
         locale: Locale = .autoupdatingCurrent,
         captureService: (any AudioCaptureService)? = nil
     ) -> ConfigurableSpeechService {
-        ConfigurableSpeechService(
+        let resolvedCaptureService = captureService ?? MacAudioCaptureService()
+
+        return ConfigurableSpeechService(
             settingsStore: settingsStore,
             locale: locale,
             pipelineFactory: .live(
@@ -14,7 +16,7 @@ extension ConfigurableSpeechService {
                     await SupabaseService.shared.relayAuthenticationContext()
                 }
             ),
-            captureService: captureService
+            captureService: resolvedCaptureService
         )
     }
 }

@@ -10,8 +10,12 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
 
     convenience init() {
         let settingsStore = DictationSettingsStore()
+        let pasteboardRestoreCoordinator = PasteboardRestoreCoordinator()
         let clipboardService = SystemClipboardService()
-        let textInjectionService = SystemTextInjectionService(clipboardService: clipboardService)
+        let textInjectionService = SystemTextInjectionService(
+            clipboardService: clipboardService,
+            pasteboardRestoreCoordinator: pasteboardRestoreCoordinator
+        )
         self.init(
             speechService: ConfigurableSpeechService.live(settingsStore: settingsStore),
             clipboardService: clipboardService,
@@ -20,7 +24,8 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
             settingsStore: settingsStore,
             captureCoordinator: MacDictationCaptureCoordinator(
                 clipboardService: clipboardService,
-                textInjectionService: textInjectionService
+                textInjectionService: textInjectionService,
+                pasteboardRestoreCoordinator: pasteboardRestoreCoordinator
             )
         )
     }
@@ -81,6 +86,8 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
         switch dictationState {
         case .idle:
             return "Start Dictation"
+        case .starting:
+            return "Starting..."
         case .listening:
             return "Stop Recording"
         case .processing:
@@ -210,6 +217,8 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
         switch dictationState {
         case .idle:
             return "Standby"
+        case .starting:
+            return "Starting"
         case .listening:
             return "Live"
         case .processing:

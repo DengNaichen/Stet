@@ -14,12 +14,14 @@ private func makeSnapshot(
     provider: DictationProvider = .openAI,
     providerConfiguration: OpenAIConfiguration? = OpenAIConfiguration(apiKey: "sk-test", provider: .openAI),
     rewriteEnabled: Bool = false,
+    dictationLanguageMode: DictationLanguageMode = .automatic,
     personalDictionary: [String] = []
 ) -> DictationSettingsSnapshot {
     DictationSettingsSnapshot(
         provider: provider,
         executionMode: mode,
         isRewriteEnabled: rewriteEnabled,
+        dictationLanguageMode: dictationLanguageMode,
         shouldPauseMediaDuringDictation: false,
         providerConfiguration: providerConfiguration,
         translationTargetLanguage: .english,
@@ -44,6 +46,7 @@ struct LogicPrimitiveTests {
         case .direct(let direct):
             #expect(await direct.configuration.apiKey == "sk-test")
             #expect(await direct.rewriteEnabled == false)
+            #expect(await direct.languageMode == .automatic)
             #expect(await direct.preferredSpellings.isEmpty)
         default:
             Issue.record("Expected direct route.")
@@ -70,6 +73,7 @@ struct LogicPrimitiveTests {
         switch route {
         case .relay(let relay):
             #expect(await relay.authentication == relayAuthentication)
+            #expect(await relay.languageMode == .automatic)
             #expect(await relay.preferredSpellings.isEmpty == false)
         default:
             Issue.record("Expected relay route.")
@@ -139,6 +143,7 @@ struct LogicPrimitiveTests {
 
         #expect(transcript == "direct")
         #expect(pipeline.promptProvider == nil)
+        #expect(pipeline.transcriptionLanguageCode == nil)
         #expect(await direct.callCount == 1)
         #expect(await relay.callCount == 0)
         #expect(await direct.capturedPrompt == nil)
@@ -179,7 +184,48 @@ struct LogicPrimitiveTests {
         #expect(transcript == "relay")
         #expect(await relay.callCount == 1)
         #expect(await direct.callCount == 0)
+        #expect(pipeline.transcriptionLanguageCode == nil)
         #expect(await pipeline.promptProvider == nil)
+    }
+
+    @Test func makePipelineUsesConfiguredLanguageModeForTranscriptionAndCleanup() async throws {
+        let direct = RecordingTranscriptionService(result: "mixed transcript")
+        let relay = RecordingTranscriptionService(result: "relay")
+        let rewrite = RecordingRewriteService()
+        let factory = DictationPipelineFactory(
+            relayAuthenticationContext: { nil },
+            makeDirectTranscriptionService: { _, _ in direct },
+            makeRelayTranscriptionService: { _, _, _, _ in relay },
+            makeRewriteService: { _, _ in rewrite }
+        )
+        let snapshot = makeSnapshot(
+            mode: .byok,
+            rewriteEnabled: true,
+            dictationLanguageMode: .mixedChineseEnglish
+        )
+        let audioFileURL = try makeTemporaryWavURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let pipeline = try await factory.makePipeline(from: snapshot)
+        let transcript = try await pipeline.transcriptionService.transcribe(
+            audioFileAt: audioFileURL,
+            languageCode: pipeline.transcriptionLanguageCode,
+            prompt: nil,
+            audioDurationSeconds: 1
+        )
+        if let rewriteService = pipeline.rewriteService {
+            _ = try await rewriteService.rewrite(
+                .cleanup(
+                    transcript,
+                    preferredSpellings: pipeline.preferredSpellings,
+                    additionalUserContext: pipeline.rewriteAdditionalContext
+                )
+            )
+        }
+
+        #expect(transcript == "mixed transcript")
+        #expect(pipeline.transcriptionLanguageCode == nil)
+        #expect(pipeline.rewriteAdditionalContext?.contains("mix Chinese and English") == true)
     }
 
     @Test func makeTranscriptionPromptIncludesPreferredSpellings() {

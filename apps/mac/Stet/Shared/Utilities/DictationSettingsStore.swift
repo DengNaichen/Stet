@@ -12,6 +12,7 @@ struct DictationSettingsSnapshot: Sendable {
     let provider: DictationProvider
     let executionMode: AIExecutionMode
     let isRewriteEnabled: Bool
+    let dictationLanguageMode: DictationLanguageMode
     let shouldPauseMediaDuringDictation: Bool
     let providerConfiguration: OpenAIConfiguration?
     let translationTargetLanguage: TranslationTargetLanguage
@@ -63,6 +64,7 @@ struct DictationSettingsStore: Sendable {
         let provider = loadProvider()
         let executionMode = loadExecutionMode()
         let isRewriteEnabled = loadRewriteEnabled()
+        let dictationLanguageMode = loadDictationLanguageMode()
         let shouldPauseMediaDuringDictation =
             defaults.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
         let apiKey = loadAPIKey(for: provider).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -81,6 +83,7 @@ struct DictationSettingsStore: Sendable {
             provider: provider,
             executionMode: executionMode,
             isRewriteEnabled: isRewriteEnabled,
+            dictationLanguageMode: dictationLanguageMode,
             shouldPauseMediaDuringDictation: shouldPauseMediaDuringDictation,
             providerConfiguration: configuration,
             translationTargetLanguage: translationTargetLanguage,
@@ -145,6 +148,15 @@ struct DictationSettingsStore: Sendable {
 
     nonisolated func saveRewriteEnabled(_ enabled: Bool) {
         defaults.set(enabled, forKey: MacPreferences.rewriteEnabled)
+    }
+
+    nonisolated func loadDictationLanguageMode() -> DictationLanguageMode {
+        let rawValue = defaults.string(forKey: MacPreferences.dictationLanguageMode) ?? ""
+        return DictationLanguageMode(rawValue: rawValue) ?? .automatic
+    }
+
+    nonisolated func saveDictationLanguageMode(_ mode: DictationLanguageMode) {
+        defaults.set(mode.rawValue, forKey: MacPreferences.dictationLanguageMode)
     }
 
     nonisolated func loadTranslateSelectedTextOnTranslationHotkey() -> Bool {

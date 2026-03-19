@@ -25,7 +25,8 @@ struct MacDictationWorkflowControllerTests {
         defaults: UserDefaults? = nil,
         speechService: ControllableSpeechService? = nil,
         textInjectionService: TestTextInjectionService? = nil,
-        mediaPlaybackController: TestMediaPlaybackController? = nil
+        mediaPlaybackController: TestMediaPlaybackController? = nil,
+        mediaResumeDelay: Duration = .zero
     ) -> (
         controller: MacDictationWorkflowController,
         viewModel: DictationViewModel,
@@ -55,7 +56,8 @@ struct MacDictationWorkflowControllerTests {
             textInjectionService: textInjectionService,
             mediaPlaybackController: mediaPlaybackController,
             settingsStore: settingsStore,
-            interactionSoundPlayer: InteractionSoundPlayer()
+            interactionSoundPlayer: InteractionSoundPlayer(),
+            mediaResumeDelay: mediaResumeDelay
         )
 
         return (
@@ -67,7 +69,7 @@ struct MacDictationWorkflowControllerTests {
         )
     }
 
-    @Test func startDictationCaptureShowsPanelAndStartsListening() {
+    @Test func startDictationCaptureShowsPanelAndStartsListening() async {
         let subject = makeController()
         var showPanelCount = 0
 
@@ -77,7 +79,8 @@ struct MacDictationWorkflowControllerTests {
 
         #expect(showPanelCount == 1)
         #expect(subject.controller.activeWorkflow == .dictation)
-        #expect(subject.viewModel.state == .listening)
+        #expect(subject.viewModel.state.isCaptureInFlight)
+        #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
         #expect(subject.controller.statusText == "Listening...")
 
         guard case .interface? = subject.controller.activeRecordingSource else {
@@ -100,19 +103,28 @@ struct MacDictationWorkflowControllerTests {
         #expect(subject.controller.processingStatusText == "Transcribing with Groq...")
     }
 
-    @Test func stateTransitionsPauseAndResumeMediaWhenConfigured() {
+    @Test func stateTransitionsPauseAndResumeMediaWhenConfigured() async {
         let defaults = TestSupport.makeUserDefaults()
         defaults.set(true, forKey: MacPreferences.pauseMediaDuringDictation)
-        let subject = makeController(defaults: defaults)
+        let speechService = ControllableSpeechService()
+        await speechService.setStopBehavior(.suspended)
+        let subject = makeController(
+            defaults: defaults,
+            speechService: speechService
+        )
 
         subject.controller.startDictationCapture(source: .hotkey) {}
+        #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
         subject.controller.handleStateTransition(from: .idle, to: .listening)
 
         #expect(subject.mediaPlaybackController.pauseCallCount == 1)
 
+        subject.viewModel.send(.stopTapped)
         subject.controller.handleStateTransition(from: .listening, to: .processing)
 
-        #expect(subject.mediaPlaybackController.resumeCallCount == 1)
+        #expect(await TestSupport.eventually {
+            subject.mediaPlaybackController.resumeCallCount == 1
+        })
         #expect(subject.controller.activeRecordingSource == nil)
 
         subject.viewModel.send(.resetTapped)
@@ -193,12 +205,14 @@ struct MacDictationWorkflowControllerTests {
         #expect(subject.clipboard.copiedTexts == ["needs-review"])
     }
 
-    @Test func statusTextReflectsDictationStateTransitions() {
+    @Test func statusTextReflectsDictationStateTransitions() async {
         let subject = makeController()
 
         #expect(subject.controller.statusText == "Ready")
 
         subject.controller.startDictationCapture(source: .interface) {}
+        #expect(subject.controller.statusText == "Starting microphone...")
+        #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
         #expect(subject.controller.statusText == "Listening...")
 
         subject.viewModel.send(.stopTapped)
@@ -210,38 +224,112 @@ struct MacDictationWorkflowControllerTests {
         subject.viewModel.send(.clipboardPending("hello"))
         #expect(subject.controller.statusText == "Copy to clipboard")
 
-        subject.viewModel.send(.transcriptionFailed("failure"))
-        #expect(subject.controller.statusText == "Something went wrong")
+        subject.viewModel.send(.transcriptionFailed(.network(code: .notConnectedToInternet, message: "Offline")))
+        #expect(subject.controller.statusText == "Network problem")
     }
 
-    @Test func listeningToProcessingTransitionResumesPlaybackImmediately() {
+    @Test func listeningToProcessingTransitionResumesPlaybackImmediately() async {
         let defaults = TestSupport.makeUserDefaults()
         defaults.set(true, forKey: MacPreferences.pauseMediaDuringDictation)
-        let subject = makeController(defaults: defaults)
+        let speechService = ControllableSpeechService()
+        await speechService.setStopBehavior(.suspended)
+        let subject = makeController(
+            defaults: defaults,
+            speechService: speechService
+        )
 
         subject.controller.startDictationCapture(source: .interface) {}
+        #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
         subject.controller.handleStateTransition(from: .idle, to: .listening)
 
         #expect(subject.mediaPlaybackController.pauseCallCount == 1)
 
+        subject.viewModel.send(.stopTapped)
         subject.controller.handleStateTransition(from: .listening, to: .processing)
 
         #expect(subject.mediaPlaybackController.pauseCallCount == 1)
-        #expect(subject.mediaPlaybackController.resumeCallCount == 1)
+        #expect(await TestSupport.eventually {
+            subject.mediaPlaybackController.resumeCallCount == 1
+        })
     }
 
-    @Test func processingToResultTransitionDoesNotResumePlaybackAgain() {
+    @Test func processingToResultTransitionDoesNotResumePlaybackAgain() async {
         let defaults = TestSupport.makeUserDefaults()
         defaults.set(true, forKey: MacPreferences.pauseMediaDuringDictation)
-        let subject = makeController(defaults: defaults)
+        let speechService = ControllableSpeechService()
+        await speechService.setStopBehavior(.suspended)
+        let subject = makeController(
+            defaults: defaults,
+            speechService: speechService
+        )
 
         subject.controller.startDictationCapture(source: .interface) {}
+        #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
         subject.controller.handleStateTransition(from: .idle, to: .listening)
+
+        subject.viewModel.send(.stopTapped)
         subject.controller.handleStateTransition(from: .listening, to: .processing)
+        #expect(await TestSupport.eventually {
+            subject.mediaPlaybackController.resumeCallCount == 1
+        })
+
+        subject.viewModel.send(.transcriptionSucceeded("done"))
         subject.controller.handleStateTransition(from: .processing, to: .result("done"))
 
         #expect(subject.mediaPlaybackController.pauseCallCount == 1)
         #expect(subject.mediaPlaybackController.resumeCallCount == 1)
+    }
+
+    @Test func listeningToProcessingTransitionDefersResumeUntilConfiguredDelayElapses() async {
+        let defaults = TestSupport.makeUserDefaults()
+        defaults.set(true, forKey: MacPreferences.pauseMediaDuringDictation)
+        let speechService = ControllableSpeechService()
+        await speechService.setStopBehavior(.suspended)
+        let subject = makeController(
+            defaults: defaults,
+            speechService: speechService,
+            mediaResumeDelay: .milliseconds(120)
+        )
+
+        subject.controller.startDictationCapture(source: .interface) {}
+        #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
+        subject.controller.handleStateTransition(from: .idle, to: .listening)
+
+        subject.viewModel.send(.stopTapped)
+        subject.controller.handleStateTransition(from: .listening, to: .processing)
+
+        #expect(subject.mediaPlaybackController.pauseCallCount == 1)
+        #expect(subject.mediaPlaybackController.resumeCallCount == 0)
+        #expect(await TestSupport.eventually(timeout: .milliseconds(400)) {
+            subject.mediaPlaybackController.resumeCallCount == 1
+        })
+    }
+
+    @Test func processingToResultTransitionDoesNotCancelDeferredResume() async {
+        let defaults = TestSupport.makeUserDefaults()
+        defaults.set(true, forKey: MacPreferences.pauseMediaDuringDictation)
+        let speechService = ControllableSpeechService()
+        await speechService.setStopBehavior(.suspended)
+        let subject = makeController(
+            defaults: defaults,
+            speechService: speechService,
+            mediaResumeDelay: .milliseconds(120)
+        )
+
+        subject.controller.startDictationCapture(source: .interface) {}
+        #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
+        subject.controller.handleStateTransition(from: .idle, to: .listening)
+
+        subject.viewModel.send(.stopTapped)
+        subject.controller.handleStateTransition(from: .listening, to: .processing)
+
+        subject.viewModel.send(.transcriptionSucceeded("done"))
+        subject.controller.handleStateTransition(from: .processing, to: .result("done"))
+
+        #expect(subject.mediaPlaybackController.resumeCallCount == 0)
+        #expect(await TestSupport.eventually(timeout: .milliseconds(400)) {
+            subject.mediaPlaybackController.resumeCallCount == 1
+        })
     }
 }
 #endif

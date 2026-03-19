@@ -37,7 +37,7 @@ struct OpenAITests {
         #expect(sdkConfiguration.token == "sk-test")
         #expect(sdkConfiguration.organizationIdentifier == "org_123")
         #expect(sdkConfiguration.host == "api.example.com")
-        #expect(sdkConfiguration.basePath == "/v1")
+        #expect(sdkConfiguration.basePath == "/v1/")
         #expect(sdkConfiguration.customHeaders["OpenAI-Project"] == "proj_123")
         #expect(sdkConfiguration.customHeaders["X-Test"] == "1")
     }
@@ -45,15 +45,14 @@ struct OpenAITests {
     @Test func openAITranscriptionServiceSendsMultipartFields() async throws {
         let fileURL = TestSupport.temporaryFileURL(ext: "m4a")
         try Data("audio-bytes".utf8).write(to: fileURL)
-        let session = TestURLSessionFactory.makeSession()
-        let service = OpenAITranscriptionService(
-            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
-            session: session
-        )
-
-        URLProtocolStub.configure { request in
+        let session = TestURLSessionFactory.makeSession { request in
             let body = String(data: try TestSupport.requestBodyData(from: request), encoding: .utf8) ?? ""
-            #expect(request.url?.absoluteString == "https://api.example.com/v1/audio/transcriptions")
+            let requestURL = try #require(request.url)
+            let requestComponents = try #require(URLComponents(url: requestURL, resolvingAgainstBaseURL: false))
+            #expect(requestComponents.scheme == "https")
+            #expect(requestComponents.host == "api.example.com")
+            #expect(requestComponents.port == 443)
+            #expect(requestComponents.path == "/v1/audio/transcriptions")
             #expect((request.value(forHTTPHeaderField: "Content-Type") ?? "").contains("multipart/form-data"))
             #expect(body.contains("name=\"model\""))
             #expect(body.contains("gpt-4o-mini-transcribe"))
@@ -65,11 +64,15 @@ struct OpenAITests {
             #expect(body.contains("filename=\"speech.m4a\""))
             #expect(!body.contains("name=\"stream\""))
 
-            let response = HTTPURLResponse(url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let response = HTTPURLResponse(url: requestURL, statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (response, Data(#"{"text":"hello"}"#.utf8))
         }
+        let service = OpenAITranscriptionService(
+            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            session: session
+        )
+
         defer {
-            URLProtocolStub.reset()
             try? FileManager.default.removeItem(at: fileURL)
         }
 
@@ -85,13 +88,7 @@ struct OpenAITests {
     @Test func openAITranscriptionServiceMapsAPIErrorBody() async throws {
         let fileURL = TestSupport.temporaryFileURL(ext: "wav")
         try Data("audio-bytes".utf8).write(to: fileURL)
-        let session = TestURLSessionFactory.makeSession()
-        let service = OpenAITranscriptionService(
-            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
-            session: session
-        )
-
-        URLProtocolStub.configure { request in
+        let session = TestURLSessionFactory.makeSession { request in
             let response = HTTPURLResponse(
                 url: try #require(request.url),
                 statusCode: 400,
@@ -100,8 +97,12 @@ struct OpenAITests {
             )!
             return (response, Data(#"{"error":{"message":"unknown param `stream`"}}"#.utf8))
         }
+        let service = OpenAITranscriptionService(
+            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            session: session
+        )
+
         defer {
-            URLProtocolStub.reset()
             try? FileManager.default.removeItem(at: fileURL)
         }
 
@@ -118,18 +119,16 @@ struct OpenAITests {
     @Test func openAITranscriptionServiceThrowsWhenTextIsMissing() async throws {
         let fileURL = TestSupport.temporaryFileURL(ext: "wav")
         try Data("audio-bytes".utf8).write(to: fileURL)
-        let session = TestURLSessionFactory.makeSession()
+        let session = TestURLSessionFactory.makeSession { request in
+            let response = HTTPURLResponse(url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data(#"{"text":"   "}"#.utf8))
+        }
         let service = OpenAITranscriptionService(
             configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
             session: session
         )
 
-        URLProtocolStub.configure { request in
-            let response = HTTPURLResponse(url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
-            return (response, Data(#"{"text":"   "}"#.utf8))
-        }
         defer {
-            URLProtocolStub.reset()
             try? FileManager.default.removeItem(at: fileURL)
         }
 
@@ -146,13 +145,7 @@ struct OpenAITests {
     @Test func openAITranscriptionServiceFallsBackToPlainTextBodyWhenSDKDecodingFails() async throws {
         let fileURL = TestSupport.temporaryFileURL(ext: "wav")
         try Data("audio-bytes".utf8).write(to: fileURL)
-        let session = TestURLSessionFactory.makeSession()
-        let service = OpenAITranscriptionService(
-            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
-            session: session
-        )
-
-        URLProtocolStub.configure { request in
+        let session = TestURLSessionFactory.makeSession { request in
             let response = HTTPURLResponse(
                 url: try #require(request.url),
                 statusCode: 200,
@@ -161,8 +154,12 @@ struct OpenAITests {
             )!
             return (response, Data("  recovered via fallback  ".utf8))
         }
+        let service = OpenAITranscriptionService(
+            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            session: session
+        )
+
         defer {
-            URLProtocolStub.reset()
             try? FileManager.default.removeItem(at: fileURL)
         }
 
@@ -179,14 +176,8 @@ struct OpenAITests {
     @Test func openAITranscriptionServiceRetriesTransientFailures() async throws {
         let fileURL = TestSupport.temporaryFileURL(ext: "wav")
         try Data("audio-bytes".utf8).write(to: fileURL)
-        let session = TestURLSessionFactory.makeSession()
-        let service = OpenAITranscriptionService(
-            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
-            session: session
-        )
         let attempts = RequestAttemptCounter()
-
-        URLProtocolStub.configure { request in
+        let session = TestURLSessionFactory.makeSession { request in
             let attempt = attempts.increment()
 
             if attempt == 1 {
@@ -207,8 +198,11 @@ struct OpenAITests {
             )!
             return (response, Data(#"{"text":"retried successfully"}"#.utf8))
         }
+        let service = OpenAITranscriptionService(
+            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            session: session
+        )
         defer {
-            URLProtocolStub.reset()
             try? FileManager.default.removeItem(at: fileURL)
         }
 
@@ -224,13 +218,7 @@ struct OpenAITests {
     }
 
     @Test func openAIRewriteServiceUsesFallbackOutputParsing() async throws {
-        let session = TestURLSessionFactory.makeSession()
-        let service = OpenAIRewriteService(
-            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
-            session: session
-        )
-
-        URLProtocolStub.configure { request in
+        let session = TestURLSessionFactory.makeSession { request in
             let body = try JSONSerialization.jsonObject(with: TestSupport.requestBodyData(from: request)) as? [String: Any]
             let input = try #require(body?["input"] as? [[String: Any]])
             #expect((input.first?["role"] as? String) == "system")
@@ -286,7 +274,10 @@ struct OpenAITests {
             )
             return (response, data)
         }
-        defer { URLProtocolStub.reset() }
+        let service = OpenAIRewriteService(
+            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            session: session
+        )
 
         let text = try await service.rewrite(
             .rewriteSelection(
@@ -300,17 +291,14 @@ struct OpenAITests {
     }
 
     @Test func openAIRewriteServiceMapsProviderErrors() async {
-        let session = TestURLSessionFactory.makeSession()
+        let session = TestURLSessionFactory.makeSession { request in
+            let response = HTTPURLResponse(url: try #require(request.url), statusCode: 401, httpVersion: nil, headerFields: nil)!
+            return (response, Data(#"{"error":{"message":"bad key","type":"invalid_request_error","param":null,"code":null}}"#.utf8))
+        }
         let service = OpenAIRewriteService(
             configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
             session: session
         )
-
-        URLProtocolStub.configure { request in
-            let response = HTTPURLResponse(url: try #require(request.url), statusCode: 401, httpVersion: nil, headerFields: nil)!
-            return (response, Data(#"{"error":{"message":"bad key","type":"invalid_request_error","param":null,"code":null}}"#.utf8))
-        }
-        defer { URLProtocolStub.reset() }
 
         await #expect(throws: OpenAIError.api(provider: .openAI, statusCode: 401, message: "bad key")) {
             try await service.rewrite(.rewriteSelection(sourceText: "hello", instruction: "Make it concise"))
@@ -318,13 +306,7 @@ struct OpenAITests {
     }
 
     @Test func openAITranslationServiceBuildsTargetLanguagePromptAndThrowsOnMissingText() async {
-        let session = TestURLSessionFactory.makeSession()
-        let service = OpenAITranslationService(
-            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
-            session: session
-        )
-
-        URLProtocolStub.configure { request in
+        let session = TestURLSessionFactory.makeSession { request in
             let body = try JSONSerialization.jsonObject(with: TestSupport.requestBodyData(from: request)) as? [String: Any]
             let input = try #require(body?["input"] as? [[String: Any]])
             let userContent = input.last?["content"] as? String
@@ -366,7 +348,10 @@ struct OpenAITests {
             )
             return (response, data)
         }
-        defer { URLProtocolStub.reset() }
+        let service = OpenAITranslationService(
+            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            session: session
+        )
 
         await #expect(throws: OpenAIError.missingTranslationText) {
             try await service.translate(.translate("hello", to: .japanese))

@@ -22,7 +22,7 @@ struct MacDictationHotkeyInteraction {
         now: TimeInterval
     ) -> Action {
         switch dictationState {
-        case .listening:
+        case .starting, .listening:
             switch state {
             case .pressCandidate, .suppressNextKeyUp:
                 return .none
@@ -54,32 +54,22 @@ struct MacDictationHotkeyInteraction {
         case .pressCandidate(let startedAt):
             let didHoldPastThreshold = (now - startedAt) >= holdThreshold
 
-            if didHoldPastThreshold, case .listening = dictationState {
+            if didHoldPastThreshold, dictationState.isCaptureInFlight {
                 state = .idle
                 return .stopCapture
             }
 
-            state = dictationState.isListening ? .latchedListening : .idle
+            state = dictationState.isCaptureInFlight ? .latchedListening : .idle
             return .none
         }
     }
 
     mutating func sync(with dictationState: DictationState) {
-        guard !dictationState.isListening else { return }
+        guard !dictationState.isCaptureInFlight else { return }
         state = .idle
     }
 
     mutating func reset() {
         state = .idle
-    }
-}
-
-private extension DictationState {
-    var isListening: Bool {
-        if case .listening = self {
-            return true
-        }
-
-        return false
     }
 }

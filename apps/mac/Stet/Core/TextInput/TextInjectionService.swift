@@ -59,10 +59,18 @@ final class SystemTextInjectionService: TextInjectionService {
     }
 
     private let clipboardService: any ClipboardService
+    private let pasteboard: NSPasteboard
+    private let pasteboardRestoreCoordinator: PasteboardRestoreCoordinator
     private var didPromptForMissingAccessThisSession = false
 
-    init(clipboardService: any ClipboardService) {
+    init(
+        clipboardService: any ClipboardService,
+        pasteboard: NSPasteboard = .general,
+        pasteboardRestoreCoordinator: PasteboardRestoreCoordinator? = nil
+    ) {
         self.clipboardService = clipboardService
+        self.pasteboard = pasteboard
+        self.pasteboardRestoreCoordinator = pasteboardRestoreCoordinator ?? PasteboardRestoreCoordinator()
     }
 
     var accessState: TextInjectionAccessState {
@@ -147,15 +155,18 @@ final class SystemTextInjectionService: TextInjectionService {
     ) async -> Bool {
         guard !text.isEmpty else { return false }
 
-        let pasteboard = NSPasteboard.general
-        let snapshot = PasteboardSnapshot.capture(from: pasteboard)
+        if keepResultInClipboard {
+            pasteboardRestoreCoordinator.discardPendingRestore()
+        } else {
+            pasteboardRestoreCoordinator.prepareForTemporaryOverride(on: pasteboard)
+        }
 
         clipboardService.copy(text)
         let didPaste = await pasteClipboard(into: application)
 
         guard didPaste else {
             if !keepResultInClipboard {
-                snapshot.restore(to: pasteboard)
+                pasteboardRestoreCoordinator.restoreImmediatelyIfNeeded(on: pasteboard)
             }
             return false
         }
@@ -164,9 +175,7 @@ final class SystemTextInjectionService: TextInjectionService {
             return didPaste
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            snapshot.restore(to: pasteboard)
-        }
+        pasteboardRestoreCoordinator.scheduleRestoreIfNeeded(on: pasteboard)
 
         return didPaste
     }
@@ -213,7 +222,6 @@ final class SystemTextInjectionService: TextInjectionService {
     private func selectedTextBySimulatedCopy() -> String? {
         guard accessState.canSimulateInput else { return nil }
 
-        let pasteboard = NSPasteboard.general
         let snapshot = PasteboardSnapshot.capture(from: pasteboard)
         let originalChangeCount = pasteboard.changeCount
 
@@ -347,44 +355,5 @@ final class SystemTextInjectionService: TextInjectionService {
         }
     }
 
-    private struct PasteboardSnapshot {
-        private let items: [[NSPasteboard.PasteboardType: Data]]
-
-        static func capture(from pasteboard: NSPasteboard) -> Self {
-            let items = (pasteboard.pasteboardItems ?? []).map { item in
-                var payload: [NSPasteboard.PasteboardType: Data] = [:]
-
-                for type in item.types {
-                    if let data = item.data(forType: type) {
-                        payload[type] = data
-                    }
-                }
-
-                return payload
-            }
-
-            return Self(items: items)
-        }
-
-        func restore(to pasteboard: NSPasteboard) {
-            pasteboard.clearContents()
-
-            let restoredItems = items.compactMap { payload -> NSPasteboardItem? in
-                let item = NSPasteboardItem()
-                var hasContent = false
-
-                for (type, data) in payload {
-                    if item.setData(data, forType: type) {
-                        hasContent = true
-                    }
-                }
-
-                return hasContent ? item : nil
-            }
-
-            guard !restoredItems.isEmpty else { return }
-            pasteboard.writeObjects(restoredItems)
-        }
-    }
 }
 #endif

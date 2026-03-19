@@ -34,12 +34,14 @@ enum DictationExecutionRoute: Sendable {
     struct Direct: Sendable {
         let configuration: OpenAIConfiguration
         let rewriteEnabled: Bool
+        let languageMode: DictationLanguageMode
         let preferredSpellings: [String]
     }
 
     struct Relay: Sendable {
         let authentication: RelayAuthenticationContext
         let rewriteEnabled: Bool
+        let languageMode: DictationLanguageMode
         let preferredSpellings: [String]
     }
 
@@ -67,6 +69,7 @@ enum DictationExecutionRouteResolver {
                     .init(
                         authentication: relayAuthentication,
                         rewriteEnabled: snapshot.isRewriteEnabled,
+                        languageMode: snapshot.dictationLanguageMode,
                         preferredSpellings: snapshot.personalDictionary
                     )
                 )
@@ -80,6 +83,7 @@ enum DictationExecutionRouteResolver {
                 .init(
                     configuration: configuration,
                     rewriteEnabled: snapshot.isRewriteEnabled,
+                    languageMode: snapshot.dictationLanguageMode,
                     preferredSpellings: snapshot.personalDictionary
                 )
             )
@@ -92,6 +96,7 @@ enum DictationExecutionRouteResolver {
                 .init(
                     authentication: relayAuthentication,
                     rewriteEnabled: snapshot.isRewriteEnabled,
+                    languageMode: snapshot.dictationLanguageMode,
                     preferredSpellings: snapshot.personalDictionary
                 )
             )
@@ -104,6 +109,7 @@ enum DictationExecutionRouteResolver {
                 .init(
                     configuration: configuration,
                     rewriteEnabled: snapshot.isRewriteEnabled,
+                    languageMode: snapshot.dictationLanguageMode,
                     preferredSpellings: snapshot.personalDictionary
                 )
             )

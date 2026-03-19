@@ -407,11 +407,18 @@ final class MacAppSessionController {
 
         switch dictationState {
         case .idle, .result, .error:
+            if source == .interface {
+                Task {
+                    await DictationStartupProbe.shared.begin(trigger: .interface)
+                }
+            }
             requestDictationCaptureStart(from: source)
         case .clipboardPending(let text):
             commitPendingCopy(text)
+        case .starting:
+            requestDictationCaptureStopIfNeeded()
         case .listening:
-            requestDictationCaptureStopIfListening()
+            requestDictationCaptureStopIfNeeded()
         case .processing:
             break
         }
@@ -422,6 +429,11 @@ final class MacAppSessionController {
             for: dictationState,
             now: ProcessInfo.processInfo.systemUptime
         )
+        if action == .startCapture {
+            Task {
+                await DictationStartupProbe.shared.begin(trigger: .hotkey)
+            }
+        }
         performHotkeyAction(action)
     }
 
@@ -436,6 +448,9 @@ final class MacAppSessionController {
     private func showTransientPanel() {
         guard let presentationModel else { return }
         shellPresentationController.showTransientPanel(appModel: presentationModel)
+        Task {
+            await DictationStartupProbe.shared.record(.panelShown)
+        }
     }
 
     private func bindState() {
@@ -486,10 +501,8 @@ final class MacAppSessionController {
 
     private func handlePanelAndIdleLifecycle(for state: DictationState) {
         switch state {
-        case .listening, .error:
-            showTransientPanel()
-        case .clipboardPending:
-            showTransientPanel()
+        case .starting, .listening, .error, .clipboardPending:
+            showTransientPanelIfNeeded()
         case .idle:
             guard workflowController.activeRecordingSource == nil else { return }
             workflowController.resetWorkflowIfNeeded()
@@ -539,6 +552,11 @@ final class MacAppSessionController {
         }
     }
 
+    private func showTransientPanelIfNeeded() {
+        guard !isPanelVisible else { return }
+        showTransientPanel()
+    }
+
     private func registerHotkeys() {
         hotkeyRegistrar.clearDictationHandlers()
         hotkeyRegistrar.registerDictationKeyDown { [weak self] in
@@ -556,19 +574,29 @@ final class MacAppSessionController {
         case .startCapture:
             requestDictationCaptureStart(from: .hotkey)
         case .stopCapture:
-            requestDictationCaptureStopIfListening()
+            requestDictationCaptureStopIfNeeded()
         }
     }
 
     private func requestDictationCaptureStart(from source: PrimaryActionSource) {
         if requiresOnboarding && !onboardingStepState.allowsAudioCapture {
+            Task {
+                await DictationStartupProbe.shared.record(.failed, note: "onboarding_gate")
+            }
             presentRequiredPermissionsGateIfNeeded()
             return
         }
 
         guard hasRequiredPermissions else {
+            Task {
+                await DictationStartupProbe.shared.record(.failed, note: "permissions_gate")
+            }
             presentRequiredPermissionsGateIfNeeded()
             return
+        }
+
+        Task {
+            await DictationStartupProbe.shared.record(.permissionsVerified)
         }
 
         switch dictationState {
@@ -577,7 +605,7 @@ final class MacAppSessionController {
         case .result, .error:
             workflowController.dictationViewModel.send(.resetTapped)
             startDictationCapture(from: source)
-        case .clipboardPending, .listening, .processing:
+        case .clipboardPending, .starting, .listening, .processing:
             break
         }
     }
@@ -589,8 +617,8 @@ final class MacAppSessionController {
         )
     }
 
-    private func requestDictationCaptureStopIfListening() {
-        guard case .listening = dictationState else { return }
+    private func requestDictationCaptureStopIfNeeded() {
+        guard dictationState.isCaptureInFlight else { return }
         workflowController.stopActiveCapture()
     }
 
@@ -635,9 +663,9 @@ final class MacAppSessionController {
                 let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 firstSuccessPreviewTextState = trimmedText.isEmpty ? nil : trimmedText
                 firstSuccessFailureMessageState = nil
-            } else if case .error = state {
+            } else if case .error(let failure) = state {
                 firstSuccessFailureCount += 1
-                firstSuccessFailureMessageState = inferredFirstSuccessFailureMessage()
+                firstSuccessFailureMessageState = inferredFirstSuccessFailureMessage(for: failure)
             }
         }
 
@@ -658,36 +686,33 @@ final class MacAppSessionController {
         switch dictationState {
         case .result, .error, .clipboardPending:
             workflowController.dictationViewModel.send(.resetTapped)
-        case .idle, .listening, .processing:
+        case .idle, .starting, .listening, .processing:
             break
         }
     }
 
     private func matchesListening(_ state: DictationState) -> Bool {
-        if case .listening = state {
-            return true
-        }
-
-        return false
+        state.isCaptureInFlight
     }
 
-    private func inferredFirstSuccessFailureMessage() -> String {
-        if onboardingModeState == .managed, SupabaseService.shared.currentSession == nil {
+    private func inferredFirstSuccessFailureMessage(for failure: DictationFailure) -> String {
+        switch failure.classification {
+        case .authentication:
             return "当前连接不可用，请重新验证你的登录状态。"
-        }
-
-        if onboardingModeState == .apiKey,
-           workflowController.statusText.localizedCaseInsensitiveContains("key") {
-            return "当前连接不可用，请重新验证你的 API Key。"
-        }
-
-        if workflowController.statusText.localizedCaseInsensitiveContains("network")
-            || workflowController.statusText.localizedCaseInsensitiveContains("api")
-            || workflowController.statusText.localizedCaseInsensitiveContains("relay") {
+        case .configuration:
+            if onboardingModeState == .apiKey {
+                return "当前连接不可用，请重新验证你的 API Key。"
+            }
+            return "当前模型配置不可用，请检查提供商设置。"
+        case .network:
             return "处理失败，请检查网络或模型配置。"
+        case .permissions:
+            return "当前无法访问麦克风，请检查系统权限。"
+        case .noSpeech:
+            return "没有检测到语音输入，请再试一次。"
+        case .service, .state, .unknown:
+            return "当前听写失败，请再试一次。"
         }
-
-        return "没有检测到语音输入，请再试一次。"
     }
 
     private func requestMicrophoneAccess() {

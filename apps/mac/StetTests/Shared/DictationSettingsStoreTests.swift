@@ -38,6 +38,7 @@ struct DictationSettingsStoreTests {
         #expect(snapshot.provider == .openAI)
         #expect(snapshot.executionMode == .automatic)
         #expect(snapshot.isRewriteEnabled == false)
+        #expect(snapshot.dictationLanguageMode == .automatic)
         #expect(snapshot.translationTargetLanguage == .english)
         #expect(snapshot.personalDictionary.isEmpty)
         #expect(snapshot.providerConfiguration == nil)
@@ -48,11 +49,13 @@ struct DictationSettingsStoreTests {
         let store = makeStore(defaults: defaults)
 
         store.saveExecutionMode(.managed)
+        store.saveDictationLanguageMode(.mixedChineseEnglish)
         store.saveTranslationTargetLanguage(.japanese)
         store.saveTranslateSelectedTextOnTranslationHotkey(false)
         store.savePersonalDictionary([" OpenAI ", "groq", "Groq"])
 
         #expect(store.loadExecutionMode() == .managed)
+        #expect(store.loadDictationLanguageMode() == .mixedChineseEnglish)
         #expect(store.loadTranslationTargetLanguage() == .japanese)
         #expect(store.loadTranslateSelectedTextOnTranslationHotkey() == false)
         #expect(store.loadPersonalDictionary() == ["OpenAI", "groq"])
@@ -89,6 +92,7 @@ struct DictationSettingsStoreTests {
         defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
         defaults.set(AIExecutionMode.byok.rawValue, forKey: MacPreferences.aiExecutionMode)
         defaults.set(true, forKey: MacPreferences.rewriteEnabled)
+        defaults.set(DictationLanguageMode.primarilyEnglish.rawValue, forKey: MacPreferences.dictationLanguageMode)
         defaults.set(TranslationTargetLanguage.german.rawValue, forKey: MacPreferences.translationTargetLanguage)
 
         let store = makeStore(defaults: defaults, secretStore: secretStore)
@@ -98,6 +102,7 @@ struct DictationSettingsStoreTests {
         #expect(snapshot.provider == .openAI)
         #expect(snapshot.executionMode == .byok)
         #expect(snapshot.isRewriteEnabled)
+        #expect(snapshot.dictationLanguageMode == .primarilyEnglish)
         #expect(snapshot.translationTargetLanguage == .german)
         #expect(configuration.apiKey == "sk-live")
         #expect(configuration.baseURL.absoluteString == "https://api.openai.com/v1")

@@ -12,7 +12,8 @@ struct DictationViewModelTests {
         let viewModel = DictationViewModel(speechService: speechService)
 
         viewModel.startCapture()
-        #expect(viewModel.state == .listening)
+        #expect(viewModel.state == .starting)
+        #expect(await TestSupport.eventually { viewModel.state == .listening })
 
         viewModel.stopCapture()
         #expect(await TestSupport.eventually { viewModel.state == .result("hello world") })
@@ -21,7 +22,7 @@ struct DictationViewModelTests {
         #expect(await speechService.counts().stop == 1)
     }
 
-    @Test func stopWhileStartIsPendingTransitionsThroughProcessing() async throws {
+    @Test func stopWhileStartIsPendingDefersProcessingUntilCaptureActuallyStarts() async throws {
         let speechService = ControllableSpeechService()
         await speechService.setStartBehavior(.suspended)
         await speechService.setStopBehavior(.suspended)
@@ -29,10 +30,11 @@ struct DictationViewModelTests {
 
         viewModel.startCapture()
         viewModel.stopCapture()
-        #expect(viewModel.state == .processing)
+        #expect(viewModel.state == .starting)
 
         #expect(await TestSupport.eventuallyAsync { await speechService.counts().start == 1 })
         await speechService.allowStart()
+        #expect(await TestSupport.eventually { viewModel.state == .processing })
         #expect(await TestSupport.eventuallyAsync { await speechService.counts().stop == 1 })
         await speechService.finishStop(with: "completed")
         #expect(await TestSupport.eventually { viewModel.state == .result("completed") })
@@ -78,7 +80,7 @@ struct DictationViewModelTests {
         }
         await Task.yield()
 
-        #expect(viewModel.state == .error(TestError.expected.localizedDescription))
+        #expect(viewModel.state == .error(.unknown(message: TestError.expected.localizedDescription)))
     }
 
     @Test func clipboardPendingActionPublishesClipboardPendingState() {
@@ -88,5 +90,45 @@ struct DictationViewModelTests {
         viewModel.send(.clipboardPending("hello"))
 
         #expect(viewModel.state == .clipboardPending("hello"))
+    }
+
+    @Test func startFailurePublishesStructuredFailure() async {
+        let speechService = ControllableSpeechService()
+        await speechService.setStartBehavior(.fail(SpeechServiceError.microphonePermissionDenied))
+        let viewModel = DictationViewModel(speechService: speechService)
+
+        viewModel.startCapture()
+
+        #expect(await TestSupport.eventually {
+            viewModel.state == .error(.microphonePermissionDenied)
+        })
+    }
+
+    @Test func stopFailurePreservesStructuredProviderFailure() async {
+        let speechService = ControllableSpeechService()
+        await speechService.setStopBehavior(.fail(OpenAIError.missingAPIKey(provider: .groq)))
+        let viewModel = DictationViewModel(speechService: speechService)
+
+        viewModel.startCapture()
+        #expect(await TestSupport.eventually { viewModel.state == .listening })
+
+        viewModel.stopCapture()
+
+        #expect(await TestSupport.eventually {
+            viewModel.state == .error(.missingAPIKey(provider: .groq))
+        })
+    }
+
+    @Test func emptyTranscriptionReturnsToIdleWithoutPublishingError() async {
+        let speechService = ControllableSpeechService()
+        await speechService.setStopBehavior(.fail(SpeechServiceError.emptyTranscription))
+        let viewModel = DictationViewModel(speechService: speechService)
+
+        viewModel.startCapture()
+        #expect(await TestSupport.eventually { viewModel.state == .listening })
+
+        viewModel.stopCapture()
+
+        #expect(await TestSupport.eventually { viewModel.state == .idle })
     }
 }

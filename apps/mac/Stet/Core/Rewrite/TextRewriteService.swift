@@ -9,7 +9,8 @@ struct TextRewriteRequest: Sendable, Equatable {
 
     nonisolated static func cleanup(
         _ sourceText: String,
-        preferredSpellings: [String] = []
+        preferredSpellings: [String] = [],
+        additionalUserContext: String? = nil
     ) -> Self {
         var systemPrompt = "You rewrite dictated speech into polished text. Return only the rewritten text."
 
@@ -21,7 +22,7 @@ struct TextRewriteRequest: Sendable, Equatable {
             sourceText: sourceText,
             instruction: "Rewrite the dictated text so it reads cleanly while preserving the original meaning, tone, and detail.",
             systemPrompt: systemPrompt,
-            additionalUserContext: nil,
+            additionalUserContext: additionalUserContext,
             model: nil
         )
     }
