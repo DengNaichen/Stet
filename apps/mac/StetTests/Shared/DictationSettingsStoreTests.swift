@@ -121,5 +121,6 @@ struct DictationSettingsStoreTests {
         #expect(configuration.baseURL.absoluteString == "https://api.groq.com/openai/v1")
         #expect(configuration.transcriptionModel == "whisper-large-v3-turbo")
         #expect(configuration.translationModel == "llama-3.3-70b-versatile")
+        #expect(configuration.rewriteModel == "openai/gpt-oss-120b")
     }
 }

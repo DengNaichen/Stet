@@ -86,9 +86,8 @@ struct DictationPipelineFactory: Sendable {
                 relay.rewriteEnabled,
                 relay.preferredSpellings
             )
-            promptProvider = {
-                Self.makeTranscriptionPrompt(preferredSpellings: relay.preferredSpellings)
-            }
+            // Let ASR auto-detect language without an English-side prompt bias.
+            promptProvider = nil
             rewriteService = nil
             preferredSpellings = relay.preferredSpellings
         }

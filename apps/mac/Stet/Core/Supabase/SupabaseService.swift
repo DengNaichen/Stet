@@ -66,7 +66,12 @@ final class SupabaseService {
 
         client = SupabaseClient(
             supabaseURL: supabaseURL,
-            supabaseKey: Configuration.projectKey
+            supabaseKey: Configuration.projectKey,
+            options: .init(
+                auth: .init(
+                    emitLocalSessionAsInitialSession: true
+                )
+            )
         )
         currentSession = client.auth.currentSession
         authStateTask = Task { @MainActor [weak self, client] in
@@ -97,18 +102,26 @@ final class SupabaseService {
         client.functions
     }
 
-    var relayAuthenticationContext: RelayAuthenticationContext? {
+    func relayAuthenticationContext() async -> RelayAuthenticationContext? {
         guard isConfigured,
-              let currentSession,
               let supabaseURL = URL(string: Configuration.urlString) else {
             return nil
         }
 
-        return RelayAuthenticationContext(
-            functionsBaseURL: supabaseURL.appendingPathComponent("functions/v1"),
-            publishableKey: Configuration.projectKey,
-            accessToken: currentSession.accessToken
-        )
+        do {
+            let session = try await client.auth.session
+
+            return RelayAuthenticationContext(
+                functionsBaseURL: supabaseURL.appendingPathComponent("functions/v1"),
+                publishableKey: Configuration.projectKey,
+                accessToken: session.accessToken
+            )
+        } catch {
+            AppLogger.warning(
+                "Failed to resolve a refreshed Supabase session for Managed Relay: \(error.localizedDescription)"
+            )
+            return nil
+        }
     }
 
     private func ensureConfiguration() throws {

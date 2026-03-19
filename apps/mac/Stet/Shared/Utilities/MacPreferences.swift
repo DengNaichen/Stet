@@ -1,6 +1,7 @@
 import Foundation
 
 enum MacPreferences {
+    nonisolated static let onboardingCompleted = "mac.onboardingCompleted"
     nonisolated static let pauseMediaDuringDictation = "mac.pauseMediaDuringDictation"
     nonisolated static let transcriptionProvider = "mac.transcriptionProvider"
     nonisolated static let aiExecutionMode = "mac.aiExecutionMode"

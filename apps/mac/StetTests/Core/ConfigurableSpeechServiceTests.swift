@@ -265,7 +265,7 @@ struct ConfigurableSpeechServiceTests {
         #expect(await direct.callCount() == 0)
         #expect(await relay.callCount() == 1)
         #expect(await rewrite.recordedRequests().isEmpty)
-        #expect(relayInvocation?.prompt?.contains("OpenAI, Groq") == true)
+        #expect(relayInvocation?.prompt == nil)
         #expect(await capture.counts().stop == 1)
     }
 
@@ -336,7 +336,7 @@ struct ConfigurableSpeechServiceTests {
         #expect(await relay.callCount() == 1)
         #expect(await direct.callCount() == 0)
         #expect(await rewrite.recordedRequests().isEmpty)
-        #expect(relayInvocation?.prompt?.contains("OpenAI, Groq") == true)
+        #expect(relayInvocation?.prompt == nil)
     }
 
     @Test func emptyTranscriptThrowsEmptyTranscription() async throws {

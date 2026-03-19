@@ -11,9 +11,7 @@ extension ConfigurableSpeechService {
             locale: locale,
             pipelineFactory: .live(
                 relayAuthenticationContext: {
-                    await MainActor.run {
-                        SupabaseService.shared.relayAuthenticationContext
-                    }
+                    await SupabaseService.shared.relayAuthenticationContext()
                 }
             ),
             captureService: captureService

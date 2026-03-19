@@ -154,6 +154,50 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
         sessionController.autoPasteAccessNeedsAttention
     }
 
+    var onboardingStep: MacOnboardingStep {
+        sessionController.onboardingStep
+    }
+
+    var onboardingMode: MacOnboardingMode? {
+        sessionController.onboardingMode
+    }
+
+    var relaySessionEmail: String? {
+        sessionController.relaySessionEmail
+    }
+
+    var shortcutTestDetectedPress: Bool {
+        sessionController.shortcutTestDetectedPress
+    }
+
+    var shortcutTestCompletedRoundTrip: Bool {
+        sessionController.shortcutTestCompletedRoundTrip
+    }
+
+    var shortcutTestPreviewText: String? {
+        sessionController.shortcutTestPreviewText
+    }
+
+    var canContinueShortcutOnboarding: Bool {
+        sessionController.canContinueShortcutOnboarding
+    }
+
+    var firstSuccessPreviewText: String? {
+        sessionController.firstSuccessPreviewText
+    }
+
+    var firstSuccessFailureMessage: String? {
+        sessionController.firstSuccessFailureMessage
+    }
+
+    var canContinueFirstSuccessOnboarding: Bool {
+        sessionController.canContinueFirstSuccessOnboarding
+    }
+
+    var canSkipFirstSuccessOnboarding: Bool {
+        sessionController.canSkipFirstSuccessOnboarding
+    }
+
     var menuBarSymbolName: String {
         return "mic"
     }
@@ -205,6 +249,33 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
 
     func openAccessibilitySettings() {
         sessionController.openAccessibilitySettings()
+    }
+
+    func chooseOnboardingMode(_ mode: MacOnboardingMode) {
+        sessionController.chooseOnboardingMode(mode)
+    }
+
+    func advanceOnboarding() {
+        sessionController.advanceOnboarding()
+    }
+
+    func retreatOnboarding() {
+        sessionController.retreatOnboarding()
+    }
+
+    func completeAPIKeyOnboarding(provider: DictationProvider) {
+        settingsStore.saveExecutionMode(.byok)
+        settingsStore.saveProvider(provider)
+        sessionController.completeCredentialOnboarding(mode: .apiKey)
+    }
+
+    func completeManagedOnboarding() {
+        settingsStore.saveExecutionMode(.managed)
+        sessionController.completeCredentialOnboarding(mode: .managed)
+    }
+
+    func finishOnboarding() {
+        sessionController.finishOnboarding()
     }
 
     func openMicrophoneSettings() {

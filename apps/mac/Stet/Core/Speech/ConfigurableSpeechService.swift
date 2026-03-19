@@ -80,7 +80,6 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
         await DictationLatencyProbe.shared.beginSession(audioDurationSeconds: captureResult.duration)
 
-        let languageCode = locale.language.languageCode?.identifier
         var transcriptionPrompt: String? = nil
         if let provider = pipeline.promptProvider {
             transcriptionPrompt = await provider()
@@ -92,7 +91,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         do {
             transcript = try await pipeline.transcriptionService.transcribe(
                 audioFileAt: captureResult.url,
-                languageCode: languageCode,
+                languageCode: nil,
                 prompt: transcriptionPrompt,
                 audioDurationSeconds: captureResult.duration
             )

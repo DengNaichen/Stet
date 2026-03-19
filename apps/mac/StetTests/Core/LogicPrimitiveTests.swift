@@ -56,7 +56,11 @@ struct LogicPrimitiveTests {
             publishableKey: "anon-key",
             accessToken: "access-token"
         )
-        let snapshot = makeSnapshot(mode: .automatic, providerConfiguration: OpenAIConfiguration(apiKey: "sk-test", provider: .openAI))
+        let snapshot = makeSnapshot(
+            mode: .automatic,
+            providerConfiguration: OpenAIConfiguration(apiKey: "sk-test", provider: .openAI),
+            personalDictionary: ["OpenAI"]
+        )
 
         let route = try await DictationExecutionRouteResolver.resolve(
             snapshot: snapshot,
@@ -175,9 +179,7 @@ struct LogicPrimitiveTests {
         #expect(transcript == "relay")
         #expect(await relay.callCount == 1)
         #expect(await direct.callCount == 0)
-        #expect(await pipeline.promptProvider != nil)
-        let prompt = await pipeline.promptProvider?()
-        #expect(prompt?.contains("OpenAI, Groq") == true)
+        #expect(await pipeline.promptProvider == nil)
     }
 
     @Test func makeTranscriptionPromptIncludesPreferredSpellings() {

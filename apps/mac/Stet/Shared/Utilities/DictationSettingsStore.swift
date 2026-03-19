@@ -182,20 +182,4 @@ struct DictationSettingsStore: Sendable {
     nonisolated func saveOpenAIAPIKey(_ apiKey: String) throws {
         try saveAPIKey(apiKey, for: .openAI)
     }
-
-//    nonisolated private func loadCustomProxyPort() -> Int? {
-//        if let number = defaults.object(forKey: MacPreferences.customProxyPort) as? NSNumber {
-//            let port = number.intValue
-//            return port > 0 ? port : nil
-//        }
-//
-//        guard let rawValue = defaults.string(forKey: MacPreferences.customProxyPort)?
-//            .trimmingCharacters(in: .whitespacesAndNewlines),
-//            let port = Int(rawValue),
-//            port > 0 else {
-//            return nil
-//        }
-//
-//        return port
-//    }
 }

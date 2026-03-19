@@ -62,6 +62,8 @@ struct RelayDictationTranscriptionServiceTests {
         #expect(requestBodyText.contains("\r\nen\r\n"))
         #expect(requestBodyText.contains("name=\"prompt\""))
         #expect(requestBodyText.contains("Use OpenAI and Groq exactly."))
+        #expect(requestBodyText.contains("name=\"audio_duration_seconds\""))
+        #expect(requestBodyText.contains("4.000"))
         #expect(requestBodyText.contains("name=\"file\"; filename=\"speech.wav\""))
     }
 
@@ -92,14 +94,14 @@ struct RelayDictationTranscriptionServiceTests {
 
         await #expect(throws: AIExecutionError.relayInvocationFailed(
             statusCode: 429,
-            message: "quota exceeded",
+            message: "[quota_error] quota exceeded",
             requestID: "req_payload"
         )) {
             try await service.transcribe(
                 audioFileAt: fileURL,
                 languageCode: nil,
                 prompt: nil,
-                audioDurationSeconds: nil
+                audioDurationSeconds: 4
             )
         }
     }
@@ -138,7 +140,7 @@ struct RelayDictationTranscriptionServiceTests {
                 audioFileAt: fileURL,
                 languageCode: nil,
                 prompt: nil,
-                audioDurationSeconds: nil
+                audioDurationSeconds: 4
             )
         }
     }

@@ -55,6 +55,16 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
             )
         }
 
+        guard let audioDurationSeconds,
+              audioDurationSeconds.isFinite,
+              audioDurationSeconds > 0 else {
+            throw AIExecutionError.relayInvocationFailed(
+                statusCode: nil,
+                message: "Managed Relay requires the audio duration for pay-as-you-go billing.",
+                requestID: nil
+            )
+        }
+
         let audioData = try Data(contentsOf: fileURL)
         let timeoutInterval = Self.timeoutInterval(for: audioDurationSeconds)
         let clientRequestID = UUID().uuidString
@@ -64,6 +74,7 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
             fileType: fileType,
             languageCode: Self.normalizedText(languageCode),
             prompt: Self.normalizedText(prompt),
+            audioDurationSeconds: audioDurationSeconds,
             rewriteEnabled: rewriteEnabled,
             preferredSpellings: preferredSpellings,
             timeoutInterval: timeoutInterval,
@@ -186,6 +197,7 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
         fileType: AudioTranscriptionQuery.FileType,
         languageCode: String?,
         prompt: String?,
+        audioDurationSeconds: TimeInterval,
         rewriteEnabled: Bool,
         preferredSpellings: [String],
         timeoutInterval: TimeInterval,
@@ -196,6 +208,7 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
             fields: makeFields(
                 languageCode: languageCode,
                 prompt: prompt,
+                audioDurationSeconds: audioDurationSeconds,
                 rewriteEnabled: rewriteEnabled,
                 preferredSpellings: preferredSpellings
             ),
@@ -226,6 +239,7 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
     private static func makeFields(
         languageCode: String?,
         prompt: String?,
+        audioDurationSeconds: TimeInterval,
         rewriteEnabled: Bool,
         preferredSpellings: [String]
     ) -> [MultipartFormField] {
@@ -238,6 +252,13 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
         if let prompt {
             fields.append(.init(name: "prompt", value: prompt))
         }
+
+        fields.append(
+            .init(
+                name: "audio_duration_seconds",
+                value: String(format: "%.3f", audioDurationSeconds)
+            )
+        )
 
         if rewriteEnabled {
             fields.append(.init(name: "rewrite", value: "true"))

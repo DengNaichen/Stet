@@ -2,6 +2,7 @@
 import AppKit
 import Combine
 import Foundation
+internal import Auth
 
 @MainActor
 final class MacAppSessionController {
@@ -21,8 +22,57 @@ final class MacAppSessionController {
     private var hotkeyInteraction = MacDictationHotkeyInteraction()
     private var previousDictationState: DictationState = .idle
     private weak var presentationModel: (any MacAppPresentationModeling)?
+    private var onboardingStepState: MacOnboardingStep
+    private var onboardingModeState: MacOnboardingMode?
+    private var shortcutTestDetectedPressState = false
+    private var shortcutTestCompletedRoundTripState = false
+    private var shortcutTestPreviewTextState: String?
+    private var firstSuccessPreviewTextState: String?
+    private var firstSuccessFailureMessageState: String?
+    private var firstSuccessFailureCount = 0
 
     init(
+        workflowController: MacDictationWorkflowController,
+        shellPresentationController: any MacShellPresenting,
+        permissionGateController: any MacPermissionGatePresenting,
+        permissionManager: MacPermissionManager,
+        defaults: UserDefaults = .standard,
+        notificationCenter: NotificationCenter = .default,
+        hotkeyRegistrar: any MacDictationHotkeyRegistering
+    ) {
+        self.workflowController = workflowController
+        self.shellPresentationController = shellPresentationController
+        self.permissionGateController = permissionGateController
+        self.permissionManager = permissionManager
+        self.defaults = defaults
+        self.notificationCenter = notificationCenter
+        self.hotkeyRegistrar = hotkeyRegistrar
+        self.onboardingStepState = defaults.bool(forKey: MacPreferences.onboardingCompleted) ? .done : .welcome
+
+        configure()
+    }
+
+    // Convenience: default dependencies
+    convenience init(
+        workflowController: MacDictationWorkflowController,
+        permissionManager: MacPermissionManager,
+        defaults: UserDefaults = .standard,
+        notificationCenter: NotificationCenter = .default
+    ) {
+        self.init(
+            workflowController: workflowController,
+            shellPresentationController: MacShellPresentationController(),
+            permissionGateController: MacPermissionGateController(),
+            permissionManager: permissionManager,
+            defaults: defaults,
+            notificationCenter: notificationCenter,
+            hotkeyRegistrar: KeyboardShortcutsHotkeyRegistrar()
+        )
+    }
+
+    // Backwards-compatible convenience initializer (deprecated)
+    @available(*, deprecated, message: "Use the designated initializer with non-optional dependencies or the convenience initializer without dependencies.")
+    convenience init(
         workflowController: MacDictationWorkflowController,
         shellPresentationController: (any MacShellPresenting)? = nil,
         permissionGateController: (any MacPermissionGatePresenting)? = nil,
@@ -31,14 +81,18 @@ final class MacAppSessionController {
         notificationCenter: NotificationCenter = .default,
         hotkeyRegistrar: (any MacDictationHotkeyRegistering)? = nil
     ) {
-        self.workflowController = workflowController
-        self.shellPresentationController = shellPresentationController ?? MacShellPresentationController()
-        self.permissionGateController = permissionGateController ?? MacPermissionGateController()
-        self.permissionManager = permissionManager
-        self.defaults = defaults
-        self.notificationCenter = notificationCenter
-        self.hotkeyRegistrar = hotkeyRegistrar ?? KeyboardShortcutsHotkeyRegistrar()
+        self.init(
+            workflowController: workflowController,
+            shellPresentationController: shellPresentationController ?? MacShellPresentationController(),
+            permissionGateController: permissionGateController ?? MacPermissionGateController(),
+            permissionManager: permissionManager,
+            defaults: defaults,
+            notificationCenter: notificationCenter,
+            hotkeyRegistrar: hotkeyRegistrar ?? KeyboardShortcutsHotkeyRegistrar()
+        )
+    }
 
+    private func configure() {
         workflowController.dictationViewModel.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
@@ -103,6 +157,52 @@ final class MacAppSessionController {
         permissionManager.autoPasteAccessNeedsAttention
     }
 
+    var onboardingStep: MacOnboardingStep {
+        onboardingStepState
+    }
+
+    var onboardingMode: MacOnboardingMode? {
+        onboardingModeState
+    }
+
+    var relaySessionEmail: String? {
+        SupabaseService.shared.currentSession?.user.email
+    }
+
+    var shortcutTestDetectedPress: Bool {
+        shortcutTestDetectedPressState
+    }
+
+    var shortcutTestCompletedRoundTrip: Bool {
+        shortcutTestCompletedRoundTripState
+    }
+
+    var shortcutTestPreviewText: String? {
+        shortcutTestPreviewTextState
+    }
+
+    var canContinueShortcutOnboarding: Bool {
+        shortcutTestDetectedPressState
+            && shortcutTestCompletedRoundTripState
+            && !(shortcutTestPreviewTextState?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+    }
+
+    var firstSuccessPreviewText: String? {
+        firstSuccessPreviewTextState
+    }
+
+    var firstSuccessFailureMessage: String? {
+        firstSuccessFailureMessageState
+    }
+
+    var canContinueFirstSuccessOnboarding: Bool {
+        !(firstSuccessPreviewTextState?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+    }
+
+    var canSkipFirstSuccessOnboarding: Bool {
+        firstSuccessFailureCount >= 2
+    }
+
     func activate(presentationModel: any MacAppPresentationModeling, showInDock: Bool) {
         self.presentationModel = presentationModel
         applyDockVisibility(showInDock: showInDock)
@@ -144,6 +244,11 @@ final class MacAppSessionController {
     }
 
     func showPanel() {
+        guard !requiresOnboarding || onboardingStepState.allowsAudioCapture else {
+            presentRequiredPermissionsGateIfNeeded()
+            return
+        }
+
         guard hasRequiredPermissions else {
             presentRequiredPermissionsGateIfNeeded()
             return
@@ -168,6 +273,11 @@ final class MacAppSessionController {
     }
 
     func togglePanel() {
+        guard !requiresOnboarding || onboardingStepState.allowsAudioCapture || isPanelVisible else {
+            presentRequiredPermissionsGateIfNeeded()
+            return
+        }
+
         guard hasRequiredPermissions || isPanelVisible else {
             presentRequiredPermissionsGateIfNeeded()
             return
@@ -179,6 +289,70 @@ final class MacAppSessionController {
 
     func previewPermissionIndicators() {
         refreshPermissionIndicators()
+    }
+
+    func chooseOnboardingMode(_ mode: MacOnboardingMode) {
+        onboardingModeState = mode
+        onboardingStepState = mode == .apiKey ? .apiKey : .login
+        notifyChange()
+    }
+
+    func advanceOnboarding() {
+        switch onboardingStepState {
+        case .welcome:
+            onboardingStepState = .mode
+        case .permissions:
+            guard hasRequiredPermissions else { return }
+            resetShortcutOnboardingState()
+            onboardingStepState = .shortcut
+        case .shortcut:
+            guard canContinueShortcutOnboarding else { return }
+            prepareFirstSuccessStep()
+            onboardingStepState = .firstSuccess
+        case .firstSuccess:
+            guard canContinueFirstSuccessOnboarding || canSkipFirstSuccessOnboarding else { return }
+            onboardingStepState = .done
+        case .mode, .apiKey, .login, .done:
+            break
+        }
+
+        notifyChange()
+    }
+
+    func retreatOnboarding() {
+        switch onboardingStepState {
+        case .mode:
+            onboardingStepState = .welcome
+        case .apiKey, .login:
+            onboardingStepState = .mode
+        case .permissions:
+            if requiresOnboarding {
+                onboardingStepState = onboardingModeState == .managed ? .login : .apiKey
+            }
+        case .shortcut:
+            onboardingStepState = .permissions
+        case .firstSuccess:
+            onboardingStepState = .shortcut
+        case .done:
+            onboardingStepState = .firstSuccess
+        case .welcome:
+            break
+        }
+
+        notifyChange()
+    }
+
+    func completeCredentialOnboarding(mode: MacOnboardingMode) {
+        onboardingModeState = mode
+        onboardingStepState = .permissions
+        notifyChange()
+    }
+
+    func finishOnboarding() {
+        defaults.set(true, forKey: MacPreferences.onboardingCompleted)
+        onboardingStepState = .done
+        permissionGateController.hide()
+        notifyChange()
     }
 
     func applyDockVisibility(showInDock: Bool) {
@@ -217,7 +391,20 @@ final class MacAppSessionController {
         defaults.object(forKey: MacPreferences.showInDock) as? Bool ?? false
     }
 
+    private var requiresOnboarding: Bool {
+        !(defaults.object(forKey: MacPreferences.onboardingCompleted) as? Bool ?? false)
+    }
+
+    private var shouldPresentOnboardingGate: Bool {
+        requiresOnboarding || !hasRequiredPermissions
+    }
+
     private func performPrimaryAction(source: PrimaryActionSource) {
+        if requiresOnboarding && !onboardingStepState.allowsAudioCapture {
+            presentRequiredPermissionsGateIfNeeded()
+            return
+        }
+
         switch dictationState {
         case .idle, .result, .error:
             requestDictationCaptureStart(from: source)
@@ -270,10 +457,13 @@ final class MacAppSessionController {
     }
 
     private func refreshPermissionIndicators() {
-        if hasRequiredPermissions {
-            permissionGateController.hide()
-        } else {
+        if shouldPresentOnboardingGate {
+            if !requiresOnboarding {
+                onboardingStepState = .permissions
+            }
             presentRequiredPermissionsGateIfNeeded()
+        } else {
+            permissionGateController.hide()
         }
 
         notifyChange()
@@ -290,6 +480,7 @@ final class MacAppSessionController {
         previousDictationState = state
         hotkeyInteraction.sync(with: state)
         cancelPendingStateTasks()
+        updateOnboardingProgress(previousState: previousState, state: state)
         workflowController.handleStateTransition(from: previousState, to: state)
     }
 
@@ -370,6 +561,11 @@ final class MacAppSessionController {
     }
 
     private func requestDictationCaptureStart(from source: PrimaryActionSource) {
+        if requiresOnboarding && !onboardingStepState.allowsAudioCapture {
+            presentRequiredPermissionsGateIfNeeded()
+            return
+        }
+
         guard hasRequiredPermissions else {
             presentRequiredPermissionsGateIfNeeded()
             return
@@ -405,7 +601,7 @@ final class MacAppSessionController {
     }
 
     private func presentRequiredPermissionsGateIfNeeded() {
-        guard !hasRequiredPermissions else {
+        guard shouldPresentOnboardingGate else {
             permissionGateController.hide()
             return
         }
@@ -416,6 +612,82 @@ final class MacAppSessionController {
 
         guard let presentationModel else { return }
         permissionGateController.show(appModel: presentationModel)
+    }
+
+    private func updateOnboardingProgress(previousState: DictationState, state: DictationState) {
+        if onboardingStepState == .shortcut {
+            if case .listening = state {
+                shortcutTestDetectedPressState = true
+            }
+
+            if case .listening = previousState, !matchesListening(state) {
+                shortcutTestCompletedRoundTripState = true
+            }
+
+            if case .result(let text) = state {
+                let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                shortcutTestPreviewTextState = trimmedText.isEmpty ? nil : trimmedText
+            }
+        }
+
+        if onboardingStepState == .firstSuccess {
+            if case .result(let text) = state {
+                let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                firstSuccessPreviewTextState = trimmedText.isEmpty ? nil : trimmedText
+                firstSuccessFailureMessageState = nil
+            } else if case .error = state {
+                firstSuccessFailureCount += 1
+                firstSuccessFailureMessageState = inferredFirstSuccessFailureMessage()
+            }
+        }
+
+        notifyChange()
+    }
+
+    private func resetShortcutOnboardingState() {
+        shortcutTestDetectedPressState = false
+        shortcutTestCompletedRoundTripState = false
+        shortcutTestPreviewTextState = nil
+    }
+
+    private func prepareFirstSuccessStep() {
+        firstSuccessPreviewTextState = nil
+        firstSuccessFailureMessageState = nil
+        firstSuccessFailureCount = 0
+
+        switch dictationState {
+        case .result, .error, .clipboardPending:
+            workflowController.dictationViewModel.send(.resetTapped)
+        case .idle, .listening, .processing:
+            break
+        }
+    }
+
+    private func matchesListening(_ state: DictationState) -> Bool {
+        if case .listening = state {
+            return true
+        }
+
+        return false
+    }
+
+    private func inferredFirstSuccessFailureMessage() -> String {
+        if onboardingModeState == .managed, SupabaseService.shared.currentSession == nil {
+            return "当前连接不可用，请重新验证你的登录状态。"
+        }
+
+        if onboardingModeState == .apiKey,
+           workflowController.statusText.localizedCaseInsensitiveContains("key") {
+            return "当前连接不可用，请重新验证你的 API Key。"
+        }
+
+        if workflowController.statusText.localizedCaseInsensitiveContains("network")
+            || workflowController.statusText.localizedCaseInsensitiveContains("api")
+            || workflowController.statusText.localizedCaseInsensitiveContains("relay") {
+            return "处理失败，请检查网络或模型配置。"
+        }
+
+        return "没有检测到语音输入，请再试一次。"
     }
 
     private func requestMicrophoneAccess() {
