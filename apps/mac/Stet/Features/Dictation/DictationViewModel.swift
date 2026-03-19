@@ -21,6 +21,10 @@ final class DictationViewModel: ObservableObject {
     }
 
     func send(_ action: DictationAction) {
+        Task {
+            await DictationRuntimeProbe.shared.markAction("dictationAction.\(actionName(for: action))")
+        }
+
         switch action {
         case .startTapped:
             guard case .idle = state else { return }
@@ -45,6 +49,11 @@ final class DictationViewModel: ObservableObject {
     }
 
     func startCapture(transform: ResultTransformer? = nil) {
+        Task {
+            await DictationRuntimeProbe.shared.markCaptureStartRequested()
+            await DictationRuntimeProbe.shared.markAction("startCapture")
+        }
+
         activeTask?.cancel()
         levelTask?.cancel()
         isStartingRecording = true
@@ -63,6 +72,9 @@ final class DictationViewModel: ObservableObject {
                 startLevelMonitoring()
                 state = .listening
                 Task {
+                    await DictationRuntimeProbe.shared.markAction("enteredListening")
+                }
+                Task {
                     await DictationStartupProbe.shared.record(.listeningStateEntered)
                 }
 
@@ -77,6 +89,9 @@ final class DictationViewModel: ObservableObject {
                 finishLevelMonitoring()
                 state = .idle
                 Task {
+                    await DictationRuntimeProbe.shared.markCaptureStartError("cancelled")
+                }
+                Task {
                     await DictationStartupProbe.shared.record(.cancelled)
                 }
             } catch {
@@ -86,6 +101,9 @@ final class DictationViewModel: ObservableObject {
                 finishLevelMonitoring()
                 state = .error(.from(error))
                 Task {
+                    await DictationRuntimeProbe.shared.markCaptureStartError(error.localizedDescription)
+                }
+                Task {
                     await DictationStartupProbe.shared.record(.failed, note: error.localizedDescription)
                 }
             }
@@ -93,6 +111,10 @@ final class DictationViewModel: ObservableObject {
     }
 
     func stopCapture() {
+        Task {
+            await DictationRuntimeProbe.shared.markCaptureStopRequested()
+            await DictationRuntimeProbe.shared.markAudioStopRequested()
+        }
         if isStartingRecording {
             pendingStopAfterStart = true
             return
@@ -101,6 +123,9 @@ final class DictationViewModel: ObservableObject {
         pendingStopAfterStart = false
         finishLevelMonitoring()
         state = .processing
+        Task {
+            await DictationRuntimeProbe.shared.markAction("processingFromStopCapture")
+        }
 
         activeTask = Task {
             do {
@@ -122,10 +147,16 @@ final class DictationViewModel: ObservableObject {
                 resultTransformer = nil
                 finishLevelMonitoring()
                 state = .idle
+                Task {
+                    await DictationRuntimeProbe.shared.markAction("stopCaptureEmptyTranscription")
+                }
             } catch {
                 resultTransformer = nil
                 finishLevelMonitoring()
                 send(.transcriptionFailed(.from(error)))
+                Task {
+                    await DictationRuntimeProbe.shared.markAction("stopCaptureFailed")
+                }
             }
         }
     }
@@ -154,6 +185,9 @@ final class DictationViewModel: ObservableObject {
     }
 
     private func reset() {
+        Task {
+            await DictationRuntimeProbe.shared.markAction("reset")
+        }
         activeTask?.cancel()
         finishLevelMonitoring()
         isStartingRecording = false
@@ -166,6 +200,9 @@ final class DictationViewModel: ObservableObject {
     }
 
     private func startLevelMonitoring() {
+        Task {
+            await DictationRuntimeProbe.shared.markMeteringStarted()
+        }
         guard let streamingService = speechService as? any AudioLevelSource else { return }
 
         levelTask = Task { @MainActor [weak self] in
@@ -178,8 +215,28 @@ final class DictationViewModel: ObservableObject {
     }
 
     private func finishLevelMonitoring() {
+        Task {
+            await DictationRuntimeProbe.shared.markMeteringStopped()
+        }
         levelTask?.cancel()
         levelTask = nil
         recordingLevel = 0
+    }
+
+    private func actionName(for action: DictationAction) -> String {
+        switch action {
+        case .startTapped:
+            return "startTapped"
+        case .stopTapped:
+            return "stopTapped"
+        case .resetTapped:
+            return "resetTapped"
+        case .transcriptionSucceeded:
+            return "transcriptionSucceeded"
+        case .clipboardPending:
+            return "clipboardPending"
+        case .transcriptionFailed:
+            return "transcriptionFailed"
+        }
     }
 }

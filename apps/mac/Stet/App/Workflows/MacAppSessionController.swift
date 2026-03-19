@@ -30,6 +30,7 @@ final class MacAppSessionController {
     private var firstSuccessPreviewTextState: String?
     private var firstSuccessFailureMessageState: String?
     private var firstSuccessFailureCount = 0
+    private var appLifecycleState = "active"
 
     init(
         workflowController: MacDictationWorkflowController,
@@ -259,10 +260,16 @@ final class MacAppSessionController {
     }
 
     func hidePanel() {
+        Task {
+            await DictationRuntimeProbe.shared.markPanelHidden()
+        }
         shellPresentationController.hidePanel()
     }
 
     func dismissPendingCopy() {
+        Task {
+            await DictationRuntimeProbe.shared.markPendingCopyDismissed()
+        }
         guard case .clipboardPending = dictationState else {
             hidePanel()
             return
@@ -400,6 +407,10 @@ final class MacAppSessionController {
     }
 
     private func performPrimaryAction(source: PrimaryActionSource) {
+        Task {
+            await DictationRuntimeProbe.shared.markAction("performPrimaryAction:\(source)")
+        }
+
         if requiresOnboarding && !onboardingStepState.allowsAudioCapture {
             presentRequiredPermissionsGateIfNeeded()
             return
@@ -449,6 +460,9 @@ final class MacAppSessionController {
         guard let presentationModel else { return }
         shellPresentationController.showTransientPanel(appModel: presentationModel)
         Task {
+            await DictationRuntimeProbe.shared.markPanelShown()
+        }
+        Task {
             await DictationStartupProbe.shared.record(.panelShown)
         }
     }
@@ -463,10 +477,18 @@ final class MacAppSessionController {
     }
 
     private func bindLifecycleNotifications() {
+        notificationCenter.publisher(for: NSApplication.willResignActiveNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleAppLifecycleChange(to: "inactive")
+            }
+            .store(in: &cancellables)
+
         notificationCenter.publisher(for: NSApplication.didBecomeActiveNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.refreshPermissionIndicators()
+                self?.handleAppLifecycleChange(to: "active")
             }
             .store(in: &cancellables)
     }
@@ -494,6 +516,12 @@ final class MacAppSessionController {
         let previousState = previousDictationState
         previousDictationState = state
         hotkeyInteraction.sync(with: state)
+        Task {
+            await DictationRuntimeProbe.shared.markStateTransition(from: previousState, to: state)
+            if state == .idle, previousState != .idle {
+                await DictationRuntimeProbe.shared.endRun(reason: "state_idle", additional: "from=\(stateLabel(previousState))")
+            }
+        }
         cancelPendingStateTasks()
         updateOnboardingProgress(previousState: previousState, state: state)
         workflowController.handleStateTransition(from: previousState, to: state)
@@ -523,6 +551,12 @@ final class MacAppSessionController {
                 workflow: completedWorkflow,
                 showTransientPanel: showTransientPanel
             )
+            Task {
+                await DictationRuntimeProbe.shared.markResultHandled(
+                    clipboardPending: outcome == .clipboardPending,
+                    textLength: text.count
+                )
+            }
 
             guard !Task.isCancelled else { return }
             guard case .result = dictationState else { return }
@@ -597,6 +631,13 @@ final class MacAppSessionController {
 
         Task {
             await DictationStartupProbe.shared.record(.permissionsVerified)
+            await DictationRuntimeProbe.shared.endRun(reason: "start_requested_after_previous")
+            await DictationRuntimeProbe.shared.markCaptureStartRequested()
+            await DictationRuntimeProbe.shared.beginRun(
+                trigger: "captureStart",
+                source: "MacAppSessionController",
+                panelVisible: isPanelVisible
+            )
         }
 
         switch dictationState {
@@ -615,9 +656,15 @@ final class MacAppSessionController {
             source: source,
             showTransientPanel: showTransientPanel
         )
+        Task {
+            await DictationRuntimeProbe.shared.markAction("startDictationCapture")
+        }
     }
 
     private func requestDictationCaptureStopIfNeeded() {
+        Task {
+            await DictationRuntimeProbe.shared.markCaptureStopRequested()
+        }
         guard dictationState.isCaptureInFlight else { return }
         workflowController.stopActiveCapture()
     }
@@ -626,6 +673,9 @@ final class MacAppSessionController {
         workflowController.copyPendingResultToClipboard(text)
         hidePanel()
         workflowController.dictationViewModel.send(.resetTapped)
+        Task {
+            await DictationRuntimeProbe.shared.markPendingCopyCommitted()
+        }
     }
 
     private func presentRequiredPermissionsGateIfNeeded() {
@@ -724,5 +774,35 @@ final class MacAppSessionController {
             refreshPermissionIndicators()
         }
     }
+
+    private func handleAppLifecycleChange(to newState: String) {
+        let from = appLifecycleState
+        guard from != newState else { return }
+        appLifecycleState = newState
+
+        Task {
+            await DictationRuntimeProbe.shared.markAppStateChange(from: from, to: newState)
+        }
+    }
+
+    private func stateLabel(_ state: DictationState) -> String {
+        switch state {
+        case .idle:
+            return "idle"
+        case .starting:
+            return "starting"
+        case .listening:
+            return "listening"
+        case .processing:
+            return "processing"
+        case .result:
+            return "result"
+        case .clipboardPending:
+            return "clipboardPending"
+        case .error:
+            return "error"
+        }
+    }
+
 }
 #endif

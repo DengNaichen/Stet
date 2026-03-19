@@ -138,6 +138,9 @@ final class MacDictationWorkflowController {
         source: PrimaryActionSource,
         showTransientPanel: @escaping @MainActor () -> Void
     ) {
+        Task {
+            await DictationRuntimeProbe.shared.markAction("startDictationCapture")
+        }
         refreshTargetApplication()
         activeWorkflow = .dictation
         activeRecordingSource = source
@@ -147,15 +150,24 @@ final class MacDictationWorkflowController {
 
     func stopActiveCapture() {
         activeRecordingSource = nil
+        Task {
+            await DictationRuntimeProbe.shared.markAction("stopActiveCapture")
+        }
         dictationViewModel.stopCapture()
     }
 
     func cancelActiveCapture() {
         activeRecordingSource = nil
+        Task {
+            await DictationRuntimeProbe.shared.markAction("cancelActiveCapture")
+        }
         dictationViewModel.send(.resetTapped)
     }
 
     func handleStateTransition(from previousState: DictationState, to newState: DictationState) {
+        Task {
+            await DictationRuntimeProbe.shared.markAction("workflowHandleStateTransition")
+        }
         handleMediaTransition(from: previousState, to: newState)
 
         if newState.isCaptureInFlight {
@@ -175,6 +187,9 @@ final class MacDictationWorkflowController {
         workflow: CaptureWorkflow,
         showTransientPanel: @escaping @MainActor () -> Void
     ) async -> CompletionOutcome {
+        Task {
+            await DictationRuntimeProbe.shared.markAction("handleCompletedResult workflow=\(workflow)")
+        }
         if workflow.isSelectionReplacement {
             return await handleSelectedTextReplacementResult(text: text, showTransientPanel: showTransientPanel)
         }
@@ -188,6 +203,9 @@ final class MacDictationWorkflowController {
     }
 
     func copyPendingResultToClipboard(_ text: String) {
+        Task {
+            await DictationRuntimeProbe.shared.markAction("copyPendingResultToClipboard")
+        }
         captureCoordinator.copyToClipboard(text)
     }
 

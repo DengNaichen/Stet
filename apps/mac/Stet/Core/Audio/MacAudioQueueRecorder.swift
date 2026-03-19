@@ -33,6 +33,9 @@ final class MacAudioQueueRecorder: @unchecked Sendable {
         fileType: AudioFileTypeID = kAudioFileCAFType
     ) throws {
         precondition(!isRecording, "MacAudioQueueRecorder is already recording.")
+        Task {
+            await DictationRuntimeProbe.shared.markAction("audioQueue.startRecording")
+        }
 
         var outputFormat = outputFormat
         var queue: AudioQueueRef?
@@ -119,6 +122,9 @@ final class MacAudioQueueRecorder: @unchecked Sendable {
 
         let startStatus = AudioQueueStart(queue, nil)
         guard startStatus == noErr else {
+            Task {
+                await DictationRuntimeProbe.shared.markCaptureStartError("audioQueueStartFailed status=\(startStatus)")
+            }
             _ = finishRecording()
             throw Self.makeStartError(status: startStatus)
         }
@@ -137,10 +143,16 @@ final class MacAudioQueueRecorder: @unchecked Sendable {
     }
 
     func stopRecording() {
+        Task {
+            await DictationRuntimeProbe.shared.markCaptureStopped()
+        }
         _ = finishRecording()
     }
 
     func cancelRecording() {
+        Task {
+            await DictationRuntimeProbe.shared.markCaptureCancelled()
+        }
         _ = finishRecording()
     }
 
