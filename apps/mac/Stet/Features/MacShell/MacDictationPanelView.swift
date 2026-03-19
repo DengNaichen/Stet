@@ -12,13 +12,12 @@ struct MacDictationPanelView: View {
     }
 
     var body: some View {
-        let panelSize = layout.panelSize(for: viewModel.state)
+        let panelSize = layout.panelSize
 
         MacDictationCapsuleSurface(
             layout: layout,
             panelSize: panelSize,
             state: viewModel.state,
-            statusText: viewModel.statusText,
             recordingLevel: viewModel.recordingLevel,
             leadingOrb: leadingOrb,
             trailingOrb: trailingOrb
@@ -36,6 +35,13 @@ struct MacDictationPanelView: View {
                 action: viewModel.hidePanel
             )
         case .listening:
+            CapsuleOrbConfiguration(
+                systemName: "xmark",
+                accessibilityLabel: "Cancel",
+                triggersSymmetricClose: true,
+                action: viewModel.cancelActiveCapture
+            )
+        case .starting:
             CapsuleOrbConfiguration(
                 systemName: "xmark",
                 accessibilityLabel: "Cancel",
@@ -66,6 +72,8 @@ struct MacDictationPanelView: View {
                 accessibilityLabel: "Start Dictation",
                 action: viewModel.performPrimaryAction
             )
+        case .starting:
+            nil
         case .listening:
             CapsuleOrbConfiguration(
                 systemName: "checkmark",
@@ -96,7 +104,6 @@ private struct MacDictationCapsuleSurface: View {
     let layout: MacDictationPanelLayout
     let panelSize: CGSize
     let state: DictationState
-    let statusText: String
     let recordingLevel: Double
     let leadingOrb: CapsuleOrbConfiguration?
     let trailingOrb: CapsuleOrbConfiguration?
@@ -113,6 +120,7 @@ private struct MacDictationCapsuleSurface: View {
     @State private var clipboardContentVisible = false
     @State private var isExitAnimating = false
     @State private var startDate = Date()
+    @State private var previousState: DictationState?
 
     private var scale: CGFloat {
         layout.scale
@@ -154,6 +162,8 @@ private struct MacDictationCapsuleSurface: View {
         switch state {
         case .idle:
             return 0.14
+        case .starting:
+            return 0.08
         case .listening:
             return min(max(0.12 + normalizedRecordingLevel * 0.88, 0), 1)
         case .processing:
@@ -168,6 +178,8 @@ private struct MacDictationCapsuleSurface: View {
     private var mainWidth: CGFloat {
         switch state {
         case .idle:
+            scaled(250)
+        case .starting:
             scaled(250)
         case .listening:
             scaled(250)
@@ -196,7 +208,7 @@ private struct MacDictationCapsuleSurface: View {
 
     private var mainOffsetX: CGFloat {
         switch state {
-        case .idle, .listening:
+        case .idle, .starting, .listening:
             scaled(12)
         case .clipboardPending:
             0
@@ -248,9 +260,6 @@ private struct MacDictationCapsuleSurface: View {
                                 .allowsHitTesting(leadingOrbProgress > 0.01)
                         }
 
-                        mainCapsule(elapsed: elapsed)
-                            .offset(x: mainOffsetX, y: mainOffsetY)
-
                         if let trailingOrb = visibleTrailingOrb {
                             capsuleOrbButton(trailingOrb)
                                 .offset(x: trailingOrbX, y: mainOffsetY)
@@ -258,6 +267,9 @@ private struct MacDictationCapsuleSurface: View {
                                 .opacity(trailingOrbProgress)
                                 .allowsHitTesting(trailingOrbProgress > 0.01)
                         }
+
+                        mainCapsule(elapsed: elapsed)
+                            .offset(x: mainOffsetX, y: mainOffsetY)
                     }
                     .frame(width: canvasSize.width, height: canvasSize.height)
                 }
@@ -273,11 +285,13 @@ private struct MacDictationCapsuleSurface: View {
         .onAppear {
             runEntranceAnimationIfNeeded()
             syncClipboardPresentation(animated: false)
+            previousState = state
         }
         .onChange(of: state) {
             guard !isExitAnimating else { return }
-            syncSideOrbVisibility()
+            syncSideOrbVisibility(from: previousState, to: state)
             syncClipboardPresentation(animated: true)
+            previousState = state
         }
         .onDisappear(perform: resetEntranceAnimation)
         .animation(.spring(response: 0.56, dampingFraction: 0.82), value: state)
@@ -343,40 +357,22 @@ private struct MacDictationCapsuleSurface: View {
             processingContent(elapsed: elapsed)
         case .clipboardPending(let text):
             clipboardContent(text: text)
-        case .error(let message):
+        case .error(let failure):
             messageText(
-                message,
+                failure.message,
                 fontSize: 13,
                 lineLimit: 3,
                 minimumScaleFactor: 0.9
             )
             .padding(.horizontal, scaled(24))
-        case .result:
-            HStack(spacing: scaled(8)) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: scaled(16), weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.96))
-
-                messageText(statusText, fontSize: 13, lineLimit: 1, minimumScaleFactor: 0.92)
-            }
-            .padding(.horizontal, scaled(20))
-        case .idle, .listening:
-            messageText(statusText, fontSize: 13, lineLimit: 1, minimumScaleFactor: 0.86)
-                .padding(.horizontal, scaled(22))
+        case .result, .idle, .starting, .listening:
+            EmptyView()
         }
     }
 
     @ViewBuilder
     private func processingContent(elapsed: Double) -> some View {
-        VStack(spacing: scaled(8)) {
-            processingDots(elapsed: elapsed)
-
-            if statusText != DictationState.processing.statusText {
-                messageText(statusText, fontSize: 11, lineLimit: 1, minimumScaleFactor: 0.85)
-                    .opacity(0.82)
-            }
-        }
-        .padding(.horizontal, scaled(16))
+        processingDots(elapsed: elapsed)
     }
 
     @ViewBuilder
@@ -509,17 +505,22 @@ private struct MacDictationCapsuleSurface: View {
         }
     }
 
-    private func syncSideOrbVisibility() {
+    private func syncSideOrbVisibility(from previousState: DictationState?, to currentState: DictationState) {
         entranceTask?.cancel()
         orbTransitionTask?.cancel()
 
         let shouldShowSideOrbs = leadingOrb != nil || trailingOrb != nil
+        let shouldAnimateOrbTransition = shouldAnimateSideOrbTransition(from: previousState, to: currentState)
 
         if shouldShowSideOrbs {
             visibleLeadingOrb = leadingOrb
             visibleTrailingOrb = trailingOrb
 
-            withAnimation(.spring(response: 0.56, dampingFraction: 0.78)) {
+            if shouldAnimateOrbTransition {
+                withAnimation(.spring(response: 0.56, dampingFraction: 0.78)) {
+                    sideOrbProgress = 1
+                }
+            } else {
                 sideOrbProgress = 1
             }
             return
@@ -527,17 +528,31 @@ private struct MacDictationCapsuleSurface: View {
 
         guard visibleLeadingOrb != nil || visibleTrailingOrb != nil else { return }
 
-        withAnimation(.spring(response: 0.56, dampingFraction: 0.80)) {
+        if shouldAnimateOrbTransition {
+            withAnimation(.spring(response: 0.56, dampingFraction: 0.80)) {
+                sideOrbProgress = 0
+            }
+        } else {
             sideOrbProgress = 0
         }
 
-        orbTransitionTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 220_000_000)
-            guard !Task.isCancelled else { return }
+        if shouldAnimateOrbTransition {
+            orbTransitionTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 220_000_000)
+                guard !Task.isCancelled else { return }
 
+                visibleLeadingOrb = nil
+                visibleTrailingOrb = nil
+            }
+        } else {
             visibleLeadingOrb = nil
             visibleTrailingOrb = nil
         }
+    }
+
+    private func shouldAnimateSideOrbTransition(from previousState: DictationState?, to currentState: DictationState) -> Bool {
+        guard let previousState else { return true }
+        return !(previousState == .starting && currentState == .listening)
     }
 
     private func syncClipboardPresentation(animated: Bool) {
@@ -580,6 +595,7 @@ private struct MacDictationCapsuleSurface: View {
         isExitAnimating = false
         visibleLeadingOrb = nil
         visibleTrailingOrb = nil
+        previousState = nil
     }
 
     private func runSymmetricCloseAnimation(perform action: @escaping () -> Void) {
