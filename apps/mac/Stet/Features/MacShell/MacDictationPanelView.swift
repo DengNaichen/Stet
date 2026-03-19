@@ -245,41 +245,41 @@ private struct MacDictationCapsuleSurface: View {
         controlHeight
     }
 
+    private var shaderFrameInterval: Double {
+        1.0 / 30.0
+    }
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { timeline in
-            let elapsed = timeline.date.timeIntervalSince(startDate)
-
-            ZStack {
-                GlassEffectContainer(spacing: scaled(28)) {
-                    ZStack {
-                        if let leadingOrb = visibleLeadingOrb {
-                            capsuleOrbButton(leadingOrb)
-                                .offset(x: leadingOrbX, y: mainOffsetY)
-                                .scaleEffect(0.24 + 0.76 * leadingOrbProgress)
-                                .opacity(leadingOrbProgress)
-                                .allowsHitTesting(leadingOrbProgress > 0.01)
-                        }
-
-                        if let trailingOrb = visibleTrailingOrb {
-                            capsuleOrbButton(trailingOrb)
-                                .offset(x: trailingOrbX, y: mainOffsetY)
-                                .scaleEffect(0.24 + 0.76 * trailingOrbProgress)
-                                .opacity(trailingOrbProgress)
-                                .allowsHitTesting(trailingOrbProgress > 0.01)
-                        }
-
-                        mainCapsule(elapsed: elapsed)
-                            .offset(x: mainOffsetX, y: mainOffsetY)
+        ZStack {
+            GlassEffectContainer(spacing: scaled(28)) {
+                ZStack {
+                    if let leadingOrb = visibleLeadingOrb {
+                        capsuleOrbButton(leadingOrb)
+                            .offset(x: leadingOrbX, y: mainOffsetY)
+                            .scaleEffect(0.24 + 0.76 * leadingOrbProgress)
+                            .opacity(leadingOrbProgress)
+                            .allowsHitTesting(leadingOrbProgress > 0.01)
                     }
-                    .frame(width: canvasSize.width, height: canvasSize.height)
-                }
 
-                mainContent(elapsed: elapsed)
-                    .frame(width: mainWidth, height: mainHeight)
-                    .offset(x: mainOffsetX, y: mainOffsetY)
+                    if let trailingOrb = visibleTrailingOrb {
+                        capsuleOrbButton(trailingOrb)
+                            .offset(x: trailingOrbX, y: mainOffsetY)
+                            .scaleEffect(0.24 + 0.76 * trailingOrbProgress)
+                            .opacity(trailingOrbProgress)
+                            .allowsHitTesting(trailingOrbProgress > 0.01)
+                    }
+
+                    mainCapsule()
+                        .offset(x: mainOffsetX, y: mainOffsetY)
+                }
+                .frame(width: canvasSize.width, height: canvasSize.height)
             }
-            .frame(width: canvasSize.width, height: canvasSize.height)
+
+            mainContent()
+                .frame(width: mainWidth, height: mainHeight)
+                .offset(x: mainOffsetX, y: mainOffsetY)
         }
+        .frame(width: canvasSize.width, height: canvasSize.height)
         .scaleEffect(appeared ? 1.0 : 0.3)
         .opacity(appeared ? 1.0 : 0.0)
         .onAppear {
@@ -298,43 +298,9 @@ private struct MacDictationCapsuleSurface: View {
     }
 
     @ViewBuilder
-    private func mainCapsule(elapsed: Double) -> some View {
+    private func mainCapsule() -> some View {
         GeometryReader { proxy in
-            if isClipboardPending {
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                .white.opacity(0.18),
-                                .white.opacity(0.10)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-            } else if isError {
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.78, green: 0.42, blue: 0.52).opacity(0.42),
-                                Color(red: 0.93, green: 0.48, blue: 0.34).opacity(0.24)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            } else {
-                Rectangle()
-                    .fill(.white)
-                    .colorEffect(
-                        ShaderLibrary.cloudOrbGlassWide(
-                            .float2(proxy.size),
-                            .float(elapsed),
-                            .float(displayLevel)
-                        )
-                    )
-            }
+            capsuleFill(size: proxy.size)
         }
         .frame(width: mainWidth, height: mainHeight)
         .clipShape(RoundedRectangle(cornerRadius: mainCornerRadius, style: .continuous))
@@ -351,10 +317,51 @@ private struct MacDictationCapsuleSurface: View {
     }
 
     @ViewBuilder
-    private func mainContent(elapsed: Double) -> some View {
+    private func capsuleFill(size: CGSize) -> some View {
+        if isClipboardPending {
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(0.18),
+                            .white.opacity(0.10)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+        } else if isError {
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.78, green: 0.42, blue: 0.52).opacity(0.42),
+                            Color(red: 0.93, green: 0.48, blue: 0.34).opacity(0.24)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        } else {
+            TimelineView(.animation(minimumInterval: shaderFrameInterval, paused: false)) { timeline in
+                Rectangle()
+                    .fill(.white)
+                    .colorEffect(
+                        ShaderLibrary.cloudOrbGlassWide(
+                            .float2(size),
+                            .float(timeline.date.timeIntervalSince(startDate)),
+                            .float(displayLevel)
+                        )
+                    )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func mainContent() -> some View {
         switch state {
         case .processing:
-            processingContent(elapsed: elapsed)
+            processingContent()
         case .clipboardPending(let text):
             clipboardContent(text: text)
         case .error(let failure):
@@ -371,8 +378,8 @@ private struct MacDictationCapsuleSurface: View {
     }
 
     @ViewBuilder
-    private func processingContent(elapsed: Double) -> some View {
-        processingDots(elapsed: elapsed)
+    private func processingContent() -> some View {
+        processingDots()
     }
 
     @ViewBuilder
@@ -409,41 +416,45 @@ private struct MacDictationCapsuleSurface: View {
     }
 
     @ViewBuilder
-    private func processingDots(elapsed: Double) -> some View {
-        HStack(spacing: scaled(5)) {
-            let cadence = elapsed * 3.2
-            let head = Int(floor(cadence)).quotientAndRemainder(dividingBy: 3).remainder
-            let progress = cadence - floor(cadence)
+    private func processingDots() -> some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { timeline in
+            let elapsed = timeline.date.timeIntervalSince(startDate)
 
-            ForEach(0..<3, id: \.self) { index in
-                let isHead = index == head
-                let isTrailing = index == (head + 2) % 3
-                let headGlow = isHead ? (0.72 + 0.28 * progress) : 0.0
-                let trailingGlow = isTrailing ? (0.42 * (1.0 - progress)) : 0.0
-                let intensity = max(headGlow, trailingGlow)
-                let opacity = 0.36 + intensity * 0.64
-                let scale = 0.82 + intensity * 0.34
-                let yOffset = -1.2 * intensity
+            HStack(spacing: scaled(5)) {
+                let cadence = elapsed * 3.2
+                let head = Int(floor(cadence)).quotientAndRemainder(dividingBy: 3).remainder
+                let progress = cadence - floor(cadence)
 
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                .white.opacity(min(1.0, opacity + 0.18)),
-                                Color.primaryAction.opacity(opacity)
-                            ],
-                            center: .center,
-                            startRadius: scaled(0.5),
-                            endRadius: scaled(4)
+                ForEach(0..<3, id: \.self) { index in
+                    let isHead = index == head
+                    let isTrailing = index == (head + 2) % 3
+                    let headGlow = isHead ? (0.72 + 0.28 * progress) : 0.0
+                    let trailingGlow = isTrailing ? (0.42 * (1.0 - progress)) : 0.0
+                    let intensity = max(headGlow, trailingGlow)
+                    let opacity = 0.36 + intensity * 0.64
+                    let scale = 0.82 + intensity * 0.34
+                    let yOffset = -1.2 * intensity
+
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    .white.opacity(min(1.0, opacity + 0.18)),
+                                    Color.primaryAction.opacity(opacity)
+                                ],
+                                center: .center,
+                                startRadius: scaled(0.5),
+                                endRadius: scaled(4)
+                            )
                         )
-                    )
-                    .frame(width: scaled(6.5), height: scaled(6.5))
-                    .scaleEffect(scale)
-                    .offset(y: scaled(yOffset))
-                    .shadow(color: Color.primaryAction.opacity(0.26 + intensity * 0.34), radius: scaled(6))
+                        .frame(width: scaled(6.5), height: scaled(6.5))
+                        .scaleEffect(scale)
+                        .offset(y: scaled(yOffset))
+                        .shadow(color: Color.primaryAction.opacity(0.26 + intensity * 0.34), radius: scaled(6))
+                }
             }
+            .frame(height: scaled(18))
         }
-        .frame(height: scaled(18))
     }
 
     @ViewBuilder
