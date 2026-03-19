@@ -3,15 +3,15 @@ import Testing
 
 @testable import Stet
 
-@Suite("Default Audio Post Processor")
+@Suite("Default Audio Post Processor", .serialized)
 struct DefaultAudioPostProcessorTests {
-    @Test func silenceOnlyCaptureIsDiscarded() throws {
+    @Test func silenceOnlyCaptureIsDiscarded() async throws {
         let fileURL = try Self.makePCMFileURL(
             samples: Array(repeating: 0, count: 16_000)
         )
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
-        let result = try DefaultAudioPostProcessor().processAudioFile(
+        let result = try await Self.makePostProcessor(interactionSoundsEnabled: false).processAudioFile(
             at: fileURL,
             duration: 1
         )
@@ -20,12 +20,116 @@ struct DefaultAudioPostProcessorTests {
         #expect(result.url == fileURL)
     }
 
-    @Test func quietSpeechCaptureIsAmplified() throws {
+    @Test func interactionSoundOnlyCaptureIsDiscarded() async throws {
+        for preset in InteractionSoundPreset.allCases {
+            let soundName = switch preset {
+            case .soft: "Submarine"
+            case .glass: "Glass"
+            }
+            let fileURL = try Self.makeSystemSoundCapture(soundName: soundName)
+            defer { try? FileManager.default.removeItem(at: fileURL) }
+
+            let result = try await Self.makePostProcessor(interactionSoundPreset: preset).processAudioFile(
+                at: fileURL,
+                duration: nil
+            )
+
+            #expect(result.shouldDiscardAsNoSpeech)
+            #expect(result.url == fileURL)
+        }
+    }
+
+    @Test func interactionSoundFollowedBySpeechIsKept() async throws {
+        let fileURL = try Self.makeSystemSoundCapture(
+            soundName: "Glass",
+            appendedSamples: Self.makeSpeechLikeSamples(amplitude: 600)
+        )
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let result = try await Self.makePostProcessor(interactionSoundPreset: .glass).processAudioFile(
+            at: fileURL,
+            duration: nil
+        )
+        defer {
+            for url in result.cleanupURLs where url != fileURL {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+
+        #expect(!result.shouldDiscardAsNoSpeech)
+    }
+
+    @Test func interactionSoundFollowedByFiveSecondsOfSilenceIsDiscarded() async throws {
+        let fileURL = try Self.makeSystemSoundCapture(
+            soundName: "Glass",
+            appendedSamples: Array(repeating: 0, count: 80_000)
+        )
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let result = try await Self.makePostProcessor(interactionSoundPreset: .glass).processAudioFile(
+            at: fileURL,
+            duration: nil
+        )
+
+        #expect(result.shouldDiscardAsNoSpeech)
+        #expect(result.url == fileURL)
+    }
+
+    @Test func acousticBeepOnlyCaptureIsDiscarded() async throws {
+        let fileURL = try Self.makePCMFileURL(
+            samples: Self.makeAcousticBeepSamples() + Array(repeating: 0, count: 12_000)
+        )
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let result = try await Self.makePostProcessor(interactionSoundPreset: .glass).processAudioFile(
+            at: fileURL,
+            duration: nil
+        )
+
+        #expect(result.shouldDiscardAsNoSpeech)
+        #expect(result.url == fileURL)
+    }
+
+    @Test func stationaryNoiseOnlyCaptureIsDiscarded() async throws {
+        let fileURL = try Self.makePCMFileURL(samples: Self.makeStationaryNoiseSamples())
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let result = try await Self.makePostProcessor(interactionSoundsEnabled: false).processAudioFile(
+            at: fileURL,
+            duration: 1
+        )
+
+        #expect(result.shouldDiscardAsNoSpeech)
+        #expect(result.url == fileURL)
+    }
+
+    @Test func stationaryNoiseWithSpeechIsKept() async throws {
+        let samples = Self.mixSamples(
+            Self.makeStationaryNoiseSamples(),
+            Self.makeSpeechLikeSamples(amplitude: 1_200)
+        )
+        let fileURL = try Self.makePCMFileURL(samples: samples)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let result = try await Self.makePostProcessor(interactionSoundsEnabled: false).processAudioFile(
+            at: fileURL,
+            duration: 1
+        )
+        defer {
+            for url in result.cleanupURLs where url != fileURL {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+
+        #expect(!result.shouldDiscardAsNoSpeech)
+    }
+
+    @Test func quietSpeechCaptureIsAmplified() async throws {
         let quietSpeech = Self.makeSpeechLikeSamples(amplitude: 450)
         let fileURL = try Self.makePCMFileURL(samples: quietSpeech)
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
-        let result = try DefaultAudioPostProcessor().processAudioFile(
+        let result = try await Self.makePostProcessor(interactionSoundsEnabled: false).processAudioFile(
             at: fileURL,
             duration: 1
         )
@@ -93,14 +197,132 @@ struct DefaultAudioPostProcessorTests {
         let leadingSilence = Array(repeating: Int16(0), count: 2_400)
         let trailingSilence = Array(repeating: Int16(0), count: 2_400)
         let spokenSampleCount = 11_200
-        let frequency = 220.0
+        let baseFrequency = 170.0
 
         let speech = (0..<spokenSampleCount).map { index -> Int16 in
             let time = Double(index) / sampleRate
-            return Int16(Double(amplitude) * sin(2 * .pi * frequency * time))
+            let envelope = 0.55 + 0.45 * sin(2 * .pi * 2.8 * time)
+            let glide = baseFrequency + 35.0 * sin(2 * .pi * 1.3 * time)
+            let voicedSample =
+                sin(2 * .pi * glide * time) +
+                0.45 * sin(2 * .pi * glide * 2.0 * time) +
+                0.18 * sin(2 * .pi * glide * 3.0 * time)
+            let fricativeTexture = 0.08 * sin(2 * .pi * 2_300 * time)
+            let sample = Double(amplitude) * envelope * (0.72 * voicedSample + fricativeTexture)
+            return Int16(max(Double(Int16.min), min(sample, Double(Int16.max))))
         }
 
         return leadingSilence + speech + trailingSilence
+    }
+
+    private static func makeAcousticBeepSamples() -> [Int16] {
+        let sampleRate = 16_000.0
+        let sampleCount = 3_200
+
+        return (0..<sampleCount).map { index -> Int16 in
+            let time = Double(index) / sampleRate
+            let decay = exp(-4.5 * time)
+            let chirpFrequency = 1_150.0 + 550.0 * time
+            let resonance = sin(2 * .pi * chirpFrequency * time)
+            let tail = 0.35 * sin(2 * .pi * 2_400.0 * time)
+            let sample = 7_500.0 * decay * (0.8 * resonance + tail)
+            return Int16(max(Double(Int16.min), min(sample, Double(Int16.max))))
+        }
+    }
+
+    private static func makeStationaryNoiseSamples() -> [Int16] {
+        let sampleRate = 16_000.0
+        let sampleCount = 16_000
+        var state: UInt32 = 0x1234_ABCD
+
+        return (0..<sampleCount).map { index -> Int16 in
+            let time = Double(index) / sampleRate
+            state = 1_664_525 &* state &+ 1_013_904_223
+            let whiteNoise = Double(Int32(bitPattern: state)) / Double(Int32.max)
+            let hum =
+                sin(2 * .pi * 90.0 * time) +
+                0.55 * sin(2 * .pi * 180.0 * time) +
+                0.2 * sin(2 * .pi * 1_700.0 * time)
+            let sample = 900.0 * hum + 250.0 * whiteNoise
+            return Int16(max(Double(Int16.min), min(sample, Double(Int16.max))))
+        }
+    }
+
+    private static func mixSamples(_ lhs: [Int16], _ rhs: [Int16]) -> [Int16] {
+        let sampleCount = max(lhs.count, rhs.count)
+        return (0..<sampleCount).map { index in
+            let left = index < lhs.count ? Int(lhs[index]) : 0
+            let right = index < rhs.count ? Int(rhs[index]) : 0
+            return Int16(
+                max(
+                    Int(Int16.min),
+                    min(left + right, Int(Int16.max))
+                )
+            )
+        }
+    }
+
+    private static func makeSystemSoundCapture(
+        soundName: String,
+        appendedSamples: [Int16] = []
+    ) throws -> URL {
+        let soundURL = URL(fileURLWithPath: "/System/Library/Sounds/\(soundName).aiff")
+        let sourceFile = try AVAudioFile(forReading: soundURL)
+        let outputFormat = try #require(
+            AVAudioFormat(
+                commonFormat: .pcmFormatInt16,
+                sampleRate: TranscriptionUploadAudioFormat.macSampleRate,
+                channels: TranscriptionUploadAudioFormat.macChannelCount,
+                interleaved: false
+            )
+        )
+        let converter = try #require(
+            LinearPCMConversion.makeConverter(
+                from: sourceFile.processingFormat,
+                to: outputFormat
+            )
+        )
+        let inputBuffer = try #require(
+            AVAudioPCMBuffer(
+                pcmFormat: sourceFile.processingFormat,
+                frameCapacity: AVAudioFrameCount(sourceFile.length)
+            )
+        )
+        try sourceFile.read(into: inputBuffer)
+        let convertedBuffer = try LinearPCMConversion.convert(
+            inputBuffer,
+            using: converter,
+            outputFormat: outputFormat
+        )
+        let channelData = try #require(convertedBuffer.int16ChannelData)
+        let convertedSamples = (0..<Int(convertedBuffer.frameLength)).map { index in
+            channelData[0][index]
+        }
+
+        return try makePCMFileURL(samples: convertedSamples + appendedSamples)
+    }
+
+    private static func makePostProcessor(
+        interactionSoundsEnabled: Bool = true,
+        interactionSoundPreset: InteractionSoundPreset = .soft
+    ) -> DefaultAudioPostProcessor {
+        let defaults = TestSupport.makeUserDefaults()
+        defaults.set(interactionSoundsEnabled, forKey: MacPreferences.interactionSoundsEnabled)
+        defaults.set(interactionSoundPreset.rawValue, forKey: MacPreferences.interactionSoundPreset)
+        let settingsStore = DictationSettingsStore(
+            defaults: defaults,
+            secretStore: TestSecretStore()
+        )
+        return DefaultAudioPostProcessor(settingsStore: settingsStore)
+    }
+
+    private static func makePostProcessor(
+        interactionSoundPreset: InteractionSoundPreset
+    ) -> DefaultAudioPostProcessor {
+        makePostProcessor(
+            interactionSoundsEnabled: true,
+            interactionSoundPreset: interactionSoundPreset
+        )
     }
 
     private static func peakAmplitude(at fileURL: URL) throws -> Double? {

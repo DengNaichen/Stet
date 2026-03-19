@@ -95,7 +95,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         }
 
         let captureResult = try await captureService.stopRecording()
-        let processedCaptureResult = try audioPostProcessor.processAudioFile(
+        let processedCaptureResult = try await audioPostProcessor.processAudioFile(
             at: captureResult.url,
             duration: captureResult.duration
         )

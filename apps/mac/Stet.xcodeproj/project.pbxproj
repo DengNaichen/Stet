@@ -430,7 +430,6 @@
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Stet/Info.plist;
 				"INFOPLIST_KEY_LSApplicationCategoryType[sdk=macosx*]" = "public.app-category.productivity";
 				"INFOPLIST_KEY_LSUIElement[sdk=macosx*]" = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Stet uses System Events to paste your transcript back into the app you were using.";
@@ -486,7 +485,6 @@
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Stet/Info.plist;
 				"INFOPLIST_KEY_LSApplicationCategoryType[sdk=macosx*]" = "public.app-category.productivity";
 				"INFOPLIST_KEY_LSUIElement[sdk=macosx*]" = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Stet uses System Events to paste your transcript back into the app you were using.";
