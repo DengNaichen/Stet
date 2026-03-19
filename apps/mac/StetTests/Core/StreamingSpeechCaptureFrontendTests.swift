@@ -147,6 +147,38 @@ struct StreamingSpeechCaptureFrontendTests {
         #expect(run.summary.didCommitSpeech)
         #expect(committedPeak > sourcePeak)
     }
+
+    @Test func nonSpeechFramesAreSilencedDuringCommit() throws {
+        let warmupFrames = Self.makeSilenceFrames(count: 6)
+        let speechFrames = Self.makeSpeechFrames(count: 8, amplitude: 3_000)
+        let noiseFrames = Self.makeStationaryNoiseFrames(count: 8)
+        let frontend = try Self.makeFrontend(
+            primaryDetections: Array(repeating: false, count: warmupFrames.count) +
+                Array(repeating: true, count: speechFrames.count) +
+                Array(repeating: false, count: noiseFrames.count)
+        )
+
+        let run = try Self.runFrontend(
+            frontend,
+            preActivationFrames: warmupFrames,
+            postActivationFrames: speechFrames + noiseFrames
+        )
+
+        let sourceNoisePeak = noiseFrames
+            .flatMap { $0 }
+            .reduce(0.0) { partialResult, sample in
+                max(partialResult, abs(Double(sample)) / Double(Int16.max))
+            }
+        let committedNoiseFrames = Array(run.committedFrames.suffix(noiseFrames.count))
+        let committedNoisePeak = committedNoiseFrames
+            .flatMap { $0 }
+            .reduce(0.0) { partialResult, sample in
+                max(partialResult, abs(Double(sample)) / Double(Int16.max))
+            }
+
+        #expect(run.summary.didCommitSpeech)
+        #expect(committedNoisePeak < sourceNoisePeak)
+    }
 }
 
 extension StreamingSpeechCaptureFrontendTests {

@@ -19,6 +19,8 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
         let streamingGainTargetDBFS: Double
         let peakCeilingDBFS: Double
         let maximumStreamingGainDB: Double
+        let minimumNoiseSuppressionDB: Double
+        let maximumNoiseSuppressionDB: Double
 
         static let balanced = Self(
             sampleRate: 16_000,
@@ -35,7 +37,9 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
             confirmationVADMode: .aggressive,
             streamingGainTargetDBFS: -20,
             peakCeilingDBFS: -1,
-            maximumStreamingGainDB: 12
+            maximumStreamingGainDB: 12,
+            minimumNoiseSuppressionDB: 8,
+            maximumNoiseSuppressionDB: 30
         )
 
         var frameSize: Int {
@@ -157,16 +161,30 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
 
         let highPassedSamples = frameSamples.map { hpfState.process($0) }
         let rawRMSDBFS = Self.rmsDBFS(for: highPassedSamples)
-        let processedSamples = applyNoiseAwareGain(to: highPassedSamples, rmsDBFS: rawRMSDBFS)
-        let rmsDBFS = Self.rmsDBFS(for: processedSamples)
-        let rawPrimarySpeech = try primarySpeechDetector(ArraySlice(processedSamples))
-        let rawConfirmationSpeech = try confirmationSpeechDetector(ArraySlice(processedSamples))
+        let (gainAdjustedSamples, gainDB) = applyNoiseAwareGain(to: highPassedSamples, rmsDBFS: rawRMSDBFS)
+        let gainAdjustedRMSDBFS = Self.rmsDBFS(for: gainAdjustedSamples)
+        let rawPrimarySpeech = try primarySpeechDetector(ArraySlice(gainAdjustedSamples))
+        let rawConfirmationSpeech = try confirmationSpeechDetector(ArraySlice(gainAdjustedSamples))
         let activityFloorDBFS = max(
             noiseFloorDBFS + (configuration.minimumSpeechRiseAboveNoiseFloorDB / 2),
             configuration.absoluteSpeechFloorDBFS - 12
         )
-        let primarySpeech = rawPrimarySpeech && rmsDBFS >= activityFloorDBFS
-        let confirmationSpeech = rawConfirmationSpeech && rmsDBFS >= activityFloorDBFS
+        let primarySpeech = rawPrimarySpeech && gainAdjustedRMSDBFS >= activityFloorDBFS
+        let confirmationSpeech = rawConfirmationSpeech && gainAdjustedRMSDBFS >= activityFloorDBFS
+        let speechDetected = primarySpeech || confirmationSpeech
+        // Once the capture has committed, keep speech and strip everything else.
+        let nonSpeechSamples = isCommittingSpeech
+            ? Array(repeating: 0, count: gainAdjustedSamples.count)
+            : Self.applyGain(
+                to: gainAdjustedSamples,
+                gainDB: noiseSuppressionDB(
+                    rmsDBFS: gainAdjustedRMSDBFS,
+                    activityFloorDBFS: activityFloorDBFS,
+                    currentGainDB: gainDB
+                )
+            )
+        let processedSamples = speechDetected ? gainAdjustedSamples : nonSpeechSamples
+        let rmsDBFS = Self.rmsDBFS(for: processedSamples)
         let bufferedFrame = BufferedFrame(
             frameIndex: processedFrameCount,
             samples: processedSamples,
@@ -244,15 +262,30 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
         }
     }
 
-    private func applyNoiseAwareGain(to samples: [Int16], rmsDBFS: Double) -> [Int16] {
+    private func applyNoiseAwareGain(
+        to samples: [Int16],
+        rmsDBFS: Double
+    ) -> (samples: [Int16], gainDB: Double) {
         let gainDB = recommendedGainDB(for: samples, rmsDBFS: rmsDBFS)
-        guard gainDB > 0 else { return samples }
+        return (Self.applyGain(to: samples, gainDB: gainDB), gainDB)
+    }
 
-        let multiplier = pow(10, gainDB / 20)
-        return samples.map { sample in
-            let amplified = Double(sample) * multiplier
-            return Int16(max(Double(Int16.min), min(amplified, Double(Int16.max))))
+    private func noiseSuppressionDB(
+        rmsDBFS: Double,
+        activityFloorDBFS: Double,
+        currentGainDB: Double
+    ) -> Double {
+        guard rmsDBFS.isFinite else {
+            return -configuration.maximumNoiseSuppressionDB
         }
+
+        let distanceBelowFloor = max(0, activityFloorDBFS - rmsDBFS)
+        let suppressionDB = min(
+            configuration.maximumNoiseSuppressionDB,
+            configuration.minimumNoiseSuppressionDB + (distanceBelowFloor * 2)
+        )
+
+        return min(-suppressionDB, -currentGainDB)
     }
 
     private func recommendedGainDB(for samples: [Int16], rmsDBFS: Double) -> Double {
@@ -348,6 +381,16 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
         }
         guard peakAmplitude.isFinite, peakAmplitude > 0 else { return -160 }
         return 20 * log10(peakAmplitude)
+    }
+
+    private static func applyGain(to samples: [Int16], gainDB: Double) -> [Int16] {
+        guard gainDB != 0 else { return samples }
+
+        let multiplier = pow(10, gainDB / 20)
+        return samples.map { sample in
+            let amplified = Double(sample) * multiplier
+            return Int16(max(Double(Int16.min), min(amplified, Double(Int16.max))))
+        }
     }
 
     private static func percentile(_ values: [Double], fraction: Double) -> Double? {
