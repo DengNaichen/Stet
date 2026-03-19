@@ -103,6 +103,9 @@ private struct MacDictationCapsuleSurface: View {
     let trailingOrb: CapsuleOrbConfiguration?
 
     @State private var appeared = false
+    @State private var sideOrbProgress: CGFloat = 0
+    @State private var hasAnimatedEntrance = false
+    @State private var entranceTask: Task<Void, Never>?
     @State private var startDate = Date()
 
     private var scale: CGFloat {
@@ -197,11 +200,11 @@ private struct MacDictationCapsuleSurface: View {
     }
 
     private var leadingOrbProgress: CGFloat {
-        leadingOrb == nil ? 0 : 1
+        leadingOrb == nil ? 0 : sideOrbProgress
     }
 
     private var trailingOrbProgress: CGFloat {
-        trailingOrb == nil ? 0 : 1
+        trailingOrb == nil ? 0 : sideOrbProgress
     }
 
     private var leadingOrbX: CGFloat {
@@ -255,15 +258,12 @@ private struct MacDictationCapsuleSurface: View {
             }
             .frame(width: canvasSize.width, height: canvasSize.height)
         }
-        .scaleEffect(appeared ? 1.0 : 0.94)
+        .scaleEffect(appeared ? 1.0 : 0.3)
         .opacity(appeared ? 1.0 : 0.0)
         .onAppear {
-            if !appeared {
-                withAnimation(.spring(response: 0.46, dampingFraction: 0.78)) {
-                    appeared = true
-                }
-            }
+            runEntranceAnimationIfNeeded()
         }
+        .onDisappear(perform: resetEntranceAnimation)
         .animation(.spring(response: 0.56, dampingFraction: 0.82), value: state)
     }
 
@@ -485,6 +485,37 @@ private struct MacDictationCapsuleSurface: View {
 
     private func scaled(_ value: CGFloat) -> CGFloat {
         value * scale
+    }
+
+    private func runEntranceAnimationIfNeeded() {
+        guard !hasAnimatedEntrance else { return }
+
+        hasAnimatedEntrance = true
+        startDate = Date()
+        appeared = false
+        sideOrbProgress = 0
+
+        withAnimation(.spring(response: 0.50, dampingFraction: 0.68)) {
+            appeared = true
+        }
+
+        entranceTask?.cancel()
+        entranceTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 90_000_000)
+            guard !Task.isCancelled else { return }
+
+            withAnimation(.spring(response: 0.56, dampingFraction: 0.78)) {
+                sideOrbProgress = 1
+            }
+        }
+    }
+
+    private func resetEntranceAnimation() {
+        entranceTask?.cancel()
+        entranceTask = nil
+        hasAnimatedEntrance = false
+        appeared = false
+        sideOrbProgress = 0
     }
 }
 
