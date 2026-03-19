@@ -7,9 +7,7 @@ import Supabase
 final class SupabaseService {
     static let shared = SupabaseService()
 
-    private enum Configuration {
-        private static let environment = ProcessInfo.processInfo.environment
-        private static let infoDictionary = Bundle.main.infoDictionary ?? [:]
+    enum Configuration {
         private static let placeholderURL = "https://project-name.supabase.co"
         private static let placeholderKey = "your-project-key"
 
@@ -28,6 +26,20 @@ final class SupabaseService {
         }
 
         private static func resolvedValue(for key: String) -> String? {
+            resolvedValue(
+                for: key,
+                environment: ProcessInfo.processInfo.environment,
+                infoDictionary: Bundle.main.infoDictionary ?? [:],
+                fileManager: .default
+            )
+        }
+
+        static func resolvedValue(
+            for key: String,
+            environment: [String: String],
+            infoDictionary: [String: Any],
+            fileManager: FileManager
+        ) -> String? {
             let environmentValue = environment[key]?.trimmingCharacters(in: .whitespacesAndNewlines)
             if let environmentValue, !environmentValue.isEmpty {
                 return environmentValue
@@ -38,7 +50,87 @@ final class SupabaseService {
                 return infoValue
             }
 
+            let envFileValue = localEnvFileValues(fileManager: fileManager)[key]?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if let envFileValue, !envFileValue.isEmpty {
+                return envFileValue
+            }
+
             return nil
+        }
+
+        private static func localEnvFileValues(fileManager: FileManager) -> [String: String] {
+            for url in candidateEnvFileURLs(fileManager: fileManager) {
+                guard let contents = try? String(contentsOf: url, encoding: .utf8) else {
+                    continue
+                }
+
+                let values = parseDotEnv(contents)
+                if !values.isEmpty {
+                    return values
+                }
+            }
+
+            return [:]
+        }
+
+        private static func candidateEnvFileURLs(fileManager: FileManager) -> [URL] {
+            var urls: [URL] = []
+            let currentDirectory = URL(fileURLWithPath: fileManager.currentDirectoryPath, isDirectory: true)
+            let homeDirectory = fileManager.homeDirectoryForCurrentUser
+
+            let relativePaths = [
+                ".env",
+                ".env.local",
+                "apps/mac/Stet/.env",
+                "apps/mac/Stet/.env.local",
+                "apps/backend/.env",
+                "apps/backend/.env.local",
+            ]
+
+            for baseURL in [currentDirectory, homeDirectory] {
+                for relativePath in relativePaths {
+                    urls.append(baseURL.appendingPathComponent(relativePath))
+                }
+            }
+
+            return urls
+        }
+
+        private static func parseDotEnv(_ contents: String) -> [String: String] {
+            var values: [String: String] = [:]
+
+            for rawLine in contents.split(whereSeparator: \.isNewline) {
+                let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !line.isEmpty, !line.hasPrefix("#") else {
+                    continue
+                }
+
+                if let equalsIndex = line.firstIndex(of: "=") {
+                    let key = line[..<equalsIndex].trimmingCharacters(in: .whitespacesAndNewlines)
+                    let valueStart = line.index(after: equalsIndex)
+                    let value = line[valueStart...].trimmingCharacters(in: .whitespacesAndNewlines)
+
+                    guard !key.isEmpty else { continue }
+                    values[key] = unquoteDotEnvValue(value)
+                }
+            }
+
+            return values
+        }
+
+        private static func unquoteDotEnvValue(_ value: String) -> String {
+            guard value.count >= 2 else { return value }
+
+            let first = value.first
+            let last = value.last
+            if (first == "\"" && last == "\"") || (first == "'" && last == "'") {
+                let start = value.index(after: value.startIndex)
+                let end = value.index(before: value.endIndex)
+                return String(value[start..<end])
+            }
+
+            return value
         }
     }
 
@@ -48,7 +140,7 @@ final class SupabaseService {
         var errorDescription: String? {
             switch self {
             case .missingConfiguration:
-                return "Supabase is not configured. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in the scheme environment or target build settings before signing in."
+                return "Supabase is not configured. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in the scheme environment, target build settings, or a local .env file before signing in."
             }
         }
     }

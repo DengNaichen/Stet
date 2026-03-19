@@ -20,76 +20,6 @@ struct DefaultAudioPostProcessorTests {
         #expect(result.url == fileURL)
     }
 
-    @Test func interactionSoundOnlyCaptureIsDiscarded() async throws {
-        for preset in InteractionSoundPreset.allCases {
-            let soundName = switch preset {
-            case .soft: "Submarine"
-            case .glass: "Glass"
-            }
-            let fileURL = try Self.makeSystemSoundCapture(soundName: soundName)
-            defer { try? FileManager.default.removeItem(at: fileURL) }
-
-            let result = try await Self.makePostProcessor(interactionSoundPreset: preset).processAudioFile(
-                at: fileURL,
-                duration: nil
-            )
-
-            #expect(result.shouldDiscardAsNoSpeech)
-            #expect(result.url == fileURL)
-        }
-    }
-
-    @Test func interactionSoundFollowedBySpeechIsKept() async throws {
-        let fileURL = try Self.makeSystemSoundCapture(
-            soundName: "Glass",
-            appendedSamples: Self.makeSpeechLikeSamples(amplitude: 600)
-        )
-        defer { try? FileManager.default.removeItem(at: fileURL) }
-
-        let result = try await Self.makePostProcessor(interactionSoundPreset: .glass).processAudioFile(
-            at: fileURL,
-            duration: nil
-        )
-        defer {
-            for url in result.cleanupURLs where url != fileURL {
-                try? FileManager.default.removeItem(at: url)
-            }
-        }
-
-        #expect(!result.shouldDiscardAsNoSpeech)
-    }
-
-    @Test func interactionSoundFollowedByFiveSecondsOfSilenceIsDiscarded() async throws {
-        let fileURL = try Self.makeSystemSoundCapture(
-            soundName: "Glass",
-            appendedSamples: Array(repeating: 0, count: 80_000)
-        )
-        defer { try? FileManager.default.removeItem(at: fileURL) }
-
-        let result = try await Self.makePostProcessor(interactionSoundPreset: .glass).processAudioFile(
-            at: fileURL,
-            duration: nil
-        )
-
-        #expect(result.shouldDiscardAsNoSpeech)
-        #expect(result.url == fileURL)
-    }
-
-    @Test func acousticBeepOnlyCaptureIsDiscarded() async throws {
-        let fileURL = try Self.makePCMFileURL(
-            samples: Self.makeAcousticBeepSamples() + Array(repeating: 0, count: 12_000)
-        )
-        defer { try? FileManager.default.removeItem(at: fileURL) }
-
-        let result = try await Self.makePostProcessor(interactionSoundPreset: .glass).processAudioFile(
-            at: fileURL,
-            duration: nil
-        )
-
-        #expect(result.shouldDiscardAsNoSpeech)
-        #expect(result.url == fileURL)
-    }
-
     @Test func stationaryNoiseOnlyCaptureIsDiscarded() async throws {
         let fileURL = try Self.makePCMFileURL(samples: Self.makeStationaryNoiseSamples())
         defer { try? FileManager.default.removeItem(at: fileURL) }
@@ -215,21 +145,6 @@ struct DefaultAudioPostProcessorTests {
         return leadingSilence + speech + trailingSilence
     }
 
-    private static func makeAcousticBeepSamples() -> [Int16] {
-        let sampleRate = 16_000.0
-        let sampleCount = 3_200
-
-        return (0..<sampleCount).map { index -> Int16 in
-            let time = Double(index) / sampleRate
-            let decay = exp(-4.5 * time)
-            let chirpFrequency = 1_150.0 + 550.0 * time
-            let resonance = sin(2 * .pi * chirpFrequency * time)
-            let tail = 0.35 * sin(2 * .pi * 2_400.0 * time)
-            let sample = 7_500.0 * decay * (0.8 * resonance + tail)
-            return Int16(max(Double(Int16.min), min(sample, Double(Int16.max))))
-        }
-    }
-
     private static func makeStationaryNoiseSamples() -> [Int16] {
         let sampleRate = 16_000.0
         let sampleCount = 16_000
@@ -262,46 +177,6 @@ struct DefaultAudioPostProcessorTests {
         }
     }
 
-    private static func makeSystemSoundCapture(
-        soundName: String,
-        appendedSamples: [Int16] = []
-    ) throws -> URL {
-        let soundURL = URL(fileURLWithPath: "/System/Library/Sounds/\(soundName).aiff")
-        let sourceFile = try AVAudioFile(forReading: soundURL)
-        let outputFormat = try #require(
-            AVAudioFormat(
-                commonFormat: .pcmFormatInt16,
-                sampleRate: TranscriptionUploadAudioFormat.macSampleRate,
-                channels: TranscriptionUploadAudioFormat.macChannelCount,
-                interleaved: false
-            )
-        )
-        let converter = try #require(
-            LinearPCMConversion.makeConverter(
-                from: sourceFile.processingFormat,
-                to: outputFormat
-            )
-        )
-        let inputBuffer = try #require(
-            AVAudioPCMBuffer(
-                pcmFormat: sourceFile.processingFormat,
-                frameCapacity: AVAudioFrameCount(sourceFile.length)
-            )
-        )
-        try sourceFile.read(into: inputBuffer)
-        let convertedBuffer = try LinearPCMConversion.convert(
-            inputBuffer,
-            using: converter,
-            outputFormat: outputFormat
-        )
-        let channelData = try #require(convertedBuffer.int16ChannelData)
-        let convertedSamples = (0..<Int(convertedBuffer.frameLength)).map { index in
-            channelData[0][index]
-        }
-
-        return try makePCMFileURL(samples: convertedSamples + appendedSamples)
-    }
-
     private static func makePostProcessor(
         interactionSoundsEnabled: Bool = true,
         interactionSoundPreset: InteractionSoundPreset = .soft
@@ -314,15 +189,6 @@ struct DefaultAudioPostProcessorTests {
             secretStore: TestSecretStore()
         )
         return DefaultAudioPostProcessor(settingsStore: settingsStore)
-    }
-
-    private static func makePostProcessor(
-        interactionSoundPreset: InteractionSoundPreset
-    ) -> DefaultAudioPostProcessor {
-        makePostProcessor(
-            interactionSoundsEnabled: true,
-            interactionSoundPreset: interactionSoundPreset
-        )
     }
 
     private static func peakAmplitude(at fileURL: URL) throws -> Double? {

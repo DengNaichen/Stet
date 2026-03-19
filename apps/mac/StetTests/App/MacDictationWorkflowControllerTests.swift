@@ -19,6 +19,47 @@ private final class TestMediaPlaybackController: MediaPlaybackControlling {
 }
 
 @MainActor
+private final class TestInteractionSoundPlayer: InteractionSoundPlaying {
+    private(set) var startPromptCallCount = 0
+    private(set) var finishCallCount = 0
+    private(set) var previewCallCount = 0
+    var waitForPromptCompletion = false
+    private var promptContinuation: CheckedContinuation<Void, Never>?
+    private var shouldFinishPendingPrompt = false
+
+    func playStartPrompt(preset _: InteractionSoundPreset) async {
+        startPromptCallCount += 1
+        guard waitForPromptCompletion else { return }
+
+        if shouldFinishPendingPrompt {
+            shouldFinishPendingPrompt = false
+            return
+        }
+
+        await withCheckedContinuation { continuation in
+            promptContinuation = continuation
+        }
+    }
+
+    func playFinish(preset _: InteractionSoundPreset) {
+        finishCallCount += 1
+    }
+
+    func playPreview(preset _: InteractionSoundPreset) {
+        previewCallCount += 1
+    }
+
+    func finishPrompt() {
+        if let promptContinuation {
+            self.promptContinuation = nil
+            promptContinuation.resume()
+        } else {
+            shouldFinishPendingPrompt = true
+        }
+    }
+}
+
+@MainActor
 @Suite("Mac Dictation Workflow Controller", .serialized)
 struct MacDictationWorkflowControllerTests {
     private func makeController(
@@ -26,19 +67,24 @@ struct MacDictationWorkflowControllerTests {
         speechService: ControllableSpeechService? = nil,
         textInjectionService: TestTextInjectionService? = nil,
         mediaPlaybackController: TestMediaPlaybackController? = nil,
+        interactionSoundPlayer: TestInteractionSoundPlayer? = nil,
         mediaResumeDelay: Duration = .zero
     ) -> (
         controller: MacDictationWorkflowController,
         viewModel: DictationViewModel,
         clipboard: TestClipboardService,
         textInjectionService: TestTextInjectionService,
-        mediaPlaybackController: TestMediaPlaybackController
+        mediaPlaybackController: TestMediaPlaybackController,
+        interactionSoundPlayer: TestInteractionSoundPlayer
     ) {
         let defaults = defaults ?? TestSupport.makeUserDefaults()
         let speechService = speechService ?? ControllableSpeechService()
         let textInjectionService = textInjectionService ?? TestTextInjectionService()
         let mediaPlaybackController = mediaPlaybackController ?? TestMediaPlaybackController()
-        defaults.set(false, forKey: MacPreferences.interactionSoundsEnabled)
+        let interactionSoundPlayer = interactionSoundPlayer ?? TestInteractionSoundPlayer()
+        if defaults.object(forKey: MacPreferences.interactionSoundsEnabled) == nil {
+            defaults.set(false, forKey: MacPreferences.interactionSoundsEnabled)
+        }
         let settingsStore = DictationSettingsStore(
             defaults: defaults,
             secretStore: TestSecretStore()
@@ -56,7 +102,7 @@ struct MacDictationWorkflowControllerTests {
             textInjectionService: textInjectionService,
             mediaPlaybackController: mediaPlaybackController,
             settingsStore: settingsStore,
-            interactionSoundPlayer: InteractionSoundPlayer(),
+            interactionSoundPlayer: interactionSoundPlayer,
             mediaResumeDelay: mediaResumeDelay
         )
 
@@ -65,7 +111,8 @@ struct MacDictationWorkflowControllerTests {
             viewModel: viewModel,
             clipboard: clipboard,
             textInjectionService: textInjectionService,
-            mediaPlaybackController: mediaPlaybackController
+            mediaPlaybackController: mediaPlaybackController,
+            interactionSoundPlayer: interactionSoundPlayer
         )
     }
 
@@ -114,10 +161,8 @@ struct MacDictationWorkflowControllerTests {
         )
 
         subject.controller.startDictationCapture(source: .hotkey) {}
-        #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
-        subject.controller.handleStateTransition(from: .idle, to: .listening)
-
         #expect(subject.mediaPlaybackController.pauseCallCount == 1)
+        #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
 
         subject.viewModel.send(.stopTapped)
         subject.controller.handleStateTransition(from: .listening, to: .processing)
@@ -239,10 +284,8 @@ struct MacDictationWorkflowControllerTests {
         )
 
         subject.controller.startDictationCapture(source: .interface) {}
-        #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
-        subject.controller.handleStateTransition(from: .idle, to: .listening)
-
         #expect(subject.mediaPlaybackController.pauseCallCount == 1)
+        #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
 
         subject.viewModel.send(.stopTapped)
         subject.controller.handleStateTransition(from: .listening, to: .processing)
@@ -264,8 +307,8 @@ struct MacDictationWorkflowControllerTests {
         )
 
         subject.controller.startDictationCapture(source: .interface) {}
+        #expect(subject.mediaPlaybackController.pauseCallCount == 1)
         #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
-        subject.controller.handleStateTransition(from: .idle, to: .listening)
 
         subject.viewModel.send(.stopTapped)
         subject.controller.handleStateTransition(from: .listening, to: .processing)
@@ -292,8 +335,8 @@ struct MacDictationWorkflowControllerTests {
         )
 
         subject.controller.startDictationCapture(source: .interface) {}
+        #expect(subject.mediaPlaybackController.pauseCallCount == 1)
         #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
-        subject.controller.handleStateTransition(from: .idle, to: .listening)
 
         subject.viewModel.send(.stopTapped)
         subject.controller.handleStateTransition(from: .listening, to: .processing)
@@ -317,8 +360,8 @@ struct MacDictationWorkflowControllerTests {
         )
 
         subject.controller.startDictationCapture(source: .interface) {}
+        #expect(subject.mediaPlaybackController.pauseCallCount == 1)
         #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
-        subject.controller.handleStateTransition(from: .idle, to: .listening)
 
         subject.viewModel.send(.stopTapped)
         subject.controller.handleStateTransition(from: .listening, to: .processing)
@@ -330,6 +373,36 @@ struct MacDictationWorkflowControllerTests {
         #expect(await TestSupport.eventually(timeout: .milliseconds(400)) {
             subject.mediaPlaybackController.resumeCallCount == 1
         })
+    }
+
+    @Test func promptPlaybackRunsInParallelWithWarmupAndDelaysListeningUntilCompletion() async {
+        let defaults = TestSupport.makeUserDefaults()
+        defaults.set(true, forKey: MacPreferences.pauseMediaDuringDictation)
+        defaults.set(true, forKey: MacPreferences.interactionSoundsEnabled)
+        let speechService = ControllableSpeechService()
+        await speechService.setActivationBehavior(.suspended)
+        let interactionSoundPlayer = TestInteractionSoundPlayer()
+        interactionSoundPlayer.waitForPromptCompletion = true
+        let subject = makeController(
+            defaults: defaults,
+            speechService: speechService,
+            interactionSoundPlayer: interactionSoundPlayer
+        )
+
+        subject.controller.startDictationCapture(source: .hotkey) {}
+
+        #expect(subject.mediaPlaybackController.pauseCallCount == 1)
+        #expect(await TestSupport.eventually(timeout: .seconds(3)) {
+            subject.viewModel.state == .starting && subject.viewModel.recordingLevel > 0
+        })
+        #expect(await speechService.counts().activate == 0)
+
+        interactionSoundPlayer.finishPrompt()
+        #expect(await TestSupport.eventuallyAsync(timeout: .seconds(3)) { await speechService.counts().activate == 1 })
+        #expect(subject.viewModel.state == .starting)
+
+        await speechService.allowActivation()
+        #expect(await TestSupport.eventually(timeout: .seconds(3)) { subject.viewModel.state == .listening })
     }
 }
 #endif

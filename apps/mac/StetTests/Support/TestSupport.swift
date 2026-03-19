@@ -175,8 +175,14 @@ final class TestTextInjectionService: TextInjectionService {
     }
 }
 
-actor ControllableSpeechService: SpeechService, AudioLevelSource {
+actor ControllableSpeechService: SpeechService, AudioLevelSource, AudioCaptureEventSource {
     enum StartBehavior: Sendable {
+        case immediate
+        case suspended
+        case fail(any Error & Sendable)
+    }
+
+    enum ActivationBehavior: Sendable {
         case immediate
         case suspended
         case fail(any Error & Sendable)
@@ -189,12 +195,16 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
     }
 
     private let audioLevelBridge = AudioLevelBridge()
+    private let audioCaptureEventBridge = AudioCaptureEventBridge()
     private var startContinuation: CheckedContinuation<Void, Error>?
+    private var activationContinuation: CheckedContinuation<Void, Error>?
     private var stopContinuation: CheckedContinuation<String, Error>?
 
     private var startBehavior: StartBehavior = .immediate
+    private var activationBehavior: ActivationBehavior = .immediate
     private var stopBehavior: StopBehavior = .immediate("transcript")
     private(set) var startCallCount = 0
+    private(set) var activationCallCount = 0
     private(set) var stopCallCount = 0
     private(set) var cancelCallCount = 0
 
@@ -202,12 +212,16 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
         startBehavior = behavior
     }
 
+    func setActivationBehavior(_ behavior: ActivationBehavior) {
+        activationBehavior = behavior
+    }
+
     func setStopBehavior(_ behavior: StopBehavior) {
         stopBehavior = behavior
     }
 
-    func counts() -> (start: Int, stop: Int, cancel: Int) {
-        (startCallCount, stopCallCount, cancelCallCount)
+    func counts() -> (start: Int, activate: Int, stop: Int, cancel: Int) {
+        (startCallCount, activationCallCount, stopCallCount, cancelCallCount)
     }
 
     func startRecording() async throws {
@@ -219,6 +233,21 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
         case .suspended:
             try await withCheckedThrowingContinuation { continuation in
                 startContinuation = continuation
+            }
+        case .fail(let error):
+            throw error
+        }
+    }
+
+    func activateRecordingWindow() async throws {
+        activationCallCount += 1
+
+        switch activationBehavior {
+        case .immediate:
+            return
+        case .suspended:
+            try await withCheckedThrowingContinuation { continuation in
+                activationContinuation = continuation
             }
         case .fail(let error):
             throw error
@@ -244,14 +273,22 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
         cancelCallCount += 1
         startContinuation?.resume(throwing: CancellationError())
         startContinuation = nil
+        activationContinuation?.resume(throwing: CancellationError())
+        activationContinuation = nil
         stopContinuation?.resume(throwing: CancellationError())
         stopContinuation = nil
         audioLevelBridge.finish()
+        audioCaptureEventBridge.finish()
     }
 
     func allowStart() {
         startContinuation?.resume(returning: ())
         startContinuation = nil
+    }
+
+    func allowActivation() {
+        activationContinuation?.resume(returning: ())
+        activationContinuation = nil
     }
 
     func finishStop(with text: String) {
@@ -274,6 +311,14 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
 
     func makeAudioLevelStream() async -> AsyncStream<Double> {
         audioLevelBridge.makeStream()
+    }
+
+    func emitCaptureEvent(_ event: AudioCaptureEvent) {
+        audioCaptureEventBridge.emit(event)
+    }
+
+    func makeAudioCaptureEventStream() async -> AsyncStream<AudioCaptureEvent> {
+        audioCaptureEventBridge.makeStream()
     }
 }
 

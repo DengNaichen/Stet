@@ -1,16 +1,18 @@
 import Foundation
 
-actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
+actor ConfigurableSpeechService: SpeechService, AudioLevelSource, AudioCaptureEventSource {
     private let settingsStore: DictationSettingsStore
     private let locale: Locale
     private let pipelineFactory: DictationPipelineFactory
     private let captureServiceFactory: @Sendable () -> any AudioCaptureService
     private let audioPostProcessor: any AudioPostProcessing
     private let audioLevelBridge = AudioLevelBridge()
+    private let audioCaptureEventBridge = AudioCaptureEventBridge()
 
     private var activePipeline: DictationPipeline?
     private var activeCaptureService: (any AudioCaptureService)?
     private var audioLevelTask: Task<Void, Never>?
+    private var audioCaptureEventTask: Task<Void, Never>?
     private var reusableCaptureService: (any AudioCaptureService)?
 
     init(
@@ -46,6 +48,10 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         audioLevelBridge.makeStream()
     }
 
+    func makeAudioCaptureEventStream() async -> AsyncStream<AudioCaptureEvent> {
+        audioCaptureEventBridge.makeStream()
+    }
+
     func startRecording() async throws {
         guard activePipeline == nil else {
             throw SpeechServiceError.alreadyRecording
@@ -66,20 +72,31 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
         do {
             try await captureService.startRecording()
-            startAudioLevelForwarding(using: captureService)
+            await startAudioLevelForwarding(using: captureService)
+            await startAudioCaptureEventForwarding(using: captureService)
         } catch is CancellationError {
             activePipeline = nil
             activeCaptureService = nil
             stopAudioLevelForwarding()
+            stopAudioCaptureEventForwarding()
             await DictationStartupProbe.shared.record(.cancelled)
             throw CancellationError()
         } catch {
             activePipeline = nil
             activeCaptureService = nil
             stopAudioLevelForwarding()
+            stopAudioCaptureEventForwarding()
             await DictationStartupProbe.shared.record(.failed, note: error.localizedDescription)
             throw error
         }
+    }
+
+    func activateRecordingWindow() async throws {
+        guard let captureService = activeCaptureService else {
+            throw SpeechServiceError.notRecording
+        }
+
+        try await captureService.activateRecordingWindow()
     }
 
     func stopRecording() async throws -> String {
@@ -92,6 +109,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             self.activePipeline = nil
             self.activeCaptureService = nil
             stopAudioLevelForwarding()
+            stopAudioCaptureEventForwarding()
         }
 
         let captureResult = try await captureService.stopRecording()
@@ -169,19 +187,21 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         let captureService = activeCaptureService
         activeCaptureService = nil
         stopAudioLevelForwarding()
+        stopAudioCaptureEventForwarding()
         if let captureService {
             await captureService.cancelRecording()
         }
     }
 
-    private func startAudioLevelForwarding(using captureService: any AudioCaptureService) {
-        stopAudioLevelForwarding()
+    private func startAudioLevelForwarding(using captureService: any AudioCaptureService) async {
+        audioLevelTask?.cancel()
+        audioLevelTask = nil
 
         guard let streamingService = captureService as? any AudioLevelSource else { return }
         let audioLevelBridge = self.audioLevelBridge
+        let stream = await streamingService.makeAudioLevelStream()
 
         audioLevelTask = Task {
-            let stream = await streamingService.makeAudioLevelStream()
             for await level in stream {
                 if Task.isCancelled {
                     break
@@ -197,5 +217,30 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         audioLevelTask = nil
         audioLevelBridge.emit(0)
         audioLevelBridge.finish()
+    }
+
+    private func startAudioCaptureEventForwarding(using captureService: any AudioCaptureService) async {
+        audioCaptureEventTask?.cancel()
+        audioCaptureEventTask = nil
+
+        guard let eventSource = captureService as? any AudioCaptureEventSource else { return }
+        let audioCaptureEventBridge = self.audioCaptureEventBridge
+        let stream = await eventSource.makeAudioCaptureEventStream()
+
+        audioCaptureEventTask = Task {
+            for await event in stream {
+                if Task.isCancelled {
+                    break
+                }
+
+                audioCaptureEventBridge.emit(event)
+            }
+        }
+    }
+
+    private func stopAudioCaptureEventForwarding() {
+        audioCaptureEventTask?.cancel()
+        audioCaptureEventTask = nil
+        audioCaptureEventBridge.finish()
     }
 }

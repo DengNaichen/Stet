@@ -9,8 +9,12 @@ final class DictationViewModel: ObservableObject {
     private let speechService: any SpeechService
     private var activeTask: Task<Void, Never>?
     private var levelTask: Task<Void, Never>?
+    private var captureEventTask: Task<Void, Never>?
     private var isStartingRecording = false
+    private var isActivatingRecordingWindow = false
+    private var hasPreparedCapture = false
     private var pendingStopAfterStart = false
+    private var pendingActivationAfterStart = false
     private var resultTransformer: ResultTransformer?
 
     @Published private(set) var state: DictationState = .idle
@@ -49,6 +53,13 @@ final class DictationViewModel: ObservableObject {
     }
 
     func startCapture(transform: ResultTransformer? = nil) {
+        startCapture(activateWhenReady: true, transform: transform)
+    }
+
+    func startCapture(
+        activateWhenReady: Bool,
+        transform: ResultTransformer? = nil
+    ) {
         Task {
             await DictationRuntimeProbe.shared.markCaptureStartRequested()
             await DictationRuntimeProbe.shared.markAction("startCapture")
@@ -56,8 +67,12 @@ final class DictationViewModel: ObservableObject {
 
         activeTask?.cancel()
         levelTask?.cancel()
+        captureEventTask?.cancel()
         isStartingRecording = true
+        isActivatingRecordingWindow = false
+        hasPreparedCapture = false
         pendingStopAfterStart = false
+        pendingActivationAfterStart = false
         resultTransformer = transform
         recordingLevel = 0
         state = .starting
@@ -68,8 +83,77 @@ final class DictationViewModel: ObservableObject {
                 if Task.isCancelled { return }
 
                 isStartingRecording = false
+                hasPreparedCapture = true
                 recordingLevel = 0.08
                 startLevelMonitoring()
+
+                if pendingStopAfterStart {
+                    pendingStopAfterStart = false
+                    stopCapture()
+                    return
+                }
+
+                if activateWhenReady || pendingActivationAfterStart {
+                    pendingActivationAfterStart = false
+                    activateCaptureWindow()
+                }
+            } catch is CancellationError {
+                isStartingRecording = false
+                isActivatingRecordingWindow = false
+                hasPreparedCapture = false
+                pendingStopAfterStart = false
+                pendingActivationAfterStart = false
+                resultTransformer = nil
+                finishLevelMonitoring()
+                finishCaptureEventMonitoring()
+                state = .idle
+                Task {
+                    await DictationRuntimeProbe.shared.markCaptureStartError("cancelled")
+                }
+                Task {
+                    await DictationStartupProbe.shared.record(.cancelled)
+                }
+            } catch {
+                isStartingRecording = false
+                isActivatingRecordingWindow = false
+                hasPreparedCapture = false
+                pendingStopAfterStart = false
+                pendingActivationAfterStart = false
+                resultTransformer = nil
+                finishLevelMonitoring()
+                finishCaptureEventMonitoring()
+                state = .error(.from(error))
+                Task {
+                    await DictationRuntimeProbe.shared.markCaptureStartError(error.localizedDescription)
+                }
+                Task {
+                    await DictationStartupProbe.shared.record(.failed, note: error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    func activateCaptureWindow() {
+        if isStartingRecording {
+            pendingActivationAfterStart = true
+            return
+        }
+
+        guard hasPreparedCapture,
+              !isActivatingRecordingWindow,
+              state == .starting else {
+            return
+        }
+
+        isActivatingRecordingWindow = true
+
+        activeTask = Task {
+            do {
+                try await speechService.activateRecordingWindow()
+                if Task.isCancelled { return }
+
+                isActivatingRecordingWindow = false
+                startCaptureEventMonitoring()
                 state = .listening
                 Task {
                     await DictationRuntimeProbe.shared.markAction("enteredListening")
@@ -83,29 +167,21 @@ final class DictationViewModel: ObservableObject {
                     stopCapture()
                 }
             } catch is CancellationError {
-                isStartingRecording = false
-                pendingStopAfterStart = false
+                isActivatingRecordingWindow = false
+                hasPreparedCapture = false
+                pendingActivationAfterStart = false
                 resultTransformer = nil
                 finishLevelMonitoring()
+                finishCaptureEventMonitoring()
                 state = .idle
-                Task {
-                    await DictationRuntimeProbe.shared.markCaptureStartError("cancelled")
-                }
-                Task {
-                    await DictationStartupProbe.shared.record(.cancelled)
-                }
             } catch {
-                isStartingRecording = false
-                pendingStopAfterStart = false
+                isActivatingRecordingWindow = false
+                hasPreparedCapture = false
+                pendingActivationAfterStart = false
                 resultTransformer = nil
                 finishLevelMonitoring()
+                finishCaptureEventMonitoring()
                 state = .error(.from(error))
-                Task {
-                    await DictationRuntimeProbe.shared.markCaptureStartError(error.localizedDescription)
-                }
-                Task {
-                    await DictationStartupProbe.shared.record(.failed, note: error.localizedDescription)
-                }
             }
         }
     }
@@ -115,13 +191,17 @@ final class DictationViewModel: ObservableObject {
             await DictationRuntimeProbe.shared.markCaptureStopRequested()
             await DictationRuntimeProbe.shared.markAudioStopRequested()
         }
-        if isStartingRecording {
+        if isStartingRecording || isActivatingRecordingWindow {
             pendingStopAfterStart = true
             return
         }
 
         pendingStopAfterStart = false
+        pendingActivationAfterStart = false
+        hasPreparedCapture = false
+        isActivatingRecordingWindow = false
         finishLevelMonitoring()
+        finishCaptureEventMonitoring()
         state = .processing
         Task {
             await DictationRuntimeProbe.shared.markAction("processingFromStopCapture")
@@ -141,18 +221,27 @@ final class DictationViewModel: ObservableObject {
                 send(.transcriptionSucceeded(finalText))
             } catch is CancellationError {
                 resultTransformer = nil
+                hasPreparedCapture = false
+                isActivatingRecordingWindow = false
                 finishLevelMonitoring()
+                finishCaptureEventMonitoring()
                 state = .idle
             } catch let error as SpeechServiceError where error == .emptyTranscription {
                 resultTransformer = nil
+                hasPreparedCapture = false
+                isActivatingRecordingWindow = false
                 finishLevelMonitoring()
+                finishCaptureEventMonitoring()
                 state = .idle
                 Task {
                     await DictationRuntimeProbe.shared.markAction("stopCaptureEmptyTranscription")
                 }
             } catch {
                 resultTransformer = nil
+                hasPreparedCapture = false
+                isActivatingRecordingWindow = false
                 finishLevelMonitoring()
+                finishCaptureEventMonitoring()
                 send(.transcriptionFailed(.from(error)))
                 Task {
                     await DictationRuntimeProbe.shared.markAction("stopCaptureFailed")
@@ -164,8 +253,12 @@ final class DictationViewModel: ObservableObject {
     func runProcessingOperation(_ operation: @escaping ExternalOperation) {
         activeTask?.cancel()
         finishLevelMonitoring()
+        finishCaptureEventMonitoring()
         isStartingRecording = false
+        isActivatingRecordingWindow = false
+        hasPreparedCapture = false
         pendingStopAfterStart = false
+        pendingActivationAfterStart = false
         resultTransformer = nil
         state = .processing
 
@@ -176,9 +269,11 @@ final class DictationViewModel: ObservableObject {
                 send(.transcriptionSucceeded(text))
             } catch is CancellationError {
                 finishLevelMonitoring()
+                finishCaptureEventMonitoring()
                 state = .idle
             } catch {
                 finishLevelMonitoring()
+                finishCaptureEventMonitoring()
                 send(.transcriptionFailed(.from(error)))
             }
         }
@@ -190,8 +285,12 @@ final class DictationViewModel: ObservableObject {
         }
         activeTask?.cancel()
         finishLevelMonitoring()
+        finishCaptureEventMonitoring()
         isStartingRecording = false
+        isActivatingRecordingWindow = false
+        hasPreparedCapture = false
         pendingStopAfterStart = false
+        pendingActivationAfterStart = false
         resultTransformer = nil
         activeTask = Task {
             await speechService.cancelRecording()
@@ -221,6 +320,32 @@ final class DictationViewModel: ObservableObject {
         levelTask?.cancel()
         levelTask = nil
         recordingLevel = 0
+    }
+
+    private func startCaptureEventMonitoring() {
+        finishCaptureEventMonitoring()
+        guard let eventSource = speechService as? any AudioCaptureEventSource else { return }
+
+        captureEventTask = Task { @MainActor [weak self] in
+            let stream = await eventSource.makeAudioCaptureEventStream()
+            for await event in stream {
+                guard !Task.isCancelled else { break }
+                guard let self else { break }
+
+                switch event {
+                case .endpointDetected:
+                    if state.isCaptureInFlight {
+                        stopCapture()
+                    }
+                    return
+                }
+            }
+        }
+    }
+
+    private func finishCaptureEventMonitoring() {
+        captureEventTask?.cancel()
+        captureEventTask = nil
     }
 
     private func actionName(for action: DictationAction) -> String {

@@ -48,17 +48,10 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
         static let minimumSpeechRunFrameCount = 3
         static let minimumConfirmationSpeechFrameCount = 2
         static let minimumConfirmationSpeechRunFrameCount = 2
-        static let minimumSpeechFrameCountAfterLeadingTransient = 10
-        static let minimumSpeechRunFrameCountAfterLeadingTransient = 6
-        static let minimumConfirmationSpeechFrameCountAfterLeadingTransient = 4
-        static let minimumConfirmationSpeechRunFrameCountAfterLeadingTransient = 3
         static let minimumSpeechRiseAboveNoiseFloorDB = 1.0
         static let absoluteSpeechFloorDBFS = -72.0
         static let speechPreRollFrameCount = 1
         static let speechHangoverFrameCount = 5
-        static let leadingTransientWindowSeconds = 0.35
-        static let leadingTransientMaxDurationSeconds = 0.45
-        static let promptTailGraceFrameCount = 12
         static let targetSpeechDBFS = -20.0
         static let peakCeilingDBFS = -1.0
         static let maximumGainDB = 12.0
@@ -95,11 +88,7 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
         case invalidChunk
     }
 
-    private let settingsStore: DictationSettingsStore
-
-    init(settingsStore: DictationSettingsStore = DictationSettingsStore()) {
-        self.settingsStore = settingsStore
-    }
+    init(settingsStore _: DictationSettingsStore = DictationSettingsStore()) {}
 
     func processAudioFile(at sourceURL: URL, duration: TimeInterval?) async throws -> AudioPostProcessingResult {
         guard sourceURL.pathExtension.lowercased() == "wav" else {
@@ -118,11 +107,9 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
         }
 
         let effectiveDuration = duration ?? waveFile.duration
-        let settingsSnapshot = settingsStore.loadSnapshot()
         let analysis = try Self.analyze(
             samples: waveFile.samples,
-            sampleRate: waveFile.sampleRate,
-            interactionSoundsEnabled: settingsSnapshot.interactionSoundsEnabled
+            sampleRate: waveFile.sampleRate
         )
 
         AppLogger.info(
@@ -171,8 +158,7 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
 
     private static func analyze(
         samples: [Int16],
-        sampleRate: Double,
-        interactionSoundsEnabled: Bool
+        sampleRate: Double
     ) throws -> Analysis {
         guard !samples.isEmpty, sampleRate > 0 else {
             return Analysis(
@@ -219,36 +205,12 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
 
         let speechFlags = smoothedSpeechFlags(from: rawSpeechFlags)
         let confirmationSpeechFlags = smoothedSpeechFlags(from: rawConfirmationSpeechFlags)
-        let speechEvidenceFlags = interactionSoundsEnabled
-            ? suppressLeadingTransientSpeech(
-                in: speechFlags,
-                referenceFlags: rawSpeechFlags,
-                maxStartFrameCount: Int(ceil(Configuration.leadingTransientWindowSeconds / Configuration.vadFrameDurationSeconds)),
-                maxRunFrameCount: Int(ceil(Configuration.leadingTransientMaxDurationSeconds / Configuration.vadFrameDurationSeconds))
-            )
-            : speechFlags
-        let confirmationSpeechEvidenceFlags = interactionSoundsEnabled
-            ? suppressLeadingTransientSpeech(
-                in: confirmationSpeechFlags,
-                referenceFlags: rawConfirmationSpeechFlags,
-                maxStartFrameCount: Int(ceil(Configuration.leadingTransientWindowSeconds / Configuration.vadFrameDurationSeconds)),
-                maxRunFrameCount: Int(ceil(Configuration.leadingTransientMaxDurationSeconds / Configuration.vadFrameDurationSeconds))
-            )
-            : confirmationSpeechFlags
-        let didSuppressLeadingTransient = speechEvidenceFlags != speechFlags ||
-            confirmationSpeechEvidenceFlags != confirmationSpeechFlags
-        let minimumSpeechFrameCount = didSuppressLeadingTransient
-            ? Configuration.minimumSpeechFrameCountAfterLeadingTransient
-            : Configuration.minimumSpeechFrameCount
-        let minimumSpeechRunFrameCount = didSuppressLeadingTransient
-            ? Configuration.minimumSpeechRunFrameCountAfterLeadingTransient
-            : Configuration.minimumSpeechRunFrameCount
-        let minimumConfirmationSpeechFrameCount = didSuppressLeadingTransient
-            ? Configuration.minimumConfirmationSpeechFrameCountAfterLeadingTransient
-            : Configuration.minimumConfirmationSpeechFrameCount
-        let minimumConfirmationSpeechRunFrameCount = didSuppressLeadingTransient
-            ? Configuration.minimumConfirmationSpeechRunFrameCountAfterLeadingTransient
-            : Configuration.minimumConfirmationSpeechRunFrameCount
+        let speechEvidenceFlags = speechFlags
+        let confirmationSpeechEvidenceFlags = confirmationSpeechFlags
+        let minimumSpeechFrameCount = Configuration.minimumSpeechFrameCount
+        let minimumSpeechRunFrameCount = Configuration.minimumSpeechRunFrameCount
+        let minimumConfirmationSpeechFrameCount = Configuration.minimumConfirmationSpeechFrameCount
+        let minimumConfirmationSpeechRunFrameCount = Configuration.minimumConfirmationSpeechRunFrameCount
         let speechFrameCount = speechEvidenceFlags.filter { $0 }.count
         let totalFrameCount = max(speechEvidenceFlags.count, 1)
         let confirmationSpeechFrameCount = confirmationSpeechEvidenceFlags.filter { $0 }.count
@@ -279,15 +241,6 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
             flags: speechEvidenceFlags,
             fraction: 0.75
         )
-        let promptOnlyLikely = interactionSoundsEnabled &&
-            isLikelyPromptOnlyCapture(
-                rawSpeechFlags: rawSpeechFlags,
-                rawConfirmationSpeechFlags: rawConfirmationSpeechFlags,
-                maxStartFrameCount: Int(ceil(Configuration.leadingTransientWindowSeconds / Configuration.vadFrameDurationSeconds)),
-                maxRunFrameCount: Int(ceil(Configuration.leadingTransientMaxDurationSeconds / Configuration.vadFrameDurationSeconds)),
-                promptTailGraceFrameCount: Configuration.promptTailGraceFrameCount,
-                minimumConfirmationSpeechRunFrameCount: minimumConfirmationSpeechRunFrameCount
-            )
         let hasConfirmationSpeech =
             confirmationSpeechFrameCount >= minimumConfirmationSpeechFrameCount &&
             confirmationLongestSpeechRun >= minimumConfirmationSpeechRunFrameCount
@@ -297,8 +250,7 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
                 noiseFloorDBFS + Configuration.minimumSpeechRiseAboveNoiseFloorDB
             )
 
-        guard !promptOnlyLikely,
-              speechFrameCount >= minimumSpeechFrameCount,
+        guard speechFrameCount >= minimumSpeechFrameCount,
               longestSpeechRun >= minimumSpeechRunFrameCount,
               hasSpeechRiseAboveNoiseFloor,
               hasConfirmationSpeech else {

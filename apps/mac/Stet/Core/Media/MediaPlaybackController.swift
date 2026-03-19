@@ -53,23 +53,18 @@ final class MacMediaPlaybackController: MediaPlaybackControlling {
     }
 
     private let dependencies: Dependencies
-    private let systemAudioMuter: any SystemAudioMuting
     private var didPausePlayback = false
-    private var didMuteSystemAudio = false
     private lazy var mediaRemote = dependencies.loadMediaRemoteClient()
 
     init(
-        systemAudioMuter: (any SystemAudioMuting)? = nil,
         callbackQueue: DispatchQueue = DispatchQueue(label: "Stet.media-remote"),
         dependencies: Dependencies? = nil
     ) {
-        self.systemAudioMuter = systemAudioMuter ?? SystemAudioMuteController()
         self.dependencies = dependencies ?? .live(callbackQueue: callbackQueue)
     }
 
     func pausePlaybackIfNeeded() {
         didPausePlayback = false
-        didMuteSystemAudio = systemAudioMuter.activateMuteIfNeeded()
 
         if let mediaRemote {
             guard mediaRemote.isPlaying() else {
@@ -88,11 +83,6 @@ final class MacMediaPlaybackController: MediaPlaybackControlling {
     func resumePlaybackIfNeeded() {
         let shouldResumePlayback = didPausePlayback
         didPausePlayback = false
-
-        if didMuteSystemAudio {
-            systemAudioMuter.restoreMuteIfNeeded()
-            didMuteSystemAudio = false
-        }
 
         guard shouldResumePlayback else {
             return

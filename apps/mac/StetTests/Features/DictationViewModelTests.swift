@@ -20,6 +20,7 @@ struct DictationViewModelTests {
 
         #expect(viewModel.state == .result("hello world"))
         #expect(await speechService.counts().stop == 1)
+        #expect(await speechService.counts().activate == 1)
     }
 
     @Test func stopWhileStartIsPendingDefersProcessingUntilCaptureActuallyStarts() async throws {
@@ -41,6 +42,7 @@ struct DictationViewModelTests {
 
         #expect(viewModel.state == .result("completed"))
         #expect(await speechService.counts().start == 1)
+        #expect(await speechService.counts().activate == 0)
         #expect(await speechService.counts().stop == 1)
     }
 
@@ -69,6 +71,23 @@ struct DictationViewModelTests {
 
         #expect(viewModel.state == .idle)
         #expect(await speechService.counts().cancel == 1)
+    }
+
+    @Test func explicitActivationKeepsViewModelStartingUntilActivated() async throws {
+        let speechService = ControllableSpeechService()
+        await speechService.setActivationBehavior(.suspended)
+        let viewModel = DictationViewModel(speechService: speechService)
+
+        viewModel.startCapture(activateWhenReady: false)
+        #expect(await TestSupport.eventuallyAsync { await speechService.counts().start == 1 })
+        #expect(viewModel.state == .starting)
+
+        viewModel.activateCaptureWindow()
+        #expect(await TestSupport.eventuallyAsync { await speechService.counts().activate == 1 })
+        #expect(viewModel.state == .starting)
+
+        await speechService.allowActivation()
+        #expect(await TestSupport.eventually { viewModel.state == .listening })
     }
 
     @Test func processingOperationFailurePublishesError() async {
@@ -130,5 +149,22 @@ struct DictationViewModelTests {
         viewModel.stopCapture()
 
         #expect(await TestSupport.eventually { viewModel.state == .idle })
+    }
+
+    @Test func endpointEventTriggersStopWithoutManualAction() async throws {
+        let speechService = ControllableSpeechService()
+        await speechService.setStopBehavior(.suspended)
+        let viewModel = DictationViewModel(speechService: speechService)
+
+        viewModel.startCapture()
+        #expect(await TestSupport.eventually { viewModel.state == .listening })
+
+        await speechService.emitCaptureEvent(.endpointDetected)
+
+        #expect(await TestSupport.eventually { viewModel.state == .processing })
+        #expect(await TestSupport.eventuallyAsync { await speechService.counts().stop == 1 })
+
+        await speechService.finishStop(with: "auto stopped")
+        #expect(await TestSupport.eventually { viewModel.state == .result("auto stopped") })
     }
 }

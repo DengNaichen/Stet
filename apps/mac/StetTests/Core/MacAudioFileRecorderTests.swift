@@ -29,7 +29,7 @@ struct MacAudioFileRecorderTests {
                 commonFormat: outputFormat.commonFormat,
                 interleaved: outputFormat.isInterleaved
             )
-            let session = MacAudioFileRecordingSession(
+            let session = try MacAudioFileRecordingSession(
                 recordingFile: recordingFile,
                 outputFormat: outputFormat
             )
