@@ -23,6 +23,7 @@ final class MacPanelController: NSObject, NSWindowDelegate {
         let screen = targetScreen()
         let layout = MacDictationPanelLayout.fixed
         let panelSize = layout.panelSize
+        let panelFrame = frame(for: screen, panelSize: panelSize, bottomInset: layout.bottomInset)
         let isNewAppModel = observedAppModel !== appModel
 
         observedAppModel = appModel
@@ -41,12 +42,7 @@ final class MacPanelController: NSObject, NSWindowDelegate {
             )
         }
 
-        positionPanel(
-            panel,
-            screen: screen,
-            panelSize: panelSize,
-            bottomInset: layout.bottomInset
-        )
+        positionPanel(panel, panelFrame: panelFrame, shouldCenter: screen == nil)
         panel.orderFrontRegardless()
 
         if mode == .manual {
@@ -92,27 +88,44 @@ final class MacPanelController: NSObject, NSWindowDelegate {
         return panel
     }
 
-    private func positionPanel(
-        _ panel: NSPanel,
-        screen: NSScreen?,
+    private func frame(
+        for screen: NSScreen?,
         panelSize: CGSize,
         bottomInset: CGFloat
-    ) {
+    ) -> NSRect {
         guard let screen else {
-            panel.setContentSize(panelSize)
-            panel.center()
-            return
+            return NSRect(origin: .zero, size: panelSize)
         }
 
         let visibleFrame = screen.visibleFrame
-        let frame = NSRect(
+        return NSRect(
             x: visibleFrame.midX - (panelSize.width / 2),
             y: visibleFrame.minY + bottomInset,
             width: panelSize.width,
             height: panelSize.height
         )
+    }
 
-        panel.setFrame(frame, display: true)
+    private func positionPanel(
+        _ panel: NSPanel,
+        panelFrame: NSRect,
+        shouldCenter: Bool
+    ) {
+        if shouldCenter {
+            if panel.frame.size != panelFrame.size {
+                panel.setContentSize(panelFrame.size)
+            }
+            panel.center()
+            return
+        }
+
+        if panel.frame.size != panelFrame.size {
+            panel.setContentSize(panelFrame.size)
+        }
+
+        if panel.frame.origin != panelFrame.origin {
+            panel.setFrameOrigin(panelFrame.origin)
+        }
     }
 
     private func targetScreen() -> NSScreen? {

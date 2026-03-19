@@ -33,13 +33,14 @@ final class MacDictationWorkflowController {
     private let textInjectionService: any TextInjectionService
     private let mediaPlaybackController: any MediaPlaybackControlling
     private let settingsStore: DictationSettingsStore
-    private let interactionSoundPlayer: InteractionSoundPlayer
+    private let interactionSoundPlayer: any InteractionSoundPlaying
     private let mediaResumeDelay: Duration
 
     private weak var lastTargetApplication: NSRunningApplication?
     private(set) var activeRecordingSource: PrimaryActionSource?
     private(set) var activeWorkflow: CaptureWorkflow = .dictation
     private var mediaResumeTask: Task<Void, Never>?
+    private var startActivationTask: Task<Void, Never>?
 
     init(
         dictationViewModel: DictationViewModel,
@@ -47,7 +48,7 @@ final class MacDictationWorkflowController {
         textInjectionService: any TextInjectionService,
         mediaPlaybackController: any MediaPlaybackControlling,
         settingsStore: DictationSettingsStore,
-        interactionSoundPlayer: InteractionSoundPlayer,
+        interactionSoundPlayer: any InteractionSoundPlaying,
         mediaResumeDelay: Duration = .seconds(1)
     ) {
         self.dictationViewModel = dictationViewModel
@@ -61,6 +62,7 @@ final class MacDictationWorkflowController {
 
     deinit {
         mediaResumeTask?.cancel()
+        startActivationTask?.cancel()
     }
 
     var statusText: String {
@@ -145,11 +147,35 @@ final class MacDictationWorkflowController {
         activeWorkflow = .dictation
         activeRecordingSource = source
         showTransientPanel()
-        dictationViewModel.startCapture()
+        mediaResumeTask?.cancel()
+        mediaResumeTask = nil
+
+        let settings = settingsSnapshot
+        if settings.shouldPauseMediaDuringDictation {
+            mediaPlaybackController.pausePlaybackIfNeeded()
+        }
+
+        dictationViewModel.startCapture(activateWhenReady: false)
+
+        startActivationTask?.cancel()
+        startActivationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            if settings.interactionSoundsEnabled {
+                await interactionSoundPlayer.playStartPrompt(preset: settings.interactionSoundPreset)
+            }
+
+            guard !Task.isCancelled else { return }
+            guard dictationViewModel.state == .starting else { return }
+            dictationViewModel.activateCaptureWindow()
+            startActivationTask = nil
+        }
     }
 
     func stopActiveCapture() {
         activeRecordingSource = nil
+        startActivationTask?.cancel()
+        startActivationTask = nil
         Task {
             await DictationRuntimeProbe.shared.markAction("stopActiveCapture")
         }
@@ -158,6 +184,8 @@ final class MacDictationWorkflowController {
 
     func cancelActiveCapture() {
         activeRecordingSource = nil
+        startActivationTask?.cancel()
+        startActivationTask = nil
         Task {
             await DictationRuntimeProbe.shared.markAction("cancelActiveCapture")
         }
@@ -269,28 +297,17 @@ final class MacDictationWorkflowController {
         }
 
         if settingsSnapshot.interactionSoundsEnabled {
-            if newState == .listening, !matchesListeningState(previousState) {
-                interactionSoundPlayer.playStart(preset: settingsSnapshot.interactionSoundPreset)
-            } else if isActiveDictationState(previousState),
-                      shouldResumeMedia(after: newState),
-                      !matchesErrorState(newState) {
+            if isActiveDictationState(previousState),
+               shouldResumeMedia(after: newState),
+               !matchesErrorState(newState) {
                 interactionSoundPlayer.playFinish(preset: settingsSnapshot.interactionSoundPreset)
             }
         }
 
-        if case .listening = newState {
-            if case .listening = previousState {
-                return
-            }
-
-            if settingsSnapshot.shouldPauseMediaDuringDictation {
-                mediaPlaybackController.pausePlaybackIfNeeded()
-            }
-            return
-        }
-
-        if case .listening = previousState,
-           !matchesListeningState(newState) {
+        if previousState.isCaptureInFlight,
+           !newState.isCaptureInFlight {
+            startActivationTask?.cancel()
+            startActivationTask = nil
             scheduleMediaResumeIfNeeded()
         }
     }

@@ -23,10 +23,13 @@ final class MacPermissionGateController: MacPermissionGatePresenting {
             windowController = NSWindowController(window: window)
         }
 
+        let targetSize = NSSize(width: 760, height: 620)
         windowController?.window?.contentView = NSHostingView(
             rootView: MacRequiredPermissionsGateView(appModel: appModel)
         )
-        windowController?.window?.setContentSize(NSSize(width: 760, height: 620))
+        if windowController?.window?.frame.size != targetSize {
+            windowController?.window?.setContentSize(targetSize)
+        }
         windowController?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
     }

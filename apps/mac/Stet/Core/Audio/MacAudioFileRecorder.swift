@@ -2,18 +2,36 @@
 @preconcurrency import AVFoundation
 import Foundation
 
+struct MacAudioFileRecordingOutcome: Sendable {
+    let writtenFrameCount: AVAudioFramePosition
+    let didCommitSpeech: Bool
+
+    static let empty = Self(writtenFrameCount: 0, didCommitSpeech: false)
+}
+
 final class MacAudioFileRecordingSession {
+    struct BufferIngestionResult: Sendable {
+        let processedAudioLevel: Double
+        let didWriteCommittedFrames: Bool
+        let didDetectEndpoint: Bool
+    }
+
     private let lock = NSLock()
     let outputFormat: AVAudioFormat
     private var converter: AVAudioConverter?
     private var converterInputFormatSignature: String?
     private var recordingFile: AVAudioFile?
+    private var frontend: StreamingSpeechCaptureFrontend?
+    private var pendingInputSamples: [Int16] = []
     private var writtenFrameCount: AVAudioFramePosition = 0
+    private var didCommitSpeech = false
     private var droppedBufferLogCount = 0
 
-    init(recordingFile: AVAudioFile, outputFormat: AVAudioFormat) {
+    init(recordingFile: AVAudioFile, outputFormat: AVAudioFormat) throws {
         self.recordingFile = recordingFile
         self.outputFormat = outputFormat
+        self.frontend = try StreamingSpeechCaptureFrontend()
+        self.pendingInputSamples.reserveCapacity(StreamingSpeechCaptureFrontend.Configuration.balanced.frameSize * 2)
     }
 
     func snapshot(
@@ -51,10 +69,73 @@ final class MacAudioFileRecordingSession {
         return (converter, recordingFile, didCreateConverter)
     }
 
-    func recordWrite(frameLength: AVAudioFrameCount) {
+    func ingestConvertedBuffer(_ buffer: AVAudioPCMBuffer) throws -> BufferIngestionResult? {
         lock.lock()
-        writtenFrameCount += AVAudioFramePosition(frameLength)
-        lock.unlock()
+        defer { lock.unlock() }
+
+        guard let recordingFile,
+              let frontend,
+              let channelData = buffer.int16ChannelData else {
+            return nil
+        }
+
+        let frameLength = Int(buffer.frameLength)
+        guard frameLength > 0 else {
+            return BufferIngestionResult(
+                processedAudioLevel: 0.08,
+                didWriteCommittedFrames: false,
+                didDetectEndpoint: false
+            )
+        }
+
+        let inputSamples = Array(UnsafeBufferPointer(start: channelData[0], count: frameLength))
+        pendingInputSamples.append(contentsOf: inputSamples)
+
+        var committedSamples: [Int16] = []
+        committedSamples.reserveCapacity(pendingInputSamples.count)
+        var processedAudioLevel = 0.08
+        var didDetectEndpoint = false
+        let frameSize = StreamingSpeechCaptureFrontend.Configuration.balanced.frameSize
+
+        while pendingInputSamples.count >= frameSize {
+            let frameSamples = Array(pendingInputSamples.prefix(frameSize))
+            pendingInputSamples.removeFirst(frameSize)
+
+            let processResult = try frontend.process(frameSamples: frameSamples)
+            processedAudioLevel = max(
+                processedAudioLevel,
+                Self.normalizedLevel(for: processResult.processedSamples)
+            )
+            for committedFrame in processResult.committedFrames {
+                committedSamples.append(contentsOf: committedFrame)
+            }
+            didDetectEndpoint = didDetectEndpoint || processResult.didDetectEndpoint
+        }
+
+        let didWriteCommittedFrames = !committedSamples.isEmpty
+        if didWriteCommittedFrames {
+            guard let outputBuffer = AVAudioPCMBuffer(
+                pcmFormat: outputFormat,
+                frameCapacity: AVAudioFrameCount(committedSamples.count)
+            ), let outputChannelData = outputBuffer.int16ChannelData else {
+                throw LinearPCMConversion.ConversionError.outputBufferCreationFailed
+            }
+
+            outputBuffer.frameLength = AVAudioFrameCount(committedSamples.count)
+            for index in committedSamples.indices {
+                outputChannelData[0][index] = committedSamples[index]
+            }
+
+            try recordingFile.write(from: outputBuffer)
+            writtenFrameCount += AVAudioFramePosition(committedSamples.count)
+            didCommitSpeech = true
+        }
+
+        return BufferIngestionResult(
+            processedAudioLevel: processedAudioLevel,
+            didWriteCommittedFrames: didWriteCommittedFrames,
+            didDetectEndpoint: didDetectEndpoint
+        )
     }
 
     func shouldLogDroppedBuffer() -> Bool {
@@ -69,11 +150,25 @@ final class MacAudioFileRecordingSession {
         return true
     }
 
+    func activateRecordingWindow() {
+        lock.lock()
+        frontend?.activateRecordingWindow()
+        lock.unlock()
+    }
+
+    func recordWrite(frameLength: AVAudioFrameCount) {
+        lock.lock()
+        writtenFrameCount += AVAudioFramePosition(frameLength)
+        lock.unlock()
+    }
+
     func close() {
         lock.lock()
         converter = nil
         converterInputFormatSignature = nil
         recordingFile = nil
+        frontend = nil
+        pendingInputSamples.removeAll(keepingCapacity: false)
         lock.unlock()
     }
 
@@ -83,8 +178,26 @@ final class MacAudioFileRecordingSession {
         return writtenFrameCount
     }
 
+    func recordingOutcome() -> MacAudioFileRecordingOutcome {
+        lock.lock()
+        defer { lock.unlock() }
+        return MacAudioFileRecordingOutcome(
+            writtenFrameCount: writtenFrameCount,
+            didCommitSpeech: didCommitSpeech
+        )
+    }
+
     private static func formatSignature(_ format: AVAudioFormat) -> String {
         "\(String(describing: format.commonFormat)):\(Int(format.sampleRate)):\(format.channelCount):\(format.isInterleaved)"
+    }
+
+    private static func normalizedLevel(for samples: [Int16]) -> Double {
+        guard !samples.isEmpty else { return 0.08 }
+        let peak = samples.reduce(0.0) { partialResult, sample in
+            max(partialResult, abs(Double(sample)) / Double(Int16.max))
+        }
+        guard peak.isFinite else { return 0.08 }
+        return max(0.08, min(peak, 1))
     }
 }
 
@@ -97,61 +210,103 @@ final class MacAudioFileRecorder {
     private let stateLock = NSLock()
     private let audioEngine: AVAudioEngine
     private let audioLevelHandler: @Sendable (Double) -> Void
-    private let onFirstBufferWritten: @Sendable () -> Void
+    private let onFirstCommittedBufferWritten: @Sendable () -> Void
+    private let onEndpointDetected: @Sendable () -> Void
     private var isTapInstalled = false
     private var activeSession: MacAudioFileRecordingSession?
-    private var hasWrittenFirstBuffer = false
+    private var hasWrittenFirstCommittedBuffer = false
 
     init(
         audioEngine: AVAudioEngine = AVAudioEngine(),
         audioLevelHandler: @escaping @Sendable (Double) -> Void = { _ in },
-        onFirstBufferWritten: @escaping @Sendable () -> Void = {}
+        onFirstCommittedBufferWritten: @escaping @Sendable () -> Void = {},
+        onEndpointDetected: @escaping @Sendable () -> Void = {}
     ) {
         self.audioEngine = audioEngine
         self.audioLevelHandler = audioLevelHandler
-        self.onFirstBufferWritten = onFirstBufferWritten
+        self.onFirstCommittedBufferWritten = onFirstCommittedBufferWritten
+        self.onEndpointDetected = onEndpointDetected
     }
 
-    func startRecording(to fileURL: URL, outputFormat: AVAudioFormat) throws {
+    func startRecording(
+        to fileURL: URL,
+        outputFormat: AVAudioFormat
+    ) throws {
         precondition(currentSession() == nil, "MacAudioFileRecorder is already recording.")
 
         let inputNode = audioEngine.inputNode
-        let reportedInputFormat = inputNode.outputFormat(forBus: 0)
         let recordingFile = try AVAudioFile(
             forWriting: fileURL,
             settings: outputFormat.settings,
             commonFormat: outputFormat.commonFormat,
             interleaved: outputFormat.isInterleaved
         )
-        let recordingSession = MacAudioFileRecordingSession(
+        let recordingSession = try MacAudioFileRecordingSession(
             recordingFile: recordingFile,
             outputFormat: outputFormat
         )
         firstBufferLock.lock()
-        hasWrittenFirstBuffer = false
+        hasWrittenFirstCommittedBuffer = false
         firstBufferLock.unlock()
+
+        do {
+            try startRecordingSession(recordingSession, on: inputNode, outputFormat: outputFormat)
+        } catch {
+            _ = finishSession()
+            throw error
+        }
+    }
+
+    func activateRecordingWindow() {
+        currentSession()?.activateRecordingWindow()
+    }
+
+    func stopRecording(writtenFileAt fileURL: URL) async -> MacAudioFileRecordingOutcome {
+        let outcome = finishSession()
+        await Self.waitForFileToStabilize(at: fileURL)
+        return outcome
+    }
+
+    func cancelRecording() {
+        _ = finishSession()
+    }
+
+    deinit {
+        _ = finishSession()
+    }
+
+    private func startRecordingSession(
+        _ recordingSession: MacAudioFileRecordingSession,
+        on inputNode: AVAudioInputNode,
+        outputFormat: AVAudioFormat
+    ) throws {
+        let tapFormat = inputNode.outputFormat(forBus: 0)
+        _ = try recordingSession.snapshot(for: tapFormat)
+        setCurrentSession(recordingSession)
+
+        try startEngine(on: inputNode, tapFormat: tapFormat)
 
         AppLogger.info(
             """
             Configuring mac transcription capture. \
-            reportedInputSampleRate=\(Int(reportedInputFormat.sampleRate)), \
-            reportedInputChannels=\(reportedInputFormat.channelCount), \
+            reportedInputSampleRate=\(Int(tapFormat.sampleRate)), \
+            reportedInputChannels=\(tapFormat.channelCount), \
             tapBufferSize=\(Configuration.tapBufferSize), \
             outputSampleRate=\(Int(outputFormat.sampleRate)), \
             outputChannels=\(outputFormat.channelCount), \
-            fileSampleRate=\(Int(recordingFile.fileFormat.sampleRate)), \
-            fileChannels=\(recordingFile.fileFormat.channelCount), \
-            fileInterleaved=\(recordingFile.processingFormat.isInterleaved)
+            fileSampleRate=\(Int(recordingSession.outputFormat.sampleRate)), \
+            fileChannels=\(recordingSession.outputFormat.channelCount), \
+            fileInterleaved=\(recordingSession.outputFormat.isInterleaved)
             """,
             category: .dictation
         )
+    }
 
-        // Prewarm the converter using the reported input format so the first tap callback
-        // can focus on conversion and file I/O instead of allocating the converter graph.
-        _ = try recordingSession.snapshot(for: reportedInputFormat)
-
-        setCurrentSession(recordingSession)
-        installTapIfNeeded(on: inputNode)
+    private func startEngine(
+        on inputNode: AVAudioInputNode,
+        tapFormat: AVAudioFormat
+    ) throws {
+        installTapIfNeeded(on: inputNode, format: tapFormat)
         audioEngine.prepare()
 
         do {
@@ -159,45 +314,44 @@ final class MacAudioFileRecorder {
                 try audioEngine.start()
             }
         } catch {
-            _ = finishSession(keepEngineRunning: false)
-            throw error
+            tearDownEngine()
+            AppLogger.error(
+                "Failed to start the macOS capture engine. error=\(error.localizedDescription)",
+                category: .dictation
+            )
+            throw SpeechServiceError.failedToStart
         }
     }
 
-    func stopRecording(writtenFileAt fileURL: URL) async -> AVAudioFramePosition {
-        let writtenFrameCount = finishSession(keepEngineRunning: true)
-        await Self.waitForFileToStabilize(at: fileURL)
-        return writtenFrameCount
-    }
-
-    func cancelRecording() {
-        _ = finishSession(keepEngineRunning: true)
-    }
-
-    deinit {
-        if audioEngine.isRunning {
-            audioEngine.stop()
-        }
-        if isTapInstalled {
-            audioEngine.inputNode.removeTap(onBus: 0)
-        }
-        audioEngine.reset()
-    }
-
-    private func installTapIfNeeded(on inputNode: AVAudioInputNode) {
+    private func installTapIfNeeded(on inputNode: AVAudioInputNode, format tapFormat: AVAudioFormat) {
         guard !isTapInstalled else { return }
 
-        inputNode.installTap(onBus: 0, bufferSize: Configuration.tapBufferSize, format: nil) { [weak self] buffer, _ in
-            self?.handleIncomingBuffer(buffer)
+        inputNode.installTap(onBus: 0, bufferSize: Configuration.tapBufferSize, format: tapFormat) { [weak self] buffer, when in
+            self?.handleIncomingBuffer(buffer, when: when)
         }
 
         isTapInstalled = true
     }
 
-    private func handleIncomingBuffer(_ buffer: AVAudioPCMBuffer) {
-        audioLevelHandler(AudioLevelNormalizer.normalizedLevel(from: buffer))
-
+    private func handleIncomingBuffer(_ buffer: AVAudioPCMBuffer, when: AVAudioTime) {
         guard let session = currentSession() else {
+            return
+        }
+
+        guard when.isSampleTimeValid else {
+            guard session.shouldLogDroppedBuffer() else {
+                return
+            }
+
+            AppLogger.warning(
+                """
+                Dropping captured audio buffer with invalid sample time. \
+                frameLength=\(buffer.frameLength), \
+                sampleTimeValid=\(when.isSampleTimeValid), \
+                hostTimeValid=\(when.isHostTimeValid)
+                """,
+                category: .dictation
+            )
             return
         }
 
@@ -228,17 +382,15 @@ final class MacAudioFileRecorder {
                 return
             }
 
-            try snapshot.recordingFile.write(from: convertedBuffer)
-            session.recordWrite(frameLength: convertedBuffer.frameLength)
-            firstBufferLock.lock()
-            let shouldRecordFirstBuffer = !hasWrittenFirstBuffer
-            if shouldRecordFirstBuffer {
-                hasWrittenFirstBuffer = true
+            guard let ingestionResult = try session.ingestConvertedBuffer(convertedBuffer) else {
+                return
             }
-            firstBufferLock.unlock()
 
-            if shouldRecordFirstBuffer {
-                onFirstBufferWritten()
+            audioLevelHandler(ingestionResult.processedAudioLevel)
+            emitFirstCommittedBufferIfNeeded(didWriteCommittedFrames: ingestionResult.didWriteCommittedFrames)
+
+            if ingestionResult.didDetectEndpoint {
+                onEndpointDetected()
             }
         } catch {
             guard session.shouldLogDroppedBuffer() else {
@@ -260,20 +412,42 @@ final class MacAudioFileRecorder {
         }
     }
 
-    private func finishSession(keepEngineRunning: Bool) -> AVAudioFramePosition {
-        let session = clearCurrentSession()
-        let writtenFrameCount = session?.totalWrittenFrames() ?? 0
-        session?.close()
-
-        if !keepEngineRunning, audioEngine.isRunning {
-            audioEngine.stop()
-            audioEngine.reset()
-        }
+    private func emitFirstCommittedBufferIfNeeded(didWriteCommittedFrames: Bool) {
+        guard didWriteCommittedFrames else { return }
 
         firstBufferLock.lock()
-        hasWrittenFirstBuffer = false
+        let shouldEmit = !hasWrittenFirstCommittedBuffer
+        if shouldEmit {
+            hasWrittenFirstCommittedBuffer = true
+        }
         firstBufferLock.unlock()
-        return writtenFrameCount
+
+        if shouldEmit {
+            onFirstCommittedBufferWritten()
+        }
+    }
+
+    private func finishSession() -> MacAudioFileRecordingOutcome {
+        let session = clearCurrentSession()
+        let outcome = session?.recordingOutcome() ?? .empty
+        session?.close()
+        tearDownEngine()
+
+        firstBufferLock.lock()
+        hasWrittenFirstCommittedBuffer = false
+        firstBufferLock.unlock()
+        return outcome
+    }
+
+    private func tearDownEngine() {
+        if isTapInstalled {
+            audioEngine.inputNode.removeTap(onBus: 0)
+            isTapInstalled = false
+        }
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
+        audioEngine.reset()
     }
 
     private func currentSession() -> MacAudioFileRecordingSession? {
