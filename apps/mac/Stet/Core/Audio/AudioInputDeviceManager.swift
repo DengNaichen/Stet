@@ -11,8 +11,32 @@ struct AudioHardwareDevice: Equatable, Sendable {
 
 enum AudioInputDeviceManager {
     nonisolated static func defaultInputDeviceID() -> AudioDeviceID? {
+        defaultDeviceID(selector: kAudioHardwarePropertyDefaultInputDevice)
+    }
+
+    nonisolated static func defaultOutputDeviceID() -> AudioDeviceID? {
+        defaultDeviceID(selector: kAudioHardwarePropertyDefaultOutputDevice)
+    }
+
+    nonisolated static func defaultInputDevice() -> AudioHardwareDevice? {
+        guard let deviceID = defaultInputDeviceID() else {
+            return nil
+        }
+
+        return hardwareDevice(deviceID: deviceID)
+    }
+
+    nonisolated static func defaultOutputDevice() -> AudioHardwareDevice? {
+        guard let deviceID = defaultOutputDeviceID() else {
+            return nil
+        }
+
+        return hardwareDevice(deviceID: deviceID)
+    }
+
+    nonisolated private static func defaultDeviceID(selector: AudioObjectPropertySelector) -> AudioDeviceID? {
         var propertyAddress = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mSelector: selector,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
@@ -33,14 +57,6 @@ enum AudioInputDeviceManager {
         }
 
         return deviceID
-    }
-
-    nonisolated static func defaultInputDevice() -> AudioHardwareDevice? {
-        guard let deviceID = defaultInputDeviceID() else {
-            return nil
-        }
-
-        return hardwareDevice(deviceID: deviceID)
     }
 
     nonisolated private static func hardwareDevice(deviceID: AudioDeviceID) -> AudioHardwareDevice? {

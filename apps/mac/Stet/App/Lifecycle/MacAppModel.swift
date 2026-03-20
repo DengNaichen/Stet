@@ -21,6 +21,7 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
             clipboardService: clipboardService,
             textInjectionService: textInjectionService,
             mediaPlaybackController: MacMediaPlaybackController(),
+            systemAudioMuting: SystemAudioMuteController(),
             settingsStore: settingsStore,
             captureCoordinator: MacDictationCaptureCoordinator(
                 clipboardService: clipboardService,
@@ -35,6 +36,7 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
         clipboardService: any ClipboardService,
         textInjectionService: any TextInjectionService,
         mediaPlaybackController: any MediaPlaybackControlling,
+        systemAudioMuting: (any SystemAudioMuting)? = nil,
         settingsStore: DictationSettingsStore = DictationSettingsStore(),
         captureCoordinator: MacDictationCaptureCoordinator? = nil
     ) {
@@ -49,6 +51,7 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
             captureCoordinator: captureCoordinator,
             textInjectionService: textInjectionService,
             mediaPlaybackController: mediaPlaybackController,
+            systemAudioMuting: systemAudioMuting,
             settingsStore: settingsStore,
             interactionSoundPlayer: interactionSoundPlayer
         )

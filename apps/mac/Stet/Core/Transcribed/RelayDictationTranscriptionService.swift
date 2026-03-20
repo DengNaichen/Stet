@@ -120,7 +120,6 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
 
             let payload = try JSONDecoder().decode(SuccessResponse.self, from: responseData)
             let trimmedText = payload.text.trimmingCharacters(in: .whitespacesAndNewlines)
-
             guard !trimmedText.isEmpty else {
                 AppLogger.error(
                     "Relay transcription succeeded but response text was empty. requestID=\(clientRequestID) serverRequestID=\(httpResponse.value(forHTTPHeaderField: "x-request-id") ?? "missing")",

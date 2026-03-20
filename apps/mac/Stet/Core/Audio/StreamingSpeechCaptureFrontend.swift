@@ -3,13 +3,56 @@ import Foundation
 final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
     typealias SpeechDecisionProvider = @Sendable (ArraySlice<Int16>) throws -> Bool
 
+    struct Diagnostics: Sendable {
+        let analyzedFrameCountSinceActivation: Int
+        let rawPrimarySpeechFrameCount: Int
+        let rawConfirmationSpeechFrameCount: Int
+        let acceptedPrimarySpeechFrameCount: Int
+        let acceptedConfirmationSpeechFrameCount: Int
+        let transientNoiseFrameCount: Int
+        let zeroCrossingNoiseFrameCount: Int
+        let lowZeroCrossingNoiseFrameCount: Int
+        let noiseFloorDBFS: Double
+        let commitStartedFrameIndex: Int?
+        let commitStartRawRMSDBFS: Double?
+        let commitStartRawPeakDBFS: Double?
+        let commitStartZeroCrossingRate: Double?
+        let commitStartSpeechThresholdDBFS: Double?
+        let committedFrameCount: Int
+        let endpointDetected: Bool
+
+        var summaryLine: String {
+            func format(_ value: Double?) -> String {
+                guard let value, value.isFinite else { return "na" }
+                return String(format: "%.1f", value)
+            }
+
+            func formatRatio(_ value: Double?) -> String {
+                guard let value, value.isFinite else { return "na" }
+                return String(format: "%.3f", value)
+            }
+
+            return """
+            actFrames=\(analyzedFrameCountSinceActivation) rawP=\(rawPrimarySpeechFrameCount) rawC=\(rawConfirmationSpeechFrameCount) \
+            accP=\(acceptedPrimarySpeechFrameCount) accC=\(acceptedConfirmationSpeechFrameCount) \
+            tr=\(transientNoiseFrameCount) zc=\(zeroCrossingNoiseFrameCount) lzc=\(lowZeroCrossingNoiseFrameCount) \
+            nf=\(format(noiseFloorDBFS)) commitAt=\(commitStartedFrameIndex.map(String.init) ?? "na") \
+            rms=\(format(commitStartRawRMSDBFS)) peak=\(format(commitStartRawPeakDBFS)) \
+            zcr=\(formatRatio(commitStartZeroCrossingRate)) thr=\(format(commitStartSpeechThresholdDBFS)) \
+            committed=\(committedFrameCount) endpoint=\(endpointDetected)
+            """
+        }
+    }
+
     struct Configuration: Sendable {
         let sampleRate: Double
         let frameDurationSeconds: Double
         let ringBufferDurationSeconds: Double
+        let minimumNoiseCalibrationFrameCount: Int
         let speechStartWindowFrameCount: Int
         let primarySpeechStartThreshold: Int
         let confirmationSpeechStartThreshold: Int
+        let minimumLearnableNoiseFloorDBFS: Double
         let minimumSpeechRiseAboveNoiseFloorDB: Double
         let absoluteSpeechFloorDBFS: Double
         let minimumCommittedSpeechDurationSeconds: Double
@@ -21,15 +64,20 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
         let maximumStreamingGainDB: Double
         let minimumNoiseSuppressionDB: Double
         let maximumNoiseSuppressionDB: Double
+        let transientCrestFactorThresholdDB: Double
+        let minimumSpeechZeroCrossingRate: Double
+        let maximumSpeechZeroCrossingRate: Double
 
         static let balanced = Self(
             sampleRate: 16_000,
             frameDurationSeconds: 0.02,
             ringBufferDurationSeconds: 0.32,
+            minimumNoiseCalibrationFrameCount: 3,
             speechStartWindowFrameCount: 3,
             primarySpeechStartThreshold: 2,
             confirmationSpeechStartThreshold: 1,
-            minimumSpeechRiseAboveNoiseFloorDB: 6,
+            minimumLearnableNoiseFloorDBFS: -76,
+            minimumSpeechRiseAboveNoiseFloorDB: 12,
             absoluteSpeechFloorDBFS: -58,
             minimumCommittedSpeechDurationSeconds: 0.3,
             endpointTrailingSilenceDurationSeconds: 0.7,
@@ -39,7 +87,10 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
             peakCeilingDBFS: -1,
             maximumStreamingGainDB: 12,
             minimumNoiseSuppressionDB: 8,
-            maximumNoiseSuppressionDB: 30
+            maximumNoiseSuppressionDB: 30,
+            transientCrestFactorThresholdDB: 18,
+            minimumSpeechZeroCrossingRate: 0.02,
+            maximumSpeechZeroCrossingRate: 0.08
         )
 
         var frameSize: Int {
@@ -75,6 +126,9 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
         let samples: [Int16]
         let primarySpeech: Bool
         let confirmationSpeech: Bool
+        let isTransientNoise: Bool
+        let isZeroCrossingNoise: Bool
+        let isLowZeroCrossingNoise: Bool
         let rmsDBFS: Double
         let rawRMSDBFS: Double
     }
@@ -114,6 +168,19 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
     private var recentFrames: [BufferedFrame] = []
     private var recentNoiseLevelsDBFS: [Double] = []
     private var noiseFloorDBFS = -72.0
+    private var analyzedFrameCountSinceActivation = 0
+    private var rawPrimarySpeechFrameCountSinceActivation = 0
+    private var rawConfirmationSpeechFrameCountSinceActivation = 0
+    private var acceptedPrimarySpeechFrameCountSinceActivation = 0
+    private var acceptedConfirmationSpeechFrameCountSinceActivation = 0
+    private var transientNoiseFrameCountSinceActivation = 0
+    private var zeroCrossingNoiseFrameCountSinceActivation = 0
+    private var lowZeroCrossingNoiseFrameCountSinceActivation = 0
+    private var commitStartedFrameIndex: Int?
+    private var commitStartRawRMSDBFS: Double?
+    private var commitStartRawPeakDBFS: Double?
+    private var commitStartZeroCrossingRate: Double?
+    private var commitStartSpeechThresholdDBFS: Double?
 
     init(
         configuration: Configuration = .balanced,
@@ -152,8 +219,23 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
         guard activationFrameIndex == nil else { return }
         activationFrameIndex = processedFrameCount
         recentFrames.removeAll(keepingCapacity: true)
+        recentNoiseLevelsDBFS.removeAll(keepingCapacity: true)
         tailNonSpeechFrameCount = 0
         endpointDetected = false
+        noiseFloorDBFS = -72.0
+        analyzedFrameCountSinceActivation = 0
+        rawPrimarySpeechFrameCountSinceActivation = 0
+        rawConfirmationSpeechFrameCountSinceActivation = 0
+        acceptedPrimarySpeechFrameCountSinceActivation = 0
+        acceptedConfirmationSpeechFrameCountSinceActivation = 0
+        transientNoiseFrameCountSinceActivation = 0
+        zeroCrossingNoiseFrameCountSinceActivation = 0
+        lowZeroCrossingNoiseFrameCountSinceActivation = 0
+        commitStartedFrameIndex = nil
+        commitStartRawRMSDBFS = nil
+        commitStartRawPeakDBFS = nil
+        commitStartZeroCrossingRate = nil
+        commitStartSpeechThresholdDBFS = nil
     }
 
     func process(frameSamples: [Int16]) throws -> ProcessResult {
@@ -161,28 +243,53 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
 
         let highPassedSamples = frameSamples.map { hpfState.process($0) }
         let rawRMSDBFS = Self.rmsDBFS(for: highPassedSamples)
+        let rawPeakDBFS = Self.peakDBFS(for: highPassedSamples)
+        let zeroCrossingRate = Self.zeroCrossingRate(for: highPassedSamples)
         let (gainAdjustedSamples, gainDB) = applyNoiseAwareGain(to: highPassedSamples, rmsDBFS: rawRMSDBFS)
-        let gainAdjustedRMSDBFS = Self.rmsDBFS(for: gainAdjustedSamples)
-        let rawPrimarySpeech = try primarySpeechDetector(ArraySlice(gainAdjustedSamples))
-        let rawConfirmationSpeech = try confirmationSpeechDetector(ArraySlice(gainAdjustedSamples))
+        let isTransientNoise = !isCommittingSpeech && Self.isLikelyTransientNoise(
+            rmsDBFS: rawRMSDBFS,
+            peakDBFS: rawPeakDBFS,
+            crestFactorThresholdDB: configuration.transientCrestFactorThresholdDB
+        )
+        let isZeroCrossingNoise =
+            !isCommittingSpeech &&
+            zeroCrossingRate >= configuration.maximumSpeechZeroCrossingRate
+        let isLowZeroCrossingNoise =
+            !isCommittingSpeech &&
+            zeroCrossingRate <= configuration.minimumSpeechZeroCrossingRate
+        let rawPrimarySpeech = try primarySpeechDetector(ArraySlice(highPassedSamples))
+        let rawConfirmationSpeech = try confirmationSpeechDetector(ArraySlice(highPassedSamples))
         let activityFloorDBFS = max(
             noiseFloorDBFS + (configuration.minimumSpeechRiseAboveNoiseFloorDB / 2),
             configuration.absoluteSpeechFloorDBFS - 12
         )
-        let primarySpeech = rawPrimarySpeech && gainAdjustedRMSDBFS >= activityFloorDBFS
-        let confirmationSpeech = rawConfirmationSpeech && gainAdjustedRMSDBFS >= activityFloorDBFS
+        let primarySpeech =
+            rawPrimarySpeech &&
+            rawRMSDBFS >= activityFloorDBFS &&
+            !isTransientNoise &&
+            !isLowZeroCrossingNoise &&
+            !isZeroCrossingNoise
+        let confirmationSpeech =
+            rawConfirmationSpeech &&
+            rawRMSDBFS >= activityFloorDBFS &&
+            !isTransientNoise &&
+            !isLowZeroCrossingNoise &&
+            !isZeroCrossingNoise
         let speechDetected = primarySpeech || confirmationSpeech
         // Once the capture has committed, keep speech and strip everything else.
-        let nonSpeechSamples = isCommittingSpeech
-            ? Array(repeating: 0, count: gainAdjustedSamples.count)
-            : Self.applyGain(
+        let nonSpeechSamples: [Int16]
+        if isCommittingSpeech || isTransientNoise {
+            nonSpeechSamples = Array(repeating: 0, count: gainAdjustedSamples.count)
+        } else {
+            nonSpeechSamples = Self.applyGain(
                 to: gainAdjustedSamples,
                 gainDB: noiseSuppressionDB(
-                    rmsDBFS: gainAdjustedRMSDBFS,
+                    rmsDBFS: rawRMSDBFS,
                     activityFloorDBFS: activityFloorDBFS,
                     currentGainDB: gainDB
                 )
             )
+        }
         let processedSamples = speechDetected ? gainAdjustedSamples : nonSpeechSamples
         let rmsDBFS = Self.rmsDBFS(for: processedSamples)
         let bufferedFrame = BufferedFrame(
@@ -190,18 +297,47 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
             samples: processedSamples,
             primarySpeech: primarySpeech,
             confirmationSpeech: confirmationSpeech,
+            isTransientNoise: isTransientNoise,
+            isZeroCrossingNoise: isZeroCrossingNoise,
+            isLowZeroCrossingNoise: isLowZeroCrossingNoise,
             rmsDBFS: rmsDBFS,
             rawRMSDBFS: rawRMSDBFS
         )
+
+        if let activationFrameIndex, processedFrameCount >= activationFrameIndex {
+            analyzedFrameCountSinceActivation += 1
+            if rawPrimarySpeech {
+                rawPrimarySpeechFrameCountSinceActivation += 1
+            }
+            if rawConfirmationSpeech {
+                rawConfirmationSpeechFrameCountSinceActivation += 1
+            }
+            if primarySpeech {
+                acceptedPrimarySpeechFrameCountSinceActivation += 1
+            }
+            if confirmationSpeech {
+                acceptedConfirmationSpeechFrameCountSinceActivation += 1
+            }
+            if isTransientNoise {
+                transientNoiseFrameCountSinceActivation += 1
+            }
+            if isZeroCrossingNoise {
+                zeroCrossingNoiseFrameCountSinceActivation += 1
+            }
+            if isLowZeroCrossingNoise {
+                lowZeroCrossingNoiseFrameCountSinceActivation += 1
+            }
+        }
 
         remember(frame: bufferedFrame)
         updateNoiseFloor(using: bufferedFrame)
 
         var committedFrames: [[Int16]] = []
+        let commitDecision = speechCommitDecision()
         if isCommittingSpeech {
             committedFrames.append(processedSamples)
             committedFrameCount += 1
-        } else if shouldStartSpeechCommit() {
+        } else if commitDecision.shouldCommit {
             let speechStartFrameIndex = recentFrames.first(where: {
                 $0.primarySpeech || $0.confirmationSpeech
             })?.frameIndex ?? processedFrameCount
@@ -216,6 +352,11 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
             if !committedFrames.isEmpty {
                 isCommittingSpeech = true
                 committedFrameCount += committedFrames.count
+                commitStartedFrameIndex = processedFrameCount
+                commitStartRawRMSDBFS = rawRMSDBFS
+                commitStartRawPeakDBFS = rawPeakDBFS
+                commitStartZeroCrossingRate = zeroCrossingRate
+                commitStartSpeechThresholdDBFS = commitDecision.speechThresholdDBFS
             }
         }
 
@@ -235,6 +376,27 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
         )
     }
 
+    func diagnostics() -> Diagnostics {
+        Diagnostics(
+            analyzedFrameCountSinceActivation: analyzedFrameCountSinceActivation,
+            rawPrimarySpeechFrameCount: rawPrimarySpeechFrameCountSinceActivation,
+            rawConfirmationSpeechFrameCount: rawConfirmationSpeechFrameCountSinceActivation,
+            acceptedPrimarySpeechFrameCount: acceptedPrimarySpeechFrameCountSinceActivation,
+            acceptedConfirmationSpeechFrameCount: acceptedConfirmationSpeechFrameCountSinceActivation,
+            transientNoiseFrameCount: transientNoiseFrameCountSinceActivation,
+            zeroCrossingNoiseFrameCount: zeroCrossingNoiseFrameCountSinceActivation,
+            lowZeroCrossingNoiseFrameCount: lowZeroCrossingNoiseFrameCountSinceActivation,
+            noiseFloorDBFS: noiseFloorDBFS,
+            commitStartedFrameIndex: commitStartedFrameIndex,
+            commitStartRawRMSDBFS: commitStartRawRMSDBFS,
+            commitStartRawPeakDBFS: commitStartRawPeakDBFS,
+            commitStartZeroCrossingRate: commitStartZeroCrossingRate,
+            commitStartSpeechThresholdDBFS: commitStartSpeechThresholdDBFS,
+            committedFrameCount: committedFrameCount,
+            endpointDetected: endpointDetected
+        )
+    }
+
     private func remember(frame: BufferedFrame) {
         ringBuffer.append(frame)
         if ringBuffer.count > configuration.ringBufferFrameCount {
@@ -248,7 +410,22 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
     }
 
     private func updateNoiseFloor(using frame: BufferedFrame) {
-        guard !frame.primarySpeech, !frame.confirmationSpeech else {
+        guard activationFrameIndex != nil,
+              !isCommittingSpeech,
+              !frame.isTransientNoise,
+              !frame.isZeroCrossingNoise,
+              !frame.isLowZeroCrossingNoise,
+              frame.rawRMSDBFS.isFinite,
+              frame.rawRMSDBFS >= configuration.minimumLearnableNoiseFloorDBFS else {
+            return
+        }
+
+        let speechThresholdDBFS = max(
+            noiseFloorDBFS + configuration.minimumSpeechRiseAboveNoiseFloorDB,
+            configuration.absoluteSpeechFloorDBFS
+        )
+        let learnableNoiseCeilingDBFS = speechThresholdDBFS + 4
+        guard frame.rawRMSDBFS <= learnableNoiseCeilingDBFS else {
             return
         }
 
@@ -258,7 +435,7 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
         }
 
         if let percentile = Self.percentile(recentNoiseLevelsDBFS, fraction: 0.2) {
-            noiseFloorDBFS = percentile
+            noiseFloorDBFS = max(percentile, configuration.minimumLearnableNoiseFloorDBFS)
         }
     }
 
@@ -315,13 +492,15 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
         )
     }
 
-    private func shouldStartSpeechCommit() -> Bool {
+    private func speechCommitDecision() -> (shouldCommit: Bool, speechThresholdDBFS: Double?) {
         guard let activationFrameIndex,
+              analyzedFrameCountSinceActivation >= configuration.minimumNoiseCalibrationFrameCount,
               recentFrames.count == configuration.speechStartWindowFrameCount,
               recentFrames.first?.frameIndex ?? 0 >= activationFrameIndex,
               let currentFrame = recentFrames.last,
-              currentFrame.primarySpeech || currentFrame.confirmationSpeech else {
-            return false
+              (currentFrame.primarySpeech || currentFrame.confirmationSpeech),
+              !currentFrame.isTransientNoise else {
+            return (false, nil)
         }
 
         let primaryPositiveCount = recentFrames.filter { $0.primarySpeech }.count
@@ -331,9 +510,23 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
             configuration.absoluteSpeechFloorDBFS
         )
 
-        return primaryPositiveCount >= configuration.primarySpeechStartThreshold &&
+        let shouldCommit =
+            primaryPositiveCount >= configuration.primarySpeechStartThreshold &&
             confirmationPositiveCount >= configuration.confirmationSpeechStartThreshold &&
-            currentFrame.rmsDBFS >= speechThreshold
+            currentFrame.rawRMSDBFS >= speechThreshold
+        return (shouldCommit, speechThreshold)
+    }
+
+    private static func isLikelyTransientNoise(
+        rmsDBFS: Double,
+        peakDBFS: Double,
+        crestFactorThresholdDB: Double
+    ) -> Bool {
+        guard rmsDBFS.isFinite, peakDBFS.isFinite else {
+            return true
+        }
+
+        return (peakDBFS - rmsDBFS) >= crestFactorThresholdDB
     }
 
     private func updateEndpointState(using frame: BufferedFrame) -> Bool {
@@ -381,6 +574,25 @@ final class StreamingSpeechCaptureFrontend: @unchecked Sendable {
         }
         guard peakAmplitude.isFinite, peakAmplitude > 0 else { return -160 }
         return 20 * log10(peakAmplitude)
+    }
+
+    private static func zeroCrossingRate(for samples: [Int16]) -> Double {
+        guard samples.count > 1 else { return 0 }
+
+        var crossingCount = 0
+        var previousSample = samples[0]
+
+        for sample in samples.dropFirst() {
+            let didCrossZero =
+                (previousSample < 0 && sample >= 0) ||
+                (previousSample > 0 && sample <= 0)
+            if didCrossZero {
+                crossingCount += 1
+            }
+            previousSample = sample
+        }
+
+        return Double(crossingCount) / Double(samples.count - 1)
     }
 
     private static func applyGain(to samples: [Int16], gainDB: Double) -> [Int16] {

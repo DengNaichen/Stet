@@ -88,7 +88,7 @@ enum AppLogger {
             logger.error("\(message, privacy: .public)")
         }
     }
-
+    
     nonisolated private static func shouldEmit(
         level: Level,
         category: AppLoggerCategory,

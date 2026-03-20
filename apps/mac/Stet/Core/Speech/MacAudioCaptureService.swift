@@ -23,13 +23,10 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource, AudioCaptur
             audioLevelHandler: { level in
                 audioLevelBridge.emit(level)
             },
-            onFirstCommittedBufferWritten: {
+            onFirstRecordedBufferWritten: {
                 Task {
                     await DictationStartupProbe.shared.record(.firstBufferWritten)
                 }
-            },
-            onEndpointDetected: {
-                audioCaptureEventBridge.emit(.endpointDetected)
             }
         )
         #endif
@@ -121,9 +118,28 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource, AudioCaptur
         self.isRecording = false
         finishCaptureStreams()
 
-        guard recordingOutcome.didCommitSpeech else {
+        if let captureDiagnosticsSummary = recordingOutcome.captureDiagnosticsSummary {
+            if UserDefaults.standard.bool(forKey: MacPreferences.dictationPerfTracingEnabled) {
+                AppLogger.warning(
+                    """
+                    Capture summary. \
+                    didWriteAudio=\(recordingOutcome.didWriteAudio) \
+                    \(captureDiagnosticsSummary)
+                    """,
+                    category: .dictation
+                )
+            }
+            Task {
+                await DictationRuntimeProbe.shared.markAction(
+                    "frontendCaptureSummary",
+                    details: captureDiagnosticsSummary
+                )
+            }
+        }
+
+        guard recordingOutcome.didWriteAudio else {
             try? FileManager.default.removeItem(at: sourceRecordingFileURL)
-            AppLogger.warning("Discarding macOS capture because no speech frames were committed.", category: .dictation)
+            AppLogger.warning("Discarding macOS capture because no audio was recorded after activation.", category: .dictation)
             throw SpeechServiceError.emptyTranscription
         }
 

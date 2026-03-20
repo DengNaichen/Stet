@@ -163,7 +163,7 @@ private struct MacDictationCapsuleSurface: View {
         case .idle:
             return 0.14
         case .starting:
-            return 0.08
+            return min(max(0.12 + normalizedRecordingLevel * 0.88, 0), 1)
         case .listening:
             return min(max(0.12 + normalizedRecordingLevel * 0.88, 0), 1)
         case .processing:

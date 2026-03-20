@@ -5,7 +5,7 @@ import Testing
 
 @Suite("Default Audio Post Processor", .serialized)
 struct DefaultAudioPostProcessorTests {
-    @Test func silenceOnlyCaptureIsDiscarded() async throws {
+    @Test func silenceOnlyCaptureIsKept() async throws {
         let fileURL = try Self.makePCMFileURL(
             samples: Array(repeating: 0, count: 16_000)
         )
@@ -16,11 +16,11 @@ struct DefaultAudioPostProcessorTests {
             duration: 1
         )
 
-        #expect(result.shouldDiscardAsNoSpeech)
+        #expect(!result.shouldDiscardAsNoSpeech)
         #expect(result.url == fileURL)
     }
 
-    @Test func stationaryNoiseOnlyCaptureIsDiscarded() async throws {
+    @Test func stationaryNoiseOnlyCaptureIsKept() async throws {
         let fileURL = try Self.makePCMFileURL(samples: Self.makeStationaryNoiseSamples())
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
@@ -29,7 +29,37 @@ struct DefaultAudioPostProcessorTests {
             duration: 1
         )
 
-        #expect(result.shouldDiscardAsNoSpeech)
+        #expect(!result.shouldDiscardAsNoSpeech)
+        #expect(result.url == fileURL)
+    }
+
+    @Test func keyboardLikeClickTrackIsKept() async throws {
+        let fileURL = try Self.makePCMFileURL(samples: Self.makeKeyboardClickSamples())
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let result = try await Self.makePostProcessor(interactionSoundsEnabled: false).processAudioFile(
+            at: fileURL,
+            duration: 1
+        )
+
+        #expect(!result.shouldDiscardAsNoSpeech)
+        #expect(result.url == fileURL)
+    }
+
+    @Test func keyboardLikeClicksMixedWithStationaryNoiseAreKept() async throws {
+        let samples = Self.mixSamples(
+            Self.makeStationaryNoiseSamples(),
+            Self.makeKeyboardClickSamples()
+        )
+        let fileURL = try Self.makePCMFileURL(samples: samples)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let result = try await Self.makePostProcessor(interactionSoundsEnabled: false).processAudioFile(
+            at: fileURL,
+            duration: 1
+        )
+
+        #expect(!result.shouldDiscardAsNoSpeech)
         #expect(result.url == fileURL)
     }
 
@@ -52,10 +82,11 @@ struct DefaultAudioPostProcessorTests {
         }
 
         #expect(!result.shouldDiscardAsNoSpeech)
+        #expect(result.url == fileURL)
     }
 
-    @Test func quietSpeechCaptureIsAmplified() async throws {
-        let quietSpeech = Self.makeSpeechLikeSamples(amplitude: 450)
+    @Test func quietSpeechCaptureIsKeptWithoutRewritingAudio() async throws {
+        let quietSpeech = Self.makeSpeechLikeSamples(amplitude: 1_050)
         let fileURL = try Self.makePCMFileURL(samples: quietSpeech)
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
@@ -70,16 +101,26 @@ struct DefaultAudioPostProcessorTests {
         }
 
         #expect(!result.shouldDiscardAsNoSpeech)
-        #expect(result.url != fileURL)
+        #expect(result.url == fileURL)
+    }
 
-        let sourcePeak = try Self.peakAmplitude(at: fileURL)
-        let normalizedPeak = try Self.peakAmplitude(at: result.url)
+    @Test func denoisedSpeechCaptureIsStillKept() async throws {
+        let denoisedSpeech = Self.makeSpeechLikeSamples(amplitude: 850)
+        let fileURL = try Self.makePCMFileURL(samples: denoisedSpeech)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
 
-        let unwrappedSourcePeak = try #require(sourcePeak)
-        let unwrappedNormalizedPeak = try #require(normalizedPeak)
+        let result = try await Self.makePostProcessor(interactionSoundsEnabled: false).processAudioFile(
+            at: fileURL,
+            duration: 1
+        )
+        defer {
+            for url in result.cleanupURLs where url != fileURL {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
 
-        #expect(unwrappedNormalizedPeak > unwrappedSourcePeak)
-        #expect(unwrappedNormalizedPeak <= 0.95)
+        #expect(!result.shouldDiscardAsNoSpeech)
+        #expect(result.url == fileURL)
     }
 
     private static func makePCMFileURL(samples: [Int16]) throws -> URL {
@@ -158,7 +199,34 @@ struct DefaultAudioPostProcessorTests {
                 sin(2 * .pi * 90.0 * time) +
                 0.55 * sin(2 * .pi * 180.0 * time) +
                 0.2 * sin(2 * .pi * 1_700.0 * time)
-            let sample = 900.0 * hum + 250.0 * whiteNoise
+            let sample = 180.0 * hum + 35.0 * whiteNoise
+            return Int16(max(Double(Int16.min), min(sample, Double(Int16.max))))
+        }
+    }
+
+    private static func makeKeyboardClickSamples() -> [Int16] {
+        let sampleRate = 16_000.0
+        let sampleCount = 16_000
+        let clickCenters = [2_200, 4_900, 7_300, 10_200, 13_100]
+        let clickWidth = 120
+
+        return (0..<sampleCount).map { index -> Int16 in
+            var sample = 0.0
+
+            for center in clickCenters {
+                let distance = abs(index - center)
+                guard distance <= clickWidth else { continue }
+
+                let normalizedDistance = Double(distance) / Double(clickWidth)
+                let envelope = pow(max(0, 1 - normalizedDistance), 2.2)
+                let time = Double(index) / sampleRate
+                let click =
+                    sin(2 * .pi * 2_800.0 * time) +
+                    0.75 * sin(2 * .pi * 4_600.0 * time) +
+                    0.35 * sin(2 * .pi * 6_100.0 * time)
+                sample += 650.0 * envelope * click
+            }
+
             return Int16(max(Double(Int16.min), min(sample, Double(Int16.max))))
         }
     }
@@ -191,47 +259,4 @@ struct DefaultAudioPostProcessorTests {
         return DefaultAudioPostProcessor(settingsStore: settingsStore)
     }
 
-    private static func peakAmplitude(at fileURL: URL) throws -> Double? {
-        let data = try Data(contentsOf: fileURL)
-        guard data.count >= 44 else { return nil }
-        guard String(data: data[0..<4], encoding: .ascii) == "RIFF",
-              String(data: data[8..<12], encoding: .ascii) == "WAVE" else {
-            return nil
-        }
-
-        var offset = 12
-        var peak = 0.0
-
-        while offset + 8 <= data.count {
-            guard let chunkID = String(data: data[offset..<(offset + 4)], encoding: .ascii) else {
-                return nil
-            }
-            let chunkSize =
-                UInt32(data[data.startIndex + offset + 4]) |
-                (UInt32(data[data.startIndex + offset + 5]) << 8) |
-                (UInt32(data[data.startIndex + offset + 6]) << 16) |
-                (UInt32(data[data.startIndex + offset + 7]) << 24)
-            let chunkDataOffset = offset + 8
-            let chunkDataEnd = chunkDataOffset + Int(chunkSize)
-            guard chunkDataEnd <= data.count else { return nil }
-
-            if chunkID == "data" {
-                var sampleOffset = chunkDataOffset
-                while sampleOffset + 2 <= chunkDataEnd {
-                    let sampleBits =
-                        UInt16(data[data.startIndex + sampleOffset]) |
-                        (UInt16(data[data.startIndex + sampleOffset + 1]) << 8)
-                    let sample = Int16(bitPattern: sampleBits)
-                    peak = max(peak, abs(Double(sample)) / Double(Int16.max))
-                    sampleOffset += 2
-                }
-
-                return peak
-            }
-
-            offset = chunkDataEnd + Int(chunkSize % 2)
-        }
-
-        return nil
-    }
 }

@@ -32,6 +32,7 @@ final class MacDictationWorkflowController {
     private let captureCoordinator: MacDictationCaptureCoordinator
     private let textInjectionService: any TextInjectionService
     private let mediaPlaybackController: any MediaPlaybackControlling
+    private let systemAudioMuting: (any SystemAudioMuting)?
     private let settingsStore: DictationSettingsStore
     private let interactionSoundPlayer: any InteractionSoundPlaying
     private let mediaResumeDelay: Duration
@@ -47,6 +48,7 @@ final class MacDictationWorkflowController {
         captureCoordinator: MacDictationCaptureCoordinator,
         textInjectionService: any TextInjectionService,
         mediaPlaybackController: any MediaPlaybackControlling,
+        systemAudioMuting: (any SystemAudioMuting)? = nil,
         settingsStore: DictationSettingsStore,
         interactionSoundPlayer: any InteractionSoundPlaying,
         mediaResumeDelay: Duration = .seconds(1)
@@ -55,6 +57,7 @@ final class MacDictationWorkflowController {
         self.captureCoordinator = captureCoordinator
         self.textInjectionService = textInjectionService
         self.mediaPlaybackController = mediaPlaybackController
+        self.systemAudioMuting = systemAudioMuting
         self.settingsStore = settingsStore
         self.interactionSoundPlayer = interactionSoundPlayer
         self.mediaResumeDelay = mediaResumeDelay
@@ -63,6 +66,10 @@ final class MacDictationWorkflowController {
     deinit {
         mediaResumeTask?.cancel()
         startActivationTask?.cancel()
+        let systemAudioMuting = self.systemAudioMuting
+        Task { @MainActor in
+            systemAudioMuting?.restoreMuteIfNeeded()
+        }
     }
 
     var statusText: String {
@@ -296,6 +303,14 @@ final class MacDictationWorkflowController {
             mediaResumeTask = nil
         }
 
+        // Keep the heavy system mute out of launch/startup work.
+        // External playback is paused earlier; the tap is only activated once
+        // capture is actually live.
+        if settingsSnapshot.shouldPauseMediaDuringDictation,
+           matchesListeningState(newState) {
+            _ = systemAudioMuting?.activateMuteIfNeeded()
+        }
+
         if settingsSnapshot.interactionSoundsEnabled {
             if isActiveDictationState(previousState),
                shouldResumeMedia(after: newState),
@@ -330,6 +345,7 @@ final class MacDictationWorkflowController {
                 return
             }
 
+            systemAudioMuting?.restoreMuteIfNeeded()
             mediaPlaybackController.resumePlaybackIfNeeded()
             mediaResumeTask = nil
         }

@@ -7,7 +7,7 @@ import Testing
 @MainActor
 @Suite("Mac Audio File Recorder")
 struct MacAudioFileRecorderTests {
-    @Test func recordingSessionProducesReadablePCMFileAndTracksWrittenFrames() throws {
+    @Test func recordingSessionIgnoresBuffersBeforeActivationAndWritesBuffersAfterActivation() async throws {
         let outputFormat = try #require(TranscriptionUploadAudioFormat.makeMacOutputFormat())
         let inputFormat = try #require(
             AVAudioFormat(
@@ -21,35 +21,66 @@ struct MacAudioFileRecorderTests {
         try? FileManager.default.removeItem(at: fileURL)
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
-        let writtenFrames: AVAudioFramePosition
-        do {
-            let recordingFile = try AVAudioFile(
-                forWriting: fileURL,
-                settings: outputFormat.settings,
-                commonFormat: outputFormat.commonFormat,
-                interleaved: outputFormat.isInterleaved
-            )
-            let session = try MacAudioFileRecordingSession(
-                recordingFile: recordingFile,
-                outputFormat: outputFormat
-            )
-            let inputBuffer = try #require(Self.makeInputBuffer(format: inputFormat))
-            let snapshot = try #require(try session.snapshot(for: inputFormat))
-            let convertedBuffer = try LinearPCMConversion.convert(
-                inputBuffer,
-                using: snapshot.converter,
-                outputFormat: outputFormat
-            )
+        var recordingFile: AVAudioFile? = try AVAudioFile(
+            forWriting: fileURL,
+            settings: outputFormat.settings,
+            commonFormat: outputFormat.commonFormat,
+            interleaved: outputFormat.isInterleaved
+        )
+        let session = MacAudioFileRecordingSession(
+            recordingFile: try #require(recordingFile),
+            outputFormat: outputFormat,
+            voiceProcessingEnabled: true,
+            voiceProcessingFallbackReason: nil
+        )
+        let inputBuffer = try #require(Self.makeInputBuffer(format: inputFormat))
+        let snapshot = try #require(try session.snapshot(for: inputFormat))
+        let convertedBuffer = try LinearPCMConversion.convert(
+            inputBuffer,
+            using: snapshot.converter,
+            outputFormat: outputFormat
+        )
 
-            try snapshot.recordingFile.write(from: convertedBuffer)
-            session.recordWrite(frameLength: convertedBuffer.frameLength)
-            writtenFrames = session.totalWrittenFrames()
-            session.close()
-        }
+        let beforeActivation = try #require(try session.ingestConvertedBuffer(convertedBuffer))
+        #expect(!beforeActivation.didWriteAudioFrames)
 
-        let reopenedFile = try AVAudioFile(forReading: fileURL)
-        #expect(reopenedFile.length == writtenFrames)
-        #expect(reopenedFile.fileFormat.sampleRate == 16_000)
+        session.activateRecordingWindow()
+        let afterActivation = try #require(try session.ingestConvertedBuffer(convertedBuffer))
+        #expect(afterActivation.didWriteAudioFrames)
+
+        let outcome = session.recordingOutcome()
+        session.close()
+        recordingFile = nil
+
+        #expect(outcome.writtenFrameCount == AVAudioFramePosition(convertedBuffer.frameLength))
+        #expect(outcome.didWriteAudio)
+    }
+
+    @Test func recordingOutcomeIncludesVoiceProcessingFallbackDetails() throws {
+        let outputFormat = try #require(TranscriptionUploadAudioFormat.makeMacOutputFormat())
+        let fileURL = TestSupport.temporaryFileURL(ext: "wav")
+        try? FileManager.default.removeItem(at: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let recordingFile = try AVAudioFile(
+            forWriting: fileURL,
+            settings: outputFormat.settings,
+            commonFormat: outputFormat.commonFormat,
+            interleaved: outputFormat.isInterleaved
+        )
+        let session = MacAudioFileRecordingSession(
+            recordingFile: recordingFile,
+            outputFormat: outputFormat,
+            voiceProcessingEnabled: false,
+            voiceProcessingFallbackReason: "unsupported route"
+        )
+
+        let outcome = session.recordingOutcome()
+        session.close()
+
+        #expect(!outcome.didWriteAudio)
+        #expect(outcome.captureDiagnosticsSummary?.contains("voiceProcessingEnabled=false") == true)
+        #expect(outcome.captureDiagnosticsSummary?.contains("fallbackReason=unsupported route") == true)
     }
 
     @Test func stopRecordingWaitsUntilFileBecomesReadable() async throws {

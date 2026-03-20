@@ -28,15 +28,6 @@ struct AudioPostProcessingResult: Sendable {
             shouldDiscardAsNoSpeech: true
         )
     }
-
-    static func processed(outputURL: URL, sourceURL: URL, duration: TimeInterval?) -> Self {
-        Self(
-            url: outputURL,
-            duration: duration,
-            cleanupURLs: [sourceURL, outputURL],
-            shouldDiscardAsNoSpeech: false
-        )
-    }
 }
 
 final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable {
@@ -52,15 +43,10 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
         static let absoluteSpeechFloorDBFS = -72.0
         static let speechPreRollFrameCount = 1
         static let speechHangoverFrameCount = 5
-        static let targetSpeechDBFS = -20.0
-        static let peakCeilingDBFS = -1.0
-        static let maximumGainDB = 12.0
-        static let minimumGainToRewriteDB = 1.0
     }
 
     private struct Analysis {
         let shouldDiscardAsNoSpeech: Bool
-        let recommendedGainDB: Double
         let speechFrameRatio: Double
         let confirmationSpeechFrameRatio: Double
         let longestSpeechDurationSeconds: Double
@@ -68,6 +54,19 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
         let rawSpeechFrameRatio: Double
         let noiseFloorDBFS: Double
         let speechLevelP75DBFS: Double
+
+        var summaryLine: String {
+            """
+            wouldDiscard=\(shouldDiscardAsNoSpeech) \
+            rawSpeechFrameRatio=\(String(format: "%.3f", rawSpeechFrameRatio)) \
+            speechFrameRatio=\(String(format: "%.3f", speechFrameRatio)) \
+            confirmationSpeechFrameRatio=\(String(format: "%.3f", confirmationSpeechFrameRatio)) \
+            totalSpeechSeconds=\(String(format: "%.3f", totalSpeechDurationSeconds)) \
+            longestSpeechSeconds=\(String(format: "%.3f", longestSpeechDurationSeconds)) \
+            noiseFloorDBFS=\(String(format: "%.1f", noiseFloorDBFS)) \
+            speechLevelP75DBFS=\(String(format: "%.1f", speechLevelP75DBFS))
+            """
+        }
     }
 
     private struct WAVEFile {
@@ -113,47 +112,24 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
         )
 
         AppLogger.info(
-            """
-            Audio post-processing analyzed capture. \
-            shouldDiscard=\(analysis.shouldDiscardAsNoSpeech), \
-            rawSpeechFrameRatio=\(String(format: "%.3f", analysis.rawSpeechFrameRatio)), \
-            speechFrameRatio=\(String(format: "%.3f", analysis.speechFrameRatio)), \
-            confirmationSpeechFrameRatio=\(String(format: "%.3f", analysis.confirmationSpeechFrameRatio)), \
-            totalSpeechSeconds=\(String(format: "%.3f", analysis.totalSpeechDurationSeconds)), \
-            longestSpeechSeconds=\(String(format: "%.3f", analysis.longestSpeechDurationSeconds)), \
-            noiseFloorDBFS=\(String(format: "%.1f", analysis.noiseFloorDBFS)), \
-            speechLevelP75DBFS=\(String(format: "%.1f", analysis.speechLevelP75DBFS)), \
-            gainDB=\(String(format: "%.1f", analysis.recommendedGainDB))
-            """,
+            "Audio post-processing analyzed capture. \(analysis.summaryLine)",
             category: .dictation
         )
-
-        if analysis.shouldDiscardAsNoSpeech {
-            return .discard(url: sourceURL, duration: effectiveDuration)
-        }
-
-        guard analysis.recommendedGainDB >= Configuration.minimumGainToRewriteDB else {
-            return .passthrough(url: sourceURL, duration: effectiveDuration)
-        }
-
-        let outputURL = Self.makeProcessedFileURL(basedOn: sourceURL)
-        do {
-            try Self.writeNormalizedCopy(
-                of: waveFile.samples,
-                to: outputURL,
-                sampleRate: waveFile.sampleRate,
-                gainDB: analysis.recommendedGainDB
-            )
-        } catch {
-            try? FileManager.default.removeItem(at: outputURL)
+        if UserDefaults.standard.bool(forKey: MacPreferences.dictationPerfTracingEnabled) {
             AppLogger.warning(
-                "Audio normalization failed; continuing with the original file. error=\(error.localizedDescription)",
+                "Audio post-processing summary. \(analysis.summaryLine)",
                 category: .dictation
             )
-            return .passthrough(url: sourceURL, duration: effectiveDuration)
         }
 
-        return .processed(outputURL: outputURL, sourceURL: sourceURL, duration: effectiveDuration)
+        if analysis.shouldDiscardAsNoSpeech {
+            AppLogger.warning(
+                "Local speech gate would have discarded this capture, but keeping it for transcription. \(analysis.summaryLine)",
+                category: .dictation
+            )
+        }
+
+        return .passthrough(url: sourceURL, duration: effectiveDuration)
     }
 
     private static func analyze(
@@ -163,7 +139,6 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
         guard !samples.isEmpty, sampleRate > 0 else {
             return Analysis(
                 shouldDiscardAsNoSpeech: true,
-                recommendedGainDB: 0,
                 speechFrameRatio: 0,
                 confirmationSpeechFrameRatio: 0,
                 longestSpeechDurationSeconds: 0,
@@ -205,25 +180,19 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
 
         let speechFlags = smoothedSpeechFlags(from: rawSpeechFlags)
         let confirmationSpeechFlags = smoothedSpeechFlags(from: rawConfirmationSpeechFlags)
-        let speechEvidenceFlags = speechFlags
-        let confirmationSpeechEvidenceFlags = confirmationSpeechFlags
-        let minimumSpeechFrameCount = Configuration.minimumSpeechFrameCount
-        let minimumSpeechRunFrameCount = Configuration.minimumSpeechRunFrameCount
-        let minimumConfirmationSpeechFrameCount = Configuration.minimumConfirmationSpeechFrameCount
-        let minimumConfirmationSpeechRunFrameCount = Configuration.minimumConfirmationSpeechRunFrameCount
-        let speechFrameCount = speechEvidenceFlags.filter { $0 }.count
-        let totalFrameCount = max(speechEvidenceFlags.count, 1)
-        let confirmationSpeechFrameCount = confirmationSpeechEvidenceFlags.filter { $0 }.count
+        let speechFrameCount = speechFlags.filter { $0 }.count
+        let totalFrameCount = max(speechFlags.count, 1)
+        let confirmationSpeechFrameCount = confirmationSpeechFlags.filter { $0 }.count
         let rawSpeechFrameCount = rawSpeechFlags.filter { $0 }.count
         let speechFrameRatio = Double(speechFrameCount) / Double(totalFrameCount)
         let confirmationSpeechFrameRatio = Double(confirmationSpeechFrameCount) / Double(totalFrameCount)
         let rawSpeechFrameRatio = Double(rawSpeechFrameCount) / Double(totalFrameCount)
-        let longestSpeechRun = longestTrueRun(in: speechEvidenceFlags)
-        let confirmationLongestSpeechRun = longestTrueRun(in: confirmationSpeechEvidenceFlags)
+        let longestSpeechRun = longestTrueRun(in: speechFlags)
+        let confirmationLongestSpeechRun = longestTrueRun(in: confirmationSpeechFlags)
         let longestSpeechDurationSeconds = Double(longestSpeechRun * frameSize) / sampleRate
         let totalSpeechDurationSeconds = Double(speechFrameCount * frameSize) / sampleRate
         let allFrameFlags = Array(repeating: true, count: frameStatsByIndex.count)
-        let nonSpeechFlags = speechEvidenceFlags.map { !$0 }
+        let nonSpeechFlags = speechFlags.map { !$0 }
         let noiseFloorDBFS = max(
             frameLevel(
                 using: frameStatsByIndex,
@@ -238,25 +207,24 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
         )
         let speechLevelP75DBFS = frameLevel(
             using: frameStatsByIndex,
-            flags: speechEvidenceFlags,
+            flags: speechFlags,
             fraction: 0.75
         )
         let hasConfirmationSpeech =
-            confirmationSpeechFrameCount >= minimumConfirmationSpeechFrameCount &&
-            confirmationLongestSpeechRun >= minimumConfirmationSpeechRunFrameCount
+            confirmationSpeechFrameCount >= Configuration.minimumConfirmationSpeechFrameCount &&
+            confirmationLongestSpeechRun >= Configuration.minimumConfirmationSpeechRunFrameCount
         let hasSpeechRiseAboveNoiseFloor =
             speechLevelP75DBFS >= max(
                 Configuration.absoluteSpeechFloorDBFS,
                 noiseFloorDBFS + Configuration.minimumSpeechRiseAboveNoiseFloorDB
             )
 
-        guard speechFrameCount >= minimumSpeechFrameCount,
-              longestSpeechRun >= minimumSpeechRunFrameCount,
+        guard speechFrameCount >= Configuration.minimumSpeechFrameCount,
+              longestSpeechRun >= Configuration.minimumSpeechRunFrameCount,
               hasSpeechRiseAboveNoiseFloor,
               hasConfirmationSpeech else {
             return Analysis(
                 shouldDiscardAsNoSpeech: true,
-                recommendedGainDB: 0,
                 speechFrameRatio: speechFrameRatio,
                 confirmationSpeechFrameRatio: confirmationSpeechFrameRatio,
                 longestSpeechDurationSeconds: longestSpeechDurationSeconds,
@@ -266,46 +234,9 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
                 speechLevelP75DBFS: speechLevelP75DBFS
             )
         }
-
-        var speechSquareSum = 0.0
-        var speechPeakAmplitude = 0.0
-        var speechSampleCount = 0
-
-        for (index, isSpeech) in speechEvidenceFlags.enumerated() where isSpeech {
-            let stats = frameStatsByIndex[index]
-            speechSquareSum += stats.sumSquares
-            speechPeakAmplitude = max(speechPeakAmplitude, stats.peakAmplitude)
-            speechSampleCount += stats.sampleCount
-        }
-
-        guard speechSampleCount > 0 else {
-            return Analysis(
-                shouldDiscardAsNoSpeech: true,
-                recommendedGainDB: 0,
-                speechFrameRatio: speechFrameRatio,
-                confirmationSpeechFrameRatio: confirmationSpeechFrameRatio,
-                longestSpeechDurationSeconds: longestSpeechDurationSeconds,
-                totalSpeechDurationSeconds: totalSpeechDurationSeconds,
-                rawSpeechFrameRatio: rawSpeechFrameRatio,
-                noiseFloorDBFS: noiseFloorDBFS,
-                speechLevelP75DBFS: speechLevelP75DBFS
-            )
-        }
-
-        let speechRMS = sqrt(speechSquareSum / Double(speechSampleCount))
-        let speechDBFS = decibels(for: speechRMS)
-        let peakDBFS = decibels(for: speechPeakAmplitude)
-
-        let targetGainDB = min(
-            max(Configuration.targetSpeechDBFS - speechDBFS, 0),
-            Configuration.maximumGainDB
-        )
-        let headroomGainDB = max(Configuration.peakCeilingDBFS - peakDBFS, 0)
-        let recommendedGainDB = min(targetGainDB, headroomGainDB)
 
         return Analysis(
             shouldDiscardAsNoSpeech: false,
-            recommendedGainDB: recommendedGainDB,
             speechFrameRatio: speechFrameRatio,
             confirmationSpeechFrameRatio: confirmationSpeechFrameRatio,
             longestSpeechDurationSeconds: longestSpeechDurationSeconds,
@@ -409,109 +340,6 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
         return longestRun
     }
 
-    private static func suppressLeadingTransientSpeech(
-        in flags: [Bool],
-        referenceFlags: [Bool],
-        maxStartFrameCount: Int,
-        maxRunFrameCount: Int
-    ) -> [Bool] {
-        guard maxStartFrameCount > 0, maxRunFrameCount > 0, !flags.isEmpty else {
-            return flags
-        }
-
-        guard let leadingRun = leadingSpeechRun(
-            in: referenceFlags,
-            maxStartFrameCount: maxStartFrameCount,
-            maxRunFrameCount: maxRunFrameCount
-        ) else {
-            return flags
-        }
-
-        var suppressedFlags = flags
-        let suppressedEnd = min(
-            suppressedFlags.count,
-            leadingRun.upperBound + Configuration.speechHangoverFrameCount
-        )
-        for index in leadingRun.lowerBound..<suppressedEnd {
-            suppressedFlags[index] = false
-        }
-
-        return suppressedFlags
-    }
-
-    private static func isLikelyPromptOnlyCapture(
-        rawSpeechFlags: [Bool],
-        rawConfirmationSpeechFlags: [Bool],
-        maxStartFrameCount: Int,
-        maxRunFrameCount: Int,
-        promptTailGraceFrameCount: Int,
-        minimumConfirmationSpeechRunFrameCount: Int
-    ) -> Bool {
-        guard let leadingRun = leadingSpeechRun(
-            in: rawSpeechFlags,
-            maxStartFrameCount: maxStartFrameCount,
-            maxRunFrameCount: maxRunFrameCount
-        ) else {
-            return false
-        }
-
-        let postPromptStartIndex = min(
-            rawConfirmationSpeechFlags.count,
-            leadingRun.upperBound + promptTailGraceFrameCount
-        )
-        return !containsTrueRun(
-            in: rawConfirmationSpeechFlags,
-            startingAt: postPromptStartIndex,
-            minimumRunLength: minimumConfirmationSpeechRunFrameCount
-        )
-    }
-
-    private static func leadingSpeechRun(
-        in flags: [Bool],
-        maxStartFrameCount: Int,
-        maxRunFrameCount: Int
-    ) -> Range<Int>? {
-        guard maxStartFrameCount > 0,
-              maxRunFrameCount > 0,
-              let firstSpeechIndex = flags.firstIndex(of: true),
-              firstSpeechIndex < min(maxStartFrameCount, flags.count) else {
-            return nil
-        }
-
-        var runEnd = firstSpeechIndex
-        while runEnd < flags.count, flags[runEnd] {
-            runEnd += 1
-        }
-
-        guard runEnd - firstSpeechIndex <= maxRunFrameCount else {
-            return nil
-        }
-
-        return firstSpeechIndex..<runEnd
-    }
-
-    private static func containsTrueRun(
-        in flags: [Bool],
-        startingAt startIndex: Int,
-        minimumRunLength: Int
-    ) -> Bool {
-        guard minimumRunLength > 0, startIndex < flags.count else { return false }
-
-        var currentRunLength = 0
-        for index in startIndex..<flags.count {
-            if flags[index] {
-                currentRunLength += 1
-                if currentRunLength >= minimumRunLength {
-                    return true
-                }
-            } else {
-                currentRunLength = 0
-            }
-        }
-
-        return false
-    }
-
     private static func paddedFrame(_ frame: ArraySlice<Int16>, targetLength: Int) -> ArraySlice<Int16> {
         guard frame.count < targetLength else { return frame }
         var paddedFrame = Array(frame)
@@ -607,8 +435,8 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
                     sampleOffset += 2
                 }
 
-                sampleCount = parsedSampleCount
                 samples = parsedSamples
+                sampleCount = parsedSampleCount
 
             default:
                 break
@@ -625,58 +453,6 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
         }
 
         return WAVEFile(sampleRate: sampleRate, samples: samples)
-    }
-
-    private static func writeNormalizedCopy(
-        of samples: [Int16],
-        to outputURL: URL,
-        sampleRate: Double,
-        gainDB: Double
-    ) throws {
-        guard sampleRate.isFinite,
-              sampleRate > 0,
-              let sampleRateValue = UInt32(exactly: Int(sampleRate.rounded())) else {
-            throw WAVEError.unsupportedFormat
-        }
-
-        let gainMultiplier = pow(10, gainDB / 20)
-        let pcmBytes = samples.reduce(into: Data()) { data, sample in
-            let amplifiedSample = normalizedAmplitude(for: sample) * gainMultiplier
-            let clampedSample = max(-1.0, min(amplifiedSample, 1.0))
-            let pcmSample = Int16(clampedSample * Double(Int16.max))
-            data.append(contentsOf: withUnsafeBytes(of: pcmSample.littleEndian, Array.init))
-        }
-
-        let fmtChunkSize = UInt32(16)
-        let dataChunkSize = UInt32(pcmBytes.count)
-        let riffChunkSize = UInt32(4 + (8 + fmtChunkSize) + (8 + dataChunkSize))
-        let byteRate = sampleRateValue * 2
-        let blockAlign = UInt16(2)
-        let bitsPerSample = UInt16(16)
-
-        var waveData = Data()
-        waveData.append(contentsOf: Array("RIFF".utf8))
-        appendLittleEndian(riffChunkSize, to: &waveData)
-        waveData.append(contentsOf: Array("WAVE".utf8))
-        waveData.append(contentsOf: Array("fmt ".utf8))
-        appendLittleEndian(fmtChunkSize, to: &waveData)
-        appendLittleEndian(UInt16(1), to: &waveData)
-        appendLittleEndian(UInt16(1), to: &waveData)
-        appendLittleEndian(sampleRateValue, to: &waveData)
-        appendLittleEndian(byteRate, to: &waveData)
-        appendLittleEndian(blockAlign, to: &waveData)
-        appendLittleEndian(bitsPerSample, to: &waveData)
-        waveData.append(contentsOf: Array("data".utf8))
-        appendLittleEndian(dataChunkSize, to: &waveData)
-        waveData.append(pcmBytes)
-
-        try waveData.write(to: outputURL, options: .atomic)
-    }
-
-    private static func makeProcessedFileURL(basedOn sourceURL: URL) -> URL {
-        sourceURL.deletingLastPathComponent().appendingPathComponent(
-            "\(sourceURL.deletingPathExtension().lastPathComponent)-normalized-\(UUID().uuidString).wav"
-        )
     }
 
     private static func asciiString(in data: Data, offset: Int, count: Int) -> String? {
@@ -698,21 +474,5 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
         let byte2 = UInt32(data[data.startIndex + offset + 2]) << 16
         let byte3 = UInt32(data[data.startIndex + offset + 3]) << 24
         return byte0 | byte1 | byte2 | byte3
-    }
-
-    private static func appendLittleEndian<T: FixedWidthInteger>(_ value: T, to data: inout Data) {
-        var littleEndianValue = value.littleEndian
-        withUnsafeBytes(of: &littleEndianValue) { data.append(contentsOf: $0) }
-    }
-}
-
-private extension InteractionSoundPreset {
-    var startSoundFileName: String {
-        switch self {
-        case .soft:
-            return "Submarine"
-        case .glass:
-            return "Glass"
-        }
     }
 }

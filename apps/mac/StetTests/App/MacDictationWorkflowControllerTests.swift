@@ -19,6 +19,21 @@ private final class TestMediaPlaybackController: MediaPlaybackControlling {
 }
 
 @MainActor
+private final class TestSystemAudioMuting: SystemAudioMuting {
+    private(set) var activateCallCount = 0
+    private(set) var restoreCallCount = 0
+
+    func activateMuteIfNeeded() -> Bool {
+        activateCallCount += 1
+        return true
+    }
+
+    func restoreMuteIfNeeded() {
+        restoreCallCount += 1
+    }
+}
+
+@MainActor
 private final class TestInteractionSoundPlayer: InteractionSoundPlaying {
     private(set) var startPromptCallCount = 0
     private(set) var finishCallCount = 0
@@ -67,6 +82,7 @@ struct MacDictationWorkflowControllerTests {
         speechService: ControllableSpeechService? = nil,
         textInjectionService: TestTextInjectionService? = nil,
         mediaPlaybackController: TestMediaPlaybackController? = nil,
+        systemAudioMuting: TestSystemAudioMuting? = nil,
         interactionSoundPlayer: TestInteractionSoundPlayer? = nil,
         mediaResumeDelay: Duration = .zero
     ) -> (
@@ -75,12 +91,14 @@ struct MacDictationWorkflowControllerTests {
         clipboard: TestClipboardService,
         textInjectionService: TestTextInjectionService,
         mediaPlaybackController: TestMediaPlaybackController,
+        systemAudioMuting: TestSystemAudioMuting?,
         interactionSoundPlayer: TestInteractionSoundPlayer
     ) {
         let defaults = defaults ?? TestSupport.makeUserDefaults()
         let speechService = speechService ?? ControllableSpeechService()
         let textInjectionService = textInjectionService ?? TestTextInjectionService()
         let mediaPlaybackController = mediaPlaybackController ?? TestMediaPlaybackController()
+        let systemAudioMuting = systemAudioMuting
         let interactionSoundPlayer = interactionSoundPlayer ?? TestInteractionSoundPlayer()
         if defaults.object(forKey: MacPreferences.interactionSoundsEnabled) == nil {
             defaults.set(false, forKey: MacPreferences.interactionSoundsEnabled)
@@ -101,6 +119,7 @@ struct MacDictationWorkflowControllerTests {
             captureCoordinator: captureCoordinator,
             textInjectionService: textInjectionService,
             mediaPlaybackController: mediaPlaybackController,
+            systemAudioMuting: systemAudioMuting,
             settingsStore: settingsStore,
             interactionSoundPlayer: interactionSoundPlayer,
             mediaResumeDelay: mediaResumeDelay
@@ -112,6 +131,7 @@ struct MacDictationWorkflowControllerTests {
             clipboard: clipboard,
             textInjectionService: textInjectionService,
             mediaPlaybackController: mediaPlaybackController,
+            systemAudioMuting: systemAudioMuting,
             interactionSoundPlayer: interactionSoundPlayer
         )
     }
@@ -171,6 +191,33 @@ struct MacDictationWorkflowControllerTests {
             subject.mediaPlaybackController.resumeCallCount == 1
         })
         #expect(subject.controller.activeRecordingSource == nil)
+
+        subject.viewModel.send(.resetTapped)
+    }
+
+    @Test func stateTransitionsActivateAndRestoreSystemAudioMuteWhenConfigured() async {
+        let defaults = TestSupport.makeUserDefaults()
+        defaults.set(true, forKey: MacPreferences.pauseMediaDuringDictation)
+        let speechService = ControllableSpeechService()
+        await speechService.setStopBehavior(.suspended)
+        let systemAudioMuting = TestSystemAudioMuting()
+        let subject = makeController(
+            defaults: defaults,
+            speechService: speechService,
+            systemAudioMuting: systemAudioMuting
+        )
+
+        subject.controller.startDictationCapture(source: .hotkey) {}
+        #expect(systemAudioMuting.activateCallCount == 0)
+        #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
+        #expect(await TestSupport.eventually { systemAudioMuting.activateCallCount == 1 })
+
+        subject.viewModel.send(.stopTapped)
+        subject.controller.handleStateTransition(from: .listening, to: .processing)
+
+        #expect(await TestSupport.eventually {
+            systemAudioMuting.restoreCallCount == 1
+        })
 
         subject.viewModel.send(.resetTapped)
     }

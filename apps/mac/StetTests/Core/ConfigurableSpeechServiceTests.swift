@@ -489,7 +489,7 @@ struct ConfigurableSpeechServiceTests {
         }
     }
 
-    @Test func silentAudioIsDiscardedBeforeTranscriptionStarts() async throws {
+    @Test func silentAudioStillReachesTranscription() async throws {
         let audioFileURL = try Self.makeSilentAudioFileURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
 
@@ -510,12 +510,10 @@ struct ConfigurableSpeechServiceTests {
         )
 
         try await service.startRecording()
+        let transcript = try await service.stopRecording()
 
-        await #expect(throws: SpeechServiceError.emptyTranscription) {
-            try await service.stopRecording()
-        }
-
-        #expect(await direct.callCount() == 0)
+        #expect(transcript == "should not be used")
+        #expect(await direct.callCount() == 1)
         #expect(await relay.callCount() == 0)
         #expect(await rewrite.recordedRequests().isEmpty)
     }
