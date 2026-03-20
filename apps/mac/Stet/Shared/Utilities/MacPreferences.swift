@@ -1,10 +1,12 @@
 import Foundation
 
 enum MacPreferences {
+    nonisolated static let onboardingCompleted = "mac.onboardingCompleted"
     nonisolated static let pauseMediaDuringDictation = "mac.pauseMediaDuringDictation"
     nonisolated static let transcriptionProvider = "mac.transcriptionProvider"
     nonisolated static let aiExecutionMode = "mac.aiExecutionMode"
     nonisolated static let rewriteEnabled = "mac.rewriteEnabled"
+    nonisolated static let dictationLanguageMode = "mac.dictationLanguageMode"
     nonisolated static let translationTargetLanguage = "mac.translationTargetLanguage"
     nonisolated static let translateSelectedTextOnTranslationHotkey = "mac.translateSelectedTextOnTranslationHotkey"
     nonisolated static let globalHotkeyShortcut = "mac.globalHotkeyShortcut"
@@ -13,6 +15,7 @@ enum MacPreferences {
     nonisolated static let rewriteHotkeyShortcut = "mac.rewriteHotkeyShortcut"
     nonisolated static let hotkeyPreset = "mac.hotkeyPreset"
     nonisolated static let hotkeyDistinguishModifierSides = "mac.hotkeyDistinguishModifierSides"
+    nonisolated static let dictationPerfTracingEnabled = "mac.dictationPerfTracingEnabled"
     nonisolated static let personalDictionary = "mac.personalDictionary"
     nonisolated static let personalDictionaryEnabled = "mac.personalDictionaryEnabled"
     nonisolated static let interactionSoundsEnabled = "mac.interactionSoundsEnabled"

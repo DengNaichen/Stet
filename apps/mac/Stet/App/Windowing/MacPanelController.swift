@@ -1,6 +1,5 @@
 #if os(macOS)
 import AppKit
-import Combine
 import SwiftUI
 
 @MainActor
@@ -19,32 +18,31 @@ final class MacPanelController: NSObject, NSWindowDelegate {
 
     private var panel: NSPanel?
     private weak var observedAppModel: (any MacDictationPanelCoordinating)?
-    private var panelStateCancellable: AnyCancellable?
 
     func show(appModel: any MacDictationPanelCoordinating, mode: PresentationMode) {
         let screen = targetScreen()
-        let layout = MacDictationPanelLayout.for(screen: screen)
-        let panelSize = layout.panelSize(for: appModel.dictationState)
+        let layout = MacDictationPanelLayout.fixed
+        let panelSize = layout.panelSize
+        let panelFrame = frame(for: screen, panelSize: panelSize, bottomInset: layout.bottomInset)
+        let isNewAppModel = observedAppModel !== appModel
 
-        observePanelState(for: appModel)
+        observedAppModel = appModel
 
         if panel == nil {
-            panel = makePanel(appModel: appModel, layout: layout, panelSize: panelSize)
+            panel = makePanel(panelSize: panelSize)
         }
 
         guard let panel else { return }
 
-        panel.contentViewController = NSHostingController(
-            rootView: MacDictationPanelView(layout: layout, appModel: appModel)
-        )
+        if panel.contentViewController == nil || !panel.isVisible || isNewAppModel {
+            // Keep the hosted SwiftUI tree alive while the panel is visible so
+            // state-only updates do not restart the entrance animation.
+            panel.contentViewController = NSHostingController(
+                rootView: MacDictationPanelView(layout: layout, appModel: appModel)
+            )
+        }
 
-        positionPanel(
-            panel,
-            screen: screen,
-            panelSize: panelSize,
-            bottomInset: layout.bottomInset,
-            animate: false
-        )
+        positionPanel(panel, panelFrame: panelFrame, shouldCenter: screen == nil)
         panel.orderFrontRegardless()
 
         if mode == .manual {
@@ -62,11 +60,7 @@ final class MacPanelController: NSObject, NSWindowDelegate {
         return false
     }
 
-    private func makePanel(
-        appModel: any MacDictationPanelCoordinating,
-        layout: MacDictationPanelLayout,
-        panelSize: CGSize
-    ) -> NSPanel {
+    private func makePanel(panelSize: CGSize) -> NSPanel {
         let panel = CapsulePanel(
             contentRect: NSRect(origin: .zero, size: panelSize),
             styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
@@ -90,35 +84,48 @@ final class MacPanelController: NSObject, NSWindowDelegate {
         panel.standardWindowButton(.closeButton)?.isHidden = true
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
         panel.standardWindowButton(.zoomButton)?.isHidden = true
-        panel.contentViewController = NSHostingController(
-            rootView: MacDictationPanelView(layout: layout, appModel: appModel)
-        )
 
         return panel
     }
 
-    private func positionPanel(
-        _ panel: NSPanel,
-        screen: NSScreen?,
+    private func frame(
+        for screen: NSScreen?,
         panelSize: CGSize,
-        bottomInset: CGFloat,
-        animate: Bool
-    ) {
+        bottomInset: CGFloat
+    ) -> NSRect {
         guard let screen else {
-            panel.setContentSize(panelSize)
-            panel.center()
-            return
+            return NSRect(origin: .zero, size: panelSize)
         }
 
         let visibleFrame = screen.visibleFrame
-        let frame = NSRect(
+        return NSRect(
             x: visibleFrame.midX - (panelSize.width / 2),
             y: visibleFrame.minY + bottomInset,
             width: panelSize.width,
             height: panelSize.height
         )
+    }
 
-        panel.setFrame(frame, display: true, animate: animate)
+    private func positionPanel(
+        _ panel: NSPanel,
+        panelFrame: NSRect,
+        shouldCenter: Bool
+    ) {
+        if shouldCenter {
+            if panel.frame.size != panelFrame.size {
+                panel.setContentSize(panelFrame.size)
+            }
+            panel.center()
+            return
+        }
+
+        if panel.frame.size != panelFrame.size {
+            panel.setContentSize(panelFrame.size)
+        }
+
+        if panel.frame.origin != panelFrame.origin {
+            panel.setFrameOrigin(panelFrame.origin)
+        }
     }
 
     private func targetScreen() -> NSScreen? {
@@ -129,31 +136,6 @@ final class MacPanelController: NSObject, NSWindowDelegate {
         }
 
         return NSScreen.main ?? NSScreen.screens.first
-    }
-
-    private func observePanelState(for appModel: any MacDictationPanelCoordinating) {
-        guard observedAppModel !== appModel else { return }
-
-        observedAppModel = appModel
-        panelStateCancellable = appModel.updates
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self, weak appModel] _ in
-                DispatchQueue.main.async { [weak self, weak appModel] in
-                    guard let self, let appModel, let panel = self.panel else { return }
-
-                    let screen = panel.screen ?? self.targetScreen()
-                    let layout = MacDictationPanelLayout.for(screen: screen)
-                    let panelSize = layout.panelSize(for: appModel.dictationState)
-
-                    self.positionPanel(
-                        panel,
-                        screen: screen,
-                        panelSize: panelSize,
-                        bottomInset: layout.bottomInset,
-                        animate: panel.isVisible
-                    )
-                }
-            }
     }
 }
 #endif

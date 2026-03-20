@@ -26,6 +26,12 @@ final class MacOpenAISettingsViewModel: ObservableObject {
             settingsStore.saveRewriteEnabled(rewriteEnabled)
         }
     }
+    @Published var dictationLanguageMode: DictationLanguageMode = .automatic {
+        didSet {
+            guard hasLoadedState else { return }
+            settingsStore.saveDictationLanguageMode(dictationLanguageMode)
+        }
+    }
     @Published var translationTargetLanguage: TranslationTargetLanguage = .english {
         didSet {
             guard hasLoadedState else { return }
@@ -71,6 +77,7 @@ final class MacOpenAISettingsViewModel: ObservableObject {
         executionMode = settingsStore.loadExecutionMode()
         provider = settingsStore.loadProvider()
         rewriteEnabled = settingsStore.loadRewriteEnabled()
+        dictationLanguageMode = settingsStore.loadDictationLanguageMode()
         translationTargetLanguage = settingsStore.loadTranslationTargetLanguage()
         translateSelectedTextOnTranslationHotkey = settingsStore.loadTranslateSelectedTextOnTranslationHotkey()
         apiKey = settingsStore.loadAPIKey(for: provider)
@@ -141,6 +148,10 @@ final class MacOpenAISettingsViewModel: ObservableObject {
         case .byok:
             return "Rewrite final transcript with \(provider.displayName)"
         }
+    }
+
+    var dictationLanguageDescription: String {
+        dictationLanguageMode.subtitle
     }
 
     var credentialFieldTitle: String {

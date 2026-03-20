@@ -429,26 +429,8 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Stet/Info.plist;
-				"INFOPLIST_KEY_LSApplicationCategoryType[sdk=macosx*]" = "public.app-category.productivity";
-				"INFOPLIST_KEY_LSUIElement[sdk=macosx*]" = YES;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Stet uses System Events to paste your transcript back into the app you were using.";
-				"INFOPLIST_KEY_NSAudioCaptureUsageDescription[sdk=macosx*]" = "Stet temporarily silences other audio while dictation is active.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Stet uses the microphone to capture your dictation.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Stet uses on-device speech recognition to turn your voice into text.";
-				"INFOPLIST_KEY_SUAutomaticallyUpdate[sdk=macosx*]" = NO;
-				"INFOPLIST_KEY_SUEnableAutomaticChecks[sdk=macosx*]" = NO;
-				"INFOPLIST_KEY_SUEnableInstallerLauncherService[sdk=macosx*]" = YES;
-				"INFOPLIST_KEY_SUFeedURL[sdk=macosx*]" = "$(SPARKLE_FEED_URL)";
-				INFOPLIST_KEY_SUPABASE_PUBLISHABLE_KEY = "$(SUPABASE_PUBLISHABLE_KEY)";
-				INFOPLIST_KEY_SUPABASE_URL = "$(SUPABASE_URL)";
-				"INFOPLIST_KEY_SUPublicEDKey[sdk=macosx*]" = "$(SPARKLE_PUBLIC_ED_KEY)";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -485,26 +467,8 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Stet/Info.plist;
-				"INFOPLIST_KEY_LSApplicationCategoryType[sdk=macosx*]" = "public.app-category.productivity";
-				"INFOPLIST_KEY_LSUIElement[sdk=macosx*]" = YES;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Stet uses System Events to paste your transcript back into the app you were using.";
-				"INFOPLIST_KEY_NSAudioCaptureUsageDescription[sdk=macosx*]" = "Stet temporarily silences other audio while dictation is active.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Stet uses the microphone to capture your dictation.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Stet uses on-device speech recognition to turn your voice into text.";
-				"INFOPLIST_KEY_SUAutomaticallyUpdate[sdk=macosx*]" = NO;
-				"INFOPLIST_KEY_SUEnableAutomaticChecks[sdk=macosx*]" = NO;
-				"INFOPLIST_KEY_SUEnableInstallerLauncherService[sdk=macosx*]" = YES;
-				"INFOPLIST_KEY_SUFeedURL[sdk=macosx*]" = "$(SPARKLE_FEED_URL)";
-				INFOPLIST_KEY_SUPABASE_PUBLISHABLE_KEY = "$(SUPABASE_PUBLISHABLE_KEY)";
-				INFOPLIST_KEY_SUPABASE_URL = "$(SUPABASE_URL)";
-				"INFOPLIST_KEY_SUPublicEDKey[sdk=macosx*]" = "$(SPARKLE_PUBLIC_ED_KEY)";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -518,8 +482,8 @@
 				SPARKLE_FEED_URL = "";
 				SPARKLE_PUBLIC_ED_KEY = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPABASE_PUBLISHABLE_KEY = "";
-				SUPABASE_URL = "";
+				SUPABASE_PUBLISHABLE_KEY = sb_publishable_DiDRWukKUQrcdBDUjYmJGw_5N51MiHP;
+				SUPABASE_URL = "https://qtffabmkvbkzarwevfrk.supabase.co";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

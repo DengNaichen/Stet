@@ -1,4 +1,5 @@
 #if os(macOS)
+import Combine
 import Foundation
 import Testing
 
@@ -106,6 +107,32 @@ private final class FakeHotkeyRegistrar: MacDictationHotkeyRegistering {
 }
 
 @MainActor
+private final class FakePresentationModel: MacAppPresentationModeling {
+    private let updatesSubject = PassthroughSubject<Void, Never>()
+
+    var updates: AnyPublisher<Void, Never> {
+        updatesSubject.eraseToAnyPublisher()
+    }
+
+    var dictationState: DictationState = .idle
+    var statusText: String = "Ready"
+    var recordingLevel: Double = 0
+    var autoPasteStatusText: String = "Enabled"
+    var microphoneAccessStatusText: String = "Allowed"
+    var microphoneAccessNeedsAttention = false
+    var microphonePermissionActionTitle: String = "Request Access"
+    var autoPasteAccessNeedsAttention = false
+
+    func hidePanel() {}
+    func dismissPendingCopy() {}
+    func cancelActiveCapture() {}
+    func performPrimaryAction() {}
+    func requestAutoPasteAccess() {}
+    func resolveMicrophoneAccess() {}
+    func openAccessibilitySettings() {}
+}
+
+@MainActor
 private final class FakeMediaPlaybackController: MediaPlaybackControlling {
     private(set) var pausePlaybackIfNeededCallCount = 0
     private(set) var resumePlaybackIfNeededCallCount = 0
@@ -129,6 +156,7 @@ struct MacAppSessionControllerActionTests {
         permissionGate: FakePermissionGatePresenter
     ) {
         let defaults = TestSupport.makeUserDefaults()
+        defaults.set(true, forKey: MacPreferences.onboardingCompleted)
         let speechService = ControllableSpeechService()
         let textInjectionService = TestTextInjectionService()
         let clipboardService = TestClipboardService()
@@ -148,7 +176,8 @@ struct MacAppSessionControllerActionTests {
             textInjectionService: textInjectionService,
             mediaPlaybackController: mediaPlaybackController,
             settingsStore: settingsStore,
-            interactionSoundPlayer: InteractionSoundPlayer()
+            interactionSoundPlayer: InteractionSoundPlayer(),
+            mediaResumeDelay: .zero
         )
         let permissionManager = MacPermissionManager(textInjectionService: textInjectionService)
         let shell = FakeShellPresenter()
@@ -171,7 +200,7 @@ struct MacAppSessionControllerActionTests {
 
         subject.workflow.startDictationCapture(source: .interface) {}
 
-        #expect(subject.workflow.dictationViewModel.state == .listening)
+        #expect(subject.workflow.dictationViewModel.state.isCaptureInFlight)
         #expect(subject.workflow.activeRecordingSource == .interface)
         #expect(subject.shell.hidePanelCallCount == 0)
 
@@ -196,6 +225,24 @@ struct MacAppSessionControllerActionTests {
         #expect(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .idle })
         #expect(subject.shell.hidePanelCallCount == 1)
         #expect(subject.shell.isPanelVisible == false)
+    }
+
+    @Test func startCaptureShowsTransientPanelOnlyOnceAcrossStartingAndListening() async {
+        let subject = makeSubject()
+        let presentationModel = FakePresentationModel()
+        subject.session.activate(presentationModel: presentationModel, showInDock: false)
+
+        subject.workflow.startDictationCapture(source: .interface) {
+            subject.shell.showTransientPanel(appModel: presentationModel)
+        }
+
+        #expect(await TestSupport.eventually {
+            subject.workflow.dictationViewModel.state == .listening
+        })
+        #expect(await TestSupport.eventually {
+            subject.shell.showTransientPanelCallCount == 1
+        })
+        #expect(subject.shell.isPanelVisible)
     }
 }
 

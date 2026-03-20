@@ -32,33 +32,59 @@ final class MacDictationWorkflowController {
     private let captureCoordinator: MacDictationCaptureCoordinator
     private let textInjectionService: any TextInjectionService
     private let mediaPlaybackController: any MediaPlaybackControlling
+    private let systemAudioMuting: (any SystemAudioMuting)?
     private let settingsStore: DictationSettingsStore
-    private let interactionSoundPlayer: InteractionSoundPlayer
+    private let interactionSoundPlayer: any InteractionSoundPlaying
+    private let mediaResumeDelay: Duration
 
     private weak var lastTargetApplication: NSRunningApplication?
     private(set) var activeRecordingSource: PrimaryActionSource?
     private(set) var activeWorkflow: CaptureWorkflow = .dictation
+    private var mediaResumeTask: Task<Void, Never>?
+    private var startActivationTask: Task<Void, Never>?
 
     init(
         dictationViewModel: DictationViewModel,
         captureCoordinator: MacDictationCaptureCoordinator,
         textInjectionService: any TextInjectionService,
         mediaPlaybackController: any MediaPlaybackControlling,
+        systemAudioMuting: (any SystemAudioMuting)? = nil,
         settingsStore: DictationSettingsStore,
-        interactionSoundPlayer: InteractionSoundPlayer
+        interactionSoundPlayer: any InteractionSoundPlaying,
+        mediaResumeDelay: Duration = .seconds(1)
     ) {
         self.dictationViewModel = dictationViewModel
         self.captureCoordinator = captureCoordinator
         self.textInjectionService = textInjectionService
         self.mediaPlaybackController = mediaPlaybackController
+        self.systemAudioMuting = systemAudioMuting
         self.settingsStore = settingsStore
         self.interactionSoundPlayer = interactionSoundPlayer
+        self.mediaResumeDelay = mediaResumeDelay
+    }
+
+    deinit {
+        mediaResumeTask?.cancel()
+        startActivationTask?.cancel()
+        let systemAudioMuting = self.systemAudioMuting
+        Task { @MainActor in
+            systemAudioMuting?.restoreMuteIfNeeded()
+        }
     }
 
     var statusText: String {
         switch dictationViewModel.state {
         case .idle:
             return "Ready"
+        case .starting:
+            switch activeWorkflow {
+            case .rewriteFromSelection:
+                return "Preparing rewrite capture..."
+            case .translationFromSpeech:
+                return "Preparing translation capture..."
+            case .dictation, .translationFromSelection:
+                return "Starting microphone..."
+            }
         case .listening:
             switch activeWorkflow {
             case .rewriteFromSelection:
@@ -95,8 +121,8 @@ final class MacDictationWorkflowController {
             case .dictation:
                 return "Copy to clipboard"
             }
-        case .error:
-            return "Something went wrong"
+        case .error(let failure):
+            return failure.statusText
         }
     }
 
@@ -121,27 +147,65 @@ final class MacDictationWorkflowController {
         source: PrimaryActionSource,
         showTransientPanel: @escaping @MainActor () -> Void
     ) {
+        Task {
+            await DictationRuntimeProbe.shared.markAction("startDictationCapture")
+        }
         refreshTargetApplication()
         activeWorkflow = .dictation
         activeRecordingSource = source
         showTransientPanel()
-        dictationViewModel.startCapture()
+        mediaResumeTask?.cancel()
+        mediaResumeTask = nil
+
+        let settings = settingsSnapshot
+        if settings.shouldPauseMediaDuringDictation {
+            mediaPlaybackController.pausePlaybackIfNeeded()
+        }
+
+        dictationViewModel.startCapture(activateWhenReady: false)
+
+        startActivationTask?.cancel()
+        startActivationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            if settings.interactionSoundsEnabled {
+                await interactionSoundPlayer.playStartPrompt(preset: settings.interactionSoundPreset)
+            }
+
+            guard !Task.isCancelled else { return }
+            guard dictationViewModel.state == .starting else { return }
+            dictationViewModel.activateCaptureWindow()
+            startActivationTask = nil
+        }
     }
 
     func stopActiveCapture() {
         activeRecordingSource = nil
+        startActivationTask?.cancel()
+        startActivationTask = nil
+        Task {
+            await DictationRuntimeProbe.shared.markAction("stopActiveCapture")
+        }
         dictationViewModel.stopCapture()
     }
 
     func cancelActiveCapture() {
         activeRecordingSource = nil
+        startActivationTask?.cancel()
+        startActivationTask = nil
+        Task {
+            await DictationRuntimeProbe.shared.markAction("cancelActiveCapture")
+        }
         dictationViewModel.send(.resetTapped)
     }
 
     func handleStateTransition(from previousState: DictationState, to newState: DictationState) {
+        Task {
+            await DictationRuntimeProbe.shared.markAction("workflowHandleStateTransition")
+        }
         handleMediaTransition(from: previousState, to: newState)
 
-        if case .listening = newState {
+        if newState.isCaptureInFlight {
             return
         }
 
@@ -153,11 +217,18 @@ final class MacDictationWorkflowController {
         activeWorkflow = .dictation
     }
 
+    func prewarm() async {
+        await dictationViewModel.prewarm()
+    }
+
     func handleCompletedResult(
         text: String,
         workflow: CaptureWorkflow,
         showTransientPanel: @escaping @MainActor () -> Void
     ) async -> CompletionOutcome {
+        Task {
+            await DictationRuntimeProbe.shared.markAction("handleCompletedResult workflow=\(workflow)")
+        }
         if workflow.isSelectionReplacement {
             return await handleSelectedTextReplacementResult(text: text, showTransientPanel: showTransientPanel)
         }
@@ -171,6 +242,9 @@ final class MacDictationWorkflowController {
     }
 
     func copyPendingResultToClipboard(_ text: String) {
+        Task {
+            await DictationRuntimeProbe.shared.markAction("copyPendingResultToClipboard")
+        }
         captureCoordinator.copyToClipboard(text)
     }
 
@@ -228,30 +302,56 @@ final class MacDictationWorkflowController {
     }
 
     private func handleMediaTransition(from previousState: DictationState, to newState: DictationState) {
+        if newState.isCaptureInFlight, !previousState.isCaptureInFlight {
+            mediaResumeTask?.cancel()
+            mediaResumeTask = nil
+        }
+
+        // Keep the heavy system mute out of launch/startup work.
+        // External playback is paused earlier; the tap is only activated once
+        // capture is actually live.
+        if settingsSnapshot.shouldPauseMediaDuringDictation,
+           matchesListeningState(newState) {
+            _ = systemAudioMuting?.activateMuteIfNeeded()
+        }
+
         if settingsSnapshot.interactionSoundsEnabled {
-            if case .idle = previousState, case .listening = newState {
-                interactionSoundPlayer.playStart(preset: settingsSnapshot.interactionSoundPreset)
-            } else if isActiveDictationState(previousState),
-                      shouldResumeMedia(after: newState),
-                      !matchesErrorState(newState) {
+            if isActiveDictationState(previousState),
+               shouldResumeMedia(after: newState),
+               !matchesErrorState(newState) {
                 interactionSoundPlayer.playFinish(preset: settingsSnapshot.interactionSoundPreset)
             }
         }
 
-        if case .listening = newState {
-            if case .listening = previousState {
+        if previousState.isCaptureInFlight,
+           !newState.isCaptureInFlight {
+            startActivationTask?.cancel()
+            startActivationTask = nil
+            scheduleMediaResumeIfNeeded()
+        }
+    }
+
+    private func scheduleMediaResumeIfNeeded() {
+        let delay = mediaResumeDelay
+
+        mediaResumeTask?.cancel()
+
+        mediaResumeTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            // Let macOS release capture-side routing before restoring external audio.
+            if delay > .zero {
+                try? await Task.sleep(for: delay)
+            }
+
+            guard !Task.isCancelled,
+                  !matchesListeningState(dictationViewModel.state) else {
                 return
             }
 
-            if settingsSnapshot.shouldPauseMediaDuringDictation {
-                mediaPlaybackController.pausePlaybackIfNeeded()
-            }
-            return
-        }
-
-        if case .listening = previousState,
-           !matchesListeningState(newState) {
+            systemAudioMuting?.restoreMuteIfNeeded()
             mediaPlaybackController.resumePlaybackIfNeeded()
+            mediaResumeTask = nil
         }
     }
 
@@ -259,14 +359,14 @@ final class MacDictationWorkflowController {
         switch state {
         case .listening, .processing:
             return true
-        case .idle, .result, .clipboardPending, .error:
+        case .idle, .starting, .result, .clipboardPending, .error:
             return false
         }
     }
 
     private func shouldResumeMedia(after state: DictationState) -> Bool {
         switch state {
-        case .idle, .result, .clipboardPending, .error:
+        case .idle, .starting, .result, .clipboardPending, .error:
             return true
         case .listening, .processing:
             return false

@@ -64,6 +64,8 @@ struct DictationView: View {
         switch viewModel.state {
         case .idle:
             return .startTapped
+        case .starting:
+            return .resetTapped
         case .listening:
             return .stopTapped
         case .processing:
@@ -79,6 +81,8 @@ struct DictationView: View {
         switch viewModel.state {
         case .idle:
             return "Start"
+        case .starting:
+            return "Cancel"
         case .listening:
             return "Stop"
         case .processing:
@@ -94,6 +98,8 @@ struct DictationView: View {
         switch viewModel.state {
         case .idle:
             return .blue
+        case .starting:
+            return .orange
         case .listening:
             return .red
         case .processing:
@@ -109,7 +115,7 @@ struct DictationView: View {
 
     private var showsReset: Bool {
         switch viewModel.state {
-        case .idle, .listening, .processing, .result, .clipboardPending, .error:
+        case .idle, .starting, .listening, .processing, .result, .clipboardPending, .error:
             return false
         }
     }
@@ -120,6 +126,9 @@ struct DictationView: View {
         case .idle:
             Text("Tap Start to begin dictation.")
                 .foregroundStyle(.secondary)
+
+        case .starting:
+            ProgressView("Starting microphone...")
 
         case .listening:
             Text("Speak naturally, then tap Stop when you are ready to finalize the transcript.")
@@ -136,8 +145,8 @@ struct DictationView: View {
             Text(text)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-        case .error(let message):
-            Text(message)
+        case .error(let failure):
+            Text(failure.message)
                 .foregroundStyle(.red)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

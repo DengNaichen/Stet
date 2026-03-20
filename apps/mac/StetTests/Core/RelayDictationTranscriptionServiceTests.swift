@@ -17,7 +17,7 @@ struct RelayDictationTranscriptionServiceTests {
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
         var capturedRequest: URLRequest?
-        URLProtocolStub.configure { request in
+        let session = TestURLSessionFactory.makeSession { request in
             capturedRequest = request
             return (
                 HTTPURLResponse(
@@ -29,11 +29,10 @@ struct RelayDictationTranscriptionServiceTests {
                 Data(#"{"text":"Relay transcript","rewritten":true}"#.utf8)
             )
         }
-        defer { URLProtocolStub.reset() }
 
         let service = RelayDictationTranscriptionService(
             authentication: authentication,
-            session: TestURLSessionFactory.makeSession(),
+            session: session,
             rewriteEnabled: true,
             preferredSpellings: ["OpenAI", "Groq"]
         )
@@ -62,6 +61,8 @@ struct RelayDictationTranscriptionServiceTests {
         #expect(requestBodyText.contains("\r\nen\r\n"))
         #expect(requestBodyText.contains("name=\"prompt\""))
         #expect(requestBodyText.contains("Use OpenAI and Groq exactly."))
+        #expect(requestBodyText.contains("name=\"audio_duration_seconds\""))
+        #expect(requestBodyText.contains("4.000"))
         #expect(requestBodyText.contains("name=\"file\"; filename=\"speech.wav\""))
     }
 
@@ -70,7 +71,7 @@ struct RelayDictationTranscriptionServiceTests {
         try? Data("wav-data".utf8).write(to: fileURL)
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
-        URLProtocolStub.configure { request in
+        let session = TestURLSessionFactory.makeSession { request in
             (
                 HTTPURLResponse(
                     url: request.url!,
@@ -81,25 +82,24 @@ struct RelayDictationTranscriptionServiceTests {
                 Data(#"{"code":"quota_error","message":"quota exceeded","request_id":"req_payload"}"#.utf8)
             )
         }
-        defer { URLProtocolStub.reset() }
 
         let service = RelayDictationTranscriptionService(
             authentication: authentication,
-            session: TestURLSessionFactory.makeSession(),
+            session: session,
             rewriteEnabled: false,
             preferredSpellings: []
         )
 
         await #expect(throws: AIExecutionError.relayInvocationFailed(
             statusCode: 429,
-            message: "quota exceeded",
+            message: "[quota_error] quota exceeded",
             requestID: "req_payload"
         )) {
             try await service.transcribe(
                 audioFileAt: fileURL,
                 languageCode: nil,
                 prompt: nil,
-                audioDurationSeconds: nil
+                audioDurationSeconds: 4
             )
         }
     }
@@ -109,7 +109,7 @@ struct RelayDictationTranscriptionServiceTests {
         try? Data("wav-data".utf8).write(to: fileURL)
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
-        URLProtocolStub.configure { request in
+        let session = TestURLSessionFactory.makeSession { request in
             (
                 HTTPURLResponse(
                     url: request.url!,
@@ -120,11 +120,10 @@ struct RelayDictationTranscriptionServiceTests {
                 Data(#"{"text":"   ","rewritten":false}"#.utf8)
             )
         }
-        defer { URLProtocolStub.reset() }
 
         let service = RelayDictationTranscriptionService(
             authentication: authentication,
-            session: TestURLSessionFactory.makeSession(),
+            session: session,
             rewriteEnabled: false,
             preferredSpellings: []
         )
@@ -138,7 +137,7 @@ struct RelayDictationTranscriptionServiceTests {
                 audioFileAt: fileURL,
                 languageCode: nil,
                 prompt: nil,
-                audioDurationSeconds: nil
+                audioDurationSeconds: 4
             )
         }
     }

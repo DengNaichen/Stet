@@ -16,25 +16,47 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         let audioLevelBridge = AudioLevelBridge()
         self.audioLevelBridge = audioLevelBridge
         #if os(macOS)
-        self.macAudioFileRecorder = MacAudioFileRecorder { level in
-            audioLevelBridge.emit(level)
-        }
+        self.macAudioFileRecorder = MacAudioFileRecorder(
+            audioLevelHandler: { level in
+                audioLevelBridge.emit(level)
+            },
+            onFirstRecordedBufferWritten: {
+                Task {
+                    await DictationStartupProbe.shared.record(.firstBufferWritten)
+                }
+            }
+        )
         #endif
     }
+
+
 
     func makeAudioLevelStream() async -> AsyncStream<Double> {
         audioLevelBridge.makeStream()
     }
 
     func startRecording() async throws {
+        Task {
+            await DictationRuntimeProbe.shared.markAction("startRecordingRequested")
+        }
         guard !isRecording else {
+            Task {
+                await DictationRuntimeProbe.shared.markCaptureStartError("alreadyRecording")
+            }
             throw SpeechServiceError.alreadyRecording
         }
 
         AppLogger.info("Starting audio capture", category: .dictation)
         let microphoneGranted = await requestMicrophonePermission()
+        await DictationStartupProbe.shared.record(
+            .microphonePermissionResolved,
+            note: "granted=\(microphoneGranted)"
+        )
         guard microphoneGranted else {
             AppLogger.warning("Microphone permission denied before recording start", category: .permissions)
+            Task {
+                await DictationRuntimeProbe.shared.markCaptureStartError("permissionDenied")
+            }
             throw SpeechServiceError.microphonePermissionDenied
         }
 
@@ -59,16 +81,64 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         startMetering(with: recorder)
         #endif
         AppLogger.info("Audio capture started successfully", category: .dictation)
+        Task {
+            await DictationRuntimeProbe.shared.markCaptureStarted()
+        }
+        await DictationStartupProbe.shared.record(.audioCaptureStarted)
     }
 
-    func stopRecording() async throws -> (url: URL, duration: TimeInterval?) {
-        guard isRecording, let recordingFileURL else {
+    func activateRecordingWindow() async throws {
+        guard isRecording else {
             throw SpeechServiceError.notRecording
         }
 
         #if os(macOS)
-        let writtenFrameCount = await macAudioFileRecorder.stopRecording(writtenFileAt: recordingFileURL)
+        macAudioFileRecorder.activateRecordingWindow()
+        #endif
+    }
+
+    func stopRecording() async throws -> (url: URL, duration: TimeInterval?) {
+        Task {
+            await DictationRuntimeProbe.shared.markAudioStopRequested()
+        }
+        guard isRecording, let recordingFileURL else {
+            throw SpeechServiceError.notRecording
+        }
+
+        let finalURL: URL
+        #if os(macOS)
+        let sourceRecordingFileURL = recordingFileURL
+        self.recordingFileURL = nil
+        let recordingOutcome = await macAudioFileRecorder.stopRecording(writtenFileAt: sourceRecordingFileURL)
         self.isRecording = false
+        finishCaptureStreams()
+
+        if let captureDiagnosticsSummary = recordingOutcome.captureDiagnosticsSummary {
+            if UserDefaults.standard.bool(forKey: MacPreferences.dictationPerfTracingEnabled) {
+                AppLogger.warning(
+                    """
+                    Capture summary. \
+                    didWriteAudio=\(recordingOutcome.didWriteAudio) \
+                    \(captureDiagnosticsSummary)
+                    """,
+                    category: .dictation
+                )
+            }
+            Task {
+                await DictationRuntimeProbe.shared.markAction(
+                    "frontendCaptureSummary",
+                    details: captureDiagnosticsSummary
+                )
+            }
+        }
+
+        guard recordingOutcome.didWriteAudio else {
+            try? FileManager.default.removeItem(at: sourceRecordingFileURL)
+            AppLogger.warning("Discarding macOS capture because no audio was recorded after activation.", category: .dictation)
+            throw SpeechServiceError.emptyTranscription
+        }
+
+        finalURL = sourceRecordingFileURL
         #else
         guard let recorder else {
             throw SpeechServiceError.notRecording
@@ -76,57 +146,65 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         recorder.stop()
         self.recorder = nil
         self.isRecording = false
-        stopMetering()
-        let writtenFrameCount: AVAudioFramePosition = 0
+        finishCaptureStreams()
+        finalURL = recordingFileURL
         #endif
 
-        let audioDurationSeconds = Self.recordingDurationSeconds(at: recordingFileURL) ?? {
-            #if os(macOS)
-            guard writtenFrameCount > 0 else { return nil }
-            return TimeInterval(writtenFrameCount) / TranscriptionUploadAudioFormat.macSampleRate
-            #else
-            return nil
-            #endif
-        }()
+        let audioDurationSeconds = Self.recordingDurationSeconds(at: finalURL)
         let durationDescription = Self.durationDescription(audioDurationSeconds)
-        let recordingFileSizeBytes = Self.recordingFileSizeBytes(at: recordingFileURL)
-        
+        let recordingFileSizeBytes = Self.recordingFileSizeBytes(at: finalURL)
+
         AppLogger.info(
             """
             Stopping audio capture. \
             durationSeconds=\(durationDescription), \
             fileSizeBytes=\(recordingFileSizeBytes.map(String.init) ?? "unknown"), \
-            writtenFrames=\(writtenFrameCount)
+            recorderType=\({
+                #if os(macOS)
+                "AVAudioEngine"
+                #else
+                "AVAudioRecorder"
+                #endif
+            }())
             """,
             category: .dictation
         )
+        Task {
+            await DictationRuntimeProbe.shared.markCaptureStopped()
+        }
 
-        if writtenFrameCount == 0 || (audioDurationSeconds ?? 0) < 0.1 || (recordingFileSizeBytes ?? 0) <= 64 {
+        if (audioDurationSeconds ?? 0) < 0.1 || (recordingFileSizeBytes ?? 0) <= 64 {
             AppLogger.warning("Skipping file because audio frames were insignificant.", category: .dictation)
-            try? FileManager.default.removeItem(at: recordingFileURL)
-            self.recordingFileURL = nil
+            try? FileManager.default.removeItem(at: finalURL)
             throw SpeechServiceError.emptyTranscription
         }
 
-        let finalURL = recordingFileURL
-        self.recordingFileURL = nil
         return (url: finalURL, duration: audioDurationSeconds)
     }
 
     func cancelRecording() async {
         AppLogger.info("Cancelling active audio capture", category: .dictation)
+        Task {
+            await DictationRuntimeProbe.shared.markCaptureCancelled()
+        }
         #if os(macOS)
         macAudioFileRecorder.cancelRecording()
+        recorder = nil
         isRecording = false
+        finishCaptureStreams()
         cleanupRecordingFile()
-        audioLevelBridge.emit(0)
-        audioLevelBridge.finish()
         #else
         recorder?.stop()
         recorder = nil
         isRecording = false
-        stopMetering()
+        finishCaptureStreams()
         cleanupRecordingFile()
+        #endif
+    }
+
+    func prewarm() async {
+        #if os(macOS)
+        macAudioFileRecorder.prewarm()
         #endif
     }
 
@@ -157,21 +235,27 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     #if os(macOS)
     private func startMacRecording() throws {
         guard let outputFormat = TranscriptionUploadAudioFormat.makeMacOutputFormat() else {
-            throw SpeechServiceError.unsupportedAudioFormat
+            throw SpeechServiceError.failedToStart
         }
 
         let fileURL = makeRecordingFileURL()
+        try macAudioFileRecorder.startRecording(
+            to: fileURL,
+            outputFormat: outputFormat
+        )
         recordingFileURL = fileURL
+        isRecording = true
+        audioLevelBridge.emit(0.08)
 
-        do {
-            try macAudioFileRecorder.startRecording(
-                to: fileURL,
-                outputFormat: outputFormat
+        if let defaultInputDevice = AudioInputDeviceManager.defaultInputDevice() {
+            AppLogger.info(
+                """
+                Using system-default macOS dictation input device. \
+                name=\(defaultInputDevice.name), \
+                transportType=\(defaultInputDevice.transportType)
+                """,
+                category: .dictation
             )
-            isRecording = true
-        } catch {
-            cleanupRecordingFile()
-            throw error
         }
     }
     #endif
@@ -180,18 +264,22 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         TranscriptionUploadAudioFormat.iOSRecorderSettings
     }
 
-    private func makeRecordingFileURL() -> URL {
+    private func makeRecordingFileURL(fileExtension: String) -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent("Stet-capture-\(UUID().uuidString)")
-            .appendingPathExtension(
-                {
-                    #if os(macOS)
-                    TranscriptionUploadAudioFormat.macFileExtension
-                    #else
-                    TranscriptionUploadAudioFormat.iOSFileExtension
-                    #endif
-                }()
-            )
+            .appendingPathExtension(fileExtension)
+    }
+
+    private func makeRecordingFileURL() -> URL {
+        makeRecordingFileURL(
+            fileExtension: {
+                #if os(macOS)
+                TranscriptionUploadAudioFormat.macFileExtension
+                #else
+                TranscriptionUploadAudioFormat.iOSFileExtension
+                #endif
+            }()
+        )
     }
 
     private func cleanupRecordingFile() {
@@ -215,10 +303,14 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         }
     }
 
-    private func stopMetering() {
+    private func finishCaptureStreams() {
+        Task {
+            await DictationRuntimeProbe.shared.markMeteringStopped()
+        }
         meteringTask?.cancel()
         meteringTask = nil
         audioLevelBridge.emit(0)
+        audioLevelBridge.finish()
         audioLevelBridge.finish()
     }
 

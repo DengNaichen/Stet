@@ -128,7 +128,7 @@ struct OpenAIConfiguration: Sendable {
             return ProviderDefaults(
                 transcriptionModel: "whisper-large-v3-turbo",
                 translationModel: "llama-3.3-70b-versatile",
-                rewriteModel: "llama-3.3-70b-versatile",
+                rewriteModel: "openai/gpt-oss-120b",
                 supportsResponsesStore: false
             )
         }

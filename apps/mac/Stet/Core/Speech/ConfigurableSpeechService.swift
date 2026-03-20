@@ -5,16 +5,19 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     private let locale: Locale
     private let pipelineFactory: DictationPipelineFactory
     private let captureServiceFactory: @Sendable () -> any AudioCaptureService
+    private let audioPostProcessor: any AudioPostProcessing
     private let audioLevelBridge = AudioLevelBridge()
 
     private var activePipeline: DictationPipeline?
     private var activeCaptureService: (any AudioCaptureService)?
     private var audioLevelTask: Task<Void, Never>?
+    private var reusableCaptureService: (any AudioCaptureService)?
 
     init(
         settingsStore: DictationSettingsStore = DictationSettingsStore(),
         locale: Locale = .autoupdatingCurrent,
         pipelineFactory: DictationPipelineFactory,
+        audioPostProcessor: (any AudioPostProcessing)? = nil,
         captureService: (any AudioCaptureService)? = nil,
         captureServiceFactory: (@Sendable () -> any AudioCaptureService)? = nil
     ) {
@@ -26,18 +29,24 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         self.settingsStore = settingsStore
         self.locale = locale
         self.pipelineFactory = pipelineFactory
+        self.audioPostProcessor = audioPostProcessor ?? DefaultAudioPostProcessor()
         if let captureService {
             self.captureServiceFactory = { captureService }
+            self.reusableCaptureService = captureService
         } else if let captureServiceFactory {
             self.captureServiceFactory = captureServiceFactory
         } else {
-            self.captureServiceFactory = { MacAudioCaptureService() }
+            let defaultCaptureService = MacAudioCaptureService()
+            self.captureServiceFactory = { defaultCaptureService }
+            self.reusableCaptureService = defaultCaptureService
         }
     }
 
     func makeAudioLevelStream() async -> AsyncStream<Double> {
         audioLevelBridge.makeStream()
     }
+
+
 
     func startRecording() async throws {
         guard activePipeline == nil else {
@@ -46,18 +55,41 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
         let snapshot = settingsStore.loadSnapshot()
         activePipeline = try await pipelineFactory.makePipeline(from: snapshot)
-        let captureService = captureServiceFactory()
+        await DictationStartupProbe.shared.record(.pipelineReady)
+        let captureService: any AudioCaptureService
+        if let reusableCaptureService {
+            captureService = reusableCaptureService
+        } else {
+            let newCaptureService = captureServiceFactory()
+            reusableCaptureService = newCaptureService
+            captureService = newCaptureService
+        }
         activeCaptureService = captureService
 
         do {
             try await captureService.startRecording()
-            startAudioLevelForwarding(using: captureService)
+            await startAudioLevelForwarding(using: captureService)
+        } catch is CancellationError {
+            activePipeline = nil
+            activeCaptureService = nil
+            stopAudioLevelForwarding()
+            await DictationStartupProbe.shared.record(.cancelled)
+            throw CancellationError()
         } catch {
             activePipeline = nil
             activeCaptureService = nil
             stopAudioLevelForwarding()
+            await DictationStartupProbe.shared.record(.failed, note: error.localizedDescription)
             throw error
         }
+    }
+
+    func activateRecordingWindow() async throws {
+        guard let captureService = activeCaptureService else {
+            throw SpeechServiceError.notRecording
+        }
+
+        try await captureService.activateRecordingWindow()
     }
 
     func stopRecording() async throws -> String {
@@ -73,14 +105,25 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         }
 
         let captureResult = try await captureService.stopRecording()
-        
+        let processedCaptureResult = try await audioPostProcessor.processAudioFile(
+            at: captureResult.url,
+            duration: captureResult.duration
+        )
+
         defer {
-            try? FileManager.default.removeItem(at: captureResult.url)
+            let cleanupURLs = Set(processedCaptureResult.cleanupURLs)
+            for url in cleanupURLs {
+                try? FileManager.default.removeItem(at: url)
+            }
         }
 
-        await DictationLatencyProbe.shared.beginSession(audioDurationSeconds: captureResult.duration)
+        guard !processedCaptureResult.shouldDiscardAsNoSpeech else {
+            AppLogger.info("Discarding dictation capture because no speech was detected locally.", category: .dictation)
+            throw SpeechServiceError.emptyTranscription
+        }
 
-        let languageCode = locale.language.languageCode?.identifier
+        await DictationLatencyProbe.shared.beginSession(audioDurationSeconds: processedCaptureResult.duration)
+
         var transcriptionPrompt: String? = nil
         if let provider = pipeline.promptProvider {
             transcriptionPrompt = await provider()
@@ -91,10 +134,10 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         var transcript: String
         do {
             transcript = try await pipeline.transcriptionService.transcribe(
-                audioFileAt: captureResult.url,
-                languageCode: languageCode,
+                audioFileAt: processedCaptureResult.url,
+                languageCode: pipeline.transcriptionLanguageCode,
                 prompt: transcriptionPrompt,
-                audioDurationSeconds: captureResult.duration
+                audioDurationSeconds: processedCaptureResult.duration
             )
             transcript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !transcript.isEmpty else {
@@ -111,7 +154,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 transcript = try await rewriteService.rewrite(
                     .cleanup(
                         transcript,
-                        preferredSpellings: pipeline.preferredSpellings
+                        preferredSpellings: pipeline.preferredSpellings,
+                        additionalUserContext: pipeline.rewriteAdditionalContext
                     )
                 )
             }
@@ -140,14 +184,28 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         }
     }
 
-    private func startAudioLevelForwarding(using captureService: any AudioCaptureService) {
-        stopAudioLevelForwarding()
+    func prewarm() async {
+        let captureService: any AudioCaptureService
+        if let reusableCaptureService {
+            captureService = reusableCaptureService
+        } else {
+            let newCaptureService = captureServiceFactory()
+            reusableCaptureService = newCaptureService
+            captureService = newCaptureService
+        }
+        
+        await captureService.prewarm()
+    }
+
+    private func startAudioLevelForwarding(using captureService: any AudioCaptureService) async {
+        audioLevelTask?.cancel()
+        audioLevelTask = nil
 
         guard let streamingService = captureService as? any AudioLevelSource else { return }
         let audioLevelBridge = self.audioLevelBridge
+        let stream = await streamingService.makeAudioLevelStream()
 
         audioLevelTask = Task {
-            let stream = await streamingService.makeAudioLevelStream()
             for await level in stream {
                 if Task.isCancelled {
                     break

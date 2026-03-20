@@ -12,6 +12,7 @@ struct DictationSettingsSnapshot: Sendable {
     let provider: DictationProvider
     let executionMode: AIExecutionMode
     let isRewriteEnabled: Bool
+    let dictationLanguageMode: DictationLanguageMode
     let shouldPauseMediaDuringDictation: Bool
     let providerConfiguration: OpenAIConfiguration?
     let translationTargetLanguage: TranslationTargetLanguage
@@ -63,6 +64,7 @@ struct DictationSettingsStore: Sendable {
         let provider = loadProvider()
         let executionMode = loadExecutionMode()
         let isRewriteEnabled = loadRewriteEnabled()
+        let dictationLanguageMode = loadDictationLanguageMode()
         let shouldPauseMediaDuringDictation =
             defaults.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
         let apiKey = loadAPIKey(for: provider).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -81,6 +83,7 @@ struct DictationSettingsStore: Sendable {
             provider: provider,
             executionMode: executionMode,
             isRewriteEnabled: isRewriteEnabled,
+            dictationLanguageMode: dictationLanguageMode,
             shouldPauseMediaDuringDictation: shouldPauseMediaDuringDictation,
             providerConfiguration: configuration,
             translationTargetLanguage: translationTargetLanguage,
@@ -147,6 +150,15 @@ struct DictationSettingsStore: Sendable {
         defaults.set(enabled, forKey: MacPreferences.rewriteEnabled)
     }
 
+    nonisolated func loadDictationLanguageMode() -> DictationLanguageMode {
+        let rawValue = defaults.string(forKey: MacPreferences.dictationLanguageMode) ?? ""
+        return DictationLanguageMode(rawValue: rawValue) ?? .automatic
+    }
+
+    nonisolated func saveDictationLanguageMode(_ mode: DictationLanguageMode) {
+        defaults.set(mode.rawValue, forKey: MacPreferences.dictationLanguageMode)
+    }
+
     nonisolated func loadTranslateSelectedTextOnTranslationHotkey() -> Bool {
         defaults.object(forKey: MacPreferences.translateSelectedTextOnTranslationHotkey) as? Bool ?? true
     }
@@ -182,20 +194,4 @@ struct DictationSettingsStore: Sendable {
     nonisolated func saveOpenAIAPIKey(_ apiKey: String) throws {
         try saveAPIKey(apiKey, for: .openAI)
     }
-
-//    nonisolated private func loadCustomProxyPort() -> Int? {
-//        if let number = defaults.object(forKey: MacPreferences.customProxyPort) as? NSNumber {
-//            let port = number.intValue
-//            return port > 0 ? port : nil
-//        }
-//
-//        guard let rawValue = defaults.string(forKey: MacPreferences.customProxyPort)?
-//            .trimmingCharacters(in: .whitespacesAndNewlines),
-//            let port = Int(rawValue),
-//            port > 0 else {
-//            return nil
-//        }
-//
-//        return port
-//    }
 }

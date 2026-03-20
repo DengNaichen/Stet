@@ -8,18 +8,6 @@ enum TranscriptionUploadAudioFormat {
     nonisolated static let macLinearPCMBitDepth: UInt32 = 16
     nonisolated static let macFileExtension = "wav"
 
-    nonisolated static var macOutputSettings: [String: Any] {
-        [
-            AVFormatIDKey: kAudioFormatLinearPCM,
-            AVSampleRateKey: macSampleRate,
-            AVNumberOfChannelsKey: macChannelCount,
-            AVLinearPCMBitDepthKey: macLinearPCMBitDepth,
-            AVLinearPCMIsFloatKey: false,
-            AVLinearPCMIsBigEndianKey: false,
-            AVLinearPCMIsNonInterleaved: false,
-        ]
-    }
-
     nonisolated static func makeMacOutputFormat() -> AVAudioFormat? {
         AVAudioFormat(
             commonFormat: .pcmFormatInt16,

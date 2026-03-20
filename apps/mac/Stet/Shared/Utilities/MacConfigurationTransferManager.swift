@@ -21,6 +21,7 @@ enum MacConfigurationTransferManager {
         var transcriptionProvider: String
         var aiExecutionMode: String?
         var rewriteEnabled: Bool
+        var dictationLanguageMode: String
         var translationTargetLanguage: String
         var translateSelectedTextOnTranslationHotkey: Bool
         var interactionSoundsEnabled: Bool
@@ -86,13 +87,14 @@ enum MacConfigurationTransferManager {
         defaults: UserDefaults
     ) -> ExportedConfiguration {
         return ExportedConfiguration(
-            version: 5,
+            version: 6,
             pauseMediaDuringDictation: defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation),
             transcriptionProvider: DictationProvider(
                 rawValue: defaults.string(forKey: MacPreferences.transcriptionProvider) ?? ""
             )?.rawValue ?? DictationProvider.openAI.rawValue,
             aiExecutionMode: store.loadExecutionMode().rawValue,
             rewriteEnabled: defaults.bool(forKey: MacPreferences.rewriteEnabled),
+            dictationLanguageMode: store.loadDictationLanguageMode().rawValue,
             translationTargetLanguage: store.loadTranslationTargetLanguage().rawValue,
             translateSelectedTextOnTranslationHotkey: store.loadTranslateSelectedTextOnTranslationHotkey(),
             interactionSoundsEnabled: defaults.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true,
@@ -122,6 +124,7 @@ enum MacConfigurationTransferManager {
             forKey: MacPreferences.aiExecutionMode
         )
         defaults.set(imported.rewriteEnabled, forKey: MacPreferences.rewriteEnabled)
+        defaults.set(imported.dictationLanguageMode, forKey: MacPreferences.dictationLanguageMode)
         defaults.set(
             imported.translateSelectedTextOnTranslationHotkey,
             forKey: MacPreferences.translateSelectedTextOnTranslationHotkey
@@ -137,6 +140,9 @@ enum MacConfigurationTransferManager {
         store.saveHotkeyDistinguishModifierSides(imported.hotkeyDistinguishModifierSides)
         store.saveExecutionMode(
             AIExecutionMode(rawValue: imported.aiExecutionMode ?? "") ?? .automatic
+        )
+        store.saveDictationLanguageMode(
+            DictationLanguageMode(rawValue: imported.dictationLanguageMode) ?? .automatic
         )
         store.saveTranslationTargetLanguage(
             TranslationTargetLanguage(rawValue: imported.translationTargetLanguage) ?? .english

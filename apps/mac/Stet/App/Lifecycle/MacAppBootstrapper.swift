@@ -67,6 +67,10 @@ struct MacAppBootstrapper {
             settingsStore.saveTranslationTargetLanguage(.english)
         }
 
+        if defaults.string(forKey: MacPreferences.dictationLanguageMode) == nil {
+            settingsStore.saveDictationLanguageMode(.automatic)
+        }
+
         if defaults.object(forKey: MacPreferences.translateSelectedTextOnTranslationHotkey) == nil {
             settingsStore.saveTranslateSelectedTextOnTranslationHotkey(true)
         }
