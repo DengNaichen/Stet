@@ -15,4 +15,6 @@ struct MockSpeechService: SpeechService {
     func cancelRecording() async {
         // No-op for the mock service.
     }
+
+    func prewarm() async {}
 }

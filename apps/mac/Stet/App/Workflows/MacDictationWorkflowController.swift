@@ -217,6 +217,10 @@ final class MacDictationWorkflowController {
         activeWorkflow = .dictation
     }
 
+    func prewarm() async {
+        await dictationViewModel.prewarm()
+    }
+
     func handleCompletedResult(
         text: String,
         workflow: CaptureWorkflow,

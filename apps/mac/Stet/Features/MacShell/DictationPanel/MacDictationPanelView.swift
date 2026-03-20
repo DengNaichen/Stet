@@ -400,26 +400,26 @@ private struct MacDictationCapsuleSurface: View {
             previousState = state
         }
         .onDisappear(perform: resetEntranceAnimation)
-        .animation(.spring(response: Constants.Animation.generalResponse, dampingFraction: Constants.Animation.generalDamping), value: state)
     }
 
     @ViewBuilder
     private func mainCapsule() -> some View {
-        GeometryReader { proxy in
-            capsuleFill(size: proxy.size)
-        }
-        .frame(width: mainWidth, height: mainHeight)
-        .clipShape(RoundedRectangle(cornerRadius: mainCornerRadius, style: .continuous))
-        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: mainCornerRadius, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: mainCornerRadius, style: .continuous)
-                .strokeBorder(.white.opacity(isClipboardPending ? Constants.Layout.strokeOpacityClipboard : Constants.Layout.strokeOpacityDefault), lineWidth: scaled(Constants.Layout.strokeWidth))
-        }
-        .shadow(
-            color: .black.opacity(isClipboardPending ? Constants.Layout.shadowOpacityClipboard : Constants.Layout.shadowOpacityDefault),
-            radius: isClipboardPending ? scaled(Constants.Layout.shadowRadiusClipboard) : scaled(Constants.Layout.shadowRadiusDefault),
-            y: isClipboardPending ? scaled(Constants.Layout.shadowYClipboard) : scaled(Constants.Layout.shadowYDefault)
-        )
+        let size = CGSize(width: mainWidth, height: mainHeight)
+        let shape = RoundedRectangle(cornerRadius: mainCornerRadius, style: .continuous)
+
+        capsuleFill(size: size)
+            .frame(width: size.width, height: size.height)
+            .clipShape(shape)
+            .glassEffect(.clear, in: shape)
+            .overlay {
+                shape.strokeBorder(.white.opacity(isClipboardPending ? Constants.Layout.strokeOpacityClipboard : Constants.Layout.strokeOpacityDefault), lineWidth: scaled(Constants.Layout.strokeWidth))
+            }
+            .shadow(
+                color: .black.opacity(isClipboardPending ? Constants.Layout.shadowOpacityClipboard : Constants.Layout.shadowOpacityDefault),
+                radius: isClipboardPending ? scaled(Constants.Layout.shadowRadiusClipboard) : scaled(Constants.Layout.shadowRadiusDefault),
+                y: isClipboardPending ? scaled(Constants.Layout.shadowYClipboard) : scaled(Constants.Layout.shadowYDefault)
+            )
+            .animation(.spring(response: Constants.Animation.generalResponse, dampingFraction: Constants.Animation.generalDamping), value: state)
     }
 
     @ViewBuilder
@@ -627,8 +627,12 @@ private struct MacDictationCapsuleSurface: View {
         startDate = Date()
         appeared = false
         sideOrbProgress = 0
-        visibleLeadingOrb = leadingOrb
-        visibleTrailingOrb = trailingOrb
+
+        let pendingLeadingOrb = leadingOrb
+        let pendingTrailingOrb = trailingOrb
+
+        visibleLeadingOrb = nil
+        visibleTrailingOrb = nil
 
         withAnimation(.spring(response: Constants.Animation.entranceResponse, dampingFraction: Constants.Animation.entranceDamping)) {
             appeared = true
@@ -638,6 +642,9 @@ private struct MacDictationCapsuleSurface: View {
         entranceTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: Constants.Animation.entranceDelay)
             guard !Task.isCancelled else { return }
+
+            visibleLeadingOrb = pendingLeadingOrb
+            visibleTrailingOrb = pendingTrailingOrb
 
             withAnimation(.spring(response: Constants.Animation.sideOrbResponse, dampingFraction: Constants.Animation.sideOrbDamping)) {
                 sideOrbProgress = 1

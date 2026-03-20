@@ -202,6 +202,12 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         #endif
     }
 
+    func prewarm() async {
+        #if os(macOS)
+        macAudioFileRecorder.prewarm()
+        #endif
+    }
+
     private func requestMicrophonePermission() async -> Bool {
         let currentStatus = Self.microphoneAuthorizationStatusDescription
         AppLogger.info(

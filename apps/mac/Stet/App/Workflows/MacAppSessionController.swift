@@ -210,6 +210,18 @@ final class MacAppSessionController {
 
         DispatchQueue.main.async { [weak self] in
             self?.refreshPermissionIndicators()
+            self?.prewarmAudioEngine()
+        }
+    }
+
+    private func prewarmAudioEngine() {
+        Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+            
+            AppLogger.info("Pre-warming audio engine on activation", category: .dictation)
+            await workflowController.prewarm()
         }
     }
 
@@ -681,6 +693,14 @@ final class MacAppSessionController {
     private func presentRequiredPermissionsGateIfNeeded() {
         guard shouldPresentOnboardingGate else {
             permissionGateController.hide()
+            return
+        }
+
+        // If a capture or processing is already in flight, do not interrupt the UI 
+        // by hiding the panel and showing the permissions gate. This avoids a 
+        // race condition where the app launch permission refresh hides a panel 
+        // the user just opened.
+        guard dictationState == .idle else {
             return
         }
 

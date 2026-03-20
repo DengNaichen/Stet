@@ -5,4 +5,5 @@ protocol AudioCaptureService: Sendable {
     func activateRecordingWindow() async throws
     func stopRecording() async throws -> (url: URL, duration: TimeInterval?)
     func cancelRecording() async
+    func prewarm() async
 }

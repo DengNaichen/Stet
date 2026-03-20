@@ -26,6 +26,19 @@ struct MacMenuBarView: View {
                 NSApplication.shared.terminate(nil)
             }
         }
+        .task {
+            if #available(macOS 15.0, *) {
+                let shader = ShaderLibrary.cloudOrbGlassWide(
+                    .float2(CGSize(width: 250, height: 52)),
+                    .float(0),
+                    .float(0.1),
+                    .color(.white),
+                    .color(.white),
+                    .color(.white)
+                )
+                try? await shader.compile(as: .colorEffect)
+            }
+        }
     }
 
     private var appUpdateMenuTitle: String {

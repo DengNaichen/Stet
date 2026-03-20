@@ -52,6 +52,10 @@ final class DictationViewModel: ObservableObject {
         }
     }
 
+    func prewarm() async {
+        await speechService.prewarm()
+    }
+
     func startCapture(transform: ResultTransformer? = nil) {
         startCapture(activateWhenReady: true, transform: transform)
     }

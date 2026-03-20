@@ -184,6 +184,19 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         }
     }
 
+    func prewarm() async {
+        let captureService: any AudioCaptureService
+        if let reusableCaptureService {
+            captureService = reusableCaptureService
+        } else {
+            let newCaptureService = captureServiceFactory()
+            reusableCaptureService = newCaptureService
+            captureService = newCaptureService
+        }
+        
+        await captureService.prewarm()
+    }
+
     private func startAudioLevelForwarding(using captureService: any AudioCaptureService) async {
         audioLevelTask?.cancel()
         audioLevelTask = nil

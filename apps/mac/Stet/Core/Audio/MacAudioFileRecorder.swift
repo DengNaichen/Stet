@@ -255,6 +255,10 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         _ = finishSession()
     }
 
+    nonisolated func prewarm() {
+        _ = currentEngine()
+    }
+
     deinit {
         _ = finishSession()
     }

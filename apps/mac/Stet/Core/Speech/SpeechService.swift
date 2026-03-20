@@ -5,4 +5,5 @@ protocol SpeechService: Sendable {
     func activateRecordingWindow() async throws
     func stopRecording() async throws -> String
     func cancelRecording() async
+    func prewarm() async
 }
