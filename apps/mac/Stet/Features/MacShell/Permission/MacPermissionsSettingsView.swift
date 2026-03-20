@@ -1,5 +1,4 @@
 #if os(macOS)
-import AppKit
 import SwiftUI
 
 struct MacRequiredPermissionsGateView: View {
@@ -70,42 +69,42 @@ struct MacRequiredPermissionsGateView: View {
     private var titleText: String {
         switch viewModel.onboardingStep {
         case .welcome:
-            return "像系统听写一样自然，但更聪明"
+            return "As natural as native dictation, but smarter"
         case .mode:
-            return "选择你的开始方式"
+            return "Choose how you start"
         case .apiKey:
-            return "输入并验证你的 API Key"
+            return "Enter and verify your API Key"
         case .login:
-            return "登录继续"
+            return "Login to continue"
         case .permissions:
-            return "还差一步就能开始"
+            return "One more step to get started"
         case .shortcut:
-            return "设置你的说话快捷键"
+            return "Set your speaking shortcut"
         case .firstSuccess:
-            return "试着说一句话"
+            return "Try saying something"
         case .done:
-            return "可以开始了"
+            return "You're all set"
         }
     }
 
     private var subtitleText: String {
         switch viewModel.onboardingStep {
         case .welcome:
-            return "保留你的原句，只做必要的智能增强。"
+            return "Preserve your original sentences, only apply necessary smart enhancements."
         case .mode:
-            return "先选接入方式，后面的权限、快捷键和首次成功识别会自动接上。"
+            return "Choose your access method first. Permissions, shortcuts, and initial setup will follow automatically."
         case .apiKey:
-            return "我们只用这个 Key 代表你发起请求，不会用于训练。"
+            return "We only use this Key to make requests on your behalf. It will not be used for training."
         case .login:
-            return "登录仅用于启用托管服务与同步设置。"
+            return "Login is only used to enable managed services and sync settings."
         case .permissions:
-            return "把麦克风和输入控制权限打开后，Stet 才能录音并把文字写回当前应用。"
+            return "Grant microphone and input control permissions so Stet can record and type text back into your apps."
         case .shortcut:
-            return "建议选一个你能单手按住、不容易误触的快捷键。"
+            return "We recommend a shortcut you can easily hold with one hand without accidental triggers."
         case .firstSuccess:
-            return "按住快捷键，说一句自然的话。我们会尽量保留你的原意，只做必要整理。"
+            return "Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup."
         case .done:
-            return "在任何可输入文字的地方，按住快捷键开始说话。"
+            return "Hold your shortcut and start speaking anywhere you can type text."
         }
     }
 
@@ -113,9 +112,9 @@ struct MacRequiredPermissionsGateView: View {
         VStack(alignment: .leading, spacing: 20) {
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    bulletRow("Mac 原生应用")
-                    bulletRow("尽量保留你的表达")
-                    bulletRow("隐私优先，可登录也可自带 API Key")
+                    BulletRow(text: "Native Mac App")
+                    BulletRow(text: "Preserve your natural expression")
+                    BulletRow(text: "Privacy first: Login or bring your own API Key")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(8)
@@ -126,7 +125,7 @@ struct MacRequiredPermissionsGateView: View {
             HStack {
                 Spacer()
 
-                Button("继续") {
+                Button("Continue") {
                     viewModel.continueOnboarding()
                 }
                 .buttonStyle(.borderedProminent)
@@ -136,11 +135,11 @@ struct MacRequiredPermissionsGateView: View {
 
     private var modeStep: some View {
         VStack(alignment: .leading, spacing: 20) {
-            GroupBox("隐私说明") {
+            GroupBox("Privacy Note") {
                 VStack(alignment: .leading, spacing: 10) {
-                    bulletRow("你的内容不会用于训练")
-                    bulletRow("如使用云处理，处理后不留存")
-                    bulletRow("你也可以使用自己的 API Key")
+                    BulletRow(text: "Your content will not be used for training")
+                    BulletRow(text: "Cloud processing is transient and not stored")
+                    BulletRow(text: "You can always use your own API Key")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(8)
@@ -148,25 +147,25 @@ struct MacRequiredPermissionsGateView: View {
 
             HStack(alignment: .top, spacing: 16) {
                 onboardingChoiceCard(
-                    title: "使用自己的 API Key",
+                    title: "Use my own API Key",
                     details: [
-                        "更高控制权",
-                        "使用你自己的模型提供商",
-                        "费用由你自己的账户结算",
+                        "Full control",
+                        "Use your own model provider",
+                        "Billed directly to your account",
                     ],
-                    buttonTitle: "使用 API Key"
+                    buttonTitle: "Use API Key"
                 ) {
                     viewModel.chooseOnboardingMode(.apiKey)
                 }
 
                 onboardingChoiceCard(
-                    title: "登录使用",
+                    title: "Login to use",
                     details: [
-                        "设置更快",
-                        "托管体验",
-                        "不需要手动配置 Key",
+                        "Faster setup",
+                        "Managed experience",
+                        "No manual Key configuration",
                     ],
-                    buttonTitle: "登录继续"
+                    buttonTitle: "Login to continue"
                 ) {
                     viewModel.chooseOnboardingMode(.managed)
                 }
@@ -188,14 +187,14 @@ struct MacRequiredPermissionsGateView: View {
                     .pickerStyle(.menu)
                     .frame(width: 220)
 
-                    SecureField("输入 API Key", text: $viewModel.apiKey)
+                    SecureField("Enter API Key", text: $viewModel.apiKey)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(.body, design: .monospaced))
 
                     if let apiKeyStatusMessage = viewModel.apiKeyStatusMessage {
-                        messageRow(text: apiKeyStatusMessage, tint: .green)
+                        MessageBanner(text: apiKeyStatusMessage, role: .success)
                     } else if let apiKeyErrorMessage = viewModel.apiKeyErrorMessage {
-                        messageRow(text: apiKeyErrorMessage, tint: .red)
+                        MessageBanner(text: apiKeyErrorMessage, role: .error)
                     }
                 }
                 .padding(8)
@@ -204,7 +203,7 @@ struct MacRequiredPermissionsGateView: View {
             Spacer()
 
             HStack {
-                Button("返回") {
+                Button("Back") {
                     viewModel.retreatOnboarding()
                 }
 
@@ -236,15 +235,15 @@ struct MacRequiredPermissionsGateView: View {
             GroupBox("Continue with Email") {
                 VStack(alignment: .leading, spacing: 14) {
                     if viewModel.isRelaySessionActive {
-                        messageRow(
-                            text: "已登录为 \(viewModel.relaySessionEmail ?? "当前账号")。",
-                            tint: .green
+                        MessageBanner(
+                            text: "Logged in as \(viewModel.relaySessionEmail ?? "current account").",
+                            role: .success
                         )
 
                         HStack {
                             Spacer()
 
-                            Button("继续") {
+                            Button("Continue") {
                                 viewModel.continueManagedFlow()
                             }
                             .buttonStyle(.borderedProminent)
@@ -253,13 +252,13 @@ struct MacRequiredPermissionsGateView: View {
                         TextField("name@example.com", text: $viewModel.email)
                             .textFieldStyle(.roundedBorder)
 
-                        SecureField("输入密码", text: $viewModel.password)
+                        SecureField("Enter password", text: $viewModel.password)
                             .textFieldStyle(.roundedBorder)
 
                         if let authErrorMessage = viewModel.authErrorMessage {
-                            messageRow(text: authErrorMessage, tint: .red)
+                            MessageBanner(text: authErrorMessage, role: .error)
                         } else if let authStatusMessage = viewModel.authStatusMessage {
-                            messageRow(text: authStatusMessage, tint: .green)
+                            MessageBanner(text: authStatusMessage, role: .success)
                         }
 
                         HStack {
@@ -281,7 +280,7 @@ struct MacRequiredPermissionsGateView: View {
             Spacer()
 
             HStack {
-                Button("返回") {
+                Button("Back") {
                     viewModel.retreatOnboarding()
                 }
 
@@ -295,8 +294,8 @@ struct MacRequiredPermissionsGateView: View {
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
                     permissionGateRow(
-                        title: "麦克风",
-                        description: "用于接收语音输入",
+                        title: "Microphone",
+                        description: "Used to receive voice input",
                         statusText: viewModel.microphoneAccessStatusText,
                         tint: viewModel.microphoneAccessNeedsAttention ? .orange : .green
                     ) {
@@ -306,26 +305,26 @@ struct MacRequiredPermissionsGateView: View {
                     }
 
                     permissionGateRow(
-                        title: "Accessibility / 输入控制",
-                        description: "用于把文本插入当前应用",
+                        title: "Accessibility / Input Control",
+                        description: "Used to insert text into active apps",
                         statusText: viewModel.autoPasteStatusText,
                         tint: viewModel.autoPasteAccessNeedsAttention ? .orange : .green
                     ) {
                         HStack(spacing: 8) {
-                            Button("开启权限") {
+                            Button("Grant Permission") {
                                 viewModel.requestAutoPasteAccess()
                             }
 
-                            Button("打开系统设置") {
+                            Button("Open System Settings") {
                                 viewModel.openAccessibilitySettings()
                             }
                         }
                     }
 
                     if viewModel.microphoneAccessNeedsAttention || viewModel.autoPasteAccessNeedsAttention {
-                        messageRow(
-                            text: "还没有检测到权限开启。请在系统设置中完成授权后返回。",
-                            tint: .orange
+                        MessageBanner(
+                            text: "Permissions not yet detected. Please authorize in System Settings and return.",
+                            role: .warning
                         )
                     }
                 }
@@ -336,14 +335,14 @@ struct MacRequiredPermissionsGateView: View {
 
             HStack {
                 if viewModel.onboardingMode != nil {
-                    Button("返回") {
+                    Button("Back") {
                         viewModel.retreatOnboarding()
                     }
                 }
 
                 Spacer()
 
-                Button("继续") {
+                Button("Continue") {
                     viewModel.continueOnboarding()
                 }
                 .buttonStyle(.borderedProminent)
@@ -354,7 +353,7 @@ struct MacRequiredPermissionsGateView: View {
 
     private var shortcutStep: some View {
         VStack(alignment: .leading, spacing: 18) {
-            GroupBox("设置快捷键") {
+            GroupBox("Set Shortcut") {
                 VStack(alignment: .leading, spacing: 14) {
                     MacHotKeySettingsSectionView(hotkey: .dictation) { shortcut in
                         viewModel.updateShortcutSummary(shortcut)
@@ -363,25 +362,25 @@ struct MacRequiredPermissionsGateView: View {
                 .padding(8)
             }
 
-            GroupBox("测试区") {
+            GroupBox("Test Area") {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(shortcutInstructionText)
                         .font(.headline)
 
                     if let previewText = viewModel.shortcutTestPreviewText {
-                        messageRow(text: "测试文本：\(previewText)", tint: .green)
+                        MessageBanner(text: "Test Text: \(previewText)", role: .success)
                     }
 
                     statusChecklistRow(
-                        title: "已检测到按下",
+                        title: "Key press detected",
                         isComplete: viewModel.shortcutTestDetectedPress
                     )
                     statusChecklistRow(
-                        title: "已完成按下到松开闭环",
+                        title: "Released key loop completed",
                         isComplete: viewModel.shortcutTestCompletedRoundTrip
                     )
                     statusChecklistRow(
-                        title: "已拿到一次测试结果",
+                        title: "First test result received",
                         isComplete: viewModel.shortcutTestPreviewText != nil
                     )
                 }
@@ -391,13 +390,13 @@ struct MacRequiredPermissionsGateView: View {
             Spacer()
 
             HStack {
-                Button("返回") {
+                Button("Back") {
                     viewModel.retreatOnboarding()
                 }
 
                 Spacer()
 
-                Button("继续") {
+                Button("Continue") {
                     viewModel.continueOnboarding()
                 }
                 .buttonStyle(.borderedProminent)
@@ -408,18 +407,18 @@ struct MacRequiredPermissionsGateView: View {
 
     private var firstSuccessStep: some View {
         VStack(alignment: .leading, spacing: 18) {
-            GroupBox("示例") {
+            GroupBox("Example") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("示例输入")
+                    Text("Example Input")
                         .font(.headline)
 
-                    Text("明天下午，呃不对，三点帮我约一下")
+                    Text("Tomorrow afternoon, uh wait, 3 PM, help me book it")
                         .foregroundStyle(.secondary)
 
                     if let firstSuccessPreviewText = viewModel.firstSuccessPreviewText {
-                        messageRow(text: "成功了：\(firstSuccessPreviewText)", tint: .green)
+                        MessageBanner(text: "It worked: \(firstSuccessPreviewText)", role: .success)
                     } else if let firstSuccessFailureMessage = viewModel.firstSuccessFailureMessage {
-                        messageRow(text: firstSuccessFailureMessage, tint: .red)
+                        MessageBanner(text: firstSuccessFailureMessage, role: .error)
                     }
                 }
                 .padding(8)
@@ -428,19 +427,19 @@ struct MacRequiredPermissionsGateView: View {
             Spacer()
 
             HStack {
-                Button("返回") {
+                Button("Back") {
                     viewModel.retreatOnboarding()
                 }
 
                 Spacer()
 
                 if viewModel.canSkipFirstSuccessOnboarding && !viewModel.canContinueFirstSuccessOnboarding {
-                    Button("先进入应用，稍后再试") {
+                    Button("Skip for now and try later") {
                         viewModel.continueOnboarding()
                     }
                 }
 
-                Button("继续") {
+                Button("Continue") {
                     viewModel.continueOnboarding()
                 }
                 .buttonStyle(.borderedProminent)
@@ -451,16 +450,16 @@ struct MacRequiredPermissionsGateView: View {
 
     private var doneStep: some View {
         VStack(alignment: .leading, spacing: 18) {
-            GroupBox("提醒") {
+            GroupBox("Overview") {
                 VStack(alignment: .leading, spacing: 12) {
-                    summaryRow(title: "快捷键", value: viewModel.shortcutSummaryText)
+                    summaryRow(title: "Shortcut", value: viewModel.shortcutSummaryText)
                     summaryRow(
-                        title: "当前模式",
-                        value: viewModel.onboardingMode == .apiKey ? "API Key" : "已登录"
+                        title: "Current Mode",
+                        value: viewModel.onboardingMode == .apiKey ? "API Key" : "Logged In"
                     )
                     summaryRow(
-                        title: "权限",
-                        value: viewModel.hasRequiredPermissions ? "已开启" : "仍需检查"
+                        title: "Permissions",
+                        value: viewModel.hasRequiredPermissions ? "Enabled" : "Check required"
                     )
                 }
                 .padding(8)
@@ -471,7 +470,7 @@ struct MacRequiredPermissionsGateView: View {
             HStack {
                 Spacer()
 
-                Button("开始使用") {
+                Button("Get Started") {
                     viewModel.finishOnboarding()
                 }
                 .buttonStyle(.borderedProminent)
@@ -481,14 +480,14 @@ struct MacRequiredPermissionsGateView: View {
 
     private var shortcutInstructionText: String {
         if !viewModel.shortcutTestDetectedPress {
-            return "按住你设置的快捷键试试看。"
+            return "Hold the shortcut you configured and give it a try."
         }
 
         if !viewModel.shortcutTestCompletedRoundTrip {
-            return "已检测到快捷键，保持按住并说一句话。"
+            return "Shortcut detected. Keep holding and say something."
         }
 
-        return "快捷键设置成功；现在你可以按住它开始说话了。"
+        return "Shortcut configured. You can now hold it to start speaking."
     }
 
     private func onboardingChoiceCard(
@@ -503,7 +502,7 @@ struct MacRequiredPermissionsGateView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(details, id: \.self) { detail in
-                    bulletRow(detail)
+                    BulletRow(text: detail)
                 }
             }
 
@@ -522,18 +521,6 @@ struct MacRequiredPermissionsGateView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(.quaternary, lineWidth: 1)
         )
-    }
-
-    private func bulletRow(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Circle()
-                .fill(Color.accentColor)
-                .frame(width: 6, height: 6)
-                .padding(.top, 6)
-
-            Text(text)
-                .fixedSize(horizontal: false, vertical: true)
-        }
     }
 
     private func summaryRow(title: String, value: String) -> some View {
@@ -583,23 +570,6 @@ struct MacRequiredPermissionsGateView: View {
 
             actions()
         }
-    }
-
-    private func messageRow(text: String, tint: Color) -> some View {
-        Text(text)
-            .font(.footnote)
-            .foregroundStyle(tint)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(tint.opacity(0.08))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(tint.opacity(0.18), lineWidth: 1)
-            )
     }
 }
 #endif

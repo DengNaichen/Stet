@@ -168,7 +168,6 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     private let configureVoiceProcessing: @Sendable (AVAudioInputNode, AVAudioOutputNode) -> VoiceProcessingConfigurationResult
 
     private var audioEngine: AVAudioEngine?
-    private var isTapInstalled = false
     private var activeSession: MacAudioFileRecordingSession?
     private var hasWrittenFirstRecordedBuffer = false
 
@@ -302,7 +301,7 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         on inputNode: AVAudioInputNode,
         tapFormat: AVAudioFormat
     ) throws {
-        installTapIfNeeded(on: inputNode, format: tapFormat)
+        installTap(on: inputNode, format: tapFormat)
         
         guard let engine = currentEngine() else {
             throw SpeechServiceError.failedToStart
@@ -310,28 +309,48 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         
         engine.prepare()
 
-        do {
-            if !engine.isRunning {
-                try engine.start()
+        var startupError: Error?
+        var didStart = false
+
+        for attempt in 1...4 {
+            do {
+                if !engine.isRunning {
+                    try engine.start()
+                }
+                startupError = nil
+                didStart = true
+                if attempt > 1 {
+                    AppLogger.info("macOS capture engine started successfully on attempt \(attempt).", category: .dictation)
+                }
+                break
+            } catch {
+                startupError = error
+                AppLogger.warning(
+                    "macOS capture engine start failed on attempt \(attempt). Retrying... error=\(error.localizedDescription)",
+                    category: .dictation
+                )
+                // Allow `coreaudiod` time to drop the IO graph hardware lock from the previous session
+                Thread.sleep(forTimeInterval: 0.15)
+                engine.prepare()
             }
-        } catch {
+        }
+
+        guard didStart else {
             tearDownEngine()
-            AppLogger.error(
-                "Failed to start the macOS capture engine. error=\(error.localizedDescription)",
-                category: .dictation
-            )
+            if let error = startupError {
+                AppLogger.error(
+                    "Failed to start the macOS capture engine after retries. error=\(error.localizedDescription)",
+                    category: .dictation
+                )
+            }
             throw SpeechServiceError.failedToStart
         }
     }
 
-    nonisolated private func installTapIfNeeded(on inputNode: AVAudioInputNode, format tapFormat: AVAudioFormat) {
-        guard !isTapInstalled else { return }
-
+    nonisolated private func installTap(on inputNode: AVAudioInputNode, format tapFormat: AVAudioFormat) {
         inputNode.installTap(onBus: 0, bufferSize: Configuration.tapBufferSize, format: tapFormat) { [weak self] buffer, when in
             self?.handleIncomingBuffer(buffer, when: when)
         }
-
-        isTapInstalled = true
     }
 
     nonisolated private func handleIncomingBuffer(_ buffer: AVAudioPCMBuffer, when: AVAudioTime) {
@@ -439,10 +458,8 @@ final class MacAudioFileRecorder: @unchecked Sendable {
 
     nonisolated private func tearDownEngine() {
         let engine = currentEngine()
-        if isTapInstalled {
-            engine?.inputNode.removeTap(onBus: 0)
-            isTapInstalled = false
-        }
+        engine?.inputNode.removeTap(onBus: 0)
+
         if engine?.isRunning == true {
             engine?.stop()
         }

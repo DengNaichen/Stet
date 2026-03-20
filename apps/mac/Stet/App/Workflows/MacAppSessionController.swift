@@ -748,20 +748,20 @@ final class MacAppSessionController {
     private func inferredFirstSuccessFailureMessage(for failure: DictationFailure) -> String {
         switch failure.classification {
         case .authentication:
-            return "当前连接不可用，请重新验证你的登录状态。"
+            return "Connection unavailable, please re-verify your login status."
         case .configuration:
             if onboardingModeState == .apiKey {
-                return "当前连接不可用，请重新验证你的 API Key。"
+                return "Connection unavailable, please re-verify your API Key."
             }
-            return "当前模型配置不可用，请检查提供商设置。"
+            return "Model configuration unavailable, please check provider settings."
         case .network:
-            return "处理失败，请检查网络或模型配置。"
+            return "Processing failed, please check your network or model configuration."
         case .permissions:
-            return "当前无法访问麦克风，请检查系统权限。"
+            return "Unable to access microphone, please check system permissions."
         case .noSpeech:
-            return "没有检测到语音输入，请再试一次。"
+            return "No voice input detected, please try again."
         case .service, .state, .unknown:
-            return "当前听写失败，请再试一次。"
+            return "Dictation failed, please try again."
         }
     }
 

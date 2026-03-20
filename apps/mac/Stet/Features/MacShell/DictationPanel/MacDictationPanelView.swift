@@ -1,6 +1,101 @@
 #if os(macOS)
 import SwiftUI
 
+// MARK: - Constants
+
+private enum Constants {
+    enum Layout {
+        static let mainWidthIdle: CGFloat = 250
+        static let mainWidthStarting: CGFloat = 250
+        static let mainWidthListening: CGFloat = 250
+        static let mainWidthProcessing: CGFloat = 228
+        static let mainWidthResult: CGFloat = 270
+        static let mainWidthClipboard: CGFloat = 320
+        static let mainWidthError: CGFloat = 300
+        
+        static let controlHeight: CGFloat = 52
+        static let clipboardHeight: CGFloat = 118
+        static let clipboardCornerRadius: CGFloat = 30
+
+        static let offsetXListening: CGFloat = 12
+        static let offsetXAlternate: CGFloat = 24
+        
+        static let offsetYDefault: CGFloat = -4
+        static let offsetYClipboard: CGFloat = -2
+        
+        static let orbInset: CGFloat = 18
+        static let orbTargetXDefault: CGFloat = 55
+        static let orbTargetXClipboard: CGFloat = 46
+        
+        static let glassSpacing: CGFloat = 28
+        static let orbScaleMin: CGFloat = 0.24
+        static let orbScaleMax: CGFloat = 1.0
+        static let orbAlphaThreshold: CGFloat = 0.01
+        
+        static let strokeOpacityClipboard: Double = 0.18
+        static let strokeOpacityDefault: Double = 0.08
+        static let strokeWidth: CGFloat = 0.9
+        
+        static let shadowRadiusClipboard: CGFloat = 18
+        static let shadowRadiusDefault: CGFloat = 8
+        static let shadowOpacityClipboard: Double = 0.22
+        static let shadowOpacityDefault: Double = 0.12
+        static let shadowYClipboard: CGFloat = 10
+        static let shadowYDefault: CGFloat = 4
+    }
+    
+    enum Animation {
+        static let generalResponse: Double = 0.56
+        static let generalDamping: Double = 0.82
+        
+        static let entranceResponse: Double = 0.50
+        static let entranceDamping: Double = 0.68
+        
+        static let sideOrbResponse: Double = 0.56
+        static let sideOrbDamping: Double = 0.78
+        
+        static let sideOrbExitDamping: Double = 0.80
+        
+        static let clipboardResponse: Double = 0.30
+        static let clipboardDamping: Double = 0.90
+        
+        static let entranceDelay: UInt64 = 90_000_000
+        static let orbTransitionDelay: UInt64 = 220_000_000
+        static let clipboardDelay: UInt64 = 90_000_000
+        static let symmetricCloseDelay: UInt64 = 90_000_000
+        static let finalActionDelay: UInt64 = 240_000_000
+    }
+    
+    enum VoiceReactivity {
+        static let easedPower: Double = 0.45
+        
+        static let levelBaseIdle: Double = 0.10
+        static let levelBaseStarting: Double = 0.15
+        static let levelMultStarting: Double = 0.45
+        static let levelMaxStarting: Double = 0.60
+        static let levelBaseListening: Double = 0.22
+        static let levelMultListening: Double = 0.78
+        static let levelMaxListening: Double = 1.0
+        static let levelBaseProcessing: Double = 0.08
+        static let levelBaseResult: Double = 0.10
+        
+        static let shaderFrameIntervalActive: Double = 1.0 / 40.0
+        static let shaderFrameIntervalIdle: Double = 1.0 / 30.0
+    }
+    
+    enum Colors {
+        static let errorGradientTop = Color(red: 0.78, green: 0.42, blue: 0.52)
+        static let errorGradientBottom = Color(red: 0.93, green: 0.48, blue: 0.34)
+        
+        static let topLerpStart = (0.40, 0.85, 1.00)
+        static let topLerpEnd = (0.20, 0.92, 1.00)
+        static let midLerpStart = (0.85, 0.92, 0.98)
+        static let midLerpEnd = (0.90, 0.95, 1.00)
+        static let lowLerpStart = (0.80, 0.82, 0.85)
+        static let lowLerpEnd = (0.45, 0.48, 0.55)
+    }
+}
+
 struct MacDictationPanelView: View {
     @StateObject private var viewModel: MacDictationPanelViewModel
 
@@ -158,18 +253,29 @@ private struct MacDictationCapsuleSurface: View {
         min(max(recordingLevel, 0), 1)
     }
 
+    private var isVoiceReactiveState: Bool {
+        switch state {
+        case .starting, .listening:
+            return true
+        default:
+            return false
+        }
+    }
+
     private var displayLevel: Double {
+        let easedLevel = pow(normalizedRecordingLevel, Constants.VoiceReactivity.easedPower)
+
         switch state {
         case .idle:
-            return 0.14
+            return Constants.VoiceReactivity.levelBaseIdle
         case .starting:
-            return min(max(0.12 + normalizedRecordingLevel * 0.88, 0), 1)
+            return min(Constants.VoiceReactivity.levelMaxStarting, Constants.VoiceReactivity.levelBaseStarting + easedLevel * Constants.VoiceReactivity.levelMultStarting)
         case .listening:
-            return min(max(0.12 + normalizedRecordingLevel * 0.88, 0), 1)
+            return min(Constants.VoiceReactivity.levelMaxListening, Constants.VoiceReactivity.levelBaseListening + easedLevel * Constants.VoiceReactivity.levelMultListening)
         case .processing:
-            return 0.08
+            return Constants.VoiceReactivity.levelBaseProcessing
         case .result:
-            return 0.12
+            return Constants.VoiceReactivity.levelBaseResult
         case .clipboardPending, .error:
             return 0
         }
@@ -178,47 +284,47 @@ private struct MacDictationCapsuleSurface: View {
     private var mainWidth: CGFloat {
         switch state {
         case .idle:
-            scaled(250)
+            scaled(Constants.Layout.mainWidthIdle)
         case .starting:
-            scaled(250)
+            scaled(Constants.Layout.mainWidthStarting)
         case .listening:
-            scaled(250)
+            scaled(Constants.Layout.mainWidthListening)
         case .processing:
-            scaled(228)
+            scaled(Constants.Layout.mainWidthProcessing)
         case .result:
-            scaled(270)
+            scaled(Constants.Layout.mainWidthResult)
         case .clipboardPending:
-            scaled(320)
+            scaled(Constants.Layout.mainWidthClipboard)
         case .error:
-            scaled(300)
+            scaled(Constants.Layout.mainWidthError)
         }
     }
 
     private var controlHeight: CGFloat {
-        scaled(52)
+        scaled(Constants.Layout.controlHeight)
     }
 
     private var mainHeight: CGFloat {
-        isClipboardPending ? scaled(118) : controlHeight
+        isClipboardPending ? scaled(Constants.Layout.clipboardHeight) : controlHeight
     }
 
     private var mainCornerRadius: CGFloat {
-        isClipboardPending ? scaled(30) : mainHeight / 2
+        isClipboardPending ? scaled(Constants.Layout.clipboardCornerRadius) : mainHeight / 2
     }
 
     private var mainOffsetX: CGFloat {
         switch state {
         case .idle, .starting, .listening:
-            scaled(12)
+            scaled(Constants.Layout.offsetXListening)
         case .clipboardPending:
             0
         case .processing, .result, .error:
-            scaled(24)
+            scaled(Constants.Layout.offsetXAlternate)
         }
     }
 
     private var mainOffsetY: CGFloat {
-        isClipboardPending ? scaled(-2) : scaled(-4)
+        isClipboardPending ? scaled(Constants.Layout.offsetYClipboard) : scaled(Constants.Layout.offsetYDefault)
     }
 
     private var leadingOrbProgress: CGFloat {
@@ -230,14 +336,14 @@ private struct MacDictationCapsuleSurface: View {
     }
 
     private var leadingOrbX: CGFloat {
-        let startX = mainOffsetX - (mainWidth / 2) + scaled(18)
-        let targetX = mainOffsetX - (mainWidth / 2) - scaled(isClipboardPending ? 46 : 55)
+        let startX = mainOffsetX - (mainWidth / 2) + scaled(Constants.Layout.orbInset)
+        let targetX = mainOffsetX - (mainWidth / 2) - scaled(isClipboardPending ? Constants.Layout.orbTargetXClipboard : Constants.Layout.orbTargetXDefault)
         return startX + (targetX - startX) * leadingOrbProgress
     }
 
     private var trailingOrbX: CGFloat {
-        let startX = mainOffsetX + (mainWidth / 2) - scaled(18)
-        let targetX = mainOffsetX + (mainWidth / 2) + scaled(isClipboardPending ? 46 : 55)
+        let startX = mainOffsetX + (mainWidth / 2) - scaled(Constants.Layout.orbInset)
+        let targetX = mainOffsetX + (mainWidth / 2) + scaled(isClipboardPending ? Constants.Layout.orbTargetXClipboard : Constants.Layout.orbTargetXDefault)
         return startX + (targetX - startX) * trailingOrbProgress
     }
 
@@ -246,27 +352,27 @@ private struct MacDictationCapsuleSurface: View {
     }
 
     private var shaderFrameInterval: Double {
-        1.0 / 30.0
+        isVoiceReactiveState ? Constants.VoiceReactivity.shaderFrameIntervalActive : Constants.VoiceReactivity.shaderFrameIntervalIdle
     }
 
     var body: some View {
         ZStack {
-            GlassEffectContainer(spacing: scaled(28)) {
+            GlassEffectContainer(spacing: scaled(Constants.Layout.glassSpacing)) {
                 ZStack {
                     if let leadingOrb = visibleLeadingOrb {
                         capsuleOrbButton(leadingOrb)
                             .offset(x: leadingOrbX, y: mainOffsetY)
-                            .scaleEffect(0.24 + 0.76 * leadingOrbProgress)
+                            .scaleEffect(Constants.Layout.orbScaleMin + (Constants.Layout.orbScaleMax - Constants.Layout.orbScaleMin) * leadingOrbProgress)
                             .opacity(leadingOrbProgress)
-                            .allowsHitTesting(leadingOrbProgress > 0.01)
+                            .allowsHitTesting(leadingOrbProgress > Constants.Layout.orbAlphaThreshold)
                     }
 
                     if let trailingOrb = visibleTrailingOrb {
                         capsuleOrbButton(trailingOrb)
                             .offset(x: trailingOrbX, y: mainOffsetY)
-                            .scaleEffect(0.24 + 0.76 * trailingOrbProgress)
+                            .scaleEffect(Constants.Layout.orbScaleMin + (Constants.Layout.orbScaleMax - Constants.Layout.orbScaleMin) * trailingOrbProgress)
                             .opacity(trailingOrbProgress)
-                            .allowsHitTesting(trailingOrbProgress > 0.01)
+                            .allowsHitTesting(trailingOrbProgress > Constants.Layout.orbAlphaThreshold)
                     }
 
                     mainCapsule()
@@ -294,7 +400,7 @@ private struct MacDictationCapsuleSurface: View {
             previousState = state
         }
         .onDisappear(perform: resetEntranceAnimation)
-        .animation(.spring(response: 0.56, dampingFraction: 0.82), value: state)
+        .animation(.spring(response: Constants.Animation.generalResponse, dampingFraction: Constants.Animation.generalDamping), value: state)
     }
 
     @ViewBuilder
@@ -307,12 +413,12 @@ private struct MacDictationCapsuleSurface: View {
         .glassEffect(.clear, in: RoundedRectangle(cornerRadius: mainCornerRadius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: mainCornerRadius, style: .continuous)
-                .strokeBorder(.white.opacity(isClipboardPending ? 0.18 : 0.08), lineWidth: scaled(0.9))
+                .strokeBorder(.white.opacity(isClipboardPending ? Constants.Layout.strokeOpacityClipboard : Constants.Layout.strokeOpacityDefault), lineWidth: scaled(Constants.Layout.strokeWidth))
         }
         .shadow(
-            color: .black.opacity(isClipboardPending ? 0.22 : 0.12),
-            radius: isClipboardPending ? scaled(18) : scaled(8),
-            y: isClipboardPending ? scaled(10) : scaled(4)
+            color: .black.opacity(isClipboardPending ? Constants.Layout.shadowOpacityClipboard : Constants.Layout.shadowOpacityDefault),
+            radius: isClipboardPending ? scaled(Constants.Layout.shadowRadiusClipboard) : scaled(Constants.Layout.shadowRadiusDefault),
+            y: isClipboardPending ? scaled(Constants.Layout.shadowYClipboard) : scaled(Constants.Layout.shadowYDefault)
         )
     }
 
@@ -335,8 +441,8 @@ private struct MacDictationCapsuleSurface: View {
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color(red: 0.78, green: 0.42, blue: 0.52).opacity(0.42),
-                            Color(red: 0.93, green: 0.48, blue: 0.34).opacity(0.24)
+                            Constants.Colors.errorGradientTop.opacity(0.42),
+                            Constants.Colors.errorGradientBottom.opacity(0.24)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -344,13 +450,36 @@ private struct MacDictationCapsuleSurface: View {
                 )
         } else {
             TimelineView(.animation(minimumInterval: shaderFrameInterval, paused: false)) { timeline in
+                let level = displayLevel
+                let talk = min(max(level, 0.0), 1.0)
+                let breath = talk * talk * (3.0 - 2.0 * talk)
+
+                let top = Color(
+                    red:   lerp(Constants.Colors.topLerpStart.0, Constants.Colors.topLerpEnd.0, breath),
+                    green: lerp(Constants.Colors.topLerpStart.1, Constants.Colors.topLerpEnd.1, breath),
+                    blue:  lerp(Constants.Colors.topLerpStart.2, Constants.Colors.topLerpEnd.2, breath)
+                )
+                let mid = Color(
+                    red:   lerp(Constants.Colors.midLerpStart.0, Constants.Colors.midLerpEnd.0, breath),
+                    green: lerp(Constants.Colors.midLerpStart.1, Constants.Colors.midLerpEnd.1, breath),
+                    blue:  lerp(Constants.Colors.midLerpStart.2, Constants.Colors.midLerpEnd.2, breath)
+                )
+                let low = Color(
+                    red:   lerp(Constants.Colors.lowLerpStart.0, Constants.Colors.lowLerpEnd.0, breath),
+                    green: lerp(Constants.Colors.lowLerpStart.1, Constants.Colors.lowLerpEnd.1, breath),
+                    blue:  lerp(Constants.Colors.lowLerpStart.2, Constants.Colors.lowLerpEnd.2, breath)
+                )
+
                 Rectangle()
                     .fill(.white)
                     .colorEffect(
                         ShaderLibrary.cloudOrbGlassWide(
                             .float2(size),
                             .float(timeline.date.timeIntervalSince(startDate)),
-                            .float(displayLevel)
+                            .float(level),
+                            .color(top),
+                            .color(mid),
+                            .color(low)
                         )
                     )
             }
@@ -501,16 +630,16 @@ private struct MacDictationCapsuleSurface: View {
         visibleLeadingOrb = leadingOrb
         visibleTrailingOrb = trailingOrb
 
-        withAnimation(.spring(response: 0.50, dampingFraction: 0.68)) {
+        withAnimation(.spring(response: Constants.Animation.entranceResponse, dampingFraction: Constants.Animation.entranceDamping)) {
             appeared = true
         }
 
         entranceTask?.cancel()
         entranceTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 90_000_000)
+            try? await Task.sleep(nanoseconds: Constants.Animation.entranceDelay)
             guard !Task.isCancelled else { return }
 
-            withAnimation(.spring(response: 0.56, dampingFraction: 0.78)) {
+            withAnimation(.spring(response: Constants.Animation.sideOrbResponse, dampingFraction: Constants.Animation.sideOrbDamping)) {
                 sideOrbProgress = 1
             }
         }
@@ -528,7 +657,7 @@ private struct MacDictationCapsuleSurface: View {
             visibleTrailingOrb = trailingOrb
 
             if shouldAnimateOrbTransition {
-                withAnimation(.spring(response: 0.56, dampingFraction: 0.78)) {
+                withAnimation(.spring(response: Constants.Animation.sideOrbResponse, dampingFraction: Constants.Animation.sideOrbDamping)) {
                     sideOrbProgress = 1
                 }
             } else {
@@ -540,7 +669,7 @@ private struct MacDictationCapsuleSurface: View {
         guard visibleLeadingOrb != nil || visibleTrailingOrb != nil else { return }
 
         if shouldAnimateOrbTransition {
-            withAnimation(.spring(response: 0.56, dampingFraction: 0.80)) {
+            withAnimation(.spring(response: Constants.Animation.sideOrbResponse, dampingFraction: Constants.Animation.sideOrbExitDamping)) {
                 sideOrbProgress = 0
             }
         } else {
@@ -549,7 +678,7 @@ private struct MacDictationCapsuleSurface: View {
 
         if shouldAnimateOrbTransition {
             orbTransitionTask = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 220_000_000)
+                try? await Task.sleep(nanoseconds: Constants.Animation.orbTransitionDelay)
                 guard !Task.isCancelled else { return }
 
                 visibleLeadingOrb = nil
@@ -581,10 +710,10 @@ private struct MacDictationCapsuleSurface: View {
 
         clipboardContentVisible = false
         clipboardRevealTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 90_000_000)
+            try? await Task.sleep(nanoseconds: Constants.Animation.clipboardDelay)
             guard !Task.isCancelled else { return }
 
-            withAnimation(.spring(response: 0.30, dampingFraction: 0.90)) {
+            withAnimation(.spring(response: Constants.Animation.clipboardResponse, dampingFraction: Constants.Animation.clipboardDamping)) {
                 clipboardContentVisible = true
             }
         }
@@ -618,23 +747,27 @@ private struct MacDictationCapsuleSurface: View {
         clipboardRevealTask?.cancel()
         exitTask?.cancel()
 
-        withAnimation(.spring(response: 0.56, dampingFraction: 0.78)) {
+        withAnimation(.spring(response: Constants.Animation.sideOrbResponse, dampingFraction: Constants.Animation.sideOrbDamping)) {
             sideOrbProgress = 0
         }
 
         exitTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 90_000_000)
+            try? await Task.sleep(nanoseconds: Constants.Animation.symmetricCloseDelay)
             guard !Task.isCancelled else { return }
 
-            withAnimation(.spring(response: 0.50, dampingFraction: 0.68)) {
+            withAnimation(.spring(response: Constants.Animation.entranceResponse, dampingFraction: Constants.Animation.entranceDamping)) {
                 appeared = false
             }
 
-            try? await Task.sleep(nanoseconds: 240_000_000)
+            try? await Task.sleep(nanoseconds: Constants.Animation.finalActionDelay)
             guard !Task.isCancelled else { return }
 
             action()
         }
+    }
+
+    private func lerp(_ a: Double, _ b: Double, _ t: Double) -> Double {
+        a + (b - a) * t
     }
 }
 

@@ -9,7 +9,7 @@ final class DictationViewModel: ObservableObject {
     private let speechService: any SpeechService
     private var activeTask: Task<Void, Never>?
     private var levelTask: Task<Void, Never>?
-    private var captureEventTask: Task<Void, Never>?
+
     private var isStartingRecording = false
     private var isActivatingRecordingWindow = false
     private var hasPreparedCapture = false
@@ -67,7 +67,6 @@ final class DictationViewModel: ObservableObject {
 
         activeTask?.cancel()
         levelTask?.cancel()
-        captureEventTask?.cancel()
         isStartingRecording = true
         isActivatingRecordingWindow = false
         hasPreparedCapture = false
@@ -105,7 +104,7 @@ final class DictationViewModel: ObservableObject {
                 pendingActivationAfterStart = false
                 resultTransformer = nil
                 finishLevelMonitoring()
-                finishCaptureEventMonitoring()
+
                 state = .idle
                 Task {
                     await DictationRuntimeProbe.shared.markCaptureStartError("cancelled")
@@ -121,7 +120,7 @@ final class DictationViewModel: ObservableObject {
                 pendingActivationAfterStart = false
                 resultTransformer = nil
                 finishLevelMonitoring()
-                finishCaptureEventMonitoring()
+
                 state = .error(.from(error))
                 Task {
                     await DictationRuntimeProbe.shared.markCaptureStartError(error.localizedDescription)
@@ -153,7 +152,6 @@ final class DictationViewModel: ObservableObject {
                 if Task.isCancelled { return }
 
                 isActivatingRecordingWindow = false
-                startCaptureEventMonitoring()
                 state = .listening
                 Task {
                     await DictationRuntimeProbe.shared.markAction("enteredListening")
@@ -172,7 +170,7 @@ final class DictationViewModel: ObservableObject {
                 pendingActivationAfterStart = false
                 resultTransformer = nil
                 finishLevelMonitoring()
-                finishCaptureEventMonitoring()
+
                 state = .idle
             } catch {
                 isActivatingRecordingWindow = false
@@ -180,7 +178,7 @@ final class DictationViewModel: ObservableObject {
                 pendingActivationAfterStart = false
                 resultTransformer = nil
                 finishLevelMonitoring()
-                finishCaptureEventMonitoring()
+
                 state = .error(.from(error))
             }
         }
@@ -201,7 +199,7 @@ final class DictationViewModel: ObservableObject {
         hasPreparedCapture = false
         isActivatingRecordingWindow = false
         finishLevelMonitoring()
-        finishCaptureEventMonitoring()
+        // finishCaptureEventMonitoring()
         state = .processing
         Task {
             await DictationRuntimeProbe.shared.markAction("processingFromStopCapture")
@@ -224,14 +222,14 @@ final class DictationViewModel: ObservableObject {
                 hasPreparedCapture = false
                 isActivatingRecordingWindow = false
                 finishLevelMonitoring()
-                finishCaptureEventMonitoring()
+
                 state = .idle
             } catch let error as SpeechServiceError where error == .emptyTranscription {
                 resultTransformer = nil
                 hasPreparedCapture = false
                 isActivatingRecordingWindow = false
                 finishLevelMonitoring()
-                finishCaptureEventMonitoring()
+
                 state = .idle
                 Task {
                     await DictationRuntimeProbe.shared.markAction("stopCaptureEmptyTranscription")
@@ -241,7 +239,7 @@ final class DictationViewModel: ObservableObject {
                 hasPreparedCapture = false
                 isActivatingRecordingWindow = false
                 finishLevelMonitoring()
-                finishCaptureEventMonitoring()
+
                 send(.transcriptionFailed(.from(error)))
                 Task {
                     await DictationRuntimeProbe.shared.markAction("stopCaptureFailed")
@@ -253,7 +251,7 @@ final class DictationViewModel: ObservableObject {
     func runProcessingOperation(_ operation: @escaping ExternalOperation) {
         activeTask?.cancel()
         finishLevelMonitoring()
-        finishCaptureEventMonitoring()
+        // finishCaptureEventMonitoring()
         isStartingRecording = false
         isActivatingRecordingWindow = false
         hasPreparedCapture = false
@@ -269,13 +267,14 @@ final class DictationViewModel: ObservableObject {
                 send(.transcriptionSucceeded(text))
             } catch is CancellationError {
                 finishLevelMonitoring()
-                finishCaptureEventMonitoring()
+
                 state = .idle
             } catch {
                 finishLevelMonitoring()
-                finishCaptureEventMonitoring()
+
                 send(.transcriptionFailed(.from(error)))
             }
+
         }
     }
 
@@ -285,7 +284,6 @@ final class DictationViewModel: ObservableObject {
         }
         activeTask?.cancel()
         finishLevelMonitoring()
-        finishCaptureEventMonitoring()
         isStartingRecording = false
         isActivatingRecordingWindow = false
         hasPreparedCapture = false
@@ -320,32 +318,6 @@ final class DictationViewModel: ObservableObject {
         levelTask?.cancel()
         levelTask = nil
         recordingLevel = 0
-    }
-
-    private func startCaptureEventMonitoring() {
-        finishCaptureEventMonitoring()
-        guard let eventSource = speechService as? any AudioCaptureEventSource else { return }
-
-        captureEventTask = Task { @MainActor [weak self] in
-            let stream = await eventSource.makeAudioCaptureEventStream()
-            for await event in stream {
-                guard !Task.isCancelled else { break }
-                guard let self else { break }
-
-                switch event {
-                case .endpointDetected:
-                    if state.isCaptureInFlight {
-                        stopCapture()
-                    }
-                    return
-                }
-            }
-        }
-    }
-
-    private func finishCaptureEventMonitoring() {
-        captureEventTask?.cancel()
-        captureEventTask = nil
     }
 
     private func actionName(for action: DictationAction) -> String {

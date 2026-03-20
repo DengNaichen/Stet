@@ -128,26 +128,22 @@ struct AuthView: View {
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Email")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
+                LabeledTextField<Field>(
+                    title: "Email",
+                    placeholder: "name@example.com",
+                    text: $viewModel.email,
+                    focused: $focusedField,
+                    focusEquals: .email
+                )
+                .disableAutocorrection(true)
 
-                    TextField("name@example.com", text: $viewModel.email)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($focusedField, equals: .email)
-                        .disableAutocorrection(true)
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Password")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-
-                    SecureField("Enter your password", text: $viewModel.password)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($focusedField, equals: .password)
-                }
+                LabeledSecureField<Field>(
+                    title: "Password",
+                    placeholder: "Enter your password",
+                    text: $viewModel.password,
+                    focused: $focusedField,
+                    focusEquals: .password
+                )
 
                 feedbackView
 
@@ -198,27 +194,113 @@ struct AuthView: View {
     @ViewBuilder
     private var feedbackView: some View {
         if let error = viewModel.errorMessage {
-            messageRow(text: error, tint: .red)
+            MessageBanner(text: error, role: .error)
         } else if let status = viewModel.statusMessage {
-            messageRow(text: status, tint: .secondary)
+            MessageBanner(text: status, role: .info)
         }
     }
 
-    private func messageRow(text: String, tint: Color) -> some View {
-        Text(text)
-            .font(.footnote)
-            .foregroundStyle(tint)
-            .frame(maxWidth: .infinity, alignment: .leading)
+    // MARK: - Local UI components (scoped to AuthView)
+
+    private enum MessageBannerRole {
+        case info, success, warning, error
+
+        var tint: Color {
+            switch self {
+            case .info:    return .secondary
+            case .success: return .green
+            case .warning: return .orange
+            case .error:   return .red
+            }
+        }
+    }
+
+    private struct MessageBanner: View {
+        let text: String
+        let role: MessageBannerRole
+        var strokeOpacity: Double = 0.16
+        var fillOpacity: Double = 0.08
+        var icon: String? = nil
+
+        var body: some View {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                if let icon {
+                    Image(systemName: icon)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(role.tint)
+                }
+                Text(text)
+                    .font(.footnote)
+                    .foregroundStyle(role.tint)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(tint.opacity(0.08))
+                    .fill(role.tint.opacity(fillOpacity))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(tint.opacity(0.16), lineWidth: 1)
+                    .strokeBorder(role.tint.opacity(strokeOpacity), lineWidth: 1)
             )
+        }
+    }
+
+    private struct LabeledField<Content: View>: View {
+        let title: String
+        @ViewBuilder var content: () -> Content
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                content()
+            }
+        }
+    }
+
+    private struct LabeledTextField<F: Hashable>: View {
+        let title: String
+        let placeholder: String
+        @Binding var text: String
+        var focused: FocusState<F?>.Binding?
+        var focusEquals: F?
+
+        var body: some View {
+            LabeledField(title: title) {
+                if let focused, let focusEquals {
+                    TextField(placeholder, text: $text)
+                        .textFieldStyle(.roundedBorder)
+                        .focused(focused, equals: focusEquals)
+                } else {
+                    TextField(placeholder, text: $text)
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+        }
+    }
+
+    private struct LabeledSecureField<F: Hashable>: View {
+        let title: String
+        let placeholder: String
+        @Binding var text: String
+        var focused: FocusState<F?>.Binding?
+        var focusEquals: F?
+
+        var body: some View {
+            LabeledField(title: title) {
+                if let focused, let focusEquals {
+                    SecureField(placeholder, text: $text)
+                        .textFieldStyle(.roundedBorder)
+                        .focused(focused, equals: focusEquals)
+                } else {
+                    SecureField(placeholder, text: $text)
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+        }
     }
 }
 

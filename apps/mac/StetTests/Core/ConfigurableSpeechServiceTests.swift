@@ -331,7 +331,7 @@ struct ConfigurableSpeechServiceTests {
         let audioFileURL = makeAudioFileURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
 
-        let direct = TestTranscriptionService(result: "我们今天 review 这个 PR")
+        let direct = TestTranscriptionService(result: "Today we are reviewing this PR")
         let relay = TestTranscriptionService(result: "relay")
         let rewrite = RecordingRewriteService()
         let (store, _, _) = try makeSettingsStore(

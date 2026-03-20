@@ -1,9 +1,1 @@
-import Foundation
-
-enum AudioCaptureEvent: Sendable, Equatable {
-    case endpointDetected
-}
-
-protocol AudioCaptureEventSource: Sendable {
-    func makeAudioCaptureEventStream() async -> AsyncStream<AudioCaptureEvent>
-}
+// This file was removed as the AudioCaptureEvent mechanism is currently unused.

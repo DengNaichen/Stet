@@ -1,9 +1,8 @@
 @preconcurrency import AVFoundation
 import Foundation
 
-actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource, AudioCaptureEventSource {
+actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     private let audioLevelBridge: AudioLevelBridge
-    private let audioCaptureEventBridge: AudioCaptureEventBridge
     #if os(macOS)
     private let macAudioFileRecorder: MacAudioFileRecorder
     #endif
@@ -16,8 +15,6 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource, AudioCaptur
     init() {
         let audioLevelBridge = AudioLevelBridge()
         self.audioLevelBridge = audioLevelBridge
-        let audioCaptureEventBridge = AudioCaptureEventBridge()
-        self.audioCaptureEventBridge = audioCaptureEventBridge
         #if os(macOS)
         self.macAudioFileRecorder = MacAudioFileRecorder(
             audioLevelHandler: { level in
@@ -32,9 +29,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource, AudioCaptur
         #endif
     }
 
-    func makeAudioCaptureEventStream() async -> AsyncStream<AudioCaptureEvent> {
-        audioCaptureEventBridge.makeStream()
-    }
+
 
     func makeAudioLevelStream() async -> AsyncStream<Double> {
         audioLevelBridge.makeStream()
@@ -310,7 +305,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource, AudioCaptur
         meteringTask = nil
         audioLevelBridge.emit(0)
         audioLevelBridge.finish()
-        audioCaptureEventBridge.finish()
+        audioLevelBridge.finish()
     }
 
     nonisolated private static var microphoneAuthorizationStatusDescription: String {

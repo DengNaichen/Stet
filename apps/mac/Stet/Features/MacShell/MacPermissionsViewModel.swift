@@ -14,11 +14,11 @@ final class MacPermissionsViewModel: ObservableObject {
         var errorDescription: String? {
             switch self {
             case .missingEmail:
-                return "请输入邮箱地址。"
+                return "Please enter email"
             case .invalidEmail:
-                return "请输入有效的邮箱地址。"
+                return "Please enter valid email "
             case .missingPassword:
-                return "请输入密码。"
+                return "Please enter password"
             }
         }
     }
@@ -46,7 +46,7 @@ final class MacPermissionsViewModel: ObservableObject {
     @Published private(set) var isAuthenticating = false
     @Published private(set) var authErrorMessage: String?
     @Published private(set) var authStatusMessage: String?
-    @Published private(set) var shortcutSummaryText = "当前快捷键已配置"
+    @Published private(set) var shortcutSummaryText = "Shortcut configured"
 
     private let coordinator: any MacPermissionsCoordinating
     private let settingsStore: DictationSettingsStore
@@ -145,10 +145,10 @@ final class MacPermissionsViewModel: ObservableObject {
 
     var apiKeyPrimaryButtonTitle: String {
         if isAPIKeyValidated {
-            return "继续"
+            return "Continue"
         }
 
-        return isValidatingAPIKey ? "验证中..." : "验证 Key"
+        return isValidatingAPIKey ? "Validating..." : "Verify Key"
     }
 
     var isRelaySessionActive: Bool {
@@ -193,7 +193,7 @@ final class MacPermissionsViewModel: ObservableObject {
 
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty else {
-            apiKeyErrorMessage = "请输入 API Key。"
+            apiKeyErrorMessage = "Please enter API Key."
             apiKeyStatusMessage = nil
             return
         }
@@ -212,7 +212,7 @@ final class MacPermissionsViewModel: ObservableObject {
             lastValidatedKey = trimmedKey
             lastValidatedProvider = apiKeyProvider
             isAPIKeyValidated = true
-            apiKeyStatusMessage = "API Key 已验证。"
+            apiKeyStatusMessage = "API Key verified."
         } catch {
             apiKeyErrorMessage = mapAPIKeyError(error)
         }
@@ -230,7 +230,7 @@ final class MacPermissionsViewModel: ObservableObject {
             defer { isAuthenticating = false }
             try await supabase.signIn(email: credentials.email, password: credentials.password)
             password = ""
-            authStatusMessage = "登录成功。"
+            authStatusMessage = "Login successful."
             coordinator.completeManagedOnboarding()
         } catch {
             authErrorMessage = error.localizedDescription
@@ -239,7 +239,7 @@ final class MacPermissionsViewModel: ObservableObject {
 
     func useUnavailableIdentityProvider(_ providerName: String) {
         authStatusMessage = nil
-        authErrorMessage = "\(providerName) 登录暂时还没接入，请先用 Email 继续。"
+        authErrorMessage = "\(providerName) login is not yet integrated, please use Email to continue."
     }
 
     func continueManagedFlow() {
@@ -253,7 +253,7 @@ final class MacPermissionsViewModel: ObservableObject {
     }
 
     func updateShortcutSummary(_ shortcut: KeyboardShortcuts.Shortcut?) {
-        shortcutSummaryText = shortcut.map { "\($0)" } ?? "当前快捷键已配置"
+        shortcutSummaryText = shortcut.map { "\($0)" } ?? "Shortcut configured"
     }
 
     private func clearFlowMessages() {
@@ -291,18 +291,18 @@ final class MacPermissionsViewModel: ObservableObject {
         if let openAIError = error as? OpenAIError {
             switch openAIError {
             case .missingAPIKey:
-                return "Key 格式不正确。"
+                return "Invalid Key format."
             case .api(_, let statusCode, _):
                 switch statusCode {
                 case 401, 403:
-                    return "验证失败，请检查是否复制完整。"
+                    return "Verification failed, please check if it was copied completely."
                 case 429, 500, 502, 503, 504:
-                    return "Provider 暂时不可用。"
+                    return "Provider is temporarily unavailable."
                 default:
                     return openAIError.localizedDescription
                 }
             case .invalidBaseURL, .invalidResponse:
-                return "Provider 暂时不可用。"
+                return "Provider is temporarily unavailable."
             case .fileNotFound, .missingTranscriptionText, .missingRewriteText, .missingTranslationText:
                 return openAIError.localizedDescription
             }
@@ -311,7 +311,7 @@ final class MacPermissionsViewModel: ObservableObject {
         if let urlError = error as? URLError {
             switch urlError.code {
             case .notConnectedToInternet, .timedOut, .cannotConnectToHost, .cannotFindHost, .networkConnectionLost:
-                return "网络连接异常。"
+                return "Network connection error."
             default:
                 return urlError.localizedDescription
             }

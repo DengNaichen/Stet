@@ -5,7 +5,7 @@ struct MacOpenAISettingsView: View {
     @ObservedObject var viewModel: MacOpenAISettingsViewModel
 
     var body: some View {
-        Form {
+        AppForm {
             Section {
                 LabeledContent("Execution Mode") {
                     Picker("Execution Mode", selection: $viewModel.executionMode) {
@@ -111,9 +111,6 @@ struct MacOpenAISettingsView: View {
                 Text(viewModel.credentialFieldTitle)
             }
         }
-        .formStyle(.grouped)
-        .padding(.horizontal, 20)
-        .padding(.bottom, 28)
     }
 }
 #endif
