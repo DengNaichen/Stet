@@ -4,7 +4,7 @@ import Foundation
 actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     private let audioLevelBridge: AudioLevelBridge
     #if os(macOS)
-    private let macAudioFileRecorder: MacAudioFileRecorder
+    private let macAudioFileRecorder: MacCaptureAudioFileRecorder
     #endif
 
     private var recorder: AVAudioRecorder?
@@ -16,7 +16,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         let audioLevelBridge = AudioLevelBridge()
         self.audioLevelBridge = audioLevelBridge
         #if os(macOS)
-        self.macAudioFileRecorder = MacAudioFileRecorder(
+        self.macAudioFileRecorder = MacCaptureAudioFileRecorder(
             audioLevelHandler: { level in
                 audioLevelBridge.emit(level)
             },

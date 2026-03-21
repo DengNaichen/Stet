@@ -1,5 +1,6 @@
 #if os(macOS)
 @preconcurrency import AVFoundation
+import AudioToolbox
 import CoreAudio
 import Foundation
 
@@ -226,7 +227,7 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     private let stateLock = NSLock()
     private let audioLevelHandler: @Sendable (Double) -> Void
     private let onFirstRecordedBufferWritten: @Sendable () -> Void
-    private let configureVoiceProcessing: @Sendable (AVAudioInputNode, AVAudioOutputNode, AudioHardwareDevice?) -> VoiceProcessingConfigurationResult
+    private let configureVoiceProcessing: @Sendable (AVAudioInputNode, AVAudioOutputNode?, AudioHardwareDevice?) -> VoiceProcessingConfigurationResult
 
     private var audioEngine: AVAudioEngine?
     private var activeSession: MacAudioFileRecordingSession?
@@ -252,7 +253,7 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     init(
         audioLevelHandler: @escaping @Sendable (Double) -> Void,
         onFirstRecordedBufferWritten: @escaping @Sendable () -> Void,
-        configureVoiceProcessing: @escaping @Sendable (AVAudioInputNode, AVAudioOutputNode, AudioHardwareDevice?) -> VoiceProcessingConfigurationResult
+        configureVoiceProcessing: @escaping @Sendable (AVAudioInputNode, AVAudioOutputNode?, AudioHardwareDevice?) -> VoiceProcessingConfigurationResult
     ) {
         self.audioLevelHandler = audioLevelHandler
         self.onFirstRecordedBufferWritten = onFirstRecordedBufferWritten
@@ -344,7 +345,6 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     nonisolated func prewarm() {
         let engine = ensurePrewarmedEngine()
         _ = engine.inputNode
-        _ = engine.outputNode
         engine.prepare()
     }
 
@@ -355,7 +355,6 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     nonisolated private func startRecordingSession(
         _ recordingSession: MacAudioFileRecordingSession,
         on inputNode: AVAudioInputNode,
-        outputNode: AVAudioOutputNode,
         outputFormat: AVAudioFormat,
         voiceProcessing: VoiceProcessingConfigurationResult,
         inputDevice: AudioHardwareDevice?
@@ -383,8 +382,7 @@ final class MacAudioFileRecorder: @unchecked Sendable {
             outputChannels=\(outputFormat.channelCount), \
             fileSampleRate=\(Int(recordingSession.outputFormat.sampleRate)), \
             fileChannels=\(recordingSession.outputFormat.channelCount), \
-            fileInterleaved=\(recordingSession.outputFormat.isInterleaved), \
-            outputNodeSampleRate=\(Int(outputNode.outputFormat(forBus: 0).sampleRate))
+            fileInterleaved=\(recordingSession.outputFormat.isInterleaved)
             """,
             category: .dictation
         )
@@ -402,12 +400,12 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         let inputNode = engine.inputNode
         let deviceBindingStartedAt = ProcessInfo.processInfo.systemUptime
         if let inputDevice, didBindExplicitly {
-            try inputNode.auAudioUnit.setDeviceID(inputDevice.id)
+            try Self.bindInputDevice(inputDevice, to: inputNode)
         }
         let deviceBindingMs = Self.elapsedMilliseconds(since: deviceBindingStartedAt)
 
-        let outputNode = engine.outputNode
         let voiceProcessingStartedAt = ProcessInfo.processInfo.systemUptime
+        let outputNode = inputDevice?.isBluetooth == true ? engine.outputNode : nil
         let voiceProcessing = configureVoiceProcessing(inputNode, outputNode, inputDevice)
         let voiceProcessingMs = Self.elapsedMilliseconds(since: voiceProcessingStartedAt)
         let recordingFileStartedAt = ProcessInfo.processInfo.systemUptime
@@ -433,7 +431,6 @@ final class MacAudioFileRecorder: @unchecked Sendable {
             try startRecordingSession(
                 recordingSession,
                 on: inputNode,
-                outputNode: outputNode,
                 outputFormat: outputFormat,
                 voiceProcessing: voiceProcessing,
                 inputDevice: inputDevice
@@ -744,13 +741,13 @@ final class MacAudioFileRecorder: @unchecked Sendable {
 
     nonisolated private static func configureVoiceProcessing(
         inputNode: AVAudioInputNode,
-        outputNode: AVAudioOutputNode,
+        outputNode: AVAudioOutputNode?,
         inputDevice: AudioHardwareDevice?
     ) -> VoiceProcessingConfigurationResult {
         let isBluetooth = inputDevice?.transportType == kAudioDeviceTransportTypeBluetooth ||
                           inputDevice?.transportType == kAudioDeviceTransportTypeBluetoothLE
                           
-        if isBluetooth {
+        if isBluetooth, let outputNode {
             try? inputNode.setVoiceProcessingEnabled(true)
             try? outputNode.setVoiceProcessingEnabled(true)
             inputNode.isVoiceProcessingBypassed = false
@@ -833,6 +830,36 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         }
 
         return defaultInputDevice.uid == device.uid
+    }
+
+    private static func bindInputDevice(
+        _ device: AudioHardwareDevice,
+        to inputNode: AVAudioInputNode
+    ) throws {
+        guard let audioUnit = inputNode.audioUnit else {
+            try inputNode.auAudioUnit.setDeviceID(device.id)
+            return
+        }
+
+        var deviceID = device.id
+        let status = AudioUnitSetProperty(
+            audioUnit,
+            kAudioOutputUnitProperty_CurrentDevice,
+            kAudioUnitScope_Global,
+            0,
+            &deviceID,
+            UInt32(MemoryLayout<AudioDeviceID>.size)
+        )
+
+        guard status == noErr else {
+            throw NSError(
+                domain: NSOSStatusErrorDomain,
+                code: Int(status),
+                userInfo: [
+                    NSLocalizedDescriptionKey: "Failed to bind AVAudioEngine input to device \(device.name). osstatus=\(status)"
+                ]
+            )
+        }
     }
 
     private static func describe(candidate: InputDeviceCandidate) -> String {
