@@ -159,33 +159,19 @@ struct SystemAudioDeviceProvider: AudioDeviceProviding {
     func defaultInputDevice() -> AudioHardwareDevice? { nil }
 }
 
-final class ThreadSafeRecordingDeviceCache: @unchecked Sendable {
-    private let lock = NSLock()
-    private var device: AudioHardwareDevice?
-    
-    func get() -> AudioHardwareDevice? {
-        lock.lock()
-        defer { lock.unlock() }
-        return device
-    }
-    
-    func set(_ newDevice: AudioHardwareDevice?) {
-        lock.lock()
-        device = newDevice
-        lock.unlock()
-    }
-}
-
 @MainActor
 final class AudioDeviceSelectionManager: ObservableObject {
     static let shared = AudioDeviceSelectionManager(provider: SystemAudioDeviceProvider())
     
     private let provider: AudioDeviceProviding
-    private let recordingCache = ThreadSafeRecordingDeviceCache()
+    private let recordingDeviceLock = NSLock()
+    nonisolated(unsafe) private var _cachedRecordingDevice: AudioHardwareDevice?
     
     @Published private(set) var selectedDevice: AudioHardwareDevice? {
         didSet {
-            recordingCache.set(selectedDevice)
+            recordingDeviceLock.lock()
+            _cachedRecordingDevice = selectedDevice
+            recordingDeviceLock.unlock()
         }
     }
     
@@ -204,7 +190,9 @@ final class AudioDeviceSelectionManager: ObservableObject {
     }
     
     nonisolated func currentRecordingDevice() -> AudioHardwareDevice? {
-        return recordingCache.get()
+        recordingDeviceLock.lock()
+        defer { recordingDeviceLock.unlock() }
+        return _cachedRecordingDevice
     }
     
     func refreshDevices() {}

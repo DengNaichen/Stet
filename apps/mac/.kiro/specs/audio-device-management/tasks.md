@@ -18,7 +18,7 @@ Implementation approach:
 ### Swift 6 Concurrency Architecture Findings
 *Note: The interfaces have been prototyped and pre-compiled against strict concurrency rules.*
 1. **Default Initializers in `@MainActor`**: Do not use default instantiations (e.g., `= DefaultAudioTestService()`) in the initializers of `@MainActor` classes if they might be called from non-isolated contexts. Inject dependencies explicitly at the call site (e.g., `static let shared = AudioDeviceSelectionManager(provider: SystemAudioDeviceProvider())`).
-2. **`nonisolated` Property Access**: Inside `AudioDeviceSelectionManager` (`@MainActor`), the `nonisolated func currentRecordingDevice()` cannot read a stored property directly, even if wrapped in an `NSLock`. The locked variable must be extracted into an external `@unchecked Sendable` cache class (e.g., `ThreadSafeRecordingDeviceCache`) to satisfy the compiler.
+2. **Orthodox `nonisolated` Property Access**: Inside `AudioDeviceSelectionManager` (`@MainActor`), the `nonisolated func currentRecordingDevice()` cannot read a standard stored property directly. Instead of using a hacky external wrapper class, use the standard Swift 6 pattern: declare the property as `nonisolated(unsafe) private var _cachedRecordingDevice: AudioHardwareDevice?` and protect all read/write accesses manually with an `NSLock`. This satisfies strict concurrency in the most pure and idiomatic way.
 3. **Access Control**: Protocol interfaces like `AudioDeviceProviding` should remain `internal` since the models they return (`AudioHardwareDevice`) are `internal`.
 
 ## Tasks
