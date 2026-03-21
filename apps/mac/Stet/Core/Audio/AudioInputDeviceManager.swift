@@ -1,6 +1,7 @@
 #if os(macOS)
 import CoreAudio
 import Foundation
+import Combine
 
 struct AudioHardwareDevice: Equatable, Sendable {
     let id: AudioDeviceID
@@ -145,4 +146,136 @@ enum AudioInputDeviceManager {
         return String(cString: buffer)
     }
 }
+
+// MARK: - Interface Stubs for Compilation Testing
+
+protocol AudioDeviceProviding: Sendable {
+    func allInputDevices() -> [AudioHardwareDevice]
+    func defaultInputDevice() -> AudioHardwareDevice?
+}
+
+struct SystemAudioDeviceProvider: AudioDeviceProviding {
+    func allInputDevices() -> [AudioHardwareDevice] { [] }
+    func defaultInputDevice() -> AudioHardwareDevice? { nil }
+}
+
+final class ThreadSafeRecordingDeviceCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var device: AudioHardwareDevice?
+    
+    func get() -> AudioHardwareDevice? {
+        lock.lock()
+        defer { lock.unlock() }
+        return device
+    }
+    
+    func set(_ newDevice: AudioHardwareDevice?) {
+        lock.lock()
+        device = newDevice
+        lock.unlock()
+    }
+}
+
+@MainActor
+final class AudioDeviceSelectionManager: ObservableObject {
+    static let shared = AudioDeviceSelectionManager(provider: SystemAudioDeviceProvider())
+    
+    private let provider: AudioDeviceProviding
+    private let recordingCache = ThreadSafeRecordingDeviceCache()
+    
+    @Published private(set) var selectedDevice: AudioHardwareDevice? {
+        didSet {
+            recordingCache.set(selectedDevice)
+        }
+    }
+    
+    @Published private(set) var availableDevices: [AudioHardwareDevice] = []
+    
+    enum SelectionStrategy: String, Codable {
+        case automatic
+        case manual
+    }
+    
+    @Published var strategy: SelectionStrategy = .automatic
+    @Published var preferredDeviceUID: String?
+    
+    init(provider: AudioDeviceProviding) {
+        self.provider = provider
+    }
+    
+    nonisolated func currentRecordingDevice() -> AudioHardwareDevice? {
+        return recordingCache.get()
+    }
+    
+    func refreshDevices() {}
+    func selectDevice(_ device: AudioHardwareDevice) {}
+    func resetToAutomatic() {}
+    func deviceForRecording() -> AudioHardwareDevice? { return nil }
+    private func selectBestQualityDevice(from devices: [AudioHardwareDevice]) -> AudioHardwareDevice? { return nil }
+}
+
+final class AudioDeviceChangeMonitor {
+    static let shared = AudioDeviceChangeMonitor()
+    static let devicesDidChangeNotification = Notification.Name("AudioDevicesDidChange")
+    private var propertyListenerBlock: AudioObjectPropertyListenerBlock?
+    
+    init() {}
+    func startMonitoring() {}
+    func stopMonitoring() {}
+    deinit {}
+}
+
+@MainActor
+protocol AudioTestService {
+    func startRecording() async throws
+    func stopRecording() async throws -> URL
+    func playRecording(at url: URL) async throws
+    func stopPlayback()
+    func makeAudioLevelStream() -> AsyncStream<Double>
+}
+
+final class DefaultAudioTestService: AudioTestService {
+    // Assuming AudioCaptureService exists, using Any for stub
+    init(captureService: Any? = nil) {}
+    func startRecording() async throws {}
+    func stopRecording() async throws -> URL { return URL(fileURLWithPath: "") }
+    func playRecording(at url: URL) async throws {}
+    func stopPlayback() {}
+    func makeAudioLevelStream() -> AsyncStream<Double> {
+        AsyncStream { continuation in
+            continuation.finish()
+        }
+    }
+}
+
+@MainActor
+final class MicrophoneTestViewModel: ObservableObject {
+    @Published var isRecording = false
+    @Published var isPlaying = false
+    @Published var audioLevel: Double = 0.0
+    @Published var hasRecording = false
+    
+    private let audioTestService: AudioTestService
+    
+    init(audioTestService: AudioTestService) {
+        self.audioTestService = audioTestService
+    }
+    
+    func startRecording() async throws {}
+    func stopRecording() async throws {}
+    func playRecording() async throws {}
+    func stopPlayback() {}
+}
+
+@MainActor
+final class MenuBarDeviceSwitcher {
+    private let deviceManager: AudioDeviceSelectionManager
+    
+    init(deviceManager: AudioDeviceSelectionManager) {
+        self.deviceManager = deviceManager
+    }
+    
+    func buildDeviceMenu() -> Any { return "Menu" } // Using Any for stub since NSMenu requires AppKit
+}
+
 #endif

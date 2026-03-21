@@ -15,6 +15,12 @@ Implementation approach:
 - Integrate into onboarding flow
 - Add comprehensive testing throughout
 
+### Swift 6 Concurrency Architecture Findings
+*Note: The interfaces have been prototyped and pre-compiled against strict concurrency rules.*
+1. **Default Initializers in `@MainActor`**: Do not use default instantiations (e.g., `= DefaultAudioTestService()`) in the initializers of `@MainActor` classes if they might be called from non-isolated contexts. Inject dependencies explicitly at the call site (e.g., `static let shared = AudioDeviceSelectionManager(provider: SystemAudioDeviceProvider())`).
+2. **`nonisolated` Property Access**: Inside `AudioDeviceSelectionManager` (`@MainActor`), the `nonisolated func currentRecordingDevice()` cannot read a stored property directly, even if wrapped in an `NSLock`. The locked variable must be extracted into an external `@unchecked Sendable` cache class (e.g., `ThreadSafeRecordingDeviceCache`) to satisfy the compiler.
+3. **Access Control**: Protocol interfaces like `AudioDeviceProviding` should remain `internal` since the models they return (`AudioHardwareDevice`) are `internal`.
+
 ## Tasks
 
 - [ ] 1. Extend AudioInputDeviceManager with device enumeration
