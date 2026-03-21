@@ -31,8 +31,6 @@ private enum Constants {
         static let shadowYDefault: CGFloat = 4
     }
     
-    /* Animation constants removed for now, or replaced with inline springs */
-    
     enum VoiceReactivity {
         static let easedPower: Double = 0.45
         
@@ -51,9 +49,6 @@ private enum Constants {
     }
     
     enum Colors {
-        static let errorGradientTop = Color(red: 0.78, green: 0.42, blue: 0.52)
-        static let errorGradientBottom = Color(red: 0.93, green: 0.48, blue: 0.34)
-        
         static let topLerpStart = (0.40, 0.85, 1.00)
         static let topLerpEnd = (0.20, 0.92, 1.00)
         static let midLerpStart = (0.85, 0.92, 0.98)
@@ -76,14 +71,28 @@ struct MacDictationPanelView: View {
     var body: some View {
         let panelSize = layout.panelSize
 
-        MacDictationCapsuleSurface(
-            viewModel: viewModel,
-            layout: layout,
-            panelSize: panelSize
-        )
+        Group {
+            if case .clipboardPending(let text) = viewModel.state {
+                // Scenario B: Specialized Clipboard Display
+                MacDictationClipboardSurface(
+                    text: text,
+                    layout: layout,
+                    onFinish: viewModel.performPrimaryAction
+                )
+            } else {
+                // Scenario A: Standard Dictation Capsule
+                MacDictationCapsuleSurface(
+                    viewModel: viewModel,
+                    layout: layout,
+                    panelSize: panelSize
+                )
+            }
+        }
         .frame(width: panelSize.width, height: panelSize.height)
     }
 }
+
+// MARK: - Components
 
 private struct MacDictationCapsuleSurface: View {
     @ObservedObject var viewModel: MacDictationPanelViewModel
@@ -99,12 +108,9 @@ private struct MacDictationCapsuleSurface: View {
     }
     @Namespace private var glassNamespace
 
-
     @State private var isPanelShown = false
     @State private var ShowIOrbs = true
-    @State private var clipboardContentVisible = false
     @State private var startDate = Date()
-    @State private var clipboardRevealTask: Task<Void, Never>?
 
     private var scale: CGFloat {
         layout.scale
@@ -112,30 +118,6 @@ private struct MacDictationCapsuleSurface: View {
 
     private var canvasSize: CGSize {
         panelSize
-    }
-
-    private var isClipboardPending: Bool {
-        if case .clipboardPending = state {
-            return true
-        }
-
-        return false
-    }
-
-    private var isProcessing: Bool {
-        if case .processing = state {
-            return true
-        }
-
-        return false
-    }
-
-    private var isError: Bool {
-        if case .error = state {
-            return true
-        }
-
-        return false
     }
 
     private var normalizedRecordingLevel: Double {
@@ -165,7 +147,7 @@ private struct MacDictationCapsuleSurface: View {
             return Constants.VoiceReactivity.levelBaseProcessing
         case .result:
             return Constants.VoiceReactivity.levelBaseResult
-        case .clipboardPending, .error:
+        default:
             return 0
         }
     }
@@ -182,39 +164,15 @@ private struct MacDictationCapsuleSurface: View {
             scaled(Constants.Layout.mainWidthProcessing)
         case .result:
             scaled(Constants.Layout.mainWidthResult)
-        case .clipboardPending:
-            scaled(Constants.Layout.mainWidthClipboard)
         case .error:
             scaled(Constants.Layout.mainWidthError)
+        default:
+            scaled(200)
         }
     }
 
     private var controlHeight: CGFloat {
         scaled(Constants.Layout.controlHeight)
-    }
-
-    private var mainHeight: CGFloat {
-        isClipboardPending ? scaled(Constants.Layout.clipboardHeight) : controlHeight
-    }
-
-    private var mainOffsetX: CGFloat {
-        switch state {
-        case .idle, .starting, .listening:
-            scaled(Constants.Layout.offsetXListening)
-        case .clipboardPending:
-            0
-        case .processing, .result, .error:
-            scaled(Constants.Layout.offsetXAlternate)
-        }
-    }
-
-    private var mainOffsetY: CGFloat {
-        isClipboardPending ? scaled(Constants.Layout.offsetYClipboard) : scaled(Constants.Layout.offsetYDefault)
-    }
-
-
-    private var orbSize: CGFloat {
-        controlHeight
     }
 
     private var shaderFrameInterval: Double {
@@ -223,101 +181,100 @@ private struct MacDictationCapsuleSurface: View {
 
     var body: some View {
         ZStack {
-            // Layer 1 & 2: Glass Container + Middle White Material
-            GlassEffectContainer(spacing: 40) {
-                HStack(spacing: 40) {
-                    // Leading Orb
-                    Button(action: handleCancelAction) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 32, weight: .bold))
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: controlHeight, height: controlHeight)
-                    .glassEffect(.regular)
-                    .glassEffectID("cancel", in: glassNamespace)
-                    .opacity(isPanelShown && ShowIOrbs ? 1 : 0)
-                    .offset(x: isPanelShown && ShowIOrbs ? 0 : 60)
-                    .scaleEffect(isPanelShown && ShowIOrbs ? 1 : 0.85)
-                    .allowsHitTesting(isPanelShown && ShowIOrbs)
+            // Background Layer: Orbs & Capsule
+            ZStack {
+                GlassEffectContainer(spacing: 40) {
+                    HStack(spacing: 40) {
+                        // Leading Orb
+                        Button(action: handleCancelAction) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 32, weight: .bold))
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .frame(width: controlHeight, height: controlHeight)
+                        .glassEffect(.regular)
+                        .glassEffectID("cancel", in: glassNamespace)
+                        .opacity(isPanelShown && ShowIOrbs ? 1 : 0)
+                        .offset(x: isPanelShown && ShowIOrbs ? 0 : 60)
+                        .scaleEffect(isPanelShown && ShowIOrbs ? 1 : 0.85)
+                        .allowsHitTesting(isPanelShown && ShowIOrbs)
 
-                    // Layer 2: Middle Material
-                    Capsule()
+                        // Layer 2: Middle Material (Main Capsule)
+                        Capsule()
+                            .frame(width: mainWidth, height: controlHeight)
+                            .glassEffect(.regular.tint(.white))
+                            .glassEffectID("main", in: glassNamespace)
+
+                        // Trailing Orb
+                        Button(action: handleFinishAction) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 32, weight: .bold))
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .frame(width: controlHeight, height: controlHeight)
+                        .glassEffect(.regular)
+                        .glassEffectID("done", in: glassNamespace)
+                        .opacity(isPanelShown && ShowIOrbs ? 1 : 0)
+                        .offset(x: isPanelShown && ShowIOrbs ? 0 : -60)
+                        .scaleEffect(isPanelShown && ShowIOrbs ? 1 : 0.85)
+                        .allowsHitTesting(isPanelShown && ShowIOrbs)
+                    }
+                }
+
+                // Shader Layer
+                TimelineView(.animation(minimumInterval: shaderFrameInterval, paused: false)) { timeline in
+                    let level = displayLevel
+                    let talk = min(max(level, 0.0), 1.0)
+                    let breath = talk * talk * (3.0 - 2.0 * talk)
+
+                    let top = Color(
+                        red:   lerp(Constants.Colors.topLerpStart.0, Constants.Colors.topLerpEnd.0, breath),
+                        green: lerp(Constants.Colors.topLerpStart.1, Constants.Colors.topLerpEnd.1, breath),
+                        blue:  lerp(Constants.Colors.topLerpStart.2, Constants.Colors.topLerpEnd.2, breath)
+                    )
+                    let mid = Color(
+                        red:   lerp(Constants.Colors.midLerpStart.0, Constants.Colors.midLerpEnd.0, breath),
+                        green: lerp(Constants.Colors.midLerpStart.1, Constants.Colors.midLerpEnd.1, breath),
+                        blue:  lerp(Constants.Colors.midLerpStart.2, Constants.Colors.midLerpEnd.2, breath)
+                    )
+                    let low = Color(
+                        red:   lerp(Constants.Colors.lowLerpStart.0, Constants.Colors.lowLerpEnd.0, breath),
+                        green: lerp(Constants.Colors.lowLerpStart.1, Constants.Colors.lowLerpEnd.1, breath),
+                        blue:  lerp(Constants.Colors.lowLerpStart.2, Constants.Colors.lowLerpEnd.2, breath)
+                    )
+
+                    Capsule().fill(.white)
+                        .colorEffect(
+                            ShaderLibrary.cloudOrbGlassWide(
+                                .float2(mainWidth, controlHeight),
+                                .float(timeline.date.timeIntervalSince(startDate)),
+                                .float(level),
+                                .color(top),
+                                .color(mid),
+                                .color(low)
+                            )
+                        )
                         .frame(width: mainWidth, height: controlHeight)
-                        .glassEffect(.regular.tint(.white))
-                        .glassEffectID("main", in: glassNamespace)
-
-                    // Trailing Orb
-                    Button(action: handleFinishAction) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 32, weight: .bold))
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: controlHeight, height: controlHeight)
-                    .glassEffect(.regular)
-                    .glassEffectID("done", in: glassNamespace)
-                    .opacity(isPanelShown && ShowIOrbs ? 1 : 0)
-                    .offset(x: isPanelShown && ShowIOrbs ? 0 : -60)
-                    .scaleEffect(isPanelShown && ShowIOrbs ? 1 : 0.85)
-                    .allowsHitTesting(isPanelShown && ShowIOrbs)
+                        .allowsHitTesting(false)
                 }
             }
             .opacity(isPanelShown ? 1.0 : 0)
 
-            // Layer 3: Top Shader Layer
-            TimelineView(.animation(minimumInterval: shaderFrameInterval, paused: false)) { timeline in
-                let level = displayLevel
-                let talk = min(max(level, 0.0), 1.0)
-                let breath = talk * talk * (3.0 - 2.0 * talk)
-
-                let top = Color(
-                    red:   lerp(Constants.Colors.topLerpStart.0, Constants.Colors.topLerpEnd.0, breath),
-                    green: lerp(Constants.Colors.topLerpStart.1, Constants.Colors.topLerpEnd.1, breath),
-                    blue:  lerp(Constants.Colors.topLerpStart.2, Constants.Colors.topLerpEnd.2, breath)
-                )
-                let mid = Color(
-                    red:   lerp(Constants.Colors.midLerpStart.0, Constants.Colors.midLerpEnd.0, breath),
-                    green: lerp(Constants.Colors.midLerpStart.1, Constants.Colors.midLerpEnd.1, breath),
-                    blue:  lerp(Constants.Colors.midLerpStart.2, Constants.Colors.midLerpEnd.2, breath)
-                )
-                let low = Color(
-                    red:   lerp(Constants.Colors.lowLerpStart.0, Constants.Colors.lowLerpEnd.0, breath),
-                    green: lerp(Constants.Colors.lowLerpStart.1, Constants.Colors.lowLerpEnd.1, breath),
-                    blue:  lerp(Constants.Colors.lowLerpStart.2, Constants.Colors.lowLerpEnd.2, breath)
-                )
-
-                Capsule().fill(.white)
-                    .colorEffect(
-                        ShaderLibrary.cloudOrbGlassWide(
-                            .float2(mainWidth, controlHeight),
-                            .float(timeline.date.timeIntervalSince(startDate)),
-                            .float(level),
-                            .color(top),
-                            .color(mid),
-                            .color(low)
-                        )
-                    )
-                    .frame(width: mainWidth, height: controlHeight)
-                    .allowsHitTesting(false)
-            }
-            .opacity(isPanelShown ? 1.0 : 0)
-            .animation(.spring(response: 0.35, dampingFraction: 0.7), value: isPanelShown)
-
-            // Content Overlay (Labels/Dots)
+            // Content Overlay
             mainContent()
-                .frame(width: mainWidth, height: mainHeight)
+                .frame(width: mainWidth, height: controlHeight)
+                .offset(y: scaled(Constants.Layout.offsetYDefault))
                 .opacity(isPanelShown ? 1 : 0)
         }
         .animation(.spring(response: 0.28, dampingFraction: 0.88), value: isPanelShown && ShowIOrbs)
         .frame(width: canvasSize.width, height: canvasSize.height)
         .onAppear {
             syncVisualState(animated: false)
-            syncClipboardPresentation(animated: false)
         }
         .onChange(of: state) { newValue in
             syncVisualState(animated: true)
-            syncClipboardPresentation(animated: true)
         }
     }
 
@@ -325,9 +282,7 @@ private struct MacDictationCapsuleSurface: View {
     private func mainContent() -> some View {
         switch state {
         case .processing:
-            processingContent()
-        case .clipboardPending(let text):
-            clipboardContent(text: text)
+            processingDots()
         case .error(let failure):
             messageText(
                 failure.message,
@@ -336,30 +291,9 @@ private struct MacDictationCapsuleSurface: View {
                 minimumScaleFactor: 0.9
             )
             .padding(.horizontal, scaled(24))
-        case .result(_), .idle, .starting, .listening:
+        default:
             EmptyView()
         }
-    }
-
-    @ViewBuilder
-    private func processingContent() -> some View {
-        processingDots()
-    }
-
-    @ViewBuilder
-    private func clipboardContent(text: String) -> some View {
-        Text(text)
-            .font(.system(size: scaled(15), weight: .medium, design: .rounded))
-            .foregroundStyle(.white.opacity(0.96))
-            .multilineTextAlignment(.center)
-            .lineSpacing(scaled(4))
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, scaled(24))
-            .padding(.vertical, scaled(18))
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .opacity(clipboardContentVisible ? 1 : 0)
-            .offset(y: clipboardContentVisible ? 0 : scaled(8))
-            .scaleEffect(clipboardContentVisible ? 1 : 0.985)
     }
 
     @ViewBuilder
@@ -421,29 +355,8 @@ private struct MacDictationCapsuleSurface: View {
         }
     }
 
-
-    @ViewBuilder
-    private func orbSymbol(_ systemName: String) -> some View {
-        Image(systemName: systemName)
-            .symbolRenderingMode(.monochrome)
-            .font(.system(size: 28, weight: .bold))
-            .frame(width: controlHeight, height: controlHeight)
-    }
-
     private func scaled(_ value: CGFloat) -> CGFloat {
-        value // Scaling logic disabled for strictly matching testView
-    }
-
-    private func runSymmetricCloseAnimation(perform action: @escaping () -> Void) {
-        withAnimation(.spring()) {
-            isPanelShown = false
-            ShowIOrbs = false
-        }
-
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 400_000_000)
-            action()
-        }
+        value
     }
 
     private func syncVisualState(animated: Bool) {
@@ -454,7 +367,7 @@ private struct MacDictationCapsuleSurface: View {
         case .starting, .listening:
             shouldShowPanel = true
             shouldShowIOrbs = true
-        case .processing, .clipboardPending(_):
+        case .processing:
             shouldShowPanel = true
             shouldShowIOrbs = false
         default:
@@ -475,30 +388,6 @@ private struct MacDictationCapsuleSurface: View {
         }
     }
 
-    private func syncClipboardPresentation(animated: Bool) {
-        clipboardRevealTask?.cancel()
-
-        guard isClipboardPending else {
-            clipboardContentVisible = false
-            return
-        }
-
-        guard animated else {
-            clipboardContentVisible = true
-            return
-        }
-
-        clipboardContentVisible = false
-        clipboardRevealTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 90_000_000) // 0.09s matching old constant
-            guard !Task.isCancelled else { return }
-
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                clipboardContentVisible = true
-            }
-        }
-    }
-
     private func handleCancelAction() {
         switch state {
         case .listening, .starting:
@@ -507,6 +396,18 @@ private struct MacDictationCapsuleSurface: View {
             runSymmetricCloseAnimation(perform: viewModel.hidePanel)
         default:
             break
+        }
+    }
+
+    private func runSymmetricCloseAnimation(perform action: @escaping () -> Void) {
+        withAnimation(.spring()) {
+            isPanelShown = false
+            ShowIOrbs = false
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            action()
         }
     }
 
@@ -519,6 +420,61 @@ private struct MacDictationCapsuleSurface: View {
     }
 }
 
+private struct MacDictationClipboardSurface: View {
+    let text: String
+    let layout: MacDictationPanelLayout
+    let onFinish: () -> Void
+
+    @State private var contentVisible = false
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(text)
+                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.96))
+                .multilineTextAlignment(.center)
+                .lineSpacing(2)
+                .padding(.horizontal, 24)
+
+            Button(action: onFinish) {
+                HStack(spacing: 6) {
+                    Image(systemName: "scissors")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("OK")
+                        .font(.system(size: 11, weight: .heavy, design: .rounded))
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background {
+                    Capsule()
+                        .fill(.white.opacity(0.12))
+                        .overlay {
+                            Capsule().stroke(.white.opacity(0.1), lineWidth: 0.5)
+                        }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(width: layout.panelSize.width, height: layout.panelSize.height, alignment: .center)
+        .background {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .glassEffect(.regular)
+                .shadow(
+                    color: .black.opacity(0.22),
+                    radius: 18,
+                    y: 10
+                )
+        }
+        .opacity(contentVisible ? 1 : 0)
+        .offset(y: contentVisible ? 0 : 8)
+        .scaleEffect(contentVisible ? 1 : 0.985)
+        .onAppear {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.9).delay(0.09)) {
+                contentVisible = true
+            }
+        }
+    }
+}
 
 private extension Color {
     static let primaryAction = Color(
