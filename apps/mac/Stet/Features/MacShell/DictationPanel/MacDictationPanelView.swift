@@ -49,12 +49,20 @@ private enum Constants {
     }
     
     enum Colors {
-        static let topLerpStart = (0.40, 0.85, 1.00)
-        static let topLerpEnd = (0.20, 0.92, 1.00)
-        static let midLerpStart = (0.85, 0.92, 0.98)
-        static let midLerpEnd = (0.90, 0.95, 1.00)
-        static let lowLerpStart = (0.80, 0.82, 0.85)
-        static let lowLerpEnd = (0.45, 0.48, 0.55)
+        // Base Neutral (Idle)
+        static let topIdle = (0.95, 0.96, 0.98)
+        static let midIdle = (0.86, 0.88, 0.90)
+        static let lowIdle = (0.72, 0.74, 0.76)
+        
+        // Active Speaking (Blue Injection)
+        static let topSpeaking = (0.35, 0.85, 1.00)
+        static let midSpeaking = (0.20, 0.65, 1.00)
+        static let lowSpeaking = (0.10, 0.45, 0.85)
+        
+        // Active Processing (Orange Injection)
+        static let topProcessing = (1.00, 0.80, 0.45)
+        static let midProcessing = (1.00, 0.55, 0.12)
+        static let lowProcessing = (0.85, 0.32, 0.08)
     }
 }
 
@@ -145,7 +153,7 @@ private struct MacDictationCapsuleSurface: View {
             return min(Constants.VoiceReactivity.levelMaxListening, Constants.VoiceReactivity.levelBaseListening + easedLevel * Constants.VoiceReactivity.levelMultListening)
         case .processing:
             return Constants.VoiceReactivity.levelBaseProcessing
-        case .result:
+        case .result(_):
             return Constants.VoiceReactivity.levelBaseResult
         default:
             return 0
@@ -162,10 +170,12 @@ private struct MacDictationCapsuleSurface: View {
             scaled(Constants.Layout.mainWidthListening)
         case .processing:
             scaled(Constants.Layout.mainWidthProcessing)
-        case .result:
+        case .result(_):
             scaled(Constants.Layout.mainWidthResult)
-        case .error:
+        case .error(_):
             scaled(Constants.Layout.mainWidthError)
+        case .clipboardPending(_):
+            scaled(200)
         default:
             scaled(200)
         }
@@ -228,41 +238,14 @@ private struct MacDictationCapsuleSurface: View {
                 }
 
                 // Shader Layer
-                TimelineView(.animation(minimumInterval: shaderFrameInterval, paused: false)) { timeline in
-                    let level = displayLevel
-                    let talk = min(max(level, 0.0), 1.0)
-                    let breath = talk * talk * (3.0 - 2.0 * talk)
-
-                    let top = Color(
-                        red:   lerp(Constants.Colors.topLerpStart.0, Constants.Colors.topLerpEnd.0, breath),
-                        green: lerp(Constants.Colors.topLerpStart.1, Constants.Colors.topLerpEnd.1, breath),
-                        blue:  lerp(Constants.Colors.topLerpStart.2, Constants.Colors.topLerpEnd.2, breath)
-                    )
-                    let mid = Color(
-                        red:   lerp(Constants.Colors.midLerpStart.0, Constants.Colors.midLerpEnd.0, breath),
-                        green: lerp(Constants.Colors.midLerpStart.1, Constants.Colors.midLerpEnd.1, breath),
-                        blue:  lerp(Constants.Colors.midLerpStart.2, Constants.Colors.midLerpEnd.2, breath)
-                    )
-                    let low = Color(
-                        red:   lerp(Constants.Colors.lowLerpStart.0, Constants.Colors.lowLerpEnd.0, breath),
-                        green: lerp(Constants.Colors.lowLerpStart.1, Constants.Colors.lowLerpEnd.1, breath),
-                        blue:  lerp(Constants.Colors.lowLerpStart.2, Constants.Colors.lowLerpEnd.2, breath)
-                    )
-
-                    Capsule().fill(.white)
-                        .colorEffect(
-                            ShaderLibrary.cloudOrbGlassWide(
-                                .float2(mainWidth, controlHeight),
-                                .float(timeline.date.timeIntervalSince(startDate)),
-                                .float(level),
-                                .color(top),
-                                .color(mid),
-                                .color(low)
-                            )
-                        )
-                        .frame(width: mainWidth, height: controlHeight)
-                        .allowsHitTesting(false)
-                }
+                MacDictationShaderLayer(
+                    state: state,
+                    mainWidth: mainWidth,
+                    controlHeight: controlHeight,
+                    startDate: startDate,
+                    shaderFrameInterval: shaderFrameInterval,
+                    displayLevel: displayLevel
+                )
             }
             .opacity(isPanelShown ? 1.0 : 0)
 
@@ -338,12 +321,21 @@ private struct MacDictationCapsuleSurface: View {
                     let scale = 0.82 + intensity * 0.34
                     let yOffset = -1.2 * intensity
 
+                    let dotColor: Color = {
+                        switch state {
+                        case .processing:
+                            return Color(red: 1.0, green: 0.65, blue: 0.2) // Theme matched processing orange
+                        default:
+                            return Color.primaryAction
+                        }
+                    }()
+
                     Circle()
                         .fill(
                             RadialGradient(
                                 colors: [
                                     .white.opacity(min(1.0, opacity + 0.18)),
-                                    Color.primaryAction.opacity(opacity)
+                                    dotColor.opacity(opacity)
                                 ],
                                 center: .center,
                                 startRadius: scaled(0.5),
@@ -353,7 +345,7 @@ private struct MacDictationCapsuleSurface: View {
                         .frame(width: scaled(6.5), height: scaled(6.5))
                         .scaleEffect(scale)
                         .offset(y: scaled(yOffset))
-                        .shadow(color: Color.primaryAction.opacity(0.26 + intensity * 0.34), radius: scaled(6))
+                        .shadow(color: dotColor.opacity(0.26 + intensity * 0.34), radius: scaled(6))
                 }
             }
             .frame(height: scaled(18))
@@ -418,6 +410,101 @@ private struct MacDictationCapsuleSurface: View {
 
     private func handleFinishAction() {
         viewModel.performPrimaryAction()
+    }
+
+    private func lerp(_ a: Double, _ b: Double, _ t: Double) -> Double {
+        a + (b - a) * t
+    }
+}
+
+// MARK: - Dedicated Shader Layer
+private struct MacDictationShaderLayer: View {
+    let state: DictationState
+    let mainWidth: CGFloat
+    let controlHeight: CGFloat
+    let startDate: Date
+    let shaderFrameInterval: Double
+    let displayLevel: Double
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: shaderFrameInterval, paused: false)) { timeline in
+            let elapsed = timeline.date.timeIntervalSince(startDate)
+            
+            let effectiveLevel: Double = {
+                if case .processing = state {
+                    return 0.28 + 0.10 * sin(elapsed * 1.7) + 0.05 * sin(elapsed * 3.9)
+                } else {
+                    return displayLevel
+                }
+            }()
+            
+            let colors = currentShaderColors(elapsed: elapsed, effectiveLevel: effectiveLevel)
+            
+            Capsule().fill(.white)
+                .colorEffect(
+                    ShaderLibrary.cloudOrbGlassWide(
+                        .float2(mainWidth, controlHeight),
+                        .float(elapsed),
+                        .float(effectiveLevel),
+                        .color(colors.top),
+                        .color(colors.mid),
+                        .color(colors.low)
+                    )
+                )
+                .frame(width: mainWidth, height: controlHeight)
+                .allowsHitTesting(false)
+        }
+    }
+
+    private func currentShaderColors(elapsed: Double, effectiveLevel: Double) -> (top: Color, mid: Color, low: Color) {
+        let talk = min(max(effectiveLevel, 0.0), 1.0)
+        let breath = talk * talk * (3.0 - 2.0 * talk)
+        
+        let injection: Double
+        let targetTop: (Double, Double, Double)
+        let targetMid: (Double, Double, Double)
+        let targetLow: (Double, Double, Double)
+
+        switch state {
+        case .processing:
+            // Combine fake audio breath with a slight base glow boost
+            injection = 0.5 + 0.5 * breath
+            targetTop = Constants.Colors.topProcessing
+            targetMid = Constants.Colors.midProcessing
+            targetLow = Constants.Colors.lowProcessing
+        case .starting, .listening:
+            injection = breath
+            targetTop = Constants.Colors.topSpeaking
+            targetMid = Constants.Colors.midSpeaking
+            targetLow = Constants.Colors.lowSpeaking
+        case .result(_):
+            injection = 0.4
+            targetTop = Constants.Colors.topSpeaking
+            targetMid = Constants.Colors.midSpeaking
+            targetLow = Constants.Colors.lowSpeaking
+        default:
+            injection = 0
+            targetTop = Constants.Colors.topIdle
+            targetMid = Constants.Colors.midIdle
+            targetLow = Constants.Colors.lowIdle
+        }
+
+        let top = Color(
+            red:   lerp(Constants.Colors.topIdle.0, targetTop.0, injection),
+            green: lerp(Constants.Colors.topIdle.1, targetTop.1, injection),
+            blue:  lerp(Constants.Colors.topIdle.2, targetTop.2, injection)
+        )
+        let mid = Color(
+            red:   lerp(Constants.Colors.midIdle.0, targetMid.0, injection),
+            green: lerp(Constants.Colors.midIdle.1, targetMid.1, injection),
+            blue:  lerp(Constants.Colors.midIdle.2, targetMid.2, injection)
+        )
+        let low = Color(
+            red:   lerp(Constants.Colors.lowIdle.0, targetLow.0, injection),
+            green: lerp(Constants.Colors.lowIdle.1, targetLow.1, injection),
+            blue:  lerp(Constants.Colors.lowIdle.2, targetLow.2, injection)
+        )
+        return (top, mid, low)
     }
 
     private func lerp(_ a: Double, _ b: Double, _ t: Double) -> Double {
