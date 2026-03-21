@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 6D3A1A982F675F44005DA839 /* KeyboardShortcuts */; };
 		6D8230732F69F4A00096571A /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 6D8230722F69F4A00096571A /* Supabase */; };
+		6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 6DCB53142F6DB36500358FE5 /* FluidAudio */; };
 		A7D90C1E4B4D4E5F8A1B2C30 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */; };
 		C80A4F64301851B7005C2101 /* OpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = C80A4F66301851B7005C2101 /* OpenAI */; };
 /* End PBXBuildFile section */
@@ -60,6 +61,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6D8230732F69F4A00096571A /* Supabase in Frameworks */,
+				6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */,
 				C80A4F64301851B7005C2101 /* OpenAI in Frameworks */,
 				A7D90C1E4B4D4E5F8A1B2C30 /* Sparkle in Frameworks */,
 				6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */,
@@ -127,6 +129,7 @@
 				A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */,
 				6D3A1A982F675F44005DA839 /* KeyboardShortcuts */,
 				6D8230722F69F4A00096571A /* Supabase */,
+				6DCB53142F6DB36500358FE5 /* FluidAudio */,
 			);
 			productName = Stet;
 			productReference = 6D29DC7D2F5FA23000267DEA /* Stet.app */;
@@ -215,6 +218,7 @@
 				A7D90C1E4B4D4E5F8A1B2C32 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 				6D82306D2F69F4A00096571A /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				6DCB53132F6DB36500358FE5 /* XCRemoteSwiftPackageReference "FluidAudio" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6D29DC7E2F5FA23000267DEA /* Products */;
@@ -641,6 +645,14 @@
 				minimumVersion = 2.5.1;
 			};
 		};
+		6DCB53132F6DB36500358FE5 /* XCRemoteSwiftPackageReference "FluidAudio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/FluidInference/FluidAudio.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 		A7D90C1E4B4D4E5F8A1B2C32 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle.git";
@@ -669,6 +681,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 6D82306D2F69F4A00096571A /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
+		};
+		6DCB53142F6DB36500358FE5 /* FluidAudio */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6DCB53132F6DB36500358FE5 /* XCRemoteSwiftPackageReference "FluidAudio" */;
+			productName = FluidAudio;
 		};
 		A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
