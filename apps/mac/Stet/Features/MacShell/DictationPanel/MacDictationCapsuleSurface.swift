@@ -1,6 +1,19 @@
 #if os(macOS)
 import SwiftUI
 
+private enum MacDictationCapsuleSurfaceTuning {
+    static let orbSpacing: CGFloat = 28
+    static let orbTravelDistance: CGFloat = 132
+    static let orbHiddenScale: CGFloat = 0.92
+    static let panelHiddenScale: CGFloat = 0.90
+    static let orbRevealDelay: Duration = .milliseconds(70)
+    static let closeAnimationDuration: UInt64 = 320_000_000
+
+    static let panelSpring = Animation.spring(response: 0.34, dampingFraction: 0.90)
+    static let orbSpring = Animation.spring(response: 0.42, dampingFraction: 0.96)
+    static let closeSpring = Animation.spring(response: 0.30, dampingFraction: 0.92)
+}
+
 struct MacDictationCapsuleSurface: View {
     @ObservedObject var viewModel: MacDictationPanelViewModel
     let layout: MacDictationPanelLayout
@@ -18,6 +31,7 @@ struct MacDictationCapsuleSurface: View {
     @State private var isPanelShown = false
     @State private var ShowIOrbs = true
     @State private var startDate = Date()
+    @State private var orbRevealTask: Task<Void, Never>?
 
     private var scale: CGFloat {
         layout.scale
@@ -125,8 +139,8 @@ struct MacDictationCapsuleSurface: View {
         ZStack {
             // Background Layer: Orbs & Capsule
             ZStack {
-                GlassEffectContainer(spacing: 40) {
-                    HStack(spacing: 40) {
+                GlassEffectContainer(spacing: MacDictationCapsuleSurfaceTuning.orbSpacing) {
+                    HStack(spacing: MacDictationCapsuleSurfaceTuning.orbSpacing) {
                         // Leading Orb
                         Button(action: handleCancelAction) {
                             Image(systemName: "xmark")
@@ -138,8 +152,8 @@ struct MacDictationCapsuleSurface: View {
                         .glassEffect(.regular)
                         .glassEffectID("cancel", in: glassNamespace)
                         .opacity(isPanelShown && ShowIOrbs ? 1 : 0)
-                        .offset(x: isPanelShown && ShowIOrbs ? 0 : 200)
-                        .scaleEffect(isPanelShown && ShowIOrbs ? 1 : 0.8)
+                        .offset(x: isPanelShown && ShowIOrbs ? 0 : MacDictationCapsuleSurfaceTuning.orbTravelDistance)
+                        .scaleEffect(isPanelShown && ShowIOrbs ? 1 : MacDictationCapsuleSurfaceTuning.orbHiddenScale)
                         .allowsHitTesting(isPanelShown && ShowIOrbs)
 
                         // Layer 2: Middle Material (Main Capsule)
@@ -159,8 +173,8 @@ struct MacDictationCapsuleSurface: View {
                         .glassEffect(.regular)
                         .glassEffectID("done", in: glassNamespace)
                         .opacity(isPanelShown && ShowIOrbs ? 1 : 0)
-                        .offset(x: isPanelShown && ShowIOrbs ? 0 : -200)
-                        .scaleEffect(isPanelShown && ShowIOrbs ? 1 : 0.8)
+                        .offset(x: isPanelShown && ShowIOrbs ? 0 : -MacDictationCapsuleSurfaceTuning.orbTravelDistance)
+                        .scaleEffect(isPanelShown && ShowIOrbs ? 1 : MacDictationCapsuleSurfaceTuning.orbHiddenScale)
                         .allowsHitTesting(isPanelShown && ShowIOrbs)
                     }
                 }
@@ -184,15 +198,17 @@ struct MacDictationCapsuleSurface: View {
                 .offset(y: scaled(MacDictationPanelConstants.Layout.offsetYDefault))
                 .opacity(isPanelShown ? 1 : 0)
         }
-        .scaleEffect(isPanelShown ? 1.0 : 0.85)
-        .animation(.spring(response: 0.28, dampingFraction: 0.88), value: ShowIOrbs)
-        .animation(.spring(response: 0.35, dampingFraction: 0.9), value: state)
+        .scaleEffect(isPanelShown ? 1.0 : MacDictationCapsuleSurfaceTuning.panelHiddenScale)
         .frame(width: canvasSize.width, height: canvasSize.height)
         .onAppear {
             syncVisualState(animated: true)
         }
         .onChange(of: state) { newValue in
             syncVisualState(animated: true)
+        }
+        .onDisappear {
+            orbRevealTask?.cancel()
+            orbRevealTask = nil
         }
     }
 
@@ -250,10 +266,41 @@ struct MacDictationCapsuleSurface: View {
             shouldShowIOrbs = false
         }
 
+        orbRevealTask?.cancel()
+        orbRevealTask = nil
+
         if animated {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
-                isPanelShown = shouldShowPanel
-                ShowIOrbs = shouldShowIOrbs
+            if shouldShowPanel {
+                if !isPanelShown {
+                    startDate = Date()
+                }
+
+                withAnimation(MacDictationCapsuleSurfaceTuning.panelSpring) {
+                    isPanelShown = true
+                }
+
+                if shouldShowIOrbs {
+                    if !ShowIOrbs {
+                        ShowIOrbs = false
+                        orbRevealTask = Task { @MainActor in
+                            try? await Task.sleep(for: MacDictationCapsuleSurfaceTuning.orbRevealDelay)
+                            guard !Task.isCancelled else { return }
+                            withAnimation(MacDictationCapsuleSurfaceTuning.orbSpring) {
+                                ShowIOrbs = true
+                            }
+                            orbRevealTask = nil
+                        }
+                    }
+                } else {
+                    withAnimation(MacDictationCapsuleSurfaceTuning.orbSpring) {
+                        ShowIOrbs = false
+                    }
+                }
+            } else {
+                withAnimation(MacDictationCapsuleSurfaceTuning.closeSpring) {
+                    ShowIOrbs = false
+                    isPanelShown = false
+                }
             }
         } else {
             var transaction = Transaction()
@@ -277,13 +324,16 @@ struct MacDictationCapsuleSurface: View {
     }
 
     private func runSymmetricCloseAnimation(perform action: @escaping () -> Void) {
-        withAnimation(.spring()) {
+        orbRevealTask?.cancel()
+        orbRevealTask = nil
+
+        withAnimation(MacDictationCapsuleSurfaceTuning.closeSpring) {
             isPanelShown = false
             ShowIOrbs = false
         }
 
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 400_000_000)
+            try? await Task.sleep(nanoseconds: MacDictationCapsuleSurfaceTuning.closeAnimationDuration)
             action()
         }
     }
