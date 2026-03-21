@@ -2,7 +2,7 @@
 import SwiftUI
 
 struct MacDictationShaderLayer: View {
-    let state: DictationState
+    let state: MacDictationCapsuleVisualState
     let mainWidth: CGFloat
     let controlHeight: CGFloat
     let startDate: Date
@@ -27,14 +27,14 @@ struct MacDictationShaderLayer: View {
 
             Capsule().fill(.white)
                 .colorEffect(
-                    ShaderLibrary.cloudOrbGlassWide(
-                        .float2(mainWidth, controlHeight),
-                        .float(elapsed),
-                        .float(effectiveLevel),
-                        .float(shaderDetail),
-                        .color(colors.top),
-                        .color(colors.mid),
-                        .color(colors.low)
+                    StetVisualsShaderLibrary.cloudOrbGlassWide(
+                        size: CGSize(width: mainWidth, height: controlHeight),
+                        time: elapsed,
+                        audio: effectiveLevel,
+                        detail: shaderDetail,
+                        top: colors.top,
+                        mid: colors.mid,
+                        low: colors.low
                     )
                 )
                 .frame(width: mainWidth, height: controlHeight)
@@ -76,7 +76,7 @@ struct MacDictationShaderLayer: View {
             targetTop = MacDictationPanelConstants.Colors.topSpeaking
             targetMid = MacDictationPanelConstants.Colors.midSpeaking
             targetLow = MacDictationPanelConstants.Colors.lowSpeaking
-        case .result(_):
+        case .result:
             injection = 0.4
             targetTop = MacDictationPanelConstants.Colors.topSpeaking
             targetMid = MacDictationPanelConstants.Colors.midSpeaking
