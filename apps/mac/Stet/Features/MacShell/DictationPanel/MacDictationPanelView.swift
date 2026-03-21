@@ -179,6 +179,10 @@ private struct MacDictationCapsuleSurface: View {
         isVoiceReactiveState ? Constants.VoiceReactivity.shaderFrameIntervalActive : Constants.VoiceReactivity.shaderFrameIntervalIdle
     }
 
+    private var orbFontSize: CGFloat {
+        controlHeight * 0.6
+    }
+
     var body: some View {
         ZStack {
             // Background Layer: Orbs & Capsule
@@ -188,7 +192,7 @@ private struct MacDictationCapsuleSurface: View {
                         // Leading Orb
                         Button(action: handleCancelAction) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 32, weight: .bold))
+                                .font(.system(size: orbFontSize, weight: .bold))
                                 .contentShape(Circle())
                         }
                         .buttonStyle(.plain)
@@ -209,7 +213,7 @@ private struct MacDictationCapsuleSurface: View {
                         // Trailing Orb
                         Button(action: handleFinishAction) {
                             Image(systemName: "checkmark")
-                                .font(.system(size: 32, weight: .bold))
+                                .font(.system(size: orbFontSize, weight: .bold))
                                 .contentShape(Circle())
                         }
                         .buttonStyle(.plain)
