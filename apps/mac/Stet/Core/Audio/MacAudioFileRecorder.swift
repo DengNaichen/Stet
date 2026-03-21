@@ -247,7 +247,9 @@ final class MacAudioFileRecorder: @unchecked Sendable {
 
     nonisolated func stopRecording(writtenFileAt fileURL: URL) async -> MacAudioFileRecordingOutcome {
         let outcome = finishSession()
-        await Self.waitForFileToStabilize(at: fileURL)
+        if outcome.didWriteAudio {
+            await Self.waitForFileToStabilize(at: fileURL)
+        }
         return outcome
     }
 
@@ -523,7 +525,7 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     static func waitForFileToStabilize(at fileURL: URL) async {
         var previousFileSize: Int64?
 
-        for _ in 0..<40 {
+        for _ in 0..<20 {
             let currentFileSize = recordingFileSizeBytes(at: fileURL)
             let currentDuration = recordingDurationSeconds(at: fileURL)
 
@@ -538,7 +540,7 @@ final class MacAudioFileRecorder: @unchecked Sendable {
             }
 
             previousFileSize = currentFileSize
-            try? await Task.sleep(for: .milliseconds(50))
+            try? await Task.sleep(for: .milliseconds(15))
         }
     }
 
