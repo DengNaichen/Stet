@@ -76,7 +76,7 @@ final class MacPanelController: NSObject, NSWindowDelegate {
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
         panel.level = .statusBar
-        panel.animationBehavior = .utilityWindow
+        panel.animationBehavior = .none
         panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .ignoresCycle]
         panel.isReleasedWhenClosed = false
         panel.titleVisibility = .hidden

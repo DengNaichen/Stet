@@ -1,5 +1,6 @@
 #if os(macOS)
 @preconcurrency import AVFoundation
+import CoreAudio
 import Foundation
 
 struct MacAudioFileRecordingOutcome: Sendable {
@@ -165,7 +166,7 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     private let stateLock = NSLock()
     private let audioLevelHandler: @Sendable (Double) -> Void
     private let onFirstRecordedBufferWritten: @Sendable () -> Void
-    private let configureVoiceProcessing: @Sendable (AVAudioInputNode, AVAudioOutputNode) -> VoiceProcessingConfigurationResult
+    private let configureVoiceProcessing: @Sendable (AVAudioInputNode, AVAudioOutputNode, AudioHardwareDevice?) -> VoiceProcessingConfigurationResult
 
     private var audioEngine: AVAudioEngine?
     private var activeSession: MacAudioFileRecordingSession?
@@ -178,10 +179,11 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         self.init(
             audioLevelHandler: audioLevelHandler,
             onFirstRecordedBufferWritten: onFirstRecordedBufferWritten,
-            configureVoiceProcessing: { inputNode, outputNode in
+            configureVoiceProcessing: { inputNode, outputNode, inputDevice in
                 Self.configureVoiceProcessing(
                     inputNode: inputNode,
-                    outputNode: outputNode
+                    outputNode: outputNode,
+                    inputDevice: inputDevice
                 )
             }
         )
@@ -190,7 +192,7 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     init(
         audioLevelHandler: @escaping @Sendable (Double) -> Void,
         onFirstRecordedBufferWritten: @escaping @Sendable () -> Void,
-        configureVoiceProcessing: @escaping @Sendable (AVAudioInputNode, AVAudioOutputNode) -> VoiceProcessingConfigurationResult
+        configureVoiceProcessing: @escaping @Sendable (AVAudioInputNode, AVAudioOutputNode, AudioHardwareDevice?) -> VoiceProcessingConfigurationResult
     ) {
         self.audioLevelHandler = audioLevelHandler
         self.onFirstRecordedBufferWritten = onFirstRecordedBufferWritten
@@ -209,8 +211,21 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         stateLock.unlock()
 
         let inputNode = engine.inputNode
+        let inputDevice = AudioInputDeviceManager.defaultInputDevice()
+        
+        if let defaultDeviceID = inputDevice?.id {
+            do {
+                try inputNode.auAudioUnit.setDeviceID(defaultDeviceID)
+            } catch {
+                AppLogger.warning(
+                    "Failed to set explicit input device ID on AVAudioEngine. error=\(error.localizedDescription)",
+                    category: .dictation
+                )
+            }
+        }
+        
         let outputNode = engine.outputNode
-        let voiceProcessing = configureVoiceProcessing(inputNode, outputNode)
+        let voiceProcessing = configureVoiceProcessing(inputNode, outputNode, inputDevice)
         let recordingFile = try AVAudioFile(
             forWriting: fileURL,
             settings: outputFormat.settings,
@@ -247,7 +262,9 @@ final class MacAudioFileRecorder: @unchecked Sendable {
 
     nonisolated func stopRecording(writtenFileAt fileURL: URL) async -> MacAudioFileRecordingOutcome {
         let outcome = finishSession()
-        await Self.waitForFileToStabilize(at: fileURL)
+        if outcome.didWriteAudio {
+            await Self.waitForFileToStabilize(at: fileURL)
+        }
         return outcome
     }
 
@@ -502,8 +519,26 @@ final class MacAudioFileRecorder: @unchecked Sendable {
 
     nonisolated private static func configureVoiceProcessing(
         inputNode: AVAudioInputNode,
-        outputNode: AVAudioOutputNode
+        outputNode: AVAudioOutputNode,
+        inputDevice: AudioHardwareDevice?
     ) -> VoiceProcessingConfigurationResult {
+        let isBluetooth = inputDevice?.transportType == kAudioDeviceTransportTypeBluetooth ||
+                          inputDevice?.transportType == kAudioDeviceTransportTypeBluetoothLE
+                          
+        if isBluetooth {
+            try? inputNode.setVoiceProcessingEnabled(true)
+            try? outputNode.setVoiceProcessingEnabled(true)
+            inputNode.isVoiceProcessingBypassed = false
+            AppLogger.info(
+                "Using Apple Voice Processing for Bluetooth capture fidelity.",
+                category: .dictation
+            )
+            return VoiceProcessingConfigurationResult(
+                enabled: true,
+                fallbackReason: "bluetooth device requires voice processing"
+            )
+        }
+
         // Keep the capture path raw for now. The built-in Voice Processing
         // path can reshape mic audio enough to hurt ASR fidelity, and the app
         // already pauses media / hides prompt audio separately.
@@ -523,7 +558,7 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     static func waitForFileToStabilize(at fileURL: URL) async {
         var previousFileSize: Int64?
 
-        for _ in 0..<40 {
+        for _ in 0..<20 {
             let currentFileSize = recordingFileSizeBytes(at: fileURL)
             let currentDuration = recordingDurationSeconds(at: fileURL)
 
@@ -538,7 +573,7 @@ final class MacAudioFileRecorder: @unchecked Sendable {
             }
 
             previousFileSize = currentFileSize
-            try? await Task.sleep(for: .milliseconds(50))
+            try? await Task.sleep(for: .milliseconds(15))
         }
     }
 

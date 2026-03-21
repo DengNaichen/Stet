@@ -9,7 +9,7 @@ final class MacPermissionGateController: MacPermissionGatePresenting {
     func show(appModel: any MacPermissionsCoordinating) {
         if windowController == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 760, height: 620),
+                contentRect: NSRect(x: 0, y: 0, width: 820, height: 640),
                 styleMask: [.titled, .closable, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
@@ -23,9 +23,9 @@ final class MacPermissionGateController: MacPermissionGatePresenting {
             windowController = NSWindowController(window: window)
         }
 
-        let targetSize = NSSize(width: 760, height: 620)
+        let targetSize = NSSize(width: 820, height: 640)
         windowController?.window?.contentView = NSHostingView(
-            rootView: MacRequiredPermissionsGateView(appModel: appModel)
+            rootView: OnboardingView(appModel: appModel)
         )
         if windowController?.window?.frame.size != targetSize {
             windowController?.window?.setContentSize(targetSize)
