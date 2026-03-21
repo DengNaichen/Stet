@@ -154,11 +154,12 @@ struct MacDictationCapsuleSurface: View {
                 .offset(y: scaled(MacDictationPanelConstants.Layout.offsetYDefault))
                 .opacity(isPanelShown ? 1 : 0)
         }
+        .scaleEffect(isPanelShown ? 1.0 : 0.85)
         .animation(.spring(response: 0.28, dampingFraction: 0.88), value: ShowIOrbs)
         .animation(.spring(response: 0.35, dampingFraction: 0.9), value: state)
         .frame(width: canvasSize.width, height: canvasSize.height)
         .onAppear {
-            syncVisualState(animated: false)
+            syncVisualState(animated: true)
         }
         .onChange(of: state) { newValue in
             syncVisualState(animated: true)
@@ -216,12 +217,14 @@ struct MacDictationCapsuleSurface: View {
             shouldShowIOrbs = false
         default:
             shouldShowPanel = false
-            shouldShowIOrbs = true
+            shouldShowIOrbs = false
         }
 
         if animated {
-            isPanelShown = shouldShowPanel
-            ShowIOrbs = shouldShowIOrbs
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                isPanelShown = shouldShowPanel
+                ShowIOrbs = shouldShowIOrbs
+            }
         } else {
             var transaction = Transaction()
             transaction.disablesAnimations = true
