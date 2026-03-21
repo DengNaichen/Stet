@@ -108,6 +108,15 @@ struct MacDictationCapsuleSurface: View {
         MacDictationPanelConstants.VoiceReactivity.shaderFrameIntervalActive
     }
 
+    private var isShaderPaused: Bool {
+        switch state {
+        case .starting, .listening, .processing:
+            return false
+        default:
+            return true
+        }
+    }
+
     private var orbFontSize: CGFloat {
         controlHeight * 0.6
     }
@@ -163,7 +172,8 @@ struct MacDictationCapsuleSurface: View {
                     controlHeight: controlHeight,
                     startDate: startDate,
                     shaderFrameInterval: shaderFrameInterval,
-                    displayLevel: displayLevel
+                    displayLevel: displayLevel,
+                    isPaused: isShaderPaused
                 )
             }
             .opacity(isPanelShown ? 1.0 : 0)

@@ -8,9 +8,10 @@ struct MacDictationShaderLayer: View {
     let startDate: Date
     let shaderFrameInterval: Double
     let displayLevel: Double
+    let isPaused: Bool
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: shaderFrameInterval, paused: false)) { timeline in
+        TimelineView(.animation(minimumInterval: shaderFrameInterval, paused: isPaused)) { timeline in
             let elapsed = timeline.date.timeIntervalSince(startDate)
             
             let effectiveLevel: Double = {

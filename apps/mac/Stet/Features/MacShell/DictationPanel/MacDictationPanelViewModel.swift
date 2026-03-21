@@ -31,6 +31,7 @@ private enum Constants {
 final class MacDictationPanelViewModel: ObservableObject {
     private let appModel: any MacDictationPanelCoordinating
     private var cancellables = Set<AnyCancellable>()
+    private var smoothingCancellable: AnyCancellable?
     private var targetRecordingLevel: Double
     private var lastSmoothingTimestamp: TimeInterval
 
@@ -58,13 +59,7 @@ final class MacDictationPanelViewModel: ObservableObject {
                 self?.syncFromAppModel()
             }
             .store(in: &cancellables)
-
-        Timer.publish(every: Constants.Tuning.smoothingFrameInterval, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] date in
-                self?.advanceRecordingLevel(to: date.timeIntervalSinceReferenceDate)
-            }
-            .store(in: &cancellables)
+        updateSmoothingActivity()
     }
 
     private func syncFromAppModel() {
@@ -74,6 +69,7 @@ final class MacDictationPanelViewModel: ObservableObject {
             raw: appModel.recordingLevel,
             state: appModel.dictationState
         )
+        updateSmoothingActivity()
     }
 
     private func advanceRecordingLevel(to timestamp: TimeInterval) {
@@ -102,6 +98,38 @@ final class MacDictationPanelViewModel: ObservableObject {
         if abs(next - current) > Constants.Tuning.publishEpsilon {
             recordingLevel = next
         }
+
+        updateSmoothingActivity()
+    }
+
+    private func updateSmoothingActivity() {
+        guard shouldKeepSmoothing else {
+            smoothingCancellable?.cancel()
+            smoothingCancellable = nil
+            lastSmoothingTimestamp = Date().timeIntervalSinceReferenceDate
+            return
+        }
+
+        guard smoothingCancellable == nil else {
+            return
+        }
+
+        lastSmoothingTimestamp = Date().timeIntervalSinceReferenceDate
+        smoothingCancellable = Timer.publish(
+            every: Constants.Tuning.smoothingFrameInterval,
+            on: .main,
+            in: .common
+        )
+        .autoconnect()
+        .sink { [weak self] date in
+            self?.advanceRecordingLevel(to: date.timeIntervalSinceReferenceDate)
+        }
+    }
+
+    private var shouldKeepSmoothing: Bool {
+        Self.isVoiceReactiveState(state)
+            || targetRecordingLevel > Constants.Tuning.snapToZeroThreshold
+            || recordingLevel > Constants.Tuning.snapToZeroThreshold
     }
 
     private static func normalizedRecordingLevel(raw: Double, state: DictationState) -> Double {
