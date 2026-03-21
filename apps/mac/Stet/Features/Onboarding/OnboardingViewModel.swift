@@ -5,7 +5,7 @@ import KeyboardShortcuts
 import OpenAI
 
 @MainActor
-final class MacPermissionsViewModel: ObservableObject {
+final class OnboardingViewModel: ObservableObject {
     private enum LoginValidationError: LocalizedError {
         case missingEmail
         case invalidEmail

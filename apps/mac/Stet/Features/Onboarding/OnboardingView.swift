@@ -1,11 +1,11 @@
 #if os(macOS)
 import SwiftUI
 
-struct MacRequiredPermissionsGateView: View {
-    @StateObject private var viewModel: MacPermissionsViewModel
+struct OnboardingView: View {
+    @StateObject private var viewModel: OnboardingViewModel
 
     init(appModel: any MacPermissionsCoordinating) {
-        _viewModel = StateObject(wrappedValue: MacPermissionsViewModel(coordinator: appModel))
+        _viewModel = StateObject(wrappedValue: OnboardingViewModel(coordinator: appModel))
     }
 
     var body: some View {
@@ -38,21 +38,21 @@ struct MacRequiredPermissionsGateView: View {
     private var stepContent: some View {
         switch viewModel.onboardingStep {
         case .welcome:
-            welcomeStep
+            OnboardingWelcomeStep(viewModel: viewModel)
         case .mode:
-            modeStep
+            OnboardingModeStep(viewModel: viewModel)
         case .apiKey:
-            apiKeyStep
+            OnboardingAPIKeyStep(viewModel: viewModel)
         case .login:
-            loginStep
+            OnboardingLoginStep(viewModel: viewModel)
         case .permissions:
-            permissionsStep
+            OnboardingPermissionsStep(viewModel: viewModel)
         case .shortcut:
-            shortcutStep
+            OnboardingShortcutStep(viewModel: viewModel)
         case .firstSuccess:
-            firstSuccessStep
+            OnboardingFirstSuccessStep(viewModel: viewModel)
         case .done:
-            doneStep
+            OnboardingDoneStep(viewModel: viewModel)
         }
     }
 
@@ -107,8 +107,14 @@ struct MacRequiredPermissionsGateView: View {
             return "Hold your shortcut and start speaking anywhere you can type text."
         }
     }
+}
 
-    private var welcomeStep: some View {
+// MARK: - Step Subviews
+
+struct OnboardingWelcomeStep: View {
+    @ObservedObject var viewModel: OnboardingViewModel
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
@@ -132,8 +138,12 @@ struct MacRequiredPermissionsGateView: View {
             }
         }
     }
+}
 
-    private var modeStep: some View {
+struct OnboardingModeStep: View {
+    @ObservedObject var viewModel: OnboardingViewModel
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             GroupBox("Privacy Note") {
                 VStack(alignment: .leading, spacing: 10) {
@@ -146,7 +156,7 @@ struct MacRequiredPermissionsGateView: View {
             }
 
             HStack(alignment: .top, spacing: 16) {
-                onboardingChoiceCard(
+                OnboardingChoiceCard(
                     title: "Use my own API Key",
                     details: [
                         "Full control",
@@ -158,7 +168,7 @@ struct MacRequiredPermissionsGateView: View {
                     viewModel.chooseOnboardingMode(.apiKey)
                 }
 
-                onboardingChoiceCard(
+                OnboardingChoiceCard(
                     title: "Login to use",
                     details: [
                         "Faster setup",
@@ -174,8 +184,12 @@ struct MacRequiredPermissionsGateView: View {
             Spacer()
         }
     }
+}
 
-    private var apiKeyStep: some View {
+struct OnboardingAPIKeyStep: View {
+    @ObservedObject var viewModel: OnboardingViewModel
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
@@ -219,8 +233,12 @@ struct MacRequiredPermissionsGateView: View {
             }
         }
     }
+}
 
-    private var loginStep: some View {
+struct OnboardingLoginStep: View {
+    @ObservedObject var viewModel: OnboardingViewModel
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 12) {
                 Button("Continue with Google") {
@@ -288,12 +306,16 @@ struct MacRequiredPermissionsGateView: View {
             }
         }
     }
+}
 
-    private var permissionsStep: some View {
+struct OnboardingPermissionsStep: View {
+    @ObservedObject var viewModel: OnboardingViewModel
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    permissionGateRow(
+                    PermissionGateRow(
                         title: "Microphone",
                         description: "Used to receive voice input",
                         statusText: viewModel.microphoneAccessStatusText,
@@ -304,7 +326,7 @@ struct MacRequiredPermissionsGateView: View {
                         }
                     }
 
-                    permissionGateRow(
+                    PermissionGateRow(
                         title: "Accessibility / Input Control",
                         description: "Used to insert text into active apps",
                         statusText: viewModel.autoPasteStatusText,
@@ -350,8 +372,12 @@ struct MacRequiredPermissionsGateView: View {
             }
         }
     }
+}
 
-    private var shortcutStep: some View {
+struct OnboardingShortcutStep: View {
+    @ObservedObject var viewModel: OnboardingViewModel
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             GroupBox("Set Shortcut") {
                 VStack(alignment: .leading, spacing: 14) {
@@ -371,15 +397,15 @@ struct MacRequiredPermissionsGateView: View {
                         MessageBanner(text: "Test Text: \(previewText)", role: .success)
                     }
 
-                    statusChecklistRow(
+                    StatusChecklistRow(
                         title: "Key press detected",
                         isComplete: viewModel.shortcutTestDetectedPress
                     )
-                    statusChecklistRow(
+                    StatusChecklistRow(
                         title: "Released key loop completed",
                         isComplete: viewModel.shortcutTestCompletedRoundTrip
                     )
-                    statusChecklistRow(
+                    StatusChecklistRow(
                         title: "First test result received",
                         isComplete: viewModel.shortcutTestPreviewText != nil
                     )
@@ -405,7 +431,23 @@ struct MacRequiredPermissionsGateView: View {
         }
     }
 
-    private var firstSuccessStep: some View {
+    private var shortcutInstructionText: String {
+        if !viewModel.shortcutTestDetectedPress {
+            return "Hold the shortcut you configured and give it a try."
+        }
+
+        if !viewModel.shortcutTestCompletedRoundTrip {
+            return "Shortcut detected. Keep holding and say something."
+        }
+
+        return "Shortcut configured. You can now hold it to start speaking."
+    }
+}
+
+struct OnboardingFirstSuccessStep: View {
+    @ObservedObject var viewModel: OnboardingViewModel
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             GroupBox("Example") {
                 VStack(alignment: .leading, spacing: 10) {
@@ -447,17 +489,21 @@ struct MacRequiredPermissionsGateView: View {
             }
         }
     }
+}
 
-    private var doneStep: some View {
+struct OnboardingDoneStep: View {
+    @ObservedObject var viewModel: OnboardingViewModel
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             GroupBox("Overview") {
                 VStack(alignment: .leading, spacing: 12) {
-                    summaryRow(title: "Shortcut", value: viewModel.shortcutSummaryText)
-                    summaryRow(
+                    SummaryRow(title: "Shortcut", value: viewModel.shortcutSummaryText)
+                    SummaryRow(
                         title: "Current Mode",
                         value: viewModel.onboardingMode == .apiKey ? "API Key" : "Logged In"
                     )
-                    summaryRow(
+                    SummaryRow(
                         title: "Permissions",
                         value: viewModel.hasRequiredPermissions ? "Enabled" : "Check required"
                     )
@@ -477,25 +523,17 @@ struct MacRequiredPermissionsGateView: View {
             }
         }
     }
+}
 
-    private var shortcutInstructionText: String {
-        if !viewModel.shortcutTestDetectedPress {
-            return "Hold the shortcut you configured and give it a try."
-        }
+// MARK: - Components
 
-        if !viewModel.shortcutTestCompletedRoundTrip {
-            return "Shortcut detected. Keep holding and say something."
-        }
+struct OnboardingChoiceCard: View {
+    let title: String
+    let details: [String]
+    let buttonTitle: String
+    let action: () -> Void
 
-        return "Shortcut configured. You can now hold it to start speaking."
-    }
-
-    private func onboardingChoiceCard(
-        title: String,
-        details: [String],
-        buttonTitle: String,
-        action: @escaping () -> Void
-    ) -> some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(title)
                 .font(.headline)
@@ -522,8 +560,13 @@ struct MacRequiredPermissionsGateView: View {
                 .strokeBorder(.quaternary, lineWidth: 1)
         )
     }
+}
 
-    private func summaryRow(title: String, value: String) -> some View {
+struct SummaryRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
         HStack {
             Text(title)
                 .foregroundStyle(.secondary)
@@ -534,8 +577,13 @@ struct MacRequiredPermissionsGateView: View {
                 .font(.system(.body, design: .monospaced))
         }
     }
+}
 
-    private func statusChecklistRow(title: String, isComplete: Bool) -> some View {
+struct StatusChecklistRow: View {
+    let title: String
+    let isComplete: Bool
+
+    var body: some View {
         HStack(spacing: 10) {
             Image(systemName: isComplete ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(isComplete ? .green : .secondary)
@@ -543,15 +591,16 @@ struct MacRequiredPermissionsGateView: View {
             Text(title)
         }
     }
+}
 
-    @ViewBuilder
-    private func permissionGateRow<Actions: View>(
-        title: String,
-        description: String,
-        statusText: String,
-        tint: Color,
-        @ViewBuilder actions: () -> Actions
-    ) -> some View {
+struct PermissionGateRow<Actions: View>: View {
+    let title: String
+    let description: String
+    let statusText: String
+    let tint: Color
+    @ViewBuilder let actions: () -> Actions
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -572,4 +621,5 @@ struct MacRequiredPermissionsGateView: View {
         }
     }
 }
+
 #endif

@@ -69,7 +69,7 @@ final class MacShellPresentationController: MacShellPresenting {
         guard panelPresentationMode == .transient, isPanelVisible else { return }
 
         panelHideTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(180))
+            try? await Task.sleep(for: .milliseconds(50))
             guard let self else { return }
             guard case .idle = currentState() else { return }
             guard panelPresentationMode == .transient else { return }
