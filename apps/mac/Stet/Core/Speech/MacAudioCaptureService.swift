@@ -112,7 +112,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         }
 
         #if os(macOS)
-        macAudioFileRecorder.activateRecordingWindow()
+        try macAudioFileRecorder.activateRecordingWindow()
         #endif
     }
 

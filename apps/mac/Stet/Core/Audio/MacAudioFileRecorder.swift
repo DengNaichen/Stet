@@ -20,6 +20,10 @@ final class MacAudioFileRecordingSession {
         let didWriteAudioFrames: Bool
     }
 
+    private enum Configuration {
+        static let pendingAudioLimitSeconds: Double = 1.5
+    }
+
     private let lock = NSLock()
     let outputFormat: AVAudioFormat
     private let voiceProcessingEnabled: Bool
@@ -31,6 +35,8 @@ final class MacAudioFileRecordingSession {
     private var didWriteAudio = false
     private var droppedBufferLogCount = 0
     private var hasActivatedCaptureWindow = false
+    private var pendingBuffers: [AVAudioPCMBuffer] = []
+    private var pendingFrameCount: AVAudioFramePosition = 0
 
     init(
         recordingFile: AVAudioFile,
@@ -93,12 +99,11 @@ final class MacAudioFileRecordingSession {
         }
 
         guard hasActivatedCaptureWindow else {
+            appendPendingBuffer(buffer)
             return BufferIngestionResult(didWriteAudioFrames: false)
         }
 
-        try recordingFile.write(from: buffer)
-        writtenFrameCount += AVAudioFramePosition(buffer.frameLength)
-        didWriteAudio = true
+        try writeLocked(buffer, to: recordingFile)
 
         return BufferIngestionResult(didWriteAudioFrames: true)
     }
@@ -115,10 +120,26 @@ final class MacAudioFileRecordingSession {
         return true
     }
 
-    func activateRecordingWindow() {
+    func activateRecordingWindow() throws {
         lock.lock()
+        defer { lock.unlock() }
+
+        guard !hasActivatedCaptureWindow else {
+            return
+        }
+
         hasActivatedCaptureWindow = true
-        lock.unlock()
+        guard let recordingFile else {
+            pendingBuffers.removeAll(keepingCapacity: false)
+            pendingFrameCount = 0
+            return
+        }
+
+        for buffer in pendingBuffers {
+            try writeLocked(buffer, to: recordingFile)
+        }
+        pendingBuffers.removeAll(keepingCapacity: false)
+        pendingFrameCount = 0
     }
 
     func close() {
@@ -136,7 +157,8 @@ final class MacAudioFileRecordingSession {
         let diagnostics =
             """
             didWriteAudio=\(didWriteAudio) activated=\(hasActivatedCaptureWindow) \
-            writtenFrames=\(writtenFrameCount) voiceProcessingEnabled=\(voiceProcessingEnabled) \
+            writtenFrames=\(writtenFrameCount) pendingFrames=\(pendingFrameCount) \
+            voiceProcessingEnabled=\(voiceProcessingEnabled) \
             fallbackReason=\(voiceProcessingFallbackReason ?? "none")
             """
 
@@ -149,6 +171,32 @@ final class MacAudioFileRecordingSession {
 
     private static func formatSignature(_ format: AVAudioFormat) -> String {
         "\(String(describing: format.commonFormat)):\(Int(format.sampleRate)):\(format.channelCount):\(format.isInterleaved)"
+    }
+
+    private func appendPendingBuffer(_ buffer: AVAudioPCMBuffer) {
+        pendingBuffers.append(buffer)
+        pendingFrameCount += AVAudioFramePosition(buffer.frameLength)
+
+        let maximumBufferedFrames = AVAudioFramePosition(
+            max(outputFormat.sampleRate * Configuration.pendingAudioLimitSeconds, 0)
+        )
+
+        guard maximumBufferedFrames > 0 else {
+            pendingBuffers.removeAll(keepingCapacity: false)
+            pendingFrameCount = 0
+            return
+        }
+
+        while pendingFrameCount > maximumBufferedFrames, let oldestBuffer = pendingBuffers.first {
+            pendingBuffers.removeFirst()
+            pendingFrameCount -= AVAudioFramePosition(oldestBuffer.frameLength)
+        }
+    }
+
+    private func writeLocked(_ buffer: AVAudioPCMBuffer, to recordingFile: AVAudioFile) throws {
+        try recordingFile.write(from: buffer)
+        writtenFrameCount += AVAudioFramePosition(buffer.frameLength)
+        didWriteAudio = true
     }
 }
 
@@ -277,8 +325,8 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         throw SpeechServiceError.failedToStart
     }
 
-    nonisolated func activateRecordingWindow() {
-        currentSession()?.activateRecordingWindow()
+    nonisolated func activateRecordingWindow() throws {
+        try currentSession()?.activateRecordingWindow()
     }
 
     nonisolated func stopRecording(writtenFileAt fileURL: URL) async -> MacAudioFileRecordingOutcome {
@@ -294,7 +342,10 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     }
 
     nonisolated func prewarm() {
-        _ = currentEngine()
+        let engine = ensurePrewarmedEngine()
+        _ = engine.inputNode
+        _ = engine.outputNode
+        engine.prepare()
     }
 
     deinit {
@@ -346,10 +397,7 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         candidateReason: InputDeviceCandidate.Reason
     ) throws {
         let didBindExplicitly = inputDevice.map(Self.shouldBindExplicitly(to:)) ?? false
-        let engine = AVAudioEngine()
-        stateLock.lock()
-        audioEngine = engine
-        stateLock.unlock()
+        let engine = takeOrCreateEngine()
 
         let inputNode = engine.inputNode
         let deviceBindingStartedAt = ProcessInfo.processInfo.systemUptime
@@ -658,6 +706,32 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         stateLock.lock()
         defer { stateLock.unlock() }
         return audioEngine
+    }
+
+    nonisolated private func takeOrCreateEngine() -> AVAudioEngine {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        if let audioEngine {
+            return audioEngine
+        }
+
+        let engine = AVAudioEngine()
+        audioEngine = engine
+        return engine
+    }
+
+    nonisolated private func ensurePrewarmedEngine() -> AVAudioEngine {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        if let audioEngine {
+            return audioEngine
+        }
+
+        let engine = AVAudioEngine()
+        audioEngine = engine
+        return engine
     }
 
     nonisolated private func clearCurrentSession() -> MacAudioFileRecordingSession? {

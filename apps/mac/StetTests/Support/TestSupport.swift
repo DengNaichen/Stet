@@ -238,6 +238,11 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
         }
     }
 
+    func startRecordingAndActivate() async throws {
+        try await startRecording()
+        try await activateRecordingWindow()
+    }
+
     func activateRecordingWindow() async throws {
         activationCallCount += 1
 
