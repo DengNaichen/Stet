@@ -5,15 +5,15 @@ import SwiftUI
 
 private enum Constants {
     enum Layout {
-        static let mainWidthIdle: CGFloat = 250
-        static let mainWidthStarting: CGFloat = 250
-        static let mainWidthListening: CGFloat = 250
-        static let mainWidthProcessing: CGFloat = 228
-        static let mainWidthResult: CGFloat = 270
-        static let mainWidthClipboard: CGFloat = 320
-        static let mainWidthError: CGFloat = 300
+        static let mainWidthIdle: CGFloat = 200
+        static let mainWidthStarting: CGFloat = 200
+        static let mainWidthListening: CGFloat = 200
+        static let mainWidthProcessing: CGFloat = 200
+        static let mainWidthResult: CGFloat = 200
+        static let mainWidthClipboard: CGFloat = 200
+        static let mainWidthError: CGFloat = 200
         
-        static let controlHeight: CGFloat = 52
+        static let controlHeight: CGFloat = 40
         static let clipboardHeight: CGFloat = 118
         static let clipboardCornerRadius: CGFloat = 30
 
@@ -23,19 +23,6 @@ private enum Constants {
         static let offsetYDefault: CGFloat = -4
         static let offsetYClipboard: CGFloat = -2
         
-        static let orbInset: CGFloat = 18
-        static let orbTargetXDefault: CGFloat = 55
-        static let orbTargetXClipboard: CGFloat = 46
-        
-        static let glassSpacing: CGFloat = 28
-        static let orbScaleMin: CGFloat = 0.24
-        static let orbScaleMax: CGFloat = 1.0
-        static let orbAlphaThreshold: CGFloat = 0.01
-        
-        static let strokeOpacityClipboard: Double = 0.18
-        static let strokeOpacityDefault: Double = 0.08
-        static let strokeWidth: CGFloat = 0.9
-        
         static let shadowRadiusClipboard: CGFloat = 18
         static let shadowRadiusDefault: CGFloat = 8
         static let shadowOpacityClipboard: Double = 0.22
@@ -44,27 +31,7 @@ private enum Constants {
         static let shadowYDefault: CGFloat = 4
     }
     
-    enum Animation {
-        static let generalResponse: Double = 0.56
-        static let generalDamping: Double = 0.82
-        
-        static let entranceResponse: Double = 0.50
-        static let entranceDamping: Double = 0.68
-        
-        static let sideOrbResponse: Double = 0.56
-        static let sideOrbDamping: Double = 0.78
-        
-        static let sideOrbExitDamping: Double = 0.80
-        
-        static let clipboardResponse: Double = 0.30
-        static let clipboardDamping: Double = 0.90
-        
-        static let entranceDelay: UInt64 = 90_000_000
-        static let orbTransitionDelay: UInt64 = 220_000_000
-        static let clipboardDelay: UInt64 = 90_000_000
-        static let symmetricCloseDelay: UInt64 = 90_000_000
-        static let finalActionDelay: UInt64 = 240_000_000
-    }
+    /* Animation constants removed for now, or replaced with inline springs */
     
     enum VoiceReactivity {
         static let easedPower: Double = 0.45
@@ -110,112 +77,34 @@ struct MacDictationPanelView: View {
         let panelSize = layout.panelSize
 
         MacDictationCapsuleSurface(
+            viewModel: viewModel,
             layout: layout,
-            panelSize: panelSize,
-            state: viewModel.state,
-            recordingLevel: viewModel.recordingLevel,
-            leadingOrb: leadingOrb,
-            trailingOrb: trailingOrb
+            panelSize: panelSize
         )
         .frame(width: panelSize.width, height: panelSize.height)
-    }
-
-    private var leadingOrb: CapsuleOrbConfiguration? {
-        switch viewModel.state {
-        case .idle:
-            CapsuleOrbConfiguration(
-                systemName: "xmark",
-                accessibilityLabel: "Cancel",
-                triggersSymmetricClose: true,
-                action: viewModel.hidePanel
-            )
-        case .listening:
-            CapsuleOrbConfiguration(
-                systemName: "xmark",
-                accessibilityLabel: "Cancel",
-                triggersSymmetricClose: true,
-                action: viewModel.cancelActiveCapture
-            )
-        case .starting:
-            CapsuleOrbConfiguration(
-                systemName: "xmark",
-                accessibilityLabel: "Cancel",
-                triggersSymmetricClose: true,
-                action: viewModel.cancelActiveCapture
-            )
-        case .processing:
-            nil
-        case .result:
-            nil
-        case .clipboardPending:
-            nil
-        case .error:
-            CapsuleOrbConfiguration(
-                systemName: "xmark",
-                accessibilityLabel: "Cancel",
-                triggersSymmetricClose: true,
-                action: viewModel.hidePanel
-            )
-        }
-    }
-
-    private var trailingOrb: CapsuleOrbConfiguration? {
-        switch viewModel.state {
-        case .idle:
-            CapsuleOrbConfiguration(
-                systemName: "mic.fill",
-                accessibilityLabel: "Start Dictation",
-                action: viewModel.performPrimaryAction
-            )
-        case .starting:
-            nil
-        case .listening:
-            CapsuleOrbConfiguration(
-                systemName: "checkmark",
-                accessibilityLabel: "Finish Dictation",
-                action: viewModel.performPrimaryAction
-            )
-        case .processing:
-            nil
-        case .result:
-            nil
-        case .clipboardPending:
-            CapsuleOrbConfiguration(
-                systemName: "doc.on.doc",
-                accessibilityLabel: "Copy",
-                action: viewModel.performPrimaryAction
-            )
-        case .error:
-            CapsuleOrbConfiguration(
-                systemName: "arrow.clockwise",
-                accessibilityLabel: "Retry",
-                action: viewModel.performPrimaryAction
-            )
-        }
     }
 }
 
 private struct MacDictationCapsuleSurface: View {
+    @ObservedObject var viewModel: MacDictationPanelViewModel
     let layout: MacDictationPanelLayout
     let panelSize: CGSize
-    let state: DictationState
-    let recordingLevel: Double
-    let leadingOrb: CapsuleOrbConfiguration?
-    let trailingOrb: CapsuleOrbConfiguration?
 
-    @State private var appeared = false
-    @State private var sideOrbProgress: CGFloat = 0
-    @State private var hasAnimatedEntrance = false
-    @State private var entranceTask: Task<Void, Never>?
-    @State private var orbTransitionTask: Task<Void, Never>?
-    @State private var clipboardRevealTask: Task<Void, Never>?
-    @State private var exitTask: Task<Void, Never>?
-    @State private var visibleLeadingOrb: CapsuleOrbConfiguration?
-    @State private var visibleTrailingOrb: CapsuleOrbConfiguration?
+    private var state: DictationState {
+        viewModel.state
+    }
+
+    private var recordingLevel: Double {
+        viewModel.recordingLevel
+    }
+    @Namespace private var glassNamespace
+
+
+    @State private var isPanelShown = false
+    @State private var ShowIOrbs = true
     @State private var clipboardContentVisible = false
-    @State private var isExitAnimating = false
     @State private var startDate = Date()
-    @State private var previousState: DictationState?
+    @State private var clipboardRevealTask: Task<Void, Never>?
 
     private var scale: CGFloat {
         layout.scale
@@ -308,10 +197,6 @@ private struct MacDictationCapsuleSurface: View {
         isClipboardPending ? scaled(Constants.Layout.clipboardHeight) : controlHeight
     }
 
-    private var mainCornerRadius: CGFloat {
-        isClipboardPending ? scaled(Constants.Layout.clipboardCornerRadius) : mainHeight / 2
-    }
-
     private var mainOffsetX: CGFloat {
         switch state {
         case .idle, .starting, .listening:
@@ -327,25 +212,6 @@ private struct MacDictationCapsuleSurface: View {
         isClipboardPending ? scaled(Constants.Layout.offsetYClipboard) : scaled(Constants.Layout.offsetYDefault)
     }
 
-    private var leadingOrbProgress: CGFloat {
-        visibleLeadingOrb == nil ? 0 : sideOrbProgress
-    }
-
-    private var trailingOrbProgress: CGFloat {
-        visibleTrailingOrb == nil ? 0 : sideOrbProgress
-    }
-
-    private var leadingOrbX: CGFloat {
-        let startX = mainOffsetX - (mainWidth / 2) + scaled(Constants.Layout.orbInset)
-        let targetX = mainOffsetX - (mainWidth / 2) - scaled(isClipboardPending ? Constants.Layout.orbTargetXClipboard : Constants.Layout.orbTargetXDefault)
-        return startX + (targetX - startX) * leadingOrbProgress
-    }
-
-    private var trailingOrbX: CGFloat {
-        let startX = mainOffsetX + (mainWidth / 2) - scaled(Constants.Layout.orbInset)
-        let targetX = mainOffsetX + (mainWidth / 2) + scaled(isClipboardPending ? Constants.Layout.orbTargetXClipboard : Constants.Layout.orbTargetXDefault)
-        return startX + (targetX - startX) * trailingOrbProgress
-    }
 
     private var orbSize: CGFloat {
         controlHeight
@@ -357,98 +223,49 @@ private struct MacDictationCapsuleSurface: View {
 
     var body: some View {
         ZStack {
-            GlassEffectContainer(spacing: scaled(Constants.Layout.glassSpacing)) {
-                ZStack {
-                    if let leadingOrb = visibleLeadingOrb {
-                        capsuleOrbButton(leadingOrb)
-                            .offset(x: leadingOrbX, y: mainOffsetY)
-                            .scaleEffect(Constants.Layout.orbScaleMin + (Constants.Layout.orbScaleMax - Constants.Layout.orbScaleMin) * leadingOrbProgress)
-                            .opacity(leadingOrbProgress)
-                            .allowsHitTesting(leadingOrbProgress > Constants.Layout.orbAlphaThreshold)
+            // Layer 1 & 2: Glass Container + Middle White Material
+            GlassEffectContainer(spacing: 40) {
+                HStack(spacing: 40) {
+                    // Leading Orb
+                    Button(action: handleCancelAction) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 32, weight: .bold))
+                            .contentShape(Circle())
                     }
+                    .buttonStyle(.plain)
+                    .frame(width: controlHeight, height: controlHeight)
+                    .glassEffect(.regular)
+                    .glassEffectID("cancel", in: glassNamespace)
+                    .opacity(isPanelShown && ShowIOrbs ? 1 : 0)
+                    .offset(x: isPanelShown && ShowIOrbs ? 0 : 60)
+                    .scaleEffect(isPanelShown && ShowIOrbs ? 1 : 0.85)
+                    .allowsHitTesting(isPanelShown && ShowIOrbs)
 
-                    if let trailingOrb = visibleTrailingOrb {
-                        capsuleOrbButton(trailingOrb)
-                            .offset(x: trailingOrbX, y: mainOffsetY)
-                            .scaleEffect(Constants.Layout.orbScaleMin + (Constants.Layout.orbScaleMax - Constants.Layout.orbScaleMin) * trailingOrbProgress)
-                            .opacity(trailingOrbProgress)
-                            .allowsHitTesting(trailingOrbProgress > Constants.Layout.orbAlphaThreshold)
+                    // Layer 2: Middle Material
+                    Capsule()
+                        .frame(width: mainWidth, height: controlHeight)
+                        .glassEffect(.regular.tint(.white))
+                        .glassEffectID("main", in: glassNamespace)
+
+                    // Trailing Orb
+                    Button(action: handleFinishAction) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 32, weight: .bold))
+                            .contentShape(Circle())
                     }
-
-                    mainCapsule()
-                        .offset(x: mainOffsetX, y: mainOffsetY)
+                    .buttonStyle(.plain)
+                    .frame(width: controlHeight, height: controlHeight)
+                    .glassEffect(.regular)
+                    .glassEffectID("done", in: glassNamespace)
+                    .opacity(isPanelShown && ShowIOrbs ? 1 : 0)
+                    .offset(x: isPanelShown && ShowIOrbs ? 0 : -60)
+                    .scaleEffect(isPanelShown && ShowIOrbs ? 1 : 0.85)
+                    .allowsHitTesting(isPanelShown && ShowIOrbs)
                 }
-                .frame(width: canvasSize.width, height: canvasSize.height)
             }
+            .opacity(isPanelShown ? 1.0 : 0)
 
-            mainContent()
-                .frame(width: mainWidth, height: mainHeight)
-                .offset(x: mainOffsetX, y: mainOffsetY)
-        }
-        .frame(width: canvasSize.width, height: canvasSize.height)
-        .scaleEffect(appeared ? 1.0 : 0.3)
-        .opacity(appeared ? 1.0 : 0.0)
-        .onAppear {
-            runEntranceAnimationIfNeeded()
-            syncClipboardPresentation(animated: false)
-            previousState = state
-        }
-        .onChange(of: state) {
-            guard !isExitAnimating else { return }
-            syncSideOrbVisibility(from: previousState, to: state)
-            syncClipboardPresentation(animated: true)
-            previousState = state
-        }
-        .onDisappear(perform: resetEntranceAnimation)
-    }
-
-    @ViewBuilder
-    private func mainCapsule() -> some View {
-        let size = CGSize(width: mainWidth, height: mainHeight)
-        let shape = RoundedRectangle(cornerRadius: mainCornerRadius, style: .continuous)
-
-        capsuleFill(size: size)
-            .frame(width: size.width, height: size.height)
-            .clipShape(shape)
-            .glassEffect(.clear, in: shape)
-            .overlay {
-                shape.strokeBorder(.white.opacity(isClipboardPending ? Constants.Layout.strokeOpacityClipboard : Constants.Layout.strokeOpacityDefault), lineWidth: scaled(Constants.Layout.strokeWidth))
-            }
-            .shadow(
-                color: .black.opacity(isClipboardPending ? Constants.Layout.shadowOpacityClipboard : Constants.Layout.shadowOpacityDefault),
-                radius: isClipboardPending ? scaled(Constants.Layout.shadowRadiusClipboard) : scaled(Constants.Layout.shadowRadiusDefault),
-                y: isClipboardPending ? scaled(Constants.Layout.shadowYClipboard) : scaled(Constants.Layout.shadowYDefault)
-            )
-            .animation(.spring(response: Constants.Animation.generalResponse, dampingFraction: Constants.Animation.generalDamping), value: state)
-    }
-
-    @ViewBuilder
-    private func capsuleFill(size: CGSize) -> some View {
-        if isClipboardPending {
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            .white.opacity(0.18),
-                            .white.opacity(0.10)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-        } else if isError {
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Constants.Colors.errorGradientTop.opacity(0.42),
-                            Constants.Colors.errorGradientBottom.opacity(0.24)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-        } else {
+            // Layer 3: Top Shader Layer
             TimelineView(.animation(minimumInterval: shaderFrameInterval, paused: false)) { timeline in
                 let level = displayLevel
                 let talk = min(max(level, 0.0), 1.0)
@@ -470,11 +287,10 @@ private struct MacDictationCapsuleSurface: View {
                     blue:  lerp(Constants.Colors.lowLerpStart.2, Constants.Colors.lowLerpEnd.2, breath)
                 )
 
-                Rectangle()
-                    .fill(.white)
+                Capsule().fill(.white)
                     .colorEffect(
                         ShaderLibrary.cloudOrbGlassWide(
-                            .float2(size),
+                            .float2(mainWidth, controlHeight),
                             .float(timeline.date.timeIntervalSince(startDate)),
                             .float(level),
                             .color(top),
@@ -482,7 +298,26 @@ private struct MacDictationCapsuleSurface: View {
                             .color(low)
                         )
                     )
+                    .frame(width: mainWidth, height: controlHeight)
+                    .allowsHitTesting(false)
             }
+            .opacity(isPanelShown ? 1.0 : 0)
+            .animation(.spring(response: 0.35, dampingFraction: 0.7), value: isPanelShown)
+
+            // Content Overlay (Labels/Dots)
+            mainContent()
+                .frame(width: mainWidth, height: mainHeight)
+                .opacity(isPanelShown ? 1 : 0)
+        }
+        .animation(.spring(response: 0.28, dampingFraction: 0.88), value: isPanelShown && ShowIOrbs)
+        .frame(width: canvasSize.width, height: canvasSize.height)
+        .onAppear {
+            syncVisualState(animated: false)
+            syncClipboardPresentation(animated: false)
+        }
+        .onChange(of: state) { newValue in
+            syncVisualState(animated: true)
+            syncClipboardPresentation(animated: true)
         }
     }
 
@@ -501,7 +336,7 @@ private struct MacDictationCapsuleSurface: View {
                 minimumScaleFactor: 0.9
             )
             .padding(.horizontal, scaled(24))
-        case .result, .idle, .starting, .listening:
+        case .result(_), .idle, .starting, .listening:
             EmptyView()
         }
     }
@@ -586,120 +421,58 @@ private struct MacDictationCapsuleSurface: View {
         }
     }
 
-    @ViewBuilder
-    private func capsuleOrbButton(_ configuration: CapsuleOrbConfiguration) -> some View {
-        Button(action: { handleOrbAction(configuration) }) {
-            orbSymbol(configuration.systemName)
-                .frame(width: orbSize, height: orbSize)
-                .glassEffect(.regular, in: Circle())
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(configuration.accessibilityLabel)
-    }
 
     @ViewBuilder
     private func orbSymbol(_ systemName: String) -> some View {
         Image(systemName: systemName)
             .symbolRenderingMode(.monochrome)
-            .font(.system(size: scaled(16), weight: .semibold))
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .font(.system(size: 28, weight: .bold))
+            .frame(width: controlHeight, height: controlHeight)
     }
 
     private func scaled(_ value: CGFloat) -> CGFloat {
-        value * scale
+        value // Scaling logic disabled for strictly matching testView
     }
 
-    private func handleOrbAction(_ configuration: CapsuleOrbConfiguration) {
-        if configuration.triggersSymmetricClose {
-            runSymmetricCloseAnimation(perform: configuration.action)
-            return
+    private func runSymmetricCloseAnimation(perform action: @escaping () -> Void) {
+        withAnimation(.spring()) {
+            isPanelShown = false
+            ShowIOrbs = false
         }
 
-        configuration.action()
-    }
-
-    private func runEntranceAnimationIfNeeded() {
-        guard !hasAnimatedEntrance else { return }
-
-        hasAnimatedEntrance = true
-        isExitAnimating = false
-        startDate = Date()
-        appeared = false
-        sideOrbProgress = 0
-
-        let pendingLeadingOrb = leadingOrb
-        let pendingTrailingOrb = trailingOrb
-
-        visibleLeadingOrb = nil
-        visibleTrailingOrb = nil
-
-        withAnimation(.spring(response: Constants.Animation.entranceResponse, dampingFraction: Constants.Animation.entranceDamping)) {
-            appeared = true
-        }
-
-        entranceTask?.cancel()
-        entranceTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: Constants.Animation.entranceDelay)
-            guard !Task.isCancelled else { return }
-
-            visibleLeadingOrb = pendingLeadingOrb
-            visibleTrailingOrb = pendingTrailingOrb
-
-            withAnimation(.spring(response: Constants.Animation.sideOrbResponse, dampingFraction: Constants.Animation.sideOrbDamping)) {
-                sideOrbProgress = 1
-            }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            action()
         }
     }
 
-    private func syncSideOrbVisibility(from previousState: DictationState?, to currentState: DictationState) {
-        entranceTask?.cancel()
-        orbTransitionTask?.cancel()
+    private func syncVisualState(animated: Bool) {
+        let shouldShowPanel: Bool
+        let shouldShowIOrbs: Bool
 
-        let shouldShowSideOrbs = leadingOrb != nil || trailingOrb != nil
-        let shouldAnimateOrbTransition = shouldAnimateSideOrbTransition(from: previousState, to: currentState)
-
-        if shouldShowSideOrbs {
-            visibleLeadingOrb = leadingOrb
-            visibleTrailingOrb = trailingOrb
-
-            if shouldAnimateOrbTransition {
-                withAnimation(.spring(response: Constants.Animation.sideOrbResponse, dampingFraction: Constants.Animation.sideOrbDamping)) {
-                    sideOrbProgress = 1
-                }
-            } else {
-                sideOrbProgress = 1
-            }
-            return
+        switch state {
+        case .starting, .listening:
+            shouldShowPanel = true
+            shouldShowIOrbs = true
+        case .processing, .clipboardPending(_):
+            shouldShowPanel = true
+            shouldShowIOrbs = false
+        default:
+            shouldShowPanel = false
+            shouldShowIOrbs = true
         }
 
-        guard visibleLeadingOrb != nil || visibleTrailingOrb != nil else { return }
-
-        if shouldAnimateOrbTransition {
-            withAnimation(.spring(response: Constants.Animation.sideOrbResponse, dampingFraction: Constants.Animation.sideOrbExitDamping)) {
-                sideOrbProgress = 0
-            }
+        if animated {
+            isPanelShown = shouldShowPanel
+            ShowIOrbs = shouldShowIOrbs
         } else {
-            sideOrbProgress = 0
-        }
-
-        if shouldAnimateOrbTransition {
-            orbTransitionTask = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: Constants.Animation.orbTransitionDelay)
-                guard !Task.isCancelled else { return }
-
-                visibleLeadingOrb = nil
-                visibleTrailingOrb = nil
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                isPanelShown = shouldShowPanel
+                ShowIOrbs = shouldShowIOrbs
             }
-        } else {
-            visibleLeadingOrb = nil
-            visibleTrailingOrb = nil
         }
-    }
-
-    private func shouldAnimateSideOrbTransition(from previousState: DictationState?, to currentState: DictationState) -> Bool {
-        guard let previousState else { return true }
-        return !(previousState == .starting && currentState == .listening)
     }
 
     private func syncClipboardPresentation(animated: Bool) {
@@ -717,60 +490,28 @@ private struct MacDictationCapsuleSurface: View {
 
         clipboardContentVisible = false
         clipboardRevealTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: Constants.Animation.clipboardDelay)
+            try? await Task.sleep(nanoseconds: 90_000_000) // 0.09s matching old constant
             guard !Task.isCancelled else { return }
 
-            withAnimation(.spring(response: Constants.Animation.clipboardResponse, dampingFraction: Constants.Animation.clipboardDamping)) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
                 clipboardContentVisible = true
             }
         }
     }
 
-    private func resetEntranceAnimation() {
-        entranceTask?.cancel()
-        orbTransitionTask?.cancel()
-        clipboardRevealTask?.cancel()
-        exitTask?.cancel()
-        entranceTask = nil
-        orbTransitionTask = nil
-        clipboardRevealTask = nil
-        exitTask = nil
-        hasAnimatedEntrance = false
-        appeared = false
-        sideOrbProgress = 0
-        clipboardContentVisible = false
-        isExitAnimating = false
-        visibleLeadingOrb = nil
-        visibleTrailingOrb = nil
-        previousState = nil
+    private func handleCancelAction() {
+        switch state {
+        case .listening, .starting:
+            runSymmetricCloseAnimation(perform: viewModel.cancelActiveCapture)
+        case .idle, .error:
+            runSymmetricCloseAnimation(perform: viewModel.hidePanel)
+        default:
+            break
+        }
     }
 
-    private func runSymmetricCloseAnimation(perform action: @escaping () -> Void) {
-        guard !isExitAnimating else { return }
-
-        isExitAnimating = true
-        entranceTask?.cancel()
-        orbTransitionTask?.cancel()
-        clipboardRevealTask?.cancel()
-        exitTask?.cancel()
-
-        withAnimation(.spring(response: Constants.Animation.sideOrbResponse, dampingFraction: Constants.Animation.sideOrbDamping)) {
-            sideOrbProgress = 0
-        }
-
-        exitTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: Constants.Animation.symmetricCloseDelay)
-            guard !Task.isCancelled else { return }
-
-            withAnimation(.spring(response: Constants.Animation.entranceResponse, dampingFraction: Constants.Animation.entranceDamping)) {
-                appeared = false
-            }
-
-            try? await Task.sleep(nanoseconds: Constants.Animation.finalActionDelay)
-            guard !Task.isCancelled else { return }
-
-            action()
-        }
+    private func handleFinishAction() {
+        viewModel.performPrimaryAction()
     }
 
     private func lerp(_ a: Double, _ b: Double, _ t: Double) -> Double {
@@ -778,12 +519,6 @@ private struct MacDictationCapsuleSurface: View {
     }
 }
 
-private struct CapsuleOrbConfiguration {
-    let systemName: String
-    let accessibilityLabel: String
-    var triggersSymmetricClose: Bool = false
-    let action: () -> Void
-}
 
 private extension Color {
     static let primaryAction = Color(
