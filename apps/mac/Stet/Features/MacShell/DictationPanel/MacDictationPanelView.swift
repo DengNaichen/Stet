@@ -176,7 +176,7 @@ private struct MacDictationCapsuleSurface: View {
     }
 
     private var shaderFrameInterval: Double {
-        isVoiceReactiveState ? Constants.VoiceReactivity.shaderFrameIntervalActive : Constants.VoiceReactivity.shaderFrameIntervalIdle
+        Constants.VoiceReactivity.shaderFrameIntervalActive
     }
 
     private var orbFontSize: CGFloat {
@@ -200,8 +200,8 @@ private struct MacDictationCapsuleSurface: View {
                         .glassEffect(.regular)
                         .glassEffectID("cancel", in: glassNamespace)
                         .opacity(isPanelShown && ShowIOrbs ? 1 : 0)
-                        .offset(x: isPanelShown && ShowIOrbs ? 0 : 60)
-                        .scaleEffect(isPanelShown && ShowIOrbs ? 1 : 0.85)
+                        .offset(x: isPanelShown && ShowIOrbs ? 0 : 200)
+                        .scaleEffect(isPanelShown && ShowIOrbs ? 1 : 0.8)
                         .allowsHitTesting(isPanelShown && ShowIOrbs)
 
                         // Layer 2: Middle Material (Main Capsule)
@@ -221,8 +221,8 @@ private struct MacDictationCapsuleSurface: View {
                         .glassEffect(.regular)
                         .glassEffectID("done", in: glassNamespace)
                         .opacity(isPanelShown && ShowIOrbs ? 1 : 0)
-                        .offset(x: isPanelShown && ShowIOrbs ? 0 : -60)
-                        .scaleEffect(isPanelShown && ShowIOrbs ? 1 : 0.85)
+                        .offset(x: isPanelShown && ShowIOrbs ? 0 : -200)
+                        .scaleEffect(isPanelShown && ShowIOrbs ? 1 : 0.8)
                         .allowsHitTesting(isPanelShown && ShowIOrbs)
                     }
                 }
@@ -272,7 +272,8 @@ private struct MacDictationCapsuleSurface: View {
                 .offset(y: scaled(Constants.Layout.offsetYDefault))
                 .opacity(isPanelShown ? 1 : 0)
         }
-        .animation(.spring(response: 0.28, dampingFraction: 0.88), value: isPanelShown && ShowIOrbs)
+        .animation(.spring(response: 0.28, dampingFraction: 0.88), value: ShowIOrbs)
+        .animation(.spring(response: 0.35, dampingFraction: 0.9), value: state)
         .frame(width: canvasSize.width, height: canvasSize.height)
         .onAppear {
             syncVisualState(animated: false)
