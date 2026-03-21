@@ -31,6 +31,11 @@ enum MacDictationPanelConstants {
     
     enum VoiceReactivity {
         static let easedPower: Double = 0.45
+        static let shaderDrivePower: Double = 0.82
+        static let shaderDriveBoostStarting: Double = 1.08
+        static let shaderDriveBoostListening: Double = 1.18
+        static let shaderDriveFloorStarting: Double = 0.05
+        static let shaderDriveFloorListening: Double = 0.08
         
         static let levelBaseIdle: Double = 0.10
         static let levelBaseStarting: Double = 0.15

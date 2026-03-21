@@ -94,6 +94,9 @@ namespace Config {
     constant float3 GLOW_COLOR_BASE = float3(0.12, 0.10, 0.08);
     constant float GLOW_INTENSITY = 0.45;
     constant float3 LIFT_COLOR = float3(0.045, 0.038, 0.032);
+    constant float AUDIO_FLOOR = 0.05;
+    constant float AUDIO_BOOST = 1.18;
+    constant float AUDIO_POWER = 0.82;
     
     // Sun
     constant float2 SUN_POS_SKEW = float2(0.28, 0.38);
@@ -141,6 +144,21 @@ static float fbm(float2 p) {
     return v;
 }
 
+static float fbmFast(float2 p) {
+    float v = 0.0;
+    float a = Config::FBM_INITIAL_AMP;
+    for (int i = 0; i < 3; i++) {
+        v += a * noise2D(p);
+        float2 rp = float2(
+            p.x * Config::FBM_ROT_ROW1.x + p.y * Config::FBM_ROT_ROW1.y,
+            p.x * Config::FBM_ROT_ROW2.x + p.y * Config::FBM_ROT_ROW2.y
+        );
+        p = rp * Config::FBM_SCALE + float2(Config::FBM_DOMAIN_OFFSET);
+        a *= Config::FBM_AMP_DECAY;
+    }
+    return v;
+}
+
 static float2 domainWarp(float2 p, float t) {
     float2 q = float2(
         fbm(p + float2(0.0, 0.0) + t * Config::WARP_Q_TIME_SKEW_A),
@@ -151,6 +169,13 @@ static float2 domainWarp(float2 p, float t) {
         fbm(p + 3.0 * q + Config::WARP_R_OFFSET_2 - t * Config::WARP_R_TIME_SKEW)
     );
     return r;
+}
+
+static float2 domainWarpFast(float2 p, float t) {
+    return float2(
+        noise2D(p + float2(0.0, 0.0) + t * Config::WARP_Q_TIME_SKEW_A),
+        noise2D(p + Config::WARP_Q_OFFSET - t * Config::WARP_Q_TIME_SKEW_B)
+    );
 }
 
 static float2 vortexField(float2 p, float2 center, float strength) {
@@ -165,6 +190,7 @@ static float2 vortexField(float2 p, float2 center, float strength) {
     float2 size,
     float time,
     float audio,
+    float detail,
     half4 colorTop,
     half4 colorMid,
     half4 colorLow
@@ -176,7 +202,8 @@ static float2 vortexField(float2 p, float2 center, float strength) {
     float2 pRaw = float2((uv.x - 0.5) * 2.0 * aspect,
                          (uv.y - 0.5) * 2.0);
 
-    float talk = clamp(audio, 0.0, 1.0);
+    float detailClamped = clamp(detail, 0.0, 1.0);
+    float talk = clamp(Config::AUDIO_FLOOR + pow(clamp(audio, 0.0, 1.0), Config::AUDIO_POWER) * Config::AUDIO_BOOST, 0.0, 1.0);
     float breath = talk * talk * (3.0 - 2.0 * talk);
 
     pRaw.y += Config::MOTION_Y_AMP * sin(time * Config::MOTION_Y_FREQ);
@@ -192,16 +219,34 @@ static float2 vortexField(float2 p, float2 center, float strength) {
 
     float spread = aspect * Config::SHAPE_SPREAD_FACTOR;
     float spin = Config::VORTEX_SPIN_BASE + Config::VORTEX_SPIN_AMP * breath;
-    float2 curl = vortexField(pRaw, float2(-spread, 0.0),  spin)
-                + vortexField(pRaw, float2( spread, 0.0), -spin);
+    float2 curl = float2(0.0);
+    if (detailClamped > 0.72) {
+        curl = vortexField(pRaw, float2(-spread, 0.0),  spin)
+             + vortexField(pRaw, float2( spread, 0.0), -spin);
+    }
 
     float bulge = 1.0 - 0.08 * breath * centerMask;
     float2 p = pRaw * bulge
              + wind * 0.22
-             + curl * (0.12 + 0.35 * breath);
+             + curl * ((0.12 + 0.35 * breath) * detailClamped);
 
-    float2 w = domainWarp(p * Config::WARP_SCALE, time * Config::WARP_TIME_SCALE);
-    float n = fbm(p * Config::FBM_NOISE_SCALE + w * (Config::FBM_WARP_SKEW_BASE + breath * 0.80) + float2(0.0, time * Config::FBM_TIME_FLOW));
+    float2 w;
+    float n;
+    if (detailClamped < 0.72) {
+        w = domainWarpFast(p * Config::WARP_SCALE, time * Config::WARP_TIME_SCALE);
+        n = fbmFast(
+            p * Config::FBM_NOISE_SCALE
+            + w * (0.76 + breath * 0.45)
+            + float2(0.0, time * Config::FBM_TIME_FLOW)
+        );
+    } else {
+        w = domainWarp(p * Config::WARP_SCALE, time * Config::WARP_TIME_SCALE);
+        n = fbm(
+            p * Config::FBM_NOISE_SCALE
+            + w * (Config::FBM_WARP_SKEW_BASE + breath * 0.80)
+            + float2(0.0, time * Config::FBM_TIME_FLOW)
+        );
+    }
     n = smoothstep(Config::SMOOTHSTEP_LOW, Config::SMOOTHSTEP_HIGH, n);
 
     float3 top = float3(colorTop.rgb);

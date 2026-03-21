@@ -153,7 +153,6 @@ final class MacDictationWorkflowController {
         refreshTargetApplication()
         activeWorkflow = .dictation
         activeRecordingSource = source
-        showTransientPanel()
         mediaResumeTask?.cancel()
         mediaResumeTask = nil
 
@@ -162,16 +161,24 @@ final class MacDictationWorkflowController {
             mediaPlaybackController.pausePlaybackIfNeeded()
         }
 
-        dictationViewModel.startCapture(activateWhenReady: true)
+        let shouldDelayActivationForPrompt = settings.interactionSoundsEnabled
+        dictationViewModel.startCapture(activateWhenReady: !shouldDelayActivationForPrompt)
+        showTransientPanel()
 
         startActivationTask?.cancel()
+        guard shouldDelayActivationForPrompt else {
+            startActivationTask = nil
+            return
+        }
+
         startActivationTask = Task { @MainActor [weak self] in
             guard let self else { return }
+            defer { startActivationTask = nil }
 
-            if settings.interactionSoundsEnabled {
-                await interactionSoundPlayer.playStartPrompt(preset: settings.interactionSoundPreset)
-            }
-            startActivationTask = nil
+            await interactionSoundPlayer.playStartPrompt(preset: settings.interactionSoundPreset)
+
+            guard !Task.isCancelled else { return }
+            dictationViewModel.activateCaptureWindow()
         }
     }
 

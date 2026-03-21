@@ -1,6 +1,7 @@
 #if os(macOS)
 import Foundation
 import SwiftUI
+import StetVisuals
 
 struct MacMenuBarView: View {
     @EnvironmentObject private var settingsShellViewModel: MacSettingsShellViewModel
@@ -33,18 +34,8 @@ struct MacMenuBarView: View {
         .task {
             AudioDeviceSelectionManager.shared.refreshDevices()
             AudioDeviceChangeMonitor.shared.startMonitoring()
-            
-            if #available(macOS 15.0, *) {
-                let shader = ShaderLibrary.cloudOrbGlassWide(
-                    .float2(CGSize(width: 250, height: 52)),
-                    .float(0),
-                    .float(0.1),
-                    .color(.white),
-                    .color(.white),
-                    .color(.white)
-                )
-                try? await shader.compile(as: .colorEffect)
-            }
+
+            await MacDictationCapsuleVisualShaderWarmup.prewarmIfAvailable()
         }
         .onDisappear {
             AudioDeviceChangeMonitor.shared.stopMonitoring()

@@ -7,7 +7,7 @@ import Testing
 @MainActor
 @Suite("Mac Audio File Recorder")
 struct MacAudioFileRecorderTests {
-    @Test func recordingSessionIgnoresBuffersBeforeActivationAndWritesBuffersAfterActivation() async throws {
+    @Test func recordingSessionBuffersAudioBeforeActivationAndWritesItOnceActivated() async throws {
         let outputFormat = try #require(TranscriptionUploadAudioFormat.makeMacOutputFormat())
         let inputFormat = try #require(
             AVAudioFormat(
@@ -43,8 +43,9 @@ struct MacAudioFileRecorderTests {
 
         let beforeActivation = try #require(try session.ingestConvertedBuffer(convertedBuffer))
         #expect(!beforeActivation.didWriteAudioFrames)
+        #expect(session.recordingOutcome().writtenFrameCount == 0)
 
-        session.activateRecordingWindow()
+        try session.activateRecordingWindow()
         let afterActivation = try #require(try session.ingestConvertedBuffer(convertedBuffer))
         #expect(afterActivation.didWriteAudioFrames)
 
@@ -52,7 +53,7 @@ struct MacAudioFileRecorderTests {
         session.close()
         recordingFile = nil
 
-        #expect(outcome.writtenFrameCount == AVAudioFramePosition(convertedBuffer.frameLength))
+        #expect(outcome.writtenFrameCount == AVAudioFramePosition(convertedBuffer.frameLength * 2))
         #expect(outcome.didWriteAudio)
     }
 

@@ -2,17 +2,18 @@
 import SwiftUI
 
 struct MacDictationShaderLayer: View {
-    let state: DictationState
+    let state: MacDictationCapsuleVisualState
     let mainWidth: CGFloat
     let controlHeight: CGFloat
     let startDate: Date
     let shaderFrameInterval: Double
     let displayLevel: Double
+    let isPaused: Bool
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: shaderFrameInterval, paused: false)) { timeline in
+        TimelineView(.animation(minimumInterval: shaderFrameInterval, paused: isPaused)) { timeline in
             let elapsed = timeline.date.timeIntervalSince(startDate)
-            
+
             let effectiveLevel: Double = {
                 if case .processing = state {
                     return 0.28 + 0.10 * sin(elapsed * 1.7) + 0.05 * sin(elapsed * 3.9)
@@ -20,18 +21,20 @@ struct MacDictationShaderLayer: View {
                     return displayLevel
                 }
             }()
-            
+
+            let shaderDetail = currentShaderDetail(effectiveLevel: effectiveLevel)
             let colors = currentShaderColors(elapsed: elapsed, effectiveLevel: effectiveLevel)
-            
+
             Capsule().fill(.white)
                 .colorEffect(
-                    ShaderLibrary.cloudOrbGlassWide(
-                        .float2(mainWidth, controlHeight),
-                        .float(elapsed),
-                        .float(effectiveLevel),
-                        .color(colors.top),
-                        .color(colors.mid),
-                        .color(colors.low)
+                    StetVisualsShaderLibrary.cloudOrbGlassWide(
+                        size: CGSize(width: mainWidth, height: controlHeight),
+                        time: elapsed,
+                        audio: effectiveLevel,
+                        detail: shaderDetail,
+                        top: colors.top,
+                        mid: colors.mid,
+                        low: colors.low
                     )
                 )
                 .frame(width: mainWidth, height: controlHeight)
@@ -39,10 +42,24 @@ struct MacDictationShaderLayer: View {
         }
     }
 
+    private func currentShaderDetail(effectiveLevel: Double) -> Double {
+        switch state {
+        case .starting:
+            let clampedLevel = min(max(effectiveLevel, 0.0), 1.0)
+            return min(0.68, 0.38 + clampedLevel * 0.45)
+        case .listening:
+            return 1.0
+        case .processing:
+            return 0.92
+        default:
+            return 0.52
+        }
+    }
+
     private func currentShaderColors(elapsed: Double, effectiveLevel: Double) -> (top: Color, mid: Color, low: Color) {
         let talk = min(max(effectiveLevel, 0.0), 1.0)
         let breath = talk * talk * (3.0 - 2.0 * talk)
-        
+
         let injection: Double
         let targetTop: (Double, Double, Double)
         let targetMid: (Double, Double, Double)
@@ -59,7 +76,7 @@ struct MacDictationShaderLayer: View {
             targetTop = MacDictationPanelConstants.Colors.topSpeaking
             targetMid = MacDictationPanelConstants.Colors.midSpeaking
             targetLow = MacDictationPanelConstants.Colors.lowSpeaking
-        case .result(_):
+        case .result:
             injection = 0.4
             targetTop = MacDictationPanelConstants.Colors.topSpeaking
             targetMid = MacDictationPanelConstants.Colors.midSpeaking

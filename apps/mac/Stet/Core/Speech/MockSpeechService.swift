@@ -5,6 +5,11 @@ struct MockSpeechService: SpeechService {
         try await Task.sleep(nanoseconds: 150_000_000)
     }
 
+    func startRecordingAndActivate() async throws {
+        try await startRecording()
+        try await activateRecordingWindow()
+    }
+
     func activateRecordingWindow() async throws {}
 
     func stopRecording() async throws -> String {

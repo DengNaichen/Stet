@@ -265,7 +265,7 @@ actor DictationStartupProbe {
             "StartupTrace id=\(session.id) trigger=\(session.trigger.rawValue) stage=\(stage.rawValue) sinceStartMs=\(roundedSinceStart) sincePreviousStageMs=\(roundedSincePreviousStage)\(noteSuffix)"
         )
 
-        if Self.terminalStages.contains(stage) {
+        if Self.shouldEndSession(afterRecording: stage, reachedStages: session.reachedStages) {
             activeSession = nil
         }
     }
@@ -306,11 +306,18 @@ actor DictationStartupProbe {
         }
     }
 
-    private static let terminalStages: Set<Stage> = [
-        .listeningStateEntered,
-        .failed,
-        .cancelled,
-    ]
+    private static func shouldEndSession(afterRecording stage: Stage, reachedStages: Set<Stage>) -> Bool {
+        if stage == .failed || stage == .cancelled {
+            return true
+        }
+
+        let completedSuccessStages: Set<Stage> = [
+            .firstBufferWritten,
+            .listeningStateEntered,
+        ]
+
+        return completedSuccessStages.isSubset(of: reachedStages)
+    }
 }
 
 actor DictationRuntimeProbe {

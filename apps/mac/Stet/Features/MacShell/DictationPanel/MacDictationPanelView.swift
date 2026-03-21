@@ -26,7 +26,6 @@ struct MacDictationPanelView: View {
                 // Scenario A: Standard Dictation Capsule
                 MacDictationCapsuleSurface(
                     viewModel: viewModel,
-                    layout: layout,
                     panelSize: panelSize
                 )
             }

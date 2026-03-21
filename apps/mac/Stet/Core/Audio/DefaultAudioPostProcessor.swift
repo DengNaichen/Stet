@@ -29,10 +29,30 @@ struct AudioPostProcessingResult: Sendable {
             shouldDiscardAsNoSpeech: true
         )
     }
+
+    static func rewritten(
+        sourceURL: URL,
+        rewrittenURL: URL,
+        duration: TimeInterval?
+    ) -> Self {
+        Self(
+            url: rewrittenURL,
+            duration: duration,
+            cleanupURLs: [sourceURL, rewrittenURL],
+            shouldDiscardAsNoSpeech: false
+        )
+    }
 }
 
 final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable {
-    init(settingsStore _: DictationSettingsStore = DictationSettingsStore()) {}
+    private let speechEnhancer: any SpeechEnhancing
+
+    init(
+        settingsStore _: DictationSettingsStore = DictationSettingsStore(),
+        speechEnhancer: (any SpeechEnhancing)? = nil
+    ) {
+        self.speechEnhancer = speechEnhancer ?? SpeechAwareGainProcessor()
+    }
 
     func processAudioFile(at sourceURL: URL, duration: TimeInterval?) async throws -> AudioPostProcessingResult {
         guard sourceURL.pathExtension.lowercased() == "wav" else {
@@ -42,8 +62,6 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
         let samples: [Float]
         let fileSampleRate: Double
         do {
-            // FluidAudio's AudioConverter facilitates loading and resampling.
-            // We'll also retrieve the actual sample rate from the file for the analyzer.
             let audioFile = try AVAudioFile(forReading: sourceURL)
             fileSampleRate = audioFile.fileFormat.sampleRate
             samples = try AudioConverter().resampleAudioFile(sourceURL)
@@ -55,8 +73,6 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
             return .passthrough(url: sourceURL, duration: duration)
         }
 
-        // Analyze the audio signal. We handle sample rate dynamically based on the file.
-        // Note: If AudioConverter is known to always resample to 16kHz, 16000 could be used directly.
         let analysis = try await AudioSignalAnalyzer.analyze(
             samples: samples,
             sampleRate: fileSampleRate
@@ -79,6 +95,30 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
                 category: .dictation
             )
             return .discard(url: sourceURL, duration: duration)
+        }
+
+        do {
+            let enhancement = try speechEnhancer.enhanceAudioFile(
+                at: sourceURL,
+                analysis: analysis
+            )
+
+            if enhancement.didRewriteAudio {
+                AppLogger.info(
+                    "Audio post-processing rewrote capture. outputURL=\(enhancement.outputURL.lastPathComponent)",
+                    category: .dictation
+                )
+                return .rewritten(
+                    sourceURL: sourceURL,
+                    rewrittenURL: enhancement.outputURL,
+                    duration: duration
+                )
+            }
+        } catch {
+            AppLogger.warning(
+                "Skipping speech enhancement because the output could not be rewritten. error=\(error.localizedDescription)",
+                category: .dictation
+            )
         }
 
         return .passthrough(url: sourceURL, duration: duration)
