@@ -1,6 +1,7 @@
 <script lang="ts">
 	import CtaSection from '$lib/components/CtaSection.svelte';
 	import HeroSection from '$lib/components/HeroSection.svelte';
+	import PricingSection from '$lib/components/PricingSection.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
 	import SiteNav from '$lib/components/SiteNav.svelte';
 	import TrustSection from '$lib/components/TrustSection.svelte';
@@ -23,6 +24,7 @@
 		<HeroSection {...siteContent.hero} />
 		<WorkflowSection {...siteContent.workflow} />
 		<TrustSection {...siteContent.privacy} />
+		<PricingSection {...siteContent.pricing} />
 		<CtaSection {...siteContent.cta} />
 	</main>
 

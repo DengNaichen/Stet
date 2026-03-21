@@ -28,8 +28,9 @@ coverage/
 out/
 *.tsbuildinfo
 *.log
+.wrangler/
 
 # Supabase local state
 supabase/.branches/
-supabase/.temp/
+supabase/...temp/
 .supabase/

@@ -13,7 +13,18 @@ export interface TranscribeOptions {
     prompt?: string;
 }
 
+export interface TextUsage {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+}
+
+export interface RewriteResult {
+    text: string;
+    usage: TextUsage;
+}
+
 export interface AIProvider {
     transcribe(audio: Uint8Array, options?: TranscribeOptions): Promise<{ text: string }>;
-    rewrite(text: string, systemPrompt: string): Promise<{ text: string }>;
+    rewrite(text: string, systemPrompt: string): Promise<RewriteResult>;
 }

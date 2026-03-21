@@ -2,21 +2,44 @@
 
 Managed-mode relay backend for `Stet`, built on Supabase Edge Functions.
 
+The relay core now talks to a swappable billing backend via `RelayBillingBackend`.
+That separation lets you keep the protocol and AI pipeline open source while moving
+the managed billing implementation to a private repo later.
+
 ## What it does
 
 - validates Supabase access tokens
-- lazily provisions per-user managed entitlements
-- enforces request-rate and weekly transcription quotas
+- lazily provisions per-user billing accounts
+- enforces request-rate limits and pay-as-you-go credit checks
 - transcribes audio via AI SDK (OpenAI / Groq)
 - optionally rewrites transcripts (controlled by client)
-- stores usage metadata only
+- stores usage and credit ledger metadata only
 
 ## What it does not do
 
-- billing
-- Stripe
+- subscription billing
+- automated recharge
 - client integration
 - transcript or audio storage
+
+## Billing backend modes
+
+- `managed` (default): current wallet + credit ledger + Stripe top-up behavior
+- `unmetered`: open-core/self-host mode with no wallet enforcement and no Stripe top-ups
+
+Set `RELAY_BILLING_BACKEND=managed` or `RELAY_BILLING_BACKEND=unmetered`.
+
+### Private split boundary
+
+If you want the public repo to exclude billing IP, the main files to move out are:
+
+- `supabase/functions/relay/managed_billing_backend.ts`
+- `supabase/functions/relay/billing.ts`
+- `supabase/functions/relay/usage.ts`
+- `supabase/migrations/20260318120000_payg_wallet_v1.sql`
+- `supabase/migrations/20260318123000_precision_model_billing_v1.sql`
+
+The relay entrypoint, auth middleware, AI pipeline, and client contract can stay public.
 
 ## Local setup
 
@@ -54,7 +77,11 @@ Returns relay status and provider info.
 
 ### `GET /functions/v1/relay/v1/me/quota`
 
-Returns current user quota and usage. Requires auth.
+Returns current wallet balance and usage summary. Requires auth.
+
+### `POST /functions/v1/relay/v1/billing/stripe/webhook`
+
+Stripe webhook for prepaid credit top-ups. Expects a valid `Stripe-Signature` header and event metadata containing `user_id` and `credits`.
 
 ### `POST /functions/v1/relay/v1/audio/transcriptions`
 
@@ -71,6 +98,7 @@ The main dictation pipeline endpoint. Requires auth.
 | Field | Required | Description |
 |-------|----------|-------------|
 | `file` | Yes | Audio file — WAV (macOS) or M4A (iOS) |
+| `audio_duration_seconds` | Yes | Duration of the audio clip in seconds |
 | `language` | No | ISO-639-1 locale code (e.g. `en`) |
 | `prompt` | No | Transcription prompt for improved accuracy |
 | `rewrite` | No | `"true"` to enable post-transcription cleanup |
@@ -95,5 +123,9 @@ The main dictation pipeline endpoint. Requires auth.
 ## Notes
 
 - Set `AI_PROVIDER` env var to `groq` (default) or `openai`.
-- Weekly transcription quota is billed from the raw transcription text using `max(min_billed_chars_per_transcription, normalized_transcription_chars)`.
+- ASR is billed by audio duration and rewrite is billed by model token usage.
+- Groq managed-mode defaults to `openai/gpt-oss-120b` for rewrite and `whisper-large-v3-turbo` for transcription.
+- The relay requires `audio_duration_seconds` for managed mode requests.
+- Credits are prepaid and deducted from the user's wallet before upstream calls. Failed upstream calls are refunded, and successful rewrite calls reconcile any difference between the pre-reserved and actual token-based cost.
+- Stripe top-ups are handled via the `/billing/stripe/webhook` endpoint and should include `metadata.user_id` and `metadata.credits`.
 - `BYOK` is out of scope for this backend and remains a direct path.
