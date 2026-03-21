@@ -1,5 +1,4 @@
 #if os(macOS)
-import AppKit
 import SwiftUI
 
 struct MacGeneralSettingsView: View {
@@ -7,10 +6,12 @@ struct MacGeneralSettingsView: View {
     @EnvironmentObject private var appUpdateManager: AppUpdateManager
 
     @StateObject private var viewModel = MacGeneralSettingsViewModel()
+    @ObservedObject private var deviceManager = AudioDeviceSelectionManager.shared
 
     var body: some View {
         Form {
             configurationSection
+            audioDeviceSection
             captureSection
             interactionSoundsSection
             appBehaviorSection
@@ -24,6 +25,9 @@ struct MacGeneralSettingsView: View {
         .task {
             viewModel.configure(appModel: settingsShellViewModel, appUpdateManager: appUpdateManager)
             viewModel.load()
+        }
+        .onAppear {
+            deviceManager.refreshDevices()
         }
     }
 
@@ -41,6 +45,10 @@ struct MacGeneralSettingsView: View {
         } header: {
             Text("Configuration")
         }
+    }
+
+    private var audioDeviceSection: some View {
+        AudioInputDeviceSettingsSection(deviceManager: deviceManager)
     }
 
     private var captureSection: some View {

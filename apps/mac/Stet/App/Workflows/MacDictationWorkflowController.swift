@@ -162,7 +162,7 @@ final class MacDictationWorkflowController {
             mediaPlaybackController.pausePlaybackIfNeeded()
         }
 
-        dictationViewModel.startCapture(activateWhenReady: false)
+        dictationViewModel.startCapture(activateWhenReady: true)
 
         startActivationTask?.cancel()
         startActivationTask = Task { @MainActor [weak self] in
@@ -171,10 +171,6 @@ final class MacDictationWorkflowController {
             if settings.interactionSoundsEnabled {
                 await interactionSoundPlayer.playStartPrompt(preset: settings.interactionSoundPreset)
             }
-
-            guard !Task.isCancelled else { return }
-            guard dictationViewModel.state == .starting else { return }
-            dictationViewModel.activateCaptureWindow()
             startActivationTask = nil
         }
     }

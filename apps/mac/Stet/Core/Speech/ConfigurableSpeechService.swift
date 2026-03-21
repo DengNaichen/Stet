@@ -219,7 +219,9 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     private func stopAudioLevelForwarding() {
         audioLevelTask?.cancel()
         audioLevelTask = nil
+        // Do not finish the bridge here. The same speech service instance is
+        // reused for the next capture, and closing the stream makes later UI
+        // sessions look dead even when audio is flowing again.
         audioLevelBridge.emit(0)
-        audioLevelBridge.finish()
     }
 }

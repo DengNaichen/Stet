@@ -24,4 +24,8 @@ enum MacPreferences {
     nonisolated static let showInDock = "mac.showInDock"
     nonisolated static let hotkeyDebugLoggingEnabled = "mac.hotkeyDebugLoggingEnabled"
     nonisolated static let openAIDebugLoggingEnabled = "mac.openAIDebugLoggingEnabled"
+    
+    // Audio device selection
+    nonisolated static let audioDeviceSelectionStrategy = "mac.audioDeviceSelectionStrategy"
+    nonisolated static let preferredAudioInputDeviceUID = "mac.preferredAudioInputDeviceUID"
 }

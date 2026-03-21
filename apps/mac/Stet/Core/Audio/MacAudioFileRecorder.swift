@@ -153,6 +153,18 @@ final class MacAudioFileRecordingSession {
 }
 
 final class MacAudioFileRecorder: @unchecked Sendable {
+    private struct InputDeviceCandidate {
+        let device: AudioHardwareDevice?
+        let reason: Reason
+
+        enum Reason: String {
+            case selected
+            case noExplicitDeviceFallback
+            case builtInFallback
+            case systemDefaultFallback
+        }
+    }
+
     struct VoiceProcessingConfigurationResult: Sendable {
         let enabled: Bool
         let fallbackReason: String?
@@ -205,55 +217,42 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     ) throws {
         precondition(currentSession() == nil, "MacAudioFileRecorder is already recording.")
 
-        let engine = AVAudioEngine()
-        stateLock.lock()
-        audioEngine = engine
-        stateLock.unlock()
+        let candidates = inputDeviceCandidates()
+        var startupError: Error?
 
-        let inputNode = engine.inputNode
-        let inputDevice = AudioInputDeviceManager.defaultInputDevice()
-        
-        if let defaultDeviceID = inputDevice?.id {
+        for candidate in candidates {
             do {
-                try inputNode.auAudioUnit.setDeviceID(defaultDeviceID)
+                try startRecordingAttempt(
+                    to: fileURL,
+                    outputFormat: outputFormat,
+                    inputDevice: candidate.device
+                )
+                if candidate.reason != .selected {
+                    AppLogger.info(
+                        "macOS capture recovered using fallback input device strategy. reason=\(candidate.reason.rawValue), device=\(candidate.device?.name ?? "systemDefault")",
+                        category: .dictation
+                    )
+                }
+                return
             } catch {
+                startupError = error
                 AppLogger.warning(
-                    "Failed to set explicit input device ID on AVAudioEngine. error=\(error.localizedDescription)",
+                    "macOS capture attempt failed. reason=\(candidate.reason.rawValue), device=\(candidate.device?.name ?? "systemDefault"), error=\(error.localizedDescription)",
                     category: .dictation
                 )
+                _ = finishSession()
+                Thread.sleep(forTimeInterval: 0.1)
             }
         }
-        
-        let outputNode = engine.outputNode
-        let voiceProcessing = configureVoiceProcessing(inputNode, outputNode, inputDevice)
-        let recordingFile = try AVAudioFile(
-            forWriting: fileURL,
-            settings: outputFormat.settings,
-            commonFormat: outputFormat.commonFormat,
-            interleaved: outputFormat.isInterleaved
-        )
-        let recordingSession = MacAudioFileRecordingSession(
-            recordingFile: recordingFile,
-            outputFormat: outputFormat,
-            voiceProcessingEnabled: voiceProcessing.enabled,
-            voiceProcessingFallbackReason: voiceProcessing.fallbackReason
-        )
-        firstBufferLock.lock()
-        hasWrittenFirstRecordedBuffer = false
-        firstBufferLock.unlock()
 
-        do {
-            try startRecordingSession(
-                recordingSession,
-                on: inputNode,
-                outputNode: outputNode,
-                outputFormat: outputFormat,
-                voiceProcessing: voiceProcessing
+        if let startupError {
+            AppLogger.error(
+                "All macOS capture input device candidates failed. error=\(startupError.localizedDescription)",
+                category: .dictation
             )
-        } catch {
-            _ = finishSession()
-            throw error
         }
+
+        throw SpeechServiceError.failedToStart
     }
 
     nonisolated func activateRecordingWindow() {
@@ -285,7 +284,8 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         on inputNode: AVAudioInputNode,
         outputNode: AVAudioOutputNode,
         outputFormat: AVAudioFormat,
-        voiceProcessing: VoiceProcessingConfigurationResult
+        voiceProcessing: VoiceProcessingConfigurationResult,
+        inputDevice: AudioHardwareDevice?
     ) throws {
         let tapFormat = inputNode.outputFormat(forBus: 0)
         _ = try recordingSession.snapshot(for: tapFormat)
@@ -293,7 +293,6 @@ final class MacAudioFileRecorder: @unchecked Sendable {
 
         try startEngine(on: inputNode, tapFormat: tapFormat)
 
-        let inputDevice = AudioInputDeviceManager.defaultInputDevice()
         let outputDevice = AudioInputDeviceManager.defaultOutputDevice()
         AppLogger.info(
             """
@@ -316,6 +315,90 @@ final class MacAudioFileRecorder: @unchecked Sendable {
             """,
             category: .dictation
         )
+    }
+
+    nonisolated private func startRecordingAttempt(
+        to fileURL: URL,
+        outputFormat: AVAudioFormat,
+        inputDevice: AudioHardwareDevice?
+    ) throws {
+        let engine = AVAudioEngine()
+        stateLock.lock()
+        audioEngine = engine
+        stateLock.unlock()
+
+        let inputNode = engine.inputNode
+        if let inputDevice {
+            try inputNode.auAudioUnit.setDeviceID(inputDevice.id)
+        }
+
+        let outputNode = engine.outputNode
+        let voiceProcessing = configureVoiceProcessing(inputNode, outputNode, inputDevice)
+        let recordingFile = try AVAudioFile(
+            forWriting: fileURL,
+            settings: outputFormat.settings,
+            commonFormat: outputFormat.commonFormat,
+            interleaved: outputFormat.isInterleaved
+        )
+        let recordingSession = MacAudioFileRecordingSession(
+            recordingFile: recordingFile,
+            outputFormat: outputFormat,
+            voiceProcessingEnabled: voiceProcessing.enabled,
+            voiceProcessingFallbackReason: voiceProcessing.fallbackReason
+        )
+        firstBufferLock.lock()
+        hasWrittenFirstRecordedBuffer = false
+        firstBufferLock.unlock()
+
+        do {
+            try startRecordingSession(
+                recordingSession,
+                on: inputNode,
+                outputNode: outputNode,
+                outputFormat: outputFormat,
+                voiceProcessing: voiceProcessing,
+                inputDevice: inputDevice
+            )
+        } catch {
+            _ = finishSession()
+            throw error
+        }
+    }
+
+    nonisolated private func inputDeviceCandidates() -> [InputDeviceCandidate] {
+        let selectedDevice = AudioDeviceSelectionManager.shared.currentRecordingDevice()
+        let builtInDevice = AudioInputDeviceManager.builtInInputDevice()
+        let defaultInputDevice = AudioInputDeviceManager.defaultInputDevice()
+
+        var candidates: [InputDeviceCandidate] = []
+        var seenUIDs = Set<String>()
+        var hasSystemDefaultCandidate = false
+
+        func append(_ device: AudioHardwareDevice?, reason: InputDeviceCandidate.Reason) {
+            if let device {
+                guard seenUIDs.insert(device.uid).inserted else {
+                    return
+                }
+            } else {
+                guard !hasSystemDefaultCandidate else {
+                    return
+                }
+                hasSystemDefaultCandidate = true
+            }
+
+            candidates.append(InputDeviceCandidate(device: device, reason: reason))
+        }
+
+        // Keep the most conservative fallback near the front. If explicit device
+        // binding destabilizes the CoreAudio graph on a given machine, the next
+        // attempt should be "same session, no explicit device ID" before we try
+        // alternative hardware routes.
+        append(selectedDevice, reason: .selected)
+        append(nil, reason: .noExplicitDeviceFallback)
+        append(builtInDevice, reason: .builtInFallback)
+        append(defaultInputDevice, reason: .systemDefaultFallback)
+
+        return candidates
     }
 
     nonisolated private func startEngine(
@@ -539,19 +622,13 @@ final class MacAudioFileRecorder: @unchecked Sendable {
             )
         }
 
-        // Keep the capture path raw for now. The built-in Voice Processing
-        // path can reshape mic audio enough to hurt ASR fidelity, and the app
-        // already pauses media / hides prompt audio separately.
-        try? inputNode.setVoiceProcessingEnabled(false)
-        try? outputNode.setVoiceProcessingEnabled(false)
-        inputNode.isVoiceProcessingBypassed = true
-        AppLogger.info(
-            "Using raw macOS capture without Apple Voice Processing.",
-            category: .dictation
-        )
+        // Leaving voice-processing untouched on non-Bluetooth routes is more
+        // stable than forcing the graph into a specific VP state. Recent runtime
+        // failures on macOS were triggered by toggling VP for built-in capture.
+        AppLogger.info("Using raw macOS capture without changing Apple Voice Processing state.", category: .dictation)
         return VoiceProcessingConfigurationResult(
             enabled: false,
-            fallbackReason: "voice processing disabled for capture fidelity"
+            fallbackReason: "voice processing untouched for non-bluetooth capture"
         )
     }
 

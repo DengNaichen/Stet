@@ -238,6 +238,8 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             throw SpeechServiceError.failedToStart
         }
 
+        let selectedInputDevice = AudioDeviceSelectionManager.shared.currentRecordingDevice()
+            ?? AudioInputDeviceManager.defaultInputDevice()
         let fileURL = makeRecordingFileURL()
         try macAudioFileRecorder.startRecording(
             to: fileURL,
@@ -247,12 +249,12 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         isRecording = true
         audioLevelBridge.emit(0.08)
 
-        if let defaultInputDevice = AudioInputDeviceManager.defaultInputDevice() {
+        if let selectedInputDevice {
             AppLogger.info(
                 """
-                Using system-default macOS dictation input device. \
-                name=\(defaultInputDevice.name), \
-                transportType=\(defaultInputDevice.transportType)
+                Using macOS dictation input device. \
+                name=\(selectedInputDevice.name), \
+                transportType=\(selectedInputDevice.transportType)
                 """,
                 category: .dictation
             )
@@ -309,9 +311,9 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         }
         meteringTask?.cancel()
         meteringTask = nil
+        // The capture service is reused across sessions. Emitting silence keeps
+        // the current UI honest without tearing down the stream permanently.
         audioLevelBridge.emit(0)
-        audioLevelBridge.finish()
-        audioLevelBridge.finish()
     }
 
     nonisolated private static var microphoneAuthorizationStatusDescription: String {

@@ -9,6 +9,10 @@ struct MacMenuBarView: View {
 
     var body: some View {
         Group {
+            AudioInputDeviceMenuSection()
+            
+            Divider()
+            
             Button("Settings…") {
                 settingsShellViewModel.openSettings {
                     openWindow(id: MacWindowSceneID.preferences)
@@ -27,6 +31,9 @@ struct MacMenuBarView: View {
             }
         }
         .task {
+            AudioDeviceSelectionManager.shared.refreshDevices()
+            AudioDeviceChangeMonitor.shared.startMonitoring()
+            
             if #available(macOS 15.0, *) {
                 let shader = ShaderLibrary.cloudOrbGlassWide(
                     .float2(CGSize(width: 250, height: 52)),
@@ -38,6 +45,9 @@ struct MacMenuBarView: View {
                 )
                 try? await shader.compile(as: .colorEffect)
             }
+        }
+        .onDisappear {
+            AudioDeviceChangeMonitor.shared.stopMonitoring()
         }
     }
 
@@ -55,4 +65,3 @@ struct MacMenuBarView: View {
     }
 }
 #endif
-

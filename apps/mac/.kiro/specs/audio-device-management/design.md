@@ -319,42 +319,66 @@ struct MicrophoneTestView: View {
 
 ### 6. Menu Bar 快速切换
 
-在 Menu Bar 中添加设备切换菜单：
+**设计决策：使用 SwiftUI MenuBarExtra**
+
+项目已经使用 SwiftUI 的 `MenuBarExtra` 和 `MacMenuBarView` 来实现菜单栏。为了保持架构一致性，设备切换功能将直接集成到现有的 SwiftUI 菜单中，而不是使用 AppKit 的 `NSMenu`。
+
+在 `MacMenuBarView` 中添加设备选择部分：
 
 ```swift
-@MainActor
-final class MenuBarDeviceSwitcher {
-    private let deviceManager: AudioDeviceSelectionManager
+struct AudioDeviceMenuSection: View {
+    @ObservedObject var deviceManager = AudioDeviceSelectionManager.shared
     
-    init(deviceManager: AudioDeviceSelectionManager = .shared)
-    
-    /// 构建设备切换菜单
-    func buildDeviceMenu() -> NSMenu {
-        let menu = NSMenu()
-        
-        for device in deviceManager.availableDevices {
-            let item = NSMenuItem(
-                title: device.name,
-                action: #selector(deviceSelected(_:)),
-                keyEquivalent: ""
-            )
-            item.representedObject = device.uid
-            item.state = device.uid == deviceManager.selectedDevice?.uid ? .on : .off
-            menu.addItem(item)
+    var body: some View {
+        Section("Microphone") {
+            ForEach(deviceManager.availableDevices, id: \.uid) { device in
+                Button {
+                    deviceManager.selectDevice(device)
+                } label: {
+                    HStack {
+                        Text(device.name)
+                        Spacer()
+                        if device.uid == deviceManager.selectedDevice?.uid {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
         }
-        
-        return menu
-    }
-    
-    @objc private func deviceSelected(_ sender: NSMenuItem) {
-        guard let uid = sender.representedObject as? String,
-              let device = deviceManager.availableDevices.first(where: { $0.uid == uid }) else {
-            return
-        }
-        deviceManager.selectDevice(device)
     }
 }
 ```
+
+集成到 `MacMenuBarView`：
+
+```swift
+struct MacMenuBarView: View {
+    // ... 现有代码 ...
+    
+    var body: some View {
+        Group {
+            AudioDeviceMenuSection()
+            
+            Divider()
+            
+            Button("Settings…") {
+                // ... 现有代码 ...
+            }
+            
+            // ... 其他菜单项 ...
+        }
+        .onAppear {
+            AudioDeviceSelectionManager.shared.refreshDevices()
+        }
+    }
+}
+```
+
+**优势：**
+- 与现有架构完全一致（纯 SwiftUI）
+- 代码更简洁，无需 AppKit 的 target-action 模式
+- 自动响应 `@Published` 属性变化
+- 更易于测试和维护
 
 ### 7. Onboarding 麦克风测试
 

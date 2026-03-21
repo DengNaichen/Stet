@@ -1,14 +1,6 @@
 #if os(macOS)
 import CoreAudio
 import Foundation
-import Combine
-
-struct AudioHardwareDevice: Equatable, Sendable {
-    let id: AudioDeviceID
-    let uid: String
-    let name: String
-    let transportType: UInt32
-}
 
 enum AudioInputDeviceManager {
     nonisolated static func defaultInputDeviceID() -> AudioDeviceID? {
@@ -25,6 +17,10 @@ enum AudioInputDeviceManager {
         }
 
         return hardwareDevice(deviceID: deviceID)
+    }
+
+    nonisolated static func builtInInputDevice() -> AudioHardwareDevice? {
+        allInputDevices().first(where: \.isBuiltIn)
     }
 
     nonisolated static func defaultOutputDevice() -> AudioHardwareDevice? {
@@ -53,7 +49,7 @@ enum AudioInputDeviceManager {
             &deviceID
         )
         guard status == noErr, deviceID != 0 else {
-            AppLogger.warning("Failed to read default input device. status=\(status), deviceID=\(deviceID)")
+            AppLogger.warning("Failed to read default audio device. status=\(status), deviceID=\(deviceID)")
             return nil
         }
 
@@ -145,125 +141,165 @@ enum AudioInputDeviceManager {
         guard status == noErr else { return nil }
         return String(cString: buffer)
     }
-}
 
-// MARK: - Interface Stubs for Compilation Testing
+    // MARK: - Device Enumeration
 
-protocol AudioDeviceProviding: Sendable {
-    func allInputDevices() -> [AudioHardwareDevice]
-    func defaultInputDevice() -> AudioHardwareDevice?
-}
+    /// Get all available audio input devices
+    /// - Returns: Array of input devices, or empty array on failure
+    nonisolated static func allInputDevices() -> [AudioHardwareDevice] {
+        // Query CoreAudio for all audio devices
+        var propertyAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
 
-struct SystemAudioDeviceProvider: AudioDeviceProviding {
-    func allInputDevices() -> [AudioHardwareDevice] { [] }
-    func defaultInputDevice() -> AudioHardwareDevice? { nil }
-}
+        var dataSize: UInt32 = 0
+        var status = AudioObjectGetPropertyDataSize(
+            AudioObjectID(kAudioObjectSystemObject),
+            &propertyAddress,
+            0,
+            nil,
+            &dataSize
+        )
+        guard status == noErr else {
+            AppLogger.warning("Failed to get audio devices data size. status=\(status)")
+            return []
+        }
 
-@MainActor
-final class AudioDeviceSelectionManager: ObservableObject {
-    static let shared = AudioDeviceSelectionManager(provider: SystemAudioDeviceProvider())
-    
-    private let provider: AudioDeviceProviding
-    private let recordingDeviceLock = NSLock()
-    nonisolated(unsafe) private var _cachedRecordingDevice: AudioHardwareDevice?
-    
-    @Published private(set) var selectedDevice: AudioHardwareDevice? {
-        didSet {
-            recordingDeviceLock.lock()
-            _cachedRecordingDevice = selectedDevice
-            recordingDeviceLock.unlock()
+        let deviceCount = Int(dataSize) / MemoryLayout<AudioDeviceID>.size
+        var deviceIDs = [AudioDeviceID](repeating: 0, count: deviceCount)
+        
+        status = AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject),
+            &propertyAddress,
+            0,
+            nil,
+            &dataSize,
+            &deviceIDs
+        )
+        guard status == noErr else {
+            AppLogger.warning("Failed to get audio devices. status=\(status)")
+            return []
+        }
+
+        // Filter devices to only include those with input channels
+        return deviceIDs.compactMap { deviceID in
+            guard hasInputChannels(deviceID: deviceID),
+                  let device = hardwareDevice(deviceID: deviceID) else {
+                return nil
+            }
+            return device
         }
     }
-    
-    @Published private(set) var availableDevices: [AudioHardwareDevice] = []
-    
-    enum SelectionStrategy: String, Codable {
-        case automatic
-        case manual
-    }
-    
-    @Published var strategy: SelectionStrategy = .automatic
-    @Published var preferredDeviceUID: String?
-    
-    init(provider: AudioDeviceProviding) {
-        self.provider = provider
-    }
-    
-    nonisolated func currentRecordingDevice() -> AudioHardwareDevice? {
-        recordingDeviceLock.lock()
-        defer { recordingDeviceLock.unlock() }
-        return _cachedRecordingDevice
-    }
-    
-    func refreshDevices() {}
-    func selectDevice(_ device: AudioHardwareDevice) {}
-    func resetToAutomatic() {}
-    func deviceForRecording() -> AudioHardwareDevice? { return nil }
-    private func selectBestQualityDevice(from devices: [AudioHardwareDevice]) -> AudioHardwareDevice? { return nil }
-}
 
-final class AudioDeviceChangeMonitor {
-    static let shared = AudioDeviceChangeMonitor()
-    static let devicesDidChangeNotification = Notification.Name("AudioDevicesDidChange")
-    private var propertyListenerBlock: AudioObjectPropertyListenerBlock?
-    
-    init() {}
-    func startMonitoring() {}
-    func stopMonitoring() {}
-    deinit {}
-}
-
-@MainActor
-protocol AudioTestService {
-    func startRecording() async throws
-    func stopRecording() async throws -> URL
-    func playRecording(at url: URL) async throws
-    func stopPlayback()
-    func makeAudioLevelStream() -> AsyncStream<Double>
-}
-
-final class DefaultAudioTestService: AudioTestService {
-    // Assuming AudioCaptureService exists, using Any for stub
-    init(captureService: Any? = nil) {}
-    func startRecording() async throws {}
-    func stopRecording() async throws -> URL { return URL(fileURLWithPath: "") }
-    func playRecording(at url: URL) async throws {}
-    func stopPlayback() {}
-    func makeAudioLevelStream() -> AsyncStream<Double> {
-        AsyncStream { continuation in
-            continuation.finish()
+    /// Get device by AudioDeviceID
+    /// - Parameter deviceID: The device ID
+    /// - Returns: AudioHardwareDevice if device exists and has input channels, nil otherwise
+    nonisolated static func inputDevice(id deviceID: AudioDeviceID) -> AudioHardwareDevice? {
+        guard hasInputChannels(deviceID: deviceID),
+              let device = hardwareDevice(deviceID: deviceID) else {
+            return nil
         }
+        return device
+    }
+
+    /// Get device by UID string
+    /// - Parameter uid: The device UID (persistent identifier)
+    /// - Returns: AudioHardwareDevice if device exists and has input channels, nil otherwise
+    nonisolated static func inputDevice(uid: String) -> AudioHardwareDevice? {
+        // Query CoreAudio to find device by UID
+        var propertyAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        var dataSize: UInt32 = 0
+        var status = AudioObjectGetPropertyDataSize(
+            AudioObjectID(kAudioObjectSystemObject),
+            &propertyAddress,
+            0,
+            nil,
+            &dataSize
+        )
+        guard status == noErr else {
+            return nil
+        }
+
+        let deviceCount = Int(dataSize) / MemoryLayout<AudioDeviceID>.size
+        var deviceIDs = [AudioDeviceID](repeating: 0, count: deviceCount)
+        
+        status = AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject),
+            &propertyAddress,
+            0,
+            nil,
+            &dataSize,
+            &deviceIDs
+        )
+        guard status == noErr else {
+            return nil
+        }
+
+        // Find device with matching UID
+        for deviceID in deviceIDs {
+            guard let deviceUID = deviceUID(deviceID: deviceID),
+                  deviceUID == uid,
+                  hasInputChannels(deviceID: deviceID),
+                  let device = hardwareDevice(deviceID: deviceID) else {
+                continue
+            }
+            return device
+        }
+
+        return nil
+    }
+
+    /// Check if device has input channels
+    /// - Parameter deviceID: The device ID
+    /// - Returns: true if device has at least one input channel, false otherwise or on error
+    nonisolated static func hasInputChannels(deviceID: AudioDeviceID) -> Bool {
+        var propertyAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyStreamConfiguration,
+            mScope: kAudioDevicePropertyScopeInput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        var dataSize: UInt32 = 0
+        let status = AudioObjectGetPropertyDataSize(
+            deviceID,
+            &propertyAddress,
+            0,
+            nil,
+            &dataSize
+        )
+        guard status == noErr else {
+            return false
+        }
+
+        let bufferListPointer = UnsafeMutableRawPointer.allocate(
+            byteCount: Int(dataSize),
+            alignment: MemoryLayout<AudioBufferList>.alignment
+        )
+        defer { bufferListPointer.deallocate() }
+
+        let getStatus = AudioObjectGetPropertyData(
+            deviceID,
+            &propertyAddress,
+            0,
+            nil,
+            &dataSize,
+            bufferListPointer
+        )
+        guard getStatus == noErr else {
+            return false
+        }
+
+        let bufferList = UnsafeMutableAudioBufferListPointer(
+            bufferListPointer.assumingMemoryBound(to: AudioBufferList.self)
+        )
+        return bufferList.contains(where: { $0.mNumberChannels > 0 })
     }
 }
-
-@MainActor
-final class MicrophoneTestViewModel: ObservableObject {
-    @Published var isRecording = false
-    @Published var isPlaying = false
-    @Published var audioLevel: Double = 0.0
-    @Published var hasRecording = false
-    
-    private let audioTestService: AudioTestService
-    
-    init(audioTestService: AudioTestService) {
-        self.audioTestService = audioTestService
-    }
-    
-    func startRecording() async throws {}
-    func stopRecording() async throws {}
-    func playRecording() async throws {}
-    func stopPlayback() {}
-}
-
-@MainActor
-final class MenuBarDeviceSwitcher {
-    private let deviceManager: AudioDeviceSelectionManager
-    
-    init(deviceManager: AudioDeviceSelectionManager) {
-        self.deviceManager = deviceManager
-    }
-    
-    func buildDeviceMenu() -> Any { return "Menu" } // Using Any for stub since NSMenu requires AppKit
-}
-
 #endif
