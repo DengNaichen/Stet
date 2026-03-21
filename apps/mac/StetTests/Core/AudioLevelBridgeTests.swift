@@ -26,4 +26,27 @@ struct AudioLevelBridgeTests {
         #expect(endA == nil)
         #expect(endB == nil)
     }
+
+    @Test func streamContinuesDeliveringValuesUntilExplicitFinish() async {
+        let bridge = AudioLevelBridge()
+        let stream = bridge.makeStream()
+        var iterator = stream.makeAsyncIterator()
+
+        bridge.emit(0.1)
+        let firstValue = await iterator.next()
+
+        bridge.emit(0)
+        let silenceValue = await iterator.next()
+
+        bridge.emit(0.4)
+        let secondValue = await iterator.next()
+
+        bridge.finish()
+        let end = await iterator.next()
+
+        #expect(firstValue == 0.1)
+        #expect(silenceValue == 0)
+        #expect(secondValue == 0.4)
+        #expect(end == nil)
+    }
 }

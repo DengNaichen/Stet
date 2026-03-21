@@ -78,15 +78,15 @@ private func makeDictationService(
 
 @Suite("Configurable Speech Service", .serialized)
 struct ConfigurableSpeechServiceTests {
-    private actor EventLog {
-        private var events: [AudioCaptureEvent] = []
+    private actor LevelLog {
+        private var levels: [Double] = []
 
-        func append(_ event: AudioCaptureEvent) {
-            events.append(event)
+        func append(_ level: Double) {
+            levels.append(level)
         }
 
-        func snapshot() -> [AudioCaptureEvent] {
-            events
+        func snapshot() -> [Double] {
+            levels
         }
     }
 
@@ -216,49 +216,6 @@ struct ConfigurableSpeechServiceTests {
         }
     }
 
-    @Test func captureEventsAreForwardedOnlyWhileRecordingIsActive() async throws {
-        let audioFileURL = makeAudioFileURL()
-        defer { try? FileManager.default.removeItem(at: audioFileURL) }
-
-        let direct = TestTranscriptionService(result: "source")
-        let relay = TestTranscriptionService(result: "relay")
-        let rewrite = RecordingRewriteService()
-        let (store, _, _) = try makeSettingsStore()
-        let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
-        let service = ConfigurableSpeechService(
-            settingsStore: store,
-            pipelineFactory: DictationPipelineFactory(
-                relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
-                makeRelayTranscriptionService: { _, _, _, _ in relay },
-                makeRewriteService: { _, _ in rewrite }
-            ),
-            captureService: capture
-        )
-
-        let eventStream = await service.makeAudioCaptureEventStream()
-        let eventLog = EventLog()
-        let eventTask = Task<[AudioCaptureEvent], Never> {
-            for await event in eventStream {
-                await eventLog.append(event)
-            }
-            return await eventLog.snapshot()
-        }
-
-        try await service.startRecording()
-        await capture.emitCaptureEvent(.endpointDetected)
-        #expect(
-            await TestSupport.eventuallyAsync {
-                await eventLog.snapshot() == [.endpointDetected]
-            }
-        )
-        await service.cancelRecording()
-        await capture.emitCaptureEvent(.endpointDetected)
-
-        let receivedEvents = await eventTask.value
-        #expect(receivedEvents == [.endpointDetected])
-    }
-
     @Test func activateRecordingWindowForwardsToCaptureService() async throws {
         let audioFileURL = makeAudioFileURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
@@ -285,6 +242,64 @@ struct ConfigurableSpeechServiceTests {
         #expect(await capture.counts().activate == 1)
 
         await service.cancelRecording()
+    }
+
+    @Test func audioLevelStreamSurvivesMultipleRecordingSessions() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: "source")
+        let relay = TestTranscriptionService(result: "relay")
+        let rewrite = RecordingRewriteService()
+        let (store, _, _) = try makeSettingsStore()
+        let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { nil },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            captureService: capture
+        )
+
+        let levelLog = LevelLog()
+        let stream = await service.makeAudioLevelStream()
+        let levelTask = Task<Void, Never> {
+            for await level in stream {
+                await levelLog.append(level)
+            }
+        }
+        defer { levelTask.cancel() }
+
+        try await service.startRecording()
+        await capture.emitAudioLevel(0.2)
+        #expect(
+            await TestSupport.eventuallyAsync {
+                await levelLog.snapshot().contains(0.2)
+            }
+        )
+
+        _ = try await service.stopRecording()
+        #expect(
+            await TestSupport.eventuallyAsync {
+                await levelLog.snapshot().contains(0)
+            }
+        )
+
+        try await service.startRecording()
+        await capture.emitAudioLevel(0.6)
+        #expect(
+            await TestSupport.eventuallyAsync {
+                await levelLog.snapshot().contains(0.6)
+            }
+        )
+
+        await service.cancelRecording()
+        let finalLevels = await levelLog.snapshot()
+        #expect(finalLevels.contains(0.2))
+        #expect(finalLevels.contains(0.6))
     }
 
     @Test func automaticWithoutSessionUsesDirectPathAndLocalRewrite() async throws {
@@ -489,7 +504,7 @@ struct ConfigurableSpeechServiceTests {
         }
     }
 
-    @Test func silentAudioStillReachesTranscription() async throws {
+    @Test func silentAudioIsDiscardedBeforeTranscription() async throws {
         let audioFileURL = try Self.makeSilentAudioFileURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
 
@@ -510,10 +525,11 @@ struct ConfigurableSpeechServiceTests {
         )
 
         try await service.startRecording()
-        let transcript = try await service.stopRecording()
+        await #expect(throws: SpeechServiceError.emptyTranscription) {
+            try await service.stopRecording()
+        }
 
-        #expect(transcript == "should not be used")
-        #expect(await direct.callCount() == 1)
+        #expect(await direct.callCount() == 0)
         #expect(await relay.callCount() == 0)
         #expect(await rewrite.recordedRequests().isEmpty)
     }
@@ -616,9 +632,9 @@ extension ConfigurableSpeechServiceTests {
     }
 }
 
-private actor TestAudioCaptureService: AudioCaptureService, AudioLevelSource, AudioCaptureEventSource {
+private actor TestAudioCaptureService: AudioCaptureService, AudioLevelSource {
     private let audioFileURL: URL
-    private let audioCaptureEventBridge = AudioCaptureEventBridge()
+    private let audioLevelBridge = AudioLevelBridge()
     private var startCount = 0
     private var activationCount = 0
     private var stopCount = 0
@@ -645,25 +661,20 @@ private actor TestAudioCaptureService: AudioCaptureService, AudioLevelSource, Au
 
     func cancelRecording() async {
         cancelCount += 1
-        audioCaptureEventBridge.finish()
     }
+
+    func prewarm() async {}
 
     func counts() -> (start: Int, activate: Int, stop: Int, cancel: Int) {
         (startCount, activationCount, stopCount, cancelCount)
     }
 
     func makeAudioLevelStream() async -> AsyncStream<Double> {
-        AsyncStream { continuation in
-            continuation.finish()
-        }
+        audioLevelBridge.makeStream()
     }
 
-    func emitCaptureEvent(_ event: AudioCaptureEvent) {
-        audioCaptureEventBridge.emit(event)
-    }
-
-    func makeAudioCaptureEventStream() async -> AsyncStream<AudioCaptureEvent> {
-        audioCaptureEventBridge.makeStream()
+    func emitAudioLevel(_ level: Double) {
+        audioLevelBridge.emit(level)
     }
 }
 

@@ -151,20 +151,4 @@ struct DictationViewModelTests {
         #expect(await TestSupport.eventually { viewModel.state == .idle })
     }
 
-    @Test func endpointEventTriggersStopWithoutManualAction() async throws {
-        let speechService = ControllableSpeechService()
-        await speechService.setStopBehavior(.suspended)
-        let viewModel = DictationViewModel(speechService: speechService)
-
-        viewModel.startCapture()
-        #expect(await TestSupport.eventually { viewModel.state == .listening })
-
-        await speechService.emitCaptureEvent(.endpointDetected)
-
-        #expect(await TestSupport.eventually { viewModel.state == .processing })
-        #expect(await TestSupport.eventuallyAsync { await speechService.counts().stop == 1 })
-
-        await speechService.finishStop(with: "auto stopped")
-        #expect(await TestSupport.eventually { viewModel.state == .result("auto stopped") })
-    }
 }

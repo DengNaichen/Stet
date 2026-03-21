@@ -175,7 +175,7 @@ final class TestTextInjectionService: TextInjectionService {
     }
 }
 
-actor ControllableSpeechService: SpeechService, AudioLevelSource, AudioCaptureEventSource {
+actor ControllableSpeechService: SpeechService, AudioLevelSource {
     enum StartBehavior: Sendable {
         case immediate
         case suspended
@@ -195,7 +195,6 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource, AudioCaptureEv
     }
 
     private let audioLevelBridge = AudioLevelBridge()
-    private let audioCaptureEventBridge = AudioCaptureEventBridge()
     private var startContinuation: CheckedContinuation<Void, Error>?
     private var activationContinuation: CheckedContinuation<Void, Error>?
     private var stopContinuation: CheckedContinuation<String, Error>?
@@ -278,8 +277,9 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource, AudioCaptureEv
         stopContinuation?.resume(throwing: CancellationError())
         stopContinuation = nil
         audioLevelBridge.finish()
-        audioCaptureEventBridge.finish()
     }
+
+    func prewarm() async {}
 
     func allowStart() {
         startContinuation?.resume(returning: ())
@@ -311,14 +311,6 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource, AudioCaptureEv
 
     func makeAudioLevelStream() async -> AsyncStream<Double> {
         audioLevelBridge.makeStream()
-    }
-
-    func emitCaptureEvent(_ event: AudioCaptureEvent) {
-        audioCaptureEventBridge.emit(event)
-    }
-
-    func makeAudioCaptureEventStream() async -> AsyncStream<AudioCaptureEvent> {
-        audioCaptureEventBridge.makeStream()
     }
 }
 
