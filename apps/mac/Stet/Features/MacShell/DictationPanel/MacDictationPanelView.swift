@@ -269,8 +269,6 @@ private struct MacDictationCapsuleSurface: View {
     @ViewBuilder
     private func mainContent() -> some View {
         switch state {
-        case .processing:
-            processingDots()
         case .error(let failure):
             messageText(
                 failure.message,
@@ -301,56 +299,6 @@ private struct MacDictationCapsuleSurface: View {
             .shadow(color: .black.opacity(0.16), radius: scaled(10), y: scaled(4))
     }
 
-    @ViewBuilder
-    private func processingDots() -> some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { timeline in
-            let elapsed = timeline.date.timeIntervalSince(startDate)
-
-            HStack(spacing: scaled(5)) {
-                let cadence = elapsed * 3.2
-                let head = Int(floor(cadence)).quotientAndRemainder(dividingBy: 3).remainder
-                let progress = cadence - floor(cadence)
-
-                ForEach(0..<3, id: \.self) { index in
-                    let isHead = index == head
-                    let isTrailing = index == (head + 2) % 3
-                    let headGlow = isHead ? (0.72 + 0.28 * progress) : 0.0
-                    let trailingGlow = isTrailing ? (0.42 * (1.0 - progress)) : 0.0
-                    let intensity = max(headGlow, trailingGlow)
-                    let opacity = 0.36 + intensity * 0.64
-                    let scale = 0.82 + intensity * 0.34
-                    let yOffset = -1.2 * intensity
-
-                    let dotColor: Color = {
-                        switch state {
-                        case .processing:
-                            return Color(red: 1.0, green: 0.65, blue: 0.2) // Theme matched processing orange
-                        default:
-                            return Color.primaryAction
-                        }
-                    }()
-
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [
-                                    .white.opacity(min(1.0, opacity + 0.18)),
-                                    dotColor.opacity(opacity)
-                                ],
-                                center: .center,
-                                startRadius: scaled(0.5),
-                                endRadius: scaled(4)
-                            )
-                        )
-                        .frame(width: scaled(6.5), height: scaled(6.5))
-                        .scaleEffect(scale)
-                        .offset(y: scaled(yOffset))
-                        .shadow(color: dotColor.opacity(0.26 + intensity * 0.34), radius: scaled(6))
-                }
-            }
-            .frame(height: scaled(18))
-        }
-    }
 
     private func scaled(_ value: CGFloat) -> CGFloat {
         value
