@@ -8,6 +8,7 @@ final class DictationViewModel: ObservableObject {
 
     private let speechService: any SpeechService
     private var activeTask: Task<Void, Never>?
+    private var captureStartupTask: Task<Void, Error>?
     private var levelTask: Task<Void, Never>?
 
     private var isStartingRecording = false
@@ -70,6 +71,7 @@ final class DictationViewModel: ObservableObject {
         }
 
         activeTask?.cancel()
+        captureStartupTask?.cancel()
         levelTask?.cancel()
         isStartingRecording = true
         isActivatingRecordingWindow = false
@@ -80,9 +82,21 @@ final class DictationViewModel: ObservableObject {
         recordingLevel = 0
         state = .starting
 
+        let shouldActivateAfterStart = activateWhenReady
+        let speechService = self.speechService
+        let captureStartupTask = Task.detached(priority: .userInitiated) {
+            if shouldActivateAfterStart {
+                try await speechService.startRecordingAndActivate()
+            } else {
+                try await speechService.startRecording()
+            }
+        }
+        self.captureStartupTask = captureStartupTask
+
         activeTask = Task {
             do {
-                try await speechService.startRecording()
+                try await captureStartupTask.value
+                self.captureStartupTask = nil
                 if Task.isCancelled { return }
 
                 isStartingRecording = false
@@ -90,17 +104,23 @@ final class DictationViewModel: ObservableObject {
                 recordingLevel = 0.08
                 startLevelMonitoring()
 
+                if shouldActivateAfterStart {
+                    pendingActivationAfterStart = false
+                    state = .listening
+                    Task {
+                        await DictationRuntimeProbe.shared.markAction("enteredListening")
+                    }
+                    await DictationStartupProbe.shared.record(.listeningStateEntered)
+                }
+
                 if pendingStopAfterStart {
                     pendingStopAfterStart = false
                     stopCapture()
                     return
                 }
-
-                if activateWhenReady || pendingActivationAfterStart {
-                    pendingActivationAfterStart = false
-                    activateCaptureWindow()
-                }
             } catch is CancellationError {
+                captureStartupTask.cancel()
+                self.captureStartupTask = nil
                 isStartingRecording = false
                 isActivatingRecordingWindow = false
                 hasPreparedCapture = false
@@ -117,6 +137,8 @@ final class DictationViewModel: ObservableObject {
                     await DictationStartupProbe.shared.record(.cancelled)
                 }
             } catch {
+                captureStartupTask.cancel()
+                self.captureStartupTask = nil
                 isStartingRecording = false
                 isActivatingRecordingWindow = false
                 hasPreparedCapture = false
@@ -148,26 +170,9 @@ final class DictationViewModel: ObservableObject {
             return
         }
 
-        isActivatingRecordingWindow = true
-
         activeTask = Task {
             do {
-                try await speechService.activateRecordingWindow()
-                if Task.isCancelled { return }
-
-                isActivatingRecordingWindow = false
-                state = .listening
-                Task {
-                    await DictationRuntimeProbe.shared.markAction("enteredListening")
-                }
-                Task {
-                    await DictationStartupProbe.shared.record(.listeningStateEntered)
-                }
-
-                if pendingStopAfterStart {
-                    pendingStopAfterStart = false
-                    stopCapture()
-                }
+                try await activateCaptureWindowInline()
             } catch is CancellationError {
                 isActivatingRecordingWindow = false
                 hasPreparedCapture = false
@@ -185,6 +190,36 @@ final class DictationViewModel: ObservableObject {
 
                 state = .error(.from(error))
             }
+        }
+    }
+
+    private func activateCaptureWindowInline() async throws {
+        guard hasPreparedCapture,
+              !isActivatingRecordingWindow,
+              state == .starting else {
+            return
+        }
+
+        isActivatingRecordingWindow = true
+
+        do {
+            try await speechService.activateRecordingWindow()
+            if Task.isCancelled { return }
+
+            isActivatingRecordingWindow = false
+            state = .listening
+            Task {
+                await DictationRuntimeProbe.shared.markAction("enteredListening")
+            }
+            await DictationStartupProbe.shared.record(.listeningStateEntered)
+
+            if pendingStopAfterStart {
+                pendingStopAfterStart = false
+                stopCapture()
+            }
+        } catch {
+            isActivatingRecordingWindow = false
+            throw error
         }
     }
 
@@ -254,6 +289,8 @@ final class DictationViewModel: ObservableObject {
 
     func runProcessingOperation(_ operation: @escaping ExternalOperation) {
         activeTask?.cancel()
+        captureStartupTask?.cancel()
+        captureStartupTask = nil
         finishLevelMonitoring()
         // finishCaptureEventMonitoring()
         isStartingRecording = false
@@ -287,6 +324,8 @@ final class DictationViewModel: ObservableObject {
             await DictationRuntimeProbe.shared.markAction("reset")
         }
         activeTask?.cancel()
+        captureStartupTask?.cancel()
+        captureStartupTask = nil
         finishLevelMonitoring()
         isStartingRecording = false
         isActivatingRecordingWindow = false

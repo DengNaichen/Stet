@@ -49,13 +49,27 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
 
     func startRecording() async throws {
+        try await startRecording(activateRecordingWindow: false)
+    }
+
+    func startRecordingAndActivate() async throws {
+        try await startRecording(activateRecordingWindow: true)
+    }
+
+    private func startRecording(activateRecordingWindow: Bool) async throws {
         guard activePipeline == nil else {
             throw SpeechServiceError.alreadyRecording
         }
 
         let snapshot = settingsStore.loadSnapshot()
+        let pipelineStartedAt = ProcessInfo.processInfo.systemUptime
         activePipeline = try await pipelineFactory.makePipeline(from: snapshot)
-        await DictationStartupProbe.shared.record(.pipelineReady)
+        let pipelineFactoryMs = Self.elapsedMilliseconds(since: pipelineStartedAt)
+        Self.logStartupTiming("pipelineFactoryMs=\(Self.formatMilliseconds(pipelineFactoryMs))")
+        await DictationStartupProbe.shared.record(
+            .pipelineReady,
+            note: "pipelineFactoryMs=\(Self.formatMilliseconds(pipelineFactoryMs))"
+        )
         let captureService: any AudioCaptureService
         if let reusableCaptureService {
             captureService = reusableCaptureService
@@ -67,7 +81,18 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         activeCaptureService = captureService
 
         do {
+            let captureServiceStartedAt = ProcessInfo.processInfo.systemUptime
             try await captureService.startRecording()
+            let captureServiceStartMs = Self.elapsedMilliseconds(since: captureServiceStartedAt)
+            Self.logStartupTiming("captureServiceStartMs=\(Self.formatMilliseconds(captureServiceStartMs))")
+
+            if activateRecordingWindow {
+                let captureWindowStartedAt = ProcessInfo.processInfo.systemUptime
+                try await captureService.activateRecordingWindow()
+                let captureWindowActivationMs = Self.elapsedMilliseconds(since: captureWindowStartedAt)
+                Self.logStartupTiming("captureWindowActivationMs=\(Self.formatMilliseconds(captureWindowActivationMs))")
+            }
+
             await startAudioLevelForwarding(using: captureService)
         } catch is CancellationError {
             activePipeline = nil
@@ -223,5 +248,21 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         // reused for the next capture, and closing the stream makes later UI
         // sessions look dead even when audio is flowing again.
         audioLevelBridge.emit(0)
+    }
+
+    private nonisolated static func logStartupTiming(_ payload: String) {
+        guard UserDefaults.standard.bool(forKey: MacPreferences.dictationPerfTracingEnabled) else {
+            return
+        }
+
+        AppLogger.info("AudioStartup \(payload)", category: .perfTrace)
+    }
+
+    private nonisolated static func elapsedMilliseconds(since start: TimeInterval) -> Double {
+        (ProcessInfo.processInfo.systemUptime - start) * 1_000
+    }
+
+    private nonisolated static func formatMilliseconds(_ duration: Double) -> String {
+        String(format: "%.1f", duration)
     }
 }

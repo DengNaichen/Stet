@@ -15,6 +15,12 @@ enum LinearPCMConversion {
             return nil
         }
 
+        // Favor startup latency for live dictation capture. The default sample
+        // rate converter priming can hold onto several initial tap buffers
+        // before emitting output, which shows up as ~100ms before the first
+        // committed speech frames arrive.
+        converter.primeMethod = .none
+
         if inputFormat.channelCount != outputFormat.channelCount {
             converter.downmix = true
         }

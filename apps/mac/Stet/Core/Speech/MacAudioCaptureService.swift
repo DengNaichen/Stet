@@ -47,10 +47,16 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         }
 
         AppLogger.info("Starting audio capture", category: .dictation)
+        let startRecordingStartedAt = ProcessInfo.processInfo.systemUptime
+        let permissionStartedAt = ProcessInfo.processInfo.systemUptime
         let microphoneGranted = await requestMicrophonePermission()
+        let microphonePermissionMs = Self.elapsedMilliseconds(since: permissionStartedAt)
+        Self.logStartupTiming(
+            "microphonePermissionMs=\(Self.formatMilliseconds(microphonePermissionMs)) granted=\(microphoneGranted)"
+        )
         await DictationStartupProbe.shared.record(
             .microphonePermissionResolved,
-            note: "granted=\(microphoneGranted)"
+            note: "granted=\(microphoneGranted) microphonePermissionMs=\(Self.formatMilliseconds(microphonePermissionMs))"
         )
         guard microphoneGranted else {
             AppLogger.warning("Microphone permission denied before recording start", category: .permissions)
@@ -64,7 +70,16 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         try configureAudioSession()
 
         #if os(macOS)
-        try startMacRecording()
+        let macRecordingStartedAt = ProcessInfo.processInfo.systemUptime
+        let selectedInputDevice = try startMacRecording()
+        let startMacRecordingMs = Self.elapsedMilliseconds(since: macRecordingStartedAt)
+        Self.logStartupTiming(
+            """
+            startMacRecordingMs=\(Self.formatMilliseconds(startMacRecordingMs)) \
+            selectedDevice=\(selectedInputDevice?.name ?? "none") \
+            transportType=\(selectedInputDevice?.transportType ?? 0)
+            """
+        )
         #else
         let fileURL = makeRecordingFileURL()
         let recorder = try AVAudioRecorder(url: fileURL, settings: makeRecorderSettings())
@@ -84,7 +99,11 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         Task {
             await DictationRuntimeProbe.shared.markCaptureStarted()
         }
-        await DictationStartupProbe.shared.record(.audioCaptureStarted)
+        let startRecordingMs = Self.elapsedMilliseconds(since: startRecordingStartedAt)
+        await DictationStartupProbe.shared.record(
+            .audioCaptureStarted,
+            note: "startRecordingMs=\(Self.formatMilliseconds(startRecordingMs))"
+        )
     }
 
     func activateRecordingWindow() async throws {
@@ -233,7 +252,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     }
 
     #if os(macOS)
-    private func startMacRecording() throws {
+    private func startMacRecording() throws -> AudioHardwareDevice? {
         guard let outputFormat = TranscriptionUploadAudioFormat.makeMacOutputFormat() else {
             throw SpeechServiceError.failedToStart
         }
@@ -259,6 +278,8 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
                 category: .dictation
             )
         }
+
+        return selectedInputDevice
     }
     #endif
 
@@ -344,5 +365,21 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             return nil
         }
         return Int64(fileSize)
+    }
+
+    private nonisolated static func logStartupTiming(_ payload: String) {
+        guard UserDefaults.standard.bool(forKey: MacPreferences.dictationPerfTracingEnabled) else {
+            return
+        }
+
+        AppLogger.info("AudioStartup \(payload)", category: .perfTrace)
+    }
+
+    private nonisolated static func elapsedMilliseconds(since start: TimeInterval) -> Double {
+        (ProcessInfo.processInfo.systemUptime - start) * 1_000
+    }
+
+    private nonisolated static func formatMilliseconds(_ duration: Double) -> String {
+        String(format: "%.1f", duration)
     }
 }

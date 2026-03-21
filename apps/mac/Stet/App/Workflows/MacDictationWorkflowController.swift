@@ -153,7 +153,6 @@ final class MacDictationWorkflowController {
         refreshTargetApplication()
         activeWorkflow = .dictation
         activeRecordingSource = source
-        showTransientPanel()
         mediaResumeTask?.cancel()
         mediaResumeTask = nil
 
@@ -163,6 +162,7 @@ final class MacDictationWorkflowController {
         }
 
         dictationViewModel.startCapture(activateWhenReady: true)
+        showTransientPanel()
 
         startActivationTask?.cancel()
         startActivationTask = Task { @MainActor [weak self] in

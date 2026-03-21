@@ -39,6 +39,7 @@ struct MacMenuBarView: View {
                     .float2(CGSize(width: 250, height: 52)),
                     .float(0),
                     .float(0.1),
+                    .float(1.0),
                     .color(.white),
                     .color(.white),
                     .color(.white)

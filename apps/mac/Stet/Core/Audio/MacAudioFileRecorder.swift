@@ -171,7 +171,7 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     }
 
     private enum Configuration {
-        static let tapBufferSize: AVAudioFrameCount = 1_024
+        static let tapBufferSize: AVAudioFrameCount = 256
     }
 
     private let firstBufferLock = NSLock()
@@ -218,14 +218,27 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         precondition(currentSession() == nil, "MacAudioFileRecorder is already recording.")
 
         let candidates = inputDeviceCandidates()
+        Self.logStartupTiming(
+            "recorderStart candidates=\(candidates.map { Self.describe(candidate: $0) }.joined(separator: ","))"
+        )
         var startupError: Error?
 
         for candidate in candidates {
+            let attemptStartedAt = ProcessInfo.processInfo.systemUptime
             do {
                 try startRecordingAttempt(
                     to: fileURL,
                     outputFormat: outputFormat,
-                    inputDevice: candidate.device
+                    inputDevice: candidate.device,
+                    candidateReason: candidate.reason
+                )
+                let attemptMs = Self.elapsedMilliseconds(since: attemptStartedAt)
+                Self.logStartupTiming(
+                    """
+                    recorderCandidateSuccess reason=\(candidate.reason.rawValue) \
+                    device=\(candidate.device?.name ?? "systemDefault") \
+                    attemptMs=\(Self.formatMilliseconds(attemptMs))
+                    """
                 )
                 if candidate.reason != .selected {
                     AppLogger.info(
@@ -236,6 +249,15 @@ final class MacAudioFileRecorder: @unchecked Sendable {
                 return
             } catch {
                 startupError = error
+                let attemptMs = Self.elapsedMilliseconds(since: attemptStartedAt)
+                Self.logStartupTiming(
+                    """
+                    recorderCandidateFailed reason=\(candidate.reason.rawValue) \
+                    device=\(candidate.device?.name ?? "systemDefault") \
+                    attemptMs=\(Self.formatMilliseconds(attemptMs)) \
+                    error=\(error.localizedDescription)
+                    """
+                )
                 AppLogger.warning(
                     "macOS capture attempt failed. reason=\(candidate.reason.rawValue), device=\(candidate.device?.name ?? "systemDefault"), error=\(error.localizedDescription)",
                     category: .dictation
@@ -320,26 +342,34 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     nonisolated private func startRecordingAttempt(
         to fileURL: URL,
         outputFormat: AVAudioFormat,
-        inputDevice: AudioHardwareDevice?
+        inputDevice: AudioHardwareDevice?,
+        candidateReason: InputDeviceCandidate.Reason
     ) throws {
+        let didBindExplicitly = inputDevice.map(Self.shouldBindExplicitly(to:)) ?? false
         let engine = AVAudioEngine()
         stateLock.lock()
         audioEngine = engine
         stateLock.unlock()
 
         let inputNode = engine.inputNode
-        if let inputDevice, Self.shouldBindExplicitly(to: inputDevice) {
+        let deviceBindingStartedAt = ProcessInfo.processInfo.systemUptime
+        if let inputDevice, didBindExplicitly {
             try inputNode.auAudioUnit.setDeviceID(inputDevice.id)
         }
+        let deviceBindingMs = Self.elapsedMilliseconds(since: deviceBindingStartedAt)
 
         let outputNode = engine.outputNode
+        let voiceProcessingStartedAt = ProcessInfo.processInfo.systemUptime
         let voiceProcessing = configureVoiceProcessing(inputNode, outputNode, inputDevice)
+        let voiceProcessingMs = Self.elapsedMilliseconds(since: voiceProcessingStartedAt)
+        let recordingFileStartedAt = ProcessInfo.processInfo.systemUptime
         let recordingFile = try AVAudioFile(
             forWriting: fileURL,
             settings: outputFormat.settings,
             commonFormat: outputFormat.commonFormat,
             interleaved: outputFormat.isInterleaved
         )
+        let recordingFileMs = Self.elapsedMilliseconds(since: recordingFileStartedAt)
         let recordingSession = MacAudioFileRecordingSession(
             recordingFile: recordingFile,
             outputFormat: outputFormat,
@@ -351,6 +381,7 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         firstBufferLock.unlock()
 
         do {
+            let sessionStartStartedAt = ProcessInfo.processInfo.systemUptime
             try startRecordingSession(
                 recordingSession,
                 on: inputNode,
@@ -358,6 +389,20 @@ final class MacAudioFileRecorder: @unchecked Sendable {
                 outputFormat: outputFormat,
                 voiceProcessing: voiceProcessing,
                 inputDevice: inputDevice
+            )
+            let sessionStartMs = Self.elapsedMilliseconds(since: sessionStartStartedAt)
+            Self.logStartupTiming(
+                """
+                recorderAttempt reason=\(candidateReason.rawValue) \
+                device=\(inputDevice?.name ?? "systemDefault") \
+                explicitBind=\(didBindExplicitly) \
+                deviceBindingMs=\(Self.formatMilliseconds(deviceBindingMs)) \
+                voiceProcessingMs=\(Self.formatMilliseconds(voiceProcessingMs)) \
+                recordingFileMs=\(Self.formatMilliseconds(recordingFileMs)) \
+                sessionStartMs=\(Self.formatMilliseconds(sessionStartMs)) \
+                voiceProcessingEnabled=\(voiceProcessing.enabled) \
+                fallbackReason=\(voiceProcessing.fallbackReason ?? "none")
+                """
             )
         } catch {
             _ = finishSession()
@@ -427,18 +472,31 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         var didStart = false
 
         for attempt in 1...4 {
+            let attemptStartedAt = ProcessInfo.processInfo.systemUptime
             do {
                 if !engine.isRunning {
                     try engine.start()
                 }
+                let attemptMs = Self.elapsedMilliseconds(since: attemptStartedAt)
                 startupError = nil
                 didStart = true
+                Self.logStartupTiming(
+                    "recorderEngineStartSuccess attempt=\(attempt) attemptMs=\(Self.formatMilliseconds(attemptMs))"
+                )
                 if attempt > 1 {
                     AppLogger.info("macOS capture engine started successfully on attempt \(attempt).", category: .dictation)
                 }
                 break
             } catch {
+                let attemptMs = Self.elapsedMilliseconds(since: attemptStartedAt)
                 startupError = error
+                Self.logStartupTiming(
+                    """
+                    recorderEngineStartFailed attempt=\(attempt) \
+                    attemptMs=\(Self.formatMilliseconds(attemptMs)) \
+                    error=\(error.localizedDescription)
+                    """
+                )
                 AppLogger.warning(
                     "macOS capture engine start failed on attempt \(attempt). Retrying... error=\(error.localizedDescription)",
                     category: .dictation
@@ -701,6 +759,26 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         }
 
         return defaultInputDevice.uid == device.uid
+    }
+
+    private static func describe(candidate: InputDeviceCandidate) -> String {
+        "\(candidate.reason.rawValue):\(candidate.device?.name ?? "systemDefault")"
+    }
+
+    private static func logStartupTiming(_ payload: String) {
+        guard UserDefaults.standard.bool(forKey: MacPreferences.dictationPerfTracingEnabled) else {
+            return
+        }
+
+        AppLogger.info("AudioStartup \(payload)", category: .perfTrace)
+    }
+
+    private static func elapsedMilliseconds(since start: TimeInterval) -> Double {
+        (ProcessInfo.processInfo.systemUptime - start) * 1_000
+    }
+
+    private static func formatMilliseconds(_ duration: Double) -> String {
+        String(format: "%.1f", duration)
     }
 }
 #endif
