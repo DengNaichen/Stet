@@ -5,7 +5,7 @@ import Testing
 
 @Suite("Default Audio Post Processor", .serialized)
 struct DefaultAudioPostProcessorTests {
-    @Test func silenceOnlyCaptureIsKept() async throws {
+    @Test func silenceOnlyCaptureIsDiscarded() async throws {
         let fileURL = try Self.makePCMFileURL(
             samples: Array(repeating: 0, count: 16_000)
         )
@@ -16,11 +16,11 @@ struct DefaultAudioPostProcessorTests {
             duration: 1
         )
 
-        #expect(!result.shouldDiscardAsNoSpeech)
+        #expect(result.shouldDiscardAsNoSpeech)
         #expect(result.url == fileURL)
     }
 
-    @Test func stationaryNoiseOnlyCaptureIsKept() async throws {
+    @Test func stationaryNoiseOnlyCaptureIsDiscarded() async throws {
         let fileURL = try Self.makePCMFileURL(samples: Self.makeStationaryNoiseSamples())
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
@@ -29,11 +29,11 @@ struct DefaultAudioPostProcessorTests {
             duration: 1
         )
 
-        #expect(!result.shouldDiscardAsNoSpeech)
+        #expect(result.shouldDiscardAsNoSpeech)
         #expect(result.url == fileURL)
     }
 
-    @Test func keyboardLikeClickTrackIsKept() async throws {
+    @Test func keyboardLikeClickTrackIsDiscarded() async throws {
         let fileURL = try Self.makePCMFileURL(samples: Self.makeKeyboardClickSamples())
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
@@ -42,11 +42,11 @@ struct DefaultAudioPostProcessorTests {
             duration: 1
         )
 
-        #expect(!result.shouldDiscardAsNoSpeech)
+        #expect(result.shouldDiscardAsNoSpeech)
         #expect(result.url == fileURL)
     }
 
-    @Test func keyboardLikeClicksMixedWithStationaryNoiseAreKept() async throws {
+    @Test func keyboardLikeClicksMixedWithStationaryNoiseAreDiscarded() async throws {
         let samples = Self.mixSamples(
             Self.makeStationaryNoiseSamples(),
             Self.makeKeyboardClickSamples()
@@ -59,11 +59,38 @@ struct DefaultAudioPostProcessorTests {
             duration: 1
         )
 
-        #expect(!result.shouldDiscardAsNoSpeech)
+        #expect(result.shouldDiscardAsNoSpeech)
         #expect(result.url == fileURL)
     }
 
-    @Test func stationaryNoiseWithSpeechIsKept() async throws {
+    @Test func quietSpeechCaptureIsRewrittenAndPreserved() async throws {
+        let quietSpeech = Self.makeSpeechLikeSamples(amplitude: 1_050)
+        let fileURL = try Self.makePCMFileURL(samples: quietSpeech)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let result = try await Self.makePostProcessor(interactionSoundsEnabled: false).processAudioFile(
+            at: fileURL,
+            duration: 1
+        )
+        defer {
+            for url in result.cleanupURLs {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+
+        #expect(!result.shouldDiscardAsNoSpeech)
+        #expect(result.url != fileURL)
+        #expect(Set(result.cleanupURLs) == Set([fileURL, result.url]))
+
+        let inputSummary = try Self.audioSummary(at: fileURL)
+        let outputSummary = try Self.audioSummary(at: result.url)
+        #expect(inputSummary.sampleRate == outputSummary.sampleRate)
+        #expect(inputSummary.channelCount == outputSummary.channelCount)
+        #expect(abs(inputSummary.duration - outputSummary.duration) < 0.0001)
+        #expect(outputSummary.rms > inputSummary.rms)
+    }
+
+    @Test func stationaryNoiseWithSpeechIsRewrittenAndPreserved() async throws {
         let samples = Self.mixSamples(
             Self.makeStationaryNoiseSamples(),
             Self.makeSpeechLikeSamples(amplitude: 1_200)
@@ -76,48 +103,29 @@ struct DefaultAudioPostProcessorTests {
             duration: 1
         )
         defer {
-            for url in result.cleanupURLs where url != fileURL {
+            for url in result.cleanupURLs {
                 try? FileManager.default.removeItem(at: url)
             }
         }
 
         #expect(!result.shouldDiscardAsNoSpeech)
-        #expect(result.url == fileURL)
+        #expect(result.url != fileURL)
+        #expect(Set(result.cleanupURLs) == Set([fileURL, result.url]))
+
+        let inputSummary = try Self.audioSummary(at: fileURL)
+        let outputSummary = try Self.audioSummary(at: result.url)
+        #expect(outputSummary.rms > inputSummary.rms)
     }
 
-    @Test func quietSpeechCaptureIsKeptWithoutRewritingAudio() async throws {
-        let quietSpeech = Self.makeSpeechLikeSamples(amplitude: 1_050)
-        let fileURL = try Self.makePCMFileURL(samples: quietSpeech)
+    @Test func loudSpeechCaptureIsPassedThroughWithoutFurtherAmplification() async throws {
+        let loudSpeech = Self.makeSpeechLikeSamples(amplitude: 12_500)
+        let fileURL = try Self.makePCMFileURL(samples: loudSpeech)
         defer { try? FileManager.default.removeItem(at: fileURL) }
 
         let result = try await Self.makePostProcessor(interactionSoundsEnabled: false).processAudioFile(
             at: fileURL,
             duration: 1
         )
-        defer {
-            for url in result.cleanupURLs where url != fileURL {
-                try? FileManager.default.removeItem(at: url)
-            }
-        }
-
-        #expect(!result.shouldDiscardAsNoSpeech)
-        #expect(result.url == fileURL)
-    }
-
-    @Test func denoisedSpeechCaptureIsStillKept() async throws {
-        let denoisedSpeech = Self.makeSpeechLikeSamples(amplitude: 850)
-        let fileURL = try Self.makePCMFileURL(samples: denoisedSpeech)
-        defer { try? FileManager.default.removeItem(at: fileURL) }
-
-        let result = try await Self.makePostProcessor(interactionSoundsEnabled: false).processAudioFile(
-            at: fileURL,
-            duration: 1
-        )
-        defer {
-            for url in result.cleanupURLs where url != fileURL {
-                try? FileManager.default.removeItem(at: url)
-            }
-        }
 
         #expect(!result.shouldDiscardAsNoSpeech)
         #expect(result.url == fileURL)
@@ -243,6 +251,49 @@ struct DefaultAudioPostProcessorTests {
                 )
             )
         }
+    }
+
+    private struct AudioSummary {
+        let sampleRate: Double
+        let channelCount: AVAudioChannelCount
+        let duration: TimeInterval
+        let rms: Double
+    }
+
+    private static func audioSummary(at fileURL: URL) throws -> AudioSummary {
+        let audioFile = try AVAudioFile(forReading: fileURL)
+        let samples = try Self.readSamples(from: fileURL)
+
+        let sampleSum = samples.reduce(0.0) { partialResult, sample in
+            let normalized = Double(sample) / Double(Int16.max)
+            return partialResult + normalized * normalized
+        }
+        let rms = samples.isEmpty ? 0 : sqrt(sampleSum / Double(samples.count))
+
+        return AudioSummary(
+            sampleRate: audioFile.fileFormat.sampleRate,
+            channelCount: audioFile.fileFormat.channelCount,
+            duration: TimeInterval(audioFile.length) / audioFile.fileFormat.sampleRate,
+            rms: rms
+        )
+    }
+
+    private static func readSamples(from fileURL: URL) throws -> [Int16] {
+        let audioFile = try AVAudioFile(forReading: fileURL)
+        let frameCount = AVAudioFrameCount(audioFile.length)
+        guard frameCount > 0 else { return [] }
+
+        let buffer = try #require(
+            AVAudioPCMBuffer(
+                pcmFormat: audioFile.fileFormat,
+                frameCapacity: frameCount
+            )
+        )
+        try audioFile.read(into: buffer)
+        guard let channelData = buffer.int16ChannelData else { return [] }
+
+        let length = Int(buffer.frameLength)
+        return (0..<length).map { channelData[0][$0] }
     }
 
     private static func makePostProcessor(

@@ -94,6 +94,9 @@ namespace Config {
     constant float3 GLOW_COLOR_BASE = float3(0.12, 0.10, 0.08);
     constant float GLOW_INTENSITY = 0.45;
     constant float3 LIFT_COLOR = float3(0.045, 0.038, 0.032);
+    constant float AUDIO_FLOOR = 0.05;
+    constant float AUDIO_BOOST = 1.18;
+    constant float AUDIO_POWER = 0.82;
     
     // Sun
     constant float2 SUN_POS_SKEW = float2(0.28, 0.38);
@@ -176,7 +179,7 @@ static float2 vortexField(float2 p, float2 center, float strength) {
     float2 pRaw = float2((uv.x - 0.5) * 2.0 * aspect,
                          (uv.y - 0.5) * 2.0);
 
-    float talk = clamp(audio, 0.0, 1.0);
+    float talk = clamp(Config::AUDIO_FLOOR + pow(clamp(audio, 0.0, 1.0), Config::AUDIO_POWER) * Config::AUDIO_BOOST, 0.0, 1.0);
     float breath = talk * talk * (3.0 - 2.0 * talk);
 
     pRaw.y += Config::MOTION_Y_AMP * sin(time * Config::MOTION_Y_FREQ);

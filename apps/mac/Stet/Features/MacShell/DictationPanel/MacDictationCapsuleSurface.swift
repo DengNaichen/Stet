@@ -47,9 +47,29 @@ struct MacDictationCapsuleSurface: View {
         case .idle:
             return MacDictationPanelConstants.VoiceReactivity.levelBaseIdle
         case .starting:
-            return min(MacDictationPanelConstants.VoiceReactivity.levelMaxStarting, MacDictationPanelConstants.VoiceReactivity.levelBaseStarting + easedLevel * MacDictationPanelConstants.VoiceReactivity.levelMultStarting)
+            let reactiveLevel = min(
+                1,
+                MacDictationPanelConstants.VoiceReactivity.shaderDriveFloorStarting +
+                    pow(easedLevel, MacDictationPanelConstants.VoiceReactivity.shaderDrivePower) *
+                    MacDictationPanelConstants.VoiceReactivity.shaderDriveBoostStarting
+            )
+            return min(
+                MacDictationPanelConstants.VoiceReactivity.levelMaxStarting,
+                MacDictationPanelConstants.VoiceReactivity.levelBaseStarting +
+                    reactiveLevel * MacDictationPanelConstants.VoiceReactivity.levelMultStarting
+            )
         case .listening:
-            return min(MacDictationPanelConstants.VoiceReactivity.levelMaxListening, MacDictationPanelConstants.VoiceReactivity.levelBaseListening + easedLevel * MacDictationPanelConstants.VoiceReactivity.levelMultListening)
+            let reactiveLevel = min(
+                1,
+                MacDictationPanelConstants.VoiceReactivity.shaderDriveFloorListening +
+                    pow(easedLevel, MacDictationPanelConstants.VoiceReactivity.shaderDrivePower) *
+                    MacDictationPanelConstants.VoiceReactivity.shaderDriveBoostListening
+            )
+            return min(
+                MacDictationPanelConstants.VoiceReactivity.levelMaxListening,
+                MacDictationPanelConstants.VoiceReactivity.levelBaseListening +
+                    reactiveLevel * MacDictationPanelConstants.VoiceReactivity.levelMultListening
+            )
         case .processing:
             return MacDictationPanelConstants.VoiceReactivity.levelBaseProcessing
         case .result(_):

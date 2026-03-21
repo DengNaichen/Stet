@@ -76,6 +76,20 @@ private func makeDictationService(
     )
 }
 
+private func makeProcessedAudioResult(
+    processedURL: URL,
+    sourceURL: URL? = nil,
+    duration: TimeInterval? = 1.2,
+    shouldDiscardAsNoSpeech: Bool = false
+) -> AudioPostProcessingResult {
+    AudioPostProcessingResult(
+        url: processedURL,
+        duration: duration,
+        cleanupURLs: Array(Set([processedURL, sourceURL].compactMap { $0 })),
+        shouldDiscardAsNoSpeech: shouldDiscardAsNoSpeech
+    )
+}
+
 @Suite("Configurable Speech Service", .serialized)
 struct ConfigurableSpeechServiceTests {
     private actor LevelLog {
@@ -340,6 +354,168 @@ struct ConfigurableSpeechServiceTests {
         #expect(await capture.counts().stop == 1)
         #expect(rewriteRequests.count == 1)
         #expect(rewriteRequests.first?.sourceText == "source transcript")
+    }
+
+    @Test func stopRecordingUsesProcessedAudioURLForTranscription() async throws {
+        let sourceAudioURL = makeAudioFileURL()
+        let processedAudioURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: sourceAudioURL) }
+        defer { try? FileManager.default.removeItem(at: processedAudioURL) }
+
+        let direct = TestTranscriptionService(result: "processed transcript")
+        let relay = TestTranscriptionService(result: "relay transcript")
+        let rewrite = RecordingRewriteService()
+        let (store, _, _) = try makeSettingsStore()
+        let postProcessor = TestAudioPostProcessor(
+            result: makeProcessedAudioResult(
+                processedURL: processedAudioURL,
+                sourceURL: sourceAudioURL
+            )
+        )
+        let capture = TestAudioCaptureService(audioFileURL: sourceAudioURL)
+
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { nil },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            audioPostProcessor: postProcessor,
+            captureService: capture
+        )
+
+        try await service.startRecording()
+        let transcript = try await service.stopRecording()
+
+        let postProcessorInvocation = await postProcessor.lastInvocation()
+        let directInvocation = await direct.lastInvocation()
+
+        #expect(transcript == "processed transcript")
+        #expect(postProcessorInvocation?.sourceURL == sourceAudioURL)
+        #expect(postProcessorInvocation?.duration == 1.2)
+        #expect(directInvocation?.fileURL == processedAudioURL)
+        #expect(directInvocation?.duration == 1.2)
+        #expect(await direct.callCount() == 1)
+        #expect(await relay.callCount() == 0)
+    }
+
+    @Test func processedTemporaryFilesAreRemovedAfterSuccessfulTranscription() async throws {
+        let sourceAudioURL = makeAudioFileURL()
+        let processedAudioURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: sourceAudioURL) }
+
+        let direct = TestTranscriptionService(result: "processed transcript")
+        let relay = TestTranscriptionService(result: "relay transcript")
+        let rewrite = RecordingRewriteService()
+        let (store, _, _) = try makeSettingsStore()
+        let postProcessor = TestAudioPostProcessor(
+            result: makeProcessedAudioResult(
+                processedURL: processedAudioURL,
+                sourceURL: sourceAudioURL
+            )
+        )
+        let capture = TestAudioCaptureService(audioFileURL: sourceAudioURL)
+
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { nil },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            audioPostProcessor: postProcessor,
+            captureService: capture
+        )
+
+        try await service.startRecording()
+        _ = try await service.stopRecording()
+
+        #expect(!FileManager.default.fileExists(atPath: processedAudioURL.path))
+    }
+
+    @Test func processedTemporaryFilesAreRemovedAfterTranscriptionFailure() async throws {
+        let sourceAudioURL = makeAudioFileURL()
+        let processedAudioURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: sourceAudioURL) }
+
+        let direct = TestTranscriptionService(outcome: .failure(TestError.expected))
+        let relay = TestTranscriptionService(result: "relay transcript")
+        let rewrite = RecordingRewriteService()
+        let (store, _, _) = try makeSettingsStore()
+        let postProcessor = TestAudioPostProcessor(
+            result: makeProcessedAudioResult(
+                processedURL: processedAudioURL,
+                sourceURL: sourceAudioURL
+            )
+        )
+        let capture = TestAudioCaptureService(audioFileURL: sourceAudioURL)
+
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { nil },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            audioPostProcessor: postProcessor,
+            captureService: capture
+        )
+
+        try await service.startRecording()
+
+        await #expect(throws: TestError.expected) {
+            try await service.stopRecording()
+        }
+
+        #expect(!FileManager.default.fileExists(atPath: processedAudioURL.path))
+        #expect(await direct.callCount() == 1)
+        #expect(await relay.callCount() == 0)
+        #expect(await rewrite.recordedRequests().isEmpty)
+    }
+
+    @Test func processedTemporaryFilesAreRemovedAfterRewriteFailure() async throws {
+        let sourceAudioURL = makeAudioFileURL()
+        let processedAudioURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: sourceAudioURL) }
+
+        let direct = TestTranscriptionService(result: "processed transcript")
+        let relay = TestTranscriptionService(result: "relay transcript")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setError(TestError.expected)
+        let (store, _, _) = try makeSettingsStore(rewriteEnabled: true)
+        let postProcessor = TestAudioPostProcessor(
+            result: makeProcessedAudioResult(
+                processedURL: processedAudioURL,
+                sourceURL: sourceAudioURL
+            )
+        )
+        let capture = TestAudioCaptureService(audioFileURL: sourceAudioURL)
+
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { nil },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            audioPostProcessor: postProcessor,
+            captureService: capture
+        )
+
+        try await service.startRecording()
+
+        await #expect(throws: TestError.expected) {
+            try await service.stopRecording()
+        }
+
+        #expect(!FileManager.default.fileExists(atPath: processedAudioURL.path))
+        #expect(await direct.callCount() == 1)
+        #expect(await rewrite.recordedRequests().count == 1)
     }
 
     @Test func primaryChineseModePassesLanguageBiasAndMixedContextToRewrite() async throws {
@@ -632,6 +808,24 @@ extension ConfigurableSpeechServiceTests {
     }
 }
 
+private actor TestAudioPostProcessor: AudioPostProcessing {
+    private let result: AudioPostProcessingResult
+    private var invocationValue: (sourceURL: URL, duration: TimeInterval?)?
+
+    init(result: AudioPostProcessingResult) {
+        self.result = result
+    }
+
+    func processAudioFile(at sourceURL: URL, duration: TimeInterval?) async throws -> AudioPostProcessingResult {
+        invocationValue = (sourceURL: sourceURL, duration: duration)
+        return result
+    }
+
+    func lastInvocation() -> (sourceURL: URL, duration: TimeInterval?)? {
+        invocationValue
+    }
+}
+
 private actor TestAudioCaptureService: AudioCaptureService, AudioLevelSource {
     private let audioFileURL: URL
     private let audioLevelBridge = AudioLevelBridge()
@@ -709,7 +903,7 @@ private actor TestTranscriptionService: AudioFileTranscriptionService {
 
     private(set) var outcome: Outcome
     private var callCountValue = 0
-    private var lastInvocationValue: (languageCode: String?, prompt: String?, duration: TimeInterval?)?
+    private var lastInvocationValue: (fileURL: URL, languageCode: String?, prompt: String?, duration: TimeInterval?)?
 
     init(result: String) {
         self.outcome = .success(result)
@@ -730,7 +924,7 @@ private actor TestTranscriptionService: AudioFileTranscriptionService {
         audioDurationSeconds: TimeInterval?
     ) async throws -> String {
         callCountValue += 1
-        lastInvocationValue = (languageCode: languageCode, prompt: prompt, duration: audioDurationSeconds)
+        lastInvocationValue = (fileURL: fileURL, languageCode: languageCode, prompt: prompt, duration: audioDurationSeconds)
         #expect(!fileURL.path.isEmpty)
 
         switch outcome {
@@ -745,7 +939,7 @@ private actor TestTranscriptionService: AudioFileTranscriptionService {
         callCountValue
     }
 
-    func lastInvocation() -> (languageCode: String?, prompt: String?, duration: TimeInterval?)? {
+    func lastInvocation() -> (fileURL: URL, languageCode: String?, prompt: String?, duration: TimeInterval?)? {
         lastInvocationValue
     }
 }
