@@ -73,7 +73,7 @@ final class AudioDeviceSelectionManager: ObservableObject {
     func deviceForRecording() -> AudioHardwareDevice? {
         switch strategy {
         case .automatic:
-            return selectBestAutomaticDevice(from: availableDevices)
+            return selectDefaultDevice(from: availableDevices)
         case .manual:
             if let uid = preferredDeviceUID,
                let device = availableDevices.first(where: { $0.uid == uid }) {
@@ -84,8 +84,17 @@ final class AudioDeviceSelectionManager: ObservableObject {
         }
     }
 
-    private func selectBestAutomaticDevice(from devices: [AudioHardwareDevice]) -> AudioHardwareDevice? {
-        devices.max(by: { $0.automaticSelectionPriority < $1.automaticSelectionPriority })
+    private func selectDefaultDevice(from devices: [AudioHardwareDevice]) -> AudioHardwareDevice? {
+        if let builtInDevice = devices.first(where: \.isBuiltIn) {
+            return builtInDevice
+        }
+
+        if let defaultInputDevice = provider.defaultInputDevice(),
+           let matchingDefaultDevice = devices.first(where: { $0.uid == defaultInputDevice.uid }) {
+            return matchingDefaultDevice
+        }
+
+        return devices.max(by: { $0.automaticSelectionPriority < $1.automaticSelectionPriority })
     }
 
     private func persistStrategy() {

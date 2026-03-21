@@ -14,7 +14,7 @@ struct AudioInputDeviceMenuSection: View {
                 deviceManager.resetToAutomatic()
             } label: {
                 menuRow(
-                    title: "Automatic (Quality Priority)",
+                    title: "Default (Built-in Microphone)",
                     isSelected: deviceManager.strategy == .automatic
                 )
             }

@@ -17,7 +17,7 @@ struct AudioInputDeviceSettingsSection: View {
     var body: some View {
         Section("Audio Input Device") {
             Picker("Selection Strategy", selection: selectionStrategyBinding) {
-                Text("Automatic (Quality Priority)")
+                Text("Default (Built-in Microphone)")
                     .tag(AudioDeviceSelectionManager.SelectionStrategy.automatic)
                 Text("Manual Selection")
                     .tag(AudioDeviceSelectionManager.SelectionStrategy.manual)

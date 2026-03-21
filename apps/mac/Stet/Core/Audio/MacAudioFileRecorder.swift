@@ -328,7 +328,7 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         stateLock.unlock()
 
         let inputNode = engine.inputNode
-        if let inputDevice {
+        if let inputDevice, Self.shouldBindExplicitly(to: inputDevice) {
             try inputNode.auAudioUnit.setDeviceID(inputDevice.id)
         }
 
@@ -389,11 +389,21 @@ final class MacAudioFileRecorder: @unchecked Sendable {
             candidates.append(InputDeviceCandidate(device: device, reason: reason))
         }
 
-        // Keep the most conservative fallback near the front. If explicit device
-        // binding destabilizes the CoreAudio graph on a given machine, the next
-        // attempt should be "same session, no explicit device ID" before we try
-        // alternative hardware routes.
-        append(selectedDevice, reason: .selected)
+        if let selectedDevice {
+            append(selectedDevice, reason: .selected)
+
+            if Self.defaultRouteMatches(device: selectedDevice, defaultInputDevice: defaultInputDevice) {
+                // When the chosen device already is the system route, retrying
+                // without an explicit device binding is still the same physical
+                // microphone and can recover from CoreAudio graph hiccups.
+                append(nil, reason: .noExplicitDeviceFallback)
+            }
+
+            return candidates
+        }
+
+        // If no concrete target device is available, fall back to progressively
+        // more specific routes so capture still has a chance to recover.
         append(nil, reason: .noExplicitDeviceFallback)
         append(builtInDevice, reason: .builtInFallback)
         append(defaultInputDevice, reason: .systemDefaultFallback)
@@ -670,6 +680,27 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         }
 
         return Int64(fileSize)
+    }
+
+    private static func shouldBindExplicitly(to device: AudioHardwareDevice) -> Bool {
+        if let defaultInputDevice = AudioInputDeviceManager.defaultInputDevice(),
+           defaultInputDevice.uid == device.uid,
+           !device.isBluetooth {
+            return false
+        }
+
+        return true
+    }
+
+    private static func defaultRouteMatches(
+        device: AudioHardwareDevice,
+        defaultInputDevice: AudioHardwareDevice?
+    ) -> Bool {
+        guard let defaultInputDevice else {
+            return false
+        }
+
+        return defaultInputDevice.uid == device.uid
     }
 }
 #endif
