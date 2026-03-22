@@ -36,7 +36,7 @@ struct DictationSettingsStore: Sendable {
         }
     }
 
-    nonisolated(unsafe) private let defaults: UserDefaults
+    private let defaultsStore: UserDefaultsStore
     private let secretStore: any DictationSecretStore
     private let dictionaryModel: DictionaryModel
 
@@ -53,7 +53,7 @@ struct DictationSettingsStore: Sendable {
         secretStore: any DictationSecretStore,
         dictionaryModel: DictionaryModel? = nil
     ) {
-        self.defaults = defaults
+        self.defaultsStore = UserDefaultsStore(defaults)
         self.secretStore = secretStore
         self.dictionaryModel = dictionaryModel ?? DictionaryModel(defaults: defaults)
     }
@@ -64,11 +64,11 @@ struct DictationSettingsStore: Sendable {
         let isRewriteEnabled = loadRewriteEnabled()
         let dictationLanguageMode = loadDictationLanguageMode()
         let shouldPauseMediaDuringDictation =
-            defaults.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
+            defaultsStore.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
         let apiKey = loadAPIKey(for: provider).trimmingCharacters(in: .whitespacesAndNewlines)
         let personalDictionary = loadPersonalDictionaryEnabled() ? loadPersonalDictionary() : []
         let interactionSoundsEnabled =
-            defaults.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
+            defaultsStore.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
         let interactionSoundPreset = loadInteractionSoundPreset()
 
         let configuration: OpenAIConfiguration? = apiKey.isEmpty
@@ -105,51 +105,51 @@ struct DictationSettingsStore: Sendable {
     }
 
     nonisolated func loadInteractionSoundPreset() -> InteractionSoundPreset {
-        let rawValue = defaults.string(forKey: MacPreferences.interactionSoundPreset) ?? ""
+        let rawValue = defaultsStore.string(forKey: MacPreferences.interactionSoundPreset) ?? ""
         return InteractionSoundPreset(rawValue: rawValue) ?? .soft
     }
 
     nonisolated func loadProvider() -> DictationProvider {
-        let rawValue = defaults.string(forKey: MacPreferences.transcriptionProvider) ?? ""
+        let rawValue = defaultsStore.string(forKey: MacPreferences.transcriptionProvider) ?? ""
         return DictationProvider(rawValue: rawValue) ?? .openAI
     }
 
     nonisolated func loadExecutionMode() -> AIExecutionMode {
-        let rawValue = defaults.string(forKey: MacPreferences.aiExecutionMode) ?? ""
+        let rawValue = defaultsStore.string(forKey: MacPreferences.aiExecutionMode) ?? ""
         return AIExecutionMode(rawValue: rawValue) ?? .automatic
     }
 
     nonisolated func saveProvider(_ provider: DictationProvider) {
-        defaults.set(provider.rawValue, forKey: MacPreferences.transcriptionProvider)
+        defaultsStore.set(provider.rawValue, forKey: MacPreferences.transcriptionProvider)
     }
 
     nonisolated func saveExecutionMode(_ mode: AIExecutionMode) {
-        defaults.set(mode.rawValue, forKey: MacPreferences.aiExecutionMode)
+        defaultsStore.set(mode.rawValue, forKey: MacPreferences.aiExecutionMode)
     }
 
     nonisolated func loadRewriteEnabled() -> Bool {
-        defaults.object(forKey: MacPreferences.rewriteEnabled) as? Bool ?? false
+        defaultsStore.object(forKey: MacPreferences.rewriteEnabled) as? Bool ?? false
     }
 
     nonisolated func saveRewriteEnabled(_ enabled: Bool) {
-        defaults.set(enabled, forKey: MacPreferences.rewriteEnabled)
+        defaultsStore.set(enabled, forKey: MacPreferences.rewriteEnabled)
     }
 
     nonisolated func loadDictationLanguageMode() -> DictationLanguageMode {
-        let rawValue = defaults.string(forKey: MacPreferences.dictationLanguageMode) ?? ""
+        let rawValue = defaultsStore.string(forKey: MacPreferences.dictationLanguageMode) ?? ""
         return DictationLanguageMode(rawValue: rawValue) ?? .automatic
     }
 
     nonisolated func saveDictationLanguageMode(_ mode: DictationLanguageMode) {
-        defaults.set(mode.rawValue, forKey: MacPreferences.dictationLanguageMode)
+        defaultsStore.set(mode.rawValue, forKey: MacPreferences.dictationLanguageMode)
     }
 
     nonisolated func loadHotkeyDistinguishModifierSides() -> Bool {
-        defaults.object(forKey: MacPreferences.hotkeyDistinguishModifierSides) as? Bool ?? false
+        defaultsStore.object(forKey: MacPreferences.hotkeyDistinguishModifierSides) as? Bool ?? false
     }
 
     nonisolated func saveHotkeyDistinguishModifierSides(_ enabled: Bool) {
-        defaults.set(enabled, forKey: MacPreferences.hotkeyDistinguishModifierSides)
+        defaultsStore.set(enabled, forKey: MacPreferences.hotkeyDistinguishModifierSides)
     }
 
     nonisolated static func words(from rawInput: String) -> [String] {

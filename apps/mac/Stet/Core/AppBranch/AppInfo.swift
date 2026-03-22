@@ -6,7 +6,7 @@ import Foundation
 /// AppInfo encapsulates all relevant details about a macOS application,
 /// including its bundle identifier, display name, process ID, and whether
 /// it represents the host application.
-public struct AppInfo: Equatable {
+public nonisolated struct AppInfo: Equatable, @unchecked Sendable {
     /// The unique bundle identifier of the application (e.g., "com.apple.Safari")
     public let bundleIdentifier: String
 
@@ -24,7 +24,7 @@ public struct AppInfo: Equatable {
     public let runningApplication: NSRunningApplication?
 
     /// The coarse audience classification used to steer dictation strategy.
-    var audience: AppAudience {
+    nonisolated var audience: AppAudience {
         AppAudienceResolver.resolve(
             bundleIdentifier: bundleIdentifier,
             localizedName: localizedName
@@ -73,7 +73,7 @@ public struct AppInfo: Equatable {
 public typealias AppChangeCallback = (AppInfo?) -> Void
 
 /// Represents a registered observer for application change events.
-public struct AppChangeObserver {
+public nonisolated struct AppChangeObserver {
     public let id: UUID
     public let callback: AppChangeCallback
     public let createdAt: Date

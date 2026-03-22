@@ -25,7 +25,7 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
     private let rewriteEnabled: Bool
     private let preferredSpellings: [String]
 
-    init(
+    nonisolated init(
         authentication: RelayAuthenticationContext,
         session: URLSession = .shared,
         rewriteEnabled: Bool,

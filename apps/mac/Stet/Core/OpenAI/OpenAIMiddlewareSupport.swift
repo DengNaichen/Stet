@@ -3,10 +3,10 @@ import OpenAI
 
 // MARK: - Http Response Recorder
 
-final class OpenAIHTTPResponseRecorder: @unchecked Sendable {
+nonisolated final class OpenAIHTTPResponseRecorder: @unchecked Sendable {
     private let lock = NSLock()
-    nonisolated(unsafe) private var latestStatusCode: Int?
-    nonisolated(unsafe) private var latestData: Data?
+    private var latestStatusCode: Int?
+    private var latestData: Data?
 
     nonisolated init() {}
 

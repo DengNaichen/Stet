@@ -1,8 +1,8 @@
 import Foundation
 
-final class AudioLevelBridge: @unchecked Sendable {
+nonisolated final class AudioLevelBridge: @unchecked Sendable {
     private let lock = NSLock()
-    nonisolated(unsafe) private var continuations: [UUID: AsyncStream<Double>.Continuation] = [:]
+    private var continuations: [UUID: AsyncStream<Double>.Continuation] = [:]
 
     nonisolated init() {}
 

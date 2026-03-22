@@ -4,8 +4,9 @@ import SwiftUI
 struct AudioInputDeviceMenuSection: View {
     @ObservedObject private var deviceManager: AudioDeviceSelectionManager
 
-    init(deviceManager: AudioDeviceSelectionManager = .shared) {
-        self._deviceManager = ObservedObject(wrappedValue: deviceManager)
+    @MainActor
+    init(deviceManager: AudioDeviceSelectionManager? = nil) {
+        self._deviceManager = ObservedObject(wrappedValue: deviceManager ?? .shared)
     }
 
     var body: some View {

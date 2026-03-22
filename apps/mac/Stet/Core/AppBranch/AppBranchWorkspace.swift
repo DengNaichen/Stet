@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-struct AppBranchWorkspaceApplicationSnapshot {
+nonisolated struct AppBranchWorkspaceApplicationSnapshot {
     let bundleIdentifier: String?
     let localizedName: String?
     let processIdentifier: pid_t
@@ -33,7 +33,7 @@ struct AppBranchWorkspaceApplicationSnapshot {
 ///
 /// This keeps the monitor deterministic in tests by allowing the frontmost app
 /// snapshot and activation observation to be supplied by a fake workspace.
-protocol AppBranchWorkspaceObserving {
+nonisolated protocol AppBranchWorkspaceObserving {
     var frontmostApplication: AppBranchWorkspaceApplicationSnapshot? { get }
 
     func observeFrontmostApplicationChanges(_ handler: @escaping () -> Void) -> AppBranchWorkspaceObservationToken
@@ -43,7 +43,7 @@ protocol AppBranchWorkspaceObserving {
 /// Lightweight wrapper around a notification observer token.
 ///
 /// The monitor owns this token and hands it back to the workspace for cleanup.
-final class AppBranchWorkspaceObservationToken {
+nonisolated final class AppBranchWorkspaceObservationToken {
     let observer: NSObjectProtocol
 
     init(observer: NSObjectProtocol) {
@@ -52,7 +52,7 @@ final class AppBranchWorkspaceObservationToken {
 }
 
 /// Live `NSWorkspace` implementation used by the app at runtime.
-final class LiveAppBranchWorkspace: AppBranchWorkspaceObserving {
+nonisolated final class LiveAppBranchWorkspace: AppBranchWorkspaceObserving {
     private let workspace: NSWorkspace
 
     init(workspace: NSWorkspace = .shared) {

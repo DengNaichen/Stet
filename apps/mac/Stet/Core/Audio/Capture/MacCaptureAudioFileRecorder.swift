@@ -4,7 +4,7 @@ import CoreAudio
 import CoreMedia
 import Foundation
 
-final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
+nonisolated final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
     private struct InputDeviceCandidate {
         let device: AudioHardwareDevice?
         let reason: Reason
@@ -18,8 +18,8 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
     }
 
     private enum Configuration {
-        static let startupRetryCount = 4
-        static let startupRetryDelaySeconds = 0.15
+        nonisolated static let startupRetryCount = 4
+        nonisolated static let startupRetryDelaySeconds = 0.15
     }
 
     private enum CaptureError: LocalizedError {
@@ -71,7 +71,7 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
     private var activeSession: MacAudioFileRecordingSession?
     private var hasWrittenFirstRecordedBuffer = false
 
-    init(
+    nonisolated init(
         audioLevelHandler: @escaping @Sendable (Double) -> Void = { _ in },
         onFirstRecordedBufferWritten: @escaping @Sendable () -> Void = {}
     ) {
@@ -464,7 +464,7 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
         return candidates
     }
 
-    private static func makeCaptureResources(
+    private nonisolated static func makeCaptureResources(
         for device: AVCaptureDevice,
         delegate: any AVCaptureAudioDataOutputSampleBufferDelegate,
         queue: DispatchQueue
@@ -494,7 +494,9 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
         )
     }
 
-    private static func resolveCaptureDevice(for device: AudioHardwareDevice?) throws -> AVCaptureDevice {
+    private nonisolated static func resolveCaptureDevice(
+        for device: AudioHardwareDevice?
+    ) throws -> AVCaptureDevice {
         let availableDevices = availableCaptureDevices()
 
         guard let device else {
@@ -531,7 +533,7 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
         )
     }
 
-    private static func availableCaptureDevices() -> [AVCaptureDevice] {
+    private nonisolated static func availableCaptureDevices() -> [AVCaptureDevice] {
         var devices = AVCaptureDevice.DiscoverySession(
             deviceTypes: [.microphone],
             mediaType: .audio,
@@ -545,7 +547,9 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
         return devices
     }
 
-    private static func pcmBuffer(from sampleBuffer: CMSampleBuffer) throws -> AVAudioPCMBuffer {
+    private nonisolated static func pcmBuffer(
+        from sampleBuffer: CMSampleBuffer
+    ) throws -> AVAudioPCMBuffer {
         guard let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer),
               let streamDescriptionPointer = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription) else {
             throw CaptureError.unsupportedSampleBufferFormat
@@ -625,7 +629,7 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
         return defaultInputDevice.uid == device.uid
     }
 
-    private static func selectedRecordingDevice(
+    private nonisolated static func selectedRecordingDevice(
         defaults: UserDefaults = .standard
     ) -> AudioHardwareDevice? {
         let availableDevices = AudioInputDeviceManager.allInputDevices()
@@ -653,11 +657,11 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
         return availableDevices.max(by: { $0.automaticSelectionPriority < $1.automaticSelectionPriority })
     }
 
-    private static func describe(candidate: InputDeviceCandidate) -> String {
+    private nonisolated static func describe(candidate: InputDeviceCandidate) -> String {
         "\(candidate.reason.rawValue):\(candidate.device?.name ?? "systemDefault")"
     }
 
-    private static func logStartupTiming(_ payload: String) {
+    private nonisolated static func logStartupTiming(_ payload: String) {
         guard UserDefaults.standard.bool(forKey: MacPreferences.dictationPerfTracingEnabled) else {
             return
         }
@@ -665,11 +669,11 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
         AppLogger.info("AudioStartup \(payload)", category: .perfTrace)
     }
 
-    private static func elapsedMilliseconds(since start: TimeInterval) -> Double {
+    private nonisolated static func elapsedMilliseconds(since start: TimeInterval) -> Double {
         (ProcessInfo.processInfo.systemUptime - start) * 1_000
     }
 
-    private static func formatMilliseconds(_ duration: Double) -> String {
+    private nonisolated static func formatMilliseconds(_ duration: Double) -> String {
         String(format: "%.1f", duration)
     }
 }

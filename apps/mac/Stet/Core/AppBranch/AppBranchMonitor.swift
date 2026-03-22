@@ -2,14 +2,14 @@ import AppKit
 import Foundation
 
 private extension NSLocking {
-    func withLock<T>(_ body: () throws -> T) rethrows -> T {
+    nonisolated func withLock<T>(_ body: () throws -> T) rethrows -> T {
         lock()
         defer { unlock() }
         return try body()
     }
 }
 
-private struct AppBranchMonitorState {
+private nonisolated struct AppBranchMonitorState {
     var isMonitoring = false
     var excludedBundleID: String?
     var previousApp: AppInfo?
@@ -21,15 +21,15 @@ private struct AppBranchMonitorState {
 ///
 /// The monitor keeps the public API small, but its internal dependencies are
 /// injectable so tests can swap in a fake workspace and deterministic snapshot.
-public final class AppBranchMonitor {
-    public static let shared = AppBranchMonitor()
+public nonisolated final class AppBranchMonitor: @unchecked Sendable {
+    public nonisolated static let shared = AppBranchMonitor()
 
     private let workspace: any AppBranchWorkspaceObserving
     private let callbackQueue: DispatchQueue
     private let stateLock = NSRecursiveLock()
     private var state = AppBranchMonitorState()
 
-    init(
+    nonisolated init(
         workspace: any AppBranchWorkspaceObserving = LiveAppBranchWorkspace(),
         callbackQueue: DispatchQueue = DispatchQueue(
             label: "com.stet.appbranch.callbacks",
@@ -48,20 +48,20 @@ public final class AppBranchMonitor {
     ///
     /// This is computed on demand from the live workspace snapshot and the
     /// monitor's exclusion state.
-    public var currentApp: AppInfo? {
+    public nonisolated var currentApp: AppInfo? {
         let frontmostApp = workspace.frontmostApplication
         return stateLock.withLock {
             resolveCurrentApp(from: frontmostApp)
         }
     }
 
-    public var isMonitoring: Bool {
+    public nonisolated var isMonitoring: Bool {
         stateLock.withLock {
             state.isMonitoring
         }
     }
 
-    public var excludedBundleID: String? {
+    public nonisolated var excludedBundleID: String? {
         get {
             stateLock.withLock {
                 state.excludedBundleID
@@ -74,7 +74,7 @@ public final class AppBranchMonitor {
         }
     }
 
-    public func startMonitoring() {
+    public nonisolated func startMonitoring() {
         let token = workspace.observeFrontmostApplicationChanges { [weak self] in
             self?.scheduleWorkspaceRefresh()
         }
@@ -97,7 +97,7 @@ public final class AppBranchMonitor {
         scheduleWorkspaceRefresh()
     }
 
-    public func stopMonitoring() {
+    public nonisolated func stopMonitoring() {
         let token: AppBranchWorkspaceObservationToken? = stateLock.withLock {
             guard state.isMonitoring else {
                 return nil
@@ -113,7 +113,7 @@ public final class AppBranchMonitor {
         workspace.removeObservation(token)
     }
 
-    public func addObserver(_ callback: @escaping AppChangeCallback) -> UUID {
+    public nonisolated func addObserver(_ callback: @escaping AppChangeCallback) -> UUID {
         stateLock.withLock {
             let observerID = UUID()
             state.observers[observerID] = AppChangeObserver(
@@ -125,25 +125,25 @@ public final class AppBranchMonitor {
         }
     }
 
-    public func removeObserver(_ id: UUID) {
+    public nonisolated func removeObserver(_ id: UUID) {
         stateLock.withLock {
             _ = state.observers.removeValue(forKey: id)
         }
     }
 
-    public func setExcludedBundleID(_ bundleID: String?) {
+    public nonisolated func setExcludedBundleID(_ bundleID: String?) {
         stateLock.withLock {
             state.excludedBundleID = bundleID
         }
     }
 
-    private func scheduleWorkspaceRefresh() {
+    private nonisolated func scheduleWorkspaceRefresh() {
         callbackQueue.async { [weak self] in
             self?.refreshAndNotifyObservers()
         }
     }
 
-    private func refreshAndNotifyObservers() {
+    private nonisolated func refreshAndNotifyObservers() {
         let snapshot: (AppInfo?, [AppChangeCallback])? = stateLock.withLock {
             guard state.isMonitoring else {
                 return nil
@@ -161,7 +161,9 @@ public final class AppBranchMonitor {
         }
     }
 
-    private func resolveCurrentApp(from frontmostApp: AppBranchWorkspaceApplicationSnapshot?) -> AppInfo? {
+    private nonisolated func resolveCurrentApp(
+        from frontmostApp: AppBranchWorkspaceApplicationSnapshot?
+    ) -> AppInfo? {
         guard let frontmostApp else {
             NSLog("[AppBranchMonitor] Warning: No frontmost application available.")
             return nil

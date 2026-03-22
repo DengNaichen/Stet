@@ -5,13 +5,13 @@ enum AppAudience: String, Codable, Sendable {
     case human
     case ai
 
-    var isAI: Bool {
+    nonisolated var isAI: Bool {
         self == .ai
     }
 }
 
 enum AppAudienceResolver {
-    private static let aiNameFragments: [String] = [
+    private nonisolated static let aiNameFragments: [String] = [
         "android studio",
         "androidstudio",
         "aider",

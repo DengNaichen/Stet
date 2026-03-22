@@ -4,11 +4,27 @@ import Foundation
 
 @MainActor
 final class AudioDeviceSelectionManager: ObservableObject {
+    private nonisolated final class RecordingDeviceCache: @unchecked Sendable {
+        private let lock = NSLock()
+        private var device: AudioHardwareDevice?
+
+        func load() -> AudioHardwareDevice? {
+            lock.lock()
+            defer { lock.unlock() }
+            return device
+        }
+
+        func store(_ device: AudioHardwareDevice?) {
+            lock.lock()
+            self.device = device
+            lock.unlock()
+        }
+    }
+
     static let shared = AudioDeviceSelectionManager(provider: SystemAudioDeviceProvider())
 
     private let provider: AudioDeviceProviding
-    private let recordingDeviceLock = NSLock()
-    nonisolated(unsafe) private var _cachedRecordingDevice: AudioHardwareDevice?
+    private let recordingDeviceCache = RecordingDeviceCache()
 
     @Published private(set) var selectedDevice: AudioHardwareDevice? {
         didSet {
@@ -50,9 +66,7 @@ final class AudioDeviceSelectionManager: ObservableObject {
     }
 
     nonisolated func currentRecordingDevice() -> AudioHardwareDevice? {
-        recordingDeviceLock.lock()
-        defer { recordingDeviceLock.unlock() }
-        return _cachedRecordingDevice
+        recordingDeviceCache.load()
     }
 
     func refreshDevices() {
@@ -110,9 +124,7 @@ final class AudioDeviceSelectionManager: ObservableObject {
     }
 
     private func updateRecordingDeviceCache(_ device: AudioHardwareDevice?) {
-        recordingDeviceLock.lock()
-        _cachedRecordingDevice = device
-        recordingDeviceLock.unlock()
+        recordingDeviceCache.store(device)
     }
 }
 #endif

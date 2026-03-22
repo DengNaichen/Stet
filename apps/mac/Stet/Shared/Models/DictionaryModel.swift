@@ -33,7 +33,7 @@ final class DictionaryEntryRecord {
 
 struct DictionaryModel: @unchecked Sendable {
     nonisolated private let modelContainer: ModelContainer?
-    nonisolated(unsafe) private let defaults: UserDefaults
+    private let defaultsStore: UserDefaultsStore
 
     nonisolated init() {
         self.init(
@@ -54,13 +54,13 @@ struct DictionaryModel: @unchecked Sendable {
         defaults: UserDefaults
     ) {
         self.modelContainer = modelContainer
-        self.defaults = defaults
+        self.defaultsStore = UserDefaultsStore(defaults)
     }
 
     nonisolated func loadEntries() -> [String] {
         guard let context = modelContext else {
             return Self.normalizeEntries(
-                defaults.stringArray(forKey: MacPreferences.personalDictionary) ?? []
+                defaultsStore.stringArray(forKey: MacPreferences.personalDictionary) ?? []
             )
         }
 
@@ -71,7 +71,7 @@ struct DictionaryModel: @unchecked Sendable {
         }
 
         let legacyEntries = Self.normalizeEntries(
-            defaults.stringArray(forKey: MacPreferences.personalDictionary) ?? []
+            defaultsStore.stringArray(forKey: MacPreferences.personalDictionary) ?? []
         )
 
         guard !legacyEntries.isEmpty else {
@@ -79,28 +79,28 @@ struct DictionaryModel: @unchecked Sendable {
         }
 
         replaceEntries(legacyEntries, using: context)
-        defaults.removeObject(forKey: MacPreferences.personalDictionary)
+        defaultsStore.removeObject(forKey: MacPreferences.personalDictionary)
         return legacyEntries
     }
 
     nonisolated func loadIsEnabled() -> Bool {
-        defaults.object(forKey: MacPreferences.personalDictionaryEnabled) as? Bool ?? true
+        defaultsStore.object(forKey: MacPreferences.personalDictionaryEnabled) as? Bool ?? true
     }
 
     nonisolated func saveEntries(_ entries: [String]) {
         let normalizedEntries = Self.normalizeEntries(entries)
 
         guard let context = modelContext else {
-            defaults.set(normalizedEntries, forKey: MacPreferences.personalDictionary)
+            defaultsStore.set(normalizedEntries, forKey: MacPreferences.personalDictionary)
             return
         }
 
         replaceEntries(entries, using: context)
-        defaults.removeObject(forKey: MacPreferences.personalDictionary)
+        defaultsStore.removeObject(forKey: MacPreferences.personalDictionary)
     }
 
     nonisolated func saveIsEnabled(_ enabled: Bool) {
-        defaults.set(enabled, forKey: MacPreferences.personalDictionaryEnabled)
+        defaultsStore.set(enabled, forKey: MacPreferences.personalDictionaryEnabled)
     }
 
     nonisolated func addEntries(from rawInput: String) -> [String] {

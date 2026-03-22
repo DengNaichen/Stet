@@ -2,7 +2,7 @@
 import Foundation
 
 enum AudioLevelNormalizer {
-    private static let minimumVisibleLevel = 0.08
+    private nonisolated static let minimumVisibleLevel = 0.08
 
     nonisolated static func normalizedLevel(from buffer: AVAudioPCMBuffer) -> Double {
         guard let channelData = buffer.floatChannelData else {

@@ -10,17 +10,17 @@ struct AudioHardwareDevice: Equatable, Sendable {
 }
 
 extension AudioHardwareDevice {
-    var isBuiltIn: Bool {
+    nonisolated var isBuiltIn: Bool {
         transportType == kAudioDeviceTransportTypeBuiltIn
     }
 
 //    Unused after device prioritization moved to the transport-type switch below.
-//    var isBluetooth: Bool {
+//    nonisolated var isBluetooth: Bool {
 //        transportType == kAudioDeviceTransportTypeBluetooth ||
 //            transportType == kAudioDeviceTransportTypeBluetoothLE
 //    }
 
-    var isHandheldAppleDevice: Bool {
+    nonisolated var isHandheldAppleDevice: Bool {
         let lowercaseName = name.lowercased()
         return lowercaseName.contains("iphone")
             || lowercaseName.contains("ipad")
@@ -28,7 +28,7 @@ extension AudioHardwareDevice {
             || lowercaseName.contains("apple ipad")
     }
 
-    var automaticSelectionPriority: AutomaticSelectionPriority {
+    nonisolated var automaticSelectionPriority: AutomaticSelectionPriority {
         if isBuiltIn {
             return .builtIn
         }
@@ -63,7 +63,7 @@ extension AudioHardwareDevice {
         case bluetooth = 100
         case handheldAppleDevice = 50
 
-        static func < (lhs: Self, rhs: Self) -> Bool {
+        nonisolated static func < (lhs: Self, rhs: Self) -> Bool {
             lhs.rawValue < rhs.rawValue
         }
     }
