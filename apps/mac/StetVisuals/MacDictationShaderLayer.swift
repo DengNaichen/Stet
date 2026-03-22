@@ -8,6 +8,7 @@ struct MacDictationShaderLayer: View {
     let startDate: Date
     let shaderFrameInterval: Double
     let signals: MacDictationCapsuleVisualSignals
+    let shaderTheme: MacDictationShaderTheme
     let isPaused: Bool
 
     var body: some View {
@@ -22,6 +23,7 @@ struct MacDictationShaderLayer: View {
             )
             let colors = MacDictationShaderStyling.colors(
                 for: state,
+                theme: shaderTheme,
                 elapsed: elapsed,
                 signals: effectiveSignals
             )

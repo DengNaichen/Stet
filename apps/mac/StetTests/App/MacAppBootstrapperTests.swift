@@ -1,6 +1,7 @@
 #if os(macOS)
 import Foundation
 import Testing
+import StetVisuals
 
 @testable import Stet
 
@@ -26,6 +27,7 @@ struct MacAppBootstrapperTests {
         #expect(!defaults.bool(forKey: MacPreferences.hotkeyDistinguishModifierSides))
         #expect(defaults.bool(forKey: MacPreferences.interactionSoundsEnabled))
         #expect(defaults.string(forKey: MacPreferences.interactionSoundPreset) == InteractionSoundPreset.soft.rawValue)
+        #expect(defaults.string(forKey: MacPreferences.shaderTheme) == MacDictationShaderTheme.defaultTheme.rawValue)
         #expect(defaults.bool(forKey: MacPreferences.launchAtLogin))
         #expect(!defaults.bool(forKey: MacPreferences.showInDock))
     }

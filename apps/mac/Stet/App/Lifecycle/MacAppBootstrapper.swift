@@ -1,5 +1,6 @@
 #if os(macOS)
 import Foundation
+import StetVisuals
 
 struct MacAppBootstrapper {
     struct LaunchConfiguration: Equatable {
@@ -34,6 +35,7 @@ struct MacAppBootstrapper {
         .bool(MacPreferences.rewriteEnabled, false),
         .bool(MacPreferences.interactionSoundsEnabled, true),
         .string(MacPreferences.interactionSoundPreset, InteractionSoundPreset.soft.rawValue),
+        .string(MacPreferences.shaderTheme, MacDictationShaderTheme.defaultTheme.rawValue),
         .bool(MacPreferences.showInDock, false),
         .bool(MacPreferences.hotkeyDebugLoggingEnabled, false),
         .bool(MacPreferences.openAIDebugLoggingEnabled, false),

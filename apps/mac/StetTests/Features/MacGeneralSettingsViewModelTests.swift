@@ -1,6 +1,7 @@
 #if os(macOS)
 import Foundation
 import Testing
+import StetVisuals
 
 @testable import Stet
 
@@ -64,6 +65,20 @@ struct MacGeneralSettingsViewModelTests {
 
         #expect(state.launchAtLogin)
         #expect(state.showInDock == false)
+    }
+
+    @Test func shaderThemeLoadsAndPersistsPreference() {
+        let defaults = TestSupport.makeUserDefaults()
+        defaults.set(MacDictationShaderTheme.midnight.rawValue, forKey: MacPreferences.shaderTheme)
+        let viewModel = makeViewModel(defaults: defaults)
+
+        viewModel.load()
+
+        #expect(viewModel.shaderTheme == .midnight)
+
+        viewModel.shaderTheme = .forest
+
+        #expect(defaults.string(forKey: MacPreferences.shaderTheme) == MacDictationShaderTheme.forest.rawValue)
     }
 
     @Test func importConfigurationRefreshesRuntimeAndReturnsImportedState() {

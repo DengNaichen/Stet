@@ -35,6 +35,7 @@ public struct MacDictationShaderDebugView: View {
     @State private var articulationSignal = 0.36
     @State private var useStateDetail = true
     @State private var manualDetail = 1.0
+    @State private var selectedTheme: MacDictationShaderTheme = .defaultTheme
     @State private var isPaused = false
     @State private var frozenTime = 0.0
     @State private var surfaceWidth = Double(MacDictationPanelConstants.Layout.mainWidthListening)
@@ -91,6 +92,7 @@ public struct MacDictationShaderDebugView: View {
                     : manualDetail
                 let colors = MacDictationShaderStyling.colors(
                     for: selectedState.visualState,
+                    theme: selectedTheme,
                     elapsed: elapsed,
                     signals: signals
                 )
@@ -146,6 +148,13 @@ public struct MacDictationShaderDebugView: View {
                 }
             }
             .pickerStyle(.segmented)
+
+            Picker("Theme", selection: $selectedTheme) {
+                ForEach(MacDictationShaderTheme.allCases) { theme in
+                    Text(theme.title).tag(theme)
+                }
+            }
+            .pickerStyle(.menu)
 
             VStack(alignment: .leading, spacing: 10) {
                 labeledSlider(
@@ -234,7 +243,7 @@ public struct MacDictationShaderDebugView: View {
             )
             : manualDetail
 
-        return "state=\(selectedState.rawValue.lowercased()) body=\(signals.body.formatted(.number.precision(.fractionLength(2)))) pulse=\(signals.pulse.formatted(.number.precision(.fractionLength(2)))) articulation=\(signals.articulation.formatted(.number.precision(.fractionLength(2)))) detail=\(detail.formatted(.number.precision(.fractionLength(2))))"
+        return "state=\(selectedState.rawValue.lowercased()) theme=\(selectedTheme.rawValue) body=\(signals.body.formatted(.number.precision(.fractionLength(2)))) pulse=\(signals.pulse.formatted(.number.precision(.fractionLength(2)))) articulation=\(signals.articulation.formatted(.number.precision(.fractionLength(2)))) detail=\(detail.formatted(.number.precision(.fractionLength(2))))"
     }
 
     @ViewBuilder

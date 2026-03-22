@@ -44,15 +44,18 @@ public struct MacDictationCapsuleVisualModel: Equatable {
     let state: MacDictationCapsuleVisualState
     let panelSize: CGSize
     let signals: MacDictationCapsuleVisualSignals
+    let shaderTheme: MacDictationShaderTheme
 
     public init(
         state: MacDictationCapsuleVisualState,
         panelSize: CGSize,
-        signals: MacDictationCapsuleVisualSignals
+        signals: MacDictationCapsuleVisualSignals,
+        shaderTheme: MacDictationShaderTheme
     ) {
         self.state = state
         self.panelSize = panelSize
         self.signals = signals
+        self.shaderTheme = shaderTheme
     }
 
     var mainWidth: CGFloat {

@@ -1,4 +1,5 @@
 #if os(macOS)
+import StetVisuals
 import SwiftUI
 
 struct MacGeneralSettingsView: View {
@@ -14,6 +15,7 @@ struct MacGeneralSettingsView: View {
             audioDeviceSection
             captureSection
             interactionSoundsSection
+            appearanceSection
             appBehaviorSection
             updatesSection
             debugLoggingSection
@@ -67,6 +69,21 @@ struct MacGeneralSettingsView: View {
             Toggle("Enable interaction sounds", isOn: $viewModel.interactionSoundsEnabled)
         } header: {
             Text("Interaction Sounds")
+        }
+    }
+
+    private var appearanceSection: some View {
+        Section {
+            Picker("Capsule Theme", selection: $viewModel.shaderTheme) {
+                ForEach(MacDictationShaderTheme.allCases) { theme in
+                    Text(theme.title).tag(theme)
+                }
+            }
+            .pickerStyle(.menu)
+        } header: {
+            Text("Appearance")
+        } footer: {
+            Text("Choose the color palette used by the dictation capsule.")
         }
     }
 

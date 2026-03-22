@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import StetVisuals
 
 @testable import Stet
 
@@ -68,6 +69,17 @@ struct SharedModelTests {
     ])
     func interactionSoundPresetTitle(_ preset: InteractionSoundPreset, expectedTitle: String) {
         #expect(preset.title == expectedTitle)
+    }
+
+    @Test(arguments: [
+        (MacDictationShaderTheme.defaultTheme, "Default"),
+        (.midnight, "Midnight"),
+        (.sunset, "Sunset"),
+        (.forest, "Forest"),
+    ])
+    func shaderThemeMetadata(_ theme: MacDictationShaderTheme, expectedTitle: String) {
+        #expect(theme.title == expectedTitle)
+        #expect(theme.id == theme.rawValue)
     }
 
     @Test(arguments: [

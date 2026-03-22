@@ -2,6 +2,7 @@
 import AppKit
 import Foundation
 import Testing
+import StetVisuals
 
 @testable import Stet
 
@@ -17,6 +18,7 @@ struct MacConfigurationTransferManagerTests {
         sourceDefaults.set(true, forKey: MacPreferences.showInDock)
         sourceDefaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
         sourceDefaults.set(AIExecutionMode.byok.rawValue, forKey: MacPreferences.aiExecutionMode)
+        sourceDefaults.set(MacDictationShaderTheme.sunset.rawValue, forKey: MacPreferences.shaderTheme)
         sourceStore.saveDictationLanguageMode(.primarilyEnglish)
         sourceStore.savePersonalDictionary(["OpenAI", "Groq"])
         try sourceStore.saveOpenAIAPIKey("sk-secret")
@@ -40,6 +42,7 @@ struct MacConfigurationTransferManagerTests {
         #expect(targetDefaults.bool(forKey: MacPreferences.showInDock))
         #expect(targetDefaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.openAI.rawValue)
         #expect(targetDefaults.string(forKey: MacPreferences.aiExecutionMode) == AIExecutionMode.byok.rawValue)
+        #expect(targetDefaults.string(forKey: MacPreferences.shaderTheme) == MacDictationShaderTheme.sunset.rawValue)
         #expect(targetStore.loadExecutionMode() == .byok)
         #expect(targetStore.loadDictationLanguageMode() == .primarilyEnglish)
         #expect(targetStore.loadPersonalDictionary() == ["OpenAI", "Groq"])

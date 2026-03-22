@@ -1,6 +1,7 @@
 #if os(macOS)
 import AppKit
 import Foundation
+import StetVisuals
 import UniformTypeIdentifiers
 
 enum MacConfigurationTransferError: LocalizedError, Equatable {
@@ -24,6 +25,7 @@ enum MacConfigurationTransferManager {
         var dictationLanguageMode: String
         var interactionSoundsEnabled: Bool
         var interactionSoundPreset: String
+        var shaderTheme: String?
         var launchAtLogin: Bool
         var showInDock: Bool
         var hotkeyDistinguishModifierSides: Bool
@@ -85,7 +87,7 @@ enum MacConfigurationTransferManager {
         defaults: UserDefaults
     ) -> ExportedConfiguration {
         return ExportedConfiguration(
-            version: 7,
+            version: 8,
             pauseMediaDuringDictation: defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation),
             transcriptionProvider: DictationProvider(
                 rawValue: defaults.string(forKey: MacPreferences.transcriptionProvider) ?? ""
@@ -95,6 +97,7 @@ enum MacConfigurationTransferManager {
             dictationLanguageMode: store.loadDictationLanguageMode().rawValue,
             interactionSoundsEnabled: defaults.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true,
             interactionSoundPreset: defaults.string(forKey: MacPreferences.interactionSoundPreset) ?? InteractionSoundPreset.soft.rawValue,
+            shaderTheme: defaults.string(forKey: MacPreferences.shaderTheme) ?? MacDictationShaderTheme.defaultTheme.rawValue,
             launchAtLogin: defaults.object(forKey: MacPreferences.launchAtLogin) as? Bool ?? false,
             showInDock: defaults.object(forKey: MacPreferences.showInDock) as? Bool ?? false,
             hotkeyDistinguishModifierSides: store.loadHotkeyDistinguishModifierSides(),
@@ -123,6 +126,11 @@ enum MacConfigurationTransferManager {
         defaults.set(imported.dictationLanguageMode, forKey: MacPreferences.dictationLanguageMode)
         defaults.set(imported.interactionSoundsEnabled, forKey: MacPreferences.interactionSoundsEnabled)
         defaults.set(imported.interactionSoundPreset, forKey: MacPreferences.interactionSoundPreset)
+        defaults.set(
+            MacDictationShaderTheme(rawValue: imported.shaderTheme ?? "")?.rawValue
+                ?? MacDictationShaderTheme.defaultTheme.rawValue,
+            forKey: MacPreferences.shaderTheme
+        )
         defaults.set(imported.launchAtLogin, forKey: MacPreferences.launchAtLogin)
         defaults.set(imported.showInDock, forKey: MacPreferences.showInDock)
         defaults.set(imported.hotkeyDebugLoggingEnabled, forKey: MacPreferences.hotkeyDebugLoggingEnabled)

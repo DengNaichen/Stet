@@ -50,28 +50,6 @@ enum MacDictationPanelConstants {
         static let shaderFrameIntervalActive: Double = 1.0 / 40.0
         static let shaderFrameIntervalIdle: Double = 1.0 / 30.0
     }
-    
-    enum Colors {
-        // Base Neutral (Idle)
-        static let topIdle = (0.95, 0.96, 0.98)
-        static let midIdle = (0.86, 0.88, 0.90)
-        static let lowIdle = (0.72, 0.74, 0.76)
-
-        // Starting (Pronounced Silver-Blue)
-        static let topStarting = (0.62, 0.82, 0.96)
-        static let midStarting = (0.34, 0.60, 0.84)
-        static let lowStarting = (0.16, 0.40, 0.68)
-        
-        // Active Speaking (Blue Injection)
-        static let topSpeaking = (0.35, 0.85, 1.00)
-        static let midSpeaking = (0.20, 0.65, 1.00)
-        static let lowSpeaking = (0.10, 0.45, 0.85)
-        
-        // Active Processing (Orange Injection)
-        static let topProcessing = (1.00, 0.80, 0.45)
-        static let midProcessing = (1.00, 0.55, 0.12)
-        static let lowProcessing = (0.85, 0.32, 0.08)
-    }
 }
 
 extension Color {

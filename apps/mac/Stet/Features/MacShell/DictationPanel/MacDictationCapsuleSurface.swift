@@ -5,12 +5,14 @@ import StetVisuals
 struct MacDictationCapsuleSurface: View {
     @ObservedObject var viewModel: MacDictationPanelViewModel
     let panelSize: CGSize
+    @AppStorage(MacPreferences.shaderTheme) private var shaderThemeRawValue = MacDictationShaderTheme.defaultTheme.rawValue
 
     private var visualModel: MacDictationCapsuleVisualModel {
         MacDictationCapsuleVisualModel(
             state: visualState,
             panelSize: panelSize,
-            signals: viewModel.visualSignals
+            signals: viewModel.visualSignals,
+            shaderTheme: shaderTheme
         )
     }
 
@@ -54,6 +56,10 @@ struct MacDictationCapsuleSurface: View {
         default:
             break
         }
+    }
+
+    private var shaderTheme: MacDictationShaderTheme {
+        MacDictationShaderTheme(rawValue: shaderThemeRawValue) ?? .defaultTheme
     }
 }
 #endif

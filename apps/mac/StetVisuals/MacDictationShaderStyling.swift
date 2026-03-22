@@ -23,9 +23,11 @@ enum MacDictationShaderStyling {
 
     static func colors(
         for state: MacDictationCapsuleVisualState,
+        theme: MacDictationShaderTheme,
         elapsed: Double,
         signals: MacDictationCapsuleVisualSignals
     ) -> (top: Color, mid: Color, low: Color) {
+        let palette = theme.palette
         let sustained = eased(max(signals.body, signals.presence * 0.92))
         let accent = eased(max(signals.pulse, signals.articulation * 0.68))
 
@@ -39,61 +41,67 @@ enum MacDictationShaderStyling {
 
         switch state {
         case .processing:
-            baseTop = MacDictationPanelConstants.Colors.topIdle
-            baseMid = MacDictationPanelConstants.Colors.midIdle
-            baseLow = MacDictationPanelConstants.Colors.lowIdle
+            baseTop = palette.idle.top
+            baseMid = palette.idle.mid
+            baseLow = palette.idle.low
             injection = min(1, 0.46 + sustained * 0.32 + accent * 0.22)
-            targetTop = MacDictationPanelConstants.Colors.topProcessing
-            targetMid = MacDictationPanelConstants.Colors.midProcessing
-            targetLow = MacDictationPanelConstants.Colors.lowProcessing
+            targetTop = palette.processing.top
+            targetMid = palette.processing.mid
+            targetLow = palette.processing.low
         case .starting:
-            baseTop = MacDictationPanelConstants.Colors.topStarting
-            baseMid = MacDictationPanelConstants.Colors.midStarting
-            baseLow = MacDictationPanelConstants.Colors.lowStarting
+            baseTop = palette.starting.top
+            baseMid = palette.starting.mid
+            baseLow = palette.starting.low
             injection = min(1, 0.28 + sustained * 0.18 + accent * 0.10)
-            targetTop = MacDictationPanelConstants.Colors.topStarting
-            targetMid = MacDictationPanelConstants.Colors.midStarting
-            targetLow = MacDictationPanelConstants.Colors.lowStarting
+            targetTop = palette.starting.top
+            targetMid = palette.starting.mid
+            targetLow = palette.starting.low
         case .listening:
-            baseTop = MacDictationPanelConstants.Colors.topIdle
-            baseMid = MacDictationPanelConstants.Colors.midIdle
-            baseLow = MacDictationPanelConstants.Colors.lowIdle
+            baseTop = palette.idle.top
+            baseMid = palette.idle.mid
+            baseLow = palette.idle.low
             injection = min(1, 0.12 + sustained * 0.68 + accent * 0.20)
-            targetTop = MacDictationPanelConstants.Colors.topSpeaking
-            targetMid = MacDictationPanelConstants.Colors.midSpeaking
-            targetLow = MacDictationPanelConstants.Colors.lowSpeaking
+            targetTop = palette.speaking.top
+            targetMid = palette.speaking.mid
+            targetLow = palette.speaking.low
         case .result:
-            baseTop = MacDictationPanelConstants.Colors.topIdle
-            baseMid = MacDictationPanelConstants.Colors.midIdle
-            baseLow = MacDictationPanelConstants.Colors.lowIdle
+            baseTop = palette.idle.top
+            baseMid = palette.idle.mid
+            baseLow = palette.idle.low
             injection = 0.4
-            targetTop = MacDictationPanelConstants.Colors.topSpeaking
-            targetMid = MacDictationPanelConstants.Colors.midSpeaking
-            targetLow = MacDictationPanelConstants.Colors.lowSpeaking
+            targetTop = palette.speaking.top
+            targetMid = palette.speaking.mid
+            targetLow = palette.speaking.low
         default:
-            baseTop = MacDictationPanelConstants.Colors.topIdle
-            baseMid = MacDictationPanelConstants.Colors.midIdle
-            baseLow = MacDictationPanelConstants.Colors.lowIdle
+            baseTop = palette.idle.top
+            baseMid = palette.idle.mid
+            baseLow = palette.idle.low
             injection = 0
-            targetTop = MacDictationPanelConstants.Colors.topIdle
-            targetMid = MacDictationPanelConstants.Colors.midIdle
-            targetLow = MacDictationPanelConstants.Colors.lowIdle
+            targetTop = palette.idle.top
+            targetMid = palette.idle.mid
+            targetLow = palette.idle.low
         }
 
-        let top = Color(
-            red: lerp(baseTop.0, targetTop.0, injection),
-            green: lerp(baseTop.1, targetTop.1, injection),
-            blue: lerp(baseTop.2, targetTop.2, injection)
+        let top = color(
+            from: (
+                lerp(baseTop.0, targetTop.0, injection),
+                lerp(baseTop.1, targetTop.1, injection),
+                lerp(baseTop.2, targetTop.2, injection)
+            )
         )
-        let mid = Color(
-            red: lerp(baseMid.0, targetMid.0, injection),
-            green: lerp(baseMid.1, targetMid.1, injection),
-            blue: lerp(baseMid.2, targetMid.2, injection)
+        let mid = color(
+            from: (
+                lerp(baseMid.0, targetMid.0, injection),
+                lerp(baseMid.1, targetMid.1, injection),
+                lerp(baseMid.2, targetMid.2, injection)
+            )
         )
-        let low = Color(
-            red: lerp(baseLow.0, targetLow.0, injection),
-            green: lerp(baseLow.1, targetLow.1, injection),
-            blue: lerp(baseLow.2, targetLow.2, injection)
+        let low = color(
+            from: (
+                lerp(baseLow.0, targetLow.0, injection),
+                lerp(baseLow.1, targetLow.1, injection),
+                lerp(baseLow.2, targetLow.2, injection)
+            )
         )
         return (top, mid, low)
     }
@@ -105,6 +113,10 @@ enum MacDictationShaderStyling {
     private static func eased(_ value: Double) -> Double {
         let clamped = min(max(value, 0), 1)
         return clamped * clamped * (3 - 2 * clamped)
+    }
+
+    private static func color(from components: (Double, Double, Double)) -> Color {
+        Color(red: components.0, green: components.1, blue: components.2)
     }
 }
 #endif

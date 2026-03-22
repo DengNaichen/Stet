@@ -68,7 +68,7 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
     var searchTokens: [String] {
         switch self {
         case .general:
-            return ["configuration", "microphone", "updates", "dock", "launch at login", "sounds"]
+            return ["configuration", "microphone", "updates", "dock", "launch at login", "sounds", "theme", "appearance", "colors", "shader"]
         case .hotkey:
             return ["shortcut", "keyboard", "recorder", "dictation"]
         case .openAI:
