@@ -54,7 +54,6 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
 
     private struct CaptureResources {
         let session: AVCaptureSession
-        let input: AVCaptureDeviceInput
         let output: AVCaptureAudioDataOutput
         let device: AVCaptureDevice
     }
@@ -154,7 +153,7 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
     nonisolated func stopRecording(writtenFileAt fileURL: URL) async -> MacAudioFileRecordingOutcome {
         let outcome = finishSession()
         if outcome.didWriteAudio {
-            await MacAudioFileRecorder.waitForFileToStabilize(at: fileURL)
+            await MacRecordingFileStabilizer.waitForFileToStabilize(at: fileURL)
         }
         return outcome
     }
@@ -490,7 +489,6 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
 
         return CaptureResources(
             session: session,
-            input: input,
             output: output,
             device: device
         )
