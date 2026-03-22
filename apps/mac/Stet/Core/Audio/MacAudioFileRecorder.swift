@@ -7,13 +7,11 @@ import Foundation
 struct MacAudioFileRecordingOutcome: Sendable {
     let writtenFrameCount: AVAudioFramePosition
     let didWriteAudio: Bool
-    let captureBackend: String?
     let captureDiagnosticsSummary: String?
 
     static let empty = Self(
         writtenFrameCount: 0,
         didWriteAudio: false,
-        captureBackend: nil,
         captureDiagnosticsSummary: nil
     )
 }
@@ -29,7 +27,6 @@ final class MacAudioFileRecordingSession {
 
     private let lock = NSLock()
     let outputFormat: AVAudioFormat
-    private let captureBackend: String
     private let voiceProcessingEnabled: Bool
     private let voiceProcessingFallbackReason: String?
     private var converter: AVAudioConverter?
@@ -45,13 +42,11 @@ final class MacAudioFileRecordingSession {
     init(
         recordingFile: AVAudioFile,
         outputFormat: AVAudioFormat,
-        captureBackend: String = "unknown",
         voiceProcessingEnabled: Bool,
         voiceProcessingFallbackReason: String?
     ) {
         self.recordingFile = recordingFile
         self.outputFormat = outputFormat
-        self.captureBackend = captureBackend
         self.voiceProcessingEnabled = voiceProcessingEnabled
         self.voiceProcessingFallbackReason = voiceProcessingFallbackReason
     }
@@ -163,7 +158,6 @@ final class MacAudioFileRecordingSession {
         let diagnostics =
             """
             didWriteAudio=\(didWriteAudio) activated=\(hasActivatedCaptureWindow) \
-            captureBackend=\(captureBackend) \
             writtenFrames=\(writtenFrameCount) pendingFrames=\(pendingFrameCount) \
             voiceProcessingEnabled=\(voiceProcessingEnabled) \
             fallbackReason=\(voiceProcessingFallbackReason ?? "none")
@@ -172,7 +166,6 @@ final class MacAudioFileRecordingSession {
         return MacAudioFileRecordingOutcome(
             writtenFrameCount: writtenFrameCount,
             didWriteAudio: didWriteAudio,
-            captureBackend: captureBackend,
             captureDiagnosticsSummary: diagnostics
         )
     }
@@ -209,6 +202,18 @@ final class MacAudioFileRecordingSession {
 }
 
 final class MacAudioFileRecorder: @unchecked Sendable {
+    private struct InputDeviceCandidate {
+        let device: AudioHardwareDevice?
+        let reason: Reason
+
+        enum Reason: String {
+            case selected
+            case noExplicitDeviceFallback
+            case builtInFallback
+            case systemDefaultFallback
+        }
+    }
+
     struct VoiceProcessingConfigurationResult: Sendable {
         let enabled: Bool
         let fallbackReason: String?
@@ -219,21 +224,14 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     }
 
     private let firstBufferLock = NSLock()
-    private let capturedAudioLock = NSLock()
     private let stateLock = NSLock()
     private let audioLevelHandler: @Sendable (Double) -> Void
     private let onFirstRecordedBufferWritten: @Sendable () -> Void
-    private let configureVoiceProcessing: @Sendable (
-        AVAudioInputNode,
-        AVAudioOutputNode?,
-        AudioHardwareDevice?,
-        MacCaptureAttemptPlan
-    ) -> VoiceProcessingConfigurationResult
+    private let configureVoiceProcessing: @Sendable (AVAudioInputNode, AVAudioOutputNode?, AudioHardwareDevice?) -> VoiceProcessingConfigurationResult
 
     private var audioEngine: AVAudioEngine?
     private var activeSession: MacAudioFileRecordingSession?
     private var hasWrittenFirstRecordedBuffer = false
-    private var hasCapturedAudio = false
 
     convenience init(
         audioLevelHandler: @escaping @Sendable (Double) -> Void = { _ in },
@@ -242,12 +240,11 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         self.init(
             audioLevelHandler: audioLevelHandler,
             onFirstRecordedBufferWritten: onFirstRecordedBufferWritten,
-            configureVoiceProcessing: { inputNode, outputNode, inputDevice, attempt in
+            configureVoiceProcessing: { inputNode, outputNode, inputDevice in
                 Self.configureVoiceProcessing(
                     inputNode: inputNode,
                     outputNode: outputNode,
-                    inputDevice: inputDevice,
-                    attempt: attempt
+                    inputDevice: inputDevice
                 )
             }
         )
@@ -256,30 +253,77 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     init(
         audioLevelHandler: @escaping @Sendable (Double) -> Void,
         onFirstRecordedBufferWritten: @escaping @Sendable () -> Void,
-        configureVoiceProcessing: @escaping @Sendable (
-            AVAudioInputNode,
-            AVAudioOutputNode?,
-            AudioHardwareDevice?,
-            MacCaptureAttemptPlan
-        ) -> VoiceProcessingConfigurationResult
+        configureVoiceProcessing: @escaping @Sendable (AVAudioInputNode, AVAudioOutputNode?, AudioHardwareDevice?) -> VoiceProcessingConfigurationResult
     ) {
         self.audioLevelHandler = audioLevelHandler
         self.onFirstRecordedBufferWritten = onFirstRecordedBufferWritten
         self.configureVoiceProcessing = configureVoiceProcessing
     }
 
-    nonisolated func startRecordingAttempt(
+    nonisolated func startRecording(
         to fileURL: URL,
-        outputFormat: AVAudioFormat,
-        attempt: MacCaptureAttemptPlan
+        outputFormat: AVAudioFormat
     ) throws {
         precondition(currentSession() == nil, "MacAudioFileRecorder is already recording.")
-        try startRecordingAttempt(
-            to: fileURL,
-            outputFormat: outputFormat,
-            inputDevice: attempt.inputDevice,
-            attempt: attempt
+
+        let candidates = inputDeviceCandidates()
+        Self.logStartupTiming(
+            "recorderStart candidates=\(candidates.map { Self.describe(candidate: $0) }.joined(separator: ","))"
         )
+        var startupError: Error?
+
+        for candidate in candidates {
+            let attemptStartedAt = ProcessInfo.processInfo.systemUptime
+            do {
+                try startRecordingAttempt(
+                    to: fileURL,
+                    outputFormat: outputFormat,
+                    inputDevice: candidate.device,
+                    candidateReason: candidate.reason
+                )
+                let attemptMs = Self.elapsedMilliseconds(since: attemptStartedAt)
+                Self.logStartupTiming(
+                    """
+                    recorderCandidateSuccess reason=\(candidate.reason.rawValue) \
+                    device=\(candidate.device?.name ?? "systemDefault") \
+                    attemptMs=\(Self.formatMilliseconds(attemptMs))
+                    """
+                )
+                if candidate.reason != .selected {
+                    AppLogger.info(
+                        "macOS capture recovered using fallback input device strategy. reason=\(candidate.reason.rawValue), device=\(candidate.device?.name ?? "systemDefault")",
+                        category: .dictation
+                    )
+                }
+                return
+            } catch {
+                startupError = error
+                let attemptMs = Self.elapsedMilliseconds(since: attemptStartedAt)
+                Self.logStartupTiming(
+                    """
+                    recorderCandidateFailed reason=\(candidate.reason.rawValue) \
+                    device=\(candidate.device?.name ?? "systemDefault") \
+                    attemptMs=\(Self.formatMilliseconds(attemptMs)) \
+                    error=\(error.localizedDescription)
+                    """
+                )
+                AppLogger.warning(
+                    "macOS capture attempt failed. reason=\(candidate.reason.rawValue), device=\(candidate.device?.name ?? "systemDefault"), error=\(error.localizedDescription)",
+                    category: .dictation
+                )
+                _ = finishSession()
+                Thread.sleep(forTimeInterval: 0.1)
+            }
+        }
+
+        if let startupError {
+            AppLogger.error(
+                "All macOS capture input device candidates failed. error=\(startupError.localizedDescription)",
+                category: .dictation
+            )
+        }
+
+        throw SpeechServiceError.failedToStart
     }
 
     nonisolated func activateRecordingWindow() throws {
@@ -296,23 +340,6 @@ final class MacAudioFileRecorder: @unchecked Sendable {
 
     nonisolated func cancelRecording() {
         _ = finishSession()
-    }
-
-    nonisolated func waitForCapturedAudio(timeout: Duration) async -> Bool {
-        if didCaptureAudio() {
-            return true
-        }
-
-        let deadline = ContinuousClock.now + timeout
-        while ContinuousClock.now < deadline {
-            if didCaptureAudio() {
-                return true
-            }
-
-            try? await Task.sleep(for: .milliseconds(20))
-        }
-
-        return didCaptureAudio()
     }
 
     nonisolated func prewarm() {
@@ -365,20 +392,21 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         to fileURL: URL,
         outputFormat: AVAudioFormat,
         inputDevice: AudioHardwareDevice?,
-        attempt: MacCaptureAttemptPlan
+        candidateReason: InputDeviceCandidate.Reason
     ) throws {
+        let didBindExplicitly = inputDevice.map(Self.shouldBindExplicitly(to:)) ?? false
         let engine = takeOrCreateEngine()
 
         let inputNode = engine.inputNode
         let deviceBindingStartedAt = ProcessInfo.processInfo.systemUptime
-        if let inputDevice, attempt.explicitBinding {
+        if let inputDevice, didBindExplicitly {
             try Self.bindInputDevice(inputDevice, to: inputNode)
         }
         let deviceBindingMs = Self.elapsedMilliseconds(since: deviceBindingStartedAt)
 
         let voiceProcessingStartedAt = ProcessInfo.processInfo.systemUptime
-        let outputNode = engine.outputNode
-        let voiceProcessing = configureVoiceProcessing(inputNode, outputNode, inputDevice, attempt)
+        let outputNode = inputDevice?.isBluetooth == true ? engine.outputNode : nil
+        let voiceProcessing = configureVoiceProcessing(inputNode, outputNode, inputDevice)
         let voiceProcessingMs = Self.elapsedMilliseconds(since: voiceProcessingStartedAt)
         let recordingFileStartedAt = ProcessInfo.processInfo.systemUptime
         let recordingFile = try AVAudioFile(
@@ -391,11 +419,9 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         let recordingSession = MacAudioFileRecordingSession(
             recordingFile: recordingFile,
             outputFormat: outputFormat,
-            captureBackend: attempt.backend.rawValue,
             voiceProcessingEnabled: voiceProcessing.enabled,
             voiceProcessingFallbackReason: voiceProcessing.fallbackReason
         )
-        resetCapturedAudio()
         firstBufferLock.lock()
         hasWrittenFirstRecordedBuffer = false
         firstBufferLock.unlock()
@@ -412,10 +438,9 @@ final class MacAudioFileRecorder: @unchecked Sendable {
             let sessionStartMs = Self.elapsedMilliseconds(since: sessionStartStartedAt)
             Self.logStartupTiming(
                 """
-                recorderAttempt reason=\(attempt.candidate.reason.rawValue) \
-                backend=\(attempt.backend.rawValue) \
+                recorderAttempt reason=\(candidateReason.rawValue) \
                 device=\(inputDevice?.name ?? "systemDefault") \
-                explicitBind=\(attempt.explicitBinding) \
+                explicitBind=\(didBindExplicitly) \
                 deviceBindingMs=\(Self.formatMilliseconds(deviceBindingMs)) \
                 voiceProcessingMs=\(Self.formatMilliseconds(voiceProcessingMs)) \
                 recordingFileMs=\(Self.formatMilliseconds(recordingFileMs)) \
@@ -428,6 +453,52 @@ final class MacAudioFileRecorder: @unchecked Sendable {
             _ = finishSession()
             throw error
         }
+    }
+
+    nonisolated private func inputDeviceCandidates() -> [InputDeviceCandidate] {
+        let selectedDevice = AudioDeviceSelectionManager.shared.currentRecordingDevice()
+        let builtInDevice = AudioInputDeviceManager.builtInInputDevice()
+        let defaultInputDevice = AudioInputDeviceManager.defaultInputDevice()
+
+        var candidates: [InputDeviceCandidate] = []
+        var seenUIDs = Set<String>()
+        var hasSystemDefaultCandidate = false
+
+        func append(_ device: AudioHardwareDevice?, reason: InputDeviceCandidate.Reason) {
+            if let device {
+                guard seenUIDs.insert(device.uid).inserted else {
+                    return
+                }
+            } else {
+                guard !hasSystemDefaultCandidate else {
+                    return
+                }
+                hasSystemDefaultCandidate = true
+            }
+
+            candidates.append(InputDeviceCandidate(device: device, reason: reason))
+        }
+
+        if let selectedDevice {
+            append(selectedDevice, reason: .selected)
+
+            if Self.defaultRouteMatches(device: selectedDevice, defaultInputDevice: defaultInputDevice) {
+                // When the chosen device already is the system route, retrying
+                // without an explicit device binding is still the same physical
+                // microphone and can recover from CoreAudio graph hiccups.
+                append(nil, reason: .noExplicitDeviceFallback)
+            }
+
+            return candidates
+        }
+
+        // If no concrete target device is available, fall back to progressively
+        // more specific routes so capture still has a chance to recover.
+        append(nil, reason: .noExplicitDeviceFallback)
+        append(builtInDevice, reason: .builtInFallback)
+        append(defaultInputDevice, reason: .systemDefaultFallback)
+
+        return candidates
     }
 
     nonisolated private func startEngine(
@@ -502,10 +573,6 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     nonisolated private func handleIncomingBuffer(_ buffer: AVAudioPCMBuffer, when: AVAudioTime) {
         guard let session = currentSession() else {
             return
-        }
-
-        if buffer.frameLength > 0 {
-            markCapturedAudio()
         }
 
         guard when.isSampleTimeValid else {
@@ -603,7 +670,6 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         firstBufferLock.lock()
         hasWrittenFirstRecordedBuffer = false
         firstBufferLock.unlock()
-        resetCapturedAudio()
         return outcome
     }
 
@@ -676,60 +742,33 @@ final class MacAudioFileRecorder: @unchecked Sendable {
     nonisolated private static func configureVoiceProcessing(
         inputNode: AVAudioInputNode,
         outputNode: AVAudioOutputNode?,
-        inputDevice: AudioHardwareDevice?,
-        attempt: MacCaptureAttemptPlan
+        inputDevice: AudioHardwareDevice?
     ) -> VoiceProcessingConfigurationResult {
-        guard attempt.voiceProcessingRequested else {
-            AppLogger.info(
-                """
-                Using raw AVAudioEngine capture after route negotiation. \
-                inputDevice=\(inputDevice?.name ?? "systemDefault") \
-                reason=\(attempt.voiceProcessingFallbackReason ?? "none")
-                """,
-                category: .dictation
-            )
-            return VoiceProcessingConfigurationResult(
-                enabled: false,
-                fallbackReason: attempt.voiceProcessingFallbackReason
-            )
-        }
-
-        do {
-            try inputNode.setVoiceProcessingEnabled(true)
-            do {
-                try outputNode?.setVoiceProcessingEnabled(true)
-            } catch {
-                try? inputNode.setVoiceProcessingEnabled(false)
-                try? outputNode?.setVoiceProcessingEnabled(false)
-                throw error
-            }
+        let isBluetooth = inputDevice?.transportType == kAudioDeviceTransportTypeBluetooth ||
+                          inputDevice?.transportType == kAudioDeviceTransportTypeBluetoothLE
+                          
+        if isBluetooth, let outputNode {
+            try? inputNode.setVoiceProcessingEnabled(true)
+            try? outputNode.setVoiceProcessingEnabled(true)
             inputNode.isVoiceProcessingBypassed = false
             AppLogger.info(
-                """
-                Using Apple Voice Processing for macOS dictation capture. \
-                inputDevice=\(inputDevice?.name ?? "systemDefault") \
-                outputNodeConfigured=\(outputNode != nil)
-                """,
+                "Using Apple Voice Processing for Bluetooth capture fidelity.",
                 category: .dictation
             )
             return VoiceProcessingConfigurationResult(
                 enabled: true,
-                fallbackReason: nil
-            )
-        } catch {
-            AppLogger.warning(
-                """
-                Falling back to raw AVAudioEngine capture because Apple Voice Processing could not be enabled. \
-                inputDevice=\(inputDevice?.name ?? "systemDefault") \
-                error=\(error.localizedDescription)
-                """,
-                category: .dictation
-            )
-            return VoiceProcessingConfigurationResult(
-                enabled: false,
-                fallbackReason: "voice processing enable failed: \(error.localizedDescription)"
+                fallbackReason: "bluetooth device requires voice processing"
             )
         }
+
+        // Leaving voice-processing untouched on non-Bluetooth routes is more
+        // stable than forcing the graph into a specific VP state. Recent runtime
+        // failures on macOS were triggered by toggling VP for built-in capture.
+        AppLogger.info("Using raw macOS capture without changing Apple Voice Processing state.", category: .dictation)
+        return VoiceProcessingConfigurationResult(
+            enabled: false,
+            fallbackReason: "voice processing untouched for non-bluetooth capture"
+        )
     }
 
     static func waitForFileToStabilize(at fileURL: URL) async {
@@ -772,6 +811,27 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         return Int64(fileSize)
     }
 
+    private static func shouldBindExplicitly(to device: AudioHardwareDevice) -> Bool {
+        if let defaultInputDevice = AudioInputDeviceManager.defaultInputDevice(),
+           defaultInputDevice.uid == device.uid,
+           !device.isBluetooth {
+            return false
+        }
+
+        return true
+    }
+
+    private static func defaultRouteMatches(
+        device: AudioHardwareDevice,
+        defaultInputDevice: AudioHardwareDevice?
+    ) -> Bool {
+        guard let defaultInputDevice else {
+            return false
+        }
+
+        return defaultInputDevice.uid == device.uid
+    }
+
     private static func bindInputDevice(
         _ device: AudioHardwareDevice,
         to inputNode: AVAudioInputNode
@@ -802,6 +862,10 @@ final class MacAudioFileRecorder: @unchecked Sendable {
         }
     }
 
+    private static func describe(candidate: InputDeviceCandidate) -> String {
+        "\(candidate.reason.rawValue):\(candidate.device?.name ?? "systemDefault")"
+    }
+
     private static func logStartupTiming(_ payload: String) {
         guard UserDefaults.standard.bool(forKey: MacPreferences.dictationPerfTracingEnabled) else {
             return
@@ -816,24 +880,6 @@ final class MacAudioFileRecorder: @unchecked Sendable {
 
     private static func formatMilliseconds(_ duration: Double) -> String {
         String(format: "%.1f", duration)
-    }
-
-    private func markCapturedAudio() {
-        capturedAudioLock.lock()
-        hasCapturedAudio = true
-        capturedAudioLock.unlock()
-    }
-
-    private func didCaptureAudio() -> Bool {
-        capturedAudioLock.lock()
-        defer { capturedAudioLock.unlock() }
-        return hasCapturedAudio
-    }
-
-    private func resetCapturedAudio() {
-        capturedAudioLock.lock()
-        hasCapturedAudio = false
-        capturedAudioLock.unlock()
     }
 }
 #endif

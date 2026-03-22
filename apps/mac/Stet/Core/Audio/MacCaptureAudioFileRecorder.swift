@@ -5,6 +5,18 @@ import CoreMedia
 import Foundation
 
 final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
+    private struct InputDeviceCandidate {
+        let device: AudioHardwareDevice?
+        let reason: Reason
+
+        enum Reason: String {
+            case selected
+            case noExplicitDeviceFallback
+            case builtInFallback
+            case systemDefaultFallback
+        }
+    }
+
     private enum Configuration {
         static let startupRetryCount = 4
         static let startupRetryDelaySeconds = 0.15
@@ -48,7 +60,6 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
     }
 
     private let firstBufferLock = NSLock()
-    private let capturedAudioLock = NSLock()
     private let stateLock = NSLock()
     private let captureQueue = DispatchQueue(
         label: "Stet.MacCaptureAudioFileRecorder.capture",
@@ -60,7 +71,6 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
     private var captureResources: CaptureResources?
     private var activeSession: MacAudioFileRecordingSession?
     private var hasWrittenFirstRecordedBuffer = false
-    private var hasCapturedAudio = false
 
     init(
         audioLevelHandler: @escaping @Sendable (Double) -> Void = { _ in },
@@ -71,18 +81,70 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
         super.init()
     }
 
-    nonisolated func startRecordingAttempt(
+    nonisolated func startRecording(
         to fileURL: URL,
-        outputFormat: AVAudioFormat,
-        attempt: MacCaptureAttemptPlan
+        outputFormat: AVAudioFormat
     ) throws {
         precondition(currentSession() == nil, "MacCaptureAudioFileRecorder is already recording.")
-        try startRecordingAttempt(
-            to: fileURL,
-            outputFormat: outputFormat,
-            inputDevice: attempt.inputDevice,
-            attempt: attempt
+
+        let candidates = inputDeviceCandidates()
+        Self.logStartupTiming(
+            "captureRecorderStart candidates=\(candidates.map { Self.describe(candidate: $0) }.joined(separator: ","))"
         )
+        var startupError: Error?
+
+        for candidate in candidates {
+            let attemptStartedAt = ProcessInfo.processInfo.systemUptime
+            do {
+                try startRecordingAttempt(
+                    to: fileURL,
+                    outputFormat: outputFormat,
+                    inputDevice: candidate.device,
+                    candidateReason: candidate.reason
+                )
+                let attemptMs = Self.elapsedMilliseconds(since: attemptStartedAt)
+                Self.logStartupTiming(
+                    """
+                    captureRecorderCandidateSuccess reason=\(candidate.reason.rawValue) \
+                    device=\(candidate.device?.name ?? "systemDefault") \
+                    attemptMs=\(Self.formatMilliseconds(attemptMs))
+                    """
+                )
+                if candidate.reason != .selected {
+                    AppLogger.info(
+                        "macOS capture recovered using AVCapture fallback input device strategy. reason=\(candidate.reason.rawValue), device=\(candidate.device?.name ?? "systemDefault")",
+                        category: .dictation
+                    )
+                }
+                return
+            } catch {
+                startupError = error
+                let attemptMs = Self.elapsedMilliseconds(since: attemptStartedAt)
+                Self.logStartupTiming(
+                    """
+                    captureRecorderCandidateFailed reason=\(candidate.reason.rawValue) \
+                    device=\(candidate.device?.name ?? "systemDefault") \
+                    attemptMs=\(Self.formatMilliseconds(attemptMs)) \
+                    error=\(error.localizedDescription)
+                    """
+                )
+                AppLogger.warning(
+                    "macOS AVCapture attempt failed. reason=\(candidate.reason.rawValue), device=\(candidate.device?.name ?? "systemDefault"), error=\(error.localizedDescription)",
+                    category: .dictation
+                )
+                _ = finishSession()
+                Thread.sleep(forTimeInterval: 0.1)
+            }
+        }
+
+        if let startupError {
+            AppLogger.error(
+                "All macOS AVCapture input device candidates failed. error=\(startupError.localizedDescription)",
+                category: .dictation
+            )
+        }
+
+        throw SpeechServiceError.failedToStart
     }
 
     nonisolated func activateRecordingWindow() throws {
@@ -101,23 +163,6 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
         _ = finishSession()
     }
 
-    nonisolated func waitForCapturedAudio(timeout: Duration) async -> Bool {
-        if didCaptureAudio() {
-            return true
-        }
-
-        let deadline = ContinuousClock.now + timeout
-        while ContinuousClock.now < deadline {
-            if didCaptureAudio() {
-                return true
-            }
-
-            try? await Task.sleep(for: .milliseconds(20))
-        }
-
-        return didCaptureAudio()
-    }
-
     nonisolated func prewarm() {
         _ = Self.availableCaptureDevices()
     }
@@ -130,7 +175,7 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
         to fileURL: URL,
         outputFormat: AVAudioFormat,
         inputDevice: AudioHardwareDevice?,
-        attempt: MacCaptureAttemptPlan
+        candidateReason: InputDeviceCandidate.Reason
     ) throws {
         let captureDeviceStartedAt = ProcessInfo.processInfo.systemUptime
         let captureDevice = try Self.resolveCaptureDevice(for: inputDevice)
@@ -154,12 +199,10 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
         let recordingSession = MacAudioFileRecordingSession(
             recordingFile: recordingFile,
             outputFormat: outputFormat,
-            captureBackend: attempt.backend.rawValue,
             voiceProcessingEnabled: false,
-            voiceProcessingFallbackReason: attempt.voiceProcessingFallbackReason
+            voiceProcessingFallbackReason: "input-only avcapture capture"
         )
 
-        resetCapturedAudio()
         firstBufferLock.lock()
         hasWrittenFirstRecordedBuffer = false
         firstBufferLock.unlock()
@@ -177,8 +220,7 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
             let sessionStartMs = Self.elapsedMilliseconds(since: sessionStartStartedAt)
             Self.logStartupTiming(
                 """
-                captureRecorderAttempt reason=\(attempt.candidate.reason.rawValue) \
-                backend=\(attempt.backend.rawValue) \
+                captureRecorderAttempt reason=\(candidateReason.rawValue) \
                 device=\(inputDevice?.name ?? "systemDefault") \
                 captureDeviceName=\(captureDevice.localizedName) \
                 captureDeviceMs=\(Self.formatMilliseconds(captureDeviceMs)) \
@@ -261,8 +303,6 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
             return
         }
 
-        markCapturedAudio()
-
         do {
             let inputBuffer = try Self.pcmBuffer(from: sampleBuffer)
             audioLevelHandler(AudioLevelNormalizer.normalizedLevel(from: inputBuffer))
@@ -334,7 +374,6 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
         firstBufferLock.lock()
         hasWrittenFirstRecordedBuffer = false
         firstBufferLock.unlock()
-        resetCapturedAudio()
 
         return outcome
     }
@@ -384,6 +423,46 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
         captureResources = nil
         stateLock.unlock()
         return resources
+    }
+
+    nonisolated private func inputDeviceCandidates() -> [InputDeviceCandidate] {
+        let selectedDevice = Self.selectedRecordingDevice()
+        let builtInDevice = AudioInputDeviceManager.builtInInputDevice()
+        let defaultInputDevice = AudioInputDeviceManager.defaultInputDevice()
+
+        var candidates: [InputDeviceCandidate] = []
+        var seenUIDs = Set<String>()
+        var hasSystemDefaultCandidate = false
+
+        func append(_ device: AudioHardwareDevice?, reason: InputDeviceCandidate.Reason) {
+            if let device {
+                guard seenUIDs.insert(device.uid).inserted else {
+                    return
+                }
+            } else {
+                guard !hasSystemDefaultCandidate else {
+                    return
+                }
+                hasSystemDefaultCandidate = true
+            }
+
+            candidates.append(InputDeviceCandidate(device: device, reason: reason))
+        }
+
+        if let selectedDevice {
+            append(selectedDevice, reason: .selected)
+
+            if Self.defaultRouteMatches(device: selectedDevice, defaultInputDevice: defaultInputDevice) {
+                append(nil, reason: .noExplicitDeviceFallback)
+            }
+
+            return candidates
+        }
+
+        append(nil, reason: .noExplicitDeviceFallback)
+        append(builtInDevice, reason: .builtInFallback)
+        append(defaultInputDevice, reason: .systemDefaultFallback)
+        return candidates
     }
 
     private static func makeCaptureResources(
@@ -537,6 +616,49 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
         return pcmBuffer
     }
 
+    nonisolated private static func defaultRouteMatches(
+        device: AudioHardwareDevice,
+        defaultInputDevice: AudioHardwareDevice?
+    ) -> Bool {
+        guard let defaultInputDevice else {
+            return false
+        }
+
+        return defaultInputDevice.uid == device.uid
+    }
+
+    private static func selectedRecordingDevice(
+        defaults: UserDefaults = .standard
+    ) -> AudioHardwareDevice? {
+        let availableDevices = AudioInputDeviceManager.allInputDevices()
+        let strategyRawValue = defaults.string(forKey: MacPreferences.audioDeviceSelectionStrategy) ?? ""
+        let preferredUID = defaults.string(forKey: MacPreferences.preferredAudioInputDeviceUID)
+
+        if strategyRawValue == "manual" {
+            if let preferredUID,
+               let preferredDevice = availableDevices.first(where: { $0.uid == preferredUID }) {
+                return preferredDevice
+            }
+
+            return AudioInputDeviceManager.defaultInputDevice()
+        }
+
+        if let builtInDevice = availableDevices.first(where: \.isBuiltIn) {
+            return builtInDevice
+        }
+
+        if let defaultInputDevice = AudioInputDeviceManager.defaultInputDevice(),
+           let matchingDefaultDevice = availableDevices.first(where: { $0.uid == defaultInputDevice.uid }) {
+            return matchingDefaultDevice
+        }
+
+        return availableDevices.max(by: { $0.automaticSelectionPriority < $1.automaticSelectionPriority })
+    }
+
+    private static func describe(candidate: InputDeviceCandidate) -> String {
+        "\(candidate.reason.rawValue):\(candidate.device?.name ?? "systemDefault")"
+    }
+
     private static func logStartupTiming(_ payload: String) {
         guard UserDefaults.standard.bool(forKey: MacPreferences.dictationPerfTracingEnabled) else {
             return
@@ -551,24 +673,6 @@ final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
 
     private static func formatMilliseconds(_ duration: Double) -> String {
         String(format: "%.1f", duration)
-    }
-
-    private func markCapturedAudio() {
-        capturedAudioLock.lock()
-        hasCapturedAudio = true
-        capturedAudioLock.unlock()
-    }
-
-    private func didCaptureAudio() -> Bool {
-        capturedAudioLock.lock()
-        defer { capturedAudioLock.unlock() }
-        return hasCapturedAudio
-    }
-
-    private func resetCapturedAudio() {
-        capturedAudioLock.lock()
-        hasCapturedAudio = false
-        capturedAudioLock.unlock()
     }
 }
 
