@@ -14,10 +14,11 @@ extension AudioHardwareDevice {
         transportType == kAudioDeviceTransportTypeBuiltIn
     }
 
-    var isBluetooth: Bool {
-        transportType == kAudioDeviceTransportTypeBluetooth ||
-            transportType == kAudioDeviceTransportTypeBluetoothLE
-    }
+//    Unused after device prioritization moved to the transport-type switch below.
+//    var isBluetooth: Bool {
+//        transportType == kAudioDeviceTransportTypeBluetooth ||
+//            transportType == kAudioDeviceTransportTypeBluetoothLE
+//    }
 
     var isHandheldAppleDevice: Bool {
         let lowercaseName = name.lowercased()

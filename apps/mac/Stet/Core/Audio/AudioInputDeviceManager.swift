@@ -193,68 +193,70 @@ enum AudioInputDeviceManager {
         }
     }
 
-    /// Get device by AudioDeviceID
-    /// - Parameter deviceID: The device ID
-    /// - Returns: AudioHardwareDevice if device exists and has input channels, nil otherwise
-    nonisolated static func inputDevice(id deviceID: AudioDeviceID) -> AudioHardwareDevice? {
-        guard hasInputChannels(deviceID: deviceID),
-              let device = hardwareDevice(deviceID: deviceID) else {
-            return nil
-        }
-        return device
-    }
-
-    /// Get device by UID string
-    /// - Parameter uid: The device UID (persistent identifier)
-    /// - Returns: AudioHardwareDevice if device exists and has input channels, nil otherwise
-    nonisolated static func inputDevice(uid: String) -> AudioHardwareDevice? {
-        // Query CoreAudio to find device by UID
-        var propertyAddress = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDevices,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-
-        var dataSize: UInt32 = 0
-        var status = AudioObjectGetPropertyDataSize(
-            AudioObjectID(kAudioObjectSystemObject),
-            &propertyAddress,
-            0,
-            nil,
-            &dataSize
-        )
-        guard status == noErr else {
-            return nil
-        }
-
-        let deviceCount = Int(dataSize) / MemoryLayout<AudioDeviceID>.size
-        var deviceIDs = [AudioDeviceID](repeating: 0, count: deviceCount)
-        
-        status = AudioObjectGetPropertyData(
-            AudioObjectID(kAudioObjectSystemObject),
-            &propertyAddress,
-            0,
-            nil,
-            &dataSize,
-            &deviceIDs
-        )
-        guard status == noErr else {
-            return nil
-        }
-
-        // Find device with matching UID
-        for deviceID in deviceIDs {
-            guard let deviceUID = deviceUID(deviceID: deviceID),
-                  deviceUID == uid,
-                  hasInputChannels(deviceID: deviceID),
-                  let device = hardwareDevice(deviceID: deviceID) else {
-                continue
-            }
-            return device
-        }
-
-        return nil
-    }
+//    Unused device lookup helpers kept commented for now while cleaning up older
+//    audio-device-selection iterations.
+//    /// Get device by AudioDeviceID
+//    /// - Parameter deviceID: The device ID
+//    /// - Returns: AudioHardwareDevice if device exists and has input channels, nil otherwise
+//    nonisolated static func inputDevice(id deviceID: AudioDeviceID) -> AudioHardwareDevice? {
+//        guard hasInputChannels(deviceID: deviceID),
+//              let device = hardwareDevice(deviceID: deviceID) else {
+//            return nil
+//        }
+//        return device
+//    }
+//
+//    /// Get device by UID string
+//    /// - Parameter uid: The device UID (persistent identifier)
+//    /// - Returns: AudioHardwareDevice if device exists and has input channels, nil otherwise
+//    nonisolated static func inputDevice(uid: String) -> AudioHardwareDevice? {
+//        // Query CoreAudio to find device by UID
+//        var propertyAddress = AudioObjectPropertyAddress(
+//            mSelector: kAudioHardwarePropertyDevices,
+//            mScope: kAudioObjectPropertyScopeGlobal,
+//            mElement: kAudioObjectPropertyElementMain
+//        )
+//
+//        var dataSize: UInt32 = 0
+//        var status = AudioObjectGetPropertyDataSize(
+//            AudioObjectID(kAudioObjectSystemObject),
+//            &propertyAddress,
+//            0,
+//            nil,
+//            &dataSize
+//        )
+//        guard status == noErr else {
+//            return nil
+//        }
+//
+//        let deviceCount = Int(dataSize) / MemoryLayout<AudioDeviceID>.size
+//        var deviceIDs = [AudioDeviceID](repeating: 0, count: deviceCount)
+//
+//        status = AudioObjectGetPropertyData(
+//            AudioObjectID(kAudioObjectSystemObject),
+//            &propertyAddress,
+//            0,
+//            nil,
+//            &dataSize,
+//            &deviceIDs
+//        )
+//        guard status == noErr else {
+//            return nil
+//        }
+//
+//        // Find device with matching UID
+//        for deviceID in deviceIDs {
+//            guard let deviceUID = deviceUID(deviceID: deviceID),
+//                  deviceUID == uid,
+//                  hasInputChannels(deviceID: deviceID),
+//                  let device = hardwareDevice(deviceID: deviceID) else {
+//                continue
+//            }
+//            return device
+//        }
+//
+//        return nil
+//    }
 
     /// Check if device has input channels
     /// - Parameter deviceID: The device ID

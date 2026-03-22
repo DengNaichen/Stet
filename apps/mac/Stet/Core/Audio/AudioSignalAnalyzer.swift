@@ -4,15 +4,17 @@ import Foundation
 struct AudioAnalysis: Sendable {
     let shouldDiscardAsNoSpeech: Bool
     let speechFrameRatio: Double
-    let confirmationSpeechFrameRatio: Double
-    let longestSpeechDurationSeconds: Double
-    let totalSpeechDurationSeconds: Double
-    let rawSpeechFrameRatio: Double
+//    Legacy observability-only metrics. These were only logged and never used by
+//    the post-processing decision path.
+//    let confirmationSpeechFrameRatio: Double
+//    let longestSpeechDurationSeconds: Double
+//    let totalSpeechDurationSeconds: Double
+//    let rawSpeechFrameRatio: Double
     let noiseFloorDBFS: Double
     let speechLevelP75DBFS: Double
-    let speechPeakDBFS: Double
+//    let speechPeakDBFS: Double
     let overallPeakDBFS: Double
-    let speechSignalToNoiseMarginDB: Double
+//    let speechSignalToNoiseMarginDB: Double
     let recommendedGainDB: Double
 
     var speechEnhancementPlan: SpeechEnhancementPlan {
@@ -22,16 +24,10 @@ struct AudioAnalysis: Sendable {
     var summaryLine: String {
         """
         wouldDiscard=\(shouldDiscardAsNoSpeech) \
-        rawSpeechFrameRatio=\(String(format: "%.3f", rawSpeechFrameRatio)) \
         speechFrameRatio=\(String(format: "%.3f", speechFrameRatio)) \
-        confirmationSpeechFrameRatio=\(String(format: "%.3f", confirmationSpeechFrameRatio)) \
-        totalSpeechSeconds=\(String(format: "%.3f", totalSpeechDurationSeconds)) \
-        longestSpeechSeconds=\(String(format: "%.3f", longestSpeechDurationSeconds)) \
         noiseFloorDBFS=\(String(format: "%.1f", noiseFloorDBFS)) \
         speechLevelP75DBFS=\(String(format: "%.1f", speechLevelP75DBFS)) \
-        speechPeakDBFS=\(String(format: "%.1f", speechPeakDBFS)) \
         overallPeakDBFS=\(String(format: "%.1f", overallPeakDBFS)) \
-        snrDB=\(String(format: "%.1f", speechSignalToNoiseMarginDB)) \
         recommendedGainDB=\(String(format: "%.1f", recommendedGainDB)) \
         shouldEnhance=\(speechEnhancementPlan.shouldEnhance)
         """
@@ -62,15 +58,9 @@ enum AudioSignalAnalyzer {
             return AudioAnalysis(
                 shouldDiscardAsNoSpeech: true,
                 speechFrameRatio: 0,
-                confirmationSpeechFrameRatio: 0,
-                longestSpeechDurationSeconds: 0,
-                totalSpeechDurationSeconds: 0,
-                rawSpeechFrameRatio: 0,
                 noiseFloorDBFS: -160,
                 speechLevelP75DBFS: -160,
-                speechPeakDBFS: -160,
                 overallPeakDBFS: -160,
-                speechSignalToNoiseMarginDB: 0,
                 recommendedGainDB: 0
             )
         }
@@ -85,12 +75,14 @@ enum AudioSignalAnalyzer {
         let segments = allSegments.filter { ($0.endTime - $0.startTime) >= Configuration.minimumSpeechSegmentDuration }
 
         let shouldDiscardAsNoSpeech = segments.isEmpty
-        let totalSpeechDurationSeconds = segments.reduce(0.0) { $0 + ($1.endTime - $1.startTime) }
-        let longestSpeechDurationSeconds = segments.map { $0.endTime - $0.startTime }.max() ?? 0.0
+//        Legacy observability-only metrics retained here as comments while the
+//        analyzer is being simplified.
+//        let totalSpeechDurationSeconds = segments.reduce(0.0) { $0 + ($1.endTime - $1.startTime) }
+//        let longestSpeechDurationSeconds = segments.map { $0.endTime - $0.startTime }.max() ?? 0.0
         let totalDuration = Double(analysisSamples.count) / analysisSampleRate
-        let speechFrameRatio = totalDuration > 0 ? totalSpeechDurationSeconds / totalDuration : 0.0
-        let rawSpeechDurationSeconds = allSegments.reduce(0.0) { $0 + ($1.endTime - $1.startTime) }
-        let rawSpeechFrameRatio = totalDuration > 0 ? rawSpeechDurationSeconds / totalDuration : 0.0
+        let speechFrameRatio = totalDuration > 0
+            ? segments.reduce(0.0) { $0 + ($1.endTime - $1.startTime) } / totalDuration
+            : 0.0
 
         let overallPeakDBFS = peakDBFS(from: analysisSamples)
         let speechMask = makeSpeechMask(
@@ -104,10 +96,8 @@ enum AudioSignalAnalyzer {
             speechMask: speechMask
         )
         let speechLevelP75DBFS = percentile(frameMetrics.speechFrameLevels, 0.75) ?? -160
-        let speechPeakDBFS = frameMetrics.speechFrameLevels.max() ?? speechLevelP75DBFS
         let noiseFloorDBFS = percentile(frameMetrics.noiseFrameLevels, 0.2)
             ?? max(-160, speechLevelP75DBFS - 12)
-        let speechSignalToNoiseMarginDB = max(0, speechLevelP75DBFS - noiseFloorDBFS)
         let recommendedGainDB = recommendedGainDB(
             speechLevelDBFS: speechLevelP75DBFS,
             noiseFloorDBFS: noiseFloorDBFS,
@@ -117,15 +107,9 @@ enum AudioSignalAnalyzer {
         return AudioAnalysis(
             shouldDiscardAsNoSpeech: shouldDiscardAsNoSpeech,
             speechFrameRatio: speechFrameRatio,
-            confirmationSpeechFrameRatio: speechFrameRatio,
-            longestSpeechDurationSeconds: longestSpeechDurationSeconds,
-            totalSpeechDurationSeconds: totalSpeechDurationSeconds,
-            rawSpeechFrameRatio: rawSpeechFrameRatio,
             noiseFloorDBFS: noiseFloorDBFS,
             speechLevelP75DBFS: speechLevelP75DBFS,
-            speechPeakDBFS: speechPeakDBFS,
             overallPeakDBFS: overallPeakDBFS,
-            speechSignalToNoiseMarginDB: speechSignalToNoiseMarginDB,
             recommendedGainDB: recommendedGainDB
         )
     }
