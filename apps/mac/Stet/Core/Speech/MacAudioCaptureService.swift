@@ -4,7 +4,7 @@ import Foundation
 actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     private let audioLevelBridge: AudioLevelBridge
     #if os(macOS)
-    private let macAudioFileRecorder: MacCaptureAudioFileRecorder
+    private let macAudioFileRecorder: MacVoiceProcessedAudioRecorder
     #endif
 
     private var recorder: AVAudioRecorder?
@@ -16,7 +16,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         let audioLevelBridge = AudioLevelBridge()
         self.audioLevelBridge = audioLevelBridge
         #if os(macOS)
-        self.macAudioFileRecorder = MacCaptureAudioFileRecorder(
+        self.macAudioFileRecorder = MacVoiceProcessedAudioRecorder(
             audioLevelHandler: { level in
                 audioLevelBridge.emit(level)
             },
@@ -71,7 +71,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
 
         #if os(macOS)
         let macRecordingStartedAt = ProcessInfo.processInfo.systemUptime
-        let selectedInputDevice = try startMacRecording()
+        let selectedInputDevice = try await startMacRecording()
         let startMacRecordingMs = Self.elapsedMilliseconds(since: macRecordingStartedAt)
         Self.logStartupTiming(
             """
@@ -180,7 +180,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             fileSizeBytes=\(recordingFileSizeBytes.map(String.init) ?? "unknown"), \
             recorderType=\({
                 #if os(macOS)
-                "AVAudioEngine"
+                recordingOutcome.captureBackend ?? "unknown"
                 #else
                 "AVAudioRecorder"
                 #endif
@@ -252,15 +252,17 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     }
 
     #if os(macOS)
-    private func startMacRecording() throws -> AudioHardwareDevice? {
+    private func startMacRecording() async throws -> AudioHardwareDevice? {
         guard let outputFormat = TranscriptionUploadAudioFormat.makeMacOutputFormat() else {
             throw SpeechServiceError.failedToStart
         }
 
-        let selectedInputDevice = AudioDeviceSelectionManager.shared.currentRecordingDevice()
-            ?? AudioInputDeviceManager.defaultInputDevice()
+        let selectedInputDevice = await MainActor.run {
+            AudioDeviceSelectionManager.shared.currentRecordingDevice()
+                ?? AudioInputDeviceManager.defaultInputDevice()
+        }
         let fileURL = makeRecordingFileURL()
-        try macAudioFileRecorder.startRecording(
+        try await macAudioFileRecorder.startRecording(
             to: fileURL,
             outputFormat: outputFormat
         )

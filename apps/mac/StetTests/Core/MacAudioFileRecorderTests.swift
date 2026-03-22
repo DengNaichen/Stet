@@ -80,6 +80,7 @@ struct MacAudioFileRecorderTests {
         session.close()
 
         #expect(!outcome.didWriteAudio)
+        #expect(outcome.captureBackend == "unknown")
         #expect(outcome.captureDiagnosticsSummary?.contains("voiceProcessingEnabled=false") == true)
         #expect(outcome.captureDiagnosticsSummary?.contains("fallbackReason=unsupported route") == true)
     }
