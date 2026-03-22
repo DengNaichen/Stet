@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import Supabase
+internal import Auth
 
 @MainActor
 @Observable
@@ -10,6 +11,7 @@ final class SupabaseService {
     enum Configuration {
         private static let placeholderURL = "https://project-name.supabase.co"
         private static let placeholderKey = "your-project-key"
+        static let oauthRedirectURL = URL(string: "naichengdeng.stet://auth-callback")!
 
         static let urlString =
             resolvedValue(for: "SUPABASE_URL")
@@ -178,6 +180,15 @@ final class SupabaseService {
     func signIn(email: String, password: String) async throws {
         try ensureConfiguration()
         try await client.auth.signIn(email: email, password: password)
+    }
+
+    func signIn(provider: Provider) async throws {
+        try ensureConfiguration()
+        _ = try await client.auth.signInWithOAuth(
+            provider: provider,
+            redirectTo: Configuration.oauthRedirectURL,
+            scopes: provider.oauthScopes
+        )
     }
 
     func signUp(email: String, password: String) async throws {

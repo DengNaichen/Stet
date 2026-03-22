@@ -74,4 +74,9 @@ struct SupabaseServiceConfigurationTests {
         #expect(url == "https://qtffabmkvbkzarwevfrk.supabase.co")
         #expect(key == "sb_publishable_DiDRWukKUQrcdBDUjYmJGw_5N51MiHP")
     }
+
+    @Test func oauthRedirectURLUsesCustomAppScheme() {
+        #expect(SupabaseService.Configuration.oauthRedirectURL.absoluteString == "naichengdeng.stet://auth-callback")
+        #expect(SupabaseService.Configuration.oauthRedirectURL.scheme == "naichengdeng.stet")
+    }
 }

@@ -55,7 +55,7 @@ struct AuthView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Stet Account")
                     .font(.title3.weight(.semibold))
-
+                Text("Use email, Google, or GitHub to access relay-backed features.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -111,9 +111,31 @@ struct AuthView: View {
 
     private var signedOutCard: some View {
         MacSettingsCard(
-            title: "Continue with Email"
+            title: "Continue with Google or GitHub"
         ) {
             VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 12) {
+                    oauthButton(
+                        title: "Continue with Google",
+                        systemImage: "g.circle.fill"
+                    ) {
+                        shouldDismissAfterAuthentication = true
+                        Task {
+                            await viewModel.signInWithGoogle()
+                        }
+                    }
+
+                    oauthButton(
+                        title: "Continue with GitHub",
+                        systemImage: "chevron.left.forwardslash.chevron.right"
+                    ) {
+                        shouldDismissAfterAuthentication = true
+                        Task {
+                            await viewModel.signInWithGitHub()
+                        }
+                    }
+                }
+
                 HStack {
                     MacSettingsStatusBadge(
                         text: viewModel.configurationStatusText,
@@ -189,6 +211,22 @@ struct AuthView: View {
                 focusedField = .email
             }
         }
+    }
+
+    private func oauthButton(
+        title: String,
+        systemImage: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .disabled(viewModel.isLoading)
     }
 
     @ViewBuilder

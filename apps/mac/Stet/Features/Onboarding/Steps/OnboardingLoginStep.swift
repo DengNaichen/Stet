@@ -8,12 +8,20 @@ struct OnboardingLoginStep: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 12) {
                 Button("Continue with Google") {
-                    viewModel.useUnavailableIdentityProvider("Google")
+                    Task {
+                        await viewModel.signInWithGoogle()
+                    }
                 }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.isAuthenticating)
 
-                Button("Continue with Apple") {
-                    viewModel.useUnavailableIdentityProvider("Apple")
+                Button("Continue with GitHub") {
+                    Task {
+                        await viewModel.signInWithGitHub()
+                    }
                 }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.isAuthenticating)
             }
 
             GroupBox("Continue with Email") {

@@ -1,8 +1,10 @@
 #if os(macOS)
+import AuthenticationServices
 import Combine
 import Foundation
 import KeyboardShortcuts
 import OpenAI
+internal import Auth
 
 @MainActor
 final class OnboardingViewModel: ObservableObject {
@@ -237,6 +239,14 @@ final class OnboardingViewModel: ObservableObject {
         }
     }
 
+    func signInWithGoogle() async {
+        await signInWithOAuth(provider: .google)
+    }
+
+    func signInWithGitHub() async {
+        await signInWithOAuth(provider: .github)
+    }
+
     func useUnavailableIdentityProvider(_ providerName: String) {
         authStatusMessage = nil
         authErrorMessage = "\(providerName) login is not yet integrated, please use Email to continue."
@@ -254,6 +264,28 @@ final class OnboardingViewModel: ObservableObject {
 
     func updateShortcutSummary(_ shortcut: KeyboardShortcuts.Shortcut?) {
         shortcutSummaryText = shortcut.map { "\($0)" } ?? "Shortcut configured"
+    }
+
+    private func signInWithOAuth(provider: Provider) async {
+        authErrorMessage = nil
+        authStatusMessage = nil
+
+        isAuthenticating = true
+        defer { isAuthenticating = false }
+
+        do {
+            authStatusMessage = "Opening \(provider.displayName) sign-in..."
+            try await supabase.signIn(provider: provider)
+            authStatusMessage = "Login successful."
+            coordinator.completeManagedOnboarding()
+        } catch {
+            guard !isCancellationError(error) else {
+                authStatusMessage = nil
+                return
+            }
+
+            authErrorMessage = error.localizedDescription
+        }
     }
 
     private func clearFlowMessages() {
@@ -318,6 +350,12 @@ final class OnboardingViewModel: ObservableObject {
         }
 
         return error.localizedDescription
+    }
+
+    private func isCancellationError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        return nsError.domain == ASWebAuthenticationSessionErrorDomain
+            && nsError.code == ASWebAuthenticationSessionError.canceledLogin.rawValue
     }
 }
 

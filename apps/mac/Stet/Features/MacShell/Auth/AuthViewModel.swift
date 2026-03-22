@@ -1,4 +1,5 @@
 import Foundation
+import AuthenticationServices
 import Observation
 internal import Auth
 
@@ -90,6 +91,14 @@ final class AuthViewModel {
         }
     }
 
+    func signInWithGoogle() async {
+        await performOAuth(provider: .google)
+    }
+
+    func signInWithGitHub() async {
+        await performOAuth(provider: .github)
+    }
+
     func signUp() async {
         await perform(.signUp) { email, password in
             try await supabase.signUp(email: email, password: password)
@@ -131,6 +140,25 @@ final class AuthViewModel {
         }
     }
 
+    private func performOAuth(provider: Provider) async {
+        errorMessage = nil
+        statusMessage = nil
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            statusMessage = "Opening \(provider.displayName) sign-in..."
+            try await supabase.signIn(provider: provider)
+        } catch {
+            guard !isCancellationError(error) else {
+                statusMessage = nil
+                return
+            }
+
+            errorMessage = message(for: error, provider: provider)
+        }
+    }
+
     private func validatedCredentials(
         for action: AuthAction
     ) throws -> (email: String, password: String) {
@@ -157,6 +185,27 @@ final class AuthViewModel {
         }
 
         return "\(action.failurePrefix): \(description)"
+    }
+
+    private func message(for error: Error, provider: Provider) -> String {
+        let prefix = "Couldn't sign in with \(provider.displayName)"
+
+        if let error = error as? LocalizedError, let description = error.errorDescription {
+            return description
+        }
+
+        let description = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !description.isEmpty else {
+            return prefix
+        }
+
+        return "\(prefix): \(description)"
+    }
+
+    private func isCancellationError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        return nsError.domain == ASWebAuthenticationSessionErrorDomain
+            && nsError.code == ASWebAuthenticationSessionError.canceledLogin.rawValue
     }
 
 }
