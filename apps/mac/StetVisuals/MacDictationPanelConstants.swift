@@ -32,15 +32,15 @@ enum MacDictationPanelConstants {
     enum VoiceReactivity {
         static let easedPower: Double = 0.45
         static let shaderDrivePower: Double = 0.82
-        static let shaderDriveBoostStarting: Double = 1.08
+        static let shaderDriveBoostStarting: Double = 1.14
         static let shaderDriveBoostListening: Double = 1.18
-        static let shaderDriveFloorStarting: Double = 0.05
+        static let shaderDriveFloorStarting: Double = 0.10
         static let shaderDriveFloorListening: Double = 0.08
         
         static let levelBaseIdle: Double = 0.10
-        static let levelBaseStarting: Double = 0.15
-        static let levelMultStarting: Double = 0.45
-        static let levelMaxStarting: Double = 0.60
+        static let levelBaseStarting: Double = 0.22
+        static let levelMultStarting: Double = 0.62
+        static let levelMaxStarting: Double = 0.82
         static let levelBaseListening: Double = 0.22
         static let levelMultListening: Double = 0.78
         static let levelMaxListening: Double = 1.0
@@ -56,6 +56,11 @@ enum MacDictationPanelConstants {
         static let topIdle = (0.95, 0.96, 0.98)
         static let midIdle = (0.86, 0.88, 0.90)
         static let lowIdle = (0.72, 0.74, 0.76)
+
+        // Starting (Pronounced Silver-Blue)
+        static let topStarting = (0.62, 0.82, 0.96)
+        static let midStarting = (0.34, 0.60, 0.84)
+        static let lowStarting = (0.16, 0.40, 0.68)
         
         // Active Speaking (Blue Injection)
         static let topSpeaking = (0.35, 0.85, 1.00)

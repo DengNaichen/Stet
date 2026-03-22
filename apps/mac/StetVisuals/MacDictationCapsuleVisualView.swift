@@ -83,7 +83,7 @@ public struct MacDictationCapsuleVisualView: View {
                     controlHeight: model.controlHeight,
                     startDate: startDate,
                     shaderFrameInterval: model.shaderFrameInterval,
-                    displayLevel: model.displayLevel,
+                    signals: model.signals,
                     isPaused: model.isShaderPaused
                 )
             }

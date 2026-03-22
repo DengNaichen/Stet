@@ -175,10 +175,10 @@ final class AudioDeviceSelectionManager: ObservableObject {
     /// - Returns: 选中的设备，如果没有可用设备返回 nil
     func deviceForRecording() -> AudioHardwareDevice?
     
-    /// 根据质量优先级选择最佳设备
+    /// 根据优先级选择默认设备
     /// - Parameter devices: 可用设备列表
-    /// - Returns: 质量最高的设备
-    private func selectBestQualityDevice(from devices: [AudioHardwareDevice]) -> AudioHardwareDevice?
+    /// - Returns: 优先级最高的设备
+    private func selectDefaultDevice(from devices: [AudioHardwareDevice]) -> AudioHardwareDevice?
 }
 ```
 
@@ -192,14 +192,17 @@ final class AudioDeviceChangeMonitor {
     /// 设备变更通知
     static let devicesDidChangeNotification = Notification.Name("AudioDevicesDidChange")
     
+    private let stateLock = NSLock()
     private var propertyListenerBlock: AudioObjectPropertyListenerBlock?
+    private var monitorClientCount = 0
+    private var isMonitoring = false
     
     init()
     
-    /// 开始监听设备变更
+    /// 开始监听设备变更（支持多次调用，使用引用计数）
     func startMonitoring()
     
-    /// 停止监听
+    /// 停止监听（支持多次调用，使用引用计数）
     func stopMonitoring()
     
     deinit
@@ -225,18 +228,22 @@ let inputDevice = AudioDeviceSelectionManager.shared.currentRecordingDevice()
 在 `MacGeneralSettingsView` 中添加设备选择部分：
 
 ```swift
-struct AudioDeviceSettingsSection: View {
+struct AudioInputDeviceSettingsSection: View {
     @ObservedObject var deviceManager: AudioDeviceSelectionManager
+    @StateObject private var microphoneTestViewModel: MicrophoneTestViewModel
     
     var body: some View {
         Section("Audio Input Device") {
-            Picker("Selection Strategy", selection: $deviceManager.strategy) {
-                Text("Automatic (Quality Priority)").tag(SelectionStrategy.automatic)
+            Picker("Selection Strategy", selection: selectionStrategyBinding) {
+                Text("Default (Built-in Microphone)").tag(SelectionStrategy.automatic)
                 Text("Manual Selection").tag(SelectionStrategy.manual)
             }
             
             if deviceManager.strategy == .manual {
-                Picker("Microphone", selection: $deviceManager.preferredDeviceUID) {
+                Picker("Microphone", selection: preferredDeviceUIDBinding) {
+                    Text("Select a microphone...")
+                        .tag(nil as String?)
+                    
                     ForEach(deviceManager.availableDevices, id: \.uid) { device in
                         Text(device.name)
                             .tag(device.uid as String?)
@@ -252,6 +259,17 @@ struct AudioDeviceSettingsSection: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            
+            MicrophoneTestView(viewModel: microphoneTestViewModel)
+        }
+        .onAppear {
+            AudioDeviceChangeMonitor.shared.startMonitoring()
+        }
+        .onDisappear {
+            AudioDeviceChangeMonitor.shared.stopMonitoring()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: AudioDeviceChangeMonitor.devicesDidChangeNotification)) { _ in
+            deviceManager.refreshDevices()
         }
     }
 }
@@ -264,18 +282,20 @@ struct AudioDeviceSettingsSection: View {
 ```swift
 @MainActor
 final class MicrophoneTestViewModel: ObservableObject {
-    @Published var isRecording = false
-    @Published var isPlaying = false
-    @Published var audioLevel: Double = 0.0
-    @Published var hasRecording = false
+    @Published private(set) var isRecording = false
+    @Published private(set) var isPlaying = false
+    @Published private(set) var audioLevel: Double = 0.0
+    @Published private(set) var hasRecording = false
     
-    private let audioTestService: AudioTestService
+    private let microphoneTestService: MicrophoneTestService
+    private var recordingURL: URL?
+    private var audioLevelTask: Task<Void, Never>?
     
-    init(audioTestService: AudioTestService = .shared)
+    init(microphoneTestService: MicrophoneTestService)
     
-    func startRecording() async throws
-    func stopRecording() async throws
-    func playRecording() async throws
+    func startRecording() async
+    func stopRecording() async
+    func playRecording() async
     func stopPlayback()
 }
 
@@ -285,34 +305,71 @@ struct MicrophoneTestView: View {
     var body: some View {
         VStack(spacing: 16) {
             // 音频电平指示器
-            AudioLevelIndicator(level: viewModel.audioLevel)
+            MicrophoneAudioLevelMeter(level: viewModel.audioLevel)
+                .frame(height: 40)
+                .padding(.horizontal, 8)
             
+            // 录音控制
             HStack(spacing: 12) {
-                // 录音按钮
-                Button(viewModel.isRecording ? "Stop Recording" : "Start Recording") {
+                Button {
                     Task {
                         if viewModel.isRecording {
-                            try? await viewModel.stopRecording()
+                            await viewModel.stopRecording()
                         } else {
-                            try? await viewModel.startRecording()
+                            await viewModel.startRecording()
                         }
                     }
+                } label: {
+                    Label(
+                        viewModel.isRecording ? "Stop Recording" : "Start Recording",
+                        systemImage: viewModel.isRecording ? "stop.circle.fill" : "record.circle"
+                    )
                 }
+                .buttonStyle(.borderedProminent)
+                .tint(viewModel.isRecording ? .red : .accentColor)
                 .disabled(viewModel.isPlaying)
                 
-                // 播放按钮
-                Button(viewModel.isPlaying ? "Stop Playback" : "Play Recording") {
+                // 播放控制
+                Button {
                     Task {
                         if viewModel.isPlaying {
                             viewModel.stopPlayback()
                         } else {
-                            try? await viewModel.playRecording()
+                            await viewModel.playRecording()
                         }
                     }
+                } label: {
+                    Label(
+                        viewModel.isPlaying ? "Stop Playback" : "Play Recording",
+                        systemImage: viewModel.isPlaying ? "stop.circle.fill" : "play.circle"
+                    )
                 }
+                .buttonStyle(.bordered)
                 .disabled(!viewModel.hasRecording || viewModel.isRecording)
             }
+            
+            // 状态文本
+            if viewModel.hasRecording {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text("Recording saved - click Play to hear it")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else if viewModel.isRecording {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text("Recording...")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
+        .padding()
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 ```
@@ -326,23 +383,47 @@ struct MicrophoneTestView: View {
 在 `MacMenuBarView` 中添加设备选择部分：
 
 ```swift
-struct AudioDeviceMenuSection: View {
-    @ObservedObject var deviceManager = AudioDeviceSelectionManager.shared
+struct AudioInputDeviceMenuSection: View {
+    @ObservedObject private var deviceManager: AudioDeviceSelectionManager
+    
+    init(deviceManager: AudioDeviceSelectionManager = .shared) {
+        self._deviceManager = ObservedObject(wrappedValue: deviceManager)
+    }
     
     var body: some View {
-        Section("Microphone") {
+        Section("Audio Input Device") {
+            Button {
+                deviceManager.resetToAutomatic()
+            } label: {
+                menuRow(
+                    title: "Default (Built-in Microphone)",
+                    isSelected: deviceManager.strategy == .automatic
+                )
+            }
+            
             ForEach(deviceManager.availableDevices, id: \.uid) { device in
                 Button {
                     deviceManager.selectDevice(device)
                 } label: {
-                    HStack {
-                        Text(device.name)
-                        Spacer()
-                        if device.uid == deviceManager.selectedDevice?.uid {
-                            Image(systemName: "checkmark")
-                        }
-                    }
+                    menuRow(
+                        title: device.name,
+                        isSelected: deviceManager.strategy == .manual &&
+                            device.uid == deviceManager.selectedDevice?.uid
+                    )
                 }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: AudioDeviceChangeMonitor.devicesDidChangeNotification)) { _ in
+            deviceManager.refreshDevices()
+        }
+    }
+    
+    private func menuRow(title: String, isSelected: Bool) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            if isSelected {
+                Image(systemName: "checkmark")
             }
         }
     }
@@ -357,7 +438,7 @@ struct MacMenuBarView: View {
     
     var body: some View {
         Group {
-            AudioDeviceMenuSection()
+            AudioInputDeviceMenuSection()
             
             Divider()
             
@@ -366,9 +447,6 @@ struct MacMenuBarView: View {
             }
             
             // ... 其他菜单项 ...
-        }
-        .onAppear {
-            AudioDeviceSelectionManager.shared.refreshDevices()
         }
     }
 }
@@ -429,13 +507,13 @@ struct AudioHardwareDevice: Equatable, Sendable {
 }
 ```
 
-### AudioTestService（新组件）
+### MicrophoneTestService（新组件）
 
 用于麦克风测试功能的服务：
 
 ```swift
 @MainActor
-protocol AudioTestService {
+protocol MicrophoneTestService: AnyObject, AudioLevelSource {
     /// 开始录音测试
     func startRecording() async throws
     
@@ -447,17 +525,16 @@ protocol AudioTestService {
     
     /// 停止播放
     func stopPlayback()
-    
-    /// 获取音频电平流
-    func makeAudioLevelStream() -> AsyncStream<Double>
 }
 
-final class DefaultAudioTestService: AudioTestService {
-    private let captureService: AudioCaptureService
-    private var player: AVAudioPlayer?
-    private var recordingURL: URL?
+final class DefaultMicrophoneTestService: NSObject, MicrophoneTestService, AVAudioPlayerDelegate {
+    static let shared: DefaultMicrophoneTestService
     
-    init(captureService: AudioCaptureService)
+    private let captureService: any AudioCaptureService & AudioLevelSource
+    private var player: AVAudioPlayer?
+    private var playbackContinuation: CheckedContinuation<Void, Error>?
+    
+    init(captureService: any AudioCaptureService & AudioLevelSource)
     
     // 实现协议方法...
 }
@@ -467,31 +544,66 @@ final class DefaultAudioTestService: AudioTestService {
 
 ```swift
 extension AudioHardwareDevice {
-    /// 设备质量评分（用于自动选择）
-    /// 评分越高，质量越好
-    var qualityScore: Int {
-        switch transportType {
-        case kAudioDeviceTransportTypeUSB, kAudioDeviceTransportTypePCI, kAudioDeviceTransportTypeFireWire:
-            return 100  // 外接专业设备或高质量 USB 麦克风优先选用
-        case kAudioDeviceTransportTypeBuiltIn:
-            return 90   // 内置麦克风质量极好，作为第二顺位
-        case kAudioDeviceTransportTypeVirtual:
-            return 80   // 虚拟设备（如 Loopback）质量较好
-        case kAudioDeviceTransportTypeAirPlay:
-            return 70   // AirPlay 有一定延迟
-        case kAudioDeviceTransportTypeAggregate:
-            return 60   // 聚合设备质量不确定
-        case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE:
-            return 20   // 蓝牙质量最差（受限于 HFP 协议，会强制降为 8kHz/16kHz 单声道）
-        default:
-            return 95   // 未知外部设备（如使用 Thunderbolt 或专有驱动的声卡接口）默认赋予高优先级
-        }
+    /// 是否为内置设备
+    var isBuiltIn: Bool {
+        transportType == kAudioDeviceTransportTypeBuiltIn
     }
-    
+
     /// 是否为蓝牙设备
     var isBluetooth: Bool {
         transportType == kAudioDeviceTransportTypeBluetooth ||
-        transportType == kAudioDeviceTransportTypeBluetoothLE
+            transportType == kAudioDeviceTransportTypeBluetoothLE
+    }
+
+    /// 是否为手持 Apple 设备（iPhone/iPad）
+    var isHandheldAppleDevice: Bool {
+        let lowercaseName = name.lowercased()
+        return lowercaseName.contains("iphone")
+            || lowercaseName.contains("ipad")
+            || lowercaseName.contains("apple iphone")
+            || lowercaseName.contains("apple ipad")
+    }
+
+    /// 自动选择优先级（用于自动选择模式）
+    /// 优先级越高，越优先被选择
+    var automaticSelectionPriority: AutomaticSelectionPriority {
+        if isBuiltIn {
+            return .builtIn
+        }
+
+        if isHandheldAppleDevice {
+            return .handheldAppleDevice
+        }
+
+        switch transportType {
+        case kAudioDeviceTransportTypeUSB, kAudioDeviceTransportTypePCI, kAudioDeviceTransportTypeFireWire:
+            return .externalProfessional
+        case kAudioDeviceTransportTypeVirtual:
+            return .virtual
+        case kAudioDeviceTransportTypeAirPlay:
+            return .airPlay
+        case kAudioDeviceTransportTypeAggregate:
+            return .aggregate
+        case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE:
+            return .bluetooth
+        default:
+            return .unknownExternal
+        }
+    }
+
+    enum AutomaticSelectionPriority: Int, Comparable {
+        case builtIn = 500                  // 内置麦克风优先级最高
+        case externalProfessional = 400     // 外接专业设备（USB/PCI/FireWire）
+        case unknownExternal = 350          // 未知外部设备
+        case virtual = 300                  // 虚拟设备（如 Loopback）
+        case airPlay = 250                  // AirPlay 设备
+        case aggregate = 200                // 聚合设备
+        case bluetooth = 100                // 蓝牙设备
+        case handheldAppleDevice = 50       // 手持 Apple 设备（iPhone/iPad）
+
+        static func < (lhs: Self, rhs: Self) -> Bool {
+            lhs.rawValue < rhs.rawValue
+        }
     }
 }
 ```
@@ -572,21 +684,21 @@ enum MacPreferences {
 
 **验证需求: Requirements 3.4, 5.4**
 
-### Property 9: 质量评分反映传输类型优先级
+### Property 9: 优先级反映传输类型顺序
 
-*对于任何* 两个设备 A 和 B，如果 A 的 `transportType` 是具有明确硬件物理连接的外设 (如 USB) 或者是 `BuiltIn`，且 B 的 `transportType` 是 `kAudioDeviceTransportTypeBluetooth`，则 A 的 `qualityScore` 必须大于 B 的 `qualityScore`。外接设备的分数必须 >= 内置麦克风。
+*对于任何* 两个设备 A 和 B，如果 A 的 `transportType` 是 `BuiltIn` 或具有明确硬件物理连接的外设 (如 USB)，且 B 的 `transportType` 是 `kAudioDeviceTransportTypeBluetooth`，则 A 的 `automaticSelectionPriority` 必须大于 B 的 `automaticSelectionPriority`。内置设备的优先级必须是最高的。
 
 **验证需求: Requirements 4.2**
 
-### Property 10: 自动模式选择最高质量设备
+### Property 10: 自动模式选择最高优先级设备
 
-*对于任何* 可用设备列表，当 `strategy` 为 `.automatic` 时，`deviceForRecording()` 返回的设备的 `qualityScore` 必须是所有可用设备中最高的。
+*对于任何* 可用设备列表，当 `strategy` 为 `.automatic` 时，`deviceForRecording()` 返回的设备应该是内置设备（如果存在），否则返回 `automaticSelectionPriority` 最高的设备。
 
 **验证需求: Requirements 4.3**
 
-### Property 11: 手动选择覆盖质量优先级
+### Property 11: 手动选择覆盖优先级
 
-*对于任何* 设备，当 `strategy` 为 `.manual` 且 `preferredDeviceUID` 设置为该设备的 UID 时，即使存在 `qualityScore` 更高的其他设备，`deviceForRecording()` 也必须返回该手动选择的设备（如果它可用）。
+*对于任何* 设备，当 `strategy` 为 `.manual` 且 `preferredDeviceUID` 设置为该设备的 UID 时，即使存在 `automaticSelectionPriority` 更高的其他设备，`deviceForRecording()` 也必须返回该手动选择的设备（如果它可用）。
 
 **验证需求: Requirements 5.3**
 
@@ -899,13 +1011,14 @@ swift test --enable-code-coverage --filter AudioDeviceManagementTests
 - **可靠性**：即使设备被拔出再插入，UID 保持不变
 - **Apple 推荐**：CoreAudio 文档推荐使用 UID 进行设备识别
 
-### 3. 为什么质量评分将内置麦克风评为最高？
+### 3. 为什么优先选择内置麦克风？
 
 **理由**：
 - **采样率**：内置麦克风通常支持更高的采样率（48kHz）
 - **蓝牙限制**：蓝牙在双通道模式下会降低采样率到 8kHz 或 16kHz
 - **延迟**：内置麦克风延迟最低
 - **用户反馈**：用户报告使用 AirPods 时转录质量下降
+- **一致性**：内置麦克风始终可用，提供可预测的用户体验
 
 ### 4. 为什么不在录音过程中支持设备切换？
 
@@ -942,14 +1055,14 @@ swift test --enable-code-coverage --filter AudioDeviceManagementTests
 - 在设备列表中保持原始名称显示，用户最熟悉这些名称
 - 如果未来需要更好的区分，可以考虑添加设备序列号或端口信息（需要额外的 CoreAudio 查询）
 
-### 问题 2：质量评分可能不适用于所有场景
+### 问题 2：优先级可能不适用于所有场景
 
 **问题**：某些高端 USB 麦克风可能比内置麦克风质量更好。
 
 **缓解措施**：
-- 当前设计将 USB 评分为 90（仅次于内置的 100）
+- 当前设计将内置麦克风优先级设为最高（500），外接专业设备次之（400）
 - 用户可以通过手动选择覆盖自动选择
-- 未来可以考虑添加用户自定义质量评分
+- 未来可以考虑添加用户自定义优先级设置
 
 ### 问题 3：设备监听可能消耗资源
 

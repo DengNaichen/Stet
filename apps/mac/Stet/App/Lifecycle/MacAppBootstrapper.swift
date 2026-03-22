@@ -27,6 +27,7 @@ struct MacAppBootstrapper {
     }
 
     private static let defaultPreferences: [DefaultPreference] = [
+        .bool(MacPreferences.onboardingCompleted, true),
         .bool(MacPreferences.pauseMediaDuringDictation, false),
         .string(MacPreferences.transcriptionProvider, DictationProvider.openAI.rawValue),
         .string(MacPreferences.aiExecutionMode, AIExecutionMode.automatic.rawValue),
@@ -63,16 +64,8 @@ struct MacAppBootstrapper {
     private func applyDefaultPreferences() {
         Self.defaultPreferences.forEach { $0.applyIfMissing(to: defaults) }
 
-        if defaults.string(forKey: MacPreferences.translationTargetLanguage) == nil {
-            settingsStore.saveTranslationTargetLanguage(.english)
-        }
-
         if defaults.string(forKey: MacPreferences.dictationLanguageMode) == nil {
             settingsStore.saveDictationLanguageMode(.automatic)
-        }
-
-        if defaults.object(forKey: MacPreferences.translateSelectedTextOnTranslationHotkey) == nil {
-            settingsStore.saveTranslateSelectedTextOnTranslationHotkey(true)
         }
 
         if defaults.object(forKey: MacPreferences.hotkeyDistinguishModifierSides) == nil {

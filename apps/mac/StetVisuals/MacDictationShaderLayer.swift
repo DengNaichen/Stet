@@ -7,107 +7,155 @@ struct MacDictationShaderLayer: View {
     let controlHeight: CGFloat
     let startDate: Date
     let shaderFrameInterval: Double
-    let displayLevel: Double
+    let signals: MacDictationCapsuleVisualSignals
     let isPaused: Bool
 
     var body: some View {
         TimelineView(.animation(minimumInterval: shaderFrameInterval, paused: isPaused)) { timeline in
             let elapsed = timeline.date.timeIntervalSince(startDate)
+            let effectiveSignals = currentSignals(elapsed: elapsed)
+            let isProcessing = isProcessingState
 
-            let effectiveLevel: Double = {
-                if case .processing = state {
-                    return 0.28 + 0.10 * sin(elapsed * 1.7) + 0.05 * sin(elapsed * 3.9)
-                } else {
-                    return displayLevel
-                }
-            }()
-
-            let shaderDetail = currentShaderDetail(effectiveLevel: effectiveLevel)
-            let colors = currentShaderColors(elapsed: elapsed, effectiveLevel: effectiveLevel)
+            let shaderDetail = MacDictationShaderStyling.detail(
+                for: state,
+                signals: effectiveSignals
+            )
+            let colors = MacDictationShaderStyling.colors(
+                for: state,
+                elapsed: elapsed,
+                signals: effectiveSignals
+            )
 
             Capsule().fill(.white)
                 .colorEffect(
                     StetVisualsShaderLibrary.cloudOrbGlassWide(
                         size: CGSize(width: mainWidth, height: controlHeight),
                         time: elapsed,
-                        audio: effectiveLevel,
+                        body: effectiveSignals.body,
+                        presence: effectiveSignals.presence,
+                        pulse: effectiveSignals.pulse,
+                        articulation: effectiveSignals.articulation,
                         detail: shaderDetail,
                         top: colors.top,
                         mid: colors.mid,
                         low: colors.low
                     )
                 )
+                .overlay {
+                    if isProcessing {
+                        processingOverlay(elapsed: elapsed)
+                    }
+                }
                 .frame(width: mainWidth, height: controlHeight)
                 .allowsHitTesting(false)
         }
     }
 
-    private func currentShaderDetail(effectiveLevel: Double) -> Double {
-        switch state {
-        case .starting:
-            let clampedLevel = min(max(effectiveLevel, 0.0), 1.0)
-            return min(0.68, 0.38 + clampedLevel * 0.45)
-        case .listening:
-            return 1.0
-        case .processing:
-            return 0.92
-        default:
-            return 0.52
-        }
-    }
-
-    private func currentShaderColors(elapsed: Double, effectiveLevel: Double) -> (top: Color, mid: Color, low: Color) {
-        let talk = min(max(effectiveLevel, 0.0), 1.0)
-        let breath = talk * talk * (3.0 - 2.0 * talk)
-
-        let injection: Double
-        let targetTop: (Double, Double, Double)
-        let targetMid: (Double, Double, Double)
-        let targetLow: (Double, Double, Double)
-
-        switch state {
-        case .processing:
-            injection = 0.5 + 0.5 * breath
-            targetTop = MacDictationPanelConstants.Colors.topProcessing
-            targetMid = MacDictationPanelConstants.Colors.midProcessing
-            targetLow = MacDictationPanelConstants.Colors.lowProcessing
-        case .starting, .listening:
-            injection = breath
-            targetTop = MacDictationPanelConstants.Colors.topSpeaking
-            targetMid = MacDictationPanelConstants.Colors.midSpeaking
-            targetLow = MacDictationPanelConstants.Colors.lowSpeaking
-        case .result:
-            injection = 0.4
-            targetTop = MacDictationPanelConstants.Colors.topSpeaking
-            targetMid = MacDictationPanelConstants.Colors.midSpeaking
-            targetLow = MacDictationPanelConstants.Colors.lowSpeaking
-        default:
-            injection = 0
-            targetTop = MacDictationPanelConstants.Colors.topIdle
-            targetMid = MacDictationPanelConstants.Colors.midIdle
-            targetLow = MacDictationPanelConstants.Colors.lowIdle
+    private func currentSignals(elapsed: Double) -> MacDictationCapsuleVisualSignals {
+        if case .processing = state {
+            return MacDictationCapsuleVisualSignals(
+                body: 0.32 + 0.06 * sin(elapsed * 1.4),
+                presence: 0.42 + 0.08 * sin(elapsed * 0.9 + 0.8),
+                pulse: 0.20 + 0.12 * max(0, sin(elapsed * 2.2)),
+                articulation: 0.34 + 0.10 * sin(elapsed * 2.8 + 1.1)
+            )
         }
 
-        let top = Color(
-            red:   lerp(MacDictationPanelConstants.Colors.topIdle.0, targetTop.0, injection),
-            green: lerp(MacDictationPanelConstants.Colors.topIdle.1, targetTop.1, injection),
-            blue:  lerp(MacDictationPanelConstants.Colors.topIdle.2, targetTop.2, injection)
-        )
-        let mid = Color(
-            red:   lerp(MacDictationPanelConstants.Colors.midIdle.0, targetMid.0, injection),
-            green: lerp(MacDictationPanelConstants.Colors.midIdle.1, targetMid.1, injection),
-            blue:  lerp(MacDictationPanelConstants.Colors.midIdle.2, targetMid.2, injection)
-        )
-        let low = Color(
-            red:   lerp(MacDictationPanelConstants.Colors.lowIdle.0, targetLow.0, injection),
-            green: lerp(MacDictationPanelConstants.Colors.lowIdle.1, targetLow.1, injection),
-            blue:  lerp(MacDictationPanelConstants.Colors.lowIdle.2, targetLow.2, injection)
-        )
-        return (top, mid, low)
+        return signals
     }
 
-    private func lerp(_ a: Double, _ b: Double, _ t: Double) -> Double {
-        a + (b - a) * t
+    private var isProcessingState: Bool {
+        if case .processing = state {
+            return true
+        }
+
+        return false
+    }
+
+    @ViewBuilder
+    private func processingOverlay(elapsed: Double) -> some View {
+        let primaryOffset = sweepOffset(
+            elapsed: elapsed,
+            speed: 0.34,
+            phase: 0.0,
+            spanMultiplier: 1.34
+        )
+        let secondaryOffset = sweepOffset(
+            elapsed: elapsed,
+            speed: 0.46,
+            phase: 0.58,
+            spanMultiplier: 1.22
+        )
+        let edgePulse = 0.52 + 0.22 * sin(elapsed * 2.1)
+
+        ZStack {
+            Capsule()
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.05),
+                            Color.orange.opacity(0.20),
+                            Color.white.opacity(0.05)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ),
+                    lineWidth: 1
+                )
+                .opacity(edgePulse)
+
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0.0),
+                            .init(color: Color.white.opacity(0.00), location: 0.24),
+                            .init(color: Color.white.opacity(0.14), location: 0.42),
+                            .init(color: Color.orange.opacity(0.34), location: 0.58),
+                            .init(color: Color.orange.opacity(0.08), location: 0.72),
+                            .init(color: .clear, location: 1.0)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(width: mainWidth * 0.46, height: controlHeight * 0.96)
+                .blur(radius: 9)
+                .offset(x: primaryOffset)
+
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0.0),
+                            .init(color: Color.white.opacity(0.00), location: 0.18),
+                            .init(color: Color.orange.opacity(0.12), location: 0.45),
+                            .init(color: Color.yellow.opacity(0.20), location: 0.56),
+                            .init(color: Color.orange.opacity(0.10), location: 0.70),
+                            .init(color: .clear, location: 1.0)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(width: mainWidth * 0.30, height: controlHeight * 0.84)
+                .blur(radius: 7)
+                .offset(x: secondaryOffset)
+        }
+        .blendMode(.screen)
+        .compositingGroup()
+        .allowsHitTesting(false)
+    }
+
+    private func sweepOffset(
+        elapsed: Double,
+        speed: Double,
+        phase: Double,
+        spanMultiplier: Double
+    ) -> CGFloat {
+        let progress = (elapsed * speed + phase).truncatingRemainder(dividingBy: 1.0)
+        let normalized = progress * 2.0 - 1.0
+        return CGFloat(normalized * spanMultiplier) * mainWidth * 0.5
     }
 }
 #endif

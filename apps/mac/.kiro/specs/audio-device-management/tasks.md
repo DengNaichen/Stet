@@ -56,15 +56,16 @@ Implementation approach:
     - Test error handling for invalid IDs/UIDs
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [x] 2. Add AudioHardwareDevice quality scoring extension
-  - [x] 2.1 Implement qualityScore computed property
-    - Return 100 for USB/PCI/FireWire devices (external professional equipment)
-    - Return 90 for built-in devices
-    - Return 80 for virtual devices
-    - Return 70 for AirPlay devices
-    - Return 60 for aggregate devices
-    - Return 20 for Bluetooth/BluetoothLE devices
-    - Return 95 for unknown external devices (default high priority)
+- [x] 2. Add AudioHardwareDevice automatic selection priority extension
+  - [x] 2.1 Implement automaticSelectionPriority computed property
+    - Return .builtIn (500) for built-in devices
+    - Return .externalProfessional (400) for USB/PCI/FireWire devices
+    - Return .unknownExternal (350) for unknown external devices
+    - Return .virtual (300) for virtual devices
+    - Return .airPlay (250) for AirPlay devices
+    - Return .aggregate (200) for aggregate devices
+    - Return .bluetooth (100) for Bluetooth/BluetoothLE devices
+    - Return .handheldAppleDevice (50) for iPhone/iPad devices
     - _Requirements: 4.2, 4.3_
   
   - [x] 2.2 Implement isBluetooth computed property
@@ -72,11 +73,21 @@ Implementation approach:
     - Return false otherwise
     - _Requirements: 4.2_
   
-  - [ ]* 2.3 Write property test for quality scoring
-    - **Property 9: Quality score reflects transport type priority**
+  - [x] 2.3 Implement isBuiltIn computed property
+    - Return true if transportType is BuiltIn
+    - Return false otherwise
+    - _Requirements: 4.3_
+  
+  - [x] 2.4 Implement isHandheldAppleDevice computed property
+    - Check if device name contains "iphone" or "ipad" (case-insensitive)
+    - Return true if matched, false otherwise
+    - _Requirements: 4.2_
+  
+  - [ ]* 2.5 Write property test for priority ordering
+    - **Property 9: Priority reflects transport type ordering**
     - **Validates: Requirements 4.2**
-    - Test that USB/BuiltIn devices always score higher than Bluetooth
-    - Test that external devices score >= built-in devices
+    - Test that built-in devices always have higher priority than Bluetooth
+    - Test that external professional devices have higher priority than Bluetooth
     - Use swift-check to generate random device combinations
 
 - [x] 3. Create AudioDeviceSelectionManager
@@ -116,14 +127,15 @@ Implementation approach:
     - Update thread-safe recording device cache
     - _Requirements: 1.3, 1.4_
   
-  - [x] 3.6 Implement selectBestQualityDevice(from:) private method
-    - Find device with highest qualityScore from provided array
-    - Return device with max score
+  - [x] 3.6 Implement selectDefaultDevice(from:) private method
+    - Prioritize built-in device if available
+    - Fall back to system default device if no built-in device
+    - Otherwise select device with highest automaticSelectionPriority
     - Return nil if array is empty
     - _Requirements: 4.3_
   
   - [x] 3.7 Implement deviceForRecording() method
-    - If strategy is .automatic, return selectBestQualityDevice(from: availableDevices)
+    - If strategy is .automatic, return selectDefaultDevice(from: availableDevices)
     - If strategy is .manual and preferredDeviceUID is set, find device by UID in availableDevices
     - If manual device not found, fall back to provider.defaultInputDevice()
     - Return nil if no devices available
@@ -151,7 +163,8 @@ Implementation approach:
     - _Requirements: 3.2_
   
   - [ ]* 3.11 Write unit tests for AudioDeviceSelectionManager
-    - Test automatic mode selects highest quality device
+    - Test automatic mode selects built-in device when available
+    - Test automatic mode falls back to highest priority device
     - Test manual selection persists across manager instances
     - Test fallback to default device when preferred device unavailable
     - Test device selection can be changed multiple times
@@ -160,16 +173,16 @@ Implementation approach:
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.3, 5.2, 5.4_
   
   - [ ]* 3.12 Write property test for automatic mode selection
-    - **Property 10: Automatic mode selects highest quality device**
+    - **Property 10: Automatic mode selects highest priority device**
     - **Validates: Requirements 4.3**
     - Generate random device arrays with swift-check
-    - Verify deviceForRecording() always returns device with max qualityScore
+    - Verify deviceForRecording() always returns device with max automaticSelectionPriority
   
   - [ ]* 3.13 Write property test for manual selection override
-    - **Property 11: Manual selection overrides quality priority**
+    - **Property 11: Manual selection overrides automatic priority**
     - **Validates: Requirements 5.3**
-    - Generate device arrays with varying quality scores
-    - Verify manual selection returns chosen device even if lower quality
+    - Generate device arrays with varying priorities
+    - Verify manual selection returns chosen device even if lower priority
   
   - [ ]* 3.14 Write property test for device persistence
     - **Property 5: Device selection persists**
@@ -185,16 +198,21 @@ Implementation approach:
     - Create class with shared singleton
     - Define devicesDidChangeNotification constant
     - Add propertyListenerBlock storage
+    - Add stateLock for thread safety
+    - Add monitorClientCount for reference counting
+    - Add isMonitoring flag
     - _Requirements: 1.3, 1.4_
   
   - [x] 5.2 Implement startMonitoring() method
-    - Register CoreAudio property listener for device list changes
+    - Increment monitorClientCount with thread safety
+    - Register CoreAudio property listener only on first call
     - Post devicesDidChangeNotification when devices change
     - Handle listener registration failures gracefully (log warning)
     - _Requirements: 1.3, 1.4_
   
   - [x] 5.3 Implement stopMonitoring() method
-    - Unregister CoreAudio property listener
+    - Decrement monitorClientCount with thread safety
+    - Unregister CoreAudio property listener only when count reaches zero
     - Clean up listener block
     - _Requirements: 1.3, 1.4_
   
@@ -222,18 +240,19 @@ Implementation approach:
     - _Requirements: 3.2, 3.3, 5.2_
 
 - [x] 7. Add device selection UI to MacGeneralSettingsView
-  - [x] 7.1 Create AudioDeviceSettingsSection view
+  - [x] 7.1 Create AudioInputDeviceSettingsSection view
     - Add Section with "Audio Input Device" title
-    - Add Picker for selection strategy (Automatic/Manual)
-    - Bind picker to deviceManager.strategy
+    - Add Picker for selection strategy (Default/Manual)
+    - Bind picker to deviceManager.strategy with custom binding
     - Conditionally show device picker when strategy is .manual
-    - Add device Picker bound to deviceManager.preferredDeviceUID
+    - Add device Picker bound to deviceManager.preferredDeviceUID with custom binding
     - Display current selected device name
-    - _Requirements: 5.1, 5.2, 5.4_
+    - Integrate MicrophoneTestView
+    - _Requirements: 5.1, 5.2, 5.4, 7.1_
   
-  - [x] 7.2 Integrate AudioDeviceSettingsSection into MacGeneralSettingsView
+  - [x] 7.2 Integrate AudioInputDeviceSettingsSection into MacGeneralSettingsView
     - Add @ObservedObject reference to AudioDeviceSelectionManager.shared
-    - Add AudioDeviceSettingsSection to settings view body
+    - Add AudioInputDeviceSettingsSection to settings view body
     - Position section appropriately in settings layout
     - _Requirements: 5.1_
   
@@ -250,50 +269,58 @@ Implementation approach:
     - _Requirements: 1.3, 1.4_
 
 - [x] 8. Create microphone testing functionality
-  - [x] 8.1 Define AudioTestService protocol
+  - [x] 8.1 Define MicrophoneTestService protocol
     - Add startRecording() async throws method
     - Add stopRecording() async throws -> URL method
     - Add playRecording(at:) async throws method
     - Add stopPlayback() method
-    - Add makeAudioLevelStream() -> AsyncStream<Double> method
+    - Inherit from AudioLevelSource for audio level streaming
     - Mark protocol as @MainActor
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
   
-  - [x] 8.2 Implement DefaultAudioTestService
-    - Create class conforming to AudioTestService
-    - Add AudioCaptureService dependency
+  - [x] 8.2 Implement DefaultMicrophoneTestService
+    - Create class conforming to MicrophoneTestService and AVAudioPlayerDelegate
+    - Add AudioCaptureService & AudioLevelSource dependency
     - Add AVAudioPlayer storage for playback
-    - Add temporary recording URL storage
+    - Add playbackContinuation for async playback
     - _Requirements: 7.1, 7.2, 7.3_
   
-  - [x] 8.3 Implement startRecording() in DefaultAudioTestService
-    - Create temporary file URL for recording
-    - Start AudioCaptureService with test configuration
-    - Store recording URL
+  - [x] 8.3 Implement startRecording() in DefaultMicrophoneTestService
+    - Stop any ongoing playback
+    - Start AudioCaptureService
+    - Activate recording window
     - _Requirements: 7.2, 7.4_
   
-  - [x] 8.4 Implement stopRecording() in DefaultAudioTestService
+  - [x] 8.4 Implement stopRecording() in DefaultMicrophoneTestService
     - Stop AudioCaptureService
-    - Return recording URL
+    - Return recording URL from result
     - _Requirements: 7.2_
   
-  - [x] 8.5 Implement playRecording(at:) in DefaultAudioTestService
+  - [x] 8.5 Implement playRecording(at:) in DefaultMicrophoneTestService
+    - Stop any ongoing playback
     - Create AVAudioPlayer with recording URL
+    - Set delegate and prepare to play
     - Start playback
+    - Use CheckedContinuation to await completion
     - _Requirements: 7.3_
   
-  - [x] 8.6 Implement stopPlayback() in DefaultAudioTestService
+  - [x] 8.6 Implement stopPlayback() in DefaultMicrophoneTestService
     - Stop AVAudioPlayer if playing
     - Clean up player instance
+    - Resume continuation if waiting
     - _Requirements: 7.3_
   
-  - [x] 8.7 Implement makeAudioLevelStream() in DefaultAudioTestService
-    - Create AsyncStream that emits audio level values
-    - Connect to AudioCaptureService audio level updates
-    - Normalize levels to 0.0-1.0 range
+  - [x] 8.7 Implement makeAudioLevelStream() in DefaultMicrophoneTestService
+    - Delegate to captureService.makeAudioLevelStream()
+    - Return AsyncStream<Double> with normalized levels
     - _Requirements: 7.4_
   
-  - [ ]* 8.8 Write unit tests for DefaultAudioTestService
+  - [x] 8.8 Implement AVAudioPlayerDelegate methods
+    - audioPlayerDidFinishPlaying: clean up and resume continuation
+    - audioPlayerDecodeErrorDidOccur: clean up and throw error
+    - _Requirements: 7.3_
+  
+  - [ ]* 8.9 Write unit tests for DefaultMicrophoneTestService
     - Test recording creates file at expected URL
     - Test playback doesn't crash
     - Test stopPlayback can be called safely
@@ -304,129 +331,160 @@ Implementation approach:
 - [x] 9. Create MicrophoneTestViewModel
   - [x] 9.1 Implement MicrophoneTestViewModel structure
     - Create @MainActor class conforming to ObservableObject
-    - Add @Published isRecording property
-    - Add @Published isPlaying property
-    - Add @Published audioLevel property
-    - Add @Published hasRecording property
-    - Add AudioTestService dependency
+    - Add @Published private(set) isRecording property
+    - Add @Published private(set) isPlaying property
+    - Add @Published private(set) audioLevel property
+    - Add @Published private(set) hasRecording property
+    - Add MicrophoneTestService dependency
+    - Add recordingURL storage
+    - Add audioLevelTask for observation
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
   
   - [x] 9.2 Implement startRecording() method
+    - Guard against already recording
     - Set isRecording to true
-    - Call audioTestService.startRecording()
+    - Call microphoneTestService.startRecording()
     - Start observing audio level stream
     - Update audioLevel property from stream
     - Handle errors gracefully (log and reset state)
     - _Requirements: 7.2, 7.4_
   
   - [x] 9.3 Implement stopRecording() method
-    - Call audioTestService.stopRecording()
+    - Guard against not recording
+    - Stop audio level stream observation
+    - Call microphoneTestService.stopRecording()
     - Set isRecording to false
     - Set hasRecording to true
-    - Stop audio level stream observation
+    - Store recording URL
     - Handle errors gracefully
     - _Requirements: 7.2_
   
   - [x] 9.4 Implement playRecording() method
+    - Guard against no recording or already playing
     - Set isPlaying to true
-    - Call audioTestService.playRecording(at: recordingURL)
-    - Set isPlaying to false when playback completes
+    - Call microphoneTestService.playRecording(at: recordingURL)
+    - Set isPlaying to false when playback completes (using defer)
     - Handle errors gracefully
     - _Requirements: 7.3_
   
   - [x] 9.5 Implement stopPlayback() method
-    - Call audioTestService.stopPlayback()
+    - Call microphoneTestService.stopPlayback()
     - Set isPlaying to false
     - _Requirements: 7.3_
   
-  - [ ]* 9.6 Write unit tests for MicrophoneTestViewModel
+  - [x] 9.6 Implement startAudioLevelObservation() private method
+    - Cancel existing audioLevelTask
+    - Create new Task that observes audio level stream
+    - Update audioLevel property for each value
+    - Handle task cancellation
+    - _Requirements: 7.4_
+  
+  - [x] 9.7 Implement stopAudioLevelObservation() private method
+    - Cancel audioLevelTask
+    - Set audioLevelTask to nil
+    - _Requirements: 7.4_
+  
+  - [ ]* 9.8 Write unit tests for MicrophoneTestViewModel
     - Test recording state transitions
     - Test playback state transitions
     - Test hasRecording flag updates correctly
     - Test audio level updates during recording
-    - Use mock AudioTestService for isolation
+    - Use mock MicrophoneTestService for isolation
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
 - [x] 10. Create MicrophoneTestView
-  - [x] 10.1 Implement AudioLevelIndicator view
-    - Create visual indicator for audio level (progress bar or waveform)
+  - [x] 10.1 Implement MicrophoneAudioLevelMeter view
+    - Create visual indicator for audio level (progress bar style)
     - Bind to viewModel.audioLevel
     - Animate level changes smoothly
     - _Requirements: 7.4_
   
   - [x] 10.2 Implement MicrophoneTestView structure
     - Create SwiftUI view with MicrophoneTestViewModel
-    - Add AudioLevelIndicator
-    - Add "Start/Stop Recording" button
+    - Add MicrophoneAudioLevelMeter with fixed height
+    - Add "Start/Stop Recording" button with Label
     - Bind button to viewModel.startRecording/stopRecording
+    - Use .borderedProminent button style with dynamic tint
     - Disable button when playing
     - _Requirements: 7.2, 7.4_
   
   - [x] 10.3 Add playback controls to MicrophoneTestView
-    - Add "Play/Stop Recording" button
+    - Add "Play/Stop Recording" button with Label
     - Bind button to viewModel.playRecording/stopPlayback
+    - Use .bordered button style
     - Disable button when recording or no recording available
     - _Requirements: 7.3_
   
-  - [x] 10.4 Integrate MicrophoneTestView into MacGeneralSettingsView
-    - Add MicrophoneTestView to settings
-    - Create MicrophoneTestViewModel instance
-    - Position in appropriate section
+  - [x] 10.4 Add status indicators to MicrophoneTestView
+    - Show success message with checkmark when hasRecording is true
+    - Show recording indicator with ProgressView when isRecording is true
+    - Use appropriate styling and colors
+    - _Requirements: 7.1, 7.4_
+  
+  - [x] 10.5 Integrate MicrophoneTestView into AudioInputDeviceSettingsSection
+    - Add MicrophoneTestView to settings section
+    - Create MicrophoneTestViewModel instance with StateObject
+    - Pass DefaultMicrophoneTestService.shared as dependency
     - _Requirements: 7.1_
 
 - [~] 11. Checkpoint - Settings UI and testing complete
   - Ensure all tests pass, ask the user if questions arise.
 
-- [x] 12. Create AudioDeviceMenuSection (SwiftUI)
-  - [x] 12.1 Implement AudioDeviceMenuSection view
+- [x] 12. Create AudioInputDeviceMenuSection (SwiftUI)
+  - [x] 12.1 Implement AudioInputDeviceMenuSection view
     - Create SwiftUI view conforming to View protocol
-    - Add @ObservedObject reference to AudioDeviceSelectionManager.shared
-    - Use Section with "Microphone" header
+    - Add @ObservedObject reference to AudioDeviceSelectionManager (injected via init)
+    - Use Section with "Audio Input Device" header
     - _Requirements: 6.1, 6.2_
   
-  - [x] 12.2 Implement device list with ForEach
+  - [x] 12.2 Implement "Default" option button
+    - Add Button that calls deviceManager.resetToAutomatic()
+    - Show "Default (Built-in Microphone)" as label
+    - Use menuRow helper with checkmark when strategy is .automatic
+    - _Requirements: 6.2, 6.3_
+  
+  - [x] 12.3 Implement device list with ForEach
     - Iterate through deviceManager.availableDevices using ForEach
     - Use device.uid as identifier
     - Create Button for each device with device name as label
-    - Add HStack with device name and checkmark
-    - Show checkmark (Image(systemName: "checkmark")) for currently selected device
+    - Use menuRow helper with checkmark for currently selected device
+    - Show checkmark when strategy is .manual and device matches selectedDevice
     - _Requirements: 6.2, 6.3_
   
-  - [x] 12.3 Implement device selection action
+  - [x] 12.4 Implement device selection action
     - Add Button action closure that calls deviceManager.selectDevice(device)
     - Action automatically updates selectedDevice via @Published property
     - _Requirements: 6.4_
   
-  - [x] 12.4 Add automatic UI refresh
+  - [x] 12.5 Add automatic UI refresh via notification
+    - Observe AudioDeviceChangeMonitor.devicesDidChangeNotification
+    - Call deviceManager.refreshDevices() when notification received
     - SwiftUI automatically refreshes when @Published properties change
-    - No manual notification observation needed
-    - UI updates when availableDevices or selectedDevice changes
     - _Requirements: 6.5_
   
-  - [ ]* 12.5 Write unit tests for AudioDeviceMenuSection
+  - [x] 12.6 Implement menuRow helper view
+    - Create private function returning HStack with text and optional checkmark
+    - Accept title and isSelected parameters
+    - Show checkmark Image when isSelected is true
+    - _Requirements: 6.3_
+  
+  - [ ]* 12.7 Write unit tests for AudioInputDeviceMenuSection
     - Test view renders correct number of devices
     - Test selected device shows checkmark
     - Test button action calls selectDevice
     - Use mock AudioDeviceSelectionManager for isolation
     - _Requirements: 6.2, 6.3, 6.4_
 
-- [x] 13. Integrate AudioDeviceMenuSection into MacMenuBarView
-  - [x] 13.1 Add AudioDeviceMenuSection to MacMenuBarView
+- [x] 13. Integrate AudioInputDeviceMenuSection into MacMenuBarView
+  - [x] 13.1 Add AudioInputDeviceMenuSection to MacMenuBarView
     - Open Stet/Features/MacShell/MacMenuBarView.swift
-    - Add AudioDeviceMenuSection() at the top of the menu
+    - Add AudioInputDeviceMenuSection() at the top of the menu
     - Add Divider() after the section
     - Position before existing "Settings…" button
     - _Requirements: 6.1_  
-  - [x] 13.2 Add device refresh on view appear
-    - Add .onAppear modifier to MacMenuBarView
-    - Call AudioDeviceSelectionManager.shared.refreshDevices()
-    - Ensures device list is up-to-date when menu opens
-    - _Requirements: 6.5_
-  
-  - [x] 13.3 Add device change monitoring (optional)
-    - If AudioDeviceChangeMonitor is implemented, observe notifications
-    - Call refreshDevices() when devices change
-    - SwiftUI will automatically update the view
+  - [x] 13.2 Device refresh handled by AudioInputDeviceMenuSection
+    - AudioInputDeviceMenuSection observes device change notifications internally
+    - No need for additional refresh logic in MacMenuBarView
     - _Requirements: 6.5_
 
 - [ ] 14. Create OnboardingMicrophoneTestView

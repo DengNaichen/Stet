@@ -168,7 +168,7 @@ enum DictationFailure: Equatable, Sendable {
                 return .invalidResponse(provider: provider)
             case .api(let provider, let statusCode, let message):
                 return .providerAPI(provider: provider, statusCode: statusCode, message: message)
-            case .missingTranscriptionText, .missingRewriteText, .missingTranslationText:
+            case .missingTranscriptionText, .missingRewriteText:
                 return .invalidResponse(provider: .openAI)
             case .fileNotFound(let url):
                 return .unknown(message: "The audio file could not be found at \(url.path).")

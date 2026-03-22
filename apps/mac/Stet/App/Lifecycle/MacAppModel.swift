@@ -110,16 +110,8 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
         return sessionController.isPanelVisible ? "Hide Capsule" : "Show Capsule"
     }
 
-    var translationButtonTitle: String {
-        "Translate"
-    }
-
     var rewriteButtonTitle: String {
         "Rewrite"
-    }
-
-    var currentTranslationTargetLanguage: TranslationTargetLanguage {
-        settingsSnapshot.translationTargetLanguage
     }
 
     var idleHintText: String {

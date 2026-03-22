@@ -90,6 +90,36 @@ struct DictationViewModelTests {
         #expect(await TestSupport.eventually { viewModel.state == .listening })
     }
 
+    @Test func pendingActivationDuringStartupActivatesOnceStartCompletes() async throws {
+        let speechService = ControllableSpeechService()
+        await speechService.setStartBehavior(.suspended)
+        let viewModel = DictationViewModel(speechService: speechService)
+
+        viewModel.startCapture(activateWhenReady: false)
+        viewModel.activateCaptureWindow()
+
+        #expect(viewModel.state == .starting)
+        #expect(await speechService.counts().activate == 0)
+
+        await speechService.allowStart()
+
+        #expect(await TestSupport.eventually { viewModel.state == .listening })
+        #expect(await speechService.counts().start == 1)
+        #expect(await speechService.counts().activate == 1)
+    }
+
+    @Test func manualActivationFallbackActivatesCaptureIfControllerNeverSignals() async throws {
+        let speechService = ControllableSpeechService()
+        let viewModel = DictationViewModel(speechService: speechService)
+
+        viewModel.startCapture(activateWhenReady: false)
+
+        #expect(viewModel.state == .starting)
+        #expect(await TestSupport.eventually { viewModel.state == .listening })
+        #expect(await speechService.counts().start == 1)
+        #expect(await speechService.counts().activate == 1)
+    }
+
     @Test func processingOperationFailurePublishesError() async {
         let speechService = ControllableSpeechService()
         let viewModel = DictationViewModel(speechService: speechService)

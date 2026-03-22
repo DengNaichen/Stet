@@ -22,8 +22,6 @@ enum MacConfigurationTransferManager {
         var aiExecutionMode: String?
         var rewriteEnabled: Bool
         var dictationLanguageMode: String
-        var translationTargetLanguage: String
-        var translateSelectedTextOnTranslationHotkey: Bool
         var interactionSoundsEnabled: Bool
         var interactionSoundPreset: String
         var launchAtLogin: Bool
@@ -87,7 +85,7 @@ enum MacConfigurationTransferManager {
         defaults: UserDefaults
     ) -> ExportedConfiguration {
         return ExportedConfiguration(
-            version: 6,
+            version: 7,
             pauseMediaDuringDictation: defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation),
             transcriptionProvider: DictationProvider(
                 rawValue: defaults.string(forKey: MacPreferences.transcriptionProvider) ?? ""
@@ -95,8 +93,6 @@ enum MacConfigurationTransferManager {
             aiExecutionMode: store.loadExecutionMode().rawValue,
             rewriteEnabled: defaults.bool(forKey: MacPreferences.rewriteEnabled),
             dictationLanguageMode: store.loadDictationLanguageMode().rawValue,
-            translationTargetLanguage: store.loadTranslationTargetLanguage().rawValue,
-            translateSelectedTextOnTranslationHotkey: store.loadTranslateSelectedTextOnTranslationHotkey(),
             interactionSoundsEnabled: defaults.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true,
             interactionSoundPreset: defaults.string(forKey: MacPreferences.interactionSoundPreset) ?? InteractionSoundPreset.soft.rawValue,
             launchAtLogin: defaults.object(forKey: MacPreferences.launchAtLogin) as? Bool ?? false,
@@ -125,10 +121,6 @@ enum MacConfigurationTransferManager {
         )
         defaults.set(imported.rewriteEnabled, forKey: MacPreferences.rewriteEnabled)
         defaults.set(imported.dictationLanguageMode, forKey: MacPreferences.dictationLanguageMode)
-        defaults.set(
-            imported.translateSelectedTextOnTranslationHotkey,
-            forKey: MacPreferences.translateSelectedTextOnTranslationHotkey
-        )
         defaults.set(imported.interactionSoundsEnabled, forKey: MacPreferences.interactionSoundsEnabled)
         defaults.set(imported.interactionSoundPreset, forKey: MacPreferences.interactionSoundPreset)
         defaults.set(imported.launchAtLogin, forKey: MacPreferences.launchAtLogin)
@@ -144,10 +136,6 @@ enum MacConfigurationTransferManager {
         store.saveDictationLanguageMode(
             DictationLanguageMode(rawValue: imported.dictationLanguageMode) ?? .automatic
         )
-        store.saveTranslationTargetLanguage(
-            TranslationTargetLanguage(rawValue: imported.translationTargetLanguage) ?? .english
-        )
-        store.saveTranslateSelectedTextOnTranslationHotkey(imported.translateSelectedTextOnTranslationHotkey)
         store.savePersonalDictionary(imported.personalDictionary)
     }
 }

@@ -303,7 +303,7 @@ final class OnboardingViewModel: ObservableObject {
                 }
             case .invalidBaseURL, .invalidResponse:
                 return "Provider is temporarily unavailable."
-            case .fileNotFound, .missingTranscriptionText, .missingRewriteText, .missingTranslationText:
+            case .fileNotFound, .missingTranscriptionText, .missingRewriteText:
                 return openAIError.localizedDescription
             }
         }

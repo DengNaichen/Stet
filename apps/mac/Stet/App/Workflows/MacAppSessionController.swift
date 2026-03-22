@@ -53,7 +53,7 @@ final class MacAppSessionController {
         self.defaults = defaults
         self.notificationCenter = notificationCenter
         self.hotkeyRegistrar = hotkeyRegistrar
-        self.onboardingStepState = defaults.bool(forKey: MacPreferences.onboardingCompleted) ? .done : .welcome
+        self.onboardingStepState = .done
 
         configure()
     }
@@ -179,7 +179,7 @@ final class MacAppSessionController {
     }
 
     var onboardingStep: MacOnboardingStep {
-        onboardingStepState
+        requiresOnboarding ? onboardingStepState : .done
     }
 
     var onboardingMode: MacOnboardingMode? {
@@ -346,12 +346,25 @@ final class MacAppSessionController {
     }
 
     func chooseOnboardingMode(_ mode: MacOnboardingMode) {
+        guard requiresOnboarding else {
+            onboardingModeState = mode
+            onboardingStepState = .done
+            notifyChange()
+            return
+        }
+
         onboardingModeState = mode
         onboardingStepState = mode == .apiKey ? .apiKey : .login
         notifyChange()
     }
 
     func advanceOnboarding() {
+        guard requiresOnboarding else {
+            onboardingStepState = .done
+            notifyChange()
+            return
+        }
+
         switch onboardingStepState {
         case .welcome:
             onboardingStepState = .mode
@@ -374,6 +387,12 @@ final class MacAppSessionController {
     }
 
     func retreatOnboarding() {
+        guard requiresOnboarding else {
+            onboardingStepState = .done
+            notifyChange()
+            return
+        }
+
         switch onboardingStepState {
         case .mode:
             onboardingStepState = .welcome
@@ -398,6 +417,12 @@ final class MacAppSessionController {
 
     func completeCredentialOnboarding(mode: MacOnboardingMode) {
         onboardingModeState = mode
+        guard requiresOnboarding else {
+            onboardingStepState = .done
+            notifyChange()
+            return
+        }
+
         onboardingStepState = .permissions
         notifyChange()
     }
@@ -446,11 +471,11 @@ final class MacAppSessionController {
     }
 
     private var requiresOnboarding: Bool {
-        !(defaults.object(forKey: MacPreferences.onboardingCompleted) as? Bool ?? false)
+        false
     }
 
     private var shouldPresentOnboardingGate: Bool {
-        requiresOnboarding || !hasRequiredPermissions
+        false
     }
 
     private func performPrimaryAction(source: PrimaryActionSource) {
@@ -545,7 +570,6 @@ final class MacAppSessionController {
             if !requiresOnboarding {
                 onboardingStepState = .permissions
             }
-            presentRequiredPermissionsGateIfNeeded()
         } else {
             permissionGateController.hide()
         }

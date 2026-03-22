@@ -369,7 +369,7 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
                 return retryableStatusCodes.contains(statusCode ?? -1)
             case .invalidResponse, .missingTranscriptionText:
                 return true
-            case .missingAPIKey, .invalidBaseURL, .fileNotFound, .missingRewriteText, .missingTranslationText:
+            case .missingAPIKey, .invalidBaseURL, .fileNotFound, .missingRewriteText:
                 return false
             }
         }

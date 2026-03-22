@@ -345,32 +345,6 @@ actor RecordingRewriteService: TextRewriteService {
     }
 }
 
-actor RecordingTranslationService: TextTranslationService {
-    private(set) var requests: [TextTranslationRequest] = []
-    private var result = "translated"
-    private var error: (any Error & Sendable)?
-
-    func setResult(_ result: String) {
-        self.result = result
-    }
-
-    func setError(_ error: (any Error & Sendable)?) {
-        self.error = error
-    }
-
-    func recordedRequests() -> [TextTranslationRequest] {
-        requests
-    }
-
-    func translate(_ request: TextTranslationRequest) async throws -> String {
-        requests.append(request)
-        if let error {
-            throw error
-        }
-        return result
-    }
-}
-
 final class URLProtocolStub: URLProtocol {
     static let sessionIdentifierHeader = "X-Stet-Test-Session-ID"
 

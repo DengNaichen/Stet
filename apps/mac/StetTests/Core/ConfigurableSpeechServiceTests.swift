@@ -52,7 +52,8 @@ private func makeDictationService(
     relayAuthentication: RelayAuthenticationContext? = nil,
     directTranscriptionService: TestTranscriptionService,
     relayTranscriptionService: TestTranscriptionService,
-    rewriteService: RecordingRewriteService
+    rewriteService: RecordingRewriteService,
+    audienceProvider: @escaping @Sendable () -> AppAudience = { .ai }
 ) -> ConfigurableSpeechService {
     let factory = DictationPipelineFactory(
         relayAuthenticationContext: {
@@ -72,6 +73,7 @@ private func makeDictationService(
     return ConfigurableSpeechService(
         settingsStore: settingsStore,
         pipelineFactory: factory,
+        audienceProvider: audienceProvider,
         captureService: TestAudioCaptureService(audioFileURL: makeAudioFileURL())
     )
 }
@@ -354,6 +356,75 @@ struct ConfigurableSpeechServiceTests {
         #expect(await capture.counts().stop == 1)
         #expect(rewriteRequests.count == 1)
         #expect(rewriteRequests.first?.sourceText == "source transcript")
+        #expect(rewriteRequests.first?.systemPrompt?.contains("You are a conservative transcript editor.") == true)
+    }
+
+    @Test func byokHumanAudienceUsesHumanLocalCleanupPrompt() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: "source transcript")
+        let relay = TestTranscriptionService(result: "relay transcript")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setResult("rewritten transcript")
+        let (store, _, _) = try makeSettingsStore(
+            executionMode: .byok,
+            rewriteEnabled: true,
+            preferredSpellings: ["Cursor"]
+        )
+
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { nil },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            audienceProvider: { .human },
+            captureService: TestAudioCaptureService(audioFileURL: audioFileURL)
+        )
+
+        try await service.startRecording()
+        _ = try await service.stopRecording()
+
+        let request = try #require(await rewrite.recordedRequests().first)
+        #expect(request.systemPrompt?.contains("IMPORTANT: You are a text cleanup tool.") == true)
+        #expect(request.systemPrompt?.contains("Add appropriate punctuation and capitalization") == true)
+        #expect(request.systemPrompt?.contains("Cursor") == true)
+    }
+
+    @Test func byokUsesAIAudiencePromptWhenTargetAppIsUnknown() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: "source transcript")
+        let relay = TestTranscriptionService(result: "relay transcript")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setResult("rewritten transcript")
+        let (store, _, _) = try makeSettingsStore(
+            executionMode: .byok,
+            rewriteEnabled: true
+        )
+
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { nil },
+                makeDirectTranscriptionService: { _, _ in direct },
+                makeRelayTranscriptionService: { _, _, _, _ in relay },
+                makeRewriteService: { _, _ in rewrite }
+            ),
+            audienceProvider: { .ai },
+            captureService: TestAudioCaptureService(audioFileURL: audioFileURL)
+        )
+
+        try await service.startRecording()
+        _ = try await service.stopRecording()
+
+        let request = try #require(await rewrite.recordedRequests().first)
+        #expect(request.systemPrompt?.contains("AI or coding tools") == true)
+        #expect(request.systemPrompt?.contains("Do not add a title.") == true)
     }
 
     @Test func stopRecordingUsesProcessedAudioURLForTranscription() async throws {

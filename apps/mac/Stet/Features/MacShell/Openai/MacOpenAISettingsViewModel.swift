@@ -32,18 +32,6 @@ final class MacOpenAISettingsViewModel: ObservableObject {
             settingsStore.saveDictationLanguageMode(dictationLanguageMode)
         }
     }
-    @Published var translationTargetLanguage: TranslationTargetLanguage = .english {
-        didSet {
-            guard hasLoadedState else { return }
-            settingsStore.saveTranslationTargetLanguage(translationTargetLanguage)
-        }
-    }
-    @Published var translateSelectedTextOnTranslationHotkey = true {
-        didSet {
-            guard hasLoadedState else { return }
-            settingsStore.saveTranslateSelectedTextOnTranslationHotkey(translateSelectedTextOnTranslationHotkey)
-        }
-    }
     @Published private(set) var credentialMessage = "Stored securely in Keychain."
     @Published private(set) var credentialMessageIsError = false
 
@@ -78,8 +66,6 @@ final class MacOpenAISettingsViewModel: ObservableObject {
         provider = settingsStore.loadProvider()
         rewriteEnabled = settingsStore.loadRewriteEnabled()
         dictationLanguageMode = settingsStore.loadDictationLanguageMode()
-        translationTargetLanguage = settingsStore.loadTranslationTargetLanguage()
-        translateSelectedTextOnTranslationHotkey = settingsStore.loadTranslateSelectedTextOnTranslationHotkey()
         apiKey = settingsStore.loadAPIKey(for: provider)
         updateCredentialMessage()
         hasLoadedState = true
@@ -178,7 +164,7 @@ final class MacOpenAISettingsViewModel: ObservableObject {
             return hasRelaySession ? nil : "Sign in with your Stet account to use Managed Relay for dictation."
         case .byok:
             guard apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-            return "Add a \(provider.displayName) API key before using direct transcription, translation, or rewrite."
+            return "Add a \(provider.displayName) API key before using direct transcription or rewrite."
         }
     }
 

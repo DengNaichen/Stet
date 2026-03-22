@@ -18,7 +18,6 @@ struct MacConfigurationTransferManagerTests {
         sourceDefaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
         sourceDefaults.set(AIExecutionMode.byok.rawValue, forKey: MacPreferences.aiExecutionMode)
         sourceStore.saveDictationLanguageMode(.primarilyEnglish)
-        sourceStore.saveTranslationTargetLanguage(.french)
         sourceStore.savePersonalDictionary(["OpenAI", "Groq"])
         try sourceStore.saveOpenAIAPIKey("sk-secret")
 
@@ -43,7 +42,6 @@ struct MacConfigurationTransferManagerTests {
         #expect(targetDefaults.string(forKey: MacPreferences.aiExecutionMode) == AIExecutionMode.byok.rawValue)
         #expect(targetStore.loadExecutionMode() == .byok)
         #expect(targetStore.loadDictationLanguageMode() == .primarilyEnglish)
-        #expect(targetStore.loadTranslationTargetLanguage() == .french)
         #expect(targetStore.loadPersonalDictionary() == ["OpenAI", "Groq"])
         #expect(targetStore.loadOpenAIAPIKey().isEmpty)
     }

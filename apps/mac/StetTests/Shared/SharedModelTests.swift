@@ -7,21 +7,6 @@ import Testing
 @Suite("Shared Models")
 struct SharedModelTests {
     @Test(arguments: [
-        (TranslationTargetLanguage.english, "English", "English"),
-        (.chineseSimplified, "Chinese (Simplified)", "Simplified Chinese"),
-        (.japanese, "Japanese", "Japanese"),
-    ])
-    func translationTargetLanguageMetadata(
-        _ language: TranslationTargetLanguage,
-        expectedTitle: String,
-        expectedInstructionName: String
-    ) {
-        #expect(language.title == expectedTitle)
-        #expect(language.instructionName == expectedInstructionName)
-        #expect(language.id == language.rawValue)
-    }
-
-    @Test(arguments: [
         (DictationLanguageMode.automatic, "Automatic", nil as String?),
         (.mixedChineseEnglish, "Mixed Chinese + English", nil),
         (.primarilyChinese, "Primary Chinese", "zh"),
@@ -55,8 +40,7 @@ struct SharedModelTests {
 
         #expect(configuration.baseURL.absoluteString == "https://api.openai.com/v1")
         #expect(configuration.transcriptionModel == "gpt-4o-mini-transcribe")
-        #expect(configuration.translationModel == "gpt-5-mini")
-        #expect(configuration.rewriteModel == "gpt-5-mini")
+        #expect(configuration.rewriteModel == "gpt-5.4-nano-2026-03-17")
     }
 
     @Test func groqConfigurationProvidesExpectedDefaults() {
@@ -64,8 +48,7 @@ struct SharedModelTests {
 
         #expect(configuration.baseURL.absoluteString == "https://api.groq.com/openai/v1")
         #expect(configuration.transcriptionModel == "whisper-large-v3-turbo")
-        #expect(configuration.translationModel == "llama-3.3-70b-versatile")
-        #expect(configuration.rewriteModel == "openai/gpt-oss-120b")
+        #expect(configuration.rewriteModel == "llama-3.3-70b-versatile")
     }
 
     @Test func providerAwareAPIErrorDescriptionsUseActiveProviderName() {

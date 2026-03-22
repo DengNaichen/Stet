@@ -60,22 +60,6 @@ struct MacOpenAISettingsView: View {
                     .foregroundStyle(.secondary)
 
                 Toggle(viewModel.rewriteToggleTitle, isOn: $viewModel.rewriteEnabled)
-
-                Toggle(
-                    "Translate",
-                    isOn: $viewModel.translateSelectedTextOnTranslationHotkey
-                )
-
-                LabeledContent("Target language") {
-                    Picker("Target language", selection: $viewModel.translationTargetLanguage) {
-                        ForEach(TranslationTargetLanguage.allCases) { language in
-                            Text(language.title).tag(language)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    .frame(width: 240)
-                }
             } header: {
                 Text("Features")
             } footer: {

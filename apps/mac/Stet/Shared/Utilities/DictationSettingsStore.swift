@@ -15,8 +15,6 @@ struct DictationSettingsSnapshot: Sendable {
     let dictationLanguageMode: DictationLanguageMode
     let shouldPauseMediaDuringDictation: Bool
     let providerConfiguration: OpenAIConfiguration?
-    let translationTargetLanguage: TranslationTargetLanguage
-    let translateSelectedTextOnTranslationHotkey: Bool
     let personalDictionary: [String]
     let interactionSoundsEnabled: Bool
     let interactionSoundPreset: InteractionSoundPreset
@@ -68,8 +66,6 @@ struct DictationSettingsStore: Sendable {
         let shouldPauseMediaDuringDictation =
             defaults.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
         let apiKey = loadAPIKey(for: provider).trimmingCharacters(in: .whitespacesAndNewlines)
-        let translationTargetLanguage = loadTranslationTargetLanguage()
-        let translateSelectedTextOnTranslationHotkey = loadTranslateSelectedTextOnTranslationHotkey()
         let personalDictionary = loadPersonalDictionaryEnabled() ? loadPersonalDictionary() : []
         let interactionSoundsEnabled =
             defaults.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
@@ -86,8 +82,6 @@ struct DictationSettingsStore: Sendable {
             dictationLanguageMode: dictationLanguageMode,
             shouldPauseMediaDuringDictation: shouldPauseMediaDuringDictation,
             providerConfiguration: configuration,
-            translationTargetLanguage: translationTargetLanguage,
-            translateSelectedTextOnTranslationHotkey: translateSelectedTextOnTranslationHotkey,
             personalDictionary: personalDictionary,
             interactionSoundsEnabled: interactionSoundsEnabled,
             interactionSoundPreset: interactionSoundPreset
@@ -115,11 +109,6 @@ struct DictationSettingsStore: Sendable {
         return InteractionSoundPreset(rawValue: rawValue) ?? .soft
     }
 
-    nonisolated func loadTranslationTargetLanguage() -> TranslationTargetLanguage {
-        let rawValue = defaults.string(forKey: MacPreferences.translationTargetLanguage) ?? ""
-        return TranslationTargetLanguage(rawValue: rawValue) ?? .english
-    }
-
     nonisolated func loadProvider() -> DictationProvider {
         let rawValue = defaults.string(forKey: MacPreferences.transcriptionProvider) ?? ""
         return DictationProvider(rawValue: rawValue) ?? .openAI
@@ -138,10 +127,6 @@ struct DictationSettingsStore: Sendable {
         defaults.set(mode.rawValue, forKey: MacPreferences.aiExecutionMode)
     }
 
-    nonisolated func saveTranslationTargetLanguage(_ language: TranslationTargetLanguage) {
-        defaults.set(language.rawValue, forKey: MacPreferences.translationTargetLanguage)
-    }
-
     nonisolated func loadRewriteEnabled() -> Bool {
         defaults.object(forKey: MacPreferences.rewriteEnabled) as? Bool ?? false
     }
@@ -157,14 +142,6 @@ struct DictationSettingsStore: Sendable {
 
     nonisolated func saveDictationLanguageMode(_ mode: DictationLanguageMode) {
         defaults.set(mode.rawValue, forKey: MacPreferences.dictationLanguageMode)
-    }
-
-    nonisolated func loadTranslateSelectedTextOnTranslationHotkey() -> Bool {
-        defaults.object(forKey: MacPreferences.translateSelectedTextOnTranslationHotkey) as? Bool ?? true
-    }
-
-    nonisolated func saveTranslateSelectedTextOnTranslationHotkey(_ enabled: Bool) {
-        defaults.set(enabled, forKey: MacPreferences.translateSelectedTextOnTranslationHotkey)
     }
 
     nonisolated func loadHotkeyDistinguishModifierSides() -> Bool {

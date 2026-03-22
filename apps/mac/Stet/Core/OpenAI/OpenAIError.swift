@@ -8,7 +8,6 @@ enum OpenAIError: LocalizedError, Equatable {
     case api(provider: DictationProvider, statusCode: Int?, message: String)
     case missingTranscriptionText
     case missingRewriteText
-    case missingTranslationText
 
     var errorDescription: String? {
         switch self {
@@ -29,8 +28,6 @@ enum OpenAIError: LocalizedError, Equatable {
             return "The transcription response did not contain any text."
         case .missingRewriteText:
             return "The rewrite response did not contain any output text."
-        case .missingTranslationText:
-            return "The translation response did not contain any output text."
         }
     }
 }

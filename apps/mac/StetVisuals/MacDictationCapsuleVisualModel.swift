@@ -10,22 +10,49 @@ public enum MacDictationCapsuleVisualState: Equatable {
     case error(message: String)
 }
 
+public struct MacDictationCapsuleVisualSignals: Equatable {
+    public let body: Double
+    public let presence: Double
+    public let pulse: Double
+    public let articulation: Double
+
+    public init(
+        body: Double,
+        presence: Double,
+        pulse: Double,
+        articulation: Double
+    ) {
+        self.body = Self.clamp(body)
+        self.presence = Self.clamp(presence)
+        self.pulse = Self.clamp(pulse)
+        self.articulation = Self.clamp(articulation)
+    }
+
+    public static let zero = MacDictationCapsuleVisualSignals(
+        body: 0,
+        presence: 0,
+        pulse: 0,
+        articulation: 0
+    )
+
+    private static func clamp(_ value: Double) -> Double {
+        min(max(value, 0), 1)
+    }
+}
+
 public struct MacDictationCapsuleVisualModel: Equatable {
     let state: MacDictationCapsuleVisualState
     let panelSize: CGSize
-    let displayLevel: Double
+    let signals: MacDictationCapsuleVisualSignals
 
     public init(
         state: MacDictationCapsuleVisualState,
         panelSize: CGSize,
-        normalizedRecordingLevel: Double
+        signals: MacDictationCapsuleVisualSignals
     ) {
         self.state = state
         self.panelSize = panelSize
-        self.displayLevel = Self.makeDisplayLevel(
-            state: state,
-            normalizedRecordingLevel: normalizedRecordingLevel
-        )
+        self.signals = signals
     }
 
     var mainWidth: CGFloat {
@@ -87,51 +114,6 @@ public struct MacDictationCapsuleVisualModel: Equatable {
 
         return message
     }
-
-    private static func makeDisplayLevel(
-        state: MacDictationCapsuleVisualState,
-        normalizedRecordingLevel: Double
-    ) -> Double {
-        let easedLevel = pow(
-            min(max(normalizedRecordingLevel, 0), 1),
-            MacDictationPanelConstants.VoiceReactivity.easedPower
-        )
-
-        switch state {
-        case .hidden:
-            return MacDictationPanelConstants.VoiceReactivity.levelBaseIdle
-        case .starting:
-            let reactiveLevel = min(
-                1,
-                MacDictationPanelConstants.VoiceReactivity.shaderDriveFloorStarting +
-                    pow(easedLevel, MacDictationPanelConstants.VoiceReactivity.shaderDrivePower) *
-                    MacDictationPanelConstants.VoiceReactivity.shaderDriveBoostStarting
-            )
-            return min(
-                MacDictationPanelConstants.VoiceReactivity.levelMaxStarting,
-                MacDictationPanelConstants.VoiceReactivity.levelBaseStarting +
-                    reactiveLevel * MacDictationPanelConstants.VoiceReactivity.levelMultStarting
-            )
-        case .listening:
-            let reactiveLevel = min(
-                1,
-                MacDictationPanelConstants.VoiceReactivity.shaderDriveFloorListening +
-                    pow(easedLevel, MacDictationPanelConstants.VoiceReactivity.shaderDrivePower) *
-                    MacDictationPanelConstants.VoiceReactivity.shaderDriveBoostListening
-            )
-            return min(
-                MacDictationPanelConstants.VoiceReactivity.levelMaxListening,
-                MacDictationPanelConstants.VoiceReactivity.levelBaseListening +
-                    reactiveLevel * MacDictationPanelConstants.VoiceReactivity.levelMultListening
-            )
-        case .processing:
-            return MacDictationPanelConstants.VoiceReactivity.levelBaseProcessing
-        case .result:
-            return MacDictationPanelConstants.VoiceReactivity.levelBaseResult
-        case .error:
-            return 0
-        }
-    }
 }
 
 public struct MacDictationCapsuleVisualActions {
@@ -157,7 +139,10 @@ public enum MacDictationCapsuleVisualShaderWarmup {
         let shader = StetVisualsShaderLibrary.cloudOrbGlassWide(
             size: CGSize(width: 250, height: 52),
             time: 0,
-            audio: 0.1,
+            body: 0.1,
+            presence: 0.1,
+            pulse: 0.05,
+            articulation: 0.08,
             detail: 1.0,
             top: .white,
             mid: .white,

@@ -23,6 +23,14 @@ public struct AppInfo: Equatable {
     /// available from the live workspace. Tests may leave this nil.
     public let runningApplication: NSRunningApplication?
 
+    /// The coarse audience classification used to steer dictation strategy.
+    var audience: AppAudience {
+        AppAudienceResolver.resolve(
+            bundleIdentifier: bundleIdentifier,
+            localizedName: localizedName
+        )
+    }
+
     /// Creates a new AppInfo instance.
     ///
     /// - Parameters:

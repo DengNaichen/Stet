@@ -3,12 +3,17 @@ import Combine
 
 @MainActor
 final class DictationViewModel: ObservableObject {
+    private enum Configuration {
+        static let manualActivationFallbackDelay: Duration = .seconds(1)
+    }
+
     typealias ResultTransformer = @MainActor @Sendable (String) async throws -> String
     typealias ExternalOperation = @MainActor @Sendable () async throws -> String
 
     private let speechService: any SpeechService
     private var activeTask: Task<Void, Never>?
     private var captureStartupTask: Task<Void, Error>?
+    private var activationFallbackTask: Task<Void, Never>?
     private var levelTask: Task<Void, Never>?
 
     private var isStartingRecording = false
@@ -72,6 +77,7 @@ final class DictationViewModel: ObservableObject {
 
         activeTask?.cancel()
         captureStartupTask?.cancel()
+        activationFallbackTask?.cancel()
         levelTask?.cancel()
         isStartingRecording = true
         isActivatingRecordingWindow = false
@@ -104,6 +110,12 @@ final class DictationViewModel: ObservableObject {
                 recordingLevel = 0.08
                 startLevelMonitoring()
 
+                if pendingStopAfterStart {
+                    pendingStopAfterStart = false
+                    stopCapture()
+                    return
+                }
+
                 if shouldActivateAfterStart {
                     pendingActivationAfterStart = false
                     state = .listening
@@ -111,16 +123,19 @@ final class DictationViewModel: ObservableObject {
                         await DictationRuntimeProbe.shared.markAction("enteredListening")
                     }
                     await DictationStartupProbe.shared.record(.listeningStateEntered)
+                } else {
+                    scheduleActivationFallbackIfNeeded()
                 }
 
-                if pendingStopAfterStart {
-                    pendingStopAfterStart = false
-                    stopCapture()
-                    return
+                if pendingActivationAfterStart {
+                    pendingActivationAfterStart = false
+                    try await activateCaptureWindowInline()
                 }
             } catch is CancellationError {
                 captureStartupTask.cancel()
                 self.captureStartupTask = nil
+                activationFallbackTask?.cancel()
+                activationFallbackTask = nil
                 isStartingRecording = false
                 isActivatingRecordingWindow = false
                 hasPreparedCapture = false
@@ -139,6 +154,8 @@ final class DictationViewModel: ObservableObject {
             } catch {
                 captureStartupTask.cancel()
                 self.captureStartupTask = nil
+                activationFallbackTask?.cancel()
+                activationFallbackTask = nil
                 isStartingRecording = false
                 isActivatingRecordingWindow = false
                 hasPreparedCapture = false
@@ -170,10 +187,14 @@ final class DictationViewModel: ObservableObject {
             return
         }
 
+        activationFallbackTask?.cancel()
+        activationFallbackTask = nil
         activeTask = Task {
             do {
                 try await activateCaptureWindowInline()
             } catch is CancellationError {
+                activationFallbackTask?.cancel()
+                activationFallbackTask = nil
                 isActivatingRecordingWindow = false
                 hasPreparedCapture = false
                 pendingActivationAfterStart = false
@@ -182,6 +203,8 @@ final class DictationViewModel: ObservableObject {
 
                 state = .idle
             } catch {
+                activationFallbackTask?.cancel()
+                activationFallbackTask = nil
                 isActivatingRecordingWindow = false
                 hasPreparedCapture = false
                 pendingActivationAfterStart = false
@@ -200,6 +223,8 @@ final class DictationViewModel: ObservableObject {
             return
         }
 
+        activationFallbackTask?.cancel()
+        activationFallbackTask = nil
         isActivatingRecordingWindow = true
 
         do {
@@ -233,6 +258,8 @@ final class DictationViewModel: ObservableObject {
             return
         }
 
+        activationFallbackTask?.cancel()
+        activationFallbackTask = nil
         pendingStopAfterStart = false
         pendingActivationAfterStart = false
         hasPreparedCapture = false
@@ -257,6 +284,8 @@ final class DictationViewModel: ObservableObject {
                 self.resultTransformer = nil
                 send(.transcriptionSucceeded(finalText))
             } catch is CancellationError {
+                activationFallbackTask?.cancel()
+                activationFallbackTask = nil
                 resultTransformer = nil
                 hasPreparedCapture = false
                 isActivatingRecordingWindow = false
@@ -264,6 +293,8 @@ final class DictationViewModel: ObservableObject {
 
                 state = .idle
             } catch let error as SpeechServiceError where error == .emptyTranscription {
+                activationFallbackTask?.cancel()
+                activationFallbackTask = nil
                 resultTransformer = nil
                 hasPreparedCapture = false
                 isActivatingRecordingWindow = false
@@ -274,6 +305,8 @@ final class DictationViewModel: ObservableObject {
                     await DictationRuntimeProbe.shared.markAction("stopCaptureEmptyTranscription")
                 }
             } catch {
+                activationFallbackTask?.cancel()
+                activationFallbackTask = nil
                 resultTransformer = nil
                 hasPreparedCapture = false
                 isActivatingRecordingWindow = false
@@ -291,6 +324,8 @@ final class DictationViewModel: ObservableObject {
         activeTask?.cancel()
         captureStartupTask?.cancel()
         captureStartupTask = nil
+        activationFallbackTask?.cancel()
+        activationFallbackTask = nil
         finishLevelMonitoring()
         // finishCaptureEventMonitoring()
         isStartingRecording = false
@@ -326,6 +361,8 @@ final class DictationViewModel: ObservableObject {
         activeTask?.cancel()
         captureStartupTask?.cancel()
         captureStartupTask = nil
+        activationFallbackTask?.cancel()
+        activationFallbackTask = nil
         finishLevelMonitoring()
         isStartingRecording = false
         isActivatingRecordingWindow = false
@@ -337,6 +374,25 @@ final class DictationViewModel: ObservableObject {
             await speechService.cancelRecording()
         }
         state = .idle
+    }
+
+    private func scheduleActivationFallbackIfNeeded() {
+        activationFallbackTask?.cancel()
+        activationFallbackTask = Task { [weak self] in
+            defer {
+                self?.activationFallbackTask = nil
+            }
+
+            try? await Task.sleep(for: Configuration.manualActivationFallbackDelay)
+            guard let self,
+                  !Task.isCancelled,
+                  self.hasPreparedCapture,
+                  self.state == .starting else {
+                return
+            }
+
+            try? await self.activateCaptureWindowInline()
+        }
     }
 
     private func startLevelMonitoring() {

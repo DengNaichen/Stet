@@ -9,7 +9,10 @@ enum StetVisualsShaderLibrary {
     static func cloudOrbGlassWide(
         size: CGSize,
         time: Double,
-        audio: Double,
+        body: Double,
+        presence: Double,
+        pulse: Double,
+        articulation: Double,
         detail: Double,
         top: Color,
         mid: Color,
@@ -18,7 +21,10 @@ enum StetVisualsShaderLibrary {
         ShaderLibrary.bundle(shaderBundle).cloudOrbGlassWide(
             .float2(size.width, size.height),
             .float(time),
-            .float(audio),
+            .float(body),
+            .float(presence),
+            .float(pulse),
+            .float(articulation),
             .float(detail),
             .color(top),
             .color(mid),

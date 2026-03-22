@@ -10,7 +10,7 @@ struct MacDictationCapsuleSurface: View {
         MacDictationCapsuleVisualModel(
             state: visualState,
             panelSize: panelSize,
-            normalizedRecordingLevel: viewModel.recordingLevel
+            signals: viewModel.visualSignals
         )
     }
 

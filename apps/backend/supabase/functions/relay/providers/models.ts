@@ -8,6 +8,6 @@ export const OpenAIModels = {
  * Groq 模型家族
  */
 export const GroqModels = {
-    REWRITE: "openai/gpt-oss-120b",
+    REWRITE: "llama-3.3-70b-versatile",
     TRANSCRIBE: "whisper-large-v3-turbo",
 } as const;

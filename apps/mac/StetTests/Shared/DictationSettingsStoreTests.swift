@@ -39,25 +39,20 @@ struct DictationSettingsStoreTests {
         #expect(snapshot.executionMode == .automatic)
         #expect(snapshot.isRewriteEnabled == false)
         #expect(snapshot.dictationLanguageMode == .automatic)
-        #expect(snapshot.translationTargetLanguage == .english)
         #expect(snapshot.personalDictionary.isEmpty)
         #expect(snapshot.providerConfiguration == nil)
     }
 
-    @Test func translationAndDictionarySettingsRoundTrip() {
+    @Test func dictionaryAndModeSettingsRoundTrip() {
         let defaults = TestSupport.makeUserDefaults()
         let store = makeStore(defaults: defaults)
 
         store.saveExecutionMode(.managed)
         store.saveDictationLanguageMode(.mixedChineseEnglish)
-        store.saveTranslationTargetLanguage(.japanese)
-        store.saveTranslateSelectedTextOnTranslationHotkey(false)
         store.savePersonalDictionary([" OpenAI ", "groq", "Groq"])
 
         #expect(store.loadExecutionMode() == .managed)
         #expect(store.loadDictationLanguageMode() == .mixedChineseEnglish)
-        #expect(store.loadTranslationTargetLanguage() == .japanese)
-        #expect(store.loadTranslateSelectedTextOnTranslationHotkey() == false)
         #expect(store.loadPersonalDictionary() == ["OpenAI", "groq"])
     }
 
@@ -93,7 +88,6 @@ struct DictationSettingsStoreTests {
         defaults.set(AIExecutionMode.byok.rawValue, forKey: MacPreferences.aiExecutionMode)
         defaults.set(true, forKey: MacPreferences.rewriteEnabled)
         defaults.set(DictationLanguageMode.primarilyEnglish.rawValue, forKey: MacPreferences.dictationLanguageMode)
-        defaults.set(TranslationTargetLanguage.german.rawValue, forKey: MacPreferences.translationTargetLanguage)
 
         let store = makeStore(defaults: defaults, secretStore: secretStore)
         let snapshot = store.loadSnapshot()
@@ -103,10 +97,9 @@ struct DictationSettingsStoreTests {
         #expect(snapshot.executionMode == .byok)
         #expect(snapshot.isRewriteEnabled)
         #expect(snapshot.dictationLanguageMode == .primarilyEnglish)
-        #expect(snapshot.translationTargetLanguage == .german)
         #expect(configuration.apiKey == "sk-live")
         #expect(configuration.baseURL.absoluteString == "https://api.openai.com/v1")
-        #expect(configuration.translationModel == "gpt-5-mini")
+        #expect(configuration.rewriteModel == "gpt-5.4-nano-2026-03-17")
     }
 
     @Test func loadSnapshotBuildsGroqConfigurationFromStoredValues() throws {
@@ -125,7 +118,6 @@ struct DictationSettingsStoreTests {
         #expect(configuration.apiKey == "gsk-live")
         #expect(configuration.baseURL.absoluteString == "https://api.groq.com/openai/v1")
         #expect(configuration.transcriptionModel == "whisper-large-v3-turbo")
-        #expect(configuration.translationModel == "llama-3.3-70b-versatile")
-        #expect(configuration.rewriteModel == "openai/gpt-oss-120b")
+        #expect(configuration.rewriteModel == "llama-3.3-70b-versatile")
     }
 }

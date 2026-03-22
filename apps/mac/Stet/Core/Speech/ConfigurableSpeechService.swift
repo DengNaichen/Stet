@@ -4,6 +4,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     private let settingsStore: DictationSettingsStore
     private let locale: Locale
     private let pipelineFactory: DictationPipelineFactory
+    private let audienceProvider: @Sendable () -> AppAudience
     private let captureServiceFactory: @Sendable () -> any AudioCaptureService
     private let audioPostProcessor: any AudioPostProcessing
     private let audioLevelBridge = AudioLevelBridge()
@@ -17,6 +18,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         settingsStore: DictationSettingsStore = DictationSettingsStore(),
         locale: Locale = .autoupdatingCurrent,
         pipelineFactory: DictationPipelineFactory,
+        audienceProvider: (@Sendable () -> AppAudience)? = nil,
         audioPostProcessor: (any AudioPostProcessing)? = nil,
         captureService: (any AudioCaptureService)? = nil,
         captureServiceFactory: (@Sendable () -> any AudioCaptureService)? = nil
@@ -29,6 +31,9 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         self.settingsStore = settingsStore
         self.locale = locale
         self.pipelineFactory = pipelineFactory
+        self.audienceProvider = audienceProvider ?? {
+            AppBranchMonitor.shared.currentApp?.audience ?? .ai
+        }
         self.audioPostProcessor = audioPostProcessor ?? DefaultAudioPostProcessor()
         if let captureService {
             self.captureServiceFactory = { captureService }
@@ -176,9 +181,11 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
         do {
             if let rewriteService = pipeline.rewriteService {
+                let rewriteAudience = pipeline.usesAudienceAwareLocalPrompts ? audienceProvider() : nil
                 transcript = try await rewriteService.rewrite(
                     .cleanup(
                         transcript,
+                        audience: rewriteAudience,
                         preferredSpellings: pipeline.preferredSpellings,
                         additionalUserContext: pipeline.rewriteAdditionalContext
                     )

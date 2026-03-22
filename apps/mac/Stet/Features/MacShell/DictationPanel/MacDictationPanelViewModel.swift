@@ -1,6 +1,7 @@
 #if os(macOS)
 import Combine
 import Foundation
+import StetVisuals
 
 // MARK: - Constants
 
@@ -10,7 +11,7 @@ private enum Constants {
         static let attackTime: TimeInterval = 0.080
         static let releaseTime: TimeInterval = 0.320
         static let decayTime: TimeInterval = 0.200
-        static let silenceFloor: Double = 0.035
+        static let silenceFloor: Double = 0.006
         static let publishEpsilon: Double = 0.0005
         static let snapToZeroThreshold: Double = 0.0015
     }
@@ -22,7 +23,7 @@ private enum Constants {
     }
 
     enum Normalization {
-        static let levelPower: Double = 1.10
+        static let levelPower: Double = 0.66
         static let divisorEpsilon: Double = 0.0001
     }
 }
@@ -34,10 +35,12 @@ final class MacDictationPanelViewModel: ObservableObject {
     private var smoothingCancellable: AnyCancellable?
     private var targetRecordingLevel: Double
     private var lastSmoothingTimestamp: TimeInterval
+    private var signalState: MacDictationPanelVisualSignalMapper.State
 
     @Published private(set) var state: DictationState
     @Published private(set) var statusText: String
     @Published private(set) var recordingLevel: Double
+    @Published private(set) var visualSignals: MacDictationCapsuleVisualSignals
     @Published private(set) var detectedTargetApplication: AppInfo?
 
     init(appModel: any MacDictationPanelCoordinating) {
@@ -50,9 +53,15 @@ final class MacDictationPanelViewModel: ObservableObject {
             raw: appModel.recordingLevel,
             state: appModel.dictationState
         )
+        let initialSignalState = MacDictationPanelVisualSignalMapper.initialState(
+            level: initialTarget,
+            isVoiceReactive: Self.isVoiceReactiveState(appModel.dictationState)
+        )
 
         self.targetRecordingLevel = initialTarget
-        self.recordingLevel = initialTarget
+        self.signalState = initialSignalState
+        self.recordingLevel = initialSignalState.body
+        self.visualSignals = initialSignalState.visualSignals
         self.lastSmoothingTimestamp = Date().timeIntervalSinceReferenceDate
 
         appModel.updates
@@ -79,27 +88,32 @@ final class MacDictationPanelViewModel: ObservableObject {
         let deltaTime = min(max(timestamp - lastSmoothingTimestamp, Constants.Smoothing.minDeltaTime), Constants.Smoothing.maxDeltaTime)
         lastSmoothingTimestamp = timestamp
 
-        let current = recordingLevel
-        let target = targetRecordingLevel
+        signalState = MacDictationPanelVisualSignalMapper.step(
+            state: signalState,
+            targetLevel: targetRecordingLevel,
+            deltaTime: deltaTime,
+            isVoiceReactive: Self.isVoiceReactiveState(state)
+        )
 
-        let timeConstant: TimeInterval
-        if target > current {
-            timeConstant = Constants.Tuning.attackTime
-        } else if Self.isVoiceReactiveState(state) {
-            timeConstant = Constants.Tuning.releaseTime
-        } else {
-            timeConstant = Constants.Tuning.decayTime
+        var nextSignals = signalState.visualSignals
+        var nextBody = signalState.body
+
+        if targetRecordingLevel == 0, nextBody < Constants.Tuning.snapToZeroThreshold {
+            nextBody = 0
+            nextSignals = MacDictationCapsuleVisualSignals(
+                body: 0,
+                presence: nextSignals.presence < Constants.Tuning.snapToZeroThreshold ? 0 : nextSignals.presence,
+                pulse: nextSignals.pulse < Constants.Tuning.snapToZeroThreshold ? 0 : nextSignals.pulse,
+                articulation: nextSignals.articulation < Constants.Tuning.snapToZeroThreshold ? 0 : nextSignals.articulation
+            )
         }
 
-        let alpha = 1.0 - exp(-deltaTime / max(timeConstant, Constants.Smoothing.minTimeConstant))
-        var next = current + (target - current) * alpha
-
-        if target == 0, next < Constants.Tuning.snapToZeroThreshold {
-            next = 0
+        if abs(nextBody - recordingLevel) > Constants.Tuning.publishEpsilon {
+            recordingLevel = nextBody
         }
 
-        if abs(next - current) > Constants.Tuning.publishEpsilon {
-            recordingLevel = next
+        if shouldPublish(nextSignals, comparedTo: visualSignals) {
+            visualSignals = nextSignals
         }
 
         updateSmoothingActivity()
@@ -133,6 +147,9 @@ final class MacDictationPanelViewModel: ObservableObject {
         Self.isVoiceReactiveState(state)
             || targetRecordingLevel > Constants.Tuning.snapToZeroThreshold
             || recordingLevel > Constants.Tuning.snapToZeroThreshold
+            || visualSignals.presence > Constants.Tuning.snapToZeroThreshold
+            || visualSignals.pulse > Constants.Tuning.snapToZeroThreshold
+            || visualSignals.articulation > Constants.Tuning.snapToZeroThreshold
     }
 
     private static func normalizedRecordingLevel(raw: Double, state: DictationState) -> Double {
@@ -152,6 +169,16 @@ final class MacDictationPanelViewModel: ObservableObject {
         default:
             return false
         }
+    }
+
+    private func shouldPublish(
+        _ candidate: MacDictationCapsuleVisualSignals,
+        comparedTo current: MacDictationCapsuleVisualSignals
+    ) -> Bool {
+        abs(candidate.body - current.body) > Constants.Tuning.publishEpsilon
+            || abs(candidate.presence - current.presence) > Constants.Tuning.publishEpsilon
+            || abs(candidate.pulse - current.pulse) > Constants.Tuning.publishEpsilon
+            || abs(candidate.articulation - current.articulation) > Constants.Tuning.publishEpsilon
     }
 
     func hidePanel() {

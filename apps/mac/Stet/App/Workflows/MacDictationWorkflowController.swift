@@ -4,6 +4,10 @@ import Foundation
 
 @MainActor
 final class MacDictationWorkflowController {
+    private enum Configuration {
+        static let startPromptActivationDeadline: Duration = .milliseconds(350)
+    }
+
     enum PrimaryActionSource {
         case interface
         case hotkey
@@ -11,15 +15,13 @@ final class MacDictationWorkflowController {
 
     enum CaptureWorkflow: Equatable {
         case dictation
-        case translationFromSpeech
-        case translationFromSelection(sourceText: String)
         case rewriteFromSelection(sourceText: String)
 
         var isSelectionReplacement: Bool {
             switch self {
-            case .translationFromSelection, .rewriteFromSelection:
+            case .rewriteFromSelection:
                 return true
-            case .dictation, .translationFromSpeech:
+            case .dictation:
                 return false
             }
         }
@@ -80,24 +82,18 @@ final class MacDictationWorkflowController {
             switch activeWorkflow {
             case .rewriteFromSelection:
                 return "Preparing rewrite capture..."
-            case .translationFromSpeech:
-                return "Preparing translation capture..."
-            case .dictation, .translationFromSelection:
+            case .dictation:
                 return "Starting microphone..."
             }
         case .listening:
             switch activeWorkflow {
             case .rewriteFromSelection:
                 return "Listening for rewrite instructions..."
-            case .translationFromSpeech:
-                return "Listening for translation..."
-            case .dictation, .translationFromSelection:
+            case .dictation:
                 return "Listening..."
             }
         case .processing:
             switch activeWorkflow {
-            case .translationFromSpeech, .translationFromSelection:
-                return "Translating..."
             case .rewriteFromSelection:
                 return "Rewriting selected text..."
             case .dictation:
@@ -105,8 +101,6 @@ final class MacDictationWorkflowController {
             }
         case .result:
             switch activeWorkflow {
-            case .translationFromSpeech, .translationFromSelection:
-                return "Translation complete"
             case .rewriteFromSelection:
                 return "Rewrite complete"
             case .dictation:
@@ -114,8 +108,6 @@ final class MacDictationWorkflowController {
             }
         case .clipboardPending:
             switch activeWorkflow {
-            case .translationFromSpeech, .translationFromSelection:
-                return "Copy translation"
             case .rewriteFromSelection:
                 return "Copy rewritten text"
             case .dictation:
@@ -130,8 +122,6 @@ final class MacDictationWorkflowController {
         let providerName = settingsSnapshot.provider.displayName
 
         switch activeWorkflow {
-        case .translationFromSpeech, .translationFromSelection:
-            return "Translating with \(providerName)..."
         case .rewriteFromSelection:
             return "Rewriting selected text with \(providerName)..."
         case .dictation:
@@ -175,7 +165,7 @@ final class MacDictationWorkflowController {
             guard let self else { return }
             defer { startActivationTask = nil }
 
-            await interactionSoundPlayer.playStartPrompt(preset: settings.interactionSoundPreset)
+            await awaitStartPromptBeforeActivation(preset: settings.interactionSoundPreset)
 
             guard !Task.isCancelled else { return }
             dictationViewModel.activateCaptureWindow()
@@ -302,6 +292,20 @@ final class MacDictationWorkflowController {
             shouldAutoPaste: true,
             shouldRevealPanelOnCapture: false
         )
+    }
+
+    private func awaitStartPromptBeforeActivation(preset: InteractionSoundPreset) async {
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { [interactionSoundPlayer] in
+                await interactionSoundPlayer.playStartPrompt(preset: preset)
+            }
+            group.addTask {
+                try? await Task.sleep(for: Configuration.startPromptActivationDeadline)
+            }
+
+            await group.next()
+            group.cancelAll()
+        }
     }
 
     private func handleMediaTransition(from previousState: DictationState, to newState: DictationState) {

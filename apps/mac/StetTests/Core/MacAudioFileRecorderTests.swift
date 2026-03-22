@@ -5,8 +5,8 @@ import Testing
 @testable import Stet
 
 @MainActor
-@Suite("Mac Audio File Recorder")
-struct MacAudioFileRecorderTests {
+@Suite("Mac Recording File Support")
+struct MacRecordingFileSupportTests {
     @Test func recordingSessionBuffersAudioBeforeActivationAndWritesItOnceActivated() async throws {
         let outputFormat = try #require(TranscriptionUploadAudioFormat.makeMacOutputFormat())
         let inputFormat = try #require(
@@ -80,13 +80,11 @@ struct MacAudioFileRecorderTests {
         session.close()
 
         #expect(!outcome.didWriteAudio)
-        #expect(outcome.captureBackend == "unknown")
         #expect(outcome.captureDiagnosticsSummary?.contains("voiceProcessingEnabled=false") == true)
         #expect(outcome.captureDiagnosticsSummary?.contains("fallbackReason=unsupported route") == true)
     }
 
-    @Test func stopRecordingWaitsUntilFileBecomesReadable() async throws {
-        let recorder = MacAudioFileRecorder()
+    @Test func recordingFileStabilizerWaitsUntilFileBecomesReadable() async throws {
         let outputFormat = try #require(TranscriptionUploadAudioFormat.makeMacOutputFormat())
         let fileURL = TestSupport.temporaryFileURL(ext: "wav")
         try? FileManager.default.removeItem(at: fileURL)
@@ -104,7 +102,7 @@ struct MacAudioFileRecorderTests {
             try audioFile.write(from: buffer)
         }
 
-        _ = await recorder.stopRecording(writtenFileAt: fileURL)
+        await MacRecordingFileStabilizer.waitForFileToStabilize(at: fileURL)
         _ = await writerTask.result
 
         let reopenedFile = try AVAudioFile(forReading: fileURL)

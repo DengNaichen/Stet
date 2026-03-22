@@ -451,5 +451,29 @@ struct MacDictationWorkflowControllerTests {
         await speechService.allowActivation()
         #expect(await TestSupport.eventually(timeout: .seconds(3)) { subject.viewModel.state == .listening })
     }
+
+    @Test func promptPlaybackTimeoutStillActivatesCapture() async {
+        let defaults = TestSupport.makeUserDefaults()
+        defaults.set(true, forKey: MacPreferences.interactionSoundsEnabled)
+        let speechService = ControllableSpeechService()
+        await speechService.setActivationBehavior(.suspended)
+        let interactionSoundPlayer = TestInteractionSoundPlayer()
+        interactionSoundPlayer.waitForPromptCompletion = true
+        let subject = makeController(
+            defaults: defaults,
+            speechService: speechService,
+            interactionSoundPlayer: interactionSoundPlayer
+        )
+
+        subject.controller.startDictationCapture(source: .interface) {}
+
+        #expect(await TestSupport.eventuallyAsync(timeout: .seconds(2)) {
+            await speechService.counts().activate == 1
+        })
+        #expect(subject.viewModel.state == .starting)
+
+        await speechService.allowActivation()
+        #expect(await TestSupport.eventually(timeout: .seconds(3)) { subject.viewModel.state == .listening })
+    }
 }
 #endif

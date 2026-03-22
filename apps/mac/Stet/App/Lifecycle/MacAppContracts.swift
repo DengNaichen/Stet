@@ -59,7 +59,7 @@ protocol MacPermissionsCoordinating: MacAppStatusObserving {
 }
 
 extension MacPermissionsCoordinating {
-    var onboardingStep: MacOnboardingStep { .permissions }
+    var onboardingStep: MacOnboardingStep { .done }
     var onboardingMode: MacOnboardingMode? { nil }
     var relaySessionEmail: String? { nil }
     var shortcutTestDetectedPress: Bool { false }

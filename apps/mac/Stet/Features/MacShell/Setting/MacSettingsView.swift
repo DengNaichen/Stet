@@ -46,7 +46,7 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
         case .hotkey:
             return "Global keyboard shortcuts for starting dictation."
         case .openAI:
-            return "Cloud provider, rewrite behavior, translation, and credentials."
+            return "Cloud provider, rewrite behavior, and credentials."
         case .dictionary:
             return "Personal dictionary entries used during transcription and rewrite."
         }
@@ -72,7 +72,7 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
         case .hotkey:
             return ["shortcut", "keyboard", "recorder", "dictation"]
         case .openAI:
-            return ["provider", "api key", "translation", "rewrite", "groq", "openai"]
+            return ["provider", "api key", "rewrite", "groq", "openai"]
         case .dictionary:
             return ["entries", "personal dictionary", "names", "brands"]
         }

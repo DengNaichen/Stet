@@ -23,8 +23,6 @@ struct MacAppBootstrapperTests {
         #expect(defaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.openAI.rawValue)
         #expect(defaults.string(forKey: MacPreferences.aiExecutionMode) == AIExecutionMode.automatic.rawValue)
         #expect(defaults.string(forKey: MacPreferences.dictationLanguageMode) == DictationLanguageMode.automatic.rawValue)
-        #expect(defaults.string(forKey: MacPreferences.translationTargetLanguage) == TranslationTargetLanguage.english.rawValue)
-        #expect(defaults.bool(forKey: MacPreferences.translateSelectedTextOnTranslationHotkey))
         #expect(!defaults.bool(forKey: MacPreferences.hotkeyDistinguishModifierSides))
         #expect(defaults.bool(forKey: MacPreferences.interactionSoundsEnabled))
         #expect(defaults.string(forKey: MacPreferences.interactionSoundPreset) == InteractionSoundPreset.soft.rawValue)
@@ -42,7 +40,6 @@ struct MacAppBootstrapperTests {
         defaults.set(true, forKey: "mac.autoPasteOnCapture")
         defaults.set(true, forKey: "mac.revealPanelOnCapture")
         defaults.set("https://api.groq.com/openai/v1", forKey: "mac.openAIBaseURL")
-        defaults.set("llama-3.3-70b-versatile", forKey: "mac.openAITranslationModel")
         defaults.set(true, forKey: MacPreferences.showInDock)
         defaults.set(AIExecutionMode.managed.rawValue, forKey: MacPreferences.aiExecutionMode)
 
@@ -63,10 +60,7 @@ struct MacAppBootstrapperTests {
         #expect(defaults.object(forKey: "mac.autoPasteOnCapture") as? Bool == true)
         #expect(defaults.object(forKey: "mac.revealPanelOnCapture") as? Bool == true)
         #expect(defaults.object(forKey: "mac.openAIBaseURL") as? String == "https://api.groq.com/openai/v1")
-        #expect(defaults.object(forKey: "mac.openAITranslationModel") as? String == "llama-3.3-70b-versatile")
         #expect(defaults.string(forKey: MacPreferences.dictationLanguageMode) == DictationLanguageMode.automatic.rawValue)
-        #expect(defaults.string(forKey: MacPreferences.translationTargetLanguage) == TranslationTargetLanguage.english.rawValue)
-        #expect(defaults.object(forKey: MacPreferences.translateSelectedTextOnTranslationHotkey) as? Bool == true)
         #expect(defaults.object(forKey: MacPreferences.hotkeyDistinguishModifierSides) as? Bool == false)
         #expect(defaults.bool(forKey: MacPreferences.launchAtLogin) == false)
     }

@@ -18,11 +18,6 @@ struct MacOpenAISettingsViewModelTests {
             DictationLanguageMode.mixedChineseEnglish.rawValue,
             forKey: MacPreferences.dictationLanguageMode
         )
-        defaults.set(
-            TranslationTargetLanguage.german.rawValue,
-            forKey: MacPreferences.translationTargetLanguage
-        )
-        defaults.set(false, forKey: MacPreferences.translateSelectedTextOnTranslationHotkey)
 
         let viewModel = MacOpenAISettingsViewModel(
             settingsStore: DictationSettingsStore(defaults: defaults, secretStore: secretStore),
@@ -35,8 +30,6 @@ struct MacOpenAISettingsViewModelTests {
         #expect(viewModel.provider == .groq)
         #expect(viewModel.rewriteEnabled)
         #expect(viewModel.dictationLanguageMode == .mixedChineseEnglish)
-        #expect(viewModel.translationTargetLanguage == .german)
-        #expect(!viewModel.translateSelectedTextOnTranslationHotkey)
         #expect(viewModel.apiKey == "gsk-live")
         #expect(viewModel.connectionStatusText == "Relay Only")
     }
