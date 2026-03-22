@@ -82,11 +82,12 @@ nonisolated final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendab
 
     nonisolated func startRecording(
         to fileURL: URL,
-        outputFormat: AVAudioFormat
+        outputFormat: AVAudioFormat,
+        selectedDevice: AudioHardwareDevice?
     ) throws {
         precondition(currentSession() == nil, "MacCaptureAudioFileRecorder is already recording.")
 
-        let candidates = inputDeviceCandidates()
+        let candidates = inputDeviceCandidates(selectedDevice: selectedDevice)
         Self.logStartupTiming(
             "captureRecorderStart candidates=\(candidates.map { Self.describe(candidate: $0) }.joined(separator: ","))"
         )
@@ -424,8 +425,9 @@ nonisolated final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendab
         return resources
     }
 
-    nonisolated private func inputDeviceCandidates() -> [InputDeviceCandidate] {
-        let selectedDevice = Self.selectedRecordingDevice()
+    nonisolated private func inputDeviceCandidates(
+        selectedDevice: AudioHardwareDevice?
+    ) -> [InputDeviceCandidate] {
         let builtInDevice = AudioInputDeviceManager.builtInInputDevice()
         let defaultInputDevice = AudioInputDeviceManager.defaultInputDevice()
 
@@ -627,34 +629,6 @@ nonisolated final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendab
         }
 
         return defaultInputDevice.uid == device.uid
-    }
-
-    private nonisolated static func selectedRecordingDevice(
-        defaults: UserDefaults = .standard
-    ) -> AudioHardwareDevice? {
-        let availableDevices = AudioInputDeviceManager.allInputDevices()
-        let strategyRawValue = defaults.string(forKey: MacPreferences.audioDeviceSelectionStrategy) ?? ""
-        let preferredUID = defaults.string(forKey: MacPreferences.preferredAudioInputDeviceUID)
-
-        if strategyRawValue == "manual" {
-            if let preferredUID,
-               let preferredDevice = availableDevices.first(where: { $0.uid == preferredUID }) {
-                return preferredDevice
-            }
-
-            return AudioInputDeviceManager.defaultInputDevice()
-        }
-
-        if let builtInDevice = availableDevices.first(where: \.isBuiltIn) {
-            return builtInDevice
-        }
-
-        if let defaultInputDevice = AudioInputDeviceManager.defaultInputDevice(),
-           let matchingDefaultDevice = availableDevices.first(where: { $0.uid == defaultInputDevice.uid }) {
-            return matchingDefaultDevice
-        }
-
-        return availableDevices.max(by: { $0.automaticSelectionPriority < $1.automaticSelectionPriority })
     }
 
     private nonisolated static func describe(candidate: InputDeviceCandidate) -> String {

@@ -12,22 +12,21 @@ struct AudioInputDeviceMenuSection: View {
     var body: some View {
         Section("Audio Input Device") {
             Button {
-                deviceManager.resetToAutomatic()
+                deviceManager.selectBuiltInDefault()
             } label: {
                 menuRow(
                     title: "Default (Built-in Microphone)",
-                    isSelected: deviceManager.strategy == .automatic
+                    isSelected: deviceManager.selectedDevice?.isBuiltIn ?? true
                 )
             }
 
-            ForEach(deviceManager.availableDevices, id: \.uid) { device in
+            ForEach(externalDevices, id: \.uid) { device in
                 Button {
                     deviceManager.selectDevice(device)
                 } label: {
                     menuRow(
                         title: device.name,
-                        isSelected: deviceManager.strategy == .manual &&
-                            device.uid == deviceManager.selectedDevice?.uid
+                        isSelected: device.uid == deviceManager.selectedDevice?.uid
                     )
                 }
             }
@@ -35,6 +34,10 @@ struct AudioInputDeviceMenuSection: View {
         .onReceive(NotificationCenter.default.publisher(for: AudioDeviceChangeMonitor.devicesDidChangeNotification)) { _ in
             deviceManager.refreshDevices()
         }
+    }
+
+    private var externalDevices: [AudioHardwareDevice] {
+        deviceManager.availableDevices.filter { !$0.isBuiltIn }
     }
 
     private func menuRow(title: String, isSelected: Bool) -> some View {

@@ -24,7 +24,9 @@ final class AudioDeviceSelectionManager: ObservableObject {
     static let shared = AudioDeviceSelectionManager(provider: SystemAudioDeviceProvider())
 
     private let provider: AudioDeviceProviding
+    private let defaults: UserDefaults
     private let recordingDeviceCache = RecordingDeviceCache()
+    private var preferredAudioInputDeviceUID: String?
 
     @Published private(set) var selectedDevice: AudioHardwareDevice? {
         didSet {
@@ -34,34 +36,17 @@ final class AudioDeviceSelectionManager: ObservableObject {
 
     @Published private(set) var availableDevices: [AudioHardwareDevice] = []
 
-    enum SelectionStrategy: String, Codable {
-        case automatic
-        case manual
-    }
+    private(set) var preference: AudioDeviceSelectionResolver.Preference = .builtInDefault
+    private(set) var activeDevice: AudioHardwareDevice?
+    private(set) var isUsingFallbackBuiltIn = false
 
-    @Published var strategy: SelectionStrategy = .automatic {
-        didSet {
-            persistStrategy()
-            selectedDevice = deviceForRecording()
-        }
-    }
-
-    @Published var preferredDeviceUID: String? {
-        didSet {
-            persistPreferredDeviceUID()
-            selectedDevice = deviceForRecording()
-        }
-    }
-
-    init(provider: AudioDeviceProviding) {
+    init(
+        provider: AudioDeviceProviding,
+        defaults: UserDefaults = .standard
+    ) {
         self.provider = provider
-
-        if let savedStrategyRaw = UserDefaults.standard.string(forKey: MacPreferences.audioDeviceSelectionStrategy),
-           let savedStrategy = SelectionStrategy(rawValue: savedStrategyRaw) {
-            self.strategy = savedStrategy
-        }
-
-        self.preferredDeviceUID = UserDefaults.standard.string(forKey: MacPreferences.preferredAudioInputDeviceUID)
+        self.defaults = defaults
+        self.preferredAudioInputDeviceUID = defaults.string(forKey: MacPreferences.preferredAudioInputDeviceUID)
         refreshDevices()
     }
 
@@ -71,60 +56,48 @@ final class AudioDeviceSelectionManager: ObservableObject {
 
     func refreshDevices() {
         availableDevices = provider.allInputDevices()
-        selectedDevice = deviceForRecording()
+        applyResolvedSelection()
     }
 
     func selectDevice(_ device: AudioHardwareDevice) {
-        strategy = .manual
-        preferredDeviceUID = device.uid
-    }
-
-    func resetToAutomatic() {
-        strategy = .automatic
-        preferredDeviceUID = nil
-    }
-
-    func deviceForRecording() -> AudioHardwareDevice? {
-        switch strategy {
-        case .automatic:
-            return selectDefaultDevice(from: availableDevices)
-        case .manual:
-            if let uid = preferredDeviceUID,
-               let device = availableDevices.first(where: { $0.uid == uid }) {
-                return device
-            }
-
-            return provider.defaultInputDevice()
-        }
-    }
-
-    private func selectDefaultDevice(from devices: [AudioHardwareDevice]) -> AudioHardwareDevice? {
-        if let builtInDevice = devices.first(where: \.isBuiltIn) {
-            return builtInDevice
+        if device.isBuiltIn {
+            selectBuiltInDefault()
+            return
         }
 
-        if let defaultInputDevice = provider.defaultInputDevice(),
-           let matchingDefaultDevice = devices.first(where: { $0.uid == defaultInputDevice.uid }) {
-            return matchingDefaultDevice
-        }
-
-        return devices.max(by: { $0.automaticSelectionPriority < $1.automaticSelectionPriority })
+        preferredAudioInputDeviceUID = device.uid
+        persistPreferredDeviceUID()
+        applyResolvedSelection()
     }
 
-    private func persistStrategy() {
-        UserDefaults.standard.set(strategy.rawValue, forKey: MacPreferences.audioDeviceSelectionStrategy)
+    func selectBuiltInDefault() {
+        preferredAudioInputDeviceUID = nil
+        persistPreferredDeviceUID()
+        applyResolvedSelection()
     }
 
     private func persistPreferredDeviceUID() {
-        if let uid = preferredDeviceUID {
-            UserDefaults.standard.set(uid, forKey: MacPreferences.preferredAudioInputDeviceUID)
+        if let uid = preferredAudioInputDeviceUID {
+            defaults.set(uid, forKey: MacPreferences.preferredAudioInputDeviceUID)
         } else {
-            UserDefaults.standard.removeObject(forKey: MacPreferences.preferredAudioInputDeviceUID)
+            defaults.removeObject(forKey: MacPreferences.preferredAudioInputDeviceUID)
         }
     }
 
     private func updateRecordingDeviceCache(_ device: AudioHardwareDevice?) {
         recordingDeviceCache.store(device)
+    }
+
+    private func applyResolvedSelection() {
+        let resolution = AudioDeviceSelectionResolver.resolve(
+            availableDevices: availableDevices,
+            defaultInputDevice: provider.defaultInputDevice(),
+            preferredAudioInputDeviceUID: preferredAudioInputDeviceUID
+        )
+        preference = resolution.preference
+        activeDevice = resolution.activeDevice
+        isUsingFallbackBuiltIn = resolution.isUsingFallbackBuiltIn
+        selectedDevice = resolution.activeDevice
     }
 }
 #endif

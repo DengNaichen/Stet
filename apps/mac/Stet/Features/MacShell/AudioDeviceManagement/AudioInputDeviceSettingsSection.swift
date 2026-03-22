@@ -16,22 +16,13 @@ struct AudioInputDeviceSettingsSection: View {
 
     var body: some View {
         Section("Audio Input Device") {
-            Picker("Selection Strategy", selection: selectionStrategyBinding) {
+            Picker("Microphone", selection: microphoneSelectionBinding) {
                 Text("Default (Built-in Microphone)")
-                    .tag(AudioDeviceSelectionManager.SelectionStrategy.automatic)
-                Text("Manual Selection")
-                    .tag(AudioDeviceSelectionManager.SelectionStrategy.manual)
-            }
+                    .tag(nil as String?)
 
-            if deviceManager.strategy == .manual {
-                Picker("Microphone", selection: preferredDeviceUIDBinding) {
-                    Text("Select a microphone...")
-                        .tag(nil as String?)
-
-                    ForEach(deviceManager.availableDevices, id: \.uid) { device in
-                        Text(device.name)
-                            .tag(device.uid as String?)
-                    }
+                ForEach(externalDevices, id: \.uid) { device in
+                    Text(device.name)
+                        .tag(device.uid as String?)
                 }
             }
 
@@ -57,45 +48,36 @@ struct AudioInputDeviceSettingsSection: View {
         }
     }
 
-    private var selectionStrategyBinding: Binding<AudioDeviceSelectionManager.SelectionStrategy> {
+    private var microphoneSelectionBinding: Binding<String?> {
         Binding(
-            get: { deviceManager.strategy },
+            get: { selectedMicrophoneSelection },
             set: { newValue in
-                applySelectionStrategy(newValue)
+                applyMicrophoneSelection(newValue)
             }
         )
     }
 
-    private var preferredDeviceUIDBinding: Binding<String?> {
-        Binding(
-            get: { deviceManager.preferredDeviceUID },
-            set: { newValue in
-                applyPreferredDeviceUID(newValue)
-            }
-        )
+    private var externalDevices: [AudioHardwareDevice] {
+        deviceManager.availableDevices.filter { !$0.isBuiltIn }
     }
 
-    private func applySelectionStrategy(_ strategy: AudioDeviceSelectionManager.SelectionStrategy) {
-        guard deviceManager.strategy != strategy else { return }
-
-        switch strategy {
-        case .automatic:
-            deviceManager.resetToAutomatic()
-        case .manual:
-            deviceManager.strategy = .manual
-            deviceManager.refreshDevices()
+    private var selectedMicrophoneSelection: String? {
+        guard let selected = deviceManager.selectedDevice else {
+            return nil
         }
+
+        return selected.isBuiltIn ? nil : selected.uid
     }
 
-    private func applyPreferredDeviceUID(_ uid: String?) {
-        if let uid,
-           let device = deviceManager.availableDevices.first(where: { $0.uid == uid }) {
-            deviceManager.selectDevice(device)
+    private func applyMicrophoneSelection(_ uid: String?) {
+        guard let uid else {
+            deviceManager.selectBuiltInDefault()
             return
         }
 
-        deviceManager.preferredDeviceUID = uid
-        deviceManager.refreshDevices()
+        if let device = externalDevices.first(where: { $0.uid == uid }) {
+            deviceManager.selectDevice(device)
+        }
     }
 }
 #endif

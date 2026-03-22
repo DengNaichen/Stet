@@ -264,7 +264,8 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         let fileURL = makeRecordingFileURL()
         try macAudioFileRecorder.startRecording(
             to: fileURL,
-            outputFormat: outputFormat
+            outputFormat: outputFormat,
+            selectedDevice: selectedInputDevice
         )
         recordingFileURL = fileURL
         isRecording = true
