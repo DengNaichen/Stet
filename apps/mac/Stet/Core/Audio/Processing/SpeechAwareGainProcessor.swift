@@ -129,12 +129,6 @@ struct SpeechAwareGainProcessor: SpeechEnhancing {
         return pow(10, gainDB / 20)
     }
 
-//    Unused helper retained here in case the gain processor needs reverse conversion again.
-//    static func linearToDB(_ gainLinear: Double) -> Double {
-//        guard gainLinear > 0, gainLinear.isFinite else { return -160 }
-//        return 20 * log10(gainLinear)
-//    }
-
     static func clampSample(_ value: Double, ceilingLinear: Double) -> Float {
         guard value.isFinite else { return 0 }
 

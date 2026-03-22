@@ -5,57 +5,9 @@ import CoreMedia
 import Foundation
 
 nonisolated final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
-    private struct InputDeviceCandidate {
-        let device: AudioHardwareDevice?
-        let reason: Reason
-
-        enum Reason: String {
-            case selected
-            case noExplicitDeviceFallback
-            case builtInFallback
-            case systemDefaultFallback
-        }
-    }
-
     private enum Configuration {
         nonisolated static let startupRetryCount = 4
         nonisolated static let startupRetryDelaySeconds = 0.15
-    }
-
-    private enum CaptureError: LocalizedError {
-        case noCaptureDeviceAvailable
-        case selectedDeviceUnavailable(target: String, available: [String])
-        case failedToCreatePCMBuffer
-        case failedToReadSampleBuffer(status: OSStatus)
-        case unsupportedSampleBufferFormat
-        case failedToConfigureSession(reason: String)
-        case failedToStartSession(device: String)
-
-        var errorDescription: String? {
-            switch self {
-            case .noCaptureDeviceAvailable:
-                return "No audio capture device is available."
-            case .selectedDeviceUnavailable(let target, let available):
-                let availableDescription = available.isEmpty ? "none" : available.joined(separator: ", ")
-                return "Selected capture device \(target) was unavailable. available=\(availableDescription)"
-            case .failedToCreatePCMBuffer:
-                return "Failed to create a PCM buffer for macOS capture."
-            case .failedToReadSampleBuffer(let status):
-                return "Failed to read an audio sample buffer. osstatus=\(status)"
-            case .unsupportedSampleBufferFormat:
-                return "Received an unsupported macOS audio sample format."
-            case .failedToConfigureSession(let reason):
-                return "Failed to configure the macOS capture session. reason=\(reason)"
-            case .failedToStartSession(let device):
-                return "Failed to start the macOS capture session for \(device)."
-            }
-        }
-    }
-
-    private struct CaptureResources {
-        let session: AVCaptureSession
-        let output: AVCaptureAudioDataOutput
-        let device: AVCaptureDevice
     }
 
     private let firstBufferLock = NSLock()
@@ -87,7 +39,7 @@ nonisolated final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendab
     ) throws {
         precondition(currentSession() == nil, "MacCaptureAudioFileRecorder is already recording.")
 
-        let candidates = inputDeviceCandidates(selectedDevice: selectedDevice)
+        let candidates = MacCaptureAudioDevicePlanner.inputDeviceCandidates(selectedDevice: selectedDevice)
         Self.logStartupTiming(
             "captureRecorderStart candidates=\(candidates.map { Self.describe(candidate: $0) }.joined(separator: ","))"
         )
@@ -164,7 +116,7 @@ nonisolated final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendab
     }
 
     nonisolated func prewarm() {
-        _ = Self.availableCaptureDevices()
+        _ = MacCaptureAudioDevicePlanner.availableCaptureDevices()
     }
 
     deinit {
@@ -178,10 +130,10 @@ nonisolated final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendab
         candidateReason: InputDeviceCandidate.Reason
     ) throws {
         let captureDeviceStartedAt = ProcessInfo.processInfo.systemUptime
-        let captureDevice = try Self.resolveCaptureDevice(for: inputDevice)
+        let captureDevice = try MacCaptureAudioDevicePlanner.resolveCaptureDevice(for: inputDevice)
         let captureDeviceMs = Self.elapsedMilliseconds(since: captureDeviceStartedAt)
 
-        let resources = try Self.makeCaptureResources(
+        let resources = try MacCaptureAudioSessionFactory.makeCaptureResources(
             for: captureDevice,
             delegate: self,
             queue: captureQueue
@@ -304,7 +256,7 @@ nonisolated final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendab
         }
 
         do {
-            let inputBuffer = try Self.pcmBuffer(from: sampleBuffer)
+            let inputBuffer = try MacCaptureAudioSampleBufferConverter.pcmBuffer(from: sampleBuffer)
             audioLevelHandler(AudioLevelNormalizer.normalizedLevel(from: inputBuffer))
 
             guard let snapshot = try session.snapshot(for: inputBuffer.format) else {
@@ -423,212 +375,6 @@ nonisolated final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendab
         captureResources = nil
         stateLock.unlock()
         return resources
-    }
-
-    nonisolated private func inputDeviceCandidates(
-        selectedDevice: AudioHardwareDevice?
-    ) -> [InputDeviceCandidate] {
-        let builtInDevice = AudioInputDeviceManager.builtInInputDevice()
-        let defaultInputDevice = AudioInputDeviceManager.defaultInputDevice()
-
-        var candidates: [InputDeviceCandidate] = []
-        var seenUIDs = Set<String>()
-        var hasSystemDefaultCandidate = false
-
-        func append(_ device: AudioHardwareDevice?, reason: InputDeviceCandidate.Reason) {
-            if let device {
-                guard seenUIDs.insert(device.uid).inserted else {
-                    return
-                }
-            } else {
-                guard !hasSystemDefaultCandidate else {
-                    return
-                }
-                hasSystemDefaultCandidate = true
-            }
-
-            candidates.append(InputDeviceCandidate(device: device, reason: reason))
-        }
-
-        if let selectedDevice {
-            append(selectedDevice, reason: .selected)
-
-            if Self.defaultRouteMatches(device: selectedDevice, defaultInputDevice: defaultInputDevice) {
-                append(nil, reason: .noExplicitDeviceFallback)
-            }
-
-            return candidates
-        }
-
-        append(nil, reason: .noExplicitDeviceFallback)
-        append(builtInDevice, reason: .builtInFallback)
-        append(defaultInputDevice, reason: .systemDefaultFallback)
-        return candidates
-    }
-
-    private nonisolated static func makeCaptureResources(
-        for device: AVCaptureDevice,
-        delegate: any AVCaptureAudioDataOutputSampleBufferDelegate,
-        queue: DispatchQueue
-    ) throws -> CaptureResources {
-        let session = AVCaptureSession()
-        let input = try AVCaptureDeviceInput(device: device)
-        let output = AVCaptureAudioDataOutput()
-        output.setSampleBufferDelegate(delegate, queue: queue)
-
-        session.beginConfiguration()
-        defer { session.commitConfiguration() }
-
-        guard session.canAddInput(input) else {
-            throw CaptureError.failedToConfigureSession(reason: "cannot add input \(device.localizedName)")
-        }
-        session.addInput(input)
-
-        guard session.canAddOutput(output) else {
-            throw CaptureError.failedToConfigureSession(reason: "cannot add audio output")
-        }
-        session.addOutput(output)
-
-        return CaptureResources(
-            session: session,
-            output: output,
-            device: device
-        )
-    }
-
-    private nonisolated static func resolveCaptureDevice(
-        for device: AudioHardwareDevice?
-    ) throws -> AVCaptureDevice {
-        let availableDevices = availableCaptureDevices()
-
-        guard let device else {
-            if let defaultDevice = AVCaptureDevice.default(for: .audio) {
-                return defaultDevice
-            }
-
-            if let fallbackDevice = availableDevices.first {
-                return fallbackDevice
-            }
-
-            throw CaptureError.noCaptureDeviceAvailable
-        }
-
-        if let exactUIDMatch = availableDevices.first(where: { $0.uniqueID == device.uid }) {
-            return exactUIDMatch
-        }
-
-        if let exactNameMatch = availableDevices.first(where: { $0.localizedName == device.name }) {
-            return exactNameMatch
-        }
-
-        if device.isBuiltIn,
-           let builtInLikeDevice = availableDevices.first(where: {
-               $0.localizedName.localizedCaseInsensitiveContains("microphone")
-                   || $0.localizedName.localizedCaseInsensitiveContains("macbook")
-           }) {
-            return builtInLikeDevice
-        }
-
-        throw CaptureError.selectedDeviceUnavailable(
-            target: "\(device.name) (\(device.uid))",
-            available: availableDevices.map { "\($0.localizedName) (\($0.uniqueID))" }
-        )
-    }
-
-    private nonisolated static func availableCaptureDevices() -> [AVCaptureDevice] {
-        var devices = AVCaptureDevice.DiscoverySession(
-            deviceTypes: [.microphone],
-            mediaType: .audio,
-            position: .unspecified
-        ).devices
-
-        if devices.isEmpty {
-            devices = AVCaptureDevice.devices(for: .audio)
-        }
-
-        return devices
-    }
-
-    private nonisolated static func pcmBuffer(
-        from sampleBuffer: CMSampleBuffer
-    ) throws -> AVAudioPCMBuffer {
-        guard let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer),
-              let streamDescriptionPointer = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription) else {
-            throw CaptureError.unsupportedSampleBufferFormat
-        }
-
-        var streamDescription = streamDescriptionPointer.pointee
-        guard let format = AVAudioFormat(streamDescription: &streamDescription) else {
-            throw CaptureError.unsupportedSampleBufferFormat
-        }
-
-        let frameCount = AVAudioFrameCount(CMSampleBufferGetNumSamples(sampleBuffer))
-        guard let pcmBuffer = AVAudioPCMBuffer(
-            pcmFormat: format,
-            frameCapacity: frameCount
-        ) else {
-            throw CaptureError.failedToCreatePCMBuffer
-        }
-        pcmBuffer.frameLength = frameCount
-
-        var audioBufferListSize = Int(
-            MemoryLayout<AudioBufferList>.size +
-                max(Int(format.channelCount) - 1, 0) * MemoryLayout<AudioBuffer>.size
-        )
-        let audioBufferListPointer = UnsafeMutableRawPointer.allocate(
-            byteCount: audioBufferListSize,
-            alignment: MemoryLayout<AudioBufferList>.alignment
-        )
-        defer { audioBufferListPointer.deallocate() }
-
-        var blockBuffer: CMBlockBuffer?
-        let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
-            sampleBuffer,
-            bufferListSizeNeededOut: &audioBufferListSize,
-            bufferListOut: audioBufferListPointer.assumingMemoryBound(to: AudioBufferList.self),
-            bufferListSize: audioBufferListSize,
-            blockBufferAllocator: nil,
-            blockBufferMemoryAllocator: nil,
-            flags: UInt32(kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment),
-            blockBufferOut: &blockBuffer
-        )
-        guard status == noErr else {
-            throw CaptureError.failedToReadSampleBuffer(status: status)
-        }
-
-        let sourceBuffers = UnsafeMutableAudioBufferListPointer(
-            audioBufferListPointer.assumingMemoryBound(to: AudioBufferList.self)
-        )
-        let destinationBuffers = UnsafeMutableAudioBufferListPointer(pcmBuffer.mutableAudioBufferList)
-        guard sourceBuffers.count == destinationBuffers.count else {
-            throw CaptureError.unsupportedSampleBufferFormat
-        }
-
-        for index in 0..<sourceBuffers.count {
-            let source = sourceBuffers[index]
-            let destination = destinationBuffers[index]
-            guard let sourceData = source.mData,
-                  let destinationData = destination.mData else {
-                throw CaptureError.unsupportedSampleBufferFormat
-            }
-
-            let byteCount = Int(min(source.mDataByteSize, destination.mDataByteSize))
-            memcpy(destinationData, sourceData, byteCount)
-            destinationBuffers[index].mDataByteSize = UInt32(byteCount)
-        }
-
-        return pcmBuffer
-    }
-
-    nonisolated private static func defaultRouteMatches(
-        device: AudioHardwareDevice,
-        defaultInputDevice: AudioHardwareDevice?
-    ) -> Bool {
-        guard let defaultInputDevice else {
-            return false
-        }
-
-        return defaultInputDevice.uid == device.uid
     }
 
     private nonisolated static func describe(candidate: InputDeviceCandidate) -> String {

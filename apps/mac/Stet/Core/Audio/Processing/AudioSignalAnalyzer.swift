@@ -4,17 +4,9 @@ import Foundation
 struct AudioAnalysis: Sendable {
     let shouldDiscardAsNoSpeech: Bool
     let speechFrameRatio: Double
-//    Legacy observability-only metrics. These were only logged and never used by
-//    the post-processing decision path.
-//    let confirmationSpeechFrameRatio: Double
-//    let longestSpeechDurationSeconds: Double
-//    let totalSpeechDurationSeconds: Double
-//    let rawSpeechFrameRatio: Double
     let noiseFloorDBFS: Double
     let speechLevelP75DBFS: Double
-//    let speechPeakDBFS: Double
     let overallPeakDBFS: Double
-//    let speechSignalToNoiseMarginDB: Double
     let recommendedGainDB: Double
 
     var speechEnhancementPlan: SpeechEnhancementPlan {
@@ -75,10 +67,6 @@ enum AudioSignalAnalyzer {
         let segments = allSegments.filter { ($0.endTime - $0.startTime) >= Configuration.minimumSpeechSegmentDuration }
 
         let shouldDiscardAsNoSpeech = segments.isEmpty
-//        Legacy observability-only metrics retained here as comments while the
-//        analyzer is being simplified.
-//        let totalSpeechDurationSeconds = segments.reduce(0.0) { $0 + ($1.endTime - $1.startTime) }
-//        let longestSpeechDurationSeconds = segments.map { $0.endTime - $0.startTime }.max() ?? 0.0
         let totalDuration = Double(analysisSamples.count) / analysisSampleRate
         let speechFrameRatio = totalDuration > 0
             ? segments.reduce(0.0) { $0 + ($1.endTime - $1.startTime) } / totalDuration
