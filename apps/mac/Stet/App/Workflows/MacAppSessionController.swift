@@ -14,6 +14,7 @@ final class MacAppSessionController {
     private let shellPresentationController: any MacShellPresenting
     private let permissionGateController: any MacPermissionGatePresenting
     private let permissionManager: MacPermissionManager
+    private let appBranchMonitor: AppBranchMonitor
     private let defaults: UserDefaults
     private let notificationCenter: NotificationCenter
     private let hotkeyRegistrar: any MacDictationHotkeyRegistering
@@ -30,6 +31,8 @@ final class MacAppSessionController {
     private var firstSuccessPreviewTextState: String?
     private var firstSuccessFailureMessageState: String?
     private var firstSuccessFailureCount = 0
+    private var detectedTargetApplicationState: AppInfo?
+    private var appBranchObserverID: UUID?
     private var appLifecycleState = "active"
 
     init(
@@ -37,6 +40,7 @@ final class MacAppSessionController {
         shellPresentationController: any MacShellPresenting,
         permissionGateController: any MacPermissionGatePresenting,
         permissionManager: MacPermissionManager,
+        appBranchMonitor: AppBranchMonitor = .shared,
         defaults: UserDefaults = .standard,
         notificationCenter: NotificationCenter = .default,
         hotkeyRegistrar: any MacDictationHotkeyRegistering
@@ -45,6 +49,7 @@ final class MacAppSessionController {
         self.shellPresentationController = shellPresentationController
         self.permissionGateController = permissionGateController
         self.permissionManager = permissionManager
+        self.appBranchMonitor = appBranchMonitor
         self.defaults = defaults
         self.notificationCenter = notificationCenter
         self.hotkeyRegistrar = hotkeyRegistrar
@@ -53,10 +58,17 @@ final class MacAppSessionController {
         configure()
     }
 
+    deinit {
+        if let appBranchObserverID {
+            appBranchMonitor.removeObserver(appBranchObserverID)
+        }
+    }
+
     // Convenience: default dependencies
     convenience init(
         workflowController: MacDictationWorkflowController,
         permissionManager: MacPermissionManager,
+        appBranchMonitor: AppBranchMonitor = .shared,
         defaults: UserDefaults = .standard,
         notificationCenter: NotificationCenter = .default
     ) {
@@ -65,6 +77,7 @@ final class MacAppSessionController {
             shellPresentationController: MacShellPresentationController(),
             permissionGateController: MacPermissionGateController(),
             permissionManager: permissionManager,
+            appBranchMonitor: appBranchMonitor,
             defaults: defaults,
             notificationCenter: notificationCenter,
             hotkeyRegistrar: KeyboardShortcutsHotkeyRegistrar()
@@ -78,6 +91,7 @@ final class MacAppSessionController {
         shellPresentationController: (any MacShellPresenting)? = nil,
         permissionGateController: (any MacPermissionGatePresenting)? = nil,
         permissionManager: MacPermissionManager,
+        appBranchMonitor: AppBranchMonitor = .shared,
         defaults: UserDefaults = .standard,
         notificationCenter: NotificationCenter = .default,
         hotkeyRegistrar: (any MacDictationHotkeyRegistering)? = nil
@@ -87,6 +101,7 @@ final class MacAppSessionController {
             shellPresentationController: shellPresentationController ?? MacShellPresentationController(),
             permissionGateController: permissionGateController ?? MacPermissionGateController(),
             permissionManager: permissionManager,
+            appBranchMonitor: appBranchMonitor,
             defaults: defaults,
             notificationCenter: notificationCenter,
             hotkeyRegistrar: hotkeyRegistrar ?? KeyboardShortcutsHotkeyRegistrar()
@@ -105,6 +120,7 @@ final class MacAppSessionController {
             self?.notifyChange()
         }
 
+        configureAppBranchMonitoring()
         bindState()
         bindLifecycleNotifications()
         registerHotkeys()
@@ -124,6 +140,10 @@ final class MacAppSessionController {
 
     var recordingLevel: Double {
         workflowController.dictationViewModel.recordingLevel
+    }
+
+    var detectedTargetApplication: AppInfo? {
+        detectedTargetApplicationState
     }
 
     var isPanelVisible: Bool {
@@ -223,6 +243,21 @@ final class MacAppSessionController {
             AppLogger.info("Pre-warming audio engine on activation", category: .dictation)
             await workflowController.prewarm()
         }
+    }
+
+    private func configureAppBranchMonitoring() {
+        guard appBranchObserverID == nil else { return }
+
+        appBranchMonitor.setExcludedBundleID(Bundle.main.bundleIdentifier)
+        detectedTargetApplicationState = appBranchMonitor.currentApp
+        appBranchObserverID = appBranchMonitor.addObserver { [weak self] appInfo in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.detectedTargetApplicationState = appInfo
+                self.notifyChange()
+            }
+        }
+        appBranchMonitor.startMonitoring()
     }
 
     func performPrimaryAction() {

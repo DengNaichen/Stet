@@ -115,6 +115,16 @@ private final class TestMediaPlaybackController: MediaPlaybackControlling {
     func resumePlaybackIfNeeded() {}
 }
 
+private final class TestAppBranchWorkspace: AppBranchWorkspaceObserving {
+    var frontmostApplication: AppBranchWorkspaceApplicationSnapshot?
+
+    func observeFrontmostApplicationChanges(_ handler: @escaping () -> Void) -> AppBranchWorkspaceObservationToken {
+        AppBranchWorkspaceObservationToken(observer: NSObject())
+    }
+
+    func removeObservation(_ token: AppBranchWorkspaceObservationToken) {}
+}
+
 @MainActor
 @Suite("Mac App Session Controller Settings", .serialized)
 struct MacAppSessionControllerSettingsTests {
@@ -153,12 +163,17 @@ struct MacAppSessionControllerSettingsTests {
             mediaResumeDelay: .zero
         )
         let permissionManager = MacPermissionManager(textInjectionService: textInjectionService)
+        let appBranchMonitor = AppBranchMonitor(
+            workspace: TestAppBranchWorkspace(),
+            callbackQueue: DispatchQueue(label: "com.stet.tests.sessioncontroller.settings.appbranch")
+        )
 
         let sessionController = MacAppSessionController(
             workflowController: workflowController,
             shellPresentationController: shellPresenter,
             permissionGateController: permissionGatePresenter,
             permissionManager: permissionManager,
+            appBranchMonitor: appBranchMonitor,
             defaults: defaults,
             notificationCenter: NotificationCenter(),
             hotkeyRegistrar: hotkeyRegistrar

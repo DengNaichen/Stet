@@ -22,6 +22,7 @@ protocol MacDictationPanelCoordinating: MacAppStatusObserving {
     var dictationState: DictationState { get }
     var statusText: String { get }
     var recordingLevel: Double { get }
+    var detectedTargetApplication: AppInfo? { get }
     func hidePanel()
     func dismissPendingCopy()
     func cancelActiveCapture()

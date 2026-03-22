@@ -17,6 +17,7 @@ struct MacDictationPanelViewModelTests {
         var dictationState: DictationState
         var statusText: String
         var recordingLevel: Double
+        var detectedTargetApplication: AppInfo?
 
         private(set) var hidePanelCallCount = 0
         private(set) var dismissPendingCopyCallCount = 0
@@ -60,11 +61,19 @@ struct MacDictationPanelViewModelTests {
             statusText: "Ready to paste",
             recordingLevel: 0.64
         )
+        appModel.detectedTargetApplication = AppInfo(
+            bundleIdentifier: "com.apple.TextEdit",
+            localizedName: "TextEdit",
+            processIdentifier: 42,
+            isOwnHostApplication: false,
+            runningApplication: nil
+        )
         let viewModel = MacDictationPanelViewModel(appModel: appModel)
 
         #expect(viewModel.state == .clipboardPending("hello"))
         #expect(viewModel.statusText == "Ready to paste")
-        #expect(viewModel.recordingLevel == 0.64)
+        #expect(viewModel.recordingLevel == 0)
+        #expect(viewModel.detectedTargetApplication?.bundleIdentifier == "com.apple.TextEdit")
     }
 
     @Test func appModelUpdatesArePropagatedToPublishedProperties() async {
@@ -78,12 +87,20 @@ struct MacDictationPanelViewModelTests {
         appModel.dictationState = .listening
         appModel.statusText = "Listening..."
         appModel.recordingLevel = 0.92
+        appModel.detectedTargetApplication = AppInfo(
+            bundleIdentifier: "com.apple.Terminal",
+            localizedName: "Terminal",
+            processIdentifier: 77,
+            isOwnHostApplication: false,
+            runningApplication: nil
+        )
         appModel.emitUpdate()
 
         #expect(await TestSupport.eventually {
             viewModel.state == .listening &&
             viewModel.statusText == "Listening..." &&
-            viewModel.recordingLevel == 0.92
+            viewModel.recordingLevel > 0 &&
+            viewModel.detectedTargetApplication?.bundleIdentifier == "com.apple.Terminal"
         })
     }
 

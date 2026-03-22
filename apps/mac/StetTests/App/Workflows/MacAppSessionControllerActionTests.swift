@@ -117,6 +117,7 @@ private final class FakePresentationModel: MacAppPresentationModeling {
     var dictationState: DictationState = .idle
     var statusText: String = "Ready"
     var recordingLevel: Double = 0
+    var detectedTargetApplication: AppInfo?
     var autoPasteStatusText: String = "Enabled"
     var microphoneAccessStatusText: String = "Allowed"
     var microphoneAccessNeedsAttention = false
@@ -130,6 +131,16 @@ private final class FakePresentationModel: MacAppPresentationModeling {
     func requestAutoPasteAccess() {}
     func resolveMicrophoneAccess() {}
     func openAccessibilitySettings() {}
+}
+
+private final class TestAppBranchWorkspace: AppBranchWorkspaceObserving {
+    var frontmostApplication: AppBranchWorkspaceApplicationSnapshot?
+
+    func observeFrontmostApplicationChanges(_ handler: @escaping () -> Void) -> AppBranchWorkspaceObservationToken {
+        AppBranchWorkspaceObservationToken(observer: NSObject())
+    }
+
+    func removeObservation(_ token: AppBranchWorkspaceObservationToken) {}
 }
 
 @MainActor
@@ -183,12 +194,17 @@ struct MacAppSessionControllerActionTests {
         let shell = FakeShellPresenter()
         let permissionGate = FakePermissionGatePresenter()
         let hotkeyRegistrar = FakeHotkeyRegistrar()
+        let appBranchMonitor = AppBranchMonitor(
+            workspace: TestAppBranchWorkspace(),
+            callbackQueue: DispatchQueue(label: "com.stet.tests.sessioncontroller.action.appbranch")
+        )
 
         let session = MacAppSessionController(
             workflowController: workflow,
             shellPresentationController: shell,
             permissionGateController: permissionGate,
             permissionManager: permissionManager,
+            appBranchMonitor: appBranchMonitor,
             hotkeyRegistrar: hotkeyRegistrar
         )
 

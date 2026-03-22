@@ -243,6 +243,10 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
         sessionController.recordingLevel
     }
 
+    var detectedTargetApplication: AppInfo? {
+        sessionController.detectedTargetApplication
+    }
+
     func performPrimaryAction() {
         sessionController.performPrimaryAction()
     }

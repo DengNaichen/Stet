@@ -31,6 +31,12 @@ struct MacDictationPanelView: View {
             }
         }
         .frame(width: panelSize.width, height: panelSize.height)
+        .overlay(alignment: .topLeading) {
+            MacAppBranchDebugBadge(appInfo: viewModel.detectedTargetApplication)
+                .padding(.top, 10)
+                .padding(.leading, 10)
+                .allowsHitTesting(false)
+        }
     }
 }
 #endif

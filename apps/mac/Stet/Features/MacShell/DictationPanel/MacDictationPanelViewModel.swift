@@ -38,11 +38,13 @@ final class MacDictationPanelViewModel: ObservableObject {
     @Published private(set) var state: DictationState
     @Published private(set) var statusText: String
     @Published private(set) var recordingLevel: Double
+    @Published private(set) var detectedTargetApplication: AppInfo?
 
     init(appModel: any MacDictationPanelCoordinating) {
         self.appModel = appModel
         self.state = appModel.dictationState
         self.statusText = appModel.statusText
+        self.detectedTargetApplication = appModel.detectedTargetApplication
 
         let initialTarget = Self.normalizedRecordingLevel(
             raw: appModel.recordingLevel,
@@ -65,6 +67,7 @@ final class MacDictationPanelViewModel: ObservableObject {
     private func syncFromAppModel() {
         state = appModel.dictationState
         statusText = appModel.statusText
+        detectedTargetApplication = appModel.detectedTargetApplication
         targetRecordingLevel = Self.normalizedRecordingLevel(
             raw: appModel.recordingLevel,
             state: appModel.dictationState
