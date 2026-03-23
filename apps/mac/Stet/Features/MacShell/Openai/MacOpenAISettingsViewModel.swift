@@ -103,28 +103,6 @@ final class MacOpenAISettingsViewModel: ObservableObject {
         saveCredential()
     }
 
-    var modelSummary: String {
-        switch executionMode {
-        case .automatic:
-            return "Automatic"
-        case .managed:
-            return "Managed Relay"
-        case .byok:
-            return "BYOK"
-        }
-    }
-
-    var providerDescription: String {
-        switch executionMode {
-        case .automatic:
-            return "Automatic"
-        case .managed:
-            return "Managed Relay"
-        case .byok:
-            return "BYOK"
-        }
-    }
-
     var rewriteToggleTitle: String {
         switch executionMode {
         case .automatic:
@@ -136,20 +114,12 @@ final class MacOpenAISettingsViewModel: ObservableObject {
         }
     }
 
-    var dictationLanguageDescription: String {
-        dictationLanguageMode.subtitle
-    }
-
     var credentialFieldTitle: String {
         "\(provider.displayName) API key"
     }
 
     var credentialPlaceholder: String {
         provider.apiKeyPlaceholder
-    }
-
-    var executionModeDescription: String {
-        executionMode.subtitle
     }
 
     var missingCredentialMessage: String? {

@@ -3,67 +3,59 @@ import SwiftUI
 
 struct MacOpenAISettingsView: View {
     @ObservedObject var viewModel: MacOpenAISettingsViewModel
+    private let controlWidth: CGFloat = 240
 
     var body: some View {
         AppForm {
             Section {
-                LabeledContent("Execution Mode") {
-                    Picker("Execution Mode", selection: $viewModel.executionMode) {
+                MacSettingsValueRow(title: "Execution Mode") {
+                    Picker("", selection: $viewModel.executionMode) {
                         ForEach(AIExecutionMode.allCases) { mode in
                             Text(mode.title).tag(mode)
                         }
                     }
-                    .pickerStyle(.menu)
                     .labelsHidden()
-                    .frame(width: 240)
+                    .pickerStyle(.menu)
+                    .frame(width: controlWidth, alignment: .trailing)
                 }
 
-                Text(viewModel.executionModeDescription)
-                    .foregroundStyle(.secondary)
-
-                LabeledContent("Provider") {
-                    Picker("Provider", selection: $viewModel.provider) {
+                MacSettingsValueRow(title: "Provider") {
+                    Picker("", selection: $viewModel.provider) {
                         ForEach(DictationProvider.allCases) { provider in
                             Text(provider.displayName).tag(provider)
                         }
                     }
-                    .pickerStyle(.menu)
                     .labelsHidden()
-                    .frame(width: 240)
+                    .pickerStyle(.menu)
+                    .frame(width: controlWidth, alignment: .trailing)
                 }
 
-                LabeledContent("Connection") {
+                MacSettingsValueRow(title: "Connection") {
                     MacSettingsStatusBadge(
                         text: viewModel.connectionStatusText,
                         tint: viewModel.connectionNeedsAttention ? .orange : .green
                     )
+                    .frame(width: controlWidth, alignment: .trailing)
                 }
             } header: {
                 Text("Provider")
-            } footer: {
-                Text(viewModel.providerDescription)
             }
 
             Section {
-                LabeledContent("Dictation language") {
-                    Picker("Dictation language", selection: $viewModel.dictationLanguageMode) {
+                MacSettingsValueRow(title: "Dictation language") {
+                    Picker("", selection: $viewModel.dictationLanguageMode) {
                         ForEach(DictationLanguageMode.allCases) { mode in
                             Text(mode.title).tag(mode)
                         }
                     }
-                    .pickerStyle(.menu)
                     .labelsHidden()
-                    .frame(width: 240)
+                    .pickerStyle(.menu)
+                    .frame(width: controlWidth, alignment: .trailing)
                 }
-
-                Text(viewModel.dictationLanguageDescription)
-                    .foregroundStyle(.secondary)
 
                 Toggle(viewModel.rewriteToggleTitle, isOn: $viewModel.rewriteEnabled)
             } header: {
                 Text("Features")
-            } footer: {
-                Text(viewModel.modelSummary)
             }
 
             Section {
@@ -83,14 +75,6 @@ struct MacOpenAISettingsView: View {
                     }
                 }
                 .disabled(viewModel.isCredentialEditingDisabled)
-
-                if let missingCredentialMessage = viewModel.missingCredentialMessage {
-                    Text(missingCredentialMessage)
-                        .foregroundStyle(.orange)
-                }
-
-                Text(viewModel.credentialMessage)
-                    .foregroundStyle(viewModel.credentialMessageIsError ? .red : .secondary)
             } header: {
                 Text(viewModel.credentialFieldTitle)
             }
