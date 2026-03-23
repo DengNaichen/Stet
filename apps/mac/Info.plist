@@ -42,12 +42,12 @@
 	<true/>
 	<key>SUFeedURL</key>
 	<string>$(SPARKLE_FEED_URL)</string>
-	<key>SUPublicEDKey</key>
-	<string>$(SPARKLE_PUBLIC_ED_KEY)</string>
 	<key>SUPABASE_PUBLISHABLE_KEY</key>
 	<string>$(SUPABASE_PUBLISHABLE_KEY)</string>
 	<key>SUPABASE_URL</key>
 	<string>$(SUPABASE_URL)</string>
+	<key>SUPublicEDKey</key>
+	<string>$(SPARKLE_PUBLIC_ED_KEY)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

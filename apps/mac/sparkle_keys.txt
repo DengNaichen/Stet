@@ -1,0 +1,1 @@
+zsh: permission denied: ./build/SourcePackages/checkouts/Sparkle/generate_keys
