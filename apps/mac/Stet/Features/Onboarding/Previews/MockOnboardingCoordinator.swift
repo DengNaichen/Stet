@@ -82,7 +82,7 @@ final class MockOnboardingCoordinator: MacPermissionsCoordinating {
     var onboardingStep: MacOnboardingStep { mockStep }
     var onboardingMode: MacOnboardingMode? { mockMode }
 
-    init(step: MacOnboardingStep = .welcome, mode: MacOnboardingMode? = nil) {
+    init(step: MacOnboardingStep = .mode, mode: MacOnboardingMode? = nil) {
         self.mockStep = step
         self.mockMode = mode
         self.autoPasteStatusText = "Granted"
@@ -118,11 +118,39 @@ final class MockOnboardingCoordinator: MacPermissionsCoordinating {
     }
 
     func advanceOnboarding() {
-        mockStep = MacOnboardingStep(rawValue: mockStep.rawValue + 1) ?? .done
+        switch mockStep {
+        case .mode:
+            break
+        case .apiKey:
+            mockStep = .permissions
+        case .login:
+            mockStep = .permissions
+        case .permissions:
+            mockStep = .shortcut
+        case .shortcut:
+            mockStep = .firstSuccess
+        case .firstSuccess:
+            mockStep = .done
+        case .done:
+            break
+        }
     }
 
     func retreatOnboarding() {
-        mockStep = MacOnboardingStep(rawValue: mockStep.rawValue - 1) ?? .welcome
+        switch mockStep {
+        case .mode:
+            break
+        case .apiKey, .login:
+            mockStep = .mode
+        case .permissions:
+            mockStep = mockMode == .managed ? .login : .apiKey
+        case .shortcut:
+            mockStep = .permissions
+        case .firstSuccess:
+            mockStep = .shortcut
+        case .done:
+            mockStep = .firstSuccess
+        }
     }
 
     func completeAPIKeyOnboarding(provider: DictationProvider) {
@@ -142,8 +170,6 @@ final class MockOnboardingCoordinator: MacPermissionsCoordinating {
 
     private func configurePreviewState(for step: MacOnboardingStep) {
         switch step {
-        case .welcome:
-            break
         case .mode:
             break
         case .apiKey:

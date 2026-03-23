@@ -485,8 +485,6 @@ struct OnboardingVisualPanel: View {
 
     private var panelTitle: String {
         switch step {
-        case .welcome:
-            return "A cleaner start"
         case .mode:
             return "Pick your path"
         case .apiKey:
@@ -498,7 +496,7 @@ struct OnboardingVisualPanel: View {
         case .shortcut:
             return "Set your shortcut"
         case .firstSuccess:
-            return "Try a real sentence"
+            return "Say something in the box"
         case .done:
             return "Ready to go"
         }
@@ -506,8 +504,6 @@ struct OnboardingVisualPanel: View {
 
     private var panelSubtitle: String {
         switch step {
-        case .welcome:
-            return "The same onboarding flow, presented with a cleaner visual hierarchy."
         case .mode:
             return "Managed login and BYOK still lead to the same next steps."
         case .apiKey:
@@ -517,9 +513,9 @@ struct OnboardingVisualPanel: View {
         case .permissions:
             return "Mic and input control remain the only permissions Stet needs."
         case .shortcut:
-            return "Record the shortcut once, then test it before continuing."
+            return "Choose the shortcut you want to use."
         case .firstSuccess:
-            return "Your first pass proves the flow works end to end."
+            return "Click the text box, then use your hotkey to speak a sentence."
         case .done:
             return "Everything needed for the onboarding path is now in place."
         }
@@ -527,8 +523,6 @@ struct OnboardingVisualPanel: View {
 
     private var heroTitle: String {
         switch step {
-        case .welcome:
-            return "Fast setup. Fewer distractions."
         case .mode:
             return "Two options, one flow."
         case .apiKey:
@@ -548,8 +542,6 @@ struct OnboardingVisualPanel: View {
 
     private var heroSubtitle: String {
         switch step {
-        case .welcome:
-            return "Native Mac UI, clear progression, and no extra setup noise."
         case .mode:
             return "Choose API key or login, then continue with the same onboarding sequence."
         case .apiKey:
@@ -565,12 +557,10 @@ struct OnboardingVisualPanel: View {
                 ? "Everything required has been detected."
                 : "The onboarding flow still needs microphone and input control permissions."
         case .shortcut:
-            return viewModel.canContinueShortcutOnboarding
-                ? "The shortcut test has completed."
-                : "Press and hold the configured shortcut to validate the capture loop."
+            return "The shortcut is ready to use."
         case .firstSuccess:
             return viewModel.canContinueFirstSuccessOnboarding
-                ? "A successful result is available."
+                ? "A successful result is visible in the box."
                 : "Speak naturally and let the first pass finish."
         case .done:
             return "The onboarding path is complete and the app is ready to use."
@@ -579,8 +569,6 @@ struct OnboardingVisualPanel: View {
 
     private var footerTitle: String {
         switch step {
-        case .welcome:
-            return "Built for the same workflow"
         case .mode:
             return "No branching complexity"
         case .apiKey:
@@ -590,9 +578,9 @@ struct OnboardingVisualPanel: View {
         case .permissions:
             return "Use only what is needed"
         case .shortcut:
-            return "A fast test loop"
+            return "Shortcut setup"
         case .firstSuccess:
-            return "Proof of life"
+            return "Live input check"
         case .done:
             return "Start dictating anywhere"
         }
@@ -600,8 +588,6 @@ struct OnboardingVisualPanel: View {
 
     private var footerSubtitle: String {
         switch step {
-        case .welcome:
-            return "The shell changes, but the step order and actions stay the same."
         case .mode:
             return "Your choice only determines which existing step comes next."
         case .apiKey:
@@ -611,9 +597,9 @@ struct OnboardingVisualPanel: View {
         case .permissions:
             return "Permission checks remain exactly where the app expects them."
         case .shortcut:
-            return "The recorder, test press, and completion logic are untouched."
+            return "The recorder is all you need here."
         case .firstSuccess:
-            return "The preview result is still the same success gate used today."
+            return "This step now exercises a real text target."
         case .done:
             return "Finish the flow and begin using the app immediately."
         }
@@ -621,8 +607,6 @@ struct OnboardingVisualPanel: View {
 
     private var accentColor: Color {
         switch step {
-        case .welcome:
-            return .blue
         case .mode:
             return .teal
         case .apiKey:
@@ -642,8 +626,6 @@ struct OnboardingVisualPanel: View {
 
     private var stepSystemImage: String {
         switch step {
-        case .welcome:
-            return "sparkles"
         case .mode:
             return "arrow.triangle.branch"
         case .apiKey:
@@ -667,12 +649,6 @@ struct OnboardingVisualPanel: View {
 
     private var metrics: [OnboardingVisualMetric] {
         switch step {
-        case .welcome:
-            return [
-                .init(title: "Mode", value: "API Key or login", systemImage: "arrow.triangle.branch", tint: .blue),
-                .init(title: "Style", value: "Native Mac", systemImage: "macwindow", tint: .teal),
-                .init(title: "Focus", value: "Fewer interruptions", systemImage: "sparkles", tint: .purple),
-            ]
         case .mode:
             return [
                 .init(title: "BYOK", value: "Your provider", systemImage: "key.fill", tint: .orange),
@@ -700,8 +676,8 @@ struct OnboardingVisualPanel: View {
         case .shortcut:
             return [
                 .init(title: "Shortcut", value: viewModel.shortcutSummaryText, systemImage: "keyboard", tint: .pink),
-                .init(title: "Press", value: viewModel.shortcutTestDetectedPress ? "Detected" : "Waiting", systemImage: "pointer", tint: .blue),
-                .init(title: "Round trip", value: viewModel.shortcutTestCompletedRoundTrip ? "Complete" : "Pending", systemImage: "arrow.triangle.2.circlepath", tint: .green),
+                .init(title: "Next", value: "Continue to first run", systemImage: "arrow.right.circle.fill", tint: .blue),
+                .init(title: "Later", value: "Adjust in Settings", systemImage: "gearshape", tint: .green),
             ]
         case .firstSuccess:
             return [

@@ -9,14 +9,13 @@ import Testing
 @Suite("Mac App Primitives")
 struct MacAppPrimitiveTests {
     @Test(arguments: [
-        (MacOnboardingStep.welcome, 1, false),
-        (.mode, 2, false),
-        (.apiKey, 3, false),
-        (.login, 3, false),
-        (.permissions, 4, false),
-        (.shortcut, 5, true),
-        (.firstSuccess, 6, true),
-        (.done, 7, false)
+        (.mode, 1, false),
+        (.apiKey, 2, false),
+        (.login, 2, false),
+        (.permissions, 3, false),
+        (.shortcut, 4, true),
+        (.firstSuccess, 5, true),
+        (.done, 6, false)
     ])
     func onboardingStepMetadata(
         _ step: MacOnboardingStep,

@@ -8,9 +8,9 @@ struct OnboardingModeStep: View {
         VStack(alignment: .leading, spacing: 20) {
             GroupBox("Privacy Note") {
                 VStack(alignment: .leading, spacing: 10) {
-                    BulletRow(text: "Your content will not be used for training")
-                    BulletRow(text: "Cloud processing is transient and not stored")
-                    BulletRow(text: "You can always use your own API Key")
+                    BulletRow(text: "Login Or BYOK")
+//                    BulletRow(text: "Cloud processing is transient and not stored")
+//                    BulletRow(text: "You can always use your own API Key")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(8)
@@ -20,9 +20,7 @@ struct OnboardingModeStep: View {
                 OnboardingChoiceCard(
                     title: "Use my own API Key",
                     details: [
-                        "Full control",
-                        "Use your own model provider",
-                        "Billed directly to your account",
+                        "Full control"
                     ],
                     buttonTitle: "Use API Key"
                 ) {
@@ -33,8 +31,6 @@ struct OnboardingModeStep: View {
                     title: "Login to use",
                     details: [
                         "Faster setup",
-                        "Managed experience",
-                        "No manual Key configuration",
                     ],
                     buttonTitle: "Login to continue"
                 ) {

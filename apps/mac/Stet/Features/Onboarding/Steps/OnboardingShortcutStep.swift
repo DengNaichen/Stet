@@ -15,30 +15,9 @@ struct OnboardingShortcutStep: View {
                 .padding(8)
             }
 
-            GroupBox("Test Area") {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(shortcutInstructionText)
-                        .font(.headline)
-
-                    if let previewText = viewModel.shortcutTestPreviewText {
-                        MessageBanner(text: "Test Text: \(previewText)", role: .success)
-                    }
-
-                    StatusChecklistRow(
-                        title: "Key press detected",
-                        isComplete: viewModel.shortcutTestDetectedPress
-                    )
-                    StatusChecklistRow(
-                        title: "Released key loop completed",
-                        isComplete: viewModel.shortcutTestCompletedRoundTrip
-                    )
-                    StatusChecklistRow(
-                        title: "First test result received",
-                        isComplete: viewModel.shortcutTestPreviewText != nil
-                    )
-                }
-                .padding(8)
-            }
+            Text("Choose the shortcut you want to use for dictation. You can change it later in Settings.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             Spacer()
 
@@ -51,25 +30,13 @@ struct OnboardingShortcutStep: View {
 
                 OnboardingActionButton(
                     title: "Continue",
-                    isEnabled: viewModel.canContinueShortcutOnboarding,
+                    isEnabled: true,
                     minHeight: 48
                 ) {
                     viewModel.continueOnboarding()
                 }
             }
         }
-    }
-
-    private var shortcutInstructionText: String {
-        if !viewModel.shortcutTestDetectedPress {
-            return "Hold the shortcut you configured and give it a try."
-        }
-
-        if !viewModel.shortcutTestCompletedRoundTrip {
-            return "Shortcut detected. Keep holding and say something."
-        }
-
-        return "Shortcut configured. You can now hold it to start speaking."
     }
 }
 

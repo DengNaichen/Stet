@@ -27,7 +27,8 @@ struct MacAppBootstrapper {
     }
 
     private static let defaultPreferences: [DefaultPreference] = [
-        .bool(MacPreferences.onboardingCompleted, true),
+        .bool(MacPreferences.onboardingCompleted, false),
+        .bool(MacPreferences.debugForceOnboarding, false),
         .bool(MacPreferences.pauseMediaDuringDictation, false),
         .string(MacPreferences.transcriptionProvider, DictationProvider.openAI.rawValue),
         .string(MacPreferences.aiExecutionMode, AIExecutionMode.automatic.rawValue),

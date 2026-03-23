@@ -135,12 +135,13 @@ final class MacDictationWorkflowController {
 
     func startDictationCapture(
         source: PrimaryActionSource,
+        allowCurrentAppTarget: Bool = false,
         showTransientPanel: @escaping @MainActor () -> Void
     ) {
         Task {
             await DictationRuntimeProbe.shared.markAction("startDictationCapture")
         }
-        refreshTargetApplication()
+        refreshTargetApplication(allowingCurrentAppTarget: allowCurrentAppTarget)
         activeWorkflow = .dictation
         activeRecordingSource = source
         mediaResumeTask?.cancel()
@@ -277,10 +278,10 @@ final class MacDictationWorkflowController {
         return keepResultInClipboard ? .completed : .clipboardPending
     }
 
-    private func refreshTargetApplication() {
+    private func refreshTargetApplication(allowingCurrentAppTarget: Bool) {
         let frontmostApplication = NSWorkspace.shared.frontmostApplication
         guard let frontmostApplication,
-              frontmostApplication.bundleIdentifier != Bundle.main.bundleIdentifier else {
+              allowingCurrentAppTarget || frontmostApplication.bundleIdentifier != Bundle.main.bundleIdentifier else {
             return
         }
 

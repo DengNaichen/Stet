@@ -13,6 +13,7 @@ final class MacAppSessionController {
     private let workflowController: MacDictationWorkflowController
     private let shellPresentationController: any MacShellPresenting
     private let permissionGateController: any MacPermissionGatePresenting
+    private let onboardingWindowController: MacOnboardingWindowController
     private let permissionManager: MacPermissionManager
     private let appBranchMonitor: AppBranchMonitor
     private let defaults: UserDefaults
@@ -39,6 +40,7 @@ final class MacAppSessionController {
         workflowController: MacDictationWorkflowController,
         shellPresentationController: any MacShellPresenting,
         permissionGateController: any MacPermissionGatePresenting,
+        onboardingWindowController: MacOnboardingWindowController,
         permissionManager: MacPermissionManager,
         appBranchMonitor: AppBranchMonitor = .shared,
         defaults: UserDefaults = .standard,
@@ -48,6 +50,7 @@ final class MacAppSessionController {
         self.workflowController = workflowController
         self.shellPresentationController = shellPresentationController
         self.permissionGateController = permissionGateController
+        self.onboardingWindowController = onboardingWindowController
         self.permissionManager = permissionManager
         self.appBranchMonitor = appBranchMonitor
         self.defaults = defaults
@@ -76,6 +79,7 @@ final class MacAppSessionController {
             workflowController: workflowController,
             shellPresentationController: MacShellPresentationController(),
             permissionGateController: MacPermissionGateController(),
+            onboardingWindowController: MacOnboardingWindowController(),
             permissionManager: permissionManager,
             appBranchMonitor: appBranchMonitor,
             defaults: defaults,
@@ -90,6 +94,7 @@ final class MacAppSessionController {
         workflowController: MacDictationWorkflowController,
         shellPresentationController: (any MacShellPresenting)? = nil,
         permissionGateController: (any MacPermissionGatePresenting)? = nil,
+        onboardingWindowController: MacOnboardingWindowController? = nil,
         permissionManager: MacPermissionManager,
         appBranchMonitor: AppBranchMonitor = .shared,
         defaults: UserDefaults = .standard,
@@ -100,6 +105,7 @@ final class MacAppSessionController {
             workflowController: workflowController,
             shellPresentationController: shellPresentationController ?? MacShellPresentationController(),
             permissionGateController: permissionGateController ?? MacPermissionGateController(),
+            onboardingWindowController: onboardingWindowController ?? MacOnboardingWindowController(),
             permissionManager: permissionManager,
             appBranchMonitor: appBranchMonitor,
             defaults: defaults,
@@ -229,6 +235,7 @@ final class MacAppSessionController {
         applyDockVisibility(showInDock: showInDock)
 
         DispatchQueue.main.async { [weak self] in
+            self?.resetOnboardingProgressIfNeeded()
             self?.refreshPermissionIndicators()
             self?.prewarmAudioEngine()
         }
@@ -366,14 +373,10 @@ final class MacAppSessionController {
         }
 
         switch onboardingStepState {
-        case .welcome:
-            onboardingStepState = .mode
         case .permissions:
             guard hasRequiredPermissions else { return }
-            resetShortcutOnboardingState()
             onboardingStepState = .shortcut
         case .shortcut:
-            guard canContinueShortcutOnboarding else { return }
             prepareFirstSuccessStep()
             onboardingStepState = .firstSuccess
         case .firstSuccess:
@@ -395,7 +398,7 @@ final class MacAppSessionController {
 
         switch onboardingStepState {
         case .mode:
-            onboardingStepState = .welcome
+            break
         case .apiKey, .login:
             onboardingStepState = .mode
         case .permissions:
@@ -408,8 +411,6 @@ final class MacAppSessionController {
             onboardingStepState = .shortcut
         case .done:
             onboardingStepState = .firstSuccess
-        case .welcome:
-            break
         }
 
         notifyChange()
@@ -430,7 +431,21 @@ final class MacAppSessionController {
     func finishOnboarding() {
         defaults.set(true, forKey: MacPreferences.onboardingCompleted)
         onboardingStepState = .done
+        onboardingModeState = nil
         permissionGateController.hide()
+        notifyChange()
+    }
+
+    func setDebugForceOnboardingEnabled(_ enabled: Bool) {
+        defaults.set(enabled, forKey: MacPreferences.debugForceOnboarding)
+        resetOnboardingProgressIfNeeded()
+        notifyChange()
+    }
+
+    func resetOnboardingForDebug() {
+        defaults.set(false, forKey: MacPreferences.onboardingCompleted)
+        onboardingModeState = nil
+        resetOnboardingProgressIfNeeded(forceRestart: true)
         notifyChange()
     }
 
@@ -463,6 +478,7 @@ final class MacAppSessionController {
     }
 
     private func notifyChange() {
+        syncOnboardingPresentation()
         onChange?()
     }
 
@@ -471,11 +487,19 @@ final class MacAppSessionController {
     }
 
     private var requiresOnboarding: Bool {
-        false
+        isDebugForceOnboardingEnabled || !defaults.bool(forKey: MacPreferences.onboardingCompleted)
     }
 
     private var shouldPresentOnboardingGate: Bool {
-        false
+        requiresOnboarding && !onboardingStepState.allowsAudioCapture
+    }
+
+    private var shouldPresentRuntimePermissionFailureWindow: Bool {
+        !hasRequiredPermissions
+    }
+
+    private var shouldPresentPermissionGate: Bool {
+        shouldPresentOnboardingGate || shouldPresentRuntimePermissionFailureWindow
     }
 
     private func performPrimaryAction(source: PrimaryActionSource) {
@@ -566,7 +590,9 @@ final class MacAppSessionController {
     }
 
     private func refreshPermissionIndicators() {
-        if shouldPresentOnboardingGate {
+        resetOnboardingProgressIfNeeded()
+
+        if shouldPresentPermissionGate {
             if !requiresOnboarding {
                 onboardingStepState = .permissions
             }
@@ -726,7 +752,10 @@ final class MacAppSessionController {
     private func startDictationCapture(from source: PrimaryActionSource) {
         workflowController.startDictationCapture(
             source: source,
-            showTransientPanel: showTransientPanel
+            allowCurrentAppTarget: requiresOnboarding && onboardingStepState == .firstSuccess,
+            showTransientPanel: { [weak self] in
+                self?.showTransientPanel()
+            }
         )
         Task {
             await DictationRuntimeProbe.shared.markAction("startDictationCapture")
@@ -751,7 +780,12 @@ final class MacAppSessionController {
     }
 
     private func presentRequiredPermissionsGateIfNeeded() {
-        guard shouldPresentOnboardingGate else {
+        if shouldPresentOnboardingGate {
+            syncOnboardingPresentation()
+            return
+        }
+
+        guard shouldPresentPermissionGate else {
             permissionGateController.hide()
             return
         }
@@ -773,21 +807,6 @@ final class MacAppSessionController {
     }
 
     private func updateOnboardingProgress(previousState: DictationState, state: DictationState) {
-        if onboardingStepState == .shortcut {
-            if case .listening = state {
-                shortcutTestDetectedPressState = true
-            }
-
-            if case .listening = previousState, !matchesListening(state) {
-                shortcutTestCompletedRoundTripState = true
-            }
-
-            if case .result(let text) = state {
-                let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                shortcutTestPreviewTextState = trimmedText.isEmpty ? nil : trimmedText
-            }
-        }
-
         if onboardingStepState == .firstSuccess {
             if case .result(let text) = state {
                 let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -881,6 +900,50 @@ final class MacAppSessionController {
             return "clipboardPending"
         case .error:
             return "error"
+        }
+    }
+
+    private var isDebugForceOnboardingEnabled: Bool {
+        if defaults.bool(forKey: MacPreferences.debugForceOnboarding) {
+            return true
+        }
+
+        if ProcessInfo.processInfo.arguments.contains("--force-onboarding") {
+            return true
+        }
+
+        guard let value = ProcessInfo.processInfo.environment["STET_FORCE_ONBOARDING"] else {
+            return false
+        }
+
+        return ["1", "true", "yes", "on"].contains(value.lowercased())
+    }
+
+    private func resetOnboardingProgressIfNeeded(forceRestart: Bool = false) {
+        guard requiresOnboarding else {
+            onboardingStepState = .done
+            if !isDebugForceOnboardingEnabled {
+                onboardingModeState = nil
+            }
+            return
+        }
+
+        guard forceRestart || onboardingStepState == .done else {
+            return
+        }
+
+        onboardingStepState = .mode
+    }
+
+    private func syncOnboardingPresentation() {
+        guard let presentationModel else {
+            return
+        }
+
+        if requiresOnboarding, onboardingStepState != .done {
+            onboardingWindowController.show(appModel: presentationModel)
+        } else {
+            onboardingWindowController.hide()
         }
     }
 

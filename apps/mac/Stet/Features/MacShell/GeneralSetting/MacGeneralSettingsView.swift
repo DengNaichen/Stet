@@ -12,6 +12,9 @@ struct MacGeneralSettingsView: View {
             captureSection
             interactionSoundsSection
             appBehaviorSection
+#if DEBUG
+            debugSection
+#endif
             updatesSection
             feedbackSection
         }
@@ -81,6 +84,22 @@ struct MacGeneralSettingsView: View {
             Text("Updates")
         }
     }
+
+#if DEBUG
+    private var debugSection: some View {
+        Section {
+            Toggle("Always show onboarding while debugging", isOn: $viewModel.debugForceOnboarding)
+
+            Button("Restart Onboarding Now") {
+                viewModel.restartOnboarding()
+            }
+        } header: {
+            Text("Debug")
+        } footer: {
+            Text("You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`.")
+        }
+    }
+#endif
 
     @ViewBuilder
     private var feedbackSection: some View {

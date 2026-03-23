@@ -33,5 +33,17 @@ final class MacSettingsShellViewModel: ObservableObject, MacGeneralSettingsAppMo
     func applyDockVisibility(showInDock: Bool) {
         coordinator.applyDockVisibility(showInDock: showInDock)
     }
+
+    var isDebugForceOnboardingEnabled: Bool {
+        coordinator.isDebugForceOnboardingEnabled
+    }
+
+    func setDebugForceOnboardingEnabled(_ enabled: Bool) {
+        coordinator.setDebugForceOnboardingEnabled(enabled)
+    }
+
+    func resetOnboardingForDebug() {
+        coordinator.resetOnboardingForDebug()
+    }
 }
 #endif

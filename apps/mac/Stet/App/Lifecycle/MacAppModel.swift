@@ -318,6 +318,18 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
         sessionController.applyDockVisibility(showInDock: showInDock)
     }
 
+    var isDebugForceOnboardingEnabled: Bool {
+        UserDefaults.standard.bool(forKey: MacPreferences.debugForceOnboarding)
+    }
+
+    func setDebugForceOnboardingEnabled(_ enabled: Bool) {
+        sessionController.setDebugForceOnboardingEnabled(enabled)
+    }
+
+    func resetOnboardingForDebug() {
+        sessionController.resetOnboardingForDebug()
+    }
+
     func openSettings(using action: () -> Void) {
         sessionController.openSettings(using: action)
     }

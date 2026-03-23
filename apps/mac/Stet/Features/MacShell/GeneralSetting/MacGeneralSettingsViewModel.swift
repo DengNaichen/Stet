@@ -4,9 +4,12 @@ import Foundation
 
 @MainActor
 protocol MacGeneralSettingsAppModeling: AnyObject {
+    var isDebugForceOnboardingEnabled: Bool { get }
     func setLaunchAtLoginEnabled(_ enabled: Bool) throws
     func refreshRuntimeFromSettings()
     func applyDockVisibility(showInDock: Bool)
+    func setDebugForceOnboardingEnabled(_ enabled: Bool)
+    func resetOnboardingForDebug()
 }
 
 @MainActor
@@ -52,6 +55,13 @@ final class MacGeneralSettingsViewModel: ObservableObject {
             handleManagedSettingsMutation(oldValue: oldValue, newValue: managedSettings)
         }
     }
+    @Published var debugForceOnboarding = false {
+        didSet {
+            guard hasLoadedDebugSettings else { return }
+            guard let appModel else { return }
+            appModel.setDebugForceOnboardingEnabled(debugForceOnboarding)
+        }
+    }
     @Published private(set) var updateSettings = UpdateSettingsState()
     @Published private(set) var feedback: Feedback?
 
@@ -64,6 +74,7 @@ final class MacGeneralSettingsViewModel: ObservableObject {
 
     private var hasLoadedPreferences = false
     private var hasLoadedManagedSettings = false
+    private var hasLoadedDebugSettings = false
     private var suppressLaunchAtLoginChange = false
     private var suppressShowInDockChange = false
 
@@ -102,6 +113,10 @@ final class MacGeneralSettingsViewModel: ObservableObject {
         hasLoadedManagedSettings = false
         managedSettings = currentState()
         hasLoadedManagedSettings = true
+
+        hasLoadedDebugSettings = false
+        debugForceOnboarding = appModel?.isDebugForceOnboardingEnabled ?? false
+        hasLoadedDebugSettings = true
 
         syncUpdateSettingsFromManager()
     }
@@ -159,6 +174,13 @@ final class MacGeneralSettingsViewModel: ObservableObject {
 
     func previewSound() {
         InteractionSoundPlayer().playPreview(preset: .defaultPreset)
+    }
+
+    func restartOnboarding() {
+        guard let appModel else { return }
+        appModel.resetOnboardingForDebug()
+        debugForceOnboarding = appModel.isDebugForceOnboardingEnabled
+        setFeedback("Onboarding reset. The onboarding window should appear again.")
     }
 
     private func handleManagedSettingsMutation(

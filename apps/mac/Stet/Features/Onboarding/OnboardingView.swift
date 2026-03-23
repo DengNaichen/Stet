@@ -22,13 +22,13 @@ struct OnboardingView: View {
                 separator
 
                 OnboardingVisualPanel(step: viewModel.onboardingStep, viewModel: viewModel)
-                    .frame(width: 360, height: 640)
+                    .frame(width: 400, height: 680)
                     .padding(.vertical, 0)
                     .padding(.trailing, 0)
                     .padding(.leading, 0)
                     .background(Color(nsColor: .controlBackgroundColor).opacity(0.08))
             }
-            .frame(width: 820, height: 640)
+            .frame(width: 900, height: 680)
             .background(
                 RoundedRectangle(cornerRadius: 30, style: .continuous)
                     .fill(Color(nsColor: .controlBackgroundColor).opacity(0.66))
@@ -40,7 +40,7 @@ struct OnboardingView: View {
             )
             .shadow(color: Color.black.opacity(0.20), radius: 26, x: 0, y: 12)
         }
-        .frame(width: 820, height: 640)
+        .frame(width: 900, height: 680)
         .background(rootBackground)
     }
 
@@ -98,7 +98,7 @@ struct OnboardingView: View {
 
                 Spacer(minLength: 0)
 
-                Text("Step \(viewModel.onboardingStep.progressIndex) of 7")
+                Text("Step \(viewModel.onboardingStep.progressIndex) of 6")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
@@ -123,7 +123,7 @@ struct OnboardingView: View {
             footer
         }
         .padding(28)
-        .frame(width: 459, height: 640, alignment: .topLeading)
+        .frame(width: 499, height: 680, alignment: .topLeading)
         .background(
             LinearGradient(
                 colors: [
@@ -151,7 +151,7 @@ struct OnboardingView: View {
 
     private var progressStrip: some View {
         HStack(spacing: 8) {
-            ForEach(1...7, id: \.self) { index in
+            ForEach(1...6, id: \.self) { index in
                 Capsule(style: .continuous)
                     .fill(index <= viewModel.onboardingStep.progressIndex ? Color.accentColor : Color.secondary.opacity(0.20))
                     .frame(height: 6)
@@ -162,8 +162,6 @@ struct OnboardingView: View {
     @ViewBuilder
     private var stepContent: some View {
         switch viewModel.onboardingStep {
-        case .welcome:
-            OnboardingWelcomeStep(viewModel: viewModel)
         case .mode:
             OnboardingModeStep(viewModel: viewModel)
         case .apiKey:
@@ -197,8 +195,6 @@ struct OnboardingView: View {
 
     private var titleBadgeText: String {
         switch viewModel.onboardingStep {
-        case .welcome:
-            return "Native onboarding shell"
         case .mode:
             return "Same flow, clearer layout"
         case .apiKey:
@@ -208,7 +204,7 @@ struct OnboardingView: View {
         case .permissions:
             return "Permission gate"
         case .shortcut:
-            return "Shortcut test"
+            return "Shortcut setup"
         case .firstSuccess:
             return "First success check"
         case .done:
@@ -218,8 +214,6 @@ struct OnboardingView: View {
 
     private var titleText: String {
         switch viewModel.onboardingStep {
-        case .welcome:
-            return "As natural as native dictation, but smarter"
         case .mode:
             return "Choose how you start"
         case .apiKey:
@@ -239,8 +233,6 @@ struct OnboardingView: View {
 
     private var subtitleText: String {
         switch viewModel.onboardingStep {
-        case .welcome:
-            return "Preserve your original sentences, only apply necessary smart enhancements."
         case .mode:
             return "Choose your access method first. Permissions, shortcuts, and initial setup will follow automatically."
         case .apiKey:
@@ -250,7 +242,7 @@ struct OnboardingView: View {
         case .permissions:
             return "Grant microphone and input control permissions so Stet can record and type text back into your apps."
         case .shortcut:
-            return "We recommend a shortcut you can easily hold with one hand without accidental triggers."
+            return "Choose the shortcut you want to use for dictation."
         case .firstSuccess:
             return "Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup."
         case .done:
@@ -285,11 +277,7 @@ private func makeOnboardingPreview(
 }
 
 #Preview("Interactive Flow") {
-    makeOnboardingPreview(step: .welcome)
-}
-
-#Preview("Welcome") {
-    makeOnboardingPreview(step: .welcome)
+    makeOnboardingPreview(step: .mode)
 }
 
 #Preview("Mode") {
