@@ -9,24 +9,22 @@ struct MacMenuBarView: View {
 
     var body: some View {
         Group {
-            Menu("Select Microphone") {
-                AudioInputDeviceMenuSection()
-            }
-
-            Divider()
-
             Button("Settings…") {
                 settingsShellViewModel.openSettings {
                     openWindow(id: MacWindowSceneID.preferences)
                 }
             }
 
+            Divider()
+
+            Menu("Select Microphone") {
+                AudioInputDeviceMenuSection()
+            }
+
             Button(appUpdateMenuTitle) {
                 appUpdateManager.checkForUpdates()
             }
             .disabled(appUpdateManager.isChecking || !appUpdateManager.canCheckForUpdates)
-
-            Divider()
 
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
