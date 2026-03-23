@@ -1,78 +1,78 @@
 # Stet
 
-Stet is a small monorepo that keeps the macOS app, website, and managed relay backend in one place.
+Stet is a macOS menu bar dictation app that turns speech into usable text with minimal rewriting.
 
-## Layout
+## About
 
-- `apps/mac`: macOS SwiftUI app and tests
-- `apps/web`: SvelteKit marketing site
-- `apps/backend`: Supabase relay backend
-- `scripts`: shared repo scripts
+Stet records speech, transcribes it, and can paste the result back into the current app or replace selected text. The app stays in the menu bar, starts from a global hotkey, and aims to keep the transcript close to the speaker's intent.
 
-## Root Commands
+## Features
 
-From the repo root:
+- Menu bar only, with no Dock presence
+- Global hotkey to start and stop dictation
+- Microphone testing and input device selection
+- OpenAI and Groq transcription providers
+- `Automatic`, `Stet account`, and `Your own key` execution modes
+- Chinese, English, and mixed Chinese-English dictation preferences
+- Personal dictionary support
+- Sparkle-based automatic updates
+
+## Requirements
+
+- macOS 26.0 or later
+- Xcode 26 or a compatible version
+- Microphone permission
+- Accessibility / input control permission so Stet can write text into other apps
+
+## Getting Started
+
+Open `apps/mac/Stet.xcodeproj` in Xcode, let Swift Package dependencies resolve, then run the `Stet` scheme.
+
+Or build from the repository root:
 
 ```bash
 npm run mac:build
-npm run mac:release
-npm run web:install
-npm run web:dev
-npm run web:check
-npm run web:build
-npm run backend:start
-npm run backend:db:reset
-npm run backend:serve
 ```
 
-## Direct Commands
-
-Build the macOS app directly:
+Or call `xcodebuild` directly:
 
 ```bash
 xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' build
 ```
 
-Build the release app bundle into `dist/`:
+## Configuration
+
+On first launch, Stet guides you through permissions, dictation setup, and either a Stet account or your own API key. Settings also cover audio input, language preference, appearance, updates, and the personal dictionary.
+
+## Testing
+
+Run the macOS test suite:
+
+```bash
+xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -destination 'platform=macOS' test
+```
+
+## Release
+
+Build a local Release app bundle:
 
 ```bash
 ./scripts/build-macos-release.sh
 ```
 
-Build a notarized GitHub distribution DMG and optional Sparkle appcast:
+Build the signed and notarized GitHub release artifacts:
 
 ```bash
-cp .env.release.example .env.release
-npm run mac:notary:setup
-npm run mac:release:github
-npm run mac:publish:github
+./scripts/release-macos-github.sh
+./scripts/publish-github-release.sh
 ```
 
-The GitHub release pipeline expects:
+Release artifacts are written to `dist/github-release/<tag>/`.
 
-- A local `Developer ID Application` certificate installed in Xcode/Keychain
-- A `notarytool` Keychain profile, referenced by `NOTARY_PROFILE`
-- `GITHUB_REPOSITORY` and `GITHUB_TAG` in `.env.release`
-- Optional Sparkle signing input via `SPARKLE_PRIVATE_KEY_PATH` or `SPARKLE_KEYCHAIN_ACCOUNT`
+## Documentation
 
-Artifacts are written to `dist/github-release/<tag>/`.
+- Chinese version: [docs/README.zh-CN.md](docs/README.zh-CN.md)
 
-The publish step uses GitHub CLI to create or update the release for `GITHUB_TAG`
-and uploads the notarized DMG plus `appcast.xml` when it exists.
+## License
 
-Run the site locally:
-
-```bash
-cd apps/web
-npm install
-npm run dev
-```
-
-Run the Supabase relay locally:
-
-```bash
-cd apps/backend
-cp .env.example .env.local
-npx supabase start --workdir .
-npx supabase functions serve relay --workdir . --env-file .env.local
-```
+Apache-2.0
