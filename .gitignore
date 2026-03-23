@@ -10,6 +10,7 @@ xcuserdata/
 
 # Local environment and secrets
 .env
+.env.release
 .env.local
 .env.*.local
 .env.keys

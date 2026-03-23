@@ -4,6 +4,9 @@
   "scripts": {
     "mac:build": "xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' build",
     "mac:release": "./scripts/build-macos-release.sh",
+    "mac:release:github": "./scripts/release-macos-github.sh",
+    "mac:publish:github": "./scripts/publish-github-release.sh",
+    "mac:notary:setup": "./scripts/setup-notarytool-profile.sh",
     "web:install": "npm --prefix apps/web install",
     "web:dev": "npm --prefix apps/web run dev",
     "web:check": "npm --prefix apps/web run check",
