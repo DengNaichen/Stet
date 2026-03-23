@@ -4,7 +4,9 @@ import Foundation
 @testable import Stet
 
 enum TestSupport {
-    static func makeUserDefaults(suiteName: String = "StetTests.\(UUID().uuidString)") -> UserDefaults {
+    static func makeUserDefaults(suiteName: String = "StetTests.\(UUID().uuidString)")
+        -> UserDefaults
+    {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         return defaults
@@ -121,10 +123,18 @@ final class TestSecretStore: DictationSecretStore, @unchecked Sendable {
 
 @MainActor
 final class TestClipboardService: ClipboardService {
-    var copiedTexts: [String] = []
+    private(set) var copyOperations: [(text: String, transient: Bool)] = []
 
-    func copy(_ text: String) {
-        copiedTexts.append(text)
+    var copiedTexts: [String] {
+        copyOperations.map(\.text)
+    }
+
+    var transientFlags: [Bool] {
+        copyOperations.map(\.transient)
+    }
+
+    func copy(_ text: String, transient: Bool) {
+        copyOperations.append((text, transient))
     }
 }
 
@@ -352,7 +362,8 @@ final class URLProtocolStub: URLProtocol {
     static let sessionIdentifierHeader = "X-Stet-Test-Session-ID"
 
     private static let lock = NSLock()
-    private static var handlers: [String: @Sendable (URLRequest) throws -> (HTTPURLResponse, Data)] = [:]
+    private static var handlers:
+        [String: @Sendable (URLRequest) throws -> (HTTPURLResponse, Data)] = [:]
 
     static func configure(
         sessionID: String,

@@ -28,7 +28,7 @@ final class PasteboardRestoreCoordinator {
     func scheduleRestoreIfNeeded(on pasteboard: NSPasteboard) {
         guard let snapshot = pendingOriginalSnapshot else { return }
 
-        let expectedChangeCount = pasteboard.changeCount
+        let temporarySnapshot = PasteboardSnapshot.capture(from: pasteboard)
         pendingRestoreTask?.cancel()
         pendingRestoreTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -41,7 +41,7 @@ final class PasteboardRestoreCoordinator {
                 pendingOriginalSnapshot = nil
             }
 
-            guard pasteboard.changeCount == expectedChangeCount else {
+            guard temporarySnapshot.matches(pasteboard) else {
                 return
             }
 
@@ -82,6 +82,10 @@ struct PasteboardSnapshot {
         }
 
         return Self(items: items)
+    }
+
+    func matches(_ pasteboard: NSPasteboard) -> Bool {
+        Self.capture(from: pasteboard).items == items
     }
 
     func restore(to pasteboard: NSPasteboard) {

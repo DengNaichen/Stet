@@ -29,7 +29,8 @@ final class MacDictationCaptureCoordinator {
         self.clipboardService = clipboardService
         self.textInjectionService = textInjectionService
         self.pasteboard = pasteboard
-        self.pasteboardRestoreCoordinator = pasteboardRestoreCoordinator ?? PasteboardRestoreCoordinator()
+        self.pasteboardRestoreCoordinator =
+            pasteboardRestoreCoordinator ?? PasteboardRestoreCoordinator()
     }
 
     func handleCompletedCapture(
@@ -38,7 +39,8 @@ final class MacDictationCaptureCoordinator {
         settings: CaptureSettings,
         showPanel: @escaping @MainActor () -> Void
     ) async -> CompletionOutcome {
-        let shouldRestoreClipboardAfterSuccessfulPaste = settings.shouldAutoPaste && !settings.shouldCopyToClipboard
+        let shouldRestoreClipboardAfterSuccessfulPaste =
+            settings.shouldAutoPaste && !settings.shouldCopyToClipboard
 
         if shouldRestoreClipboardAfterSuccessfulPaste {
             pasteboardRestoreCoordinator.prepareForTemporaryOverride(on: pasteboard)
@@ -47,7 +49,10 @@ final class MacDictationCaptureCoordinator {
         }
 
         if settings.shouldCopyToClipboard || settings.shouldAutoPaste {
-            clipboardService.copy(text)
+            clipboardService.copy(
+                text,
+                transient: settings.shouldAutoPaste && !settings.shouldCopyToClipboard
+            )
         }
 
         if settings.shouldAutoPaste {
@@ -63,7 +68,8 @@ final class MacDictationCaptureCoordinator {
                 if shouldRestoreClipboardAfterSuccessfulPaste {
                     pasteboardRestoreCoordinator.restoreImmediatelyIfNeeded(on: pasteboard)
                 }
-                await DictationLatencyProbe.shared.record(.systemWriteFailed, note: "paste_failed")
+                await DictationLatencyProbe.shared.record(
+                    .systemWriteFailed, note: "paste_failed")
             }
 
             if !didPaste && !textInjectionService.isAvailable {
@@ -76,10 +82,12 @@ final class MacDictationCaptureCoordinator {
 
             return settings.shouldCopyToClipboard ? .completed : .clipboardPending
         } else if settings.shouldRevealPanelOnCapture {
-            await DictationLatencyProbe.shared.record(.systemWriteSkipped, note: "auto_paste_disabled")
+            await DictationLatencyProbe.shared.record(
+                .systemWriteSkipped, note: "auto_paste_disabled")
             showPanel()
         } else {
-            await DictationLatencyProbe.shared.record(.systemWriteSkipped, note: "auto_paste_disabled")
+            await DictationLatencyProbe.shared.record(
+                .systemWriteSkipped, note: "auto_paste_disabled")
         }
 
         return settings.shouldCopyToClipboard ? .completed : .clipboardPending
@@ -87,7 +95,7 @@ final class MacDictationCaptureCoordinator {
 
     func copyToClipboard(_ text: String) {
         pasteboardRestoreCoordinator.discardPendingRestore()
-        clipboardService.copy(text)
+        clipboardService.copy(text, transient: false)
     }
 }
 #endif
