@@ -1,5 +1,7 @@
 # Stet
 
+[English](../README.md) | 中文
+
 Stet 是一款 macOS 菜单栏语音听写应用。
 
 ## 简介

@@ -1,5 +1,7 @@
 # Stet
 
+English | [中文](docs/README.zh-CN.md)
+
 Stet is a macOS menu bar dictation app that turns speech into usable text with minimal rewriting.
 
 ## About
