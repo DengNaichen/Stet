@@ -2,13 +2,6 @@
 import SwiftUI
 internal import Auth
 
-private enum MacSettingsSidebarGroup: String, CaseIterable, Identifiable {
-    case workspace = "Workspace"
-    case automation = "Automation"
-
-    var id: String { rawValue }
-}
-
 private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
     case general
     case audio
@@ -18,15 +11,6 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
     case dictionary
 
     var id: String { rawValue }
-
-    var group: MacSettingsSidebarGroup {
-        switch self {
-        case .general, .audio, .appearance, .openAI, .dictionary:
-            return .workspace
-        case .hotkey:
-            return .automation
-        }
-    }
 
     var title: String {
         switch self {
@@ -168,17 +152,9 @@ struct MacSettingsView: View {
                     .listRowBackground(Color.clear)
                     .tag(Optional<MacSettingsTab>.none)
                 } else {
-                    ForEach(MacSettingsSidebarGroup.allCases) { group in
-                        let tabs = filteredTabs(in: group)
-
-                        if !tabs.isEmpty {
-                            Section(group.rawValue) {
-                                ForEach(tabs) { tab in
-                                    NavigationLink(value: tab) {
-                                        sidebarRow(for: tab)
-                                    }
-                                }
-                            }
+                    ForEach(filteredTabs) { tab in
+                        NavigationLink(value: tab) {
+                            sidebarRow(for: tab)
                         }
                     }
                 }
@@ -287,10 +263,6 @@ struct MacSettingsView: View {
 
     private var filteredTabs: [MacSettingsTab] {
         MacSettingsTab.allCases.filter { $0.matches(searchText: searchText) }
-    }
-
-    private func filteredTabs(in group: MacSettingsSidebarGroup) -> [MacSettingsTab] {
-        filteredTabs.filter { $0.group == group }
     }
 
     private func reloadStateFromPreferences() {
