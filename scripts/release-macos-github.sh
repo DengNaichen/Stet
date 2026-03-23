@@ -43,6 +43,7 @@ fi
 WORK_DIR="$DIST_DIR/$GITHUB_TAG"
 ARCHIVE_PATH="$WORK_DIR/${APP_NAME}.xcarchive"
 APP_PATH="$WORK_DIR/${APP_NAME}.app"
+DMG_OUTPUT_DIR="$WORK_DIR/dmg"
 NOTARY_SUBMISSION_PLIST="$WORK_DIR/notary-submission.plist"
 NOTARY_LOG_JSON="$WORK_DIR/notary-log.json"
 SPARKLE_DIR="$WORK_DIR/sparkle"
@@ -50,7 +51,7 @@ SPARKLE_GENERATE_APPCAST="$ROOT_DIR/.build/SourcePackages/artifacts/sparkle/Spar
 APP_ENTITLEMENTS="$WORK_DIR/${APP_NAME}.entitlements.plist"
 
 mkdir -p "$WORK_DIR"
-rm -rf "$ARCHIVE_PATH" "$APP_PATH" "$SPARKLE_DIR" "$APP_ENTITLEMENTS"
+rm -rf "$ARCHIVE_PATH" "$APP_PATH" "$DMG_OUTPUT_DIR" "$SPARKLE_DIR" "$APP_ENTITLEMENTS"
 
 if ! security find-identity -v -p codesigning | grep -Fq "$DEVELOPER_ID_APPLICATION"; then
   echo "Missing signing identity: $DEVELOPER_ID_APPLICATION"
@@ -125,18 +126,30 @@ BUILD="$(
   /usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleVersion' "$ARCHIVE_PATH/Info.plist"
 )"
 RELEASE_BASENAME="${APP_NAME}-${VERSION}-${BUILD}-mac"
-PRE_NOTARY_ZIP="$WORK_DIR/${RELEASE_BASENAME}-pre-notary.zip"
-FINAL_ZIP="$WORK_DIR/${RELEASE_BASENAME}.zip"
 
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
-echo "Creating notarization archive..."
-rm -f "$PRE_NOTARY_ZIP" "$FINAL_ZIP"
-ditto -c -k --keepParent "$APP_PATH" "$PRE_NOTARY_ZIP"
+echo "Creating release DMG..."
+rm -rf "$DMG_OUTPUT_DIR"
+mkdir -p "$DMG_OUTPUT_DIR"
+npx --yes create-dmg \
+  --overwrite \
+  --identity "$DEVELOPER_ID_APPLICATION" \
+  --dmg-title "$APP_NAME" \
+  "$APP_PATH" \
+  "$DMG_OUTPUT_DIR"
 
-echo "Submitting archive for notarization..."
+dmg_matches=("$DMG_OUTPUT_DIR"/*.dmg(N))
+if (( ${#dmg_matches[@]} != 1 )); then
+  echo "Expected exactly one DMG in $DMG_OUTPUT_DIR, found ${#dmg_matches[@]}"
+  exit 1
+fi
+
+FINAL_DMG="${dmg_matches[1]}"
+
+echo "Submitting DMG for notarization..."
 xcrun notarytool submit \
-  "$PRE_NOTARY_ZIP" \
+  "$FINAL_DMG" \
   --keychain-profile "$NOTARY_PROFILE" \
   --wait \
   --output-format plist \
@@ -157,12 +170,9 @@ if [[ "$NOTARY_STATUS" != "Accepted" ]]; then
 fi
 
 echo "Stapling notarization ticket..."
-xcrun stapler staple -v "$APP_PATH"
-xcrun stapler validate -v "$APP_PATH"
-spctl -a -vv --type exec "$APP_PATH"
-
-echo "Creating final release zip..."
-ditto -c -k --keepParent "$APP_PATH" "$FINAL_ZIP"
+xcrun stapler staple -v "$FINAL_DMG"
+xcrun stapler validate -v "$FINAL_DMG"
+spctl -a -vv --type open "$FINAL_DMG"
 
 if [[ "$GENERATE_SPARKLE_APPCAST" == "1" ]]; then
   if [[ ! -x "$SPARKLE_GENERATE_APPCAST" ]]; then
@@ -176,7 +186,7 @@ if [[ "$GENERATE_SPARKLE_APPCAST" == "1" ]]; then
   fi
 
   mkdir -p "$SPARKLE_DIR"
-  cp "$FINAL_ZIP" "$SPARKLE_DIR/"
+  cp "$FINAL_DMG" "$SPARKLE_DIR/"
 
   if [[ -n "${RELEASE_NOTES_PATH:-}" ]]; then
     RELEASE_NOTES_EXTENSION="${RELEASE_NOTES_PATH##*.}"
@@ -207,7 +217,7 @@ echo
 echo "Release artifacts:"
 echo "  Archive:    $ARCHIVE_PATH"
 echo "  App:        $APP_PATH"
-echo "  Zip:        $FINAL_ZIP"
+echo "  DMG:        $FINAL_DMG"
 if [[ "$GENERATE_SPARKLE_APPCAST" == "1" ]]; then
   echo "  Appcast:    $SPARKLE_DIR/appcast.xml"
 fi
