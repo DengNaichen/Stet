@@ -21,11 +21,8 @@
 
                     separator
 
-                    OnboardingVisualPanel(step: viewModel.onboardingStep, viewModel: viewModel)
+                    rightPanel
                         .frame(width: 400, height: 680)
-                        .padding(.vertical, 0)
-                        .padding(.trailing, 0)
-                        .padding(.leading, 0)
                         .background(Color(nsColor: .controlBackgroundColor).opacity(0.08))
                 }
                 .frame(width: 900, height: 680)
@@ -99,7 +96,7 @@
 
                     Spacer(minLength: 0)
 
-                    Text("Step \(viewModel.onboardingStep.progressIndex) of 6")
+                    Text("Step \(viewModel.onboardingStep.progressIndex) of 5")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
@@ -152,7 +149,7 @@
 
         private var progressStrip: some View {
             HStack(spacing: 8) {
-                ForEach(1...6, id: \.self) { index in
+                ForEach(1...5, id: \.self) { index in
                     Capsule(style: .continuous)
                         .fill(
                             index <= viewModel.onboardingStep.progressIndex
@@ -166,10 +163,8 @@
         @ViewBuilder
         private var stepContent: some View {
             switch viewModel.onboardingStep {
-            case .mode:
+            case .mode, .apiKey:
                 OnboardingModeStep(viewModel: viewModel)
-            case .apiKey:
-                OnboardingAPIKeyStep(viewModel: viewModel)
             case .login:
                 OnboardingLoginStep(viewModel: viewModel)
             case .permissions:
@@ -183,12 +178,21 @@
             }
         }
 
+        @ViewBuilder
+        private var rightPanel: some View {
+            if viewModel.onboardingStep == .apiKey {
+                OnboardingAPIKeyStep(viewModel: viewModel)
+                    .padding(40)
+            } else {
+                OnboardingVisualPanel(step: viewModel.onboardingStep, viewModel: viewModel)
+                    .padding(.vertical, 0)
+                    .padding(.trailing, 0)
+                    .padding(.leading, 0)
+            }
+        }
+
         private var footer: some View {
             HStack(spacing: 12) {
-                Button("Quit Stet") {
-                    NSApplication.shared.terminate(nil)
-                }
-
                 Spacer()
 
                 Text(titleBadgeText)
@@ -199,10 +203,8 @@
 
         private var titleBadgeText: String {
             switch viewModel.onboardingStep {
-            case .mode:
+            case .mode, .apiKey:
                 return "Same flow, clearer layout"
-            case .apiKey:
-                return "Provider setup"
             case .login:
                 return "Managed sign-in"
             case .permissions:
@@ -218,10 +220,8 @@
 
         private var titleText: String {
             switch viewModel.onboardingStep {
-            case .mode:
+            case .mode, .apiKey:
                 return "Choose how you start"
-            case .apiKey:
-                return "Enter and verify your API Key"
             case .login:
                 return "Login to continue"
             case .permissions:
@@ -238,21 +238,17 @@
         private var subtitleText: String {
             switch viewModel.onboardingStep {
             case .mode:
-                return
-                    "Choose your access method first. Permissions, shortcuts, and initial setup will follow automatically."
+                return "Choose your access method first. Permissions, shortcuts, and initial setup will follow automatically."
             case .apiKey:
-                return
-                    "We only use this Key to make requests on your behalf. It will not be used for training."
+                return "Select a provider and enter your API Key to proceed."
             case .login:
                 return "Login is only used to enable managed services and sync settings."
             case .permissions:
-                return
-                    "Grant microphone and input control permissions so Stet can record and type text back into your apps."
+                return "Grant microphone and input control permissions so Stet can record and type text back into your apps."
             case .shortcut:
                 return "Choose the shortcut you want to use for dictation."
             case .firstSuccess:
-                return
-                    "Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup."
+                return "Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup."
             case .done:
                 return "Hold your shortcut and start speaking anywhere you can type text."
             }

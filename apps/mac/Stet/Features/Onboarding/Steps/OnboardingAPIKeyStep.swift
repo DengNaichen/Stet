@@ -31,21 +31,13 @@ struct OnboardingAPIKeyStep: View {
 
             Spacer()
 
-            HStack {
-                Button("Back") {
-                    viewModel.retreatOnboarding()
-                }
-
-                Spacer()
-
-                OnboardingActionButton(
-                    title: viewModel.apiKeyPrimaryButtonTitle,
-                    isEnabled: !viewModel.isValidatingAPIKey,
-                    minHeight: 48
-                ) {
-                    Task {
-                        await viewModel.completeAPIKeyFlow()
-                    }
+            OnboardingActionButton(
+                title: viewModel.apiKeyPrimaryButtonTitle,
+                isEnabled: !viewModel.isValidatingAPIKey,
+                minHeight: 48
+            ) {
+                Task {
+                    await viewModel.completeAPIKeyFlow()
                 }
             }
         }
