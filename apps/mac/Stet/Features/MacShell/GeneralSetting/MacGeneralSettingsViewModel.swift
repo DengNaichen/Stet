@@ -32,12 +32,6 @@ final class MacGeneralSettingsViewModel: ObservableObject {
         var launchAtLoginIsEnabled: @MainActor () -> Bool = {
             MacAppBehaviorController.launchAtLoginIsEnabled()
         }
-        var exportConfiguration: @MainActor (DictationSettingsStore) throws -> Void = {
-            try MacConfigurationTransferManager.exportConfiguration(using: $0)
-        }
-        var importConfiguration: @MainActor (DictationSettingsStore) throws -> Void = {
-            try MacConfigurationTransferManager.importConfiguration(using: $0)
-        }
     }
 
     @Published var pauseMediaDuringDictation = false {
@@ -50,18 +44,6 @@ final class MacGeneralSettingsViewModel: ObservableObject {
         didSet {
             guard hasLoadedPreferences else { return }
             defaults.set(interactionSoundsEnabled, forKey: MacPreferences.interactionSoundsEnabled)
-        }
-    }
-    @Published var hotkeyDebugLoggingEnabled = false {
-        didSet {
-            guard hasLoadedPreferences else { return }
-            defaults.set(hotkeyDebugLoggingEnabled, forKey: MacPreferences.hotkeyDebugLoggingEnabled)
-        }
-    }
-    @Published var openAIDebugLoggingEnabled = false {
-        didSet {
-            guard hasLoadedPreferences else { return }
-            defaults.set(openAIDebugLoggingEnabled, forKey: MacPreferences.openAIDebugLoggingEnabled)
         }
     }
     @Published var shaderTheme = MacDictationVisualTheme.defaultTheme {
@@ -79,7 +61,6 @@ final class MacGeneralSettingsViewModel: ObservableObject {
     @Published private(set) var updateSettings = UpdateSettingsState()
     @Published private(set) var feedback: Feedback?
 
-    private let settingsStore: DictationSettingsStore
     private let defaults: UserDefaults
     private let dependencies: Dependencies
     private var cancellables = Set<AnyCancellable>()
@@ -93,11 +74,9 @@ final class MacGeneralSettingsViewModel: ObservableObject {
     private var suppressShowInDockChange = false
 
     init(
-        settingsStore: DictationSettingsStore = DictationSettingsStore(),
         defaults: UserDefaults = .standard,
         dependencies: Dependencies? = nil
     ) {
-        self.settingsStore = settingsStore
         self.defaults = defaults
         self.dependencies = dependencies ?? Dependencies()
     }
@@ -124,8 +103,6 @@ final class MacGeneralSettingsViewModel: ObservableObject {
         hasLoadedPreferences = false
         pauseMediaDuringDictation = defaults.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
         interactionSoundsEnabled = defaults.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
-        hotkeyDebugLoggingEnabled = defaults.object(forKey: MacPreferences.hotkeyDebugLoggingEnabled) as? Bool ?? false
-        openAIDebugLoggingEnabled = defaults.object(forKey: MacPreferences.openAIDebugLoggingEnabled) as? Bool ?? false
         shaderTheme = loadShaderTheme()
         hasLoadedPreferences = true
 
@@ -140,36 +117,6 @@ final class MacGeneralSettingsViewModel: ObservableObject {
         currentState()
     }
 
-    func exportConfiguration() {
-        do {
-            try dependencies.exportConfiguration(settingsStore)
-            setFeedback("Configuration exported.")
-        } catch {
-            setFeedback(error.localizedDescription, isError: true)
-        }
-    }
-
-    func importConfiguration() {
-        guard let appModel else {
-            setFeedback("General settings context is unavailable.", isError: true)
-            return
-        }
-
-        let previousLaunchAtLogin = managedSettings.launchAtLogin
-        let previousShowInDock = managedSettings.showInDock
-        let restoredSettings = importConfiguration(appModel: appModel)
-
-        if restoredSettings.launchAtLogin != previousLaunchAtLogin {
-            suppressLaunchAtLoginChange = true
-        }
-
-        if restoredSettings.showInDock != previousShowInDock {
-            suppressShowInDockChange = true
-        }
-
-        managedSettings = restoredSettings
-    }
-
     func setAutomaticallyChecksForUpdates(_ enabled: Bool) {
         appUpdateManager?.setAutomaticallyChecksForUpdates(enabled)
         syncUpdateSettingsFromManager()
@@ -178,32 +125,6 @@ final class MacGeneralSettingsViewModel: ObservableObject {
     func checkForUpdates() {
         appUpdateManager?.checkForUpdates()
         syncUpdateSettingsFromManager()
-    }
-
-    func importConfiguration(appModel: any MacGeneralSettingsAppModeling) -> ManagedSettingsState {
-        do {
-            try dependencies.importConfiguration(settingsStore)
-
-            let importedLaunchAtLogin = defaults.object(forKey: MacPreferences.launchAtLogin) as? Bool
-                ?? dependencies.launchAtLoginIsEnabled()
-
-            do {
-                try appModel.setLaunchAtLoginEnabled(importedLaunchAtLogin)
-            } catch {
-                let currentLaunchAtLoginPreference = dependencies.launchAtLoginIsEnabled()
-                defaults.set(currentLaunchAtLoginPreference, forKey: MacPreferences.launchAtLogin)
-                appModel.refreshRuntimeFromSettings()
-                setFeedback(error.localizedDescription, isError: true)
-                return currentState()
-            }
-
-            appModel.refreshRuntimeFromSettings()
-            setFeedback("Configuration imported. API keys are still managed separately in Keychain.")
-            return currentState()
-        } catch {
-            setFeedback(error.localizedDescription, isError: true)
-            return currentState()
-        }
     }
 
     func applyLaunchAtLoginChange(

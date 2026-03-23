@@ -10,14 +10,12 @@ struct MacGeneralSettingsView: View {
 
     var body: some View {
         Form {
-            configurationSection
             audioDeviceSection
             captureSection
             interactionSoundsSection
             appearanceSection
             appBehaviorSection
             updatesSection
-            debugLoggingSection
             feedbackSection
         }
         .formStyle(.grouped)
@@ -29,22 +27,6 @@ struct MacGeneralSettingsView: View {
         }
         .onAppear {
             deviceManager.refreshDevices()
-        }
-    }
-
-    private var configurationSection: some View {
-        Section {
-            HStack(spacing: 10) {
-                Button("Export Configuration") {
-                    viewModel.exportConfiguration()
-                }
-
-                Button("Import Configuration") {
-                    viewModel.importConfiguration()
-                }
-            }
-        } header: {
-            Text("Configuration")
         }
     }
 
@@ -122,15 +104,6 @@ struct MacGeneralSettingsView: View {
             .disabled(viewModel.updateSettings.isCheckingForUpdates || !viewModel.updateSettings.canCheckForUpdates)
         } header: {
             Text("Updates")
-        }
-    }
-
-    private var debugLoggingSection: some View {
-        Section {
-            Toggle("Hotkey debug logging", isOn: $viewModel.hotkeyDebugLoggingEnabled)
-            Toggle("OpenAI debug logging", isOn: $viewModel.openAIDebugLoggingEnabled)
-        } header: {
-            Text("Debug Logging")
         }
     }
 

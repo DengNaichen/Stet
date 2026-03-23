@@ -20,8 +20,6 @@ enum MacPreferences {
     nonisolated static let shaderTheme = "mac.shaderTheme"
     nonisolated static let launchAtLogin = "mac.launchAtLogin"
     nonisolated static let showInDock = "mac.showInDock"
-    nonisolated static let hotkeyDebugLoggingEnabled = "mac.hotkeyDebugLoggingEnabled"
-    nonisolated static let openAIDebugLoggingEnabled = "mac.openAIDebugLoggingEnabled"
     
     // Audio device selection
     nonisolated static let preferredAudioInputDeviceUID = "mac.preferredAudioInputDeviceUID"

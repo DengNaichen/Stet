@@ -36,8 +36,6 @@ struct MacAppBootstrapper {
         .string(MacPreferences.interactionSoundPreset, InteractionSoundPreset.defaultPreset.rawValue),
         .string(MacPreferences.shaderTheme, MacDictationVisualTheme.defaultTheme.rawValue),
         .bool(MacPreferences.showInDock, false),
-        .bool(MacPreferences.hotkeyDebugLoggingEnabled, false),
-        .bool(MacPreferences.openAIDebugLoggingEnabled, false),
     ]
 
     private let defaults: UserDefaults

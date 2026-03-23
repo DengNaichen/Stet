@@ -8,9 +8,7 @@ import Testing
 private final class TestMacGeneralSettingsAppModel: MacGeneralSettingsAppModeling {
     var launchAtLoginChanges: [Bool] = []
     var dockVisibilityChanges: [Bool] = []
-    var refreshRuntimeCallCount = 0
     var setLaunchAtLoginError: (any Error)?
-    var onSetLaunchAtLogin: ((Bool) -> Void)?
 
     func setLaunchAtLoginEnabled(_ enabled: Bool) throws {
         if let setLaunchAtLoginError {
@@ -18,11 +16,9 @@ private final class TestMacGeneralSettingsAppModel: MacGeneralSettingsAppModelin
         }
 
         launchAtLoginChanges.append(enabled)
-        onSetLaunchAtLogin?(enabled)
     }
 
     func refreshRuntimeFromSettings() {
-        refreshRuntimeCallCount += 1
     }
 
     func applyDockVisibility(showInDock: Bool) {
@@ -35,20 +31,12 @@ private final class TestMacGeneralSettingsAppModel: MacGeneralSettingsAppModelin
 struct MacGeneralSettingsViewModelTests {
     private func makeViewModel(
         defaults: UserDefaults,
-        launchAtLoginIsEnabled: @escaping @MainActor () -> Bool = { false },
-        exportConfiguration: @escaping @MainActor (DictationSettingsStore) throws -> Void = { _ in },
-        importConfiguration: @escaping @MainActor (DictationSettingsStore) throws -> Void = { _ in }
+        launchAtLoginIsEnabled: @escaping @MainActor () -> Bool = { false }
     ) -> MacGeneralSettingsViewModel {
         MacGeneralSettingsViewModel(
-            settingsStore: DictationSettingsStore(
-                defaults: defaults,
-                secretStore: TestSecretStore()
-            ),
             defaults: defaults,
             dependencies: .init(
-                launchAtLoginIsEnabled: launchAtLoginIsEnabled,
-                exportConfiguration: exportConfiguration,
-                importConfiguration: importConfiguration
+                launchAtLoginIsEnabled: launchAtLoginIsEnabled
             )
         )
     }
@@ -78,55 +66,6 @@ struct MacGeneralSettingsViewModelTests {
         viewModel.shaderTheme = .forest
 
         #expect(defaults.string(forKey: MacPreferences.shaderTheme) == MacDictationVisualTheme.forest.rawValue)
-    }
-
-    @Test func importConfigurationRefreshesRuntimeAndReturnsImportedState() {
-        let defaults = TestSupport.makeUserDefaults()
-        var runtimeLaunchAtLogin = false
-        let appModel = TestMacGeneralSettingsAppModel()
-        appModel.onSetLaunchAtLogin = { runtimeLaunchAtLogin = $0 }
-        let viewModel = makeViewModel(
-            defaults: defaults,
-            launchAtLoginIsEnabled: { runtimeLaunchAtLogin },
-            importConfiguration: { _ in
-                defaults.set(true, forKey: MacPreferences.launchAtLogin)
-                defaults.set(true, forKey: MacPreferences.showInDock)
-            }
-        )
-
-        let state = viewModel.importConfiguration(appModel: appModel)
-
-        #expect(appModel.launchAtLoginChanges == [true])
-        #expect(appModel.refreshRuntimeCallCount == 1)
-        #expect(state.launchAtLogin)
-        #expect(state.showInDock)
-        #expect(
-            viewModel.feedback?.message
-                == "Configuration imported. API keys are still managed separately in Keychain."
-        )
-        #expect(viewModel.feedback?.isError == false)
-    }
-
-    @Test func importConfigurationRollsBackLaunchAtLoginWhenRuntimeUpdateFails() {
-        let defaults = TestSupport.makeUserDefaults()
-        var runtimeLaunchAtLogin = false
-        let appModel = TestMacGeneralSettingsAppModel()
-        appModel.setLaunchAtLoginError = TestError.expected
-        let viewModel = makeViewModel(
-            defaults: defaults,
-            launchAtLoginIsEnabled: { runtimeLaunchAtLogin },
-            importConfiguration: { _ in
-                defaults.set(true, forKey: MacPreferences.launchAtLogin)
-            }
-        )
-
-        let state = viewModel.importConfiguration(appModel: appModel)
-
-        #expect(state.launchAtLogin == false)
-        #expect(defaults.object(forKey: MacPreferences.launchAtLogin) as? Bool == false)
-        #expect(appModel.refreshRuntimeCallCount == 1)
-        #expect(viewModel.feedback?.message == TestError.expected.localizedDescription)
-        #expect(viewModel.feedback?.isError == true)
     }
 
     @Test func applyLaunchAtLoginChangePersistsSuccessAndRollsBackFailure() {

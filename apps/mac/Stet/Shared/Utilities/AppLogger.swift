@@ -33,10 +33,8 @@ enum AppLoggerCategory {
         switch self {
         case .general:
             return nil
-        case .hotkey:
-            return MacPreferences.hotkeyDebugLoggingEnabled
-        case .openAI:
-            return MacPreferences.openAIDebugLoggingEnabled
+        case .hotkey, .openAI:
+            return nil
         case .appBranch, .permissions, .dictation:
             return nil
         case .perfTrace:
