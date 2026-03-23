@@ -6,14 +6,11 @@ struct MacGeneralSettingsView: View {
     @EnvironmentObject private var appUpdateManager: AppUpdateManager
 
     @StateObject private var viewModel = MacGeneralSettingsViewModel()
-    @ObservedObject private var deviceManager = AudioDeviceSelectionManager.shared
 
     var body: some View {
         Form {
-            audioDeviceSection
             captureSection
             interactionSoundsSection
-            appearanceSection
             appBehaviorSection
             updatesSection
             feedbackSection
@@ -25,13 +22,6 @@ struct MacGeneralSettingsView: View {
             viewModel.configure(appModel: settingsShellViewModel, appUpdateManager: appUpdateManager)
             viewModel.load()
         }
-        .onAppear {
-            deviceManager.refreshDevices()
-        }
-    }
-
-    private var audioDeviceSection: some View {
-        AudioInputDeviceSettingsSection(deviceManager: deviceManager)
     }
 
     private var captureSection: some View {
@@ -60,21 +50,6 @@ struct MacGeneralSettingsView: View {
             if viewModel.interactionSoundsEnabled {
                 Text("Stet uses the default sound pair for recording start and finish.")
             }
-        }
-    }
-
-    private var appearanceSection: some View {
-        Section {
-            Picker("Capsule Theme", selection: $viewModel.shaderTheme) {
-                ForEach(MacDictationVisualTheme.allCases) { theme in
-                    Text(theme.title).tag(theme)
-                }
-            }
-            .pickerStyle(.menu)
-        } header: {
-            Text("Appearance")
-        } footer: {
-            Text("Choose the color palette used by the dictation capsule.")
         }
     }
 

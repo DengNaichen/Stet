@@ -46,12 +46,6 @@ final class MacGeneralSettingsViewModel: ObservableObject {
             defaults.set(interactionSoundsEnabled, forKey: MacPreferences.interactionSoundsEnabled)
         }
     }
-    @Published var shaderTheme = MacDictationVisualTheme.defaultTheme {
-        didSet {
-            guard hasLoadedPreferences else { return }
-            defaults.set(shaderTheme.rawValue, forKey: MacPreferences.shaderTheme)
-        }
-    }
     @Published var managedSettings = ManagedSettingsState() {
         didSet {
             guard hasLoadedManagedSettings else { return }
@@ -103,7 +97,6 @@ final class MacGeneralSettingsViewModel: ObservableObject {
         hasLoadedPreferences = false
         pauseMediaDuringDictation = defaults.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
         interactionSoundsEnabled = defaults.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
-        shaderTheme = loadShaderTheme()
         hasLoadedPreferences = true
 
         hasLoadedManagedSettings = false
@@ -161,12 +154,6 @@ final class MacGeneralSettingsViewModel: ObservableObject {
         return ManagedSettingsState(
             launchAtLogin: currentLaunchAtLoginPreference,
             showInDock: currentShowInDockPreference
-        )
-    }
-
-    private func loadShaderTheme() -> MacDictationVisualTheme {
-        MacDictationVisualTheme.fromStoredValue(
-            defaults.string(forKey: MacPreferences.shaderTheme)
         )
     }
 

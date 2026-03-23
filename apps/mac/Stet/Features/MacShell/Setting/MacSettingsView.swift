@@ -11,6 +11,8 @@ private enum MacSettingsSidebarGroup: String, CaseIterable, Identifiable {
 
 private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
     case general
+    case audio
+    case appearance
     case hotkey
     case openAI
     case dictionary
@@ -19,7 +21,7 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
 
     var group: MacSettingsSidebarGroup {
         switch self {
-        case .general, .openAI, .dictionary:
+        case .general, .audio, .appearance, .openAI, .dictionary:
             return .workspace
         case .hotkey:
             return .automation
@@ -30,6 +32,10 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general:
             return "General"
+        case .audio:
+            return "Audio"
+        case .appearance:
+            return "Appearance"
         case .hotkey:
             return "Hotkey"
         case .openAI:
@@ -42,7 +48,11 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
     var subtitle: String {
         switch self {
         case .general:
-            return "Behavior, audio routing, updates, and shell preferences."
+            return "Behavior, updates, and shell preferences."
+        case .audio:
+            return "Microphone selection and recording test."
+        case .appearance:
+            return "Dictation capsule theme and color palette."
         case .hotkey:
             return "Global keyboard shortcuts for starting dictation."
         case .openAI:
@@ -56,6 +66,10 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general:
             return "slider.horizontal.3"
+        case .audio:
+            return "mic"
+        case .appearance:
+            return "paintbrush"
         case .hotkey:
             return "keyboard"
         case .openAI:
@@ -68,7 +82,11 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
     var searchTokens: [String] {
         switch self {
         case .general:
-            return ["configuration", "microphone", "updates", "dock", "launch at login", "sounds", "theme", "appearance", "colors", "shader"]
+            return ["updates", "dock", "launch at login", "sounds", "capture", "behavior"]
+        case .audio:
+            return ["microphone", "input device", "recording", "audio", "test"]
+        case .appearance:
+            return ["theme", "colors", "shader", "capsule", "visual"]
         case .hotkey:
             return ["shortcut", "keyboard", "recorder", "dictation"]
         case .openAI:
@@ -246,6 +264,10 @@ struct MacSettingsView: View {
         switch tab {
         case .general:
             MacGeneralSettingsView()
+        case .audio:
+            MacAudioSettingsView()
+        case .appearance:
+            MacAppearanceSettingsView()
         case .hotkey:
             MacHotkeySettingsView()
         case .openAI:

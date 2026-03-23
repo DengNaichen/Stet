@@ -54,20 +54,6 @@ struct MacGeneralSettingsViewModelTests {
         #expect(state.showInDock == false)
     }
 
-    @Test func shaderThemeLoadsAndPersistsPreference() {
-        let defaults = TestSupport.makeUserDefaults()
-        defaults.set(MacDictationVisualTheme.midnight.rawValue, forKey: MacPreferences.shaderTheme)
-        let viewModel = makeViewModel(defaults: defaults)
-
-        viewModel.load()
-
-        #expect(viewModel.shaderTheme == .midnight)
-
-        viewModel.shaderTheme = .forest
-
-        #expect(defaults.string(forKey: MacPreferences.shaderTheme) == MacDictationVisualTheme.forest.rawValue)
-    }
-
     @Test func applyLaunchAtLoginChangePersistsSuccessAndRollsBackFailure() {
         let defaults = TestSupport.makeUserDefaults()
         let successAppModel = TestMacGeneralSettingsAppModel()

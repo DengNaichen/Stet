@@ -3,16 +3,7 @@ import SwiftUI
 
 struct AudioInputDeviceSettingsSection: View {
     @ObservedObject var deviceManager: AudioDeviceSelectionManager
-    @StateObject private var microphoneTestViewModel: MicrophoneTestViewModel
-
-    init(deviceManager: AudioDeviceSelectionManager) {
-        self.deviceManager = deviceManager
-        self._microphoneTestViewModel = StateObject(
-            wrappedValue: MicrophoneTestViewModel(
-                microphoneTestService: DefaultMicrophoneTestService.shared
-            )
-        )
-    }
+    @ObservedObject var microphoneTestViewModel: MicrophoneTestViewModel
 
     var body: some View {
         Section("Audio Input Device") {
