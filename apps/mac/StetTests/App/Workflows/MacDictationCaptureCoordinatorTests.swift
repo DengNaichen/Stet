@@ -28,6 +28,7 @@ struct MacDictationCaptureCoordinatorTests {
 
         #expect(outcome == .completed)
         #expect(clipboard.copiedTexts == ["hello"])
+        #expect(clipboard.transientFlags == [false])
         #expect(textInjection.pasteTargets.isEmpty)
     }
 
@@ -54,6 +55,7 @@ struct MacDictationCaptureCoordinatorTests {
 
         #expect(outcome == .completed)
         #expect(clipboard.copiedTexts == ["hello"])
+        #expect(clipboard.transientFlags == [true])
         #expect(textInjection.pasteTargets.count == 1)
         #expect(revealCount == 0)
     }
@@ -81,11 +83,15 @@ struct MacDictationCaptureCoordinatorTests {
 
         #expect(outcome == .completed)
         #expect(clipboard.copiedTexts == ["hello"])
+        #expect(clipboard.transientFlags == [false])
         #expect(textInjection.pasteTargets.count == 1)
         #expect(revealCount == 0)
     }
 
-    @Test func completedCaptureAutoPasteFailureWhenCopyIsEnabledRevealsPanelAndReturnsCompleted() async {
+    @Test
+    func completedCaptureAutoPasteFailureWhenCopyIsEnabledRevealsPanelAndReturnsCompleted()
+        async
+    {
         let clipboard = TestClipboardService()
         let textInjection = TestTextInjectionService()
         textInjection.isAvailable = false
@@ -109,6 +115,7 @@ struct MacDictationCaptureCoordinatorTests {
 
         #expect(outcome == .completed)
         #expect(clipboard.copiedTexts == ["hello"])
+        #expect(clipboard.transientFlags == [false])
         #expect(textInjection.didRequestAccessIfNeeded)
         #expect(revealCount == 1)
     }
@@ -181,6 +188,7 @@ struct MacDictationCaptureCoordinatorTests {
         coordinator.copyToClipboard("snippet")
 
         #expect(clipboard.copiedTexts == ["snippet"])
+        #expect(clipboard.transientFlags == [false])
     }
 
     @Test func completedCaptureSkipsClipboardWhenCopyAndPasteAreDisabled() async {

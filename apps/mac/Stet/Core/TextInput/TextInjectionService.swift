@@ -70,7 +70,8 @@ final class SystemTextInjectionService: TextInjectionService {
     ) {
         self.clipboardService = clipboardService
         self.pasteboard = pasteboard
-        self.pasteboardRestoreCoordinator = pasteboardRestoreCoordinator ?? PasteboardRestoreCoordinator()
+        self.pasteboardRestoreCoordinator =
+            pasteboardRestoreCoordinator ?? PasteboardRestoreCoordinator()
     }
 
     var accessState: TextInjectionAccessState {
@@ -99,7 +100,12 @@ final class SystemTextInjectionService: TextInjectionService {
     }
 
     func openAccessibilitySettings() {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else {
+        guard
+            let url = URL(
+                string:
+                    "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+            )
+        else {
             return
         }
 
@@ -114,8 +120,9 @@ final class SystemTextInjectionService: TextInjectionService {
         let snapshotBeforePaste = focusedElementSnapshot()
 
         if let application,
-           !application.isTerminated,
-           application.bundleIdentifier != Bundle.main.bundleIdentifier {
+            !application.isTerminated,
+            application.bundleIdentifier != Bundle.main.bundleIdentifier
+        {
             _ = application.activate()
             try? await Task.sleep(for: .milliseconds(180))
         }
@@ -141,7 +148,8 @@ final class SystemTextInjectionService: TextInjectionService {
 
     func selectedText() -> String? {
         if let axSelected = selectedTextFromAXFocusedElement(),
-           !axSelected.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            !axSelected.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
             return axSelected
         }
 
@@ -161,7 +169,7 @@ final class SystemTextInjectionService: TextInjectionService {
             pasteboardRestoreCoordinator.prepareForTemporaryOverride(on: pasteboard)
         }
 
-        clipboardService.copy(text)
+        clipboardService.copy(text, transient: !keepResultInClipboard)
         let didPaste = await pasteClipboard(into: application)
 
         guard didPaste else {
@@ -191,8 +199,9 @@ final class SystemTextInjectionService: TextInjectionService {
             &focusedElementRef
         )
         guard focusedStatus == .success,
-              let focusedElementRef,
-              CFGetTypeID(focusedElementRef) == AXUIElementGetTypeID() else {
+            let focusedElementRef,
+            CFGetTypeID(focusedElementRef) == AXUIElementGetTypeID()
+        else {
             return nil
         }
 
@@ -204,7 +213,8 @@ final class SystemTextInjectionService: TextInjectionService {
             &selectedTextRef
         )
         guard selectedStatus == .success,
-              let selectedTextRef else {
+            let selectedTextRef
+        else {
             return nil
         }
 
@@ -212,7 +222,9 @@ final class SystemTextInjectionService: TextInjectionService {
             return selectedText
         }
 
-        if let selectedText = selectedTextRef as? NSAttributedString, !selectedText.string.isEmpty {
+        if let selectedText = selectedTextRef as? NSAttributedString,
+            !selectedText.string.isEmpty
+        {
             return selectedText.string
         }
 
@@ -246,8 +258,11 @@ final class SystemTextInjectionService: TextInjectionService {
 
     private func simulateCommandKey(_ keyCode: CGKeyCode) -> Bool {
         guard let source = CGEventSource(stateID: .combinedSessionState),
-              let keyDown = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
-              let keyUp = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false) else {
+            let keyDown = CGEvent(
+                keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
+            let keyUp = CGEvent(
+                keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
+        else {
             return false
         }
 
@@ -260,13 +275,15 @@ final class SystemTextInjectionService: TextInjectionService {
 
     private func focusedElementSnapshot() -> FocusedElementSnapshot? {
         guard accessState.hasAccessibilityAccess,
-              let focusedElement = focusedAXElement() else {
+            let focusedElement = focusedAXElement()
+        else {
             return nil
         }
 
         return FocusedElementSnapshot(
             value: stringAttribute(kAXValueAttribute as CFString, from: focusedElement),
-            selectedText: stringAttribute(kAXSelectedTextAttribute as CFString, from: focusedElement),
+            selectedText: stringAttribute(
+                kAXSelectedTextAttribute as CFString, from: focusedElement),
             selectionRange: selectedRange(from: focusedElement)
         )
     }
@@ -281,8 +298,9 @@ final class SystemTextInjectionService: TextInjectionService {
         )
 
         guard status == .success,
-              let focusedElementRef,
-              CFGetTypeID(focusedElementRef) == AXUIElementGetTypeID() else {
+            let focusedElementRef,
+            CFGetTypeID(focusedElementRef) == AXUIElementGetTypeID()
+        else {
             return nil
         }
 
@@ -294,7 +312,8 @@ final class SystemTextInjectionService: TextInjectionService {
         let status = AXUIElementCopyAttributeValue(element, attribute, &valueRef)
 
         guard status == .success,
-              let valueRef else {
+            let valueRef
+        else {
             return nil
         }
 
@@ -318,8 +337,9 @@ final class SystemTextInjectionService: TextInjectionService {
         )
 
         guard status == .success,
-              let rangeRef,
-              CFGetTypeID(rangeRef) == AXValueGetTypeID() else {
+            let rangeRef,
+            CFGetTypeID(rangeRef) == AXValueGetTypeID()
+        else {
             return nil
         }
 
@@ -348,9 +368,10 @@ final class SystemTextInjectionService: TextInjectionService {
         }
 
         if !state.hasAccessibilityAccess {
-            let options = [
-                kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true
-            ] as CFDictionary
+            let options =
+                [
+                    kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true
+                ] as CFDictionary
             _ = AXIsProcessTrustedWithOptions(options)
         }
     }
