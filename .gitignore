@@ -1,6 +1,7 @@
 # macOS / Xcode
 .DS_Store
 DerivedData/
+.derivedData/
 build/
 .build/
 dist/
