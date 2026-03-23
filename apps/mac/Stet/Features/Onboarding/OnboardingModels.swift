@@ -17,18 +17,16 @@ enum MacOnboardingStep: Int, CaseIterable, Sendable {
 
     var progressIndex: Int {
         switch self {
-        case .mode:
+        case .mode, .apiKey, .login:
             return 1
-        case .apiKey, .login:
-            return 2
         case .permissions:
-            return 3
+            return 2
         case .shortcut:
-            return 4
+            return 3
         case .firstSuccess:
-            return 5
+            return 4
         case .done:
-            return 6
+            return 5
         }
     }
 

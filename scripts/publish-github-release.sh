@@ -25,6 +25,7 @@ fi
 : "${GITHUB_TAG:?GITHUB_TAG is required.}"
 
 RELEASE_DIR="${RELEASE_DIR:-$DIST_ROOT/$GITHUB_TAG}"
+DMG_PATH="${DMG_PATH:-}"
 ZIP_PATH="${ZIP_PATH:-}"
 APPCAST_PATH="${APPCAST_PATH:-$RELEASE_DIR/sparkle/appcast.xml}"
 RELEASE_TITLE="${RELEASE_TITLE:-$GITHUB_TAG}"
@@ -36,26 +37,36 @@ GITHUB_RELEASE_DRAFT="${GITHUB_RELEASE_DRAFT:-false}"
 GITHUB_RELEASE_VERIFY_TAG="${GITHUB_RELEASE_VERIFY_TAG:-true}"
 GITHUB_RELEASE_TARGET="${GITHUB_RELEASE_TARGET:-$(git rev-parse HEAD)}"
 
-if [[ -z "$ZIP_PATH" ]]; then
-  zip_matches=("$RELEASE_DIR"/*.zip(N))
-  final_zip_matches=("${(@)zip_matches:#*-pre-notary.zip}")
-  if (( ${#final_zip_matches[@]} > 0 )); then
-    zip_matches=("${final_zip_matches[@]}")
-  fi
+if [[ -z "$DMG_PATH" && -z "$ZIP_PATH" ]]; then
+  dmg_matches=("$RELEASE_DIR"/*.dmg(N))
+  if (( ${#dmg_matches[@]} > 0 )); then
+    DMG_PATH="${dmg_matches[1]}"
+  else
+    zip_matches=("$RELEASE_DIR"/*.zip(N))
+    final_zip_matches=("${(@)zip_matches:#*-pre-notary.zip}")
+    if (( ${#final_zip_matches[@]} > 0 )); then
+      zip_matches=("${final_zip_matches[@]}")
+    fi
 
-  if (( ${#zip_matches[@]} == 0 )); then
-    echo "No zip asset found in $RELEASE_DIR"
-    exit 1
+    if (( ${#zip_matches[@]} == 0 )); then
+      echo "No dmg or zip asset found in $RELEASE_DIR"
+      exit 1
+    fi
+    ZIP_PATH="${zip_matches[1]}"
   fi
-  ZIP_PATH="${zip_matches[1]}"
 fi
 
-if [[ ! -f "$ZIP_PATH" ]]; then
-  echo "Zip asset not found: $ZIP_PATH"
+PACKAGE_PATH="$DMG_PATH"
+if [[ -z "$PACKAGE_PATH" ]]; then
+  PACKAGE_PATH="$ZIP_PATH"
+fi
+
+if [[ ! -f "$PACKAGE_PATH" ]]; then
+  echo "Package asset not found: $PACKAGE_PATH"
   exit 1
 fi
 
-assets=("$ZIP_PATH")
+assets=("$PACKAGE_PATH")
 if [[ -f "$APPCAST_PATH" ]]; then
   assets+=("$APPCAST_PATH")
 fi

@@ -19,6 +19,6 @@ struct HotkeyBinding: Hashable, Sendable {
 extension KeyboardShortcuts.Name {
     static let dictationHotkey = Self(
         "\(HotkeyPreference.dictation.id)Hotkey",
-        default: .init(.space, modifiers: [.control, .shift])
+        default: .init(.period, modifiers: [.command])
     )
 }

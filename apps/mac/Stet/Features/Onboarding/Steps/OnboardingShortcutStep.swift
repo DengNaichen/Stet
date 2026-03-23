@@ -15,8 +15,8 @@ struct OnboardingShortcutStep: View {
                 .padding(8)
             }
 
-            Text("Choose the shortcut you want to use for dictation. You can change it later in Settings.")
-                .font(.caption)
+            Text("We've set Command + . as your default shortcut. Try pressing it now to see it in action.")
+                .font(.body)
                 .foregroundStyle(.secondary)
 
             Spacer()

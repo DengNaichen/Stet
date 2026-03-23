@@ -39,7 +39,7 @@ Build the release app bundle into `dist/`:
 ./scripts/build-macos-release.sh
 ```
 
-Build a notarized GitHub distribution zip and optional Sparkle appcast:
+Build a notarized GitHub distribution DMG and optional Sparkle appcast:
 
 ```bash
 cp .env.release.example .env.release
@@ -58,7 +58,7 @@ The GitHub release pipeline expects:
 Artifacts are written to `dist/github-release/<tag>/`.
 
 The publish step uses GitHub CLI to create or update the release for `GITHUB_TAG`
-and uploads the notarized zip plus `appcast.xml` when it exists.
+and uploads the notarized DMG plus `appcast.xml` when it exists.
 
 Run the site locally:
 
