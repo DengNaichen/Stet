@@ -1,42 +1,37 @@
 #if os(macOS)
-import SwiftUI
+    import SwiftUI
 
-struct MacDictationPanelView: View {
-    @StateObject private var viewModel: MacDictationPanelViewModel
+    struct MacDictationPanelView: View {
+        @StateObject private var viewModel: MacDictationPanelViewModel
 
-    let layout: MacDictationPanelLayout
+        let layout: MacDictationPanelLayout
 
-    init(layout: MacDictationPanelLayout, appModel: any MacDictationPanelCoordinating) {
-        self.layout = layout
-        _viewModel = StateObject(wrappedValue: MacDictationPanelViewModel(appModel: appModel))
-    }
+        init(layout: MacDictationPanelLayout, appModel: any MacDictationPanelCoordinating) {
+            self.layout = layout
+            _viewModel = StateObject(wrappedValue: MacDictationPanelViewModel(appModel: appModel))
+        }
 
-    var body: some View {
-        let panelSize = layout.panelSize
+        var body: some View {
+            let panelSize = layout.panelSize
 
-        Group {
-            if case .clipboardPending(let text) = viewModel.state {
-                // Scenario B: Specialized Clipboard Display
-                MacDictationClipboardSurface(
-                    text: text,
-                    layout: layout,
-                    onFinish: viewModel.performPrimaryAction
-                )
-            } else {
-                // Scenario A: Standard Dictation Capsule
-                MacDictationCapsuleSurface(
-                    viewModel: viewModel,
-                    panelSize: panelSize
-                )
+            Group {
+                if case .clipboardPending(let text) = viewModel.state {
+                    // Scenario B: Specialized Clipboard Display
+                    MacDictationClipboardSurface(
+                        text: text,
+                        layout: layout,
+                        onFinish: viewModel.performPrimaryAction
+                    )
+                } else {
+                    // Scenario A: Standard Dictation Capsule
+                    MacDictationCapsuleSurface(
+                        viewModel: viewModel,
+                        panelSize: panelSize
+                    )
+                }
             }
-        }
-        .frame(width: panelSize.width, height: panelSize.height)
-        .overlay(alignment: .topLeading) {
-            MacAppBranchDebugBadge(appInfo: viewModel.detectedTargetApplication)
-                .padding(.top, 10)
-                .padding(.leading, 10)
-                .allowsHitTesting(false)
+            .frame(width: panelSize.width, height: panelSize.height)
+
         }
     }
-}
 #endif
