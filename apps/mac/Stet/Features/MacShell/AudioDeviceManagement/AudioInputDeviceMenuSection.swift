@@ -10,7 +10,7 @@ struct AudioInputDeviceMenuSection: View {
     }
 
     var body: some View {
-        Section("Audio Input Device") {
+        Group {
             Button {
                 deviceManager.selectBuiltInDefault()
             } label: {

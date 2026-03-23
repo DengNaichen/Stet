@@ -9,10 +9,12 @@ struct MacMenuBarView: View {
 
     var body: some View {
         Group {
-            AudioInputDeviceMenuSection()
-            
+            Menu("Select Microphone") {
+                AudioInputDeviceMenuSection()
+            }
+
             Divider()
-            
+
             Button("Settings…") {
                 settingsShellViewModel.openSettings {
                     openWindow(id: MacWindowSceneID.preferences)
