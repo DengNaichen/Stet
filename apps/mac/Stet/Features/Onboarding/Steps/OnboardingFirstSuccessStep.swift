@@ -33,16 +33,24 @@ struct OnboardingFirstSuccessStep: View {
                 Spacer()
 
                 if viewModel.canSkipFirstSuccessOnboarding && !viewModel.canContinueFirstSuccessOnboarding {
-                    Button("Skip for now and try later") {
+                    OnboardingActionButton(
+                        title: "Skip for now and try later",
+                        background: Color.white.opacity(0.10),
+                        foreground: .primary,
+                        strokeColor: Color.white.opacity(0.10),
+                        minHeight: 46
+                    ) {
                         viewModel.continueOnboarding()
                     }
                 }
 
-                Button("Continue") {
+                OnboardingActionButton(
+                    title: "Continue",
+                    isEnabled: viewModel.canContinueFirstSuccessOnboarding || viewModel.canSkipFirstSuccessOnboarding,
+                    minHeight: 48
+                ) {
                     viewModel.continueOnboarding()
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(!viewModel.canContinueFirstSuccessOnboarding && !viewModel.canSkipFirstSuccessOnboarding)
             }
         }
     }

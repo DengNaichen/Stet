@@ -122,7 +122,9 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         try await captureService.activateRecordingWindow()
     }
 
-    func stopRecording() async throws -> String {
+    func stopRecording(
+        onCaptureStopped: (@Sendable () async -> Void)? = nil
+    ) async throws -> String {
         guard let pipeline = activePipeline,
               let captureService = activeCaptureService else {
             throw SpeechServiceError.notRecording
@@ -135,6 +137,9 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         }
 
         let captureResult = try await captureService.stopRecording()
+        if let onCaptureStopped {
+            await onCaptureStopped()
+        }
         let processedCaptureResult = try await audioPostProcessor.processAudioFile(
             at: captureResult.url,
             duration: captureResult.duration

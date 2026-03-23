@@ -26,10 +26,9 @@ struct OnboardingDoneStep: View {
             HStack {
                 Spacer()
 
-                Button("Get Started") {
+                OnboardingActionButton(title: "Get Started", minHeight: 50) {
                     viewModel.finishOnboarding()
                 }
-                .buttonStyle(.borderedProminent)
             }
         }
     }

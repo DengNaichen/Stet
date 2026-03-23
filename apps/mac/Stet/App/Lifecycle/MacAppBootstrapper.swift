@@ -1,6 +1,5 @@
 #if os(macOS)
 import Foundation
-import StetVisuals
 
 struct MacAppBootstrapper {
     struct LaunchConfiguration: Equatable {
@@ -34,8 +33,8 @@ struct MacAppBootstrapper {
         .string(MacPreferences.aiExecutionMode, AIExecutionMode.automatic.rawValue),
         .bool(MacPreferences.rewriteEnabled, false),
         .bool(MacPreferences.interactionSoundsEnabled, true),
-        .string(MacPreferences.interactionSoundPreset, InteractionSoundPreset.soft.rawValue),
-        .string(MacPreferences.shaderTheme, MacDictationShaderTheme.defaultTheme.rawValue),
+        .string(MacPreferences.interactionSoundPreset, InteractionSoundPreset.defaultPreset.rawValue),
+        .string(MacPreferences.shaderTheme, MacDictationVisualTheme.defaultTheme.rawValue),
         .bool(MacPreferences.showInDock, false),
         .bool(MacPreferences.hotkeyDebugLoggingEnabled, false),
         .bool(MacPreferences.openAIDebugLoggingEnabled, false),
@@ -65,6 +64,10 @@ struct MacAppBootstrapper {
 
     private func applyDefaultPreferences() {
         Self.defaultPreferences.forEach { $0.applyIfMissing(to: defaults) }
+        defaults.set(
+            InteractionSoundPreset.defaultPreset.rawValue,
+            forKey: MacPreferences.interactionSoundPreset
+        )
 
         if defaults.string(forKey: MacPreferences.dictationLanguageMode) == nil {
             settingsStore.saveDictationLanguageMode(.automatic)

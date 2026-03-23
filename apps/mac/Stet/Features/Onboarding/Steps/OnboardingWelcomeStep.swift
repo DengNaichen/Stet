@@ -21,10 +21,9 @@ struct OnboardingWelcomeStep: View {
             HStack {
                 Spacer()
 
-                Button("Continue") {
+                OnboardingActionButton(title: "Continue", minHeight: 48) {
                     viewModel.continueOnboarding()
                 }
-                .buttonStyle(.borderedProminent)
             }
         }
     }

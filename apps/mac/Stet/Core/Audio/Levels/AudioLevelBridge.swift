@@ -27,19 +27,6 @@ nonisolated final class AudioLevelBridge: @unchecked Sendable {
         }
     }
 
-//    Unused after the audio level bridge stopped closing streams between dictation sessions.
-//    nonisolated func finish() {
-//        let currentContinuations = withContinuations { continuations in
-//            let values = Array(continuations.values)
-//            continuations.removeAll()
-//            return values
-//        }
-//
-//        for continuation in currentContinuations {
-//            continuation.finish()
-//        }
-//    }
-
     nonisolated private func removeContinuation(for identifier: UUID) {
         lock.lock()
         continuations.removeValue(forKey: identifier)

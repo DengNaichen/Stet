@@ -52,8 +52,8 @@ final class OnboardingViewModel: ObservableObject {
 
     private let coordinator: any MacPermissionsCoordinating
     private let settingsStore: DictationSettingsStore
-    private let supabase: SupabaseService
-    private let apiKeyValidationService: APIKeyValidationService
+    private let supabase: any OnboardingSupabaseAuthenticating
+    private let apiKeyValidationService: any OnboardingAPIKeyValidating
     private var cancellables = Set<AnyCancellable>()
     private var lastValidatedKey: String?
     private var lastValidatedProvider: DictationProvider?
@@ -61,12 +61,12 @@ final class OnboardingViewModel: ObservableObject {
     init(
         coordinator: any MacPermissionsCoordinating,
         settingsStore: DictationSettingsStore = DictationSettingsStore(),
-        supabase: SupabaseService? = nil,
-        apiKeyValidationService: APIKeyValidationService? = nil
+        supabase: (any OnboardingSupabaseAuthenticating)? = nil,
+        apiKeyValidationService: (any OnboardingAPIKeyValidating)? = nil
     ) {
         self.coordinator = coordinator
         self.settingsStore = settingsStore
-        self.supabase = supabase ?? .shared
+        self.supabase = supabase ?? SupabaseService.shared
         self.apiKeyValidationService = apiKeyValidationService ?? APIKeyValidationService()
         self.apiKeyProvider = settingsStore.loadProvider()
         coordinator.updates
@@ -154,7 +154,7 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     var isRelaySessionActive: Bool {
-        supabase.currentSession != nil
+        supabase.hasCurrentSession
     }
 
     var canSubmitEmailLogin: Bool {
@@ -359,7 +359,7 @@ final class OnboardingViewModel: ObservableObject {
     }
 }
 
-struct APIKeyValidationService: Sendable {
+struct APIKeyValidationService: OnboardingAPIKeyValidating, Sendable {
     func validate(apiKey: String, provider: DictationProvider) async throws {
         let configuration = OpenAIConfiguration(apiKey: apiKey, provider: provider)
         let requestContext = try OpenAISDKClientFactory(configuration: configuration)
@@ -388,5 +388,16 @@ struct APIKeyValidationService: Sendable {
             throw requestContext.mapError(error)
         }
     }
+}
+
+@MainActor
+protocol OnboardingSupabaseAuthenticating: AnyObject {
+    var hasCurrentSession: Bool { get }
+    func signIn(email: String, password: String) async throws
+    func signIn(provider: Provider) async throws
+}
+
+protocol OnboardingAPIKeyValidating {
+    func validate(apiKey: String, provider: DictationProvider) async throws
 }
 #endif

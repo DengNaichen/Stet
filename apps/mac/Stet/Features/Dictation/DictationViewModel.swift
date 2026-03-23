@@ -21,6 +21,7 @@ final class DictationViewModel: ObservableObject {
     private var hasPreparedCapture = false
     private var pendingStopAfterStart = false
     private var pendingActivationAfterStart = false
+    private var pendingCaptureStoppedHandler: (@MainActor @Sendable () -> Void)?
     private var resultTransformer: ResultTransformer?
 
     @Published private(set) var state: DictationState = .idle
@@ -84,6 +85,7 @@ final class DictationViewModel: ObservableObject {
         hasPreparedCapture = false
         pendingStopAfterStart = false
         pendingActivationAfterStart = false
+        pendingCaptureStoppedHandler = nil
         resultTransformer = transform
         recordingLevel = 0
         state = .starting
@@ -141,6 +143,7 @@ final class DictationViewModel: ObservableObject {
                 hasPreparedCapture = false
                 pendingStopAfterStart = false
                 pendingActivationAfterStart = false
+                pendingCaptureStoppedHandler = nil
                 resultTransformer = nil
                 finishLevelMonitoring()
 
@@ -161,6 +164,7 @@ final class DictationViewModel: ObservableObject {
                 hasPreparedCapture = false
                 pendingStopAfterStart = false
                 pendingActivationAfterStart = false
+                pendingCaptureStoppedHandler = nil
                 resultTransformer = nil
                 finishLevelMonitoring()
 
@@ -248,10 +252,13 @@ final class DictationViewModel: ObservableObject {
         }
     }
 
-    func stopCapture() {
+    func stopCapture(onCaptureStopped: (@MainActor @Sendable () -> Void)? = nil) {
         Task {
             await DictationRuntimeProbe.shared.markCaptureStopRequested()
             await DictationRuntimeProbe.shared.markAudioStopRequested()
+        }
+        if let onCaptureStopped {
+            pendingCaptureStoppedHandler = onCaptureStopped
         }
         if isStartingRecording || isActivatingRecordingWindow {
             pendingStopAfterStart = true
@@ -267,13 +274,22 @@ final class DictationViewModel: ObservableObject {
         finishLevelMonitoring()
         // finishCaptureEventMonitoring()
         state = .processing
+        let captureStoppedHandler = pendingCaptureStoppedHandler
+        pendingCaptureStoppedHandler = nil
         Task {
             await DictationRuntimeProbe.shared.markAction("processingFromStopCapture")
         }
 
         activeTask = Task {
             do {
-                let text = try await speechService.stopRecording()
+                let text = try await speechService.stopRecording(
+                    onCaptureStopped: {
+                        guard let captureStoppedHandler else { return }
+                        await MainActor.run {
+                            captureStoppedHandler()
+                        }
+                    }
+                )
                 if Task.isCancelled { return }
                 let finalText: String
                 if let resultTransformer {
@@ -289,6 +305,7 @@ final class DictationViewModel: ObservableObject {
                 resultTransformer = nil
                 hasPreparedCapture = false
                 isActivatingRecordingWindow = false
+                pendingCaptureStoppedHandler = nil
                 finishLevelMonitoring()
 
                 state = .idle
@@ -298,6 +315,7 @@ final class DictationViewModel: ObservableObject {
                 resultTransformer = nil
                 hasPreparedCapture = false
                 isActivatingRecordingWindow = false
+                pendingCaptureStoppedHandler = nil
                 finishLevelMonitoring()
 
                 state = .idle
@@ -310,6 +328,7 @@ final class DictationViewModel: ObservableObject {
                 resultTransformer = nil
                 hasPreparedCapture = false
                 isActivatingRecordingWindow = false
+                pendingCaptureStoppedHandler = nil
                 finishLevelMonitoring()
 
                 send(.transcriptionFailed(.from(error)))
@@ -333,6 +352,7 @@ final class DictationViewModel: ObservableObject {
         hasPreparedCapture = false
         pendingStopAfterStart = false
         pendingActivationAfterStart = false
+        pendingCaptureStoppedHandler = nil
         resultTransformer = nil
         state = .processing
 
@@ -369,6 +389,7 @@ final class DictationViewModel: ObservableObject {
         hasPreparedCapture = false
         pendingStopAfterStart = false
         pendingActivationAfterStart = false
+        pendingCaptureStoppedHandler = nil
         resultTransformer = nil
         activeTask = Task {
             await speechService.cancelRecording()

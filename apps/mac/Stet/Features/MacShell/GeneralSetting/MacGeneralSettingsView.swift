@@ -1,5 +1,4 @@
 #if os(macOS)
-import StetVisuals
 import SwiftUI
 
 struct MacGeneralSettingsView: View {
@@ -67,15 +66,25 @@ struct MacGeneralSettingsView: View {
     private var interactionSoundsSection: some View {
         Section {
             Toggle("Enable interaction sounds", isOn: $viewModel.interactionSoundsEnabled)
+
+            if viewModel.interactionSoundsEnabled {
+                Button("Preview Sound") {
+                    viewModel.previewSound()
+                }
+            }
         } header: {
             Text("Interaction Sounds")
+        } footer: {
+            if viewModel.interactionSoundsEnabled {
+                Text("Stet uses the default sound pair for recording start and finish.")
+            }
         }
     }
 
     private var appearanceSection: some View {
         Section {
             Picker("Capsule Theme", selection: $viewModel.shaderTheme) {
-                ForEach(MacDictationShaderTheme.allCases) { theme in
+                ForEach(MacDictationVisualTheme.allCases) { theme in
                     Text(theme.title).tag(theme)
                 }
             }

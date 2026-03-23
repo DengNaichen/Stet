@@ -6,23 +6,33 @@ struct OnboardingLoginStep: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack(spacing: 12) {
-                Button("Continue with Google") {
+            VStack(spacing: 12) {
+                OnboardingBrandActionButton(
+                    title: "Continue with Google",
+                    background: Color.black.opacity(0.94),
+                    foreground: Color(red: 0.92, green: 0.92, blue: 0.92),
+                    strokeColor: Color.white.opacity(0.18)
+                ) {
+                    GoogleBrandMark()
+                } action: {
                     Task {
                         await viewModel.signInWithGoogle()
                     }
                 }
-                .buttonStyle(.bordered)
-                .disabled(viewModel.isAuthenticating)
 
-                Button("Continue with GitHub") {
+                OnboardingBrandActionButton(
+                    title: "Continue with GitHub",
+                    background: Color(red: 0.14, green: 0.16, blue: 0.18),
+                    foreground: .white
+                ) {
+                    GitHubBrandMark()
+                } action: {
                     Task {
                         await viewModel.signInWithGitHub()
                     }
                 }
-                .buttonStyle(.bordered)
-                .disabled(viewModel.isAuthenticating)
             }
+            .disabled(viewModel.isAuthenticating)
 
             GroupBox("Continue with Email") {
                 VStack(alignment: .leading, spacing: 14) {
@@ -35,10 +45,12 @@ struct OnboardingLoginStep: View {
                         HStack {
                             Spacer()
 
-                            Button("Continue") {
+                            OnboardingActionButton(
+                                title: "Continue",
+                                minHeight: 48
+                            ) {
                                 viewModel.continueManagedFlow()
                             }
-                            .buttonStyle(.borderedProminent)
                         }
                     } else {
                         TextField("name@example.com", text: $viewModel.email)
@@ -56,13 +68,15 @@ struct OnboardingLoginStep: View {
                         HStack {
                             Spacer()
 
-                            Button("Continue with Email") {
+                            OnboardingActionButton(
+                                title: "Continue with Email",
+                                isEnabled: viewModel.canSubmitEmailLogin,
+                                minHeight: 48
+                            ) {
                                 Task {
                                     await viewModel.signInWithEmail()
                                 }
                             }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(!viewModel.canSubmitEmailLogin)
                         }
                     }
                 }

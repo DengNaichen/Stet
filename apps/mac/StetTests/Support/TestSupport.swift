@@ -258,13 +258,21 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
         }
     }
 
-    func stopRecording() async throws -> String {
+    func stopRecording(
+        onCaptureStopped: (@Sendable () async -> Void)? = nil
+    ) async throws -> String {
         stopCallCount += 1
 
         switch stopBehavior {
         case .immediate(let text):
+            if let onCaptureStopped {
+                await onCaptureStopped()
+            }
             return text
         case .suspended:
+            if let onCaptureStopped {
+                await onCaptureStopped()
+            }
             return try await withCheckedThrowingContinuation { continuation in
                 stopContinuation = continuation
             }
@@ -281,7 +289,6 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
         activationContinuation = nil
         stopContinuation?.resume(throwing: CancellationError())
         stopContinuation = nil
-        audioLevelBridge.finish()
     }
 
     func prewarm() async {}
@@ -308,10 +315,6 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
 
     func emitLevel(_ level: Double) {
         audioLevelBridge.emit(level)
-    }
-
-    func finishLevels() {
-        audioLevelBridge.finish()
     }
 
     func makeAudioLevelStream() async -> AsyncStream<Double> {

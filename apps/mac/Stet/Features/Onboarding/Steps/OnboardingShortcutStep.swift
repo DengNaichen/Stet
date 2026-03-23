@@ -49,11 +49,13 @@ struct OnboardingShortcutStep: View {
 
                 Spacer()
 
-                Button("Continue") {
+                OnboardingActionButton(
+                    title: "Continue",
+                    isEnabled: viewModel.canContinueShortcutOnboarding,
+                    minHeight: 48
+                ) {
                     viewModel.continueOnboarding()
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(!viewModel.canContinueShortcutOnboarding)
             }
         }
     }

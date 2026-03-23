@@ -179,7 +179,12 @@ final class MacDictationWorkflowController {
         Task {
             await DictationRuntimeProbe.shared.markAction("stopActiveCapture")
         }
-        dictationViewModel.stopCapture()
+        let settings = settingsSnapshot
+
+        dictationViewModel.stopCapture(onCaptureStopped: { [weak self] in
+            guard settings.interactionSoundsEnabled else { return }
+            self?.interactionSoundPlayer.playFinish(preset: settings.interactionSoundPreset)
+        })
     }
 
     func cancelActiveCapture() {
@@ -322,14 +327,6 @@ final class MacDictationWorkflowController {
             _ = systemAudioMuting?.activateMuteIfNeeded()
         }
 
-        if settingsSnapshot.interactionSoundsEnabled {
-            if isActiveDictationState(previousState),
-               shouldResumeMedia(after: newState),
-               !matchesErrorState(newState) {
-                interactionSoundPlayer.playFinish(preset: settingsSnapshot.interactionSoundPreset)
-            }
-        }
-
         if previousState.isCaptureInFlight,
            !newState.isCaptureInFlight {
             startActivationTask?.cancel()
@@ -362,34 +359,8 @@ final class MacDictationWorkflowController {
         }
     }
 
-    private func isActiveDictationState(_ state: DictationState) -> Bool {
-        switch state {
-        case .listening, .processing:
-            return true
-        case .idle, .starting, .result, .clipboardPending, .error:
-            return false
-        }
-    }
-
-    private func shouldResumeMedia(after state: DictationState) -> Bool {
-        switch state {
-        case .idle, .starting, .result, .clipboardPending, .error:
-            return true
-        case .listening, .processing:
-            return false
-        }
-    }
-
     private func matchesListeningState(_ state: DictationState) -> Bool {
         if case .listening = state {
-            return true
-        }
-
-        return false
-    }
-
-    private func matchesErrorState(_ state: DictationState) -> Bool {
-        if case .error = state {
             return true
         }
 

@@ -1,7 +1,6 @@
 #if os(macOS)
 import AppKit
 import Foundation
-import StetVisuals
 import UniformTypeIdentifiers
 
 enum MacConfigurationTransferError: LocalizedError, Equatable {
@@ -96,8 +95,8 @@ enum MacConfigurationTransferManager {
             rewriteEnabled: defaults.bool(forKey: MacPreferences.rewriteEnabled),
             dictationLanguageMode: store.loadDictationLanguageMode().rawValue,
             interactionSoundsEnabled: defaults.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true,
-            interactionSoundPreset: defaults.string(forKey: MacPreferences.interactionSoundPreset) ?? InteractionSoundPreset.soft.rawValue,
-            shaderTheme: defaults.string(forKey: MacPreferences.shaderTheme) ?? MacDictationShaderTheme.defaultTheme.rawValue,
+            interactionSoundPreset: InteractionSoundPreset.defaultPreset.rawValue,
+            shaderTheme: defaults.string(forKey: MacPreferences.shaderTheme) ?? MacDictationVisualTheme.defaultTheme.rawValue,
             launchAtLogin: defaults.object(forKey: MacPreferences.launchAtLogin) as? Bool ?? false,
             showInDock: defaults.object(forKey: MacPreferences.showInDock) as? Bool ?? false,
             hotkeyDistinguishModifierSides: store.loadHotkeyDistinguishModifierSides(),
@@ -125,10 +124,9 @@ enum MacConfigurationTransferManager {
         defaults.set(imported.rewriteEnabled, forKey: MacPreferences.rewriteEnabled)
         defaults.set(imported.dictationLanguageMode, forKey: MacPreferences.dictationLanguageMode)
         defaults.set(imported.interactionSoundsEnabled, forKey: MacPreferences.interactionSoundsEnabled)
-        defaults.set(imported.interactionSoundPreset, forKey: MacPreferences.interactionSoundPreset)
+        defaults.set(InteractionSoundPreset.defaultPreset.rawValue, forKey: MacPreferences.interactionSoundPreset)
         defaults.set(
-            MacDictationShaderTheme(rawValue: imported.shaderTheme ?? "")?.rawValue
-                ?? MacDictationShaderTheme.defaultTheme.rawValue,
+            MacDictationVisualTheme.fromStoredValue(imported.shaderTheme).rawValue,
             forKey: MacPreferences.shaderTheme
         )
         defaults.set(imported.launchAtLogin, forKey: MacPreferences.launchAtLogin)

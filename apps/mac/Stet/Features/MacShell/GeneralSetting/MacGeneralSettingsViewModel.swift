@@ -1,7 +1,6 @@
 #if os(macOS)
 import Combine
 import Foundation
-import StetVisuals
 
 @MainActor
 protocol MacGeneralSettingsAppModeling: AnyObject {
@@ -65,7 +64,7 @@ final class MacGeneralSettingsViewModel: ObservableObject {
             defaults.set(openAIDebugLoggingEnabled, forKey: MacPreferences.openAIDebugLoggingEnabled)
         }
     }
-    @Published var shaderTheme = MacDictationShaderTheme.defaultTheme {
+    @Published var shaderTheme = MacDictationVisualTheme.defaultTheme {
         didSet {
             guard hasLoadedPreferences else { return }
             defaults.set(shaderTheme.rawValue, forKey: MacPreferences.shaderTheme)
@@ -244,9 +243,14 @@ final class MacGeneralSettingsViewModel: ObservableObject {
         )
     }
 
-    private func loadShaderTheme() -> MacDictationShaderTheme {
-        let rawValue = defaults.string(forKey: MacPreferences.shaderTheme) ?? ""
-        return MacDictationShaderTheme(rawValue: rawValue) ?? .defaultTheme
+    private func loadShaderTheme() -> MacDictationVisualTheme {
+        MacDictationVisualTheme.fromStoredValue(
+            defaults.string(forKey: MacPreferences.shaderTheme)
+        )
+    }
+
+    func previewSound() {
+        InteractionSoundPlayer().playPreview(preset: .defaultPreset)
     }
 
     private func handleManagedSettingsMutation(

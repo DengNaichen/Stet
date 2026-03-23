@@ -5,15 +5,29 @@ import AVFoundation
 enum InteractionSoundPreset: String, CaseIterable, Codable, Identifiable, Sendable {
     case soft
     case glass
+    case tink
+    case pop
+    case purr
+    case submarine
+
+    static let defaultPreset: Self = .soft
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .soft:
-            return "Soft"
+            return "Soft (Morse)"
         case .glass:
-            return "Glass"
+            return "Glass (Hero)"
+        case .tink:
+            return "Tink"
+        case .pop:
+            return "Pop"
+        case .purr:
+            return "Purr"
+        case .submarine:
+            return "Submarine"
         }
     }
 
@@ -23,6 +37,18 @@ enum InteractionSoundPreset: String, CaseIterable, Codable, Identifiable, Sendab
             return "DictationStartSoft"
         case .glass:
             return "DictationStartGlass"
+        case .tink, .pop, .purr, .submarine:
+            // 这些使用系统音效，不需要自定义资源文件
+            return ""
+        }
+    }
+
+    fileprivate var finishPromptResourceName: String {
+        switch self {
+        case .soft:
+            return "DictationEndSoft"
+        case .glass, .tink, .pop, .purr, .submarine:
+            return ""
         }
     }
 
@@ -32,6 +58,31 @@ enum InteractionSoundPreset: String, CaseIterable, Codable, Identifiable, Sendab
             return NSSound.Name("Morse")
         case .glass:
             return NSSound.Name("Hero")
+        case .tink:
+            return NSSound.Name("Tink")
+        case .pop:
+            return NSSound.Name("Pop")
+        case .purr:
+            return NSSound.Name("Purr")
+        case .submarine:
+            return NSSound.Name("Submarine")
+        }
+    }
+    
+    fileprivate var startSoundName: NSSound.Name {
+        switch self {
+        case .soft:
+            return NSSound.Name("Morse")
+        case .glass:
+            return NSSound.Name("Hero")
+        case .tink:
+            return NSSound.Name("Tink")
+        case .pop:
+            return NSSound.Name("Pop")
+        case .purr:
+            return NSSound.Name("Purr")
+        case .submarine:
+            return NSSound.Name("Submarine")
         }
     }
 }
@@ -65,52 +116,28 @@ private final class PromptSoundPlaybackDelegate: NSObject, AVAudioPlayerDelegate
 
 @MainActor
 final class InteractionSoundPlayer: InteractionSoundPlaying {
-    private var activePromptPlayers: [UUID: AVAudioPlayer] = [:]
-    private var activePromptDelegates: [UUID: PromptSoundPlaybackDelegate] = [:]
+    private var activeSoundPlayers: [UUID: AVAudioPlayer] = [:]
+    private var activeSoundDelegates: [UUID: PromptSoundPlaybackDelegate] = [:]
 
     func playStartPrompt(preset: InteractionSoundPreset) async {
-        guard let promptURL = Bundle.main.url(
-            forResource: preset.startPromptResourceName,
-            withExtension: "wav"
-        ) else {
-            NSSound.beep()
+        if preset.startPromptResourceName.isEmpty {
+            playSystemSound(named: preset.startSoundName)
             return
         }
 
         await withCheckedContinuation { continuation in
-            do {
-                let player = try AVAudioPlayer(contentsOf: promptURL)
-                let identifier = UUID()
-                let delegate = PromptSoundPlaybackDelegate { [weak self] _ in
-                    guard let self else {
-                        continuation.resume()
-                        return
-                    }
-
-                    self.activePromptPlayers.removeValue(forKey: identifier)
-                    self.activePromptDelegates.removeValue(forKey: identifier)
-                    continuation.resume()
-                }
-
-                player.delegate = delegate
-                player.prepareToPlay()
-                activePromptPlayers[identifier] = player
-                activePromptDelegates[identifier] = delegate
-
-                guard player.play() else {
-                    activePromptPlayers.removeValue(forKey: identifier)
-                    activePromptDelegates.removeValue(forKey: identifier)
-                    continuation.resume()
-                    return
-                }
-            } catch {
-                NSSound.beep()
+            startBundledSoundPlayback(resourceName: preset.startPromptResourceName) { _ in
                 continuation.resume()
             }
         }
     }
 
     func playFinish(preset: InteractionSoundPreset) {
+        if !preset.finishPromptResourceName.isEmpty {
+            startBundledSoundPlayback(resourceName: preset.finishPromptResourceName)
+            return
+        }
+
         playSystemSound(named: preset.finishSoundName)
     }
 
@@ -127,6 +154,42 @@ final class InteractionSoundPlayer: InteractionSoundPlaying {
         }
 
         NSSound.beep()
+    }
+
+    private func startBundledSoundPlayback(
+        resourceName: String,
+        onFinish: (@MainActor (Bool) -> Void)? = nil
+    ) {
+        guard let soundURL = Bundle.main.url(forResource: resourceName, withExtension: "wav") else {
+            NSSound.beep()
+            onFinish?(false)
+            return
+        }
+
+        do {
+            let player = try AVAudioPlayer(contentsOf: soundURL)
+            let identifier = UUID()
+            let delegate = PromptSoundPlaybackDelegate { [weak self] success in
+                self?.activeSoundPlayers.removeValue(forKey: identifier)
+                self?.activeSoundDelegates.removeValue(forKey: identifier)
+                onFinish?(success)
+            }
+
+            player.delegate = delegate
+            player.prepareToPlay()
+            activeSoundPlayers[identifier] = player
+            activeSoundDelegates[identifier] = delegate
+
+            guard player.play() else {
+                activeSoundPlayers.removeValue(forKey: identifier)
+                activeSoundDelegates.removeValue(forKey: identifier)
+                onFinish?(false)
+                return
+            }
+        } catch {
+            NSSound.beep()
+            onFinish?(false)
+        }
     }
 }
 #endif

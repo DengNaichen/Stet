@@ -14,7 +14,14 @@ struct OnboardingPermissionsStep: View {
                         statusText: viewModel.microphoneAccessStatusText,
                         tint: viewModel.microphoneAccessNeedsAttention ? .orange : .green
                     ) {
-                        Button(viewModel.microphonePermissionActionTitle) {
+                        OnboardingActionButton(
+                            title: viewModel.microphonePermissionActionTitle,
+                            systemImage: "mic.fill",
+                            background: Color.white.opacity(0.08),
+                            foreground: .primary,
+                            strokeColor: Color.white.opacity(0.10),
+                            minHeight: 44
+                        ) {
                             viewModel.resolveMicrophoneAccess()
                         }
                     }
@@ -26,11 +33,25 @@ struct OnboardingPermissionsStep: View {
                         tint: viewModel.autoPasteAccessNeedsAttention ? .orange : .green
                     ) {
                         HStack(spacing: 8) {
-                            Button("Grant Permission") {
+                            OnboardingActionButton(
+                                title: "Grant Permission",
+                                systemImage: "checkmark.shield",
+                                background: Color.white.opacity(0.08),
+                                foreground: .primary,
+                                strokeColor: Color.white.opacity(0.10),
+                                minHeight: 44
+                            ) {
                                 viewModel.requestAutoPasteAccess()
                             }
 
-                            Button("Open System Settings") {
+                            OnboardingActionButton(
+                                title: "Open System Settings",
+                                systemImage: "gearshape",
+                                background: Color.white.opacity(0.08),
+                                foreground: .primary,
+                                strokeColor: Color.white.opacity(0.10),
+                                minHeight: 44
+                            ) {
                                 viewModel.openAccessibilitySettings()
                             }
                         }
@@ -57,11 +78,13 @@ struct OnboardingPermissionsStep: View {
 
                 Spacer()
 
-                Button("Continue") {
+                OnboardingActionButton(
+                    title: "Continue",
+                    isEnabled: viewModel.hasRequiredPermissions,
+                    minHeight: 48
+                ) {
                     viewModel.continueOnboarding()
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(!viewModel.hasRequiredPermissions)
             }
         }
     }

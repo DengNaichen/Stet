@@ -1,7 +1,6 @@
 #if os(macOS)
 import Foundation
 import SwiftUI
-import StetVisuals
 
 struct MacMenuBarView: View {
     @EnvironmentObject private var settingsShellViewModel: MacSettingsShellViewModel
@@ -35,7 +34,7 @@ struct MacMenuBarView: View {
             AudioDeviceSelectionManager.shared.refreshDevices()
             AudioDeviceChangeMonitor.shared.startMonitoring()
 
-            await MacDictationCapsuleVisualShaderWarmup.prewarmIfAvailable()
+            await MacDictationVisualsRuntime.prewarmIfAvailable()
         }
         .onDisappear {
             AudioDeviceChangeMonitor.shared.stopMonitoring()

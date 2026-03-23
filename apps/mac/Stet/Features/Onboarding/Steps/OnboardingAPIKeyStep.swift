@@ -38,13 +38,15 @@ struct OnboardingAPIKeyStep: View {
 
                 Spacer()
 
-                Button(viewModel.apiKeyPrimaryButtonTitle) {
+                OnboardingActionButton(
+                    title: viewModel.apiKeyPrimaryButtonTitle,
+                    isEnabled: !viewModel.isValidatingAPIKey,
+                    minHeight: 48
+                ) {
                     Task {
                         await viewModel.completeAPIKeyFlow()
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(viewModel.isValidatingAPIKey)
             }
         }
     }

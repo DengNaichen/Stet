@@ -38,23 +38,26 @@ This document specifies the requirements for the audio-device-management feature
 
 ### Acceptance Criteria
 
-1. When I select a microphone for dictation, the system remembers my choice
-2. The next time I use dictation, it uses my preferred microphone by default
-3. If my preferred microphone is not available (e.g., unplugged), the system falls back to the default system microphone
-4. I can change my preferred microphone at any time
+1. When I select an external microphone for dictation, the system remembers my choice
+2. The next time I use dictation, it uses my preferred external microphone by default
+3. If I select the built-in microphone, the system clears any external device preference and uses the built-in default strategy
+4. If my preferred external microphone is not available (e.g., unplugged), the system falls back to the built-in microphone (if available) or the system default
+5. I can change my preferred microphone at any time
+6. The system indicates when it's using a fallback device (via `isUsingFallbackBuiltIn` flag)
 
 ---
 
 ## User Story 4: Prioritize Audio Quality Over System Default
 
-**As a user**, I want Stet to use the highest quality microphone available, even if the system has selected a lower-quality device (like AirPods), so that my dictation quality is not compromised.
+**As a user**, I want Stet to use the highest quality microphone available by default, even if the system has selected a lower-quality device (like AirPods), so that my dictation quality is not compromised.
 
 ### Acceptance Criteria
 
-1. When I'm using AirPods or other Bluetooth devices, Stet can still use the built-in MacBook microphone for recording
+1. When I'm using AirPods or other Bluetooth devices as the system default, Stet automatically uses the built-in MacBook microphone for recording instead
 2. The system intelligently avoids low-quality audio channels (like Bluetooth's "dual-channel" mode) that degrade input quality
-3. By default, Stet prioritizes audio quality and automatically selects the best available microphone
+3. By default, Stet prioritizes audio quality and automatically selects the built-in microphone when available
 4. The quality prioritization happens automatically without requiring user configuration
+5. The built-in microphone has the highest automatic selection priority (500), followed by external professional devices (400), and Bluetooth devices have lower priority (100)
 
 ---
 
@@ -65,9 +68,11 @@ This document specifies the requirements for the audio-device-management feature
 ### Acceptance Criteria
 
 1. I can access a settings or menu option to manually select a microphone
-2. When I manually select a microphone, Stet uses that microphone for the next recording
-3. My manual selection overrides the default quality-prioritization behavior
-4. I can change my manual selection at any time before or after recording
+2. When I manually select an external microphone, Stet uses that microphone for the next recording and persists my preference
+3. When I manually select the built-in microphone, Stet clears any external device preference and uses the built-in default strategy
+4. My manual selection overrides the default quality-prioritization behavior
+5. I can change my manual selection at any time before or after recording
+6. If my manually selected external device becomes unavailable, the system falls back to the built-in microphone but preserves my preference
 
 ---
 
@@ -110,3 +115,42 @@ This document specifies the requirements for the audio-device-management feature
 3. I can see real-time audio level feedback while recording
 4. If the test is successful, I can proceed to the next step
 5. If there's an issue, I get helpful guidance on how to fix it
+
+---
+
+## Technical Story 9: Audio Capture Pipeline Resilience
+
+**As a system**, I want to implement a robust audio capture pipeline with multiple fallback strategies, so that recording can succeed even when the preferred device is unavailable.
+
+### Acceptance Criteria
+
+1. When starting a recording, the system generates a list of candidate devices in priority order
+2. The system attempts to use each candidate device in sequence until one succeeds
+3. If a device fails to start, the system automatically tries the next candidate without user intervention
+4. The system implements retry logic for transient failures (up to 4 attempts per device)
+5. The system logs detailed information about device selection and fallback attempts for debugging
+6. If all candidates fail, the system provides a clear error message
+
+### Candidate Device Priority Order
+
+1. **Selected Device**: User's manually selected device (if any)
+2. **No Explicit Device Fallback**: System default device via AVCapture automatic selection
+3. **Built-in Fallback**: Internal microphone (most reliable)
+4. **System Default Fallback**: CoreAudio default input device
+
+### Device Resolution Strategy
+
+When resolving a candidate device to an AVCaptureDevice:
+
+1. If no specific device is requested, use `AVCaptureDevice.default(for: .audio)`
+2. Otherwise, match by exact UID (most reliable)
+3. If UID doesn't match, try exact name match
+4. For built-in devices, try fuzzy name match (contains "microphone" or "macbook")
+5. If no match found, throw error and try next candidate
+
+### Retry and Timing
+
+- Each device candidate gets up to 4 startup attempts
+- Retry delay: 0.15 seconds between attempts
+- Candidate switch delay: 0.1 seconds between different candidates
+- Total maximum startup time: ~2 seconds (4 candidates × 4 retries × 0.15s)

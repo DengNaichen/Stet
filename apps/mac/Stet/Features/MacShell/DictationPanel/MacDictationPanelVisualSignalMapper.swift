@@ -1,6 +1,5 @@
 #if os(macOS)
 import Foundation
-import StetVisuals
 
 enum MacDictationPanelVisualSignalMapper {
     struct State {
@@ -10,8 +9,8 @@ enum MacDictationPanelVisualSignalMapper {
         var pulse: Double
         var articulation: Double
 
-        var visualSignals: MacDictationCapsuleVisualSignals {
-            MacDictationCapsuleVisualSignals(
+        var visualSignals: MacDictationPanelVisualSignals {
+            MacDictationPanelVisualSignals(
                 body: body,
                 presence: presence,
                 pulse: pulse,

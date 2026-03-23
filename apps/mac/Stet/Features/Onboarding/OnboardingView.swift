@@ -1,6 +1,5 @@
 #if os(macOS)
 import SwiftUI
-import WebKit
 
 struct OnboardingView: View {
     @StateObject private var viewModel: OnboardingViewModel
@@ -9,44 +8,154 @@ struct OnboardingView: View {
         _viewModel = StateObject(wrappedValue: OnboardingViewModel(coordinator: appModel))
     }
 
-    var body: some View {
-        HStack(spacing: 0) {
-            // Left Panel (Native UI)
-            VStack(alignment: .leading, spacing: 24) {
-                header
-                
-                stepContent
-                    .groupBoxStyle(CleanGroupBoxStyle())
-                
-                Spacer(minLength: 0)
-                footer
-            }
-            .padding(.horizontal, 36)
-            .padding(.vertical, 40)
-            .frame(width: 440, height: 640, alignment: .topLeading)
-            .background(Color(nsColor: .windowBackgroundColor))
-            
-            // Right Panel (WebView)
-            OnboardingWebView(step: viewModel.onboardingStep)
-                .frame(width: 380, height: 640)
-        }
-        .frame(width: 820, height: 640)
-        .background(Color(nsColor: .windowBackgroundColor))
+    init(viewModel: OnboardingViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel)
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(titleText)
-                .font(.title2.weight(.semibold))
+    var body: some View {
+        ZStack {
+            backgroundLayer
 
-            Text(subtitleText)
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 0) {
+                leftPanel
 
-            Text("Step \(viewModel.onboardingStep.progressIndex) of 7")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
+                separator
+
+                OnboardingVisualPanel(step: viewModel.onboardingStep, viewModel: viewModel)
+                    .frame(width: 360, height: 640)
+                    .padding(.vertical, 0)
+                    .padding(.trailing, 0)
+                    .padding(.leading, 0)
+                    .background(Color(nsColor: .controlBackgroundColor).opacity(0.08))
+            }
+            .frame(width: 820, height: 640)
+            .background(
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.66))
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.20), radius: 26, x: 0, y: 12)
+        }
+        .frame(width: 820, height: 640)
+        .background(rootBackground)
+    }
+
+    private var backgroundLayer: some View {
+        ZStack {
+            rootBackground
+
+            RadialGradient(
+                colors: [Color.accentColor.opacity(0.18), .clear],
+                center: .topLeading,
+                startRadius: 20,
+                endRadius: 320
+            )
+            .blur(radius: 2)
+            .offset(x: -220, y: -180)
+
+            RadialGradient(
+                colors: [Color.blue.opacity(0.16), .clear],
+                center: .topTrailing,
+                startRadius: 20,
+                endRadius: 280
+            )
+            .blur(radius: 2)
+            .offset(x: 240, y: -160)
+
+            RadialGradient(
+                colors: [Color.purple.opacity(0.14), .clear],
+                center: .bottomLeading,
+                startRadius: 20,
+                endRadius: 260
+            )
+            .blur(radius: 2)
+            .offset(x: -200, y: 200)
+        }
+        .ignoresSafeArea()
+    }
+
+    private var rootBackground: some View {
+        LinearGradient(
+            colors: [
+                Color(nsColor: .windowBackgroundColor),
+                Color(nsColor: .controlBackgroundColor).opacity(0.95),
+                Color(nsColor: .windowBackgroundColor)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .ignoresSafeArea()
+    }
+
+    private var leftPanel: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .center, spacing: 12) {
+                OnboardingPill(text: "Stet onboarding", systemImage: "sparkles", tint: .accentColor)
+
+                Spacer(minLength: 0)
+
+                Text("Step \(viewModel.onboardingStep.progressIndex) of 7")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(titleText)
+                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(subtitleText)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            progressStrip
+
+            stepContent
+                .groupBoxStyle(CleanGroupBoxStyle())
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+            footer
+        }
+        .padding(28)
+        .frame(width: 459, height: 640, alignment: .topLeading)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(nsColor: .controlBackgroundColor).opacity(0.90),
+                    Color(nsColor: .windowBackgroundColor).opacity(0.94)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+    }
+
+    private var separator: some View {
+        LinearGradient(
+            colors: [
+                Color.white.opacity(0.02),
+                Color.white.opacity(0.18),
+                Color.white.opacity(0.02)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(width: 1)
+    }
+
+    private var progressStrip: some View {
+        HStack(spacing: 8) {
+            ForEach(1...7, id: \.self) { index in
+                Capsule(style: .continuous)
+                    .fill(index <= viewModel.onboardingStep.progressIndex ? Color.accentColor : Color.secondary.opacity(0.20))
+                    .frame(height: 6)
+            }
         }
     }
 
@@ -79,6 +188,31 @@ struct OnboardingView: View {
             }
 
             Spacer()
+
+            Text(titleBadgeText)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var titleBadgeText: String {
+        switch viewModel.onboardingStep {
+        case .welcome:
+            return "Native onboarding shell"
+        case .mode:
+            return "Same flow, clearer layout"
+        case .apiKey:
+            return "Provider setup"
+        case .login:
+            return "Managed sign-in"
+        case .permissions:
+            return "Permission gate"
+        case .shortcut:
+            return "Shortcut test"
+        case .firstSuccess:
+            return "First success check"
+        case .done:
+            return "Ready"
         }
     }
 
@@ -124,5 +258,67 @@ struct OnboardingView: View {
         }
     }
 }
+
+#if DEBUG
+@MainActor
+private func makeOnboardingPreview(
+    step: MacOnboardingStep,
+    mode: MacOnboardingMode? = nil
+) -> OnboardingView {
+    let coordinator = MockOnboardingCoordinator(step: step, mode: mode)
+    let viewModel = OnboardingViewModel(
+        coordinator: coordinator,
+        supabase: PreviewOnboardingSupabaseService(),
+        apiKeyValidationService: PreviewOnboardingAPIKeyValidationService()
+    )
+
+    if step == .apiKey {
+        viewModel.apiKey = "sk-preview"
+    }
+
+    if step == .login {
+        viewModel.email = "preview@stet.app"
+        viewModel.password = "password"
+    }
+
+    return OnboardingView(viewModel: viewModel)
+}
+
+#Preview("Interactive Flow") {
+    makeOnboardingPreview(step: .welcome)
+}
+
+#Preview("Welcome") {
+    makeOnboardingPreview(step: .welcome)
+}
+
+#Preview("Mode") {
+    makeOnboardingPreview(step: .mode)
+}
+
+#Preview("API Key") {
+    makeOnboardingPreview(step: .apiKey, mode: .apiKey)
+}
+
+#Preview("Login") {
+    makeOnboardingPreview(step: .login, mode: .managed)
+}
+
+#Preview("Permissions") {
+    makeOnboardingPreview(step: .permissions, mode: .managed)
+}
+
+#Preview("Shortcut") {
+    makeOnboardingPreview(step: .shortcut, mode: .managed)
+}
+
+#Preview("First Success") {
+    makeOnboardingPreview(step: .firstSuccess, mode: .managed)
+}
+
+#Preview("Done") {
+    makeOnboardingPreview(step: .done, mode: .managed)
+}
+#endif
 
 #endif

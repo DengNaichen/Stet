@@ -105,8 +105,7 @@ struct DictationSettingsStore: Sendable {
     }
 
     nonisolated func loadInteractionSoundPreset() -> InteractionSoundPreset {
-        let rawValue = defaultsStore.string(forKey: MacPreferences.interactionSoundPreset) ?? ""
-        return InteractionSoundPreset(rawValue: rawValue) ?? .soft
+        InteractionSoundPreset.defaultPreset
     }
 
     nonisolated func loadProvider() -> DictationProvider {

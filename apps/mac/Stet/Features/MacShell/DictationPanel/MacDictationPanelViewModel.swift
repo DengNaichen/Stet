@@ -1,7 +1,6 @@
 #if os(macOS)
 import Combine
 import Foundation
-import StetVisuals
 
 // MARK: - Constants
 
@@ -40,7 +39,7 @@ final class MacDictationPanelViewModel: ObservableObject {
     @Published private(set) var state: DictationState
     @Published private(set) var statusText: String
     @Published private(set) var recordingLevel: Double
-    @Published private(set) var visualSignals: MacDictationCapsuleVisualSignals
+    @Published private(set) var visualSignals: MacDictationPanelVisualSignals
     @Published private(set) var detectedTargetApplication: AppInfo?
 
     init(appModel: any MacDictationPanelCoordinating) {
@@ -100,7 +99,7 @@ final class MacDictationPanelViewModel: ObservableObject {
 
         if targetRecordingLevel == 0, nextBody < Constants.Tuning.snapToZeroThreshold {
             nextBody = 0
-            nextSignals = MacDictationCapsuleVisualSignals(
+            nextSignals = MacDictationPanelVisualSignals(
                 body: 0,
                 presence: nextSignals.presence < Constants.Tuning.snapToZeroThreshold ? 0 : nextSignals.presence,
                 pulse: nextSignals.pulse < Constants.Tuning.snapToZeroThreshold ? 0 : nextSignals.pulse,
@@ -172,8 +171,8 @@ final class MacDictationPanelViewModel: ObservableObject {
     }
 
     private func shouldPublish(
-        _ candidate: MacDictationCapsuleVisualSignals,
-        comparedTo current: MacDictationCapsuleVisualSignals
+        _ candidate: MacDictationPanelVisualSignals,
+        comparedTo current: MacDictationPanelVisualSignals
     ) -> Bool {
         abs(candidate.body - current.body) > Constants.Tuning.publishEpsilon
             || abs(candidate.presence - current.presence) > Constants.Tuning.publishEpsilon

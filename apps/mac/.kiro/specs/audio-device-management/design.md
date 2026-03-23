@@ -74,6 +74,142 @@ graph TB
 
 ## Components and Interfaces
 
+### 现有 Audio Capture 组件（已实现）
+
+#### MacCaptureAudioDevicePlanner
+
+负责生成候选设备列表和设备解析逻辑：
+
+```swift
+enum MacCaptureAudioDevicePlanner {
+    /// 生成候选设备列表
+    /// - Parameter selectedDevice: 用户选择的设备（可选）
+    /// - Returns: 按优先级排序的候选设备列表
+    nonisolated static func inputDeviceCandidates(
+        selectedDevice: AudioHardwareDevice?
+    ) -> [InputDeviceCandidate]
+    
+    /// 将 AudioHardwareDevice 解析为 AVCaptureDevice
+    /// - Parameter device: 要解析的设备（nil 表示使用系统默认）
+    /// - Returns: 对应的 AVCaptureDevice
+    /// - Throws: CaptureError 如果设备不可用
+    nonisolated static func resolveCaptureDevice(
+        for device: AudioHardwareDevice?
+    ) throws -> AVCaptureDevice
+    
+    /// 获取所有可用的 AVCaptureDevice
+    /// - Returns: 可用的音频捕获设备列表
+    nonisolated static func availableCaptureDevices() -> [AVCaptureDevice]
+}
+
+struct InputDeviceCandidate {
+    let device: AudioHardwareDevice?
+    let reason: Reason
+    
+    enum Reason: String {
+        case selected                    // 用户选择的设备
+        case noExplicitDeviceFallback   // 系统默认（不指定具体设备）
+        case builtInFallback            // 内置麦克风回退
+        case systemDefaultFallback      // 系统默认设备回退
+    }
+}
+```
+
+#### MacCaptureAudioSessionFactory
+
+负责创建和配置 AVCaptureSession：
+
+```swift
+enum MacCaptureAudioSessionFactory {
+    /// 创建音频捕获资源
+    /// - Parameters:
+    ///   - device: AVCaptureDevice
+    ///   - delegate: 音频数据输出代理
+    ///   - queue: 回调队列
+    /// - Returns: 配置好的捕获资源
+    /// - Throws: CaptureError 如果配置失败
+    nonisolated static func makeCaptureResources(
+        for device: AVCaptureDevice,
+        delegate: any AVCaptureAudioDataOutputSampleBufferDelegate,
+        queue: DispatchQueue
+    ) throws -> CaptureResources
+}
+
+struct CaptureResources {
+    let session: AVCaptureSession
+    let output: AVCaptureAudioDataOutput
+    let device: AVCaptureDevice
+}
+```
+
+#### MacCaptureAudioSampleBufferConverter
+
+负责将 CMSampleBuffer 转换为 AVAudioPCMBuffer：
+
+```swift
+enum MacCaptureAudioSampleBufferConverter {
+    /// 从 CMSampleBuffer 创建 PCM 缓冲区
+    /// - Parameter sampleBuffer: 输入的样本缓冲区
+    /// - Returns: PCM 格式的音频缓冲区
+    /// - Throws: CaptureError 如果转换失败
+    nonisolated static func pcmBuffer(
+        from sampleBuffer: CMSampleBuffer
+    ) throws -> AVAudioPCMBuffer
+}
+```
+
+#### MacCaptureAudioFileRecorder
+
+主录音器，协调所有组件：
+
+```swift
+nonisolated final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
+    /// 开始录音
+    /// - Parameters:
+    ///   - fileURL: 录音文件路径
+    ///   - outputFormat: 输出音频格式
+    ///   - selectedDevice: 用户选择的设备（可选）
+    /// - Throws: SpeechServiceError 如果所有候选设备都失败
+    nonisolated func startRecording(
+        to fileURL: URL,
+        outputFormat: AVAudioFormat,
+        selectedDevice: AudioHardwareDevice?
+    ) throws
+    
+    /// 激活录音窗口（开始实际录制）
+    nonisolated func activateRecordingWindow() throws
+    
+    /// 停止录音
+    /// - Parameter fileURL: 录音文件路径
+    /// - Returns: 录音结果（是否写入了音频数据）
+    nonisolated func stopRecording(writtenFileAt fileURL: URL) async -> MacAudioFileRecordingOutcome
+    
+    /// 取消录音
+    nonisolated func cancelRecording()
+    
+    /// 预热（预加载设备列表）
+    nonisolated func prewarm()
+}
+```
+
+#### CaptureError
+
+定义所有捕获相关的错误：
+
+```swift
+enum CaptureError: LocalizedError {
+    case noCaptureDeviceAvailable
+    case selectedDeviceUnavailable(target: String, available: [String])
+    case failedToCreatePCMBuffer
+    case failedToReadSampleBuffer(status: OSStatus)
+    case unsupportedSampleBufferFormat
+    case failedToConfigureSession(reason: String)
+    case failedToStartSession(device: String)
+}
+```
+
+### 新增组件（待实现）
+
 ### 1. AudioInputDeviceManager 扩展
 
 ```swift
@@ -109,15 +245,15 @@ enum AudioInputDeviceManager {
 
 ```swift
 /// 定义获取音频设备的接口（解耦 CoreAudio，便于单元测试依赖注入）
-public protocol AudioDeviceProviding: Sendable {
+protocol AudioDeviceProviding: Sendable {
     func allInputDevices() -> [AudioHardwareDevice]
     func defaultInputDevice() -> AudioHardwareDevice?
 }
 
 /// 默认的系统硬件实现
-public struct SystemAudioDeviceProvider: AudioDeviceProviding {
-    public func allInputDevices() -> [AudioHardwareDevice] { AudioInputDeviceManager.allInputDevices() }
-    public func defaultInputDevice() -> AudioHardwareDevice? { AudioInputDeviceManager.defaultInputDevice() }
+struct SystemAudioDeviceProvider: AudioDeviceProviding {
+    func allInputDevices() -> [AudioHardwareDevice] { AudioInputDeviceManager.allInputDevices() }
+    func defaultInputDevice() -> AudioHardwareDevice? { AudioInputDeviceManager.defaultInputDevice() }
 }
 
 /// 管理音频设备选择和偏好设置
@@ -126,63 +262,110 @@ final class AudioDeviceSelectionManager: ObservableObject {
     static let shared = AudioDeviceSelectionManager(provider: SystemAudioDeviceProvider())
     
     private let provider: AudioDeviceProviding
+    private let defaults: UserDefaults
     
-    /// 当前用于录音的设备快照（跨线程安全读取，防止 startRecording 异步传染）
-    let recordingDeviceLock = NSLock()
-    private var _cachedRecordingDevice: AudioHardwareDevice?
+    /// 线程安全的录音设备缓存（使用内部类封装 NSLock）
+    private let recordingDeviceCache: RecordingDeviceCache
+    
+    /// 用户偏好的外部设备 UID（从 UserDefaults 加载）
+    private var preferredAudioInputDeviceUID: String?
     
     /// 当前选中的设备（考虑用户偏好和智能选择）
-    @Published private(set) var selectedDevice: AudioHardwareDevice? {
-        didSet {
-            // 同步更新跨线程缓存
-            recordingDeviceLock.lock()
-            _cachedRecordingDevice = selectedDevice
-            recordingDeviceLock.unlock()
-        }
-    }
+    @Published private(set) var selectedDevice: AudioHardwareDevice?
     
     /// 所有可用的输入设备
     @Published private(set) var availableDevices: [AudioHardwareDevice] = []
     
-    /// 设备选择策略
-    enum SelectionStrategy: String, Codable {
-        case automatic      // 自动选择（质量优先）
-        case manual         // 用户手动选择
-    }
+    /// 当前用户偏好设置（.builtInDefault 或 .external(uid:)）
+    private(set) var preference: AudioDeviceSelectionResolver.Preference
     
-    /// 当前选择策略
-    @Published var strategy: SelectionStrategy
+    /// 当前激活的设备（可能是偏好设备或回退设备）
+    private(set) var activeDevice: AudioHardwareDevice?
     
-    /// 用户手动选择的设备 UID（仅在 manual 策略下使用）
-    @Published var preferredDeviceUID: String?
+    /// 是否正在使用内置设备作为回退（当外部设备不可用时）
+    private(set) var isUsingFallbackBuiltIn: Bool
     
-    init(provider: AudioDeviceProviding = SystemAudioDeviceProvider())
+    init(provider: AudioDeviceProviding, defaults: UserDefaults = .standard)
     
     /// 同步获取录音设备（供非主线程抛出函数或同步录音方法使用，避免 async 传染链）
     nonisolated func currentRecordingDevice() -> AudioHardwareDevice?
     
-    /// 刷新可用设备列表
+    /// 刷新可用设备列表并重新评估设备选择
     func refreshDevices()
     
     /// 手动选择设备
-    /// - Parameter device: 要选择的设备
+    /// - Parameter device: 要选择的设备（如果是内置设备，会自动调用 selectBuiltInDefault）
     func selectDevice(_ device: AudioHardwareDevice)
     
-    /// 重置为自动选择
-    func resetToAutomatic()
+    /// 选择内置设备作为默认（清除外部设备偏好）
+    func selectBuiltInDefault()
     
-    /// 获取应该使用的设备（供内部逻辑评估）
-    /// - Returns: 选中的设备，如果没有可用设备返回 nil
-    func deviceForRecording() -> AudioHardwareDevice?
+    /// 持久化偏好设备 UID 到 UserDefaults
+    private func persistPreferredDeviceUID()
     
-    /// 根据优先级选择默认设备
-    /// - Parameter devices: 可用设备列表
-    /// - Returns: 优先级最高的设备
-    private func selectDefaultDevice(from devices: [AudioHardwareDevice]) -> AudioHardwareDevice?
+    /// 更新线程安全的录音设备缓存
+    private func updateRecordingDeviceCache(_ device: AudioHardwareDevice?)
+    
+    /// 应用设备选择解析结果
+    private func applyResolvedSelection()
 }
 ```
 
-### 3. AudioDeviceChangeMonitor（新组件）
+### 3. AudioDeviceSelectionResolver（新组件）
+
+```swift
+/// 设备选择解析器（纯函数，无状态）
+struct AudioDeviceSelectionResolver {
+    /// 用户偏好设置
+    enum Preference: Equatable, Sendable {
+        case builtInDefault                 // 默认使用内置设备
+        case external(uid: String)          // 使用指定 UID 的外部设备
+    }
+    
+    /// 解析结果
+    struct Resolution: Equatable, Sendable {
+        let preference: Preference                  // 用户偏好
+        let activeDevice: AudioHardwareDevice?      // 实际激活的设备
+        let isUsingFallbackBuiltIn: Bool           // 是否正在使用内置设备作为回退
+    }
+    
+    /// 根据偏好 UID 解析设备选择
+    /// - Parameters:
+    ///   - availableDevices: 当前可用的设备列表
+    ///   - defaultInputDevice: 系统默认输入设备
+    ///   - preferredAudioInputDeviceUID: 用户偏好的设备 UID（nil 表示使用内置默认）
+    /// - Returns: 解析结果
+    static func resolve(
+        availableDevices: [AudioHardwareDevice],
+        defaultInputDevice: AudioHardwareDevice?,
+        preferredAudioInputDeviceUID: String?
+    ) -> Resolution
+    
+    /// 根据偏好枚举解析设备选择
+    /// - Parameters:
+    ///   - availableDevices: 当前可用的设备列表
+    ///   - defaultInputDevice: 系统默认输入设备
+    ///   - preference: 用户偏好设置
+    /// - Returns: 解析结果
+    static func resolve(
+        availableDevices: [AudioHardwareDevice],
+        defaultInputDevice: AudioHardwareDevice?,
+        preference: Preference
+    ) -> Resolution
+    
+    /// 获取默认内置路由（优先内置设备，否则使用系统默认或最高优先级设备）
+    /// - Parameters:
+    ///   - availableDevices: 当前可用的设备列表
+    ///   - defaultInputDevice: 系统默认输入设备
+    /// - Returns: 选中的设备
+    private static func defaultBuiltInRoute(
+        availableDevices: [AudioHardwareDevice],
+        defaultInputDevice: AudioHardwareDevice?
+    ) -> AudioHardwareDevice?
+}
+```
+
+### 4. AudioDeviceChangeMonitor（新组件）
 
 ```swift
 /// 监听音频设备变更事件
@@ -209,17 +392,144 @@ final class AudioDeviceChangeMonitor {
 }
 ```
 
-### 4. MacAudioFileRecorder 集成
+### 4. MacCaptureAudioFileRecorder 集成
 
-修改 `MacAudioFileRecorder.startRecording()` 以使用 `AudioDeviceSelectionManager`：
+**当前实现架构**：
+
+`MacCaptureAudioFileRecorder` 是 macOS 平台的音频录制实现，使用 AVCapture 框架。它已经实现了完整的设备选择和回退逻辑。
+
+**集成点**：
+
+修改 `MacCaptureAudioFileRecorder.startRecording()` 以使用 `AudioDeviceSelectionManager`：
 
 ```swift
 // 当前实现
-let inputDevice = AudioInputDeviceManager.defaultInputDevice()
+// MacCaptureAudioDevicePlanner.inputDeviceCandidates() 接收 selectedDevice 参数
+// 如果 selectedDevice 为 nil，会使用内置设备和系统默认设备作为候选
 
-// 修改为（使用跨线程安全的同步方法，避免迫使 startRecording 改为 async 并导致大规模重构）
-let inputDevice = AudioDeviceSelectionManager.shared.currentRecordingDevice()
+// 修改为（使用跨线程安全的同步方法）
+let selectedDevice = AudioDeviceSelectionManager.shared.currentRecordingDevice()
+let candidates = MacCaptureAudioDevicePlanner.inputDeviceCandidates(selectedDevice: selectedDevice)
 ```
+
+**Audio Capture Pipeline 架构**：
+
+```mermaid
+graph TB
+    Start[startRecording] --> GetDevice[AudioDeviceSelectionManager.currentRecordingDevice]
+    GetDevice --> Planner[MacCaptureAudioDevicePlanner.inputDeviceCandidates]
+    Planner --> Candidates{生成候选设备列表}
+    
+    Candidates --> C1[Candidate 1: Selected Device]
+    Candidates --> C2[Candidate 2: No Explicit Device Fallback]
+    Candidates --> C3[Candidate 3: Built-in Fallback]
+    Candidates --> C4[Candidate 4: System Default Fallback]
+    
+    C1 --> Resolve1[resolveCaptureDevice]
+    C2 --> Resolve2[resolveCaptureDevice]
+    C3 --> Resolve3[resolveCaptureDevice]
+    C4 --> Resolve4[resolveCaptureDevice]
+    
+    Resolve1 --> Try1{尝试启动}
+    Resolve2 --> Try2{尝试启动}
+    Resolve3 --> Try3{尝试启动}
+    Resolve4 --> Try4{尝试启动}
+    
+    Try1 -->|成功| Success[录音开始]
+    Try1 -->|失败| Try2
+    Try2 -->|成功| Success
+    Try2 -->|失败| Try3
+    Try3 -->|成功| Success
+    Try3 -->|失败| Try4
+    Try4 -->|成功| Success
+    Try4 -->|失败| Error[所有候选设备失败]
+```
+
+**候选设备策略详解**：
+
+1. **Selected Device（.selected）**
+   - 如果用户通过 `AudioDeviceSelectionManager` 选择了特定设备，优先使用该设备
+   - 如果选中的设备恰好是系统默认设备，会添加一个 "No Explicit Device Fallback" 候选
+   - 这样可以在设备 UID 匹配失败时，仍然能通过系统默认路由使用该设备
+
+2. **No Explicit Device Fallback（.noExplicitDeviceFallback）**
+   - 使用 `AVCaptureDevice.default(for: .audio)` 获取系统默认设备
+   - 不指定具体的 AudioHardwareDevice，让 AVCapture 自动选择
+   - 这是最灵活的回退策略，适用于大多数情况
+   - 当用户没有手动选择设备时，这是第一个候选
+
+3. **Built-in Fallback（.builtInFallback）**
+   - 使用 `AudioInputDeviceManager.builtInInputDevice()` 获取内置麦克风
+   - 内置麦克风通常最可靠，采样率高，延迟低
+   - 优先级高于系统默认设备（因为系统默认可能是低质量的蓝牙设备）
+
+4. **System Default Fallback（.systemDefaultFallback）**
+   - 使用 `AudioInputDeviceManager.defaultInputDevice()` 获取系统默认设备
+   - 作为最后的回退选项
+   - 确保即使内置麦克风不可用，仍然能使用某个设备
+
+**设备解析逻辑（resolveCaptureDevice）**：
+
+```swift
+// 如果 device 为 nil，使用系统默认 AVCaptureDevice
+if device == nil {
+    return AVCaptureDevice.default(for: .audio) ?? availableDevices.first
+}
+
+// 否则，按以下顺序匹配：
+// 1. 精确 UID 匹配（最可靠）
+if let exactUIDMatch = availableDevices.first(where: { $0.uniqueID == device.uid }) {
+    return exactUIDMatch
+}
+
+// 2. 精确名称匹配（UID 可能在某些情况下改变）
+if let exactNameMatch = availableDevices.first(where: { $0.localizedName == device.name }) {
+    return exactNameMatch
+}
+
+// 3. 内置设备模糊匹配（处理名称变化）
+if device.isBuiltIn,
+   let builtInLikeDevice = availableDevices.first(where: {
+       $0.localizedName.localizedCaseInsensitiveContains("microphone") ||
+       $0.localizedName.localizedCaseInsensitiveContains("macbook")
+   }) {
+    return builtInLikeDevice
+}
+
+// 4. 如果都不匹配，抛出 selectedDeviceUnavailable 错误
+throw CaptureError.selectedDeviceUnavailable(...)
+```
+
+**重试机制**：
+
+- 每个候选设备尝试启动时，会进行最多 4 次重试
+- 每次重试间隔 0.15 秒
+- 如果某个候选设备启动失败，会自动尝试下一个候选设备
+- 候选设备之间的切换间隔为 0.1 秒
+- 总最大启动时间：约 2 秒（4 个候选 × 4 次重试 × 0.15 秒）
+
+**日志和监控**：
+
+系统会记录详细的启动时序信息（当启用性能追踪时）：
+
+```
+AudioStartup captureRecorderStart candidates=selected:USB Mic,noExplicitDeviceFallback:systemDefault
+AudioStartup captureRecorderCandidateSuccess reason=selected device=USB Mic attemptMs=45.2
+```
+
+或在失败时：
+
+```
+AudioStartup captureRecorderCandidateFailed reason=selected device=USB Mic attemptMs=120.5 error=...
+AudioStartup captureRecorderCandidateSuccess reason=builtInFallback device=Built-in Microphone attemptMs=38.1
+```
+
+**错误处理**：
+
+- 如果所有候选设备都失败，抛出 `SpeechServiceError.failedToStart`
+- 每个候选失败时记录 warning 级别日志
+- 所有候选失败时记录 error 级别日志
+- 错误信息包含设备名称、UID、可用设备列表等调试信息
 
 ### 5. Settings UI 组件
 
@@ -610,24 +920,31 @@ extension AudioHardwareDevice {
 
 ### 持久化机制与状态同步
 
-在 `AudioDeviceSelectionManager` 中，需要确保属性变更能自动同步到 UserDefaults：
+在 `AudioDeviceSelectionManager` 中，设备偏好通过 UserDefaults 持久化：
 
 ```swift
 enum MacPreferences {
     // ... 现有键 ...
     // 音频设备选择
-    static let audioDeviceSelectionStrategy = "mac.audioDeviceSelectionStrategy"
     static let preferredAudioInputDeviceUID = "mac.preferredAudioInputDeviceUID"
 }
 
-// 建议机制：在设值时监听并写入持久化存储
-// @Published var strategy: SelectionStrategy {
-//     didSet { UserDefaults.standard.set(strategy.rawValue, forKey: MacPreferences.audioDeviceSelectionStrategy) }
-// }
-// @Published var preferredDeviceUID: String? {
-//     didSet { UserDefaults.standard.set(preferredDeviceUID, forKey: MacPreferences.preferredAudioInputDeviceUID) }
-// }
+// 实现机制：
+// - 当用户选择外部设备时，将 UID 保存到 UserDefaults
+// - 当用户选择内置默认时，从 UserDefaults 中移除该键
+// - 初始化时从 UserDefaults 加载偏好 UID
+// - 使用 AudioDeviceSelectionResolver 解析偏好和可用设备，得到实际激活的设备
 ```
+
+**关键设计决策**：
+
+1. **不保存 strategy 枚举**：实际代码中没有 `strategy` 属性，而是通过 `preferredAudioInputDeviceUID` 是否为 nil 来判断用户偏好
+   - `preferredAudioInputDeviceUID == nil` → 使用内置默认（`.builtInDefault`）
+   - `preferredAudioInputDeviceUID != nil` → 使用外部设备（`.external(uid:)`）
+
+2. **选择内置设备的特殊处理**：当用户选择内置设备时，会清除 `preferredAudioInputDeviceUID`，这样系统会自动使用内置默认策略
+
+3. **回退机制**：当外部设备不可用时，系统会自动回退到内置设备，但保留用户的偏好设置（`isUsingFallbackBuiltIn` 标志）
 
 
 ---
@@ -662,25 +979,25 @@ enum MacPreferences {
 
 ### Property 5: 设备选择持久化
 
-*对于任何* 设备，调用 `selectDevice(device)` 后，`preferredDeviceUID` 应该等于 `device.uid`，并且该值应该持久化到 UserDefaults 中。重新创建 `AudioDeviceSelectionManager` 实例后，`preferredDeviceUID` 应该保持相同的值。
+*对于任何* 设备，调用 `selectDevice(device)` 后（如果不是内置设备），`preferredAudioInputDeviceUID` 应该等于 `device.uid`，并且该值应该持久化到 UserDefaults 中。重新创建 `AudioDeviceSelectionManager` 实例后，`preferredAudioInputDeviceUID` 应该保持相同的值。如果选择的是内置设备，`preferredAudioInputDeviceUID` 应该为 nil。
 
 **验证需求: Requirements 3.1**
 
 ### Property 6: 手动选择的设备被使用
 
-*对于任何* 设备，当 `strategy` 为 `.manual` 且 `preferredDeviceUID` 设置为该设备的 UID 时，如果该设备在 `availableDevices` 中，则 `deviceForRecording()` 必须返回该设备。
+*对于任何* 设备，当 `preference` 为 `.external(uid:)` 且该设备在 `availableDevices` 中时，`activeDevice` 和 `selectedDevice` 必须是该设备。
 
 **验证需求: Requirements 3.2, 5.2**
 
 ### Property 7: 设备不可用时回退到默认设备
 
-*对于任何* 设备 UID，当 `strategy` 为 `.manual` 且 `preferredDeviceUID` 设置为该 UID，但该 UID 不在 `availableDevices` 中时，`deviceForRecording()` 应该返回系统默认设备。
+*对于任何* 设备 UID，当 `preference` 为 `.external(uid:)` 且该 UID 不在 `availableDevices` 中时，`activeDevice` 应该回退到内置设备（如果可用）或系统默认设备，并且 `isUsingFallbackBuiltIn` 应该为 true（如果回退到内置设备）。
 
 **验证需求: Requirements 3.3**
 
 ### Property 8: 设备选择可以多次更改
 
-*对于任何* 设备序列 [device1, device2, device3]，依次调用 `selectDevice(device1)`、`selectDevice(device2)`、`selectDevice(device3)` 后，`preferredDeviceUID` 应该等于 `device3.uid`。
+*对于任何* 设备序列 [device1, device2, device3]，依次调用 `selectDevice(device1)`、`selectDevice(device2)`、`selectDevice(device3)` 后，如果 device3 不是内置设备，`preferredAudioInputDeviceUID` 应该等于 `device3.uid`；如果 device3 是内置设备，`preferredAudioInputDeviceUID` 应该为 nil。
 
 **验证需求: Requirements 3.4, 5.4**
 
@@ -692,19 +1009,19 @@ enum MacPreferences {
 
 ### Property 10: 自动模式选择最高优先级设备
 
-*对于任何* 可用设备列表，当 `strategy` 为 `.automatic` 时，`deviceForRecording()` 返回的设备应该是内置设备（如果存在），否则返回 `automaticSelectionPriority` 最高的设备。
+*对于任何* 可用设备列表，当 `preference` 为 `.builtInDefault` 时，`activeDevice` 返回的设备应该是内置设备（如果存在），否则返回系统默认设备，或者返回 `automaticSelectionPriority` 最高的设备。
 
 **验证需求: Requirements 4.3**
 
 ### Property 11: 手动选择覆盖优先级
 
-*对于任何* 设备，当 `strategy` 为 `.manual` 且 `preferredDeviceUID` 设置为该设备的 UID 时，即使存在 `automaticSelectionPriority` 更高的其他设备，`deviceForRecording()` 也必须返回该手动选择的设备（如果它可用）。
+*对于任何* 设备，当 `preference` 为 `.external(uid:)` 且该设备可用时，即使存在 `automaticSelectionPriority` 更高的其他设备，`activeDevice` 也必须返回该手动选择的设备。
 
 **验证需求: Requirements 5.3**
 
 ### Property 12: 设备切换后录音使用新设备
 
-*对于任何* 两个不同的设备 A 和 B，如果先调用 `selectDevice(A)` 并录音，然后调用 `selectDevice(B)` 并再次录音，第二次录音应该使用设备 B。
+*对于任何* 两个不同的设备 A 和 B，如果先调用 `selectDevice(A)` 并录音，然后调用 `selectDevice(B)` 并再次录音，第二次录音应该使用设备 B（通过 `currentRecordingDevice()` 获取）。
 
 **验证需求: Requirements 7.5**
 
@@ -807,11 +1124,98 @@ struct AudioDeviceHardwareTests {
 
 @Suite("Audio Device Selection")
 struct AudioDeviceSelectionTests {
-    @Test("Automatic mode selects high quality over Bluetooth")
+    @Test("Built-in default prefers built-in over external")
     @MainActor
-    func automaticModeSelectsHighQuality() async throws {
-        let usbMic = AudioHardwareDevice(
-            id: 1, uid: "usb", name: "USB Microphone",
+    func builtInDefaultPrefersBuiltIn() async throws {
+        let builtIn = AudioHardwareDevice(
+            id: 1, uid: "built-in", name: "MacBook Microphone",
+            transportType: kAudioDeviceTransportTypeBuiltIn
+        )
+        let usb = AudioHardwareDevice(
+            id: 2, uid: "usb", name: "USB Microphone",
+            transportType: kAudioDeviceTransportTypeUSB
+        )
+        
+        struct MockProvider: AudioDeviceProviding {
+            var mockDevices: [AudioHardwareDevice]
+            func allInputDevices() -> [AudioHardwareDevice] { mockDevices }
+            func defaultInputDevice() -> AudioHardwareDevice? { mockDevices.first }
+        }
+        
+        let manager = AudioDeviceSelectionManager(
+            provider: MockProvider(mockDevices: [usb, builtIn]),
+            defaults: TestSupport.makeUserDefaults()
+        )
+        
+        #expect(manager.preference == .builtInDefault)
+        #expect(manager.activeDevice == builtIn)
+        #expect(manager.selectedDevice == builtIn)
+    }
+    
+    @Test("External preference persists across restarts")
+    @MainActor
+    func externalPreferencePersists() async throws {
+        let builtIn = AudioHardwareDevice(
+            id: 1, uid: "built-in", name: "MacBook Microphone",
+            transportType: kAudioDeviceTransportTypeBuiltIn
+        )
+        let usb = AudioHardwareDevice(
+            id: 2, uid: "usb", name: "USB Mic",
+            transportType: kAudioDeviceTransportTypeUSB
+        )
+        
+        struct MockProvider: AudioDeviceProviding {
+            var mockDevices: [AudioHardwareDevice]
+            func allInputDevices() -> [AudioHardwareDevice] { mockDevices }
+            func defaultInputDevice() -> AudioHardwareDevice? { mockDevices.first }
+        }
+        
+        let defaults = TestSupport.makeUserDefaults()
+        let provider = MockProvider(mockDevices: [builtIn, usb])
+        
+        let manager1 = AudioDeviceSelectionManager(provider: provider, defaults: defaults)
+        manager1.selectDevice(usb)
+        
+        #expect(defaults.string(forKey: MacPreferences.preferredAudioInputDeviceUID) == usb.uid)
+        
+        let manager2 = AudioDeviceSelectionManager(provider: provider, defaults: defaults)
+        #expect(manager2.preference == .external(uid: usb.uid))
+        #expect(manager2.activeDevice == usb)
+    }
+    
+    @Test("Selecting built-in device clears external preference")
+    @MainActor
+    func selectingBuiltInClearsExternalPreference() async throws {
+        let builtIn = AudioHardwareDevice(
+            id: 1, uid: "built-in", name: "MacBook Microphone",
+            transportType: kAudioDeviceTransportTypeBuiltIn
+        )
+        let usb = AudioHardwareDevice(
+            id: 2, uid: "usb", name: "USB Mic",
+            transportType: kAudioDeviceTransportTypeUSB
+        )
+        
+        struct MockProvider: AudioDeviceProviding {
+            var mockDevices: [AudioHardwareDevice]
+            func allInputDevices() -> [AudioHardwareDevice] { mockDevices }
+            func defaultInputDevice() -> AudioHardwareDevice? { mockDevices.first }
+        }
+        
+        let defaults = TestSupport.makeUserDefaults()
+        let manager = AudioDeviceSelectionManager(
+            provider: MockProvider(mockDevices: [builtIn, usb]),
+            defaults: defaults
+        )
+        
+        manager.selectDevice(usb)
+        #expect(defaults.string(forKey: MacPreferences.preferredAudioInputDeviceUID) == usb.uid)
+        
+        manager.selectDevice(builtIn)
+        #expect(defaults.string(forKey: MacPreferences.preferredAudioInputDeviceUID) == nil)
+        #expect(manager.preference == .builtInDefault)
+    }
+}
+```hone",
             transportType: kAudioDeviceTransportTypeUSB
         )
         let airPods = AudioHardwareDevice(
@@ -964,9 +1368,22 @@ extension AudioHardwareDevice: Arbitrary {
 - ✅ `AudioDeviceSelectionManager`（新类）
 - ✅ `AudioDeviceChangeMonitor`（新类）
 - ✅ `AudioTestService` 及其实现（新类）
-- ✅ `AudioHardwareDevice` 扩展（`qualityScore`, `isBluetooth`）
+- ✅ `AudioHardwareDevice` 扩展（`automaticSelectionPriority`, `isBluetooth`, `isBuiltIn`, `isHandheldAppleDevice`）
 - ❌ UI 组件（Views, ViewModels）
 - ❌ 项目中其他已存在的代码
+- ❌ 现有的 Audio Capture 组件（`MacCaptureAudioDevicePlanner`, `MacCaptureAudioSessionFactory`, `MacCaptureAudioSampleBufferConverter`, `MacCaptureAudioFileRecorder`）- 这些已经有测试覆盖
+
+**现有 Audio Capture 组件的测试状态**：
+- ✅ `MacCaptureAudioDevicePlannerTests` - 已实现，测试候选设备生成逻辑
+- ✅ `MacCaptureAudioSessionFactoryTests` - 已实现，测试会话创建
+- ✅ `MacCaptureAudioSampleBufferConverterTests` - 已实现，测试样本缓冲区转换
+- ✅ `CaptureErrorTests` - 已实现，测试错误描述
+- ⚠️ `MacCaptureAudioFileRecorder` - 没有独立的单元测试，但通过集成测试覆盖
+
+**新增测试需求**：
+- 需要为 `AudioDeviceSelectionManager` 与 `MacCaptureAudioFileRecorder` 的集成添加测试
+- 需要验证候选设备策略与用户选择的设备正确交互
+- 需要测试设备回退机制在实际录音场景中的行为
 
 **测试独立性**：
 - 本模块的测试应该可以独立运行

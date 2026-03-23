@@ -226,17 +226,26 @@ Implementation approach:
     - Test notification is posted (using NotificationCenter observation)
     - _Requirements: 1.3, 1.4_
 
-- [x] 6. Integrate AudioDeviceSelectionManager into MacAudioFileRecorder
+- [x] 6. Integrate AudioDeviceSelectionManager into MacCaptureAudioFileRecorder
   - [x] 6.1 Modify startRecording() to use selected device
-    - Replace AudioInputDeviceManager.defaultInputDevice() call
-    - Use AudioDeviceSelectionManager.shared.currentRecordingDevice()
+    - Pass AudioDeviceSelectionManager.shared.currentRecordingDevice() to MacCaptureAudioDevicePlanner.inputDeviceCandidates()
+    - MacCaptureAudioDevicePlanner generates candidate devices with fallback strategies:
+      1. Selected device (if user chose one)
+      2. No explicit device fallback (let AVCapture choose system default)
+      3. Built-in device fallback (internal microphone)
+      4. System default fallback (CoreAudio default device)
+    - Each candidate is resolved via MacCaptureAudioDevicePlanner.resolveCaptureDevice()
+    - Resolution logic: exact UID match → exact name match → built-in fuzzy match → error
+    - AVCaptureSession is configured and started with retry logic (up to 4 attempts per candidate)
+    - If a candidate fails, the next candidate is tried automatically with 0.1s delay
     - Use nonisolated synchronous method to avoid async propagation
-    - Handle nil device case (log error, use system default as fallback)
     - _Requirements: 3.2, 4.1, 4.3, 5.2_
   
   - [ ]* 6.2 Write integration test for recording with selected device
     - Test recording uses manually selected device
     - Test recording falls back to default if selected device unavailable
+    - Test candidate device fallback chain works correctly
+    - Test retry mechanism for session startup
     - _Requirements: 3.2, 3.3, 5.2_
 
 - [x] 7. Add device selection UI to MacGeneralSettingsView

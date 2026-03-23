@@ -233,3 +233,9 @@ final class SupabaseService {
         }
     }
 }
+
+extension SupabaseService: OnboardingSupabaseAuthenticating {
+    var hasCurrentSession: Bool {
+        currentSession != nil
+    }
+}
