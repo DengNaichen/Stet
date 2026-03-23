@@ -14,7 +14,7 @@ struct MacHotKeySettingsSectionView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             LabeledContent(hotkey.title) {
                 KeyboardShortcuts.Recorder(
                     for: hotkey.name,

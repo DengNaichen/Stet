@@ -19,7 +19,7 @@ struct MacSettingsCard<Content: View>: View {
 
     var body: some View {
         GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
                 Text(title)
                     .font(.headline)
 
@@ -32,7 +32,7 @@ struct MacSettingsCard<Content: View>: View {
                 content()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(8)
+            .padding(MacUI.SettingsViewMetrics.cardInnerPadding)
         }
     }
 }
@@ -51,7 +51,7 @@ struct MacSettingsValueRow<Value: View>: View {
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: MacUI.SettingsViewMetrics.valueRowSpacing) {
             Text(title)
                 .foregroundStyle(.secondary)
 

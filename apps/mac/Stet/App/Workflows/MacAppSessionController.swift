@@ -696,6 +696,7 @@ final class MacAppSessionController {
             Task {
                 await DictationStartupProbe.shared.record(.failed, note: "permissions_gate")
             }
+
             presentRequiredPermissionsGateIfNeeded()
             return
         }

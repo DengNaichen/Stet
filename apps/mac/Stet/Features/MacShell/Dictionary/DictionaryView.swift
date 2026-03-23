@@ -71,8 +71,8 @@ struct DictionaryView: View {
             }
         }
         .formStyle(.grouped)
-        .padding(.horizontal, MacUI.DictionaryViewMetrics.formHorizontalPadding)
-        .padding(.bottom, MacUI.DictionaryViewMetrics.formBottomPadding)
+        .padding(.horizontal, MacUI.SettingsViewMetrics.formHorizontalPadding)
+        .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
     }
 
     private func dictionaryChip(for entry: String) -> some View {
@@ -105,4 +105,3 @@ struct DictionaryView: View {
     }
 }
 #endif
-

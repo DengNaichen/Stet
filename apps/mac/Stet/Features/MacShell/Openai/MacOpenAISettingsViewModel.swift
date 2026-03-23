@@ -32,7 +32,7 @@ final class MacOpenAISettingsViewModel: ObservableObject {
             settingsStore.saveDictationLanguageMode(dictationLanguageMode)
         }
     }
-    @Published private(set) var credentialMessage = "Stored securely in Keychain."
+    @Published private(set) var credentialMessage = "Your access key is stored securely on this Mac."
     @Published private(set) var credentialMessageIsError = false
 
     private let settingsStore: DictationSettingsStore
@@ -74,11 +74,11 @@ final class MacOpenAISettingsViewModel: ObservableObject {
     var connectionStatusText: String {
         switch executionMode {
         case .automatic:
-            return hasRelaySession ? "Relay Active" : (connectionNeedsAttention ? "Missing Key" : "Direct Fallback")
+            return hasRelaySession ? "Signed in" : (connectionNeedsAttention ? "Needs setup" : "Ready")
         case .managed:
-            return hasRelaySession ? "Relay Only" : "Sign In Required"
+            return hasRelaySession ? "Signed in" : "Sign in required"
         case .byok:
-            return connectionNeedsAttention ? "Missing Key" : "Configured"
+            return connectionNeedsAttention ? "Needs setup" : "Ready"
         }
     }
 
@@ -89,8 +89,8 @@ final class MacOpenAISettingsViewModel: ObservableObject {
             try settingsStore.saveAPIKey(trimmedKey, for: provider)
             apiKey = trimmedKey
             credentialMessage = trimmedKey.isEmpty
-                ? "Credential removed from Keychain."
-                : "\(provider.displayName) API key saved in Keychain."
+                ? "Access key removed from this Mac."
+                : "\(provider.displayName) access key saved on this Mac."
             credentialMessageIsError = false
         } catch {
             credentialMessage = error.localizedDescription
@@ -106,16 +106,16 @@ final class MacOpenAISettingsViewModel: ObservableObject {
     var rewriteToggleTitle: String {
         switch executionMode {
         case .automatic:
-            return "Rewriteuselly"
+            return "Improve final transcript automatically"
         case .managed:
-            return "Rewrite final transcript with Managed Relay"
+            return "Improve final transcript with your Stet account"
         case .byok:
-            return "Rewrite final transcript with \(provider.displayName)"
+            return "Improve final transcript with your own key"
         }
     }
 
     var credentialFieldTitle: String {
-        "\(provider.displayName) API key"
+        "\(provider.displayName) access key"
     }
 
     var credentialPlaceholder: String {
@@ -129,12 +129,12 @@ final class MacOpenAISettingsViewModel: ObservableObject {
                   apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 return nil
             }
-            return "Add a \(provider.displayName) API key to enable local dictation when you are signed out."
+            return "Add a \(provider.displayName) access key to use on-device dictation when you're signed out."
         case .managed:
-            return hasRelaySession ? nil : "Sign in with your Stet account to use Managed Relay for dictation."
+            return hasRelaySession ? nil : "Sign in with your Stet account to use cloud dictation."
         case .byok:
             guard apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-            return "Add a \(provider.displayName) API key before using direct transcription or rewrite."
+            return "Add a \(provider.displayName) access key before using direct transcription or transcript improvement."
         }
     }
 
@@ -148,26 +148,26 @@ final class MacOpenAISettingsViewModel: ObservableObject {
         switch executionMode {
         case .automatic:
             if hasCredential {
-                credentialMessage = "\(provider.displayName) API key is saved in Keychain for local fallback."
+                credentialMessage = "\(provider.displayName) access key is saved on this Mac for on-device fallback."
             } else if hasRelaySession {
-                credentialMessage = "Managed Relay is active for dictation. No local fallback key is currently saved."
+                credentialMessage = "Your Stet account is active for dictation. No on-device key is saved."
             } else {
-                credentialMessage = "No \(provider.displayName) API key is saved for local fallback."
+                credentialMessage = "No \(provider.displayName) access key is saved for on-device fallback."
             }
         case .managed:
             if hasRelaySession {
                 credentialMessage = hasCredential
-                    ? "A \(provider.displayName) API key is saved in Keychain but ignored by Managed Relay."
-                    : "Managed Relay is active for dictation."
+                    ? "A \(provider.displayName) access key is saved on this Mac, but it is not needed while you're signed in."
+                    : "Your Stet account is active for dictation."
             } else if hasCredential {
-                credentialMessage = "Sign in to use Managed Relay. A \(provider.displayName) API key is saved for future Automatic fallback or BYOK use."
+                credentialMessage = "Sign in to use cloud dictation. A \(provider.displayName) access key is saved for later use."
             } else {
-                credentialMessage = "Sign in to use Managed Relay. No local provider API key is saved."
+                credentialMessage = "Sign in to use cloud dictation. No access key is saved."
             }
         case .byok:
             credentialMessage = hasCredential
-                ? "\(provider.displayName) API key is saved in Keychain."
-                : "No \(provider.displayName) API key is saved in Keychain."
+                ? "\(provider.displayName) access key is saved on this Mac."
+                : "No \(provider.displayName) access key is saved on this Mac."
         }
         credentialMessageIsError = false
     }

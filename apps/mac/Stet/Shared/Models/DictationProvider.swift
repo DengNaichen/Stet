@@ -25,11 +25,6 @@ enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
     }
 
     var apiKeyPlaceholder: String {
-        switch self {
-        case .openAI:
-            return "sk-..."
-        case .groq:
-            return "gsk_..."
-        }
+        "Enter your access key"
     }
 }

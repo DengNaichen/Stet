@@ -3,6 +3,16 @@ import SwiftUI
 import AppKit
 
 enum MacUI {
+    enum SettingsViewMetrics {
+        static let formHorizontalPadding: CGFloat = 24
+        static let formBottomPadding: CGFloat = 32
+        static let cardContentSpacing: CGFloat = 16
+        static let cardInnerPadding: CGFloat = 12
+        static let valueRowSpacing: CGFloat = 16
+        static let sidebarAccountRowHorizontalPadding: CGFloat = 16
+        static let sidebarAccountRowVerticalPadding: CGFloat = 12
+    }
+
     enum DictionaryViewMetrics {
         // Form paddings
         static let formHorizontalPadding: CGFloat = 20
@@ -29,11 +39,10 @@ enum MacUI {
     }
 
     enum WindowMetrics {
-        static let preferencesWidthFactor: CGFloat = 0.36
-        static let preferencesHeightFactor: CGFloat = 0.48
-
-        // Minimum size to keep layout comfortable
-        static let preferencesMinSize = CGSize(width: 500, height: 400)
+        static let preferencesWidthFactor: CGFloat = 0.35
+        static let preferencesHeightFactor: CGFloat = 0.40
+        static let preferencesMinimumWidthFactor: CGFloat = 0.20
+        static let preferencesMinimumHeightFactor: CGFloat = 0.20
 
         // Fallback size when screen info isn't available
         static let preferencesFallbackSize = CGSize(width: 724, height: 500)
@@ -41,12 +50,12 @@ enum MacUI {
         /// Compute an adaptive default size for the Preferences window based on the given screen.
         static func preferencesDefaultSize(for screen: NSScreen?) -> CGSize {
             let visibleSize = screen?.visibleFrame.size ?? preferencesFallbackSize
-            let width = max(preferencesMinSize.width, visibleSize.width * preferencesWidthFactor)
-            let height = max(preferencesMinSize.height, visibleSize.height * preferencesHeightFactor)
+            let minimumWidth = visibleSize.width * preferencesMinimumWidthFactor
+            let minimumHeight = visibleSize.height * preferencesMinimumHeightFactor
+            let width = max(minimumWidth, visibleSize.width * preferencesWidthFactor)
+            let height = max(minimumHeight, visibleSize.height * preferencesHeightFactor)
             return CGSize(width: width, height: height)
         }
     }
 }
 #endif
-
-

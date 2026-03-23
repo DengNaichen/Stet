@@ -12,20 +12,20 @@ enum AIExecutionMode: String, CaseIterable, Identifiable, Codable, Sendable {
         case .automatic:
             return "Automatic"
         case .managed:
-            return "Managed Relay"
+            return "Stet account"
         case .byok:
-            return "BYOK"
+            return "Your own key"
         }
     }
 
     nonisolated var subtitle: String {
         switch self {
         case .automatic:
-            return "Managed Relay"
+            return "Use the best available option"
         case .managed:
-            return "authenticated relay"
+            return "Use your signed-in Stet account"
         case .byok:
-            return "local provider API key"
+            return "Use your own provider key"
         }
     }
 

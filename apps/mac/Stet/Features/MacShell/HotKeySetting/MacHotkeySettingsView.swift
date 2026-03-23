@@ -21,8 +21,8 @@ struct MacHotkeySettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .padding(.horizontal, 20)
-        .padding(.bottom, 28)
+        .padding(.horizontal, MacUI.SettingsViewMetrics.formHorizontalPadding)
+        .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
     }
 }
 #endif

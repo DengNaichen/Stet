@@ -40,9 +40,9 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
         case .hotkey:
             return "Global keyboard shortcuts for starting dictation."
         case .openAI:
-            return "Cloud provider, rewrite behavior, and credentials."
+            return "AI service, transcript improvement, and account access."
         case .dictionary:
-            return "Personal dictionary entries used during transcription and rewrite."
+            return "Personal dictionary entries used during transcription and transcript cleanup."
         }
     }
 
@@ -74,7 +74,7 @@ private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
         case .hotkey:
             return ["shortcut", "keyboard", "recorder", "dictation"]
         case .openAI:
-            return ["provider", "api key", "rewrite", "groq", "openai"]
+            return ["service", "access key", "sign in", "transcript", "improve", "rewrite", "groq", "openai"]
         case .dictionary:
             return ["entries", "personal dictionary", "names", "brands"]
         }
@@ -107,7 +107,7 @@ struct MacSettingsView: View {
             detail
         }
         .searchable(text: $searchText, prompt: "Search settings")
-        .frame(minWidth: 920, minHeight: 700)
+        .frame(minWidth: 644, minHeight: 490)
         .task {
             reloadStateFromPreferences()
             synchronizeSelectionWithFilter()
@@ -134,8 +134,8 @@ struct MacSettingsView: View {
             } label: {
                 sidebarAccountRow
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, MacUI.SettingsViewMetrics.sidebarAccountRowHorizontalPadding)
+                    .padding(.vertical, MacUI.SettingsViewMetrics.sidebarAccountRowVerticalPadding)
             }
             .buttonStyle(.plain)
 
@@ -162,7 +162,7 @@ struct MacSettingsView: View {
             .environment(\.sidebarRowSize, .large)
             .listStyle(.sidebar)
         }
-        .navigationSplitViewColumnWidth(min: 220, ideal: 250, max: 320)
+        .navigationSplitViewColumnWidth(min: 144, ideal: 176, max: 240)
     }
 
     @ViewBuilder
@@ -190,7 +190,7 @@ struct MacSettingsView: View {
         HStack(spacing: 12) {
             accountAvatar
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(accountTitle)
                     .font(.headline)
                     .lineLimit(1)
