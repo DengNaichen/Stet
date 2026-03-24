@@ -14,6 +14,7 @@
         private nonisolated static let aiNameFragments: [String] = [
             "android studio",
             "androidstudio",
+            "android.studio",
             "aider",
             "antigravity",
             "augment",
@@ -39,6 +40,7 @@
             "pycharm",
             "replit",
             "roo code",
+            "roocode",
             "rider",
             "trae",
             "vscode",

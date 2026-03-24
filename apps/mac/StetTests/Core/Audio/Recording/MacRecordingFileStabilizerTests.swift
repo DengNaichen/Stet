@@ -37,14 +37,16 @@
             defer { try? FileManager.default.removeItem(at: fileURL) }
 
             let outputFormat = try #require(TranscriptionUploadAudioFormat.makeMacOutputFormat())
-            let audioFile = try AVAudioFile(
-                forWriting: fileURL,
-                settings: outputFormat.settings,
-                commonFormat: outputFormat.commonFormat,
-                interleaved: outputFormat.isInterleaved
-            )
             let buffer = try #require(makeOutputBuffer(format: outputFormat))
-            try audioFile.write(from: buffer)
+            do {
+                let audioFile = try AVAudioFile(
+                    forWriting: fileURL,
+                    settings: outputFormat.settings,
+                    commonFormat: outputFormat.commonFormat,
+                    interleaved: outputFormat.isInterleaved
+                )
+                try audioFile.write(from: buffer)
+            }
 
             await MacRecordingFileStabilizer.waitForFileToStabilize(at: fileURL)
 

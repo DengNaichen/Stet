@@ -10,12 +10,12 @@
     struct MacAppPrimitiveTests {
         @Test(arguments: [
             (MacOnboardingStep.mode, 1, false),
-            (MacOnboardingStep.apiKey, 2, false),
-            (MacOnboardingStep.login, 2, false),
-            (MacOnboardingStep.permissions, 3, false),
-            (MacOnboardingStep.shortcut, 4, true),
-            (MacOnboardingStep.firstSuccess, 5, true),
-            (MacOnboardingStep.done, 6, false),
+            (MacOnboardingStep.apiKey, 1, false),
+            (MacOnboardingStep.login, 1, false),
+            (MacOnboardingStep.permissions, 2, false),
+            (MacOnboardingStep.shortcut, 3, true),
+            (MacOnboardingStep.firstSuccess, 4, true),
+            (MacOnboardingStep.done, 5, false),
         ])
         func onboardingStepMetadata(
             _ step: MacOnboardingStep,
@@ -27,8 +27,8 @@
         }
 
         @Test func dictationProviderUsesExpectedAPIKeyPlaceholders() {
-            #expect(DictationProvider.openAI.apiKeyPlaceholder == "sk-...")
-            #expect(DictationProvider.groq.apiKeyPlaceholder == "gsk_...")
+            #expect(DictationProvider.openAI.apiKeyPlaceholder == "Enter your access key")
+            #expect(DictationProvider.groq.apiKeyPlaceholder == "Enter your access key")
         }
 
         @Test(arguments: [

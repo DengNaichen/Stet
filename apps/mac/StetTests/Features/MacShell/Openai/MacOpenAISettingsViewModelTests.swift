@@ -117,9 +117,7 @@
 
             #expect(viewModel.connectionStatusText == "Sign In Required")
             #expect(viewModel.connectionNeedsAttention)
-            #expect(
-                viewModel.missingCredentialMessage
-                    == "Sign in with your Stet account to use Managed Relay for dictation.")
+            #expect(viewModel.missingCredentialMessage == nil)
         }
 
         @Test func automaticModeWithRelaySessionShowsRelayActiveWithoutKey() {

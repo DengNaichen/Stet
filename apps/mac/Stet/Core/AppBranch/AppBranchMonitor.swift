@@ -12,7 +12,8 @@ private extension NSLocking {
 private nonisolated struct AppBranchMonitorState {
     var isMonitoring = false
     var excludedBundleID: String?
-    var previousApp: AppInfo?
+    var currentNonExcludedApp: AppInfo?
+    var previousNonExcludedApp: AppInfo?
     var observationToken: AppBranchWorkspaceObservationToken?
     var observers: [UUID: AppChangeObserver] = [:]
 }
@@ -175,8 +176,16 @@ public nonisolated final class AppBranchMonitor: @unchecked Sendable {
         }
 
         if let excludedID = state.excludedBundleID, bundleID == excludedID {
-            if let previousApp = state.previousApp, previousApp.bundleIdentifier != excludedID {
-                return previousApp
+            if let currentNonExcludedApp = state.currentNonExcludedApp,
+                currentNonExcludedApp.bundleIdentifier != excludedID
+            {
+                return currentNonExcludedApp
+            }
+
+            if let previousNonExcludedApp = state.previousNonExcludedApp,
+                previousNonExcludedApp.bundleIdentifier != excludedID
+            {
+                return previousNonExcludedApp
             }
             return nil
         }
@@ -189,7 +198,10 @@ public nonisolated final class AppBranchMonitor: @unchecked Sendable {
             runningApplication: frontmostApp.runningApplication
         )
 
-        state.previousApp = appInfo
+        if state.currentNonExcludedApp?.bundleIdentifier != appInfo.bundleIdentifier {
+            state.previousNonExcludedApp = state.currentNonExcludedApp
+        }
+        state.currentNonExcludedApp = appInfo
         return appInfo
     }
 }

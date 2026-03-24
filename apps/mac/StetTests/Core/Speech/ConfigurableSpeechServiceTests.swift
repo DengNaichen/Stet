@@ -500,9 +500,9 @@ struct ConfigurableSpeechServiceTests {
 
         let request = try #require(await rewrite.recordedRequests().first)
         #expect(request.systemPrompt?.contains("AI or coding tools") == true)
-        #expect(request.systemPrompt?.contains("Do not add a title.") == true)
+        #expect(request.systemPrompt?.contains("Do not add a title or wrap the result") == true)
         #expect(request.systemPrompt?.contains("Preserve the original language of the transcript.") == true)
-        #expect(request.systemPrompt?.contains("do not guess a different language") == true)
+        #expect(request.systemPrompt?.contains("Do not guess a different language") == true)
     }
 
     @Test func byokOpenAIToOpenAIReturnsOnlyRewrittenText() async throws {

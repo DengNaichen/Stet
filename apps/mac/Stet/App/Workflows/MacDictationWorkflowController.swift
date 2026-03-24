@@ -4,10 +4,6 @@
 
     @MainActor
     final class MacDictationWorkflowController {
-        private enum Configuration {
-            static let startPromptActivationDeadline: Duration = .milliseconds(350)
-        }
-
         enum PrimaryActionSource {
             case interface
             case hotkey
@@ -38,6 +34,7 @@
         private let settingsStore: DictationSettingsStore
         private let interactionSoundPlayer: any InteractionSoundPlaying
         private let mediaResumeDelay: Duration
+        private let startPromptActivationDeadline: Duration
 
         private weak var lastTargetApplication: NSRunningApplication?
         private(set) var activeRecordingSource: PrimaryActionSource?
@@ -53,7 +50,8 @@
             systemAudioMuting: (any SystemAudioMuting)? = nil,
             settingsStore: DictationSettingsStore,
             interactionSoundPlayer: any InteractionSoundPlaying,
-            mediaResumeDelay: Duration = .seconds(1)
+            mediaResumeDelay: Duration = .seconds(1),
+            startPromptActivationDeadline: Duration = .milliseconds(350)
         ) {
             self.dictationViewModel = dictationViewModel
             self.captureCoordinator = captureCoordinator
@@ -63,6 +61,7 @@
             self.settingsStore = settingsStore
             self.interactionSoundPlayer = interactionSoundPlayer
             self.mediaResumeDelay = mediaResumeDelay
+            self.startPromptActivationDeadline = startPromptActivationDeadline
         }
 
         deinit {
@@ -307,7 +306,7 @@
                     await interactionSoundPlayer.playStartPrompt(preset: preset)
                 }
                 group.addTask {
-                    try? await Task.sleep(for: Configuration.startPromptActivationDeadline)
+                    try? await Task.sleep(for: self.startPromptActivationDeadline)
                 }
 
                 await group.next()
