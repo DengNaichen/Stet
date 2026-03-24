@@ -46,6 +46,35 @@ xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -configuration Debug -d
 
 On first launch, Stet guides you through permissions, dictation setup, and either a Stet account or your own API key. Settings also cover audio input, language preference, appearance, updates, and the personal dictionary.
 
+## Troubleshooting
+
+### Debug build does not show the microphone permission prompt
+
+If `Stet Debug` does not appear in System Settings and clicking `Request Access` does not show the macOS microphone prompt, check the Debug build configuration first.
+
+- `ENABLE_RESOURCE_ACCESS_AUDIO_INPUT` must be `YES` for the Debug app
+- the built app should contain `com.apple.security.device.audio-input` in its generated entitlements
+- without that entitlement, `tccd` rejects the request before showing a prompt
+
+### Debug and installed apps must not share the same identity
+
+Do not use the same bundle identifier for the Xcode Debug app and the installed `/Applications/Stet.app`.
+
+- `Debug` uses `NaichengDeng.Stet.Debug`
+- `Release` uses `NaichengDeng.Stet`
+
+Keeping these separate avoids TCC and Launch Services collisions across microphone permission, Accessibility permission, and OAuth callback handling.
+
+### Onboarding still shows microphone access as blocked after Allow
+
+If the system prompt appears, permission is granted, and `Stet Debug` shows up in System Settings, but onboarding still refuses to continue, the problem is usually in the app-side permission gate rather than macOS TCC.
+
+- request microphone permission with `AVAudioApplication.requestRecordPermission`
+- read microphone status from `AVAudioApplication.shared.recordPermission`
+- avoid mixing `AVCaptureDevice.authorizationStatus(for: .audio)` with `AVAudioApplication` for gate decisions
+
+The capture pipeline can still use the existing macOS audio capture backend. Only the permission request and permission status checks need to stay on the same API family.
+
 ## Testing
 
 Run the macOS test suite:

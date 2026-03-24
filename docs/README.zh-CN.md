@@ -46,6 +46,35 @@ xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -configuration Debug -d
 
 首次启动时，Stet 会引导你完成权限、听写设置，以及 Stet 账号或自己的 API Key。设置里也可以调整音频输入、语言偏好、外观、更新和个人词典。
 
+## 故障排查
+
+### Debug 构建不弹麦克风权限窗
+
+如果 `Stet Debug` 没有出现在系统设置里，点击 `Request Access` 也不弹 macOS 麦克风权限窗，先检查 Debug 构建配置。
+
+- `ENABLE_RESOURCE_ACCESS_AUDIO_INPUT` 必须在 Debug 配置里设为 `YES`
+- 构建产物的 entitlement 里必须包含 `com.apple.security.device.audio-input`
+- 缺少这个 entitlement 时，`tccd` 会在弹窗前直接拒绝请求
+
+### Debug 和安装版不能共用同一个应用身份
+
+不要让 Xcode 里的 Debug 版和 `/Applications/Stet.app` 共用同一个 bundle identifier。
+
+- `Debug` 使用 `NaichengDeng.Stet.Debug`
+- `Release` 使用 `NaichengDeng.Stet`
+
+把两者分开可以避免麦克风权限、辅助功能权限和 OAuth 回调在 TCC / Launch Services 里互相污染。
+
+### 已经 Allow，但 onboarding 仍然显示麦克风未通过
+
+如果系统权限窗已经弹出、也已经点了 `Allow`，并且 `Stet Debug` 已经出现在系统设置里，但 onboarding 仍然不能继续，问题通常不在 macOS TCC，而在应用内的权限 gate。
+
+- 麦克风权限请求应使用 `AVAudioApplication.requestRecordPermission`
+- 麦克风权限状态应读取 `AVAudioApplication.shared.recordPermission`
+- 不要在 gate 判定里混用 `AVCaptureDevice.authorizationStatus(for: .audio)` 和 `AVAudioApplication`
+
+实际录音链路仍然可以继续使用现有的 macOS 音频采集实现。这里需要统一的只是权限请求和权限状态读取。
+
 ## 测试
 
 运行 macOS 测试：

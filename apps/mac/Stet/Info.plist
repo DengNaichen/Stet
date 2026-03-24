@@ -16,10 +16,10 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>NaichengDeng.Stet OAuth Callback</string>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER) OAuth Callback</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>naichengdeng.stet</string>
+				<string>$(APP_URL_SCHEME)</string>
 			</array>
 		</dict>
 	</array>
@@ -57,6 +57,8 @@
 	<string>psfYXHWJnGJoHOGO2ho0UJrT8KbCLFH9sQf9PdQwS9w=</string>
 	<key>SUPABASE_PUBLISHABLE_KEY</key>
 	<string>$(SUPABASE_PUBLISHABLE_KEY)</string>
+	<key>SUPABASE_OAUTH_REDIRECT_URL</key>
+	<string>$(SUPABASE_OAUTH_REDIRECT_URL)</string>
 	<key>SUPABASE_URL</key>
 	<string>$(SUPABASE_URL)</string>
 	<key>UIApplicationSceneManifest</key>
