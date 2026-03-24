@@ -440,8 +440,14 @@
 
     struct APIKeyValidationService: OnboardingAPIKeyValidating, Sendable {
         func validate(apiKey: String, provider: DictationProvider) async throws {
-            let configuration = OpenAIConfiguration(apiKey: apiKey, provider: provider)
-            let requestContext = try OpenAISDKClientFactory(configuration: configuration)
+            let configuration = RewriteProviderConfiguration(
+                endpoint: OpenAICompatibleProviderEndpointConfiguration(
+                    provider: provider,
+                    apiKey: apiKey
+                ),
+                model: DictationProviderDefaults.rewriteModel(for: provider)
+            )
+            let requestContext = try OpenAISDKClientFactory(endpoint: configuration.endpoint)
                 .makeRequestContext(timeoutInterval: 15)
 
             do {
@@ -455,7 +461,7 @@
                                 )
                             )
                         ]),
-                        model: configuration.rewriteModel,
+                        model: configuration.model,
                         store: configuration.supportsResponsesStore ? false : nil
                     )
                 )

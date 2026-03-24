@@ -39,14 +39,14 @@ Rationale: The Mac client already routes both providers through a shared OpenAI-
 - OpenAI uses `https://api.openai.com/v1`
 - Groq uses `https://api.groq.com/openai/v1`
 
-The current code already centralizes provider-specific defaults in `OpenAIConfiguration` and reuses the same SDK-backed request stack for transcription and rewrite. Splitting provider selection by step does not require a second networking stack.
+The current codebase now centralizes provider endpoint/auth handling in a shared OpenAI-compatible configuration layer and reuses the same SDK-backed request stack for OpenAI-compatible providers. Splitting provider selection by step does not require a second networking stack.
 
 Relevant implementation points:
 
-- `apps/mac/Stet/Core/OpenAI/OpenAIConfiguration.swift`
-- `apps/mac/Stet/Core/OpenAI/OpenAISDKClientFactory.swift`
-- `apps/mac/Stet/Core/Transcribed/OpenAITranscriptionService.swift`
-- `apps/mac/Stet/Core/Rewrite/OpenAIRewriteService.swift`
+- `apps/mac/Stet/Core/AIProviders/OpenAICompatible/OpenAICompatibleProviderConfiguration.swift`
+- `apps/mac/Stet/Core/AIProviders/OpenAICompatible/OpenAISDKClientFactory.swift`
+- `apps/mac/Stet/Core/AIProviders/OpenAI/OpenAITranscriptionService.swift`
+- `apps/mac/Stet/Core/AIProviders/OpenAI/OpenAIRewriteService.swift`
 
 Alternatives considered:
 
@@ -111,7 +111,7 @@ Rationale: The root `research.md` is useful source material, but it is broader a
 Source material incorporated:
 
 - Root-level model comparison and cost/latency findings from `/Users/nd/Developer/Stet/research.md`
-- Current provider defaults in `apps/mac/Stet/Core/OpenAI/OpenAIConfiguration.swift`
+- Current provider defaults in `apps/mac/Stet/Core/AIProviders/OpenAICompatible/OpenAICompatibleProviderConfiguration.swift`
 
 Alternatives considered:
 

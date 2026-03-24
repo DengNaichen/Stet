@@ -13,11 +13,11 @@ private func makeSnapshot(
     mode: AIExecutionMode,
     transcriptionProvider: DictationProvider = .openAI,
     rewriteProvider: DictationProvider = .openAI,
-    transcriptionProviderConfiguration: OpenAIConfiguration? = OpenAIConfiguration.transcriptionConfiguration(
+    transcriptionProviderConfiguration: TranscriptionProviderConfiguration? = DictationProviderConfigurationResolver.transcriptionConfiguration(
         apiKey: "sk-test",
         providerPair: DictationProviderPair(transcriptionProvider: .openAI, rewriteProvider: .openAI)
     ),
-    rewriteProviderConfiguration: OpenAIConfiguration? = OpenAIConfiguration.rewriteConfiguration(
+    rewriteProviderConfiguration: RewriteProviderConfiguration? = DictationProviderConfigurationResolver.rewriteConfiguration(
         apiKey: "sk-test",
         providerPair: DictationProviderPair(transcriptionProvider: .openAI, rewriteProvider: .openAI)
     ),
@@ -114,7 +114,7 @@ struct LogicPrimitiveTests {
             transcriptionProvider: .groq,
             rewriteProvider: .openAI,
             transcriptionProviderConfiguration: nil,
-            rewriteProviderConfiguration: OpenAIConfiguration.rewriteConfiguration(
+            rewriteProviderConfiguration: DictationProviderConfigurationResolver.rewriteConfiguration(
                 apiKey: "sk-test",
                 providerPair: DictationProviderPair(
                     transcriptionProvider: .groq,
@@ -137,7 +137,7 @@ struct LogicPrimitiveTests {
             mode: .byok,
             transcriptionProvider: .groq,
             rewriteProvider: .openAI,
-            transcriptionProviderConfiguration: OpenAIConfiguration.transcriptionConfiguration(
+            transcriptionProviderConfiguration: DictationProviderConfigurationResolver.transcriptionConfiguration(
                 apiKey: "gsk-test",
                 providerPair: DictationProviderPair(
                     transcriptionProvider: .groq,
@@ -156,31 +156,81 @@ struct LogicPrimitiveTests {
         }
     }
 
-    @Test func dictationExecutionRouteResolverRejectsUnsupportedProviderPair() async {
+    @Test func dictationExecutionRouteResolverAllowsPreviouslyUnsupportedProviderPair() async throws {
         let snapshot = makeSnapshot(
             mode: .byok,
             transcriptionProvider: .openAI,
             rewriteProvider: .groq,
-            transcriptionProviderConfiguration: OpenAIConfiguration.transcriptionConfiguration(
+            transcriptionProviderConfiguration: DictationProviderConfigurationResolver.transcriptionConfiguration(
                 apiKey: "sk-test",
                 providerPair: DictationProviderPair(
                     transcriptionProvider: .openAI,
                     rewriteProvider: .groq
                 )
             ),
-            rewriteProviderConfiguration: nil
-        )
-
-        await #expect(
-            throws: ProviderConfigurationError.unsupportedProviderCombination(
-                DictationProviderPair(
+            rewriteProviderConfiguration: DictationProviderConfigurationResolver.rewriteConfiguration(
+                apiKey: "gsk-test",
+                providerPair: DictationProviderPair(
                     transcriptionProvider: .openAI,
                     rewriteProvider: .groq
                 )
-            )
-        ) {
-            try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
+            ),
+            rewriteEnabled: true
+        )
+
+        let route = try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
+
+        switch route {
+        case .direct(let direct):
+            #expect(direct.transcriptionConfiguration.provider == .openAI)
+            #expect(direct.rewriteConfiguration?.provider == .groq)
+        default:
+            Issue.record("Expected direct route.")
         }
+    }
+
+    @Test func makePipelineSelectsDirectServiceForByokWithoutRelay() async throws {
+        let direct = RecordingTranscriptionService(result: "direct")
+        let relay = RecordingTranscriptionService(result: "relay")
+        var capturedTranscriptionConfiguration: TranscriptionProviderConfiguration?
+        var capturedRewriteConfiguration: RewriteProviderConfiguration?
+        let audioFileURL = try makeTemporaryWavURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+        let factory = DictationPipelineFactory(
+            relayAuthenticationContext: { nil },
+            makeDirectTranscriptionService: { configuration, _ in
+                capturedTranscriptionConfiguration = configuration
+                return direct
+            },
+            makeRelayTranscriptionService: { _, _, _, _ in relay },
+            makeRewriteService: { configuration, _ in
+                capturedRewriteConfiguration = configuration
+                return RecordingRewriteService()
+            }
+        )
+        let snapshot = makeSnapshot(
+            mode: .byok,
+            rewriteEnabled: true,
+            personalDictionary: ["OpenAI", "Groq"]
+        )
+
+        let pipeline = try await factory.makePipeline(from: snapshot)
+        let transcript = try await pipeline.transcriptionService.transcribe(
+            audioFileAt: audioFileURL,
+            languageCode: "en",
+            prompt: pipeline.promptProvider == nil ? nil : "should-not-be-used",
+            audioDurationSeconds: 1.2
+        )
+
+        #expect(transcript == "direct")
+        #expect(pipeline.promptProvider == nil)
+        #expect(pipeline.transcriptionLanguageCode == nil)
+        #expect(pipeline.usesAudienceAwareLocalPrompts == true)
+        #expect(await direct.callCount == 1)
+        #expect(await relay.callCount == 0)
+        #expect(await direct.capturedPrompt == nil)
+        #expect(capturedTranscriptionConfiguration?.provider == .openAI)
+        #expect(capturedRewriteConfiguration?.provider == .openAI)
     }
 
     @Test func makePipelineSelectsRelayServiceForManagedWithSession() async throws {
@@ -226,8 +276,8 @@ struct LogicPrimitiveTests {
         let direct = RecordingTranscriptionService(result: "mixed transcript")
         let relay = RecordingTranscriptionService(result: "relay")
         let rewrite = RecordingRewriteService()
-        var capturedTranscriptionConfiguration: OpenAIConfiguration?
-        var capturedRewriteConfiguration: OpenAIConfiguration?
+        var capturedTranscriptionConfiguration: TranscriptionProviderConfiguration?
+        var capturedRewriteConfiguration: RewriteProviderConfiguration?
         let factory = DictationPipelineFactory(
             relayAuthenticationContext: { nil },
             makeDirectTranscriptionService: { configuration, _ in
@@ -244,14 +294,14 @@ struct LogicPrimitiveTests {
             mode: .byok,
             transcriptionProvider: .groq,
             rewriteProvider: .openAI,
-            transcriptionProviderConfiguration: OpenAIConfiguration.transcriptionConfiguration(
+            transcriptionProviderConfiguration: DictationProviderConfigurationResolver.transcriptionConfiguration(
                 apiKey: "gsk-test",
                 providerPair: DictationProviderPair(
                     transcriptionProvider: .groq,
                     rewriteProvider: .openAI
                 )
             ),
-            rewriteProviderConfiguration: OpenAIConfiguration.rewriteConfiguration(
+            rewriteProviderConfiguration: DictationProviderConfigurationResolver.rewriteConfiguration(
                 apiKey: "sk-test",
                 providerPair: DictationProviderPair(
                     transcriptionProvider: .groq,

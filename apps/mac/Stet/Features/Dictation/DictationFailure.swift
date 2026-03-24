@@ -1,6 +1,6 @@
 import Foundation
 
-enum DictationFailure: Equatable, Sendable {
+enum DictationFailure: LocalizedError, Equatable, Sendable {
     enum Classification: Equatable, Sendable {
         case permissions
         case configuration
@@ -143,12 +143,12 @@ enum DictationFailure: Equatable, Sendable {
         case .providerAPI(let provider, let statusCode, let message):
             return OpenAIError.api(provider: provider, statusCode: statusCode, message: message).localizedDescription
         case .unsupportedProviderCombination(let transcriptionProvider, let rewriteProvider):
-            return ProviderConfigurationError.unsupportedProviderCombination(
-                DictationProviderPair(
+            return DictationProviderPairPolicy.unsupportedSettingsMessage(
+                for: DictationProviderPair(
                     transcriptionProvider: transcriptionProvider,
                     rewriteProvider: rewriteProvider
                 )
-            ).localizedDescription
+            ) ?? "Unsupported provider pair."
         case .relayAuthenticationRequired:
             return AIExecutionError.managedRequiresAuthenticatedSession.localizedDescription
         case .relayInvocation(let statusCode, let message, let requestID):
@@ -179,6 +179,10 @@ enum DictationFailure: Equatable, Sendable {
         default:
             return false
         }
+    }
+
+    var errorDescription: String? {
+        message
     }
 
     static func from(_ error: any Error) -> Self {
@@ -226,11 +230,6 @@ enum DictationFailure: Equatable, Sendable {
             switch configurationError {
             case .missingRequirements(let requirements):
                 return .missingProviderConfiguration(requirements: requirements)
-            case .unsupportedProviderCombination(let providerPair):
-                return .unsupportedProviderCombination(
-                    transcriptionProvider: providerPair.transcriptionProvider,
-                    rewriteProvider: providerPair.rewriteProvider
-                )
             }
         }
 

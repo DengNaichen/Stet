@@ -1,13 +1,13 @@
-# Tasks: BYOK Remote Transcribe and Rewrite Provider Selection on Mac
+# Tasks: BYOK Capability-Split Provider Refactor on Mac
 
 **Input**: Design documents from `/specs/005-transcribe-details/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md
 
-**Completed design artifacts**: `spec.md`, `research.md`, `plan.md`, and `data-model.md` are already prepared for this feature. The tasks below cover the remaining implementation and validation work only.
+**Completed design artifacts**: `spec.md`, `research.md`, `plan.md`, and `data-model.md` are already prepared for this feature. The tasks below cover the capability-split refactor, policy relocation, naming/file cleanup, and validation work.
 
-**Tests**: This feature explicitly requires automated coverage for provider selection, BYOK preflight validation, mixed-provider execution, and regression safety.
+**Tests**: This feature explicitly requires automated coverage for capability-specific config assembly, provider selection, BYOK preflight validation, mixed-provider execution, settings/UI policy, and regression safety.
 
-**Organization**: Tasks are grouped by user story so each story can be implemented and validated independently.
+**Organization**: Tasks are grouped by architectural slice so the provider boundary can be cleaned up without leaving half-migrated naming or runtime wiring behind.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -15,142 +15,100 @@
 - **[Story]**: Maps the task to a specific user story from `spec.md`
 - Every task includes an exact file path
 
-## Phase 1: Setup (Shared Infrastructure)
+## Phase 1: Boundary Setup
 
-**Purpose**: Align the remaining implementation work with the completed design docs and current code layout.
+**Purpose**: Confirm the final write scope for the capability split and document the new folder/type boundary.
 
 - [X] T001 Inspect `/Users/nd/Developer/Stet/apps/mac/Stet/Shared/Utilities/DictationSettingsStore.swift`, `/Users/nd/Developer/Stet/apps/mac/Stet/Core/DictationPipeline/DictationPipelineFactory.swift`, and `/Users/nd/Developer/Stet/apps/mac/Stet/Core/Speech/ConfigurableSpeechService.swift` to confirm the final write scope before code changes
-- [X] T002 Inspect `/Users/nd/Developer/Stet/apps/mac/Stet/Core/OpenAI/OpenAIConfiguration.swift`, `/Users/nd/Developer/Stet/apps/mac/Stet/Core/OpenAI/OpenAISDKClientFactory.swift`, `/Users/nd/Developer/Stet/apps/mac/Stet/Core/Transcribed/OpenAITranscriptionService.swift`, and `/Users/nd/Developer/Stet/apps/mac/Stet/Core/Rewrite/OpenAIRewriteService.swift` to confirm which naming and adapter layers stay provider-neutral versus OpenAI-compatible
+- [X] T002 Inspect `/Users/nd/Developer/Stet/apps/mac/Stet/Core/AIProviders/OpenAICompatible/OpenAISDKClientFactory.swift`, `/Users/nd/Developer/Stet/apps/mac/Stet/Core/AIProviders/OpenAI/OpenAITranscriptionService.swift`, and `/Users/nd/Developer/Stet/apps/mac/Stet/Core/AIProviders/OpenAI/OpenAIRewriteService.swift` to confirm which naming and adapter layers stay OpenAI-compatible
 
 ---
 
-## Phase 2: Foundational (Blocking Prerequisites)
+## Phase 2: Foundational Types and Policy
 
-**Purpose**: Establish the shared configuration, naming, and validation model required by all user stories
+**Purpose**: Establish the capability-specific configuration model, adapter boundary, and settings/UI policy required by all later work
 
 **⚠️ CRITICAL**: No user story work should begin until this phase is complete
 
-- [X] T003 Update `/Users/nd/Developer/Stet/apps/mac/Stet/Shared/Utilities/MacPreferences.swift` to introduce separate persisted keys for transcription provider and rewrite provider
-- [X] T004 Update `/Users/nd/Developer/Stet/apps/mac/Stet/Shared/Utilities/DictationSettingsStore.swift` to load and save `transcriptionProvider` and `rewriteProvider`, while keeping API keys stored by provider in Keychain
-- [X] T005 Update the snapshot model in `/Users/nd/Developer/Stet/apps/mac/Stet/Shared/Utilities/DictationSettingsStore.swift` to carry separate provider selections and separate per-step provider configurations for BYOK
-- [X] T006 Apply the provider-neutral naming cleanup for configuration-facing types and directories in `/Users/nd/Developer/Stet/apps/mac/Stet/Core/OpenAI/`, `/Users/nd/Developer/Stet/apps/mac/Stet/Core/DictationPipeline/`, and `/Users/nd/Developer/Stet/apps/mac/Stet/Shared/Utilities/` without introducing a generalized provider framework
-- [X] T007 Implement provider-pair defaulting and supported default model resolution in `/Users/nd/Developer/Stet/apps/mac/Stet/Core/OpenAI/OpenAIConfiguration.swift` or its provider-neutral replacement
-- [X] T008 Implement step-aware BYOK preflight validation in `/Users/nd/Developer/Stet/apps/mac/Stet/Core/DictationPipeline/DictationExecutionRoute.swift` so provider requirements are resolved before runtime work begins
-- [X] T009 Update `/Users/nd/Developer/Stet/apps/mac/Stet/Features/Dictation/DictationFailure.swift` and related provider error types to represent step-aware configuration failures for transcription and rewrite
+- [X] T003 Introduce provider-neutral capability config types and shared endpoint/auth config under `/Users/nd/Developer/Stet/apps/mac/Stet/Core/AIProviders/`
+- [X] T004 Move provider defaults and settings/UI pair-policy resolution into the new provider-neutral layer without introducing a generalized provider framework
+- [X] T005 Update `/Users/nd/Developer/Stet/apps/mac/Stet/Shared/Utilities/DictationSettingsStore.swift` so the snapshot carries separate provider selections and separate capability configs for BYOK
+- [X] T006 Apply naming cleanup for configuration-facing types and files while keeping `OpenAI*` names only for the OpenAI-compatible adapter layer
+- [X] T007 Remove execution-time unsupported-pair enforcement from `/Users/nd/Developer/Stet/apps/mac/Stet/Core/DictationPipeline/DictationExecutionRoute.swift` while keeping step-aware BYOK preflight validation
+- [X] T008 Update `/Users/nd/Developer/Stet/apps/mac/Stet/Features/Dictation/DictationFailure.swift` and related provider error types to preserve step-aware configuration failures and keep unsupported-pair messaging decoupled from execution
 
-**Checkpoint**: Shared provider modeling and BYOK preflight are ready; user story work can now proceed safely
-
----
-
-## Phase 3: User Story 1 - Choose the Transcription Provider (Priority: P1) 🎯 MVP
-
-**Goal**: Let BYOK users independently choose `OpenAI` or `Groq` for the transcription step.
-
-**Independent Test**: Change the transcription provider setting on Mac, start BYOK dictation, and verify transcription uses the selected provider and requires the matching provider key.
-
-### Tests for User Story 1
-
-- [X] T010 [P] [US1] Add settings persistence coverage for transcription provider selection in `/Users/nd/Developer/Stet/apps/mac/StetTests/Features/MacShell/Openai/MacOpenAISettingsViewModelTests.swift`
-- [X] T011 [P] [US1] Add snapshot and route coverage for transcription provider selection in `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/DictationPipeline/DictationPipelineTests.swift`
-
-### Implementation for User Story 1
-
-- [X] T012 [US1] Update `/Users/nd/Developer/Stet/apps/mac/Stet/Core/DictationPipeline/DictationPipelineFactory.swift` so the BYOK transcription service is built from the selected transcription provider configuration
-- [X] T013 [US1] Update `/Users/nd/Developer/Stet/apps/mac/Stet/Core/Speech/ConfigurableSpeechService.swift` to preserve the current two-step flow while consuming the new transcription-specific pipeline inputs
-- [X] T014 [US1] Update `/Users/nd/Developer/Stet/apps/mac/Stet/Features/MacShell/Openai/MacOpenAISettingsViewModel.swift` to expose a dedicated transcription provider selection in BYOK mode
-- [X] T015 [US1] Update the related macOS settings UI under `/Users/nd/Developer/Stet/apps/mac/Stet/Features/MacShell/Openai/` to present the transcription provider selection clearly
-
-**Checkpoint**: Users can choose the transcription provider independently, and the BYOK pipeline uses that provider for transcription
+**Checkpoint**: Shared provider modeling, adapter boundaries, and BYOK preflight are ready; feature-level wiring can now proceed safely
 
 ---
 
-## Phase 4: User Story 2 - Choose the Rewrite Provider Independently (Priority: P1)
+## Phase 3: Capability Wiring and Adapter Migration
 
-**Goal**: Let BYOK users choose `OpenAI` or `Groq` for rewrite independently from the transcription provider.
+**Goal**: Rewire the runtime to consume separate transcription and rewrite configs while preserving the two-step BYOK flow and keeping provider-specific transport in thin adapters.
 
-**Independent Test**: Set different transcription and rewrite providers, then verify the Mac app validates both provider requirements and builds the rewrite step from the selected rewrite provider.
+**Independent Test**: Run BYOK dictation for same-provider and mixed-provider setups and verify transcription and rewrite are built from the correct capability-specific configs.
 
-### Tests for User Story 2
+### Tests for Phase 3
 
-- [X] T016 [P] [US2] Add settings persistence coverage for rewrite provider selection and provider-pair defaulting in `/Users/nd/Developer/Stet/apps/mac/StetTests/Features/MacShell/Openai/MacOpenAISettingsViewModelTests.swift`
-- [X] T017 [P] [US2] Add mixed-provider pipeline coverage for `Groq -> OpenAI` and supported provider-pair defaults in `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/DictationPipeline/DictationPipelineTests.swift`
+- [X] T009 [P] Add snapshot and route coverage for separate transcription and rewrite configs in `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/DictationPipeline/DictationPipelineTests.swift`
+- [X] T010 [P] Add adapter coverage for capability-specific config input in `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/AIProviders/OpenAICompatible/OpenAITests.swift`
+- [X] T011 [P] Add BYOK runtime coverage for same-provider and mixed-provider capability wiring in `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/Speech/ConfigurableSpeechServiceTests.swift`
 
-### Implementation for User Story 2
+### Implementation for Phase 3
 
-- [X] T018 [US2] Update `/Users/nd/Developer/Stet/apps/mac/Stet/Core/DictationPipeline/DictationPipelineFactory.swift` so the BYOK rewrite service is built from the selected rewrite provider configuration instead of sharing the transcription provider config
-- [X] T019 [US2] Implement the supported and unsupported default provider/model combinations in `/Users/nd/Developer/Stet/apps/mac/Stet/Core/OpenAI/OpenAIConfiguration.swift` or its provider-neutral replacement, including no first-class default for `OpenAI -> Groq`
-- [X] T020 [US2] Update `/Users/nd/Developer/Stet/apps/mac/Stet/Features/MacShell/Openai/MacOpenAISettingsViewModel.swift` to expose a dedicated rewrite provider selection in BYOK mode
-- [X] T021 [US2] Update the related macOS settings UI under `/Users/nd/Developer/Stet/apps/mac/Stet/Features/MacShell/Openai/` to present the rewrite provider selection independently from transcription
+- [X] T012 Update `/Users/nd/Developer/Stet/apps/mac/Stet/Core/DictationPipeline/DictationPipelineFactory.swift` so direct transcription and rewrite services are built from separate capability-specific configs
+- [X] T013 Update `/Users/nd/Developer/Stet/apps/mac/Stet/Core/AIProviders/OpenAI/OpenAITranscriptionService.swift` and `/Users/nd/Developer/Stet/apps/mac/Stet/Core/AIProviders/OpenAI/OpenAIRewriteService.swift` to consume the new capability-specific configs
+- [X] T014 Update `/Users/nd/Developer/Stet/apps/mac/Stet/Core/AIProviders/OpenAICompatible/OpenAISDKClientFactory.swift` and onboarding API-key validation to use the shared OpenAI-compatible endpoint/auth config
+- [X] T015 Keep `/Users/nd/Developer/Stet/apps/mac/Stet/Core/Speech/ConfigurableSpeechService.swift` on the current two-step flow while consuming the new pipeline inputs
 
-**Checkpoint**: Users can choose transcription and rewrite providers independently, and supported provider pairs resolve to the expected default models
-
----
-
-## Phase 5: User Story 3 - Run Dictation as Two Remote Steps (Priority: P1)
-
-**Goal**: Keep BYOK dictation as an explicit two-step remote flow where transcription feeds rewrite and only the rewritten text is returned to the user.
-
-**Independent Test**: Run BYOK dictation for supported provider pairs and verify the pipeline transcribes first, rewrites second, returns rewritten text on success, and skips rewrite when transcription fails.
-
-### Tests for User Story 3
-
-- [X] T022 [P] [US3] Add BYOK runtime coverage for supported provider pairs in `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/Speech/ConfigurableSpeechServiceTests.swift`
-- [X] T023 [P] [US3] Add coverage that transcription failure prevents rewrite and rewrite failure returns a failed dictation result in `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/Speech/ConfigurableSpeechServiceTests.swift`
-
-### Implementation for User Story 3
-
-- [X] T024 [US3] Update `/Users/nd/Developer/Stet/apps/mac/Stet/Core/Rewrite/TextRewriteService.swift` and related rewrite request construction to preserve the current dictation cleanup behavior with per-step provider configuration
-- [X] T025 [US3] Update `/Users/nd/Developer/Stet/apps/mac/Stet/Core/Speech/ConfigurableSpeechService.swift` so the intermediate transcript remains internal and the final user-visible output is always the rewrite result
-
-**Checkpoint**: BYOK dictation behaves as a clear two-step remote flow for the supported provider pairs
+**Checkpoint**: The runtime uses a provider-neutral capability boundary with OpenAI-compatible adapters above it
 
 ---
 
-## Phase 6: User Story 4 - Get Clear Configuration Errors Before Dictation Starts (Priority: P2)
+## Phase 4: Settings/UI Policy and Messaging
 
-**Goal**: Fail fast with step-aware, user-directed configuration errors before dictation starts when required provider keys are missing.
+**Goal**: Keep provider selection flexible in lower layers while enforcing product-specific unsupported-pair policy only in settings/UI.
 
-**Independent Test**: Try missing-key combinations and verify the Mac app blocks execution before remote work starts and reports which step and provider are misconfigured.
+**Independent Test**: Verify settings still show the current unsupported-pair warning for `OpenAI -> Groq`, while route resolution no longer rejects that combination.
 
-### Tests for User Story 4
+### Tests for Phase 4
 
-- [X] T026 [P] [US4] Add BYOK preflight coverage for missing transcription keys, missing rewrite keys, and missing both keys in `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/DictationPipeline/DictationPipelineTests.swift`
-- [X] T027 [P] [US4] Add Dictation UI error-mapping coverage for step-aware provider configuration failures in `/Users/nd/Developer/Stet/apps/mac/StetTests/Features/Dictation/DictationViewModelTests.swift`
+- [X] T016 [P] Add settings persistence and warning coverage in `/Users/nd/Developer/Stet/apps/mac/StetTests/Features/MacShell/Openai/MacOpenAISettingsViewModelTests.swift`
+- [X] T017 [P] Add Dictation UI error-mapping coverage for step-aware provider configuration failures and preserved unsupported-pair messaging in `/Users/nd/Developer/Stet/apps/mac/StetTests/Features/Dictation/DictationViewModelTests.swift`
 
-### Implementation for User Story 4
+### Implementation for Phase 4
 
-- [X] T028 [US4] Update `/Users/nd/Developer/Stet/apps/mac/Stet/Core/Speech/ConfigurableSpeechService.swift` to run BYOK provider preflight before any remote dictation request starts
-- [X] T029 [US4] Update `/Users/nd/Developer/Stet/apps/mac/Stet/Features/Dictation/DictationFailure.swift` and related provider error sources to produce step-aware, user-directed configuration messages
-- [X] T030 [US4] Update the dictation-facing UI under `/Users/nd/Developer/Stet/apps/mac/Stet/Features/Dictation/` and `/Users/nd/Developer/Stet/apps/mac/Stet/Features/MacShell/DictationPanel/` so the new configuration failures are surfaced cleanly without regressing current error handling
+- [X] T018 Update `/Users/nd/Developer/Stet/apps/mac/Stet/Features/MacShell/Openai/MacOpenAISettingsViewModel.swift` so unsupported-pair policy comes from settings/UI policy only
+- [X] T019 Update dictation-facing failure messaging under `/Users/nd/Developer/Stet/apps/mac/Stet/Features/Dictation/` so step-aware configuration failures remain clear without depending on execution-time pair rejection
 
-**Checkpoint**: Missing provider keys are blocked before execution and surfaced with clear, step-aware guidance
+**Checkpoint**: Unsupported-pair policy is now a settings/UI concern, not a runtime assembly concern
 
 ---
 
-## Phase 7: Polish & Cross-Cutting Concerns
+## Phase 5: Polish, Naming, and Cross-Cutting Concerns
 
 **Purpose**: Finish regression validation, documentation alignment, and cleanup that affects multiple user stories
 
-- [X] T031 Run the affected macOS test suites covering `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/DictationPipeline/`, `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/Speech/`, and `/Users/nd/Developer/Stet/apps/mac/StetTests/Features/Dictation/`
-- [X] T032 Verify relay/managed regression behavior remains unchanged in `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/DictationPipeline/DictationPipelineTests.swift` and `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/Speech/ConfigurableSpeechServiceTests.swift`
-- [X] T033 [P] Refresh `/Users/nd/Developer/Stet/specs/005-transcribe-details/quickstart.md` with the final implementation entry points, validation matrix, and supported provider combinations
-- [X] T034 Run quickstart validation and record the exact commands and observed outcomes in `/Users/nd/Developer/Stet/specs/005-transcribe-details/quickstart.md`
+- [X] T020 Apply any remaining file/folder renames and configuration-facing naming cleanup needed to make the capability boundary obvious in the source tree
+- [X] T021 Run the affected macOS test suites covering `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/DictationPipeline/`, `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/AIProviders/OpenAICompatible/`, `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/Speech/`, and `/Users/nd/Developer/Stet/apps/mac/StetTests/Features/Dictation/`
+- [X] T022 Verify relay/managed regression behavior remains unchanged in `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/DictationPipeline/DictationPipelineTests.swift` and `/Users/nd/Developer/Stet/apps/mac/StetTests/Core/Speech/ConfigurableSpeechServiceTests.swift`
+- [X] T023 [P] Refresh `/Users/nd/Developer/Stet/specs/005-transcribe-details/plan.md` and `/Users/nd/Developer/Stet/specs/005-transcribe-details/tasks.md` so they match the final capability-split architecture
+- [ ] T024 [P] Refresh `/Users/nd/Developer/Stet/specs/005-transcribe-details/quickstart.md` with the final implementation entry points, validation matrix, and supported provider combinations
 
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
 
 - **Setup (Phase 1)**: No dependencies
-- **Foundational (Phase 2)**: Depends on Setup completion and blocks all user stories
-- **User Story 1-4 (Phase 3-6)**: Depend on Foundational completion
-- **Polish (Phase 7)**: Depends on all targeted user stories being complete
+- **Foundational (Phase 2)**: Depends on Setup completion and blocks all later work
+- **Capability Wiring (Phase 3)**: Depends on Foundational completion
+- **Settings/UI Policy (Phase 4)**: Depends on Foundational completion and benefits from Capability Wiring
+- **Polish (Phase 5)**: Depends on all targeted implementation phases being complete
 
 ### User Story Dependencies
 
-- **User Story 1 (P1)**: Starts after Foundational; independent MVP entry point for provider-specific transcription
-- **User Story 2 (P1)**: Starts after Foundational; depends conceptually on the dual-provider settings model but remains independently testable
-- **User Story 3 (P1)**: Starts after User Stories 1 and 2 establish per-step provider wiring
-- **User Story 4 (P2)**: Starts after Foundational; benefits from the new settings and error model, but is independently testable as a preflight/error behavior slice
+- **Phase 3**: Starts after Foundational and establishes the new runtime boundary
+- **Phase 4**: Starts after Foundational and depends on the new policy type and settings model
+- **Phase 5**: Starts after the runtime and policy layers are stable
 
 ### Within Each User Story
 
@@ -162,46 +120,37 @@
 
 ### Parallel Opportunities
 
-- `T010` and `T011` can run in parallel
+- `T009`, `T010`, and `T011` can run in parallel
 - `T016` and `T017` can run in parallel
-- `T022` and `T023` can run in parallel
-- `T026` and `T027` can run in parallel
-- Documentation refresh `T033` can run in parallel with late implementation once file ownership is clear
+- Documentation refresh `T023` can run in parallel with late implementation once file ownership is clear
 
-## Parallel Example: User Story 2
+## Parallel Example: Phase 3
 
 ```bash
-# Launch rewrite-provider persistence and pipeline coverage work together:
-Task: "T016 [P] [US2] Add settings persistence coverage for rewrite provider selection and provider-pair defaulting in /Users/nd/Developer/Stet/apps/mac/StetTests/Features/MacShell/Openai/MacOpenAISettingsViewModelTests.swift"
-Task: "T017 [P] [US2] Add mixed-provider pipeline coverage for Groq -> OpenAI and supported provider-pair defaults in /Users/nd/Developer/Stet/apps/mac/StetTests/Core/DictationPipeline/DictationPipelineTests.swift"
+# Launch capability-config and adapter coverage work together:
+Task: "T009 [P] Add snapshot and route coverage for separate transcription and rewrite configs in /Users/nd/Developer/Stet/apps/mac/StetTests/Core/DictationPipeline/DictationPipelineTests.swift"
+Task: "T010 [P] Add adapter coverage for capability-specific config input in /Users/nd/Developer/Stet/apps/mac/StetTests/Core/AIProviders/OpenAICompatible/OpenAITests.swift"
 ```
 
 ## Implementation Strategy
 
-### MVP First (User Story 1 Only)
+### MVP First
 
 1. Complete Phase 1: Setup
 2. Complete Phase 2: Foundational
-3. Complete Phase 3: User Story 1
-4. Validate that BYOK transcription provider selection works independently
+3. Complete Phase 3: Capability Wiring and Adapter Migration
+4. Validate that BYOK transcription and rewrite are wired through separate configs
 
 ### Incremental Delivery
 
-1. Ship the dual-provider foundation
-2. Add independent transcription provider selection
-3. Add independent rewrite provider selection and provider-pair defaults
-4. Lock the two-step BYOK runtime behavior
-5. Add step-aware preflight and user-facing configuration errors
-6. Finish regression validation and documentation
+1. Ship the capability-specific config foundation
+2. Migrate the runtime and adapters to the new boundary
+3. Relocate unsupported-pair policy to settings/UI
+4. Finish regression validation and documentation
 
 ### Suggested MVP Scope
 
-The smallest useful increment is:
-
-- Foundational phase
-- User Story 1
-
-That gives the codebase a real split between single-provider and capability-specific provider modeling while keeping runtime risk controlled.
+The smallest useful increment is the combination of Foundational + Capability Wiring. That gives the codebase a real split between cross-capability vendor config and capability-specific provider-neutral modeling while keeping runtime risk controlled.
 
 ## Notes
 

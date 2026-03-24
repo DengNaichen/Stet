@@ -2,14 +2,14 @@ import Foundation
 import OpenAI
 
 struct OpenAISDKClientFactory: Sendable {
-    private let configuration: OpenAIConfiguration
+    private let endpoint: OpenAICompatibleProviderEndpointConfiguration
     private let session: URLSession
 
     nonisolated init(
-        configuration: OpenAIConfiguration,
+        endpoint: OpenAICompatibleProviderEndpointConfiguration,
         session: URLSession = .shared
     ) {
-        self.configuration = configuration
+        self.endpoint = endpoint
         self.session = session
     }
 
@@ -20,14 +20,14 @@ struct OpenAISDKClientFactory: Sendable {
     ) throws -> OpenAISDKRequestContext {
         let responseRecorder = OpenAIHTTPResponseRecorder()
         var middlewares: [any OpenAIMiddleware] = [
-            OpenAILoggingMiddleware(provider: configuration.provider),
+            OpenAILoggingMiddleware(provider: endpoint.provider),
             OpenAIResponseRecordingMiddleware(responseRecorder: responseRecorder),
         ]
         middlewares.append(contentsOf: additionalMiddlewares)
 
         return OpenAISDKRequestContext(
             client: OpenAI(
-                configuration: try configuration.sdkConfiguration(
+                configuration: try endpoint.sdkConfiguration(
                     additionalHeaders: additionalHeaders,
                     timeoutInterval: timeoutInterval
                 ),
@@ -35,7 +35,7 @@ struct OpenAISDKClientFactory: Sendable {
                 middlewares: middlewares
             ),
             responseRecorder: responseRecorder,
-            provider: configuration.provider
+            provider: endpoint.provider
         )
     }
 }
