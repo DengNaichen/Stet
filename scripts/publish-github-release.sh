@@ -39,10 +39,16 @@ GITHUB_RELEASE_TARGET="${GITHUB_RELEASE_TARGET:-$(git rev-parse HEAD)}"
 
 if [[ -z "$DMG_PATH" && -z "$ZIP_PATH" ]]; then
   dmg_matches=("$RELEASE_DIR"/*.dmg(N))
+  if (( ${#dmg_matches[@]} == 0 )); then
+    dmg_matches=("$RELEASE_DIR"/dmg/*.dmg(N))
+  fi
   if (( ${#dmg_matches[@]} > 0 )); then
     DMG_PATH="${dmg_matches[1]}"
   else
     zip_matches=("$RELEASE_DIR"/*.zip(N))
+    if (( ${#zip_matches[@]} == 0 )); then
+      zip_matches=("$RELEASE_DIR"/dmg/*.zip(N))
+    fi
     final_zip_matches=("${(@)zip_matches:#*-pre-notary.zip}")
     if (( ${#final_zip_matches[@]} > 0 )); then
       zip_matches=("${final_zip_matches[@]}")
