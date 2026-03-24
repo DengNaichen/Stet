@@ -7,7 +7,7 @@
     "mac:ci:build": "xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' build",
     "mac:format": "xcrun swift-format format --in-place --recursive --parallel --configuration .swift-format apps/mac/Stet apps/mac/StetTests apps/mac/StetUITests apps/mac/StetVisuals",
     "mac:format:lint": "xcrun swift-format lint --strict --recursive --parallel --configuration .swift-format apps/mac/Stet apps/mac/StetTests apps/mac/StetUITests apps/mac/StetVisuals",
-    "mac:test": "xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' -only-testing:StetTests test",
+    "mac:test": "xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' -only-testing:StetTests test",
     "mac:release": "./scripts/build-macos-release.sh",
     "mac:release:github": "./scripts/release-macos-github.sh",
     "mac:publish:github": "./scripts/publish-github-release.sh",

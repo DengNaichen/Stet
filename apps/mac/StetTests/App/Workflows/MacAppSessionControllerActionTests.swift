@@ -168,6 +168,7 @@
         ) {
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(true, forKey: MacPreferences.onboardingCompleted)
+            defaults.set(false, forKey: MacPreferences.interactionSoundsEnabled)
             let speechService = ControllableSpeechService()
             let textInjectionService = TestTextInjectionService()
             let clipboardService = TestClipboardService()

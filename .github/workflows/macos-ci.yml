@@ -21,7 +21,7 @@ on:
 jobs:
   swiftlint:
     name: SwiftLint
-    runs-on: macos-latest
+    runs-on: macos-26
 
     steps:
       - uses: actions/checkout@v5
@@ -38,7 +38,7 @@ jobs:
 
   swift-format:
     name: Swift Format
-    runs-on: macos-latest
+    runs-on: macos-26
 
     steps:
       - uses: actions/checkout@v5
@@ -52,7 +52,7 @@ jobs:
 
   macos-build:
     name: macOS Build
-    runs-on: macos-latest
+    runs-on: macos-26
 
     steps:
       - uses: actions/checkout@v5
@@ -69,7 +69,7 @@ jobs:
 
   macos-tests:
     name: macOS Tests
-    runs-on: macos-latest
+    runs-on: macos-26
 
     steps:
       - uses: actions/checkout@v5

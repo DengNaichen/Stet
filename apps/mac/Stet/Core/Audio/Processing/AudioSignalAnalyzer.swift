@@ -27,6 +27,40 @@ struct AudioAnalysis: Sendable {
 }
 
 enum AudioSignalAnalyzer {
+    private actor SharedVadService {
+        static let shared = SharedVadService()
+
+        private var managerTask: Task<VadManager, Error>?
+
+        func segmentSpeech(
+            _ samples: [Float],
+            threshold: Float
+        ) async throws -> [VadSegment] {
+            let manager = try await manager(for: threshold)
+            return try await manager.segmentSpeech(samples, config: .default)
+        }
+
+        private func manager(for threshold: Float) async throws -> VadManager {
+            if let managerTask {
+                return try await managerTask.value
+            }
+
+            let task = Task {
+                try await VadManager(
+                    config: VadConfig(defaultThreshold: threshold)
+                )
+            }
+            managerTask = task
+
+            do {
+                return try await task.value
+            } catch {
+                managerTask = nil
+                throw error
+            }
+        }
+    }
+
     struct Configuration {
         static let speechProbabilityThreshold: Float = 0.8
         static let minimumSpeechSegmentDuration: TimeInterval = 0.4
@@ -60,10 +94,10 @@ enum AudioSignalAnalyzer {
         let analysisSampleRate = Double(VadManager.sampleRate)
         let analysisSamples = try normalizeSamplesForAnalysis(samples: samples, sampleRate: sampleRate)
 
-        let manager = try await VadManager(
-            config: VadConfig(defaultThreshold: Configuration.speechProbabilityThreshold)
+        let allSegments = try await SharedVadService.shared.segmentSpeech(
+            analysisSamples,
+            threshold: Configuration.speechProbabilityThreshold
         )
-        let allSegments = try await manager.segmentSpeech(analysisSamples, config: .default)
         let segments = allSegments.filter { ($0.endTime - $0.startTime) >= Configuration.minimumSpeechSegmentDuration }
 
         let shouldDiscardAsNoSpeech = segments.isEmpty

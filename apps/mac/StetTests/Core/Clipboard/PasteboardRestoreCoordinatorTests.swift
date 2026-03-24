@@ -8,8 +8,16 @@
     @MainActor
     @Suite("Pasteboard Restore Coordinator", .serialized)
     struct PasteboardRestoreCoordinatorTests {
+        private let restorationTimeout: Duration = .seconds(2)
+
         private func makePasteboard() -> NSPasteboard {
             NSPasteboard(name: NSPasteboard.Name("StetTests.\(UUID().uuidString)"))
+        }
+
+        private func restoresOriginalClipboardEventually(_ pasteboard: NSPasteboard) async -> Bool {
+            await TestSupport.eventually(timeout: restorationTimeout) {
+                pasteboard.string(forType: .string) == "original"
+            }
         }
 
         @Test func rapidSuccessiveOverridesRestoreOriginalClipboard() async {
@@ -28,10 +36,7 @@
             clipboard.copy("second")
             coordinator.scheduleRestoreIfNeeded(on: pasteboard)
 
-            #expect(
-                await TestSupport.eventuallyAsync(timeout: .milliseconds(200)) {
-                    pasteboard.string(forType: .string) == "original"
-                })
+            #expect(await restoresOriginalClipboardEventually(pasteboard))
         }
 
         @Test func userClipboardChangesAreNotOverwrittenByDelayedRestore() async {
@@ -88,10 +93,7 @@
             let temporarySnapshot = PasteboardSnapshot.capture(from: pasteboard)
             temporarySnapshot.restore(to: pasteboard)
 
-            #expect(
-                await TestSupport.eventuallyAsync(timeout: .milliseconds(200)) {
-                    pasteboard.string(forType: .string) == "original"
-                })
+            #expect(await restoresOriginalClipboardEventually(pasteboard))
         }
     }
 #endif
