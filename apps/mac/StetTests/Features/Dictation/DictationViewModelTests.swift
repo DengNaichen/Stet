@@ -122,6 +122,10 @@ struct DictationViewModelTests {
         #expect(viewModel.state == .starting)
         #expect(await speechService.counts().activate == 0)
 
+        #expect(
+            await TestSupport.eventuallyAsync(timeout: .seconds(5)) {
+                await speechService.counts().start == 1
+            })
         await speechService.allowStart()
 
         #expect(
