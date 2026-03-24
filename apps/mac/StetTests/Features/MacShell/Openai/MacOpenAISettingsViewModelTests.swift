@@ -7,6 +7,18 @@
     @MainActor
     @Suite("Mac OpenAI Settings View Model", .serialized)
     struct MacOpenAISettingsViewModelTests {
+        @Test func executionModesExposeOnlyManagedAndByok() {
+            #expect(AIExecutionMode.allCases == [.managed, .byok])
+        }
+
+        @Test func loadExecutionModeFallsBackToByokForUnknownValue() {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set("automatic", forKey: MacPreferences.aiExecutionMode)
+            let store = DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
+
+            #expect(store.loadExecutionMode() == .byok)
+        }
+
         @Test func loadReadsStoredValues() throws {
             let defaults = TestSupport.makeUserDefaults()
             let secretStore = TestSecretStore()
@@ -115,19 +127,6 @@
             #expect(viewModel.missingCredentialMessage == nil)
             #expect(!viewModel.showsProviderConfiguration)
             #expect(viewModel.visibleCredentialProviders.isEmpty)
-        }
-
-        @Test func automaticModeWithRelaySessionDoesNotNeedCredentialMessage() {
-            let defaults = TestSupport.makeUserDefaults()
-            let viewModel = MacOpenAISettingsViewModel(
-                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
-                relaySessionProvider: { true }
-            )
-
-            viewModel.load()
-
-            #expect(!viewModel.connectionNeedsAttention)
-            #expect(viewModel.missingCredentialMessage == nil)
         }
 
         @Test func byokMixedProvidersRequireBothKeys() {

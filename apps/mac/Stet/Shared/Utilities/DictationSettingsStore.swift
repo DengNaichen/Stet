@@ -191,7 +191,7 @@ struct DictationSettingsStore: Sendable {
 
     nonisolated func loadExecutionMode() -> AIExecutionMode {
         let rawValue = defaultsStore.string(forKey: MacPreferences.aiExecutionMode) ?? ""
-        return AIExecutionMode(rawValue: rawValue) ?? .automatic
+        return AIExecutionMode(rawValue: rawValue) ?? .byok
     }
 
     nonisolated func saveTranscriptionProvider(_ provider: DictationProvider) {

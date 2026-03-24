@@ -1,7 +1,6 @@
 import Foundation
 
 enum AIExecutionMode: String, CaseIterable, Identifiable, Codable, Sendable {
-    case automatic
     case managed
     case byok
 
@@ -9,8 +8,6 @@ enum AIExecutionMode: String, CaseIterable, Identifiable, Codable, Sendable {
 
     nonisolated var title: String {
         switch self {
-        case .automatic:
-            return "Automatic"
         case .managed:
             return "Stet account"
         case .byok:
@@ -20,8 +17,6 @@ enum AIExecutionMode: String, CaseIterable, Identifiable, Codable, Sendable {
 
     nonisolated var subtitle: String {
         switch self {
-        case .automatic:
-            return "Use the best available option"
         case .managed:
             return "Use your signed-in Stet account"
         case .byok:

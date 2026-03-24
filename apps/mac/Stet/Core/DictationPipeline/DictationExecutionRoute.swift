@@ -93,18 +93,6 @@ enum DictationExecutionRouteResolver {
         }
 
         switch snapshot.executionMode {
-        case .automatic:
-            if let relayAuthentication {
-                return .relay(
-                    .init(
-                        authentication: relayAuthentication,
-                        languageMode: snapshot.dictationLanguageMode,
-                        preferredSpellings: snapshot.personalDictionary
-                    )
-                )
-            }
-
-            return .direct(try resolveDirectRoute(snapshot: snapshot))
         case .managed:
             guard let relayAuthentication else {
                 throw AIExecutionError.managedRequiresAuthenticatedSession

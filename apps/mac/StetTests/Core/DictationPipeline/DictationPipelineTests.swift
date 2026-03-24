@@ -41,33 +41,14 @@ private func makeSnapshot(
 
 @Suite("Dictation Pipeline Logic")
 struct LogicPrimitiveTests {
-    @Test func dictationExecutionRouteResolverFallsBackToDirectForAutomaticWithoutRelay() async throws {
-        let snapshot = makeSnapshot(mode: .automatic)
-
-        let route = try await DictationExecutionRouteResolver.resolve(
-            snapshot: snapshot,
-            relayAuthentication: nil
-        )
-
-        switch route {
-        case .direct(let direct):
-            #expect(await direct.transcriptionConfiguration.apiKey == "sk-test")
-            #expect(await direct.rewriteConfiguration.apiKey == "sk-test")
-            #expect(await direct.languageMode == .automatic)
-            #expect(await direct.preferredSpellings.isEmpty)
-        default:
-            Issue.record("Expected direct route.")
-        }
-    }
-
-    @Test func dictationExecutionRouteResolverPrefersRelayWhenAuthenticated() async throws {
+    @Test func dictationExecutionRouteResolverUsesManagedRelayWhenAuthenticated() async throws {
         let relayAuthentication = RelayAuthenticationContext(
             functionsBaseURL: URL(string: "https://example.supabase.co/functions/v1")!,
             publishableKey: "anon-key",
             accessToken: "access-token"
         )
         let snapshot = makeSnapshot(
-            mode: .automatic,
+            mode: .managed,
             personalDictionary: ["OpenAI"]
         )
 
@@ -202,50 +183,7 @@ struct LogicPrimitiveTests {
         }
     }
 
-    @Test func makePipelineSelectsDirectServiceForAutomaticWithoutRelay() async throws {
-        let direct = RecordingTranscriptionService(result: "direct")
-        let relay = RecordingTranscriptionService(result: "relay")
-        var capturedTranscriptionConfiguration: OpenAIConfiguration?
-        var capturedRewriteConfiguration: OpenAIConfiguration?
-        let audioFileURL = try makeTemporaryWavURL()
-        defer { try? FileManager.default.removeItem(at: audioFileURL) }
-        let factory = DictationPipelineFactory(
-            relayAuthenticationContext: { nil },
-            makeDirectTranscriptionService: { configuration, _ in
-                capturedTranscriptionConfiguration = configuration
-                return direct
-            },
-            makeRelayTranscriptionService: { _, _, _ in relay },
-            makeRewriteService: { configuration, _ in
-                capturedRewriteConfiguration = configuration
-                return RecordingRewriteService()
-            }
-        )
-        let snapshot = makeSnapshot(
-            mode: .automatic,
-            personalDictionary: ["OpenAI", "Groq"]
-        )
-
-        let pipeline = try await factory.makePipeline(from: snapshot)
-        let transcript = try await pipeline.transcriptionService.transcribe(
-            audioFileAt: audioFileURL,
-            languageCode: "en",
-            prompt: pipeline.promptProvider == nil ? nil : "should-not-be-used",
-            audioDurationSeconds: 1.2
-        )
-
-        #expect(transcript == "direct")
-        #expect(pipeline.promptProvider == nil)
-        #expect(pipeline.transcriptionLanguageCode == nil)
-        #expect(pipeline.usesAudienceAwareLocalPrompts == false)
-        #expect(await direct.callCount == 1)
-        #expect(await relay.callCount == 0)
-        #expect(await direct.capturedPrompt == nil)
-        #expect(capturedTranscriptionConfiguration?.provider == .openAI)
-        #expect(capturedRewriteConfiguration?.provider == .openAI)
-    }
-
-    @Test func makePipelineSelectsRelayServiceForAutomaticWithSession() async throws {
+    @Test func makePipelineSelectsRelayServiceForManagedWithSession() async throws {
         let direct = RecordingTranscriptionService(result: "direct")
         let relay = RecordingTranscriptionService(result: "relay")
         let audioFileURL = try makeTemporaryWavURL()
@@ -264,7 +202,7 @@ struct LogicPrimitiveTests {
             makeRewriteService: { _, _ in RecordingRewriteService() }
         )
         let snapshot = makeSnapshot(
-            mode: .automatic,
+            mode: .managed,
             personalDictionary: ["OpenAI", "Groq"]
         )
 

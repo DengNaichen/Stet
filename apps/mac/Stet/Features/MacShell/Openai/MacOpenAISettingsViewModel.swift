@@ -4,7 +4,7 @@
 
     @MainActor
     final class MacOpenAISettingsViewModel: ObservableObject {
-        @Published var executionMode: AIExecutionMode = .automatic {
+        @Published var executionMode: AIExecutionMode = .byok {
             didSet {
                 guard hasLoadedState else { return }
                 settingsStore.saveExecutionMode(executionMode)
@@ -48,9 +48,6 @@
 
         var connectionNeedsAttention: Bool {
             switch executionMode {
-            case .automatic:
-                return !hasRelaySession
-                    && (!unsupportedProviderPairMessage.isNilOrEmpty || !missingRequiredProviders.isEmpty)
             case .managed:
                 return !hasRelaySession
             case .byok:
@@ -133,10 +130,6 @@
             guard !providerList.isEmpty else { return nil }
 
             switch executionMode {
-            case .automatic:
-                guard !hasRelaySession else { return nil }
-                return
-                    "Add \(providerList) API key\(missingRequiredProviders.count == 1 ? "" : "s") to use direct dictation when you're signed out."
             case .managed:
                 return hasRelaySession ? nil : "Sign in with your Stet account to use cloud dictation."
             case .byok:
@@ -174,8 +167,6 @@
 
         private var requiredProviders: [DictationProvider] {
             switch executionMode {
-            case .automatic:
-                return hasRelaySession ? [] : directProviders
             case .managed:
                 return []
             case .byok:

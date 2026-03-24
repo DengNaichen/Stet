@@ -32,7 +32,7 @@
             .bool(MacPreferences.pauseMediaDuringDictation, false),
             .string(MacPreferences.transcriptionProvider, DictationProvider.openAI.rawValue),
             .string(MacPreferences.rewriteProvider, DictationProvider.openAI.rawValue),
-            .string(MacPreferences.aiExecutionMode, AIExecutionMode.automatic.rawValue),
+            .string(MacPreferences.aiExecutionMode, AIExecutionMode.byok.rawValue),
             .bool(MacPreferences.rewriteEnabled, true),
             .bool(MacPreferences.interactionSoundsEnabled, true),
             .string(MacPreferences.interactionSoundPreset, InteractionSoundPreset.defaultPreset.rawValue),
