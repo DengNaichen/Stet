@@ -118,4 +118,22 @@ struct MacDictationPanelViewModelTests {
         #expect(appModel.cancelActiveCaptureCallCount == 1)
         #expect(appModel.performPrimaryActionCallCount == 1)
     }
+
+    @Test func configurationFailuresAreSurfacedThroughPanelStatus() async {
+        let requirements = [
+            ProviderConfigurationRequirement(step: .transcription, provider: .groq),
+            ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
+        ]
+        let appModel = StubPanelModel()
+        let viewModel = MacDictationPanelViewModel(appModel: appModel)
+
+        appModel.dictationState = .error(.missingProviderConfiguration(requirements: requirements))
+        appModel.statusText = DictationFailure.missingProviderConfiguration(requirements: requirements).statusText
+        appModel.emitUpdate()
+
+        #expect(await TestSupport.eventually {
+            viewModel.state == .error(.missingProviderConfiguration(requirements: requirements)) &&
+            viewModel.statusText == "Provider configuration required"
+        })
+    }
 }

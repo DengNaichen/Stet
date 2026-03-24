@@ -9,6 +9,7 @@ private final class TestMacGeneralSettingsAppModel: MacGeneralSettingsAppModelin
     var launchAtLoginChanges: [Bool] = []
     var dockVisibilityChanges: [Bool] = []
     var setLaunchAtLoginError: (any Error)?
+    var isDebugForceOnboardingEnabled = false
 
     func setLaunchAtLoginEnabled(_ enabled: Bool) throws {
         if let setLaunchAtLoginError {
@@ -23,6 +24,14 @@ private final class TestMacGeneralSettingsAppModel: MacGeneralSettingsAppModelin
 
     func applyDockVisibility(showInDock: Bool) {
         dockVisibilityChanges.append(showInDock)
+    }
+
+    func setDebugForceOnboardingEnabled(_ enabled: Bool) {
+        isDebugForceOnboardingEnabled = enabled
+    }
+
+    func resetOnboardingForDebug() {
+        isDebugForceOnboardingEnabled = false
     }
 }
 

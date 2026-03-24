@@ -4,9 +4,9 @@ enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
     case openAI = "openai"
     case groq = "groq"
 
-    var id: Self { self }
+    nonisolated var id: Self { self }
 
-    var displayName: String {
+    nonisolated var displayName: String {
         switch self {
         case .openAI:
             return "OpenAI"
@@ -15,7 +15,7 @@ enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var pipelineDescription: String {
+    nonisolated var pipelineDescription: String {
         switch self {
         case .openAI:
             return "Audio capture + OpenAI transcription"
@@ -24,7 +24,7 @@ enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var apiKeyPlaceholder: String {
+    nonisolated var apiKeyPlaceholder: String {
         "Enter your access key"
     }
 }

@@ -74,7 +74,7 @@ struct DictationPipelineFactory: Sendable {
         switch route {
         case .direct(let direct):
             transcriptionService = makeDirectTranscriptionService(
-                direct.configuration,
+                direct.transcriptionConfiguration,
                 networkSession
             )
             transcriptionLanguageCode = direct.languageMode.transcriptionLanguageCode
@@ -83,8 +83,8 @@ struct DictationPipelineFactory: Sendable {
             rewriteAdditionalContext = direct.languageMode.rewriteAdditionalContext
             usesAudienceAwareLocalPrompts = snapshot.executionMode == .byok
 
-            if direct.rewriteEnabled {
-                rewriteService = makeRewriteService(direct.configuration, networkSession)
+            if direct.rewriteEnabled, let rewriteConfiguration = direct.rewriteConfiguration {
+                rewriteService = makeRewriteService(rewriteConfiguration, networkSession)
             } else {
                 rewriteService = nil
             }

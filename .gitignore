@@ -1,12 +1,17 @@
 # macOS / Xcode
 .DS_Store
+Thumbs.db
 DerivedData/
 .derivedData/
 build/
 .build/
 dist/
+Packages/
+*.swiftpm/
 *.xcuserstate
 xcuserdata/
+*.tmp
+*.swp
 
 # Local environment and secrets
 .env

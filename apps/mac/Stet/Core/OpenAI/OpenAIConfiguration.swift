@@ -1,10 +1,20 @@
 import Foundation
 
+struct DictationProviderPair: Sendable, Equatable {
+    nonisolated let transcriptionProvider: DictationProvider
+    nonisolated let rewriteProvider: DictationProvider
+}
+
 struct OpenAIConfiguration: Sendable {
     struct ProviderDefaults: Sendable {
         let transcriptionModel: String
         let rewriteModel: String
         let supportsResponsesStore: Bool
+    }
+
+    struct ProviderPairDefaults: Sendable, Equatable {
+        let transcriptionModel: String
+        let rewriteModel: String
     }
 
     var apiKey: String
@@ -47,6 +57,48 @@ struct OpenAIConfiguration: Sendable {
         )
     }
 
+    nonisolated static func transcriptionConfiguration(
+        apiKey: String,
+        providerPair: DictationProviderPair,
+        organizationID: String? = nil,
+        projectID: String? = nil
+    ) -> Self {
+        let provider = providerPair.transcriptionProvider
+        let defaults = providerDefaults(for: provider)
+        let pairDefaults = supportedDefaults(for: providerPair)
+
+        return Self(
+            apiKey: apiKey,
+            baseURL: baseURL(for: provider),
+            transcriptionModel: pairDefaults?.transcriptionModel ?? defaults.transcriptionModel,
+            rewriteModel: pairDefaults?.rewriteModel ?? defaults.rewriteModel,
+            organizationID: organizationID,
+            projectID: projectID
+        )
+    }
+
+    nonisolated static func rewriteConfiguration(
+        apiKey: String,
+        providerPair: DictationProviderPair,
+        organizationID: String? = nil,
+        projectID: String? = nil
+    ) -> Self? {
+        guard let pairDefaults = supportedDefaults(for: providerPair) else {
+            return nil
+        }
+
+        let provider = providerPair.rewriteProvider
+
+        return Self(
+            apiKey: apiKey,
+            baseURL: baseURL(for: provider),
+            transcriptionModel: pairDefaults.transcriptionModel,
+            rewriteModel: pairDefaults.rewriteModel,
+            organizationID: organizationID,
+            projectID: projectID
+        )
+    }
+
     nonisolated var supportsResponsesStore: Bool {
         Self.providerDefaults(for: baseURL).supportsResponsesStore
     }
@@ -75,6 +127,34 @@ struct OpenAIConfiguration: Sendable {
                 supportsResponsesStore: false
             )
         }
+    }
+
+    nonisolated static func supportedDefaults(
+        for providerPair: DictationProviderPair
+    ) -> ProviderPairDefaults? {
+        switch (providerPair.transcriptionProvider, providerPair.rewriteProvider) {
+        case (.openAI, .openAI):
+            return ProviderPairDefaults(
+                transcriptionModel: "gpt-4o-mini-transcribe",
+                rewriteModel: "gpt-5.4-nano-2026-03-17"
+            )
+        case (.groq, .groq):
+            return ProviderPairDefaults(
+                transcriptionModel: "whisper-large-v3-turbo",
+                rewriteModel: "llama-3.3-70b-versatile"
+            )
+        case (.groq, .openAI):
+            return ProviderPairDefaults(
+                transcriptionModel: "whisper-large-v3-turbo",
+                rewriteModel: "gpt-5.4-nano-2026-03-17"
+            )
+        case (.openAI, .groq):
+            return nil
+        }
+    }
+
+    nonisolated static func isSupportedProviderPair(_ providerPair: DictationProviderPair) -> Bool {
+        supportedDefaults(for: providerPair) != nil
     }
 
     nonisolated static func providerDefaults(for baseURL: URL) -> ProviderDefaults {

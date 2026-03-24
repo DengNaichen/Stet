@@ -8,19 +8,69 @@ protocol DictationSecretStore: Sendable {
 
 extension KeychainSecretStore: DictationSecretStore {}
 
+enum DictationPipelineStep: String, Sendable, Equatable, Hashable {
+    case transcription
+    case rewrite
+
+    nonisolated var displayName: String {
+        switch self {
+        case .transcription:
+            return "transcription"
+        case .rewrite:
+            return "rewrite"
+        }
+    }
+}
+
+struct ProviderConfigurationRequirement: Sendable, Equatable, Hashable {
+    nonisolated let step: DictationPipelineStep
+    nonisolated let provider: DictationProvider
+}
+
 struct DictationSettingsSnapshot: Sendable {
-    let provider: DictationProvider
+    let transcriptionProvider: DictationProvider
+    let rewriteProvider: DictationProvider
     let executionMode: AIExecutionMode
     let isRewriteEnabled: Bool
     let dictationLanguageMode: DictationLanguageMode
     let shouldPauseMediaDuringDictation: Bool
-    let providerConfiguration: OpenAIConfiguration?
+    let transcriptionProviderConfiguration: OpenAIConfiguration?
+    let rewriteProviderConfiguration: OpenAIConfiguration?
     let personalDictionary: [String]
     let interactionSoundsEnabled: Bool
     let interactionSoundPreset: InteractionSoundPreset
 
-    var hasLocalProviderConfiguration: Bool {
-        providerConfiguration != nil
+    nonisolated var provider: DictationProvider {
+        transcriptionProvider
+    }
+
+    nonisolated var providerConfiguration: OpenAIConfiguration? {
+        transcriptionProviderConfiguration
+    }
+
+    nonisolated var providerPair: DictationProviderPair {
+        DictationProviderPair(
+            transcriptionProvider: transcriptionProvider,
+            rewriteProvider: rewriteProvider
+        )
+    }
+
+    nonisolated var hasLocalProviderConfiguration: Bool {
+        transcriptionProviderConfiguration != nil
+    }
+
+    nonisolated func requiredProviderRequirements() -> [ProviderConfigurationRequirement] {
+        var requirements: [ProviderConfigurationRequirement] = [
+            ProviderConfigurationRequirement(step: .transcription, provider: transcriptionProvider)
+        ]
+
+        if isRewriteEnabled {
+            requirements.append(
+                ProviderConfigurationRequirement(step: .rewrite, provider: rewriteProvider)
+            )
+        }
+
+        return requirements
     }
 }
 
@@ -59,29 +109,48 @@ struct DictationSettingsStore: Sendable {
     }
 
     nonisolated func loadSnapshot() -> DictationSettingsSnapshot {
-        let provider = loadProvider()
+        let transcriptionProvider = loadTranscriptionProvider()
+        let rewriteProvider = loadRewriteProvider(defaultingTo: transcriptionProvider)
         let executionMode = loadExecutionMode()
         let isRewriteEnabled = loadRewriteEnabled()
         let dictationLanguageMode = loadDictationLanguageMode()
         let shouldPauseMediaDuringDictation =
             defaultsStore.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
-        let apiKey = loadAPIKey(for: provider).trimmingCharacters(in: .whitespacesAndNewlines)
+        let providerPair = DictationProviderPair(
+            transcriptionProvider: transcriptionProvider,
+            rewriteProvider: rewriteProvider
+        )
+        let transcriptionAPIKey = loadAPIKey(for: transcriptionProvider)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let rewriteAPIKey = loadAPIKey(for: rewriteProvider)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         let personalDictionary = loadPersonalDictionaryEnabled() ? loadPersonalDictionary() : []
         let interactionSoundsEnabled =
             defaultsStore.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
         let interactionSoundPreset = loadInteractionSoundPreset()
 
-        let configuration: OpenAIConfiguration? = apiKey.isEmpty
+        let transcriptionConfiguration: OpenAIConfiguration? = transcriptionAPIKey.isEmpty
             ? nil
-            : OpenAIConfiguration(apiKey: apiKey, provider: provider)
+            : OpenAIConfiguration.transcriptionConfiguration(
+                apiKey: transcriptionAPIKey,
+                providerPair: providerPair
+            )
+        let rewriteConfiguration: OpenAIConfiguration? = rewriteAPIKey.isEmpty
+            ? nil
+            : OpenAIConfiguration.rewriteConfiguration(
+                apiKey: rewriteAPIKey,
+                providerPair: providerPair
+            )
 
         return DictationSettingsSnapshot(
-            provider: provider,
+            transcriptionProvider: transcriptionProvider,
+            rewriteProvider: rewriteProvider,
             executionMode: executionMode,
             isRewriteEnabled: isRewriteEnabled,
             dictationLanguageMode: dictationLanguageMode,
             shouldPauseMediaDuringDictation: shouldPauseMediaDuringDictation,
-            providerConfiguration: configuration,
+            transcriptionProviderConfiguration: transcriptionConfiguration,
+            rewriteProviderConfiguration: rewriteConfiguration,
             personalDictionary: personalDictionary,
             interactionSoundsEnabled: interactionSoundsEnabled,
             interactionSoundPreset: interactionSoundPreset
@@ -108,9 +177,21 @@ struct DictationSettingsStore: Sendable {
         InteractionSoundPreset.defaultPreset
     }
 
-    nonisolated func loadProvider() -> DictationProvider {
+    nonisolated func loadTranscriptionProvider() -> DictationProvider {
         let rawValue = defaultsStore.string(forKey: MacPreferences.transcriptionProvider) ?? ""
         return DictationProvider(rawValue: rawValue) ?? .openAI
+    }
+
+    nonisolated func loadRewriteProvider(defaultingTo transcriptionProvider: DictationProvider? = nil)
+        -> DictationProvider
+    {
+        let fallbackProvider = transcriptionProvider ?? loadTranscriptionProvider()
+        let rawValue = defaultsStore.string(forKey: MacPreferences.rewriteProvider) ?? ""
+        return DictationProvider(rawValue: rawValue) ?? fallbackProvider
+    }
+
+    nonisolated func loadProvider() -> DictationProvider {
+        loadTranscriptionProvider()
     }
 
     nonisolated func loadExecutionMode() -> AIExecutionMode {
@@ -118,8 +199,23 @@ struct DictationSettingsStore: Sendable {
         return AIExecutionMode(rawValue: rawValue) ?? .automatic
     }
 
-    nonisolated func saveProvider(_ provider: DictationProvider) {
+    nonisolated func saveTranscriptionProvider(_ provider: DictationProvider) {
+        let previousTranscriptionProvider = loadTranscriptionProvider()
+        let currentRewriteProvider = loadRewriteProvider(defaultingTo: previousTranscriptionProvider)
         defaultsStore.set(provider.rawValue, forKey: MacPreferences.transcriptionProvider)
+
+        if defaultsStore.string(forKey: MacPreferences.rewriteProvider) == nil
+            || currentRewriteProvider == previousTranscriptionProvider {
+            defaultsStore.set(provider.rawValue, forKey: MacPreferences.rewriteProvider)
+        }
+    }
+
+    nonisolated func saveRewriteProvider(_ provider: DictationProvider) {
+        defaultsStore.set(provider.rawValue, forKey: MacPreferences.rewriteProvider)
+    }
+
+    nonisolated func saveProvider(_ provider: DictationProvider) {
+        saveTranscriptionProvider(provider)
     }
 
     nonisolated func saveExecutionMode(_ mode: AIExecutionMode) {

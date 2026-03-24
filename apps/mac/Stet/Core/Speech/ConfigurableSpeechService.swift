@@ -68,6 +68,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
         let snapshot = settingsStore.loadSnapshot()
         let pipelineStartedAt = ProcessInfo.processInfo.systemUptime
+        // Resolve the execution route and validate provider requirements before
+        // capture starts so BYOK configuration failures surface immediately.
         activePipeline = try await pipelineFactory.makePipeline(from: snapshot)
         let pipelineFactoryMs = Self.elapsedMilliseconds(since: pipelineStartedAt)
         Self.logStartupTiming("pipelineFactoryMs=\(Self.formatMilliseconds(pipelineFactoryMs))")
@@ -166,18 +168,19 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
         AppLogger.info("Submitting transcription request.", category: .dictation)
 
-        var transcript: String
+        let intermediateTranscript: String
         do {
-            transcript = try await pipeline.transcriptionService.transcribe(
+            let transcript = try await pipeline.transcriptionService.transcribe(
                 audioFileAt: processedCaptureResult.url,
                 languageCode: pipeline.transcriptionLanguageCode,
                 prompt: transcriptionPrompt,
                 audioDurationSeconds: processedCaptureResult.duration
             )
-            transcript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !transcript.isEmpty else {
+            let trimmedTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedTranscript.isEmpty else {
                 throw SpeechServiceError.emptyTranscription
             }
+            intermediateTranscript = trimmedTranscript
         } catch {
             await DictationLatencyProbe.shared.record(.transcriptionFailed, note: error.localizedDescription)
             AppLogger.error("Transcription failed: \(error.localizedDescription)", category: .dictation)
@@ -185,19 +188,22 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         }
 
         do {
+            let finalTranscript: String
             if let rewriteService = pipeline.rewriteService {
                 let rewriteAudience = pipeline.usesAudienceAwareLocalPrompts ? audienceProvider() : nil
-                transcript = try await rewriteService.rewrite(
+                finalTranscript = try await rewriteService.rewrite(
                     .cleanup(
-                        transcript,
+                        intermediateTranscript,
                         audience: rewriteAudience,
                         preferredSpellings: pipeline.preferredSpellings,
                         additionalUserContext: pipeline.rewriteAdditionalContext
                     )
                 )
+            } else {
+                finalTranscript = intermediateTranscript
             }
 
-            let trimmedTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedTranscript = finalTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmedTranscript.isEmpty else {
                 throw SpeechServiceError.emptyTranscription
             }

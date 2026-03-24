@@ -20,8 +20,19 @@ struct MacOpenAISettingsView: View {
                         .frame(width: controlWidth, alignment: .trailing)
                     }
 
-                    MacSettingsValueRow(title: "AI service") {
-                        Picker("", selection: $viewModel.provider) {
+                    MacSettingsValueRow(title: "Transcription provider") {
+                        Picker("", selection: $viewModel.transcriptionProvider) {
+                            ForEach(DictationProvider.allCases) { provider in
+                                Text(provider.displayName).tag(provider)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .frame(width: controlWidth, alignment: .trailing)
+                    }
+
+                    MacSettingsValueRow(title: "Rewrite provider") {
+                        Picker("", selection: $viewModel.rewriteProvider) {
                             ForEach(DictationProvider.allCases) { provider in
                                 Text(provider.displayName).tag(provider)
                             }
@@ -62,25 +73,43 @@ struct MacOpenAISettingsView: View {
                 Text("Dictation")
             }
 
-            Section {
-                VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
-                    SecureField(viewModel.credentialPlaceholder, text: $viewModel.apiKey)
+            if let message = viewModel.missingCredentialMessage {
+                Section {
+                    Text(message)
+                        .font(.system(size: 12))
+                        .foregroundStyle(viewModel.connectionNeedsAttention ? .orange : .secondary)
+                } header: {
+                    Text("Requirements")
+                }
+            }
+
+            ForEach(viewModel.visibleCredentialProviders) { provider in
+                Section {
+                    VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
+                        SecureField(
+                            viewModel.credentialPlaceholder(for: provider),
+                            text: Binding(
+                                get: { viewModel.apiKey(for: provider) },
+                                set: { viewModel.setAPIKey($0, for: provider) }
+                            )
+                        )
                         .textFieldStyle(.roundedBorder)
                         .font(.system(.body, design: .monospaced))
 
-                    HStack(spacing: 12) {
-                        Button("Save key") {
-                            viewModel.saveCredential()
-                        }
+                        HStack(spacing: 12) {
+                            Button("Save key") {
+                                viewModel.saveCredential(for: provider)
+                            }
 
-                        Button("Remove key", role: .destructive) {
-                            viewModel.clearCredential()
+                            Button("Remove key", role: .destructive) {
+                                viewModel.clearCredential(for: provider)
+                            }
                         }
                     }
+                    .disabled(viewModel.isCredentialEditingDisabled)
+                } header: {
+                    Text(viewModel.credentialFieldTitle(for: provider))
                 }
-                .disabled(viewModel.isCredentialEditingDisabled)
-            } header: {
-                Text(viewModel.credentialFieldTitle)
             }
         }
     }

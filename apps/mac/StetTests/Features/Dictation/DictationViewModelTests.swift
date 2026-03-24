@@ -168,6 +168,64 @@ struct DictationViewModelTests {
         })
     }
 
+    @Test func stopFailurePreservesStepAwareProviderConfigurationFailure() async {
+        let speechService = ControllableSpeechService()
+        await speechService.setStopBehavior(
+            .fail(
+                ProviderConfigurationError.missingRequirements([
+                    ProviderConfigurationRequirement(step: .transcription, provider: .groq),
+                    ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
+                ])
+            )
+        )
+        let viewModel = DictationViewModel(speechService: speechService)
+
+        viewModel.startCapture()
+        #expect(await TestSupport.eventually { viewModel.state == .listening })
+
+        viewModel.stopCapture()
+
+        #expect(await TestSupport.eventually {
+            viewModel.state == .error(
+                .missingProviderConfiguration(
+                    requirements: [
+                        ProviderConfigurationRequirement(step: .transcription, provider: .groq),
+                        ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
+                    ]
+                )
+            )
+        })
+    }
+
+    @Test func stopFailurePreservesUnsupportedProviderPairFailure() async {
+        let speechService = ControllableSpeechService()
+        await speechService.setStopBehavior(
+            .fail(
+                ProviderConfigurationError.unsupportedProviderCombination(
+                    DictationProviderPair(
+                        transcriptionProvider: .openAI,
+                        rewriteProvider: .groq
+                    )
+                )
+            )
+        )
+        let viewModel = DictationViewModel(speechService: speechService)
+
+        viewModel.startCapture()
+        #expect(await TestSupport.eventually { viewModel.state == .listening })
+
+        viewModel.stopCapture()
+
+        #expect(await TestSupport.eventually {
+            viewModel.state == .error(
+                .unsupportedProviderCombination(
+                    transcriptionProvider: .openAI,
+                    rewriteProvider: .groq
+                )
+            )
+        })
+    }
+
     @Test func emptyTranscriptionReturnsToIdleWithoutPublishingError() async {
         let speechService = ControllableSpeechService()
         await speechService.setStopBehavior(.fail(SpeechServiceError.emptyTranscription))

@@ -21,6 +21,7 @@ struct MacAppBootstrapperTests {
         #expect(launchConfiguration == .init(showInDock: false))
         #expect(!defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation))
         #expect(defaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.openAI.rawValue)
+        #expect(defaults.string(forKey: MacPreferences.rewriteProvider) == DictationProvider.openAI.rawValue)
         #expect(defaults.string(forKey: MacPreferences.aiExecutionMode) == AIExecutionMode.automatic.rawValue)
         #expect(defaults.string(forKey: MacPreferences.dictationLanguageMode) == DictationLanguageMode.automatic.rawValue)
         #expect(!defaults.bool(forKey: MacPreferences.hotkeyDistinguishModifierSides))

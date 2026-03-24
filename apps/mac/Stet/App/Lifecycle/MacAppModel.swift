@@ -273,7 +273,8 @@ final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, Mac
 
     func completeAPIKeyOnboarding(provider: DictationProvider) {
         settingsStore.saveExecutionMode(.byok)
-        settingsStore.saveProvider(provider)
+        settingsStore.saveTranscriptionProvider(provider)
+        settingsStore.saveRewriteProvider(provider)
         sessionController.completeCredentialOnboarding(mode: .apiKey)
     }
 

@@ -11,19 +11,29 @@ private func makeTemporaryWavURL() throws -> URL {
 
 private func makeSnapshot(
     mode: AIExecutionMode,
-    provider: DictationProvider = .openAI,
-    providerConfiguration: OpenAIConfiguration? = OpenAIConfiguration(apiKey: "sk-test", provider: .openAI),
+    transcriptionProvider: DictationProvider = .openAI,
+    rewriteProvider: DictationProvider = .openAI,
+    transcriptionProviderConfiguration: OpenAIConfiguration? = OpenAIConfiguration.transcriptionConfiguration(
+        apiKey: "sk-test",
+        providerPair: DictationProviderPair(transcriptionProvider: .openAI, rewriteProvider: .openAI)
+    ),
+    rewriteProviderConfiguration: OpenAIConfiguration? = OpenAIConfiguration.rewriteConfiguration(
+        apiKey: "sk-test",
+        providerPair: DictationProviderPair(transcriptionProvider: .openAI, rewriteProvider: .openAI)
+    ),
     rewriteEnabled: Bool = false,
     dictationLanguageMode: DictationLanguageMode = .automatic,
     personalDictionary: [String] = []
 ) -> DictationSettingsSnapshot {
     DictationSettingsSnapshot(
-        provider: provider,
+        transcriptionProvider: transcriptionProvider,
+        rewriteProvider: rewriteProvider,
         executionMode: mode,
         isRewriteEnabled: rewriteEnabled,
         dictationLanguageMode: dictationLanguageMode,
         shouldPauseMediaDuringDictation: false,
-        providerConfiguration: providerConfiguration,
+        transcriptionProviderConfiguration: transcriptionProviderConfiguration,
+        rewriteProviderConfiguration: rewriteProviderConfiguration,
         personalDictionary: personalDictionary,
         interactionSoundsEnabled: true,
         interactionSoundPreset: .soft
@@ -33,7 +43,7 @@ private func makeSnapshot(
 @Suite("Dictation Pipeline Logic")
 struct LogicPrimitiveTests {
     @Test func dictationExecutionRouteResolverFallsBackToDirectForAutomaticWithoutRelay() async throws {
-        let snapshot = makeSnapshot(mode: .automatic, providerConfiguration: OpenAIConfiguration(apiKey: "sk-test", provider: .openAI))
+        let snapshot = makeSnapshot(mode: .automatic)
 
         let route = try await DictationExecutionRouteResolver.resolve(
             snapshot: snapshot,
@@ -42,7 +52,8 @@ struct LogicPrimitiveTests {
 
         switch route {
         case .direct(let direct):
-            #expect(await direct.configuration.apiKey == "sk-test")
+            #expect(await direct.transcriptionConfiguration.apiKey == "sk-test")
+            #expect(await direct.rewriteConfiguration == nil)
             #expect(await direct.rewriteEnabled == false)
             #expect(await direct.languageMode == .automatic)
             #expect(await direct.preferredSpellings.isEmpty)
@@ -59,7 +70,6 @@ struct LogicPrimitiveTests {
         )
         let snapshot = makeSnapshot(
             mode: .automatic,
-            providerConfiguration: OpenAIConfiguration(apiKey: "sk-test", provider: .openAI),
             personalDictionary: ["OpenAI"]
         )
 
@@ -79,7 +89,7 @@ struct LogicPrimitiveTests {
     }
 
     @Test func dictationExecutionRouteResolverRejectsManagedWithoutSession() async {
-        let snapshot = makeSnapshot(mode: .managed, providerConfiguration: OpenAIConfiguration(apiKey: "sk-test", provider: .openAI))
+        let snapshot = makeSnapshot(mode: .managed)
 
         await #expect(throws: AIExecutionError.managedRequiresAuthenticatedSession) {
             try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
@@ -87,7 +97,7 @@ struct LogicPrimitiveTests {
     }
 
     @Test func dictationExecutionRouteResolverUsesByokWithLocalAPIKey() async throws {
-        let snapshot = makeSnapshot(mode: .byok, providerConfiguration: OpenAIConfiguration(apiKey: "sk-test", provider: .openAI))
+        let snapshot = makeSnapshot(mode: .byok)
 
         let route = try await DictationExecutionRouteResolver.resolve(
             snapshot: snapshot,
@@ -96,19 +106,96 @@ struct LogicPrimitiveTests {
 
         switch route {
         case .direct(let direct):
-            #expect(await direct.configuration.apiKey == "sk-test")
+            #expect(await direct.transcriptionConfiguration.apiKey == "sk-test")
         default:
             Issue.record("Expected direct route for BYOK.")
         }
     }
 
-    @Test func dictationExecutionRouteResolverRejectsByokWithoutLocalAPIKey() async {
+    @Test func dictationExecutionRouteResolverRejectsByokWithoutRequiredProviderKeys() async {
         let snapshot = makeSnapshot(
             mode: .byok,
-            providerConfiguration: nil
+            transcriptionProviderConfiguration: nil,
+            rewriteProviderConfiguration: nil,
+            rewriteEnabled: true
         )
 
-        await #expect(throws: OpenAIError.missingAPIKey(provider: .openAI)) {
+        await #expect(throws: ProviderConfigurationError.missingRequirements([
+            ProviderConfigurationRequirement(step: .transcription, provider: .openAI),
+            ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
+        ])) {
+            try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
+        }
+    }
+
+    @Test func dictationExecutionRouteResolverRejectsByokWhenOnlyTranscriptionKeyIsMissing() async {
+        let snapshot = makeSnapshot(
+            mode: .byok,
+            transcriptionProvider: .groq,
+            rewriteProvider: .openAI,
+            transcriptionProviderConfiguration: nil,
+            rewriteProviderConfiguration: OpenAIConfiguration.rewriteConfiguration(
+                apiKey: "sk-test",
+                providerPair: DictationProviderPair(
+                    transcriptionProvider: .groq,
+                    rewriteProvider: .openAI
+                )
+            ),
+            rewriteEnabled: true
+        )
+
+        await #expect(throws: ProviderConfigurationError.missingRequirements([
+            ProviderConfigurationRequirement(step: .transcription, provider: .groq)
+        ])) {
+            try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
+        }
+    }
+
+    @Test func dictationExecutionRouteResolverRejectsByokWhenOnlyRewriteKeyIsMissing() async {
+        let snapshot = makeSnapshot(
+            mode: .byok,
+            transcriptionProvider: .groq,
+            rewriteProvider: .openAI,
+            transcriptionProviderConfiguration: OpenAIConfiguration.transcriptionConfiguration(
+                apiKey: "gsk-test",
+                providerPair: DictationProviderPair(
+                    transcriptionProvider: .groq,
+                    rewriteProvider: .openAI
+                )
+            ),
+            rewriteProviderConfiguration: nil,
+            rewriteEnabled: true
+        )
+
+        await #expect(throws: ProviderConfigurationError.missingRequirements([
+            ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
+        ])) {
+            try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
+        }
+    }
+
+    @Test func dictationExecutionRouteResolverRejectsUnsupportedProviderPair() async {
+        let snapshot = makeSnapshot(
+            mode: .byok,
+            transcriptionProvider: .openAI,
+            rewriteProvider: .groq,
+            transcriptionProviderConfiguration: OpenAIConfiguration.transcriptionConfiguration(
+                apiKey: "sk-test",
+                providerPair: DictationProviderPair(
+                    transcriptionProvider: .openAI,
+                    rewriteProvider: .groq
+                )
+            ),
+            rewriteProviderConfiguration: nil,
+            rewriteEnabled: true
+        )
+
+        await #expect(throws: ProviderConfigurationError.unsupportedProviderCombination(
+            DictationProviderPair(
+                transcriptionProvider: .openAI,
+                rewriteProvider: .groq
+            )
+        )) {
             try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
         }
     }
@@ -116,17 +203,24 @@ struct LogicPrimitiveTests {
     @Test func makePipelineSelectsDirectServiceForAutomaticWithoutRelay() async throws {
         let direct = RecordingTranscriptionService(result: "direct")
         let relay = RecordingTranscriptionService(result: "relay")
+        var capturedTranscriptionConfiguration: OpenAIConfiguration?
+        var capturedRewriteConfiguration: OpenAIConfiguration?
         let audioFileURL = try makeTemporaryWavURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
         let factory = DictationPipelineFactory(
             relayAuthenticationContext: { nil },
-            makeDirectTranscriptionService: { _, _ in direct },
+            makeDirectTranscriptionService: { configuration, _ in
+                capturedTranscriptionConfiguration = configuration
+                return direct
+            },
             makeRelayTranscriptionService: { _, _, _, _ in relay },
-            makeRewriteService: { _, _ in RecordingRewriteService() }
+            makeRewriteService: { configuration, _ in
+                capturedRewriteConfiguration = configuration
+                return RecordingRewriteService()
+            }
         )
         let snapshot = makeSnapshot(
             mode: .automatic,
-            providerConfiguration: OpenAIConfiguration(apiKey: "sk-test", provider: .openAI),
             rewriteEnabled: true,
             personalDictionary: ["OpenAI", "Groq"]
         )
@@ -146,6 +240,8 @@ struct LogicPrimitiveTests {
         #expect(await direct.callCount == 1)
         #expect(await relay.callCount == 0)
         #expect(await direct.capturedPrompt == nil)
+        #expect(capturedTranscriptionConfiguration?.provider == .openAI)
+        #expect(capturedRewriteConfiguration?.provider == .openAI)
     }
 
     @Test func makePipelineSelectsRelayServiceForAutomaticWithSession() async throws {
@@ -168,7 +264,6 @@ struct LogicPrimitiveTests {
         )
         let snapshot = makeSnapshot(
             mode: .automatic,
-            providerConfiguration: OpenAIConfiguration(apiKey: "sk-test", provider: .openAI),
             personalDictionary: ["OpenAI", "Groq"]
         )
 
@@ -192,14 +287,38 @@ struct LogicPrimitiveTests {
         let direct = RecordingTranscriptionService(result: "mixed transcript")
         let relay = RecordingTranscriptionService(result: "relay")
         let rewrite = RecordingRewriteService()
+        var capturedTranscriptionConfiguration: OpenAIConfiguration?
+        var capturedRewriteConfiguration: OpenAIConfiguration?
         let factory = DictationPipelineFactory(
             relayAuthenticationContext: { nil },
-            makeDirectTranscriptionService: { _, _ in direct },
+            makeDirectTranscriptionService: { configuration, _ in
+                capturedTranscriptionConfiguration = configuration
+                return direct
+            },
             makeRelayTranscriptionService: { _, _, _, _ in relay },
-            makeRewriteService: { _, _ in rewrite }
+            makeRewriteService: { configuration, _ in
+                capturedRewriteConfiguration = configuration
+                return rewrite
+            }
         )
         let snapshot = makeSnapshot(
             mode: .byok,
+            transcriptionProvider: .groq,
+            rewriteProvider: .openAI,
+            transcriptionProviderConfiguration: OpenAIConfiguration.transcriptionConfiguration(
+                apiKey: "gsk-test",
+                providerPair: DictationProviderPair(
+                    transcriptionProvider: .groq,
+                    rewriteProvider: .openAI
+                )
+            ),
+            rewriteProviderConfiguration: OpenAIConfiguration.rewriteConfiguration(
+                apiKey: "sk-test",
+                providerPair: DictationProviderPair(
+                    transcriptionProvider: .groq,
+                    rewriteProvider: .openAI
+                )
+            ),
             rewriteEnabled: true,
             dictationLanguageMode: .mixedChineseEnglish
         )
@@ -227,6 +346,8 @@ struct LogicPrimitiveTests {
         #expect(pipeline.transcriptionLanguageCode == nil)
         #expect(pipeline.usesAudienceAwareLocalPrompts == true)
         #expect(pipeline.rewriteAdditionalContext?.contains("mix Chinese and English") == true)
+        #expect(capturedTranscriptionConfiguration?.provider == .groq)
+        #expect(capturedRewriteConfiguration?.provider == .openAI)
     }
 
     @Test func localRewritePromptBuilderBuildsHumanCleanupPrompt() {
@@ -250,12 +371,15 @@ struct LogicPrimitiveTests {
         )
 
         #expect(prompt.contains("AI or coding tools") == true)
-        #expect(prompt.contains("normalization") == true)
-        #expect(prompt.contains("Aggressively fix obvious speech-to-text errors") == true)
+        #expect(prompt.contains("cleaning up a speech-to-text transcript") == true)
+        #expect(prompt.contains("Fix obvious speech-to-text errors") == true)
         #expect(prompt.contains("Normalize fragmented spoken phrasing") == true)
+        #expect(prompt.contains("Preserve the original language of the transcript") == true)
+        #expect(prompt.contains("For very short transcripts or ambiguous fragments") == true)
         #expect(prompt.contains("direct and natural command or request style") == true)
-        #expect(prompt.contains("bullet points, or steps") == true)
-        #expect(prompt.contains("Do not add a title.") == true)
+        #expect(prompt.contains("simple numbering") == true)
+        #expect(prompt.contains("Do not use bullets, headings, code fences, backticks") == true)
+        #expect(prompt.contains("Do not add a title or wrap the result") == true)
         #expect(prompt.contains("agent") == false)
     }
 
@@ -290,6 +414,7 @@ struct LogicPrimitiveTests {
         #expect(aiRequest.systemPrompt?.contains("AI or coding context") == true)
         #expect(aiRequest.systemPrompt?.contains("clean, efficient written text") == true)
         #expect(aiRequest.systemPrompt?.contains("Normalize spoken or fragmented phrasing") == true)
+        #expect(aiRequest.systemPrompt?.contains("simple numbering") == true)
         #expect(aiRequest.systemPrompt?.contains("Do not add a title.") == true)
         #expect(aiRequest.systemPrompt?.contains("Cursor") == true)
     }
