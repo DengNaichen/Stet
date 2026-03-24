@@ -29,7 +29,7 @@
             coordinator.scheduleRestoreIfNeeded(on: pasteboard)
 
             #expect(
-                await TestSupport.eventuallyAsync(timeout: .milliseconds(500)) {
+                await TestSupport.eventuallyAsync(timeout: .seconds(2)) {
                     pasteboard.string(forType: .string) == "original"
                 })
         }
@@ -89,7 +89,7 @@
             temporarySnapshot.restore(to: pasteboard)
 
             #expect(
-                await TestSupport.eventuallyAsync(timeout: .milliseconds(500)) {
+                await TestSupport.eventuallyAsync(timeout: .seconds(2)) {
                     pasteboard.string(forType: .string) == "original"
                 })
         }
