@@ -118,6 +118,8 @@
             #expect(viewModel.connectionStatusText == "Sign In Required")
             #expect(viewModel.connectionNeedsAttention)
             #expect(viewModel.missingCredentialMessage == nil)
+            #expect(!viewModel.showsProviderConfiguration)
+            #expect(viewModel.visibleCredentialProviders.isEmpty)
         }
 
         @Test func automaticModeWithRelaySessionShowsRelayActiveWithoutKey() {
@@ -173,6 +175,28 @@
             #expect(
                 viewModel.missingCredentialMessage
                     == "OpenAI transcription with Groq rewrite is not supported as a default BYOK pair on Mac.")
+        }
+
+        @Test func managedModeWithRelaySessionHidesDirectConfigurationUI() throws {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(AIExecutionMode.managed.rawValue, forKey: MacPreferences.aiExecutionMode)
+            defaults.set(DictationProvider.groq.rawValue, forKey: MacPreferences.transcriptionProvider)
+            defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.rewriteProvider)
+            defaults.set(true, forKey: MacPreferences.rewriteEnabled)
+
+            let viewModel = MacOpenAISettingsViewModel(
+                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
+                relaySessionProvider: { true }
+            )
+
+            viewModel.load()
+
+            #expect(!viewModel.showsProviderConfiguration)
+            #expect(viewModel.visibleCredentialProviders.isEmpty)
+            #expect(
+                viewModel.managedConfigurationSummary
+                    == "Stet account uses Groq Whisper Large Turbo V3 for transcription and GPT-5.4 nano for transcript cleanup."
+            )
         }
     }
 #endif

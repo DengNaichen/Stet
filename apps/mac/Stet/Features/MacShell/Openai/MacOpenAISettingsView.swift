@@ -20,26 +20,36 @@
                             .frame(width: controlWidth, alignment: .trailing)
                         }
 
-                        MacSettingsValueRow(title: "Transcription provider") {
-                            Picker("", selection: $viewModel.transcriptionProvider) {
-                                ForEach(DictationProvider.allCases) { provider in
-                                    Text(provider.displayName).tag(provider)
+                        if viewModel.showsProviderConfiguration {
+                            MacSettingsValueRow(title: "Transcription provider") {
+                                Picker("", selection: $viewModel.transcriptionProvider) {
+                                    ForEach(DictationProvider.allCases) { provider in
+                                        Text(provider.displayName).tag(provider)
+                                    }
                                 }
+                                .labelsHidden()
+                                .pickerStyle(.menu)
+                                .frame(width: controlWidth, alignment: .trailing)
                             }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .frame(width: controlWidth, alignment: .trailing)
-                        }
 
-                        MacSettingsValueRow(title: "Rewrite provider") {
-                            Picker("", selection: $viewModel.rewriteProvider) {
-                                ForEach(DictationProvider.allCases) { provider in
-                                    Text(provider.displayName).tag(provider)
+                            MacSettingsValueRow(title: "Rewrite provider") {
+                                Picker("", selection: $viewModel.rewriteProvider) {
+                                    ForEach(DictationProvider.allCases) { provider in
+                                        Text(provider.displayName).tag(provider)
+                                    }
                                 }
+                                .labelsHidden()
+                                .pickerStyle(.menu)
+                                .frame(width: controlWidth, alignment: .trailing)
                             }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .frame(width: controlWidth, alignment: .trailing)
+                        } else {
+                            MacSettingsValueRow(title: "Cloud models") {
+                                Text(viewModel.managedConfigurationSummary)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(width: controlWidth, alignment: .trailing)
+                            }
                         }
 
                         MacSettingsValueRow(title: "Status") {

@@ -124,12 +124,22 @@
         }
 
         var visibleCredentialProviders: [DictationProvider] {
+            guard executionMode != .managed else { return [] }
+
             let selectedProviders = [
                 transcriptionProvider,
                 rewriteEnabled ? rewriteProvider : nil,
             ].compactMap { $0 }
 
             return DictationProvider.allCases.filter { selectedProviders.contains($0) }
+        }
+
+        var showsProviderConfiguration: Bool {
+            executionMode != .managed
+        }
+
+        var managedConfigurationSummary: String {
+            "Stet account uses Groq Whisper Large Turbo V3 for transcription and GPT-5.4 nano for transcript cleanup."
         }
 
         var rewriteToggleTitle: String {
