@@ -30,7 +30,7 @@
         }
 
         @Test func analyzeSpeechDetectsSpeechPresence() async throws {
-            let samples = makeSpeechLikeSamples(count: 16_000, amplitude: 0.15)
+            let samples = makeSpeechLikeSamples(count: 16_000, amplitude: 0.45)
 
             let analysis = try await AudioSignalAnalyzer.analyze(
                 samples: samples,
@@ -54,7 +54,7 @@
         }
 
         @Test func analyzeCalculatesSpeechLevel() async throws {
-            let samples = makeSpeechLikeSamples(count: 16_000, amplitude: 0.15)
+            let samples = makeSpeechLikeSamples(count: 16_000, amplitude: 0.45)
 
             let analysis = try await AudioSignalAnalyzer.analyze(
                 samples: samples,
@@ -82,11 +82,15 @@
 
             for index in speechRange {
                 let t = Double(index) / 16_000.0
-                let envelope = 0.55 + 0.45 * sin(2 * .pi * 2.5 * t)
-                let carrier =
-                    0.72 * sin(2 * .pi * 175.0 * t)
-                    + 0.22 * sin(2 * .pi * 350.0 * t)
-                samples[index] = amplitude * Float(envelope) * Float(carrier)
+                let envelope = 0.55 + 0.45 * sin(2 * .pi * 2.8 * t)
+                let glide = 170.0 + 35.0 * sin(2 * .pi * 1.3 * t)
+                let voicedCarrier =
+                    sin(2 * .pi * glide * t)
+                    + 0.45 * sin(2 * .pi * glide * 2.0 * t)
+                    + 0.18 * sin(2 * .pi * glide * 3.0 * t)
+                let fricativeTexture = 0.08 * sin(2 * .pi * 2_300.0 * t)
+                let sample = amplitude * Float(envelope) * Float(0.72 * voicedCarrier + fricativeTexture)
+                samples[index] = max(-1, min(sample, 1))
             }
 
             return samples

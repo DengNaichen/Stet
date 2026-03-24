@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT_PATH="$ROOT_DIR/apps/mac/Stet.xcodeproj"
 SCHEME="Stet"
+LOCAL_RELEASE_BUNDLE_ID="${LOCAL_RELEASE_BUNDLE_ID:-NaichengDeng.Stet.LocalRelease}"
+LOCAL_RELEASE_URL_SCHEME="${LOCAL_RELEASE_URL_SCHEME:-naichengdeng.stet.localrelease}"
 
 BUILD_ROOT="$ROOT_DIR/.build"
 DERIVED_DATA_PATH="$BUILD_ROOT/DerivedData"
@@ -43,6 +45,8 @@ xcodebuild \
   -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_PATH" \
   -packageCachePath "$PACKAGE_CACHE_PATH" \
   CONFIGURATION_BUILD_DIR="$DIST_DIR" \
+  PRODUCT_BUNDLE_IDENTIFIER="$LOCAL_RELEASE_BUNDLE_ID" \
+  APP_URL_SCHEME="$LOCAL_RELEASE_URL_SCHEME" \
   build
 
 codesign --verify --deep --strict "$APP_PATH"
@@ -50,3 +54,4 @@ codesign --verify --deep --strict "$APP_PATH"
 echo
 echo "Built app:"
 echo "  $APP_PATH"
+echo "  Bundle ID: $LOCAL_RELEASE_BUNDLE_ID"

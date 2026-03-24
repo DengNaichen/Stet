@@ -56,14 +56,17 @@ xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -configuration Debug -d
 - 构建产物的 entitlement 里必须包含 `com.apple.security.device.audio-input`
 - 缺少这个 entitlement 时，`tccd` 会在弹窗前直接拒绝请求
 
-### Debug 和安装版不能共用同一个应用身份
+### 本地构建和安装版不能共用同一个应用身份
 
-不要让 Xcode 里的 Debug 版和 `/Applications/Stet.app` 共用同一个 bundle identifier。
+不要让本地 Xcode 构建和 `/Applications/Stet.app` 共用同一个 bundle identifier。
 
 - `Debug` 使用 `NaichengDeng.Stet.Debug`
-- `Release` 使用 `NaichengDeng.Stet`
+- 本地 `./scripts/build-macos-release.sh` 现在使用 `NaichengDeng.Stet.LocalRelease`
+- 正式分发 / 公证后的 Release 使用 `NaichengDeng.Stet`
 
 把两者分开可以避免麦克风权限、辅助功能权限和 OAuth 回调在 TCC / Launch Services 里互相污染。
+
+如果你之前启动过一个用 Apple Development 签名、但 bundle id 仍然是 `NaichengDeng.Stet` 的本地 Release，macOS 可能已经把辅助功能授权绑定到了错误的代码需求上。这样系统设置里看起来像是“已经允许”，但运行时 `AXIsProcessTrusted()` 仍然会失败。
 
 ### 已经 Allow，但 onboarding 仍然显示麦克风未通过
 

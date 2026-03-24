@@ -3,14 +3,11 @@ import Combine
 
 @MainActor
 final class DictationViewModel: ObservableObject {
-    private enum Configuration {
-        static let manualActivationFallbackDelay: Duration = .seconds(1)
-    }
-
     typealias ResultTransformer = @MainActor @Sendable (String) async throws -> String
     typealias ExternalOperation = @MainActor @Sendable () async throws -> String
 
     private let speechService: any SpeechService
+    private let manualActivationFallbackDelay: Duration
     private var activeTask: Task<Void, Never>?
     private var captureStartupTask: Task<Void, Error>?
     private var activationFallbackTask: Task<Void, Never>?
@@ -27,8 +24,12 @@ final class DictationViewModel: ObservableObject {
     @Published private(set) var state: DictationState = .idle
     @Published private(set) var recordingLevel = 0.0
 
-    init(speechService: any SpeechService) {
+    init(
+        speechService: any SpeechService,
+        manualActivationFallbackDelay: Duration = .seconds(1)
+    ) {
         self.speechService = speechService
+        self.manualActivationFallbackDelay = manualActivationFallbackDelay
     }
 
     func send(_ action: DictationAction) {
@@ -402,11 +403,7 @@ final class DictationViewModel: ObservableObject {
     private func scheduleActivationFallbackIfNeeded() {
         activationFallbackTask?.cancel()
         activationFallbackTask = Task { [weak self] in
-            defer {
-                self?.activationFallbackTask = nil
-            }
-
-            try? await Task.sleep(for: Configuration.manualActivationFallbackDelay)
+            try? await Task.sleep(for: self?.manualActivationFallbackDelay ?? .seconds(1))
             guard let self,
                 !Task.isCancelled,
                 self.hasPreparedCapture,
@@ -415,6 +412,7 @@ final class DictationViewModel: ObservableObject {
                 return
             }
 
+            self.activationFallbackTask = nil
             try? await self.activateCaptureWindowInline()
         }
     }

@@ -6,10 +6,15 @@ import Testing
 @MainActor
 @Suite("Dictation View Model", .serialized)
 struct DictationViewModelTests {
+    private let fallbackDelay: Duration = .milliseconds(20)
+
     @Test func startAndStopCaptureProducesResult() async throws {
         let speechService = ControllableSpeechService()
         await speechService.setStopBehavior(.immediate("hello world"))
-        let viewModel = DictationViewModel(speechService: speechService)
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay
+        )
 
         viewModel.startCapture()
         #expect(viewModel.state == .starting)
@@ -27,7 +32,10 @@ struct DictationViewModelTests {
         let speechService = ControllableSpeechService()
         await speechService.setStartBehavior(.suspended)
         await speechService.setStopBehavior(.suspended)
-        let viewModel = DictationViewModel(speechService: speechService)
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay
+        )
 
         viewModel.startCapture()
         viewModel.stopCapture()
@@ -42,14 +50,17 @@ struct DictationViewModelTests {
 
         #expect(viewModel.state == .result("completed"))
         #expect(await speechService.counts().start == 1)
-        #expect(await speechService.counts().activate == 0)
+        #expect(await speechService.counts().activate == 1)
         #expect(await speechService.counts().stop == 1)
     }
 
     @Test func transformIsAppliedBeforePublishingResult() async throws {
         let speechService = ControllableSpeechService()
         await speechService.setStopBehavior(.immediate("draft"))
-        let viewModel = DictationViewModel(speechService: speechService)
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay
+        )
 
         viewModel.startCapture { text in
             text.uppercased()
@@ -63,7 +74,10 @@ struct DictationViewModelTests {
     @Test func resetCancelsActiveRecordingAndReturnsToIdle() async {
         let speechService = ControllableSpeechService()
         await speechService.setStartBehavior(.suspended)
-        let viewModel = DictationViewModel(speechService: speechService)
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay
+        )
 
         viewModel.startCapture()
         viewModel.send(.resetTapped)
@@ -76,7 +90,10 @@ struct DictationViewModelTests {
     @Test func explicitActivationKeepsViewModelStartingUntilActivated() async throws {
         let speechService = ControllableSpeechService()
         await speechService.setActivationBehavior(.suspended)
-        let viewModel = DictationViewModel(speechService: speechService)
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay
+        )
 
         viewModel.startCapture(activateWhenReady: false)
         #expect(await TestSupport.eventuallyAsync { await speechService.counts().start == 1 })
@@ -93,7 +110,11 @@ struct DictationViewModelTests {
     @Test func pendingActivationDuringStartupActivatesOnceStartCompletes() async throws {
         let speechService = ControllableSpeechService()
         await speechService.setStartBehavior(.suspended)
-        let viewModel = DictationViewModel(speechService: speechService)
+        await speechService.setActivationBehavior(.suspended)
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay
+        )
 
         viewModel.startCapture(activateWhenReady: false)
         viewModel.activateCaptureWindow()
@@ -103,26 +124,45 @@ struct DictationViewModelTests {
 
         await speechService.allowStart()
 
-        #expect(await TestSupport.eventually { viewModel.state == .listening })
+        #expect(
+            await TestSupport.eventuallyAsync(timeout: .seconds(5)) {
+                await speechService.counts().activate == 1
+            })
+        await speechService.allowActivation()
+
+        #expect(await TestSupport.eventually(timeout: .seconds(5)) { viewModel.state == .listening })
         #expect(await speechService.counts().start == 1)
         #expect(await speechService.counts().activate == 1)
     }
 
     @Test func manualActivationFallbackActivatesCaptureIfControllerNeverSignals() async throws {
         let speechService = ControllableSpeechService()
-        let viewModel = DictationViewModel(speechService: speechService)
+        await speechService.setActivationBehavior(.suspended)
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay
+        )
 
         viewModel.startCapture(activateWhenReady: false)
 
         #expect(viewModel.state == .starting)
-        #expect(await TestSupport.eventually { viewModel.state == .listening })
+        #expect(
+            await TestSupport.eventuallyAsync(timeout: .seconds(8)) {
+                await speechService.counts().activate == 1
+            })
+        await speechService.allowActivation()
+
+        #expect(await TestSupport.eventually(timeout: .seconds(8)) { viewModel.state == .listening })
         #expect(await speechService.counts().start == 1)
         #expect(await speechService.counts().activate == 1)
     }
 
     @Test func processingOperationFailurePublishesError() async {
         let speechService = ControllableSpeechService()
-        let viewModel = DictationViewModel(speechService: speechService)
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay
+        )
 
         viewModel.runProcessingOperation {
             throw TestError.expected
@@ -134,7 +174,10 @@ struct DictationViewModelTests {
 
     @Test func clipboardPendingActionPublishesClipboardPendingState() {
         let speechService = ControllableSpeechService()
-        let viewModel = DictationViewModel(speechService: speechService)
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay
+        )
 
         viewModel.send(.clipboardPending("hello"))
 
@@ -144,7 +187,10 @@ struct DictationViewModelTests {
     @Test func startFailurePublishesStructuredFailure() async {
         let speechService = ControllableSpeechService()
         await speechService.setStartBehavior(.fail(SpeechServiceError.microphonePermissionDenied))
-        let viewModel = DictationViewModel(speechService: speechService)
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay
+        )
 
         viewModel.startCapture()
 
@@ -157,7 +203,10 @@ struct DictationViewModelTests {
     @Test func stopFailurePreservesStructuredProviderFailure() async {
         let speechService = ControllableSpeechService()
         await speechService.setStopBehavior(.fail(OpenAIError.missingAPIKey(provider: .groq)))
-        let viewModel = DictationViewModel(speechService: speechService)
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay
+        )
 
         viewModel.startCapture()
         #expect(await TestSupport.eventually { viewModel.state == .listening })
@@ -180,7 +229,10 @@ struct DictationViewModelTests {
                 ])
             )
         )
-        let viewModel = DictationViewModel(speechService: speechService)
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay
+        )
 
         viewModel.startCapture()
         #expect(await TestSupport.eventually { viewModel.state == .listening })
@@ -213,7 +265,10 @@ struct DictationViewModelTests {
                 )
             )
         )
-        let viewModel = DictationViewModel(speechService: speechService)
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay
+        )
 
         viewModel.startCapture()
         #expect(await TestSupport.eventually { viewModel.state == .listening })
@@ -235,7 +290,10 @@ struct DictationViewModelTests {
     @Test func emptyTranscriptionReturnsToIdleWithoutPublishingError() async {
         let speechService = ControllableSpeechService()
         await speechService.setStopBehavior(.fail(SpeechServiceError.emptyTranscription))
-        let viewModel = DictationViewModel(speechService: speechService)
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay
+        )
 
         viewModel.startCapture()
         #expect(await TestSupport.eventually { viewModel.state == .listening })

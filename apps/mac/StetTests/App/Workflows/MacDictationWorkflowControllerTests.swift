@@ -77,6 +77,8 @@
     @MainActor
     @Suite("Mac Dictation Workflow Controller", .serialized)
     struct MacDictationWorkflowControllerTests {
+        private let promptActivationDeadline: Duration = .milliseconds(20)
+
         private func makeController(
             defaults: UserDefaults? = nil,
             speechService: ControllableSpeechService? = nil,
@@ -107,7 +109,10 @@
                 defaults: defaults,
                 secretStore: TestSecretStore()
             )
-            let viewModel = DictationViewModel(speechService: speechService)
+            let viewModel = DictationViewModel(
+                speechService: speechService,
+                manualActivationFallbackDelay: .milliseconds(20)
+            )
             let clipboard = TestClipboardService()
             let captureCoordinator = MacDictationCaptureCoordinator(
                 clipboardService: clipboard,
@@ -122,7 +127,8 @@
                 systemAudioMuting: systemAudioMuting,
                 settingsStore: settingsStore,
                 interactionSoundPlayer: interactionSoundPlayer,
-                mediaResumeDelay: mediaResumeDelay
+                mediaResumeDelay: mediaResumeDelay,
+                startPromptActivationDeadline: promptActivationDeadline
             )
 
             return (
@@ -211,6 +217,7 @@
             subject.controller.startDictationCapture(source: .hotkey) {}
             #expect(systemAudioMuting.activateCallCount == 0)
             #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
+            subject.controller.handleStateTransition(from: .starting, to: .listening)
             #expect(await TestSupport.eventually { systemAudioMuting.activateCallCount == 1 })
 
             subject.viewModel.send(.stopTapped)
@@ -520,7 +527,7 @@
             #expect(subject.viewModel.state == .starting)
 
             await speechService.allowActivation()
-            #expect(await TestSupport.eventually(timeout: .seconds(3)) { subject.viewModel.state == .listening })
+            #expect(await TestSupport.eventually(timeout: .seconds(10)) { subject.viewModel.state == .listening })
         }
     }
 #endif

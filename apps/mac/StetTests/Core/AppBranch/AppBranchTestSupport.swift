@@ -34,9 +34,18 @@
     }
 
     final class FakeAppBranchWorkspace: AppBranchWorkspaceObserving {
-        var frontmostApplication: AppBranchWorkspaceApplicationSnapshot?
+        private final class ObserverToken: NSObject {
+            let id: UUID
 
-        private var observers: [ObjectIdentifier: () -> Void] = [:]
+            init(id: UUID) {
+                self.id = id
+            }
+        }
+
+        var frontmostApplication: AppBranchWorkspaceApplicationSnapshot?
+        private let lock = NSLock()
+
+        private var observers: [UUID: () -> Void] = [:]
 
         private(set) var observerCount = 0
         private(set) var activeObserverCount = 0
@@ -47,22 +56,31 @@
         }
 
         func observeFrontmostApplicationChanges(_ handler: @escaping () -> Void) -> AppBranchWorkspaceObservationToken {
-            let observer = NSObject()
+            let observer = ObserverToken(id: UUID())
             let token = AppBranchWorkspaceObservationToken(observer: observer)
-            observers[ObjectIdentifier(observer)] = handler
+            lock.lock()
+            observers[observer.id] = handler
             observerCount += 1
             activeObserverCount = observers.count
+            lock.unlock()
             return token
         }
 
         func removeObservation(_ token: AppBranchWorkspaceObservationToken) {
-            observers.removeValue(forKey: ObjectIdentifier(token.observer))
+            guard let observer = token.observer as? ObserverToken else { return }
+            lock.lock()
+            observers.removeValue(forKey: observer.id)
             removedObserverCount += 1
             activeObserverCount = observers.count
+            lock.unlock()
         }
 
         func simulateActivationChange() {
-            for observer in observers.values {
+            lock.lock()
+            let callbacks = Array(observers.values)
+            lock.unlock()
+
+            for observer in callbacks {
                 observer()
             }
         }
