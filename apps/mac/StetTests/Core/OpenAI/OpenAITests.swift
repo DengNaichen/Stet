@@ -304,4 +304,76 @@ struct OpenAITests {
             try await service.rewrite(.rewriteSelection(sourceText: "hello", instruction: "Make it concise"))
         }
     }
+
+    @Test func openAIRewriteServiceRecoversTextFromRawResponseWhenSDKDecodingFails() async throws {
+        let session = TestURLSessionFactory.makeSession { request in
+            let response = HTTPURLResponse(url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let data = Data(
+                """
+                {
+                  "created_at": 123,
+                  "error": null,
+                  "id": "resp-1",
+                  "incomplete_details": null,
+                  "instructions": null,
+                  "max_output_tokens": null,
+                  "metadata": {},
+                  "model": "test-model",
+                  "object": "response",
+                  "output": [
+                    {
+                      "id": "reasoning-1",
+                      "type": "reasoning_mystery",
+                      "content": []
+                    },
+                    {
+                      "id": "msg-1",
+                      "type": "message",
+                      "role": "assistant",
+                      "content": [
+                        {
+                          "type": "output_text",
+                          "text": "recovered rewrite",
+                          "annotations": [],
+                          "logprobs": []
+                        }
+                      ],
+                      "status": "completed"
+                    }
+                  ],
+                  "parallel_tool_calls": false,
+                  "previous_response_id": null,
+                  "reasoning": null,
+                  "status": "completed",
+                  "temperature": null,
+                  "text": {
+                    "format": {
+                      "type": "text"
+                    }
+                  },
+                  "tool_choice": "auto",
+                  "tools": [],
+                  "top_p": null,
+                  "truncation": null,
+                  "usage": null,
+                  "user": null
+                }
+                """.utf8
+            )
+            return (response, data)
+        }
+        let service = OpenAIRewriteService(
+            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            session: session
+        )
+
+        let text = try await service.rewrite(
+            .rewriteSelection(
+                sourceText: "hello",
+                instruction: "Make it concise"
+            )
+        )
+
+        #expect(text == "recovered rewrite")
+    }
 }

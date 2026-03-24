@@ -18,23 +18,38 @@ private func makeAudioFileURL() -> URL {
 
 private func makeSettingsStore(
     provider: DictationProvider = .openAI,
+    transcriptionProvider: DictationProvider? = nil,
+    rewriteProvider: DictationProvider? = nil,
     executionMode: AIExecutionMode = .automatic,
     rewriteEnabled: Bool = false,
     apiKey: String? = "sk-test",
+    openAIAPIKey: String? = nil,
+    groqAPIKey: String? = nil,
     dictationLanguageMode: DictationLanguageMode = .automatic,
     preferredSpellings: [String] = []
 ) throws -> (DictationSettingsStore, TestSecretStore, UserDefaults) {
     let defaults = TestSupport.makeUserDefaults()
     let secretStore = TestSecretStore()
-    defaults.set(provider.rawValue, forKey: MacPreferences.transcriptionProvider)
+    let selectedTranscriptionProvider = transcriptionProvider ?? provider
+    let selectedRewriteProvider = rewriteProvider ?? selectedTranscriptionProvider
+    defaults.set(selectedTranscriptionProvider.rawValue, forKey: MacPreferences.transcriptionProvider)
+    defaults.set(selectedRewriteProvider.rawValue, forKey: MacPreferences.rewriteProvider)
     defaults.set(executionMode.rawValue, forKey: MacPreferences.aiExecutionMode)
     defaults.set(rewriteEnabled, forKey: MacPreferences.rewriteEnabled)
     defaults.set(dictationLanguageMode.rawValue, forKey: MacPreferences.dictationLanguageMode)
 
-    if let apiKey {
+    if let openAIAPIKey {
+        try secretStore.saveString(openAIAPIKey, forAccount: "openai.api_key")
+    }
+
+    if let groqAPIKey {
+        try secretStore.saveString(groqAPIKey, forAccount: "groq.api_key")
+    }
+
+    if let apiKey, openAIAPIKey == nil, groqAPIKey == nil {
         try secretStore.saveString(
             apiKey,
-            forAccount: provider == .openAI ? "openai.api_key" : "groq.api_key"
+            forAccount: selectedTranscriptionProvider == .openAI ? "openai.api_key" : "groq.api_key"
         )
     }
 
@@ -135,7 +150,9 @@ struct ConfigurableSpeechServiceTests {
             captureService: TestAudioCaptureService(audioFileURL: makeAudioFileURL())
         )
 
-        await #expect(throws: OpenAIError.missingAPIKey(provider: .openAI)) {
+        await #expect(throws: ProviderConfigurationError.missingRequirements([
+            ProviderConfigurationRequirement(step: .transcription, provider: .openAI)
+        ])) {
             try await service.startRecording()
         }
     }
@@ -482,6 +499,109 @@ struct ConfigurableSpeechServiceTests {
         let request = try #require(await rewrite.recordedRequests().first)
         #expect(request.systemPrompt?.contains("AI or coding tools") == true)
         #expect(request.systemPrompt?.contains("Do not add a title.") == true)
+        #expect(request.systemPrompt?.contains("Preserve the original language of the transcript.") == true)
+        #expect(request.systemPrompt?.contains("do not guess a different language") == true)
+    }
+
+    @Test func byokOpenAIToOpenAIReturnsOnlyRewrittenText() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: "raw transcript")
+        let relay = TestTranscriptionService(result: "relay transcript")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setResult("rewritten transcript")
+        let (store, _, _) = try makeSettingsStore(
+            transcriptionProvider: .openAI,
+            rewriteProvider: .openAI,
+            executionMode: .byok,
+            rewriteEnabled: true,
+            openAIAPIKey: "sk-test"
+        )
+
+        let service = makeDictationService(
+            settingsStore: store,
+            directTranscriptionService: direct,
+            relayTranscriptionService: relay,
+            rewriteService: rewrite
+        )
+
+        try await service.startRecording()
+        let result = try await service.stopRecording()
+
+        #expect(result == "rewritten transcript")
+        #expect(await direct.callCount() == 1)
+        #expect(await relay.callCount() == 0)
+        #expect(await rewrite.recordedRequests().count == 1)
+    }
+
+    @Test func byokGroqToGroqUsesSingleProviderForBothRemoteSteps() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: "groq transcript")
+        let relay = TestTranscriptionService(result: "relay transcript")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setResult("groq rewrite")
+        let (store, _, _) = try makeSettingsStore(
+            transcriptionProvider: .groq,
+            rewriteProvider: .groq,
+            executionMode: .byok,
+            rewriteEnabled: true,
+            groqAPIKey: "gsk-test"
+        )
+
+        let service = makeDictationService(
+            settingsStore: store,
+            directTranscriptionService: direct,
+            relayTranscriptionService: relay,
+            rewriteService: rewrite
+        )
+
+        try await service.startRecording()
+        let result = try await service.stopRecording()
+        let request = try #require(await rewrite.recordedRequests().first)
+
+        #expect(result == "groq rewrite")
+        #expect(request.sourceText == "groq transcript")
+        #expect(await direct.callCount() == 1)
+        #expect(await relay.callCount() == 0)
+    }
+
+    @Test func byokGroqToOpenAIUsesIntermediateTranscriptOnlyForRewrite() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: "mixed provider transcript")
+        let relay = TestTranscriptionService(result: "relay transcript")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setResult("mixed provider rewrite")
+        let (store, _, _) = try makeSettingsStore(
+            transcriptionProvider: .groq,
+            rewriteProvider: .openAI,
+            executionMode: .byok,
+            rewriteEnabled: true,
+            openAIAPIKey: "sk-test",
+            groqAPIKey: "gsk-test"
+        )
+
+        let service = makeDictationService(
+            settingsStore: store,
+            directTranscriptionService: direct,
+            relayTranscriptionService: relay,
+            rewriteService: rewrite
+        )
+
+        try await service.startRecording()
+        let result = try await service.stopRecording()
+        let request = try #require(await rewrite.recordedRequests().first)
+
+        #expect(result == "mixed provider rewrite")
+        #expect(request.sourceText == "mixed provider transcript")
+        #expect(request.systemPrompt?.contains("AI or coding tools") == true)
+        #expect(request.systemPrompt?.contains("Preserve the original language of the transcript.") == true)
+        #expect(await direct.callCount() == 1)
+        #expect(await relay.callCount() == 0)
     }
 
     @Test func stopRecordingUsesProcessedAudioURLForTranscription() async throws {
@@ -896,6 +1016,34 @@ struct ConfigurableSpeechServiceTests {
 
         #expect(await direct.callCount() == 1)
         #expect(await relay.callCount() == 0)
+        #expect(await rewrite.recordedRequests().isEmpty)
+    }
+
+    @Test func transcriptionFailurePreventsRewriteStepFromStarting() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(outcome: .failure(TestError.expected))
+        let relay = TestTranscriptionService(result: "relay")
+        let rewrite = RecordingRewriteService()
+        let (store, _, _) = try makeSettingsStore(
+            executionMode: .byok,
+            rewriteEnabled: true
+        )
+
+        let service = makeDictationService(
+            settingsStore: store,
+            directTranscriptionService: direct,
+            relayTranscriptionService: relay,
+            rewriteService: rewrite
+        )
+
+        try await service.startRecording()
+
+        await #expect(throws: TestError.expected) {
+            try await service.stopRecording()
+        }
+
         #expect(await rewrite.recordedRequests().isEmpty)
     }
 }

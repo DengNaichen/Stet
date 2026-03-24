@@ -42,8 +42,19 @@ struct OpenAIRewriteService: TextRewriteService {
                 return outputText
             }
 
+            if let responseData = requestContext.responseData,
+               let recoveredText = Self.extractOutputText(from: responseData) {
+                return recoveredText
+            }
+
             throw OpenAIError.missingRewriteText
         } catch {
+            if error is DecodingError,
+               let responseData = requestContext.responseData,
+               let recoveredText = Self.extractOutputText(from: responseData) {
+                return recoveredText
+            }
+
             throw requestContext.mapError(error)
         }
     }
@@ -87,5 +98,33 @@ struct OpenAIRewriteService: TextRewriteService {
             )
         )
         return messages
+    }
+
+    private static func extractOutputText(from responseData: Data) -> String? {
+        guard let payload = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+              let output = payload["output"] as? [[String: Any]] else {
+            return nil
+        }
+
+        for item in output {
+            guard let content = item["content"] as? [[String: Any]] else {
+                continue
+            }
+
+            for block in content {
+                guard let type = block["type"] as? String,
+                      type == "output_text",
+                      let text = block["text"] as? String else {
+                    continue
+                }
+
+                let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmedText.isEmpty {
+                    return trimmedText
+                }
+            }
+        }
+
+        return nil
     }
 }
