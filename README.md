@@ -56,14 +56,17 @@ If `Stet Debug` does not appear in System Settings and clicking `Request Access`
 - the built app should contain `com.apple.security.device.audio-input` in its generated entitlements
 - without that entitlement, `tccd` rejects the request before showing a prompt
 
-### Debug and installed apps must not share the same identity
+### Local builds and installed apps must not share the same identity
 
-Do not use the same bundle identifier for the Xcode Debug app and the installed `/Applications/Stet.app`.
+Do not use the same bundle identifier for local Xcode builds and the installed `/Applications/Stet.app`.
 
 - `Debug` uses `NaichengDeng.Stet.Debug`
-- `Release` uses `NaichengDeng.Stet`
+- local `./scripts/build-macos-release.sh` now uses `NaichengDeng.Stet.LocalRelease`
+- shipped / notarized Release uses `NaichengDeng.Stet`
 
 Keeping these separate avoids TCC and Launch Services collisions across microphone permission, Accessibility permission, and OAuth callback handling.
+
+If you previously launched a local Release build signed with Apple Development using `NaichengDeng.Stet`, macOS may have stored Accessibility consent for the wrong code requirement. In that case the installed Developer ID app can still show as enabled in System Settings but fail `AXIsProcessTrusted()` at runtime.
 
 ### Onboarding still shows microphone access as blocked after Allow
 
