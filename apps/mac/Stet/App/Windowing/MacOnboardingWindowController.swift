@@ -8,6 +8,14 @@ final class MacOnboardingWindowController {
 
     func show(appModel: any MacPermissionsCoordinating) {
         if let window = windowController?.window {
+            guard !window.isVisible else {
+                return
+            }
+
+            if window.isMiniaturized {
+                window.deminiaturize(nil)
+            }
+
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
