@@ -8,18 +8,23 @@ final class MacOpenAISettingsViewModel: ObservableObject {
         didSet {
             guard hasLoadedState else { return }
             settingsStore.saveExecutionMode(executionMode)
-            updateCredentialMessage()
         }
     }
-    @Published var provider: DictationProvider = .openAI {
+    @Published var transcriptionProvider: DictationProvider = .openAI {
         didSet {
             guard hasLoadedState else { return }
-            settingsStore.saveProvider(provider)
-            apiKey = settingsStore.loadAPIKey(for: provider)
-            updateCredentialMessage()
+            settingsStore.saveTranscriptionProvider(transcriptionProvider)
+            rewriteProvider = settingsStore.loadRewriteProvider(defaultingTo: transcriptionProvider)
         }
     }
-    @Published var apiKey = ""
+    @Published var rewriteProvider: DictationProvider = .openAI {
+        didSet {
+            guard hasLoadedState else { return }
+            settingsStore.saveRewriteProvider(rewriteProvider)
+        }
+    }
+    @Published var openAIAPIKey = ""
+    @Published var groqAPIKey = ""
     @Published var rewriteEnabled = false {
         didSet {
             guard hasLoadedState else { return }
@@ -32,8 +37,6 @@ final class MacOpenAISettingsViewModel: ObservableObject {
             settingsStore.saveDictationLanguageMode(dictationLanguageMode)
         }
     }
-    @Published private(set) var credentialMessage = "Your access key is stored securely on this Mac."
-    @Published private(set) var credentialMessageIsError = false
 
     private let settingsStore: DictationSettingsStore
     private let relaySessionProvider: @MainActor @Sendable () -> Bool
@@ -52,55 +55,80 @@ final class MacOpenAISettingsViewModel: ObservableObject {
     var connectionNeedsAttention: Bool {
         switch executionMode {
         case .automatic:
-            return !hasRelaySession && apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return !hasRelaySession && (!unsupportedProviderPairMessage.isNilOrEmpty || !missingRequiredProviders.isEmpty)
         case .managed:
             return !hasRelaySession
         case .byok:
-            return apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return !unsupportedProviderPairMessage.isNilOrEmpty || !missingRequiredProviders.isEmpty
         }
     }
 
     func load() {
         hasLoadedState = false
         executionMode = settingsStore.loadExecutionMode()
-        provider = settingsStore.loadProvider()
+        transcriptionProvider = settingsStore.loadTranscriptionProvider()
+        rewriteProvider = settingsStore.loadRewriteProvider(defaultingTo: transcriptionProvider)
         rewriteEnabled = settingsStore.loadRewriteEnabled()
         dictationLanguageMode = settingsStore.loadDictationLanguageMode()
-        apiKey = settingsStore.loadAPIKey(for: provider)
-        updateCredentialMessage()
+        openAIAPIKey = settingsStore.loadAPIKey(for: .openAI)
+        groqAPIKey = settingsStore.loadAPIKey(for: .groq)
         hasLoadedState = true
     }
 
     var connectionStatusText: String {
+        if unsupportedProviderPairMessage != nil {
+            return "Unsupported Pair"
+        }
+
         switch executionMode {
         case .automatic:
-            return hasRelaySession ? "Signed in" : (connectionNeedsAttention ? "Needs setup" : "Ready")
+            return hasRelaySession ? "Relay Active" : (connectionNeedsAttention ? "Needs Setup" : "Ready")
         case .managed:
-            return hasRelaySession ? "Signed in" : "Sign in required"
+            return hasRelaySession ? "Relay Active" : "Sign In Required"
         case .byok:
-            return connectionNeedsAttention ? "Needs setup" : "Ready"
+            return connectionNeedsAttention ? "Needs Setup" : "Ready"
         }
     }
 
-    func saveCredential() {
-        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    func saveCredential(for provider: DictationProvider) {
+        let trimmedKey = apiKey(for: provider).trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
             try settingsStore.saveAPIKey(trimmedKey, for: provider)
-            apiKey = trimmedKey
-            credentialMessage = trimmedKey.isEmpty
-                ? "Access key removed from this Mac."
-                : "\(provider.displayName) access key saved on this Mac."
-            credentialMessageIsError = false
-        } catch {
-            credentialMessage = error.localizedDescription
-            credentialMessageIsError = true
+            setAPIKey(trimmedKey, for: provider)
+        } catch {}
+    }
+
+    func clearCredential(for provider: DictationProvider) {
+        setAPIKey("", for: provider)
+        saveCredential(for: provider)
+    }
+
+    func apiKey(for provider: DictationProvider) -> String {
+        switch provider {
+        case .openAI:
+            return openAIAPIKey
+        case .groq:
+            return groqAPIKey
         }
     }
 
-    func clearCredential() {
-        apiKey = ""
-        saveCredential()
+    func setAPIKey(_ apiKey: String, for provider: DictationProvider) {
+        switch provider {
+        case .openAI:
+            openAIAPIKey = apiKey
+        case .groq:
+            groqAPIKey = apiKey
+        }
+    }
+
+    var visibleCredentialProviders: [DictationProvider] {
+        let selectedProviders = [
+            transcriptionProvider,
+            rewriteEnabled ? rewriteProvider : nil
+        ].compactMap { $0 }
+
+        return DictationProvider.allCases.filter { selectedProviders.contains($0) }
     }
 
     var rewriteToggleTitle: String {
@@ -114,27 +142,30 @@ final class MacOpenAISettingsViewModel: ObservableObject {
         }
     }
 
-    var credentialFieldTitle: String {
+    func credentialFieldTitle(for provider: DictationProvider) -> String {
         "\(provider.displayName) access key"
     }
 
-    var credentialPlaceholder: String {
+    func credentialPlaceholder(for provider: DictationProvider) -> String {
         provider.apiKeyPlaceholder
     }
 
     var missingCredentialMessage: String? {
+        if let unsupportedProviderPairMessage {
+            return unsupportedProviderPairMessage
+        }
+
+        let providerList = missingRequiredProviders.map(\.displayName).joined(separator: " and ")
+        guard !providerList.isEmpty else { return nil }
+
         switch executionMode {
         case .automatic:
-            guard !hasRelaySession,
-                  apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                return nil
-            }
-            return "Add a \(provider.displayName) access key to use on-device dictation when you're signed out."
+            guard !hasRelaySession else { return nil }
+            return "Add \(providerList) API key\(missingRequiredProviders.count == 1 ? "" : "s") to use direct dictation when you're signed out."
         case .managed:
             return hasRelaySession ? nil : "Sign in with your Stet account to use cloud dictation."
         case .byok:
-            guard apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-            return "Add a \(provider.displayName) access key before using direct transcription or transcript improvement."
+            return "Add \(providerList) API key\(missingRequiredProviders.count == 1 ? "" : "s") before using direct transcription or transcript improvement."
         }
     }
 
@@ -142,38 +173,58 @@ final class MacOpenAISettingsViewModel: ObservableObject {
         executionMode == .managed
     }
 
-    private func updateCredentialMessage() {
-        let hasCredential = !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-
-        switch executionMode {
-        case .automatic:
-            if hasCredential {
-                credentialMessage = "\(provider.displayName) access key is saved on this Mac for on-device fallback."
-            } else if hasRelaySession {
-                credentialMessage = "Your Stet account is active for dictation. No on-device key is saved."
-            } else {
-                credentialMessage = "No \(provider.displayName) access key is saved for on-device fallback."
-            }
-        case .managed:
-            if hasRelaySession {
-                credentialMessage = hasCredential
-                    ? "A \(provider.displayName) access key is saved on this Mac, but it is not needed while you're signed in."
-                    : "Your Stet account is active for dictation."
-            } else if hasCredential {
-                credentialMessage = "Sign in to use cloud dictation. A \(provider.displayName) access key is saved for later use."
-            } else {
-                credentialMessage = "Sign in to use cloud dictation. No access key is saved."
-            }
-        case .byok:
-            credentialMessage = hasCredential
-                ? "\(provider.displayName) access key is saved on this Mac."
-                : "No \(provider.displayName) access key is saved on this Mac."
-        }
-        credentialMessageIsError = false
-    }
-
     private var hasRelaySession: Bool {
         relaySessionProvider()
+    }
+
+    private var selectedProviderPair: DictationProviderPair {
+        DictationProviderPair(
+            transcriptionProvider: transcriptionProvider,
+            rewriteProvider: rewriteProvider
+        )
+    }
+
+    private var unsupportedProviderPairMessage: String? {
+        guard rewriteEnabled, !OpenAIConfiguration.isSupportedProviderPair(selectedProviderPair) else {
+            return nil
+        }
+
+        return "OpenAI transcription with Groq rewrite is not supported as a default BYOK pair on Mac."
+    }
+
+    private var missingRequiredProviders: [DictationProvider] {
+        requiredProviders.filter { apiKey(for: $0).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
+    private var requiredProviders: [DictationProvider] {
+        switch executionMode {
+        case .automatic:
+            return hasRelaySession ? [] : directProviders
+        case .managed:
+            return []
+        case .byok:
+            return directProviders
+        }
+    }
+
+    private var directProviders: [DictationProvider] {
+        let selectedProviders = [
+            transcriptionProvider,
+            rewriteEnabled ? rewriteProvider : nil
+        ].compactMap { $0 }
+
+        return DictationProvider.allCases.filter { selectedProviders.contains($0) }
+    }
+}
+
+private extension Optional where Wrapped == String {
+    var isNilOrEmpty: Bool {
+        switch self {
+        case .none:
+            return true
+        case .some(let value):
+            return value.isEmpty
+        }
     }
 }
 #endif

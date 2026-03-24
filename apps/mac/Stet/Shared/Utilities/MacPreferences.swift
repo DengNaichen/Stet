@@ -5,6 +5,7 @@ enum MacPreferences {
     nonisolated static let debugForceOnboarding = "mac.debug.forceOnboarding"
     nonisolated static let pauseMediaDuringDictation = "mac.pauseMediaDuringDictation"
     nonisolated static let transcriptionProvider = "mac.transcriptionProvider"
+    nonisolated static let rewriteProvider = "mac.rewriteProvider"
     nonisolated static let aiExecutionMode = "mac.aiExecutionMode"
     nonisolated static let rewriteEnabled = "mac.rewriteEnabled"
     nonisolated static let dictationLanguageMode = "mac.dictationLanguageMode"

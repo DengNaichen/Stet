@@ -31,6 +31,7 @@ struct MacAppBootstrapper {
         .bool(MacPreferences.debugForceOnboarding, false),
         .bool(MacPreferences.pauseMediaDuringDictation, false),
         .string(MacPreferences.transcriptionProvider, DictationProvider.openAI.rawValue),
+        .string(MacPreferences.rewriteProvider, DictationProvider.openAI.rawValue),
         .string(MacPreferences.aiExecutionMode, AIExecutionMode.automatic.rawValue),
         .bool(MacPreferences.rewriteEnabled, false),
         .bool(MacPreferences.interactionSoundsEnabled, true),

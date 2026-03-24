@@ -19,10 +19,12 @@ enum DictationFailure: Equatable, Sendable {
     case emptyTranscription
     case alreadyRecording
     case notRecording
+    case missingProviderConfiguration(requirements: [ProviderConfigurationRequirement])
     case missingAPIKey(provider: DictationProvider)
     case invalidBaseURL(provider: DictationProvider)
     case invalidResponse(provider: DictationProvider)
     case providerAPI(provider: DictationProvider, statusCode: Int?, message: String)
+    case unsupportedProviderCombination(transcriptionProvider: DictationProvider, rewriteProvider: DictationProvider)
     case relayAuthenticationRequired
     case relayInvocation(statusCode: Int?, message: String, requestID: String?)
     case network(code: URLError.Code, message: String)
@@ -42,7 +44,7 @@ enum DictationFailure: Equatable, Sendable {
             return .noSpeech
         case .alreadyRecording, .notRecording:
             return .state
-        case .missingAPIKey, .invalidBaseURL:
+        case .missingProviderConfiguration, .missingAPIKey, .invalidBaseURL, .unsupportedProviderCombination:
             return .configuration
         case .providerAPI(_, let statusCode, _):
             switch statusCode {
@@ -76,6 +78,8 @@ enum DictationFailure: Equatable, Sendable {
             return "No speech detected"
         case .alreadyRecording, .notRecording:
             return "Dictation state mismatch"
+        case .missingProviderConfiguration:
+            return "Provider configuration required"
         case .missingAPIKey(let provider):
             return "\(provider.displayName) API key required"
         case .invalidBaseURL(let provider):
@@ -84,6 +88,8 @@ enum DictationFailure: Equatable, Sendable {
             return "\(provider.displayName) returned invalid data"
         case .providerAPI(let provider, _, _):
             return "\(provider.displayName) request failed"
+        case .unsupportedProviderCombination:
+            return "Unsupported provider pair"
         case .relayAuthenticationRequired:
             return "Sign-in required"
         case .relayInvocation:
@@ -111,6 +117,8 @@ enum DictationFailure: Equatable, Sendable {
             return SpeechServiceError.alreadyRecording.localizedDescription
         case .notRecording:
             return SpeechServiceError.notRecording.localizedDescription
+        case .missingProviderConfiguration(let requirements):
+            return ProviderConfigurationError.missingRequirements(requirements).localizedDescription
         case .missingAPIKey(let provider):
             return OpenAIError.missingAPIKey(provider: provider).localizedDescription
         case .invalidBaseURL(let provider):
@@ -119,6 +127,13 @@ enum DictationFailure: Equatable, Sendable {
             return OpenAIError.invalidResponse(provider: provider).localizedDescription
         case .providerAPI(let provider, let statusCode, let message):
             return OpenAIError.api(provider: provider, statusCode: statusCode, message: message).localizedDescription
+        case .unsupportedProviderCombination(let transcriptionProvider, let rewriteProvider):
+            return ProviderConfigurationError.unsupportedProviderCombination(
+                DictationProviderPair(
+                    transcriptionProvider: transcriptionProvider,
+                    rewriteProvider: rewriteProvider
+                )
+            ).localizedDescription
         case .relayAuthenticationRequired:
             return AIExecutionError.managedRequiresAuthenticatedSession.localizedDescription
         case .relayInvocation(let statusCode, let message, let requestID):
@@ -172,6 +187,18 @@ enum DictationFailure: Equatable, Sendable {
                 return .invalidResponse(provider: .openAI)
             case .fileNotFound(let url):
                 return .unknown(message: "The audio file could not be found at \(url.path).")
+            }
+        }
+
+        if let configurationError = error as? ProviderConfigurationError {
+            switch configurationError {
+            case .missingRequirements(let requirements):
+                return .missingProviderConfiguration(requirements: requirements)
+            case .unsupportedProviderCombination(let providerPair):
+                return .unsupportedProviderCombination(
+                    transcriptionProvider: providerPair.transcriptionProvider,
+                    rewriteProvider: providerPair.rewriteProvider
+                )
             }
         }
 

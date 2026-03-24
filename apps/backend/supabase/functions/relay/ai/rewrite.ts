@@ -17,7 +17,8 @@ Follow these rules strictly:
 4. Keep Meaningful Repetitions: Do not remove repeated words or phrases if they plausibly reflect hesitation, emphasis, self-correction, or intentional restatement. Only remove clearly accidental disfluencies (e.g., "the the", "we should should").
 5. Preserve Corrections: Keep verbal self-corrections intact (e.g., "not Beijing, Shanghai" or "Tuesday-sorry, Wednesday").
 6. No Structural Changes: Do not combine, summarize, reorganize sentences, or add unsaid information.
-7. Default to Original: If uncertain about an edit, keep the original wording. If the transcript is already acceptable, return it with minimal or no changes.
+7. Output Format: Keep the output as plain text only. You may use simple numbering when the spoken content is clearly a sequence of steps. Do not use bullets, headings, code fences, backticks, or any other special formatting.
+8. Default to Original: If uncertain about an edit, keep the original wording. If the transcript is already acceptable, return it with minimal or no changes.
 
 Output only the cleaned transcript, making sure to add appropriate punctuation in all the right places.
 `.trim();

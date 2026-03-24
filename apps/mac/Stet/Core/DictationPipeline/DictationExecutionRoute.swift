@@ -30,9 +30,43 @@ enum AIExecutionError: LocalizedError, Equatable {
     }
 }
 
+enum ProviderConfigurationError: LocalizedError, Equatable {
+    case missingRequirements([ProviderConfigurationRequirement])
+    case unsupportedProviderCombination(DictationProviderPair)
+
+    nonisolated var errorDescription: String? {
+        switch self {
+        case .missingRequirements(let requirements):
+            let normalizedRequirements = requirements.sorted {
+                if $0.step == $1.step {
+                    return $0.provider.displayName < $1.provider.displayName
+                }
+
+                return $0.step.rawValue < $1.step.rawValue
+            }
+
+            guard let firstRequirement = normalizedRequirements.first else {
+                return "Provider configuration is incomplete."
+            }
+
+            if normalizedRequirements.count == 1 {
+                return "Add a \(firstRequirement.provider.displayName) API key to use \(firstRequirement.provider.displayName) for \(firstRequirement.step.displayName)."
+            }
+
+            let detail = normalizedRequirements
+                .map { "\($0.provider.displayName) for \($0.step.displayName)" }
+                .joined(separator: ", ")
+            return "Add API keys for \(detail) before starting dictation."
+        case .unsupportedProviderCombination:
+            return "OpenAI transcription with Groq rewrite is not supported as a default BYOK pair on Mac."
+        }
+    }
+}
+
 enum DictationExecutionRoute: Sendable {
     struct Direct: Sendable {
-        let configuration: OpenAIConfiguration
+        let transcriptionConfiguration: OpenAIConfiguration
+        let rewriteConfiguration: OpenAIConfiguration?
         let rewriteEnabled: Bool
         let languageMode: DictationLanguageMode
         let preferredSpellings: [String]
@@ -58,10 +92,6 @@ enum DictationExecutionRouteResolver {
             throw AIExecutionError.managedRequiresAuthenticatedSession
         }
 
-        if snapshot.executionMode.requiresLocalAPIKey, snapshot.providerConfiguration == nil {
-            throw OpenAIError.missingAPIKey(provider: snapshot.provider)
-        }
-
         switch snapshot.executionMode {
         case .automatic:
             if let relayAuthentication {
@@ -75,18 +105,7 @@ enum DictationExecutionRouteResolver {
                 )
             }
 
-            guard let configuration = snapshot.providerConfiguration else {
-                throw OpenAIError.missingAPIKey(provider: snapshot.provider)
-            }
-
-            return .direct(
-                .init(
-                    configuration: configuration,
-                    rewriteEnabled: snapshot.isRewriteEnabled,
-                    languageMode: snapshot.dictationLanguageMode,
-                    preferredSpellings: snapshot.personalDictionary
-                )
-            )
+            return .direct(try resolveDirectRoute(snapshot: snapshot))
         case .managed:
             guard let relayAuthentication else {
                 throw AIExecutionError.managedRequiresAuthenticatedSession
@@ -101,18 +120,45 @@ enum DictationExecutionRouteResolver {
                 )
             )
         case .byok:
-            guard let configuration = snapshot.providerConfiguration else {
-                throw OpenAIError.missingAPIKey(provider: snapshot.provider)
-            }
-
-            return .direct(
-                .init(
-                    configuration: configuration,
-                    rewriteEnabled: snapshot.isRewriteEnabled,
-                    languageMode: snapshot.dictationLanguageMode,
-                    preferredSpellings: snapshot.personalDictionary
-                )
-            )
+            return .direct(try resolveDirectRoute(snapshot: snapshot))
         }
+    }
+
+    nonisolated private static func resolveDirectRoute(
+        snapshot: DictationSettingsSnapshot
+    ) throws -> DictationExecutionRoute.Direct {
+        if snapshot.isRewriteEnabled && !OpenAIConfiguration.isSupportedProviderPair(snapshot.providerPair) {
+            throw ProviderConfigurationError.unsupportedProviderCombination(snapshot.providerPair)
+        }
+
+        let missingRequirements = snapshot.requiredProviderRequirements().filter { requirement in
+            switch requirement.step {
+            case .transcription:
+                return snapshot.transcriptionProviderConfiguration == nil
+            case .rewrite:
+                return snapshot.rewriteProviderConfiguration == nil
+            }
+        }
+
+        if !missingRequirements.isEmpty {
+            throw ProviderConfigurationError.missingRequirements(missingRequirements)
+        }
+
+        guard let transcriptionConfiguration = snapshot.transcriptionProviderConfiguration else {
+            throw ProviderConfigurationError.missingRequirements([
+                ProviderConfigurationRequirement(
+                    step: .transcription,
+                    provider: snapshot.transcriptionProvider
+                )
+            ])
+        }
+
+        return .init(
+            transcriptionConfiguration: transcriptionConfiguration,
+            rewriteConfiguration: snapshot.isRewriteEnabled ? snapshot.rewriteProviderConfiguration : nil,
+            rewriteEnabled: snapshot.isRewriteEnabled,
+            languageMode: snapshot.dictationLanguageMode,
+            preferredSpellings: snapshot.personalDictionary
+        )
     }
 }
