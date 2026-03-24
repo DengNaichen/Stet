@@ -58,10 +58,8 @@ public nonisolated struct AppInfo: Equatable, @unchecked Sendable {
     /// Equality is based on the user-facing snapshot we surface from AppBranch:
     /// bundle identifier, localized name, process identifier, and host-app flag.
     public static func == (lhs: AppInfo, rhs: AppInfo) -> Bool {
-        lhs.bundleIdentifier == rhs.bundleIdentifier &&
-            lhs.localizedName == rhs.localizedName &&
-            lhs.processIdentifier == rhs.processIdentifier &&
-            lhs.isOwnHostApplication == rhs.isOwnHostApplication
+        lhs.bundleIdentifier == rhs.bundleIdentifier && lhs.localizedName == rhs.localizedName
+            && lhs.processIdentifier == rhs.processIdentifier && lhs.isOwnHostApplication == rhs.isOwnHostApplication
     }
 }
 

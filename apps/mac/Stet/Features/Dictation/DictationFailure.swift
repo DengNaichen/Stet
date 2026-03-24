@@ -35,10 +35,10 @@ enum DictationFailure: Equatable, Sendable {
         case .microphonePermissionDenied:
             return .permissions
         case .unsupportedLocale,
-             .unsupportedAudioFormat,
-             .failedToStart,
-             .invalidResponse,
-             .relayInvocation:
+            .unsupportedAudioFormat,
+            .failedToStart,
+            .invalidResponse,
+            .relayInvocation:
             return .service
         case .emptyTranscription:
             return .noSpeech

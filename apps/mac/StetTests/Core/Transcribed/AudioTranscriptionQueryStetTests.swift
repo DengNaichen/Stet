@@ -15,7 +15,7 @@ struct AudioTranscriptionQueryStetTests {
         ("clip.mpga", .mpga),
         ("clip.ogg", .ogg),
         ("clip.wav", .wav),
-        ("clip.webm", .webm)
+        ("clip.webm", .webm),
     ])
     func fileTypeInitializerRecognizesSupportedExtensions(
         _ fileName: String,
@@ -41,7 +41,7 @@ struct AudioTranscriptionQueryStetTests {
         (.mpga, "speech.mp3", "audio/mp3"),
         (.ogg, "speech.ogg", "audio/ogg"),
         (.wav, "speech.wav", "audio/wav"),
-        (.webm, "speech.webm", "audio/webm")
+        (.webm, "speech.webm", "audio/webm"),
     ])
     func stetMetadataMatchesExpectedFileNameAndContentType(
         _ fileType: AudioTranscriptionQuery.FileType,

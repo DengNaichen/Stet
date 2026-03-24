@@ -208,7 +208,8 @@ extension SpeechAwareGainProcessorTests {
         for index in speechRange {
             let t = Double(index) / 16_000.0
             let envelope = 0.55 + 0.45 * sin(2 * .pi * 2.5 * t)
-            let carrier = 0.72 * sin(2 * .pi * 175.0 * t)
+            let carrier =
+                0.72 * sin(2 * .pi * 175.0 * t)
                 + 0.22 * sin(2 * .pi * 350.0 * t)
                 + 0.08 * sin(2 * .pi * 525.0 * t)
             samples[index] = amplitude * Float(envelope) * Float(carrier)

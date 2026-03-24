@@ -5,26 +5,26 @@ import Combine
 @MainActor
 final class MicrophoneTestViewModel: ObservableObject {
     // MARK: - Published Properties
-    
+
     @Published private(set) var isRecording = false
     @Published private(set) var isPlaying = false
     @Published private(set) var audioLevel: Double = 0.0
     @Published private(set) var hasRecording = false
-    
+
     // MARK: - Private Properties
-    
+
     private let microphoneTestService: MicrophoneTestService
     private var recordingURL: URL?
     private var audioLevelTask: Task<Void, Never>?
-    
+
     // MARK: - Initialization
-    
+
     init(microphoneTestService: MicrophoneTestService) {
         self.microphoneTestService = microphoneTestService
     }
-    
+
     // MARK: - Recording Methods
-    
+
     func startRecording() async {
         guard !isRecording else { return }
 
@@ -43,7 +43,7 @@ final class MicrophoneTestViewModel: ObservableObject {
             stopAudioLevelObservation()
         }
     }
-    
+
     func stopRecording() async {
         guard isRecording else { return }
 
@@ -61,9 +61,9 @@ final class MicrophoneTestViewModel: ObservableObject {
             audioLevel = 0.0
         }
     }
-    
+
     // MARK: - Playback Methods
-    
+
     func playRecording() async {
         guard let url = recordingURL, !isPlaying else { return }
 
@@ -76,14 +76,14 @@ final class MicrophoneTestViewModel: ObservableObject {
             isPlaying = false
         }
     }
-    
+
     func stopPlayback() {
         microphoneTestService.stopPlayback()
         isPlaying = false
     }
-    
+
     // MARK: - Private Methods
-    
+
     private func startAudioLevelObservation() {
         audioLevelTask?.cancel()
         audioLevelTask = Task { @MainActor [weak self, microphoneTestService] in
@@ -95,7 +95,7 @@ final class MicrophoneTestViewModel: ObservableObject {
             }
         }
     }
-    
+
     private func stopAudioLevelObservation() {
         audioLevelTask?.cancel()
         audioLevelTask = nil

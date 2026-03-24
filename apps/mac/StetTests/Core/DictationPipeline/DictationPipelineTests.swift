@@ -120,10 +120,12 @@ struct LogicPrimitiveTests {
             rewriteEnabled: true
         )
 
-        await #expect(throws: ProviderConfigurationError.missingRequirements([
-            ProviderConfigurationRequirement(step: .transcription, provider: .openAI),
-            ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
-        ])) {
+        await #expect(
+            throws: ProviderConfigurationError.missingRequirements([
+                ProviderConfigurationRequirement(step: .transcription, provider: .openAI),
+                ProviderConfigurationRequirement(step: .rewrite, provider: .openAI),
+            ])
+        ) {
             try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
         }
     }
@@ -144,9 +146,11 @@ struct LogicPrimitiveTests {
             rewriteEnabled: true
         )
 
-        await #expect(throws: ProviderConfigurationError.missingRequirements([
-            ProviderConfigurationRequirement(step: .transcription, provider: .groq)
-        ])) {
+        await #expect(
+            throws: ProviderConfigurationError.missingRequirements([
+                ProviderConfigurationRequirement(step: .transcription, provider: .groq)
+            ])
+        ) {
             try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
         }
     }
@@ -167,9 +171,11 @@ struct LogicPrimitiveTests {
             rewriteEnabled: true
         )
 
-        await #expect(throws: ProviderConfigurationError.missingRequirements([
-            ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
-        ])) {
+        await #expect(
+            throws: ProviderConfigurationError.missingRequirements([
+                ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
+            ])
+        ) {
             try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
         }
     }
@@ -190,12 +196,14 @@ struct LogicPrimitiveTests {
             rewriteEnabled: true
         )
 
-        await #expect(throws: ProviderConfigurationError.unsupportedProviderCombination(
-            DictationProviderPair(
-                transcriptionProvider: .openAI,
-                rewriteProvider: .groq
+        await #expect(
+            throws: ProviderConfigurationError.unsupportedProviderCombination(
+                DictationProviderPair(
+                    transcriptionProvider: .openAI,
+                    rewriteProvider: .groq
+                )
             )
-        )) {
+        ) {
             try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
         }
     }
@@ -419,10 +427,10 @@ struct LogicPrimitiveTests {
         #expect(aiRequest.systemPrompt?.contains("Cursor") == true)
     }
 
-    @Test func makeTranscriptionPromptIncludesPreferredSpellings() {
+    @Test func makeTranscriptionPromptIncludesPreferredSpellings() throws {
         let prompt = DictationPipelineFactory.makeTranscriptionPrompt(preferredSpellings: ["OpenAI", "Groq"])
 
-        let rendered = try! #require(prompt)
+        let rendered = try #require(prompt)
         #expect(rendered.contains("OpenAI, Groq"))
     }
 

@@ -138,7 +138,8 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
 
     private static func normalizedText(_ text: String?) -> String? {
         guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !text.isEmpty else {
+            !text.isEmpty
+        else {
             return nil
         }
 
@@ -147,12 +148,14 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
 
     private static func timeoutInterval(for audioDurationSeconds: TimeInterval?) -> TimeInterval {
         guard let audioDurationSeconds,
-              audioDurationSeconds.isFinite,
-              audioDurationSeconds > 0 else {
+            audioDurationSeconds.isFinite,
+            audioDurationSeconds > 0
+        else {
             return RequestPolicy.minimumTimeoutSeconds
         }
 
-        let paddedTimeout = (audioDurationSeconds * RequestPolicy.timeoutPerAudioSecond) + RequestPolicy.timeoutBufferSeconds
+        let paddedTimeout =
+            (audioDurationSeconds * RequestPolicy.timeoutPerAudioSecond) + RequestPolicy.timeoutBufferSeconds
         return min(
             max(paddedTimeout, RequestPolicy.minimumTimeoutSeconds),
             RequestPolicy.maximumTimeoutSeconds
@@ -224,7 +227,8 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
         if sdkConfiguration.basePath == "/" {
             normalizedBasePath = ""
         } else {
-            normalizedBasePath = sdkConfiguration.basePath.hasSuffix("/")
+            normalizedBasePath =
+                sdkConfiguration.basePath.hasSuffix("/")
                 ? String(sdkConfiguration.basePath.dropLast())
                 : sdkConfiguration.basePath
         }
@@ -265,17 +269,20 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
 
     private static func transcriptionText(from responseData: Data, statusCode: Int) -> String? {
         guard (200...299).contains(statusCode),
-              !responseData.isEmpty else {
+            !responseData.isEmpty
+        else {
             return nil
         }
 
         if let payload = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-           let text = normalizedText(payload["text"] as? String) {
+            let text = normalizedText(payload["text"] as? String)
+        {
             return text
         }
 
         guard let rawText = String(data: responseData, encoding: .utf8),
-              let normalizedRawText = normalizedText(rawText) else {
+            let normalizedRawText = normalizedText(rawText)
+        else {
             return nil
         }
 
@@ -288,7 +295,8 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
 
     private static func responseLooksLikeFallbackText(_ responseData: Data) -> Bool {
         guard let rawText = String(data: responseData, encoding: .utf8),
-              let normalizedRawText = normalizedText(rawText) else {
+            let normalizedRawText = normalizedText(rawText)
+        else {
             return false
         }
 
@@ -303,7 +311,8 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
         responseData: Data
     ) -> OpenAIError {
         if let envelope = try? JSONDecoder().decode(APIErrorEnvelope.self, from: responseData),
-           let message = normalizedText(envelope.error.message) {
+            let message = normalizedText(envelope.error.message)
+        {
             return OpenAIError.api(
                 provider: provider,
                 statusCode: statusCode,
@@ -312,8 +321,9 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
         }
 
         if let rawText = String(data: responseData, encoding: .utf8),
-           let message = normalizedText(rawText),
-           !message.hasPrefix("<") {
+            let message = normalizedText(rawText),
+            !message.hasPrefix("<")
+        {
             return OpenAIError.api(
                 provider: provider,
                 statusCode: statusCode,
@@ -338,7 +348,8 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
         }
 
         if let responseStatusCode,
-           let decodingError = error as? DecodingError {
+            let decodingError = error as? DecodingError
+        {
             _ = decodingError
             return OpenAIError.api(
                 provider: provider,
@@ -415,6 +426,6 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
         .networkConnectionLost,
         .notConnectedToInternet,
         .resourceUnavailable,
-        .timedOut
+        .timedOut,
     ]
 }

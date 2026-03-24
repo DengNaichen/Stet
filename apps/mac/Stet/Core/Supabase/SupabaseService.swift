@@ -27,9 +27,7 @@ final class SupabaseService {
             ?? placeholderKey
 
         static var isConfigured: Bool {
-            urlString != placeholderURL &&
-                projectKey != placeholderKey &&
-                !projectKey.isEmpty
+            urlString != placeholderURL && projectKey != placeholderKey && !projectKey.isEmpty
         }
 
         private static func resolvedValue(for key: String) -> String? {
@@ -46,12 +44,13 @@ final class SupabaseService {
             infoDictionary: [String: Any],
             fileManager: FileManager
         ) -> URL {
-            let resolvedString = resolvedValue(
-                for: "SUPABASE_OAUTH_REDIRECT_URL",
-                environment: environment,
-                infoDictionary: infoDictionary,
-                fileManager: fileManager
-            ) ?? defaultOAuthRedirectURLString
+            let resolvedString =
+                resolvedValue(
+                    for: "SUPABASE_OAUTH_REDIRECT_URL",
+                    environment: environment,
+                    infoDictionary: infoDictionary,
+                    fileManager: fileManager
+                ) ?? defaultOAuthRedirectURLString
 
             return URL(string: resolvedString) ?? URL(string: defaultOAuthRedirectURLString)!
         }
@@ -162,7 +161,8 @@ final class SupabaseService {
         var errorDescription: String? {
             switch self {
             case .missingConfiguration:
-                return "Supabase is not configured. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in the scheme environment, target build settings, or a local .env file before signing in."
+                return
+                    "Supabase is not configured. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in the scheme environment, target build settings, or a local .env file before signing in."
             }
         }
     }
@@ -227,7 +227,8 @@ final class SupabaseService {
 
     func relayAuthenticationContext() async -> RelayAuthenticationContext? {
         guard isConfigured,
-              let supabaseURL = URL(string: Configuration.urlString) else {
+            let supabaseURL = URL(string: Configuration.urlString)
+        else {
             return nil
         }
 

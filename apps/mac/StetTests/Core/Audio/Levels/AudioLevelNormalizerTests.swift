@@ -65,7 +65,7 @@ struct AudioLevelNormalizerTests {
     @Test(arguments: [
         (-25.0 as Float, 0.5),
         (-80.0 as Float, 0.08),
-        (0.0 as Float, 1.0)
+        (0.0 as Float, 1.0),
     ])
     func normalizedPowerLevelClampsIntoExpectedRange(_ power: Float, expected: Double) {
         #expect(AudioLevelNormalizer.normalizedPowerLevel(power) == expected)

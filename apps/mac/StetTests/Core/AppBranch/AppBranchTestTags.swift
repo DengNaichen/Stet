@@ -1,7 +1,7 @@
 #if os(macOS)
-import Testing
+    import Testing
 
-extension Tag {
-    @Tag static var appBranch: Self
-}
+    extension Tag {
+        @Tag static var appBranch: Self
+    }
 #endif

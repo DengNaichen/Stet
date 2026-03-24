@@ -49,28 +49,28 @@ enum DictationLanguageMode: String, CaseIterable, Identifiable, Codable, Sendabl
         switch self {
         case .automatic:
             return """
-            Keep the transcript in the same spoken language or mix of languages as the speaker used.
-            Never translate the transcript into a different language during cleanup.
-            """
+                Keep the transcript in the same spoken language or mix of languages as the speaker used.
+                Never translate the transcript into a different language during cleanup.
+                """
         case .mixedChineseEnglish:
             return """
-            The speaker may naturally mix Chinese and English, even within the same sentence.
-            Preserve that code-switching exactly where it is helpful and natural.
-            Preserve English technical terms, brand names, product names, and code as spoken.
-            Never rewrite the transcript into only Chinese or only English unless the speaker already did that.
-            """
+                The speaker may naturally mix Chinese and English, even within the same sentence.
+                Preserve that code-switching exactly where it is helpful and natural.
+                Preserve English technical terms, brand names, product names, and code as spoken.
+                Never rewrite the transcript into only Chinese or only English unless the speaker already did that.
+                """
         case .primarilyChinese:
             return """
-            The speaker mainly dictates in Chinese, but may naturally include English words, names, technical terms, and code.
-            Prefer natural Chinese sentence boundaries and punctuation while preserving English insertions and code-switching.
-            Never translate the full transcript into only English during cleanup.
-            """
+                The speaker mainly dictates in Chinese, but may naturally include English words, names, technical terms, and code.
+                Prefer natural Chinese sentence boundaries and punctuation while preserving English insertions and code-switching.
+                Never translate the full transcript into only English during cleanup.
+                """
         case .primarilyEnglish:
             return """
-            The speaker mainly dictates in English, but may naturally include Chinese words, names, phrases, and code-switching.
-            Prefer natural English sentence boundaries and punctuation while preserving Chinese insertions where they were spoken.
-            Never translate the full transcript into only Chinese during cleanup.
-            """
+                The speaker mainly dictates in English, but may naturally include Chinese words, names, phrases, and code-switching.
+                Prefer natural English sentence boundaries and punctuation while preserving Chinese insertions where they were spoken.
+                Never translate the full transcript into only Chinese during cleanup.
+                """
         }
     }
 }

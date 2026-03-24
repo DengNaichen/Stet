@@ -245,10 +245,10 @@ struct AuthView: View {
 
         var tint: Color {
             switch self {
-            case .info:    return .secondary
+            case .info: return .secondary
             case .success: return .green
             case .warning: return .orange
-            case .error:   return .red
+            case .error: return .red
             }
         }
     }

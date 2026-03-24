@@ -1,0 +1,66 @@
+name: macOS CI
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/macos-ci.yml"
+      - ".swiftlint.yml"
+      - "package.json"
+      - "apps/mac/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/macos-ci.yml"
+      - ".swiftlint.yml"
+      - "package.json"
+      - "apps/mac/**"
+
+jobs:
+  swiftlint:
+    name: SwiftLint
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Run SwiftLint
+        run: npm run mac:lint
+
+  swift-format:
+    name: Swift Format
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Run Swift Format Lint
+        run: npm run mac:format:lint
+
+  macos-build:
+    name: macOS Build
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Show Xcode Version
+        run: xcodebuild -version
+
+      - name: Build macOS app
+        run: npm run mac:ci:build

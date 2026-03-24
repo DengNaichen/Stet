@@ -129,13 +129,15 @@ struct DictationSettingsStore: Sendable {
             defaultsStore.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
         let interactionSoundPreset = loadInteractionSoundPreset()
 
-        let transcriptionConfiguration: OpenAIConfiguration? = transcriptionAPIKey.isEmpty
+        let transcriptionConfiguration: OpenAIConfiguration? =
+            transcriptionAPIKey.isEmpty
             ? nil
             : OpenAIConfiguration.transcriptionConfiguration(
                 apiKey: transcriptionAPIKey,
                 providerPair: providerPair
             )
-        let rewriteConfiguration: OpenAIConfiguration? = rewriteAPIKey.isEmpty
+        let rewriteConfiguration: OpenAIConfiguration? =
+            rewriteAPIKey.isEmpty
             ? nil
             : OpenAIConfiguration.rewriteConfiguration(
                 apiKey: rewriteAPIKey,
@@ -205,7 +207,8 @@ struct DictationSettingsStore: Sendable {
         defaultsStore.set(provider.rawValue, forKey: MacPreferences.transcriptionProvider)
 
         if defaultsStore.string(forKey: MacPreferences.rewriteProvider) == nil
-            || currentRewriteProvider == previousTranscriptionProvider {
+            || currentRewriteProvider == previousTranscriptionProvider
+        {
             defaultsStore.set(provider.rawValue, forKey: MacPreferences.rewriteProvider)
         }
     }

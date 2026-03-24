@@ -33,7 +33,9 @@ nonisolated final class AudioLevelBridge: @unchecked Sendable {
         lock.unlock()
     }
 
-    nonisolated private func withContinuations<T>(_ operation: (inout [UUID: AsyncStream<Double>.Continuation]) -> T) -> T {
+    nonisolated private func withContinuations<T>(_ operation: (inout [UUID: AsyncStream<Double>.Continuation]) -> T)
+        -> T
+    {
         lock.lock()
         defer { lock.unlock() }
         return operation(&continuations)

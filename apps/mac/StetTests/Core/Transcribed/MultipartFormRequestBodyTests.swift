@@ -10,7 +10,7 @@ struct MultipartFormRequestBodyTests {
             boundary: "Boundary-123",
             fields: [
                 MultipartFormField(name: "model", value: "gpt-4o-mini-transcribe"),
-                MultipartFormField(name: "language", value: "en")
+                MultipartFormField(name: "language", value: "en"),
             ],
             file: MultipartFormFile(
                 name: "file",
@@ -36,7 +36,7 @@ struct MultipartFormRequestBodyTests {
             boundary: "Boundary-ordered",
             fields: [
                 MultipartFormField(name: "model", value: "first-field"),
-                MultipartFormField(name: "prompt", value: "second-field")
+                MultipartFormField(name: "prompt", value: "second-field"),
             ],
             file: MultipartFormFile(
                 name: "file",

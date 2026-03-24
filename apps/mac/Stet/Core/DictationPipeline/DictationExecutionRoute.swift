@@ -50,10 +50,12 @@ enum ProviderConfigurationError: LocalizedError, Equatable {
             }
 
             if normalizedRequirements.count == 1 {
-                return "Add a \(firstRequirement.provider.displayName) API key to use \(firstRequirement.provider.displayName) for \(firstRequirement.step.displayName)."
+                return
+                    "Add a \(firstRequirement.provider.displayName) API key to use \(firstRequirement.provider.displayName) for \(firstRequirement.step.displayName)."
             }
 
-            let detail = normalizedRequirements
+            let detail =
+                normalizedRequirements
                 .map { "\($0.provider.displayName) for \($0.step.displayName)" }
                 .joined(separator: ", ")
             return "Add API keys for \(detail) before starting dictation."

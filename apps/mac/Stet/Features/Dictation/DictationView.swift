@@ -54,9 +54,9 @@ struct DictationView: View {
 
     private var messageBackgroundColor: Color {
         #if os(macOS)
-        return Color(nsColor: .controlBackgroundColor)
+            return Color(nsColor: .controlBackgroundColor)
         #else
-        return Color(.secondarySystemBackground)
+            return Color(.secondarySystemBackground)
         #endif
     }
 

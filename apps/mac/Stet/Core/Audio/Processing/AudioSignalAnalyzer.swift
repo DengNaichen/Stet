@@ -68,7 +68,8 @@ enum AudioSignalAnalyzer {
 
         let shouldDiscardAsNoSpeech = segments.isEmpty
         let totalDuration = Double(analysisSamples.count) / analysisSampleRate
-        let speechFrameRatio = totalDuration > 0
+        let speechFrameRatio =
+            totalDuration > 0
             ? segments.reduce(0.0) { $0 + ($1.endTime - $1.startTime) } / totalDuration
             : 0.0
 
@@ -84,7 +85,8 @@ enum AudioSignalAnalyzer {
             speechMask: speechMask
         )
         let speechLevelP75DBFS = percentile(frameMetrics.speechFrameLevels, 0.75) ?? -160
-        let noiseFloorDBFS = percentile(frameMetrics.noiseFrameLevels, 0.2)
+        let noiseFloorDBFS =
+            percentile(frameMetrics.noiseFrameLevels, 0.2)
             ?? max(-160, speechLevelP75DBFS - 12)
         let recommendedGainDB = recommendedGainDB(
             speechLevelDBFS: speechLevelP75DBFS,
@@ -255,8 +257,10 @@ enum AudioSignalAnalyzer {
         if rawGainDB >= 0 {
             boundedGainDB = min(rawGainDB, Configuration.maxBoostDB)
         } else {
-            let shouldAttenuate = overallPeakDBFS > Configuration.limiterCeilingDBFS
-                || speechLevelDBFS > (Configuration.targetSpeechLevelDBFS + Configuration.attenuationThresholdAboveTargetDB)
+            let shouldAttenuate =
+                overallPeakDBFS > Configuration.limiterCeilingDBFS
+                || speechLevelDBFS
+                    > (Configuration.targetSpeechLevelDBFS + Configuration.attenuationThresholdAboveTargetDB)
             boundedGainDB = shouldAttenuate ? max(rawGainDB, Configuration.maxCutDB) : 0
         }
 
@@ -269,8 +273,9 @@ enum AudioSignalAnalyzer {
             } else if noiseMarginDB >= Configuration.fullNoiseMarginDB {
                 scale = 1
             } else {
-                scale = (noiseMarginDB - Configuration.lowNoiseMarginDB) /
-                    (Configuration.fullNoiseMarginDB - Configuration.lowNoiseMarginDB)
+                scale =
+                    (noiseMarginDB - Configuration.lowNoiseMarginDB)
+                    / (Configuration.fullNoiseMarginDB - Configuration.lowNoiseMarginDB)
             }
             scaledGainDB = boundedGainDB * scale
         } else {

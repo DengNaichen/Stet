@@ -148,9 +148,10 @@ struct DictationViewModelTests {
 
         viewModel.startCapture()
 
-        #expect(await TestSupport.eventually {
-            viewModel.state == .error(.microphonePermissionDenied)
-        })
+        #expect(
+            await TestSupport.eventually {
+                viewModel.state == .error(.microphonePermissionDenied)
+            })
     }
 
     @Test func stopFailurePreservesStructuredProviderFailure() async {
@@ -163,9 +164,10 @@ struct DictationViewModelTests {
 
         viewModel.stopCapture()
 
-        #expect(await TestSupport.eventually {
-            viewModel.state == .error(.missingAPIKey(provider: .groq))
-        })
+        #expect(
+            await TestSupport.eventually {
+                viewModel.state == .error(.missingAPIKey(provider: .groq))
+            })
     }
 
     @Test func stopFailurePreservesStepAwareProviderConfigurationFailure() async {
@@ -174,7 +176,7 @@ struct DictationViewModelTests {
             .fail(
                 ProviderConfigurationError.missingRequirements([
                     ProviderConfigurationRequirement(step: .transcription, provider: .groq),
-                    ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
+                    ProviderConfigurationRequirement(step: .rewrite, provider: .openAI),
                 ])
             )
         )
@@ -185,16 +187,18 @@ struct DictationViewModelTests {
 
         viewModel.stopCapture()
 
-        #expect(await TestSupport.eventually {
-            viewModel.state == .error(
-                .missingProviderConfiguration(
-                    requirements: [
-                        ProviderConfigurationRequirement(step: .transcription, provider: .groq),
-                        ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
-                    ]
-                )
-            )
-        })
+        #expect(
+            await TestSupport.eventually {
+                viewModel.state
+                    == .error(
+                        .missingProviderConfiguration(
+                            requirements: [
+                                ProviderConfigurationRequirement(step: .transcription, provider: .groq),
+                                ProviderConfigurationRequirement(step: .rewrite, provider: .openAI),
+                            ]
+                        )
+                    )
+            })
     }
 
     @Test func stopFailurePreservesUnsupportedProviderPairFailure() async {
@@ -216,14 +220,16 @@ struct DictationViewModelTests {
 
         viewModel.stopCapture()
 
-        #expect(await TestSupport.eventually {
-            viewModel.state == .error(
-                .unsupportedProviderCombination(
-                    transcriptionProvider: .openAI,
-                    rewriteProvider: .groq
-                )
-            )
-        })
+        #expect(
+            await TestSupport.eventually {
+                viewModel.state
+                    == .error(
+                        .unsupportedProviderCombination(
+                            transcriptionProvider: .openAI,
+                            rewriteProvider: .groq
+                        )
+                    )
+            })
     }
 
     @Test func emptyTranscriptionReturnsToIdleWithoutPublishingError() async {

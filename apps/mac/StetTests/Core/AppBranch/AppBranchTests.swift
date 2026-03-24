@@ -1,9 +1,9 @@
 #if os(macOS)
-import Testing
+    import Testing
 
-@testable import Stet
+    @testable import Stet
 
-@MainActor
-@Suite("AppBranch", .tags(.appBranch))
-struct AppBranchTests {}
+    @MainActor
+    @Suite("AppBranch", .tags(.appBranch))
+    struct AppBranchTests {}
 #endif

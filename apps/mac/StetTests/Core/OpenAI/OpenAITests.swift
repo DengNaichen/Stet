@@ -120,7 +120,8 @@ struct OpenAITests {
         let fileURL = TestSupport.temporaryFileURL(ext: "wav")
         try Data("audio-bytes".utf8).write(to: fileURL)
         let session = TestURLSessionFactory.makeSession { request in
-            let response = HTTPURLResponse(url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let response = HTTPURLResponse(
+                url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (response, Data(#"{"text":"   "}"#.utf8))
         }
         let service = OpenAITranscriptionService(
@@ -187,7 +188,11 @@ struct OpenAITests {
                     httpVersion: nil,
                     headerFields: ["Content-Type": "application/json"]
                 )!
-                return (response, Data(#"{"error":{"message":"try again later","type":"server_error","param":null,"code":null}}"#.utf8))
+                return (
+                    response,
+                    Data(
+                        #"{"error":{"message":"try again later","type":"server_error","param":null,"code":null}}"#.utf8)
+                )
             }
 
             let response = HTTPURLResponse(
@@ -219,12 +224,14 @@ struct OpenAITests {
 
     @Test func openAIRewriteServiceUsesFallbackOutputParsing() async throws {
         let session = TestURLSessionFactory.makeSession { request in
-            let body = try JSONSerialization.jsonObject(with: TestSupport.requestBodyData(from: request)) as? [String: Any]
+            let body =
+                try JSONSerialization.jsonObject(with: TestSupport.requestBodyData(from: request)) as? [String: Any]
             let input = try #require(body?["input"] as? [[String: Any]])
             #expect((input.first?["role"] as? String) == "system")
             #expect((input.last?["content"] as? String)?.contains("Instruction:") == true)
 
-            let response = HTTPURLResponse(url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let response = HTTPURLResponse(
+                url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
             let data = Data(
                 """
                 {
@@ -292,8 +299,12 @@ struct OpenAITests {
 
     @Test func openAIRewriteServiceMapsProviderErrors() async {
         let session = TestURLSessionFactory.makeSession { request in
-            let response = HTTPURLResponse(url: try #require(request.url), statusCode: 401, httpVersion: nil, headerFields: nil)!
-            return (response, Data(#"{"error":{"message":"bad key","type":"invalid_request_error","param":null,"code":null}}"#.utf8))
+            let response = HTTPURLResponse(
+                url: try #require(request.url), statusCode: 401, httpVersion: nil, headerFields: nil)!
+            return (
+                response,
+                Data(#"{"error":{"message":"bad key","type":"invalid_request_error","param":null,"code":null}}"#.utf8)
+            )
         }
         let service = OpenAIRewriteService(
             configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
@@ -307,7 +318,8 @@ struct OpenAITests {
 
     @Test func openAIRewriteServiceRecoversTextFromRawResponseWhenSDKDecodingFails() async throws {
         let session = TestURLSessionFactory.makeSession { request in
-            let response = HTTPURLResponse(url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let response = HTTPURLResponse(
+                url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
             let data = Data(
                 """
                 {

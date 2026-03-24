@@ -186,8 +186,9 @@ final class DictationViewModel: ObservableObject {
         }
 
         guard hasPreparedCapture,
-              !isActivatingRecordingWindow,
-              state == .starting else {
+            !isActivatingRecordingWindow,
+            state == .starting
+        else {
             return
         }
 
@@ -222,8 +223,9 @@ final class DictationViewModel: ObservableObject {
 
     private func activateCaptureWindowInline() async throws {
         guard hasPreparedCapture,
-              !isActivatingRecordingWindow,
-              state == .starting else {
+            !isActivatingRecordingWindow,
+            state == .starting
+        else {
             return
         }
 
@@ -406,9 +408,10 @@ final class DictationViewModel: ObservableObject {
 
             try? await Task.sleep(for: Configuration.manualActivationFallbackDelay)
             guard let self,
-                  !Task.isCancelled,
-                  self.hasPreparedCapture,
-                  self.state == .starting else {
+                !Task.isCancelled,
+                self.hasPreparedCapture,
+                self.state == .starting
+            else {
                 return
             }
 

@@ -3,19 +3,19 @@ import Foundation
 
 enum TranscriptionUploadAudioFormat {
     #if os(macOS)
-    nonisolated static let macSampleRate: Double = 16_000
-    nonisolated static let macChannelCount: AVAudioChannelCount = 1
-    nonisolated static let macLinearPCMBitDepth: UInt32 = 16
-    nonisolated static let macFileExtension = "wav"
+        nonisolated static let macSampleRate: Double = 16_000
+        nonisolated static let macChannelCount: AVAudioChannelCount = 1
+        nonisolated static let macLinearPCMBitDepth: UInt32 = 16
+        nonisolated static let macFileExtension = "wav"
 
-    nonisolated static func makeMacOutputFormat() -> AVAudioFormat? {
-        AVAudioFormat(
-            commonFormat: .pcmFormatInt16,
-            sampleRate: macSampleRate,
-            channels: macChannelCount,
-            interleaved: true
-        )
-    }
+        nonisolated static func makeMacOutputFormat() -> AVAudioFormat? {
+            AVAudioFormat(
+                commonFormat: .pcmFormatInt16,
+                sampleRate: macSampleRate,
+                channels: macChannelCount,
+                interleaved: true
+            )
+        }
 
     #endif
 
