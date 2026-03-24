@@ -34,10 +34,11 @@ enum LinearPCMConversion {
         outputSampleRate: Double
     ) -> AVAudioFrameCount {
         guard inputFrameCount > 0,
-              inputSampleRate > 0,
-              outputSampleRate > 0,
-              inputSampleRate.isFinite,
-              outputSampleRate.isFinite else {
+            inputSampleRate > 0,
+            outputSampleRate > 0,
+            inputSampleRate.isFinite,
+            outputSampleRate.isFinite
+        else {
             return 0
         }
 
@@ -56,10 +57,12 @@ enum LinearPCMConversion {
             inputSampleRate: inputBuffer.format.sampleRate,
             outputSampleRate: outputFormat.sampleRate
         )
-        guard let outputBuffer = AVAudioPCMBuffer(
-            pcmFormat: outputFormat,
-            frameCapacity: outputFrameCapacity
-        ) else {
+        guard
+            let outputBuffer = AVAudioPCMBuffer(
+                pcmFormat: outputFormat,
+                frameCapacity: outputFrameCapacity
+            )
+        else {
             throw ConversionError.outputBufferCreationFailed
         }
 

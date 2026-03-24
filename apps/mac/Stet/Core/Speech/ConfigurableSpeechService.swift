@@ -31,9 +31,10 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         self.settingsStore = settingsStore
         self.locale = locale
         self.pipelineFactory = pipelineFactory
-        self.audienceProvider = audienceProvider ?? {
-            AppBranchMonitor.shared.currentApp?.audience ?? .ai
-        }
+        self.audienceProvider =
+            audienceProvider ?? {
+                AppBranchMonitor.shared.currentApp?.audience ?? .ai
+            }
         self.audioPostProcessor = audioPostProcessor ?? DefaultAudioPostProcessor()
         if let captureService {
             self.captureServiceFactory = { captureService }
@@ -50,8 +51,6 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     func makeAudioLevelStream() async -> AsyncStream<Double> {
         audioLevelBridge.makeStream()
     }
-
-
 
     func startRecording() async throws {
         try await startRecording(activateRecordingWindow: false)
@@ -128,7 +127,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         onCaptureStopped: (@Sendable () async -> Void)? = nil
     ) async throws -> String {
         guard let pipeline = activePipeline,
-              let captureService = activeCaptureService else {
+            let captureService = activeCaptureService
+        else {
             throw SpeechServiceError.notRecording
         }
 
@@ -236,7 +236,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             reusableCaptureService = newCaptureService
             captureService = newCaptureService
         }
-        
+
         await captureService.prewarm()
     }
 

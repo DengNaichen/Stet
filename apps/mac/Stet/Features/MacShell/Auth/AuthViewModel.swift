@@ -103,7 +103,8 @@ final class AuthViewModel {
         await perform(.signUp) { email, password in
             try await supabase.signUp(email: email, password: password)
             self.password = ""
-            self.statusMessage = "Account created. If email confirmation is enabled, check your inbox before signing in."
+            self.statusMessage =
+                "Account created. If email confirmation is enabled, check your inbox before signing in."
         }
     }
 

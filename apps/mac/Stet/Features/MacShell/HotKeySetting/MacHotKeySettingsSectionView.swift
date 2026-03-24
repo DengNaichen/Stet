@@ -23,9 +23,11 @@ struct MacHotKeySettingsSectionView: View {
                 .frame(width: 240, alignment: .trailing)
             }
 
-            Text("Use a modifier-plus-key shortcut, for example Control + Space or Command + K. Two plain character keys will not register here.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Text(
+                "Use a modifier-plus-key shortcut, for example Control + Space or Command + K. Two plain character keys will not register here."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
     }
 }

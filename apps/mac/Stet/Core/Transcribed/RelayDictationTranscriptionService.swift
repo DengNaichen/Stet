@@ -56,8 +56,9 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
         }
 
         guard let audioDurationSeconds,
-              audioDurationSeconds.isFinite,
-              audioDurationSeconds > 0 else {
+            audioDurationSeconds.isFinite,
+            audioDurationSeconds > 0
+        else {
             throw AIExecutionError.relayInvocationFailed(
                 statusCode: nil,
                 message: "Managed Relay requires the audio duration for pay-as-you-go billing.",
@@ -169,7 +170,8 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
 
     private static func normalizedText(_ text: String?) -> String? {
         guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !text.isEmpty else {
+            !text.isEmpty
+        else {
             return nil
         }
 
@@ -178,12 +180,14 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
 
     private static func timeoutInterval(for audioDurationSeconds: TimeInterval?) -> TimeInterval {
         guard let audioDurationSeconds,
-              audioDurationSeconds.isFinite,
-              audioDurationSeconds > 0 else {
+            audioDurationSeconds.isFinite,
+            audioDurationSeconds > 0
+        else {
             return RequestPolicy.minimumTimeoutSeconds
         }
 
-        let paddedTimeout = (audioDurationSeconds * RequestPolicy.timeoutPerAudioSecond) + RequestPolicy.timeoutBufferSeconds
+        let paddedTimeout =
+            (audioDurationSeconds * RequestPolicy.timeoutPerAudioSecond) + RequestPolicy.timeoutBufferSeconds
         return min(
             max(paddedTimeout, RequestPolicy.minimumTimeoutSeconds),
             RequestPolicy.maximumTimeoutSeconds
@@ -263,7 +267,8 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
             fields.append(.init(name: "rewrite", value: "true"))
         }
 
-        let normalizedPreferredSpellings = preferredSpellings
+        let normalizedPreferredSpellings =
+            preferredSpellings
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
 
@@ -295,7 +300,8 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
 
         if let rawText = String(data: responseData, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
-           !rawText.isEmpty {
+            !rawText.isEmpty
+        {
             return .relayInvocationFailed(
                 statusCode: statusCode,
                 message: rawText,
@@ -311,11 +317,13 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
     }
 
     private static func responsePreview(from data: Data) -> String {
-        guard let text = String(data: data, encoding: .utf8)?
-            .replacingOccurrences(of: "\n", with: "\\n")
-            .replacingOccurrences(of: "\r", with: "\\r")
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-              !text.isEmpty else {
+        guard
+            let text = String(data: data, encoding: .utf8)?
+                .replacingOccurrences(of: "\n", with: "\\n")
+                .replacingOccurrences(of: "\r", with: "\\r")
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+            !text.isEmpty
+        else {
             return "<empty>"
         }
 

@@ -150,15 +150,17 @@ struct ConfigurableSpeechServiceTests {
             captureService: TestAudioCaptureService(audioFileURL: makeAudioFileURL())
         )
 
-        await #expect(throws: ProviderConfigurationError.missingRequirements([
-            ProviderConfigurationRequirement(step: .transcription, provider: .openAI)
-        ])) {
+        await #expect(
+            throws: ProviderConfigurationError.missingRequirements([
+                ProviderConfigurationRequirement(step: .transcription, provider: .openAI)
+            ])
+        ) {
             try await service.startRecording()
         }
     }
 
-    @Test func managedModeRequiresAuthenticatedSession() async {
-        let (store, _, _) = try! makeSettingsStore(executionMode: .managed)
+    @Test func managedModeRequiresAuthenticatedSession() async throws {
+        let (store, _, _) = try makeSettingsStore(executionMode: .managed)
 
         let service = ConfigurableSpeechService(
             settingsStore: store,
@@ -1208,7 +1210,9 @@ private actor TestTranscriptionService: AudioFileTranscriptionService {
         audioDurationSeconds: TimeInterval?
     ) async throws -> String {
         callCountValue += 1
-        lastInvocationValue = (fileURL: fileURL, languageCode: languageCode, prompt: prompt, duration: audioDurationSeconds)
+        lastInvocationValue = (
+            fileURL: fileURL, languageCode: languageCode, prompt: prompt, duration: audioDurationSeconds
+        )
         #expect(!fileURL.path.isEmpty)
 
         switch outcome {

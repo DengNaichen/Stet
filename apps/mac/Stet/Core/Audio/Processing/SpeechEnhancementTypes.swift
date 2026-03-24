@@ -37,4 +37,3 @@ protocol SpeechEnhancing: Sendable {
         analysis: AudioAnalysis
     ) throws -> SpeechEnhancementResult
 }
-

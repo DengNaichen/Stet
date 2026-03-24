@@ -96,12 +96,11 @@ struct MacDictationPanelViewModelTests {
         )
         appModel.emitUpdate()
 
-        #expect(await TestSupport.eventually {
-            viewModel.state == .listening &&
-            viewModel.statusText == "Listening..." &&
-            viewModel.recordingLevel > 0 &&
-            viewModel.detectedTargetApplication?.bundleIdentifier == "com.apple.Terminal"
-        })
+        #expect(
+            await TestSupport.eventually {
+                viewModel.state == .listening && viewModel.statusText == "Listening..." && viewModel.recordingLevel > 0
+                    && viewModel.detectedTargetApplication?.bundleIdentifier == "com.apple.Terminal"
+            })
     }
 
     @Test func forwardingActionsCallThroughToAppModel() {
@@ -122,7 +121,7 @@ struct MacDictationPanelViewModelTests {
     @Test func configurationFailuresAreSurfacedThroughPanelStatus() async {
         let requirements = [
             ProviderConfigurationRequirement(step: .transcription, provider: .groq),
-            ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
+            ProviderConfigurationRequirement(step: .rewrite, provider: .openAI),
         ]
         let appModel = StubPanelModel()
         let viewModel = MacDictationPanelViewModel(appModel: appModel)
@@ -131,9 +130,10 @@ struct MacDictationPanelViewModelTests {
         appModel.statusText = DictationFailure.missingProviderConfiguration(requirements: requirements).statusText
         appModel.emitUpdate()
 
-        #expect(await TestSupport.eventually {
-            viewModel.state == .error(.missingProviderConfiguration(requirements: requirements)) &&
-            viewModel.statusText == "Provider configuration required"
-        })
+        #expect(
+            await TestSupport.eventually {
+                viewModel.state == .error(.missingProviderConfiguration(requirements: requirements))
+                    && viewModel.statusText == "Provider configuration required"
+            })
     }
 }

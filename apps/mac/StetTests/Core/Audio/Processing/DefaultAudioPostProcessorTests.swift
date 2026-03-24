@@ -183,9 +183,8 @@ struct DefaultAudioPostProcessorTests {
             let envelope = 0.55 + 0.45 * sin(2 * .pi * 2.8 * time)
             let glide = baseFrequency + 35.0 * sin(2 * .pi * 1.3 * time)
             let voicedSample =
-                sin(2 * .pi * glide * time) +
-                0.45 * sin(2 * .pi * glide * 2.0 * time) +
-                0.18 * sin(2 * .pi * glide * 3.0 * time)
+                sin(2 * .pi * glide * time) + 0.45 * sin(2 * .pi * glide * 2.0 * time) + 0.18
+                * sin(2 * .pi * glide * 3.0 * time)
             let fricativeTexture = 0.08 * sin(2 * .pi * 2_300 * time)
             let sample = Double(amplitude) * envelope * (0.72 * voicedSample + fricativeTexture)
             return Int16(max(Double(Int16.min), min(sample, Double(Int16.max))))
@@ -204,9 +203,7 @@ struct DefaultAudioPostProcessorTests {
             state = 1_664_525 &* state &+ 1_013_904_223
             let whiteNoise = Double(Int32(bitPattern: state)) / Double(Int32.max)
             let hum =
-                sin(2 * .pi * 90.0 * time) +
-                0.55 * sin(2 * .pi * 180.0 * time) +
-                0.2 * sin(2 * .pi * 1_700.0 * time)
+                sin(2 * .pi * 90.0 * time) + 0.55 * sin(2 * .pi * 180.0 * time) + 0.2 * sin(2 * .pi * 1_700.0 * time)
             let sample = 180.0 * hum + 35.0 * whiteNoise
             return Int16(max(Double(Int16.min), min(sample, Double(Int16.max))))
         }
@@ -229,9 +226,8 @@ struct DefaultAudioPostProcessorTests {
                 let envelope = pow(max(0, 1 - normalizedDistance), 2.2)
                 let time = Double(index) / sampleRate
                 let click =
-                    sin(2 * .pi * 2_800.0 * time) +
-                    0.75 * sin(2 * .pi * 4_600.0 * time) +
-                    0.35 * sin(2 * .pi * 6_100.0 * time)
+                    sin(2 * .pi * 2_800.0 * time) + 0.75 * sin(2 * .pi * 4_600.0 * time) + 0.35
+                    * sin(2 * .pi * 6_100.0 * time)
                 sample += 650.0 * envelope * click
             }
 

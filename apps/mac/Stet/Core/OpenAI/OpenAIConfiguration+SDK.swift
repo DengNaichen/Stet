@@ -11,13 +11,15 @@ extension OpenAIConfiguration {
             throw OpenAIError.missingAPIKey(provider: provider)
         }
 
-        let normalizedBaseURL = baseURL.hasDirectoryPath
+        let normalizedBaseURL =
+            baseURL.hasDirectoryPath
             ? baseURL
             : baseURL.appendingPathComponent("")
 
         guard let components = URLComponents(url: normalizedBaseURL, resolvingAgainstBaseURL: false),
-              let scheme = components.scheme,
-              let host = components.host else {
+            let scheme = components.scheme,
+            let host = components.host
+        else {
             throw OpenAIError.invalidBaseURL(provider: provider)
         }
 
@@ -68,7 +70,8 @@ extension OpenAIConfiguration {
 
     nonisolated private func trimmedValue(_ value: String?) -> String? {
         guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !value.isEmpty else {
+            !value.isEmpty
+        else {
             return nil
         }
 

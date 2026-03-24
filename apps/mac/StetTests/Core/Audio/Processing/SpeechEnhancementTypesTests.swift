@@ -7,7 +7,7 @@ import Testing
 struct SpeechEnhancementPlanTests {
     @Test func disabledPlanHasCorrectDefaults() {
         let plan = SpeechEnhancementPlan.disabled
-        
+
         #expect(!plan.shouldEnhance)
         #expect(plan.targetSpeechLevelDBFS == -20)
         #expect(plan.estimatedSpeechLevelDBFS == -160)
@@ -19,7 +19,7 @@ struct SpeechEnhancementPlanTests {
         #expect(abs(plan.attackTime - 0.12) < 0.0001)
         #expect(abs(plan.releaseTime - 0.4) < 0.0001)
     }
-    
+
     @Test func customPlanRetainsAllProperties() {
         let plan = SpeechEnhancementPlan(
             shouldEnhance: true,
@@ -33,7 +33,7 @@ struct SpeechEnhancementPlanTests {
             attackTime: 0.1,
             releaseTime: 0.3
         )
-        
+
         #expect(plan.shouldEnhance)
         #expect(plan.targetSpeechLevelDBFS == -18)
         #expect(plan.estimatedSpeechLevelDBFS == -25)
@@ -52,15 +52,15 @@ struct SpeechEnhancementResultTests {
     @Test func resultRetainsOutputURLAndRewriteFlag() {
         let url = URL(fileURLWithPath: "/tmp/enhanced.wav")
         let result = SpeechEnhancementResult(outputURL: url, didRewriteAudio: true)
-        
+
         #expect(result.outputURL == url)
         #expect(result.didRewriteAudio)
     }
-    
+
     @Test func resultCanIndicateNoRewrite() {
         let url = URL(fileURLWithPath: "/tmp/original.wav")
         let result = SpeechEnhancementResult(outputURL: url, didRewriteAudio: false)
-        
+
         #expect(result.outputURL == url)
         #expect(!result.didRewriteAudio)
     }

@@ -238,17 +238,20 @@
         private var subtitleText: String {
             switch viewModel.onboardingStep {
             case .mode:
-                return "Choose your access method first. Permissions, shortcuts, and initial setup will follow automatically."
+                return
+                    "Choose your access method first. Permissions, shortcuts, and initial setup will follow automatically."
             case .apiKey:
                 return "Select a provider and enter your API Key to proceed."
             case .login:
                 return "Login is only used to enable managed services and sync settings."
             case .permissions:
-                return "Grant microphone and input control permissions so Stet can record and type text back into your apps."
+                return
+                    "Grant microphone and input control permissions so Stet can record and type text back into your apps."
             case .shortcut:
                 return "Choose the shortcut you want to use for dictation."
             case .firstSuccess:
-                return "Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup."
+                return
+                    "Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup."
             case .done:
                 return "Hold your shortcut and start speaking anywhere you can type text."
             }

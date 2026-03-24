@@ -43,15 +43,17 @@ struct OpenAIRewriteService: TextRewriteService {
             }
 
             if let responseData = requestContext.responseData,
-               let recoveredText = Self.extractOutputText(from: responseData) {
+                let recoveredText = Self.extractOutputText(from: responseData)
+            {
                 return recoveredText
             }
 
             throw OpenAIError.missingRewriteText
         } catch {
             if error is DecodingError,
-               let responseData = requestContext.responseData,
-               let recoveredText = Self.extractOutputText(from: responseData) {
+                let responseData = requestContext.responseData,
+                let recoveredText = Self.extractOutputText(from: responseData)
+            {
                 return recoveredText
             }
 
@@ -76,20 +78,20 @@ struct OpenAIRewriteService: TextRewriteService {
         }
 
         var userPrompt = """
-        Instruction:
-        \(instruction)
+            Instruction:
+            \(instruction)
 
-        Text:
-        \(sourceText)
-        """
+            Text:
+            \(sourceText)
+            """
 
         if let additionalUserContext, !additionalUserContext.isEmpty {
             userPrompt = """
-            Context:
-            \(additionalUserContext)
+                Context:
+                \(additionalUserContext)
 
-            \(userPrompt)
-            """
+                \(userPrompt)
+                """
         }
 
         messages.append(
@@ -102,7 +104,8 @@ struct OpenAIRewriteService: TextRewriteService {
 
     private static func extractOutputText(from responseData: Data) -> String? {
         guard let payload = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-              let output = payload["output"] as? [[String: Any]] else {
+            let output = payload["output"] as? [[String: Any]]
+        else {
             return nil
         }
 
@@ -113,8 +116,9 @@ struct OpenAIRewriteService: TextRewriteService {
 
             for block in content {
                 guard let type = block["type"] as? String,
-                      type == "output_text",
-                      let text = block["text"] as? String else {
+                    type == "output_text",
+                    let text = block["text"] as? String
+                else {
                     continue
                 }
 

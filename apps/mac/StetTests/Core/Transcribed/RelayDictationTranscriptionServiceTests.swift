@@ -90,11 +90,13 @@ struct RelayDictationTranscriptionServiceTests {
             preferredSpellings: []
         )
 
-        await #expect(throws: AIExecutionError.relayInvocationFailed(
-            statusCode: 429,
-            message: "[quota_error] quota exceeded",
-            requestID: "req_payload"
-        )) {
+        await #expect(
+            throws: AIExecutionError.relayInvocationFailed(
+                statusCode: 429,
+                message: "[quota_error] quota exceeded",
+                requestID: "req_payload"
+            )
+        ) {
             try await service.transcribe(
                 audioFileAt: fileURL,
                 languageCode: nil,
@@ -128,11 +130,13 @@ struct RelayDictationTranscriptionServiceTests {
             preferredSpellings: []
         )
 
-        await #expect(throws: AIExecutionError.relayInvocationFailed(
-            statusCode: 200,
-            message: "The relay response did not contain any text.",
-            requestID: "req_empty"
-        )) {
+        await #expect(
+            throws: AIExecutionError.relayInvocationFailed(
+                statusCode: 200,
+                message: "The relay response did not contain any text.",
+                requestID: "req_empty"
+            )
+        ) {
             try await service.transcribe(
                 audioFileAt: fileURL,
                 languageCode: nil,

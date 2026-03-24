@@ -362,8 +362,7 @@ final class URLProtocolStub: URLProtocol {
     static let sessionIdentifierHeader = "X-Stet-Test-Session-ID"
 
     private static let lock = NSLock()
-    private static var handlers:
-        [String: @Sendable (URLRequest) throws -> (HTTPURLResponse, Data)] = [:]
+    private static var handlers: [String: @Sendable (URLRequest) throws -> (HTTPURLResponse, Data)] = [:]
 
     static func configure(
         sessionID: String,

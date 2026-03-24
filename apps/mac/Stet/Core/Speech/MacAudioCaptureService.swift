@@ -4,7 +4,7 @@ import Foundation
 actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     private let audioLevelBridge: AudioLevelBridge
     #if os(macOS)
-    private let macAudioFileRecorder: MacCaptureAudioFileRecorder
+        private let macAudioFileRecorder: MacCaptureAudioFileRecorder
     #endif
 
     private var recorder: AVAudioRecorder?
@@ -16,20 +16,18 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         let audioLevelBridge = AudioLevelBridge()
         self.audioLevelBridge = audioLevelBridge
         #if os(macOS)
-        self.macAudioFileRecorder = MacCaptureAudioFileRecorder(
-            audioLevelHandler: { level in
-                audioLevelBridge.emit(level)
-            },
-            onFirstRecordedBufferWritten: {
-                Task {
-                    await DictationStartupProbe.shared.record(.firstBufferWritten)
+            self.macAudioFileRecorder = MacCaptureAudioFileRecorder(
+                audioLevelHandler: { level in
+                    audioLevelBridge.emit(level)
+                },
+                onFirstRecordedBufferWritten: {
+                    Task {
+                        await DictationStartupProbe.shared.record(.firstBufferWritten)
+                    }
                 }
-            }
-        )
+            )
         #endif
     }
-
-
 
     func makeAudioLevelStream() async -> AsyncStream<Double> {
         audioLevelBridge.makeStream()
@@ -56,7 +54,8 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         )
         await DictationStartupProbe.shared.record(
             .microphonePermissionResolved,
-            note: "granted=\(microphoneGranted) microphonePermissionMs=\(Self.formatMilliseconds(microphonePermissionMs))"
+            note:
+                "granted=\(microphoneGranted) microphonePermissionMs=\(Self.formatMilliseconds(microphonePermissionMs))"
         )
         guard microphoneGranted else {
             AppLogger.warning("Microphone permission denied before recording start", category: .permissions)
@@ -70,30 +69,30 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         try configureAudioSession()
 
         #if os(macOS)
-        let macRecordingStartedAt = ProcessInfo.processInfo.systemUptime
-        let selectedInputDevice = try await startMacRecording()
-        let startMacRecordingMs = Self.elapsedMilliseconds(since: macRecordingStartedAt)
-        Self.logStartupTiming(
-            """
-            startMacRecordingMs=\(Self.formatMilliseconds(startMacRecordingMs)) \
-            selectedDevice=\(selectedInputDevice?.name ?? "none") \
-            transportType=\(selectedInputDevice?.transportType ?? 0)
-            """
-        )
+            let macRecordingStartedAt = ProcessInfo.processInfo.systemUptime
+            let selectedInputDevice = try await startMacRecording()
+            let startMacRecordingMs = Self.elapsedMilliseconds(since: macRecordingStartedAt)
+            Self.logStartupTiming(
+                """
+                startMacRecordingMs=\(Self.formatMilliseconds(startMacRecordingMs)) \
+                selectedDevice=\(selectedInputDevice?.name ?? "none") \
+                transportType=\(selectedInputDevice?.transportType ?? 0)
+                """
+            )
         #else
-        let fileURL = makeRecordingFileURL()
-        let recorder = try AVAudioRecorder(url: fileURL, settings: makeRecorderSettings())
+            let fileURL = makeRecordingFileURL()
+            let recorder = try AVAudioRecorder(url: fileURL, settings: makeRecorderSettings())
 
-        recorder.prepareToRecord()
-        recorder.isMeteringEnabled = true
-        guard recorder.record() else {
-            throw SpeechServiceError.failedToStart
-        }
+            recorder.prepareToRecord()
+            recorder.isMeteringEnabled = true
+            guard recorder.record() else {
+                throw SpeechServiceError.failedToStart
+            }
 
-        self.recorder = recorder
-        self.recordingFileURL = fileURL
-        self.isRecording = true
-        startMetering(with: recorder)
+            self.recorder = recorder
+            self.recordingFileURL = fileURL
+            self.isRecording = true
+            startMetering(with: recorder)
         #endif
         AppLogger.info("Audio capture started successfully", category: .dictation)
         Task {
@@ -112,7 +111,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         }
 
         #if os(macOS)
-        try macAudioFileRecorder.activateRecordingWindow()
+            try macAudioFileRecorder.activateRecordingWindow()
         #endif
     }
 
@@ -126,47 +125,48 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
 
         let finalURL: URL
         #if os(macOS)
-        let sourceRecordingFileURL = recordingFileURL
-        self.recordingFileURL = nil
-        let recordingOutcome = await macAudioFileRecorder.stopRecording(writtenFileAt: sourceRecordingFileURL)
-        self.isRecording = false
-        finishCaptureStreams()
+            let sourceRecordingFileURL = recordingFileURL
+            self.recordingFileURL = nil
+            let recordingOutcome = await macAudioFileRecorder.stopRecording(writtenFileAt: sourceRecordingFileURL)
+            self.isRecording = false
+            finishCaptureStreams()
 
-        if let captureDiagnosticsSummary = recordingOutcome.captureDiagnosticsSummary {
-            if UserDefaults.standard.bool(forKey: MacPreferences.dictationPerfTracingEnabled) {
+            if let captureDiagnosticsSummary = recordingOutcome.captureDiagnosticsSummary {
+                if UserDefaults.standard.bool(forKey: MacPreferences.dictationPerfTracingEnabled) {
+                    AppLogger.warning(
+                        """
+                        Capture summary. \
+                        didWriteAudio=\(recordingOutcome.didWriteAudio) \
+                        \(captureDiagnosticsSummary)
+                        """,
+                        category: .dictation
+                    )
+                }
+                Task {
+                    await DictationRuntimeProbe.shared.markAction(
+                        "frontendCaptureSummary",
+                        details: captureDiagnosticsSummary
+                    )
+                }
+            }
+
+            guard recordingOutcome.didWriteAudio else {
+                try? FileManager.default.removeItem(at: sourceRecordingFileURL)
                 AppLogger.warning(
-                    """
-                    Capture summary. \
-                    didWriteAudio=\(recordingOutcome.didWriteAudio) \
-                    \(captureDiagnosticsSummary)
-                    """,
-                    category: .dictation
-                )
+                    "Discarding macOS capture because no audio was recorded after activation.", category: .dictation)
+                throw SpeechServiceError.emptyTranscription
             }
-            Task {
-                await DictationRuntimeProbe.shared.markAction(
-                    "frontendCaptureSummary",
-                    details: captureDiagnosticsSummary
-                )
-            }
-        }
 
-        guard recordingOutcome.didWriteAudio else {
-            try? FileManager.default.removeItem(at: sourceRecordingFileURL)
-            AppLogger.warning("Discarding macOS capture because no audio was recorded after activation.", category: .dictation)
-            throw SpeechServiceError.emptyTranscription
-        }
-
-        finalURL = sourceRecordingFileURL
+            finalURL = sourceRecordingFileURL
         #else
-        guard let recorder else {
-            throw SpeechServiceError.notRecording
-        }
-        recorder.stop()
-        self.recorder = nil
-        self.isRecording = false
-        finishCaptureStreams()
-        finalURL = recordingFileURL
+            guard let recorder else {
+                throw SpeechServiceError.notRecording
+            }
+            recorder.stop()
+            self.recorder = nil
+            self.isRecording = false
+            finishCaptureStreams()
+            finalURL = recordingFileURL
         #endif
 
         let audioDurationSeconds = Self.recordingDurationSeconds(at: finalURL)
@@ -207,23 +207,23 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             await DictationRuntimeProbe.shared.markCaptureCancelled()
         }
         #if os(macOS)
-        macAudioFileRecorder.cancelRecording()
-        recorder = nil
-        isRecording = false
-        finishCaptureStreams()
-        cleanupRecordingFile()
+            macAudioFileRecorder.cancelRecording()
+            recorder = nil
+            isRecording = false
+            finishCaptureStreams()
+            cleanupRecordingFile()
         #else
-        recorder?.stop()
-        recorder = nil
-        isRecording = false
-        finishCaptureStreams()
-        cleanupRecordingFile()
+            recorder?.stop()
+            recorder = nil
+            isRecording = false
+            finishCaptureStreams()
+            cleanupRecordingFile()
         #endif
     }
 
     func prewarm() async {
         #if os(macOS)
-        macAudioFileRecorder.prewarm()
+            macAudioFileRecorder.prewarm()
         #endif
     }
 
@@ -245,45 +245,46 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
 
     private func configureAudioSession() throws {
         #if os(iOS)
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker])
-        try session.setActive(true, options: .notifyOthersOnDeactivation)
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker])
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
         #endif
     }
 
     #if os(macOS)
-    private func startMacRecording() async throws -> AudioHardwareDevice? {
-        guard let outputFormat = TranscriptionUploadAudioFormat.makeMacOutputFormat() else {
-            throw SpeechServiceError.failedToStart
-        }
+        private func startMacRecording() async throws -> AudioHardwareDevice? {
+            guard let outputFormat = TranscriptionUploadAudioFormat.makeMacOutputFormat() else {
+                throw SpeechServiceError.failedToStart
+            }
 
-        let selectedInputDevice = await MainActor.run {
-            AudioDeviceSelectionManager.shared.currentRecordingDevice()
-        }
-            ?? AudioInputDeviceManager.defaultInputDevice()
-        let fileURL = makeRecordingFileURL()
-        try macAudioFileRecorder.startRecording(
-            to: fileURL,
-            outputFormat: outputFormat,
-            selectedDevice: selectedInputDevice
-        )
-        recordingFileURL = fileURL
-        isRecording = true
-        audioLevelBridge.emit(0.08)
-
-        if let selectedInputDevice {
-            AppLogger.info(
-                """
-                Using macOS dictation input device. \
-                name=\(selectedInputDevice.name), \
-                transportType=\(selectedInputDevice.transportType)
-                """,
-                category: .dictation
+            let selectedInputDevice =
+                await MainActor.run {
+                    AudioDeviceSelectionManager.shared.currentRecordingDevice()
+                }
+                ?? AudioInputDeviceManager.defaultInputDevice()
+            let fileURL = makeRecordingFileURL()
+            try macAudioFileRecorder.startRecording(
+                to: fileURL,
+                outputFormat: outputFormat,
+                selectedDevice: selectedInputDevice
             )
-        }
+            recordingFileURL = fileURL
+            isRecording = true
+            audioLevelBridge.emit(0.08)
 
-        return selectedInputDevice
-    }
+            if let selectedInputDevice {
+                AppLogger.info(
+                    """
+                    Using macOS dictation input device. \
+                    name=\(selectedInputDevice.name), \
+                    transportType=\(selectedInputDevice.transportType)
+                    """,
+                    category: .dictation
+                )
+            }
+
+            return selectedInputDevice
+        }
     #endif
 
     private func makeRecorderSettings() -> [String: Any] {
@@ -300,9 +301,9 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         makeRecordingFileURL(
             fileExtension: {
                 #if os(macOS)
-                TranscriptionUploadAudioFormat.macFileExtension
+                    TranscriptionUploadAudioFormat.macFileExtension
                 #else
-                TranscriptionUploadAudioFormat.iOSFileExtension
+                    TranscriptionUploadAudioFormat.iOSFileExtension
                 #endif
             }()
         )
@@ -363,7 +364,8 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
 
     nonisolated private static func recordingFileSizeBytes(at fileURL: URL) -> Int64? {
         guard let resourceValues = try? fileURL.resourceValues(forKeys: [.fileSizeKey]),
-              let fileSize = resourceValues.fileSize else {
+            let fileSize = resourceValues.fileSize
+        else {
             return nil
         }
         return Int64(fileSize)

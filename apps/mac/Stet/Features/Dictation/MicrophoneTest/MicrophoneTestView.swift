@@ -3,14 +3,14 @@ import SwiftUI
 /// View for testing microphone functionality
 struct MicrophoneTestView: View {
     @ObservedObject var viewModel: MicrophoneTestViewModel
-    
+
     var body: some View {
         VStack(spacing: 16) {
             // Audio level indicator
             MicrophoneAudioLevelMeter(level: viewModel.audioLevel)
                 .frame(height: 40)
                 .padding(.horizontal, 8)
-            
+
             // Recording controls
             HStack(spacing: 12) {
                 Button {
@@ -30,7 +30,7 @@ struct MicrophoneTestView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(viewModel.isRecording ? .red : .accentColor)
                 .disabled(viewModel.isPlaying)
-                
+
                 // Playback controls
                 Button {
                     Task {
@@ -49,7 +49,7 @@ struct MicrophoneTestView: View {
                 .buttonStyle(.bordered)
                 .disabled(!viewModel.hasRecording || viewModel.isRecording)
             }
-            
+
             // Status text
             if viewModel.hasRecording {
                 HStack {

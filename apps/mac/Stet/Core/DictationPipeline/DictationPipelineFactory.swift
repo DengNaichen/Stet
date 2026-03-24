@@ -12,16 +12,18 @@ struct DictationPipeline: Sendable {
 
 struct DictationPipelineFactory: Sendable {
     var relayAuthenticationContext: @Sendable () async -> RelayAuthenticationContext?
-    var makeDirectTranscriptionService: @Sendable (
-        OpenAIConfiguration,
-        URLSession
-    ) -> any AudioFileTranscriptionService
-    var makeRelayTranscriptionService: @Sendable (
-        RelayAuthenticationContext,
-        URLSession,
-        Bool,
-        [String]
-    ) -> any AudioFileTranscriptionService
+    var makeDirectTranscriptionService:
+        @Sendable (
+            OpenAIConfiguration,
+            URLSession
+        ) -> any AudioFileTranscriptionService
+    var makeRelayTranscriptionService:
+        @Sendable (
+            RelayAuthenticationContext,
+            URLSession,
+            Bool,
+            [String]
+        ) -> any AudioFileTranscriptionService
     var makeRewriteService: @Sendable (OpenAIConfiguration, URLSession) -> any TextRewriteService
 
     static func live(

@@ -46,8 +46,9 @@ struct SpeechAwareGainProcessor: SpeechEnhancing {
         analysis: AudioAnalysis
     ) -> [Float] {
         guard !samples.isEmpty,
-              sampleRate > 0,
-              analysis.speechEnhancementPlan.shouldEnhance else {
+            sampleRate > 0,
+            analysis.speechEnhancementPlan.shouldEnhance
+        else {
             return samples
         }
 
@@ -137,12 +138,14 @@ struct SpeechAwareGainProcessor: SpeechEnhancing {
     }
 
     private static func writeSamples(_ samples: [Float]) throws -> URL {
-        guard let outputFormat = AVAudioFormat(
-            commonFormat: .pcmFormatInt16,
-            sampleRate: TranscriptionUploadAudioFormat.macSampleRate,
-            channels: TranscriptionUploadAudioFormat.macChannelCount,
-            interleaved: false
-        ) else {
+        guard
+            let outputFormat = AVAudioFormat(
+                commonFormat: .pcmFormatInt16,
+                sampleRate: TranscriptionUploadAudioFormat.macSampleRate,
+                channels: TranscriptionUploadAudioFormat.macChannelCount,
+                interleaved: false
+            )
+        else {
             throw SpeechEnhancementError.unableToCreateOutputFormat
         }
 
@@ -161,10 +164,12 @@ struct SpeechAwareGainProcessor: SpeechEnhancing {
             interleaved: outputFormat.isInterleaved
         )
 
-        guard let buffer = AVAudioPCMBuffer(
-            pcmFormat: outputFormat,
-            frameCapacity: AVAudioFrameCount(samples.count)
-        ) else {
+        guard
+            let buffer = AVAudioPCMBuffer(
+                pcmFormat: outputFormat,
+                frameCapacity: AVAudioFrameCount(samples.count)
+            )
+        else {
             throw SpeechEnhancementError.unableToCreateOutputBuffer
         }
 

@@ -34,7 +34,8 @@ struct OpenAIPrimitiveTests {
 
         #expect(
             mapped as? Stet.OpenAIError
-                == .api(provider: .openAI, statusCode: 429, message: HTTPURLResponse.localizedString(forStatusCode: 429))
+                == .api(
+                    provider: .openAI, statusCode: 429, message: HTTPURLResponse.localizedString(forStatusCode: 429))
         )
     }
 
@@ -52,104 +53,108 @@ struct OpenAIPrimitiveTests {
     }
 
     @Test func stetOutputTextReturnsFirstTrimmedNonEmptyAssistantText() throws {
-        let response = try JSONDecoder().decode(ResponseObject.self, from: Data(
-            """
-            {
-              "created_at": 123,
-              "error": null,
-              "id": "resp-1",
-              "incomplete_details": null,
-              "instructions": null,
-              "max_output_tokens": null,
-              "metadata": {},
-              "model": "test-model",
-              "object": "response",
-              "output": [
+        let response = try JSONDecoder().decode(
+            ResponseObject.self,
+            from: Data(
+                """
                 {
-                  "id": "msg-1",
-                  "type": "message",
-                  "role": "assistant",
-                  "content": [
+                  "created_at": 123,
+                  "error": null,
+                  "id": "resp-1",
+                  "incomplete_details": null,
+                  "instructions": null,
+                  "max_output_tokens": null,
+                  "metadata": {},
+                  "model": "test-model",
+                  "object": "response",
+                  "output": [
                     {
-                      "type": "output_text",
-                      "text": "   ",
-                      "annotations": [],
-                      "logprobs": []
+                      "id": "msg-1",
+                      "type": "message",
+                      "role": "assistant",
+                      "content": [
+                        {
+                          "type": "output_text",
+                          "text": "   ",
+                          "annotations": [],
+                          "logprobs": []
+                        }
+                      ],
+                      "status": "completed"
+                    },
+                    {
+                      "id": "msg-2",
+                      "type": "message",
+                      "role": "assistant",
+                      "content": [
+                        {
+                          "type": "output_text",
+                          "text": "  rewritten text  ",
+                          "annotations": [],
+                          "logprobs": []
+                        }
+                      ],
+                      "status": "completed"
                     }
                   ],
-                  "status": "completed"
-                },
-                {
-                  "id": "msg-2",
-                  "type": "message",
-                  "role": "assistant",
-                  "content": [
-                    {
-                      "type": "output_text",
-                      "text": "  rewritten text  ",
-                      "annotations": [],
-                      "logprobs": []
+                  "parallel_tool_calls": false,
+                  "previous_response_id": null,
+                  "reasoning": null,
+                  "status": "completed",
+                  "temperature": null,
+                  "text": {
+                    "format": {
+                      "type": "text"
                     }
-                  ],
-                  "status": "completed"
+                  },
+                  "tool_choice": "auto",
+                  "tools": [],
+                  "top_p": null,
+                  "truncation": null,
+                  "usage": null,
+                  "user": null
                 }
-              ],
-              "parallel_tool_calls": false,
-              "previous_response_id": null,
-              "reasoning": null,
-              "status": "completed",
-              "temperature": null,
-              "text": {
-                "format": {
-                  "type": "text"
-                }
-              },
-              "tool_choice": "auto",
-              "tools": [],
-              "top_p": null,
-              "truncation": null,
-              "usage": null,
-              "user": null
-            }
-            """.utf8
-        ))
+                """.utf8
+            ))
 
         #expect(response.stetOutputText == "rewritten text")
     }
 
     @Test func stetOutputTextReturnsNilWhenNoOutputTextExists() throws {
-        let response = try JSONDecoder().decode(ResponseObject.self, from: Data(
-            """
-            {
-              "created_at": 123,
-              "error": null,
-              "id": "resp-1",
-              "incomplete_details": null,
-              "instructions": null,
-              "max_output_tokens": null,
-              "metadata": {},
-              "model": "test-model",
-              "object": "response",
-              "output": [],
-              "parallel_tool_calls": false,
-              "previous_response_id": null,
-              "reasoning": null,
-              "status": "completed",
-              "temperature": null,
-              "text": {
-                "format": {
-                  "type": "text"
+        let response = try JSONDecoder().decode(
+            ResponseObject.self,
+            from: Data(
+                """
+                {
+                  "created_at": 123,
+                  "error": null,
+                  "id": "resp-1",
+                  "incomplete_details": null,
+                  "instructions": null,
+                  "max_output_tokens": null,
+                  "metadata": {},
+                  "model": "test-model",
+                  "object": "response",
+                  "output": [],
+                  "parallel_tool_calls": false,
+                  "previous_response_id": null,
+                  "reasoning": null,
+                  "status": "completed",
+                  "temperature": null,
+                  "text": {
+                    "format": {
+                      "type": "text"
+                    }
+                  },
+                  "tool_choice": "auto",
+                  "tools": [],
+                  "top_p": null,
+                  "truncation": null,
+                  "usage": null,
+                  "user": null
                 }
-              },
-              "tool_choice": "auto",
-              "tools": [],
-              "top_p": null,
-              "truncation": null,
-              "usage": null,
-              "user": null
-            }
-            """.utf8
-        ))
+                """.utf8
+            ))
 
         #expect(response.stetOutputText == nil)
     }
