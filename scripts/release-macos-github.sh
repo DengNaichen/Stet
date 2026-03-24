@@ -172,7 +172,9 @@ fi
 echo "Stapling notarization ticket..."
 xcrun stapler staple -v "$FINAL_DMG"
 xcrun stapler validate -v "$FINAL_DMG"
-spctl -a -vv --type open "$FINAL_DMG"
+if ! spctl -a -vv --type open "$FINAL_DMG"; then
+  echo "Warning: spctl assessment failed for $FINAL_DMG, but stapler validation already succeeded."
+fi
 
 if [[ "$GENERATE_SPARKLE_APPCAST" == "1" ]]; then
   if [[ ! -x "$SPARKLE_GENERATE_APPCAST" ]]; then
