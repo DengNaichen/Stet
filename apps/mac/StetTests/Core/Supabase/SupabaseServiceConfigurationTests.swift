@@ -75,8 +75,25 @@ struct SupabaseServiceConfigurationTests {
         #expect(key == "sb_publishable_DiDRWukKUQrcdBDUjYmJGw_5N51MiHP")
     }
 
-    @Test func oauthRedirectURLUsesCustomAppScheme() {
-        #expect(SupabaseService.Configuration.oauthRedirectURL.absoluteString == "naichengdeng.stet://auth-callback")
-        #expect(SupabaseService.Configuration.oauthRedirectURL.scheme == "naichengdeng.stet")
+    @Test func oauthRedirectURLUsesConfiguredAppScheme() {
+        let url = SupabaseService.Configuration.resolvedOAuthRedirectURL(
+            environment: [:],
+            infoDictionary: ["SUPABASE_OAUTH_REDIRECT_URL": "naichengdeng.stet.debug://auth-callback"],
+            fileManager: .default
+        )
+
+        #expect(url.absoluteString == "naichengdeng.stet.debug://auth-callback")
+        #expect(url.scheme == "naichengdeng.stet.debug")
+    }
+
+    @Test func oauthRedirectURLFallsBackToReleaseSchemeWhenUnset() {
+        let url = SupabaseService.Configuration.resolvedOAuthRedirectURL(
+            environment: [:],
+            infoDictionary: [:],
+            fileManager: .default
+        )
+
+        #expect(url.absoluteString == "naichengdeng.stet://auth-callback")
+        #expect(url.scheme == "naichengdeng.stet")
     }
 }

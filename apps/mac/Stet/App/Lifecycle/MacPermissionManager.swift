@@ -62,12 +62,12 @@ final class MacPermissionManager {
     }
 
     var microphoneAccessStatus: PermissionStatus {
-        switch AVCaptureDevice.authorizationStatus(for: .audio) {
-        case .authorized:
+        switch AVAudioApplication.shared.recordPermission {
+        case .granted:
             return .allowed
-        case .notDetermined:
+        case .undetermined:
             return .notRequested
-        case .denied, .restricted:
+        case .denied:
             return .needsAccess
         @unknown default:
             return .unavailable

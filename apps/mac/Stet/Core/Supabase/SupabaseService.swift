@@ -11,7 +11,12 @@ final class SupabaseService {
     enum Configuration {
         private static let placeholderURL = "https://project-name.supabase.co"
         private static let placeholderKey = "your-project-key"
-        static let oauthRedirectURL = URL(string: "naichengdeng.stet://auth-callback")!
+        private static let defaultOAuthRedirectURLString = "naichengdeng.stet://auth-callback"
+        static let oauthRedirectURL = resolvedOAuthRedirectURL(
+            environment: ProcessInfo.processInfo.environment,
+            infoDictionary: Bundle.main.infoDictionary ?? [:],
+            fileManager: .default
+        )
 
         static let urlString =
             resolvedValue(for: "SUPABASE_URL")
@@ -34,6 +39,21 @@ final class SupabaseService {
                 infoDictionary: Bundle.main.infoDictionary ?? [:],
                 fileManager: .default
             )
+        }
+
+        static func resolvedOAuthRedirectURL(
+            environment: [String: String],
+            infoDictionary: [String: Any],
+            fileManager: FileManager
+        ) -> URL {
+            let resolvedString = resolvedValue(
+                for: "SUPABASE_OAUTH_REDIRECT_URL",
+                environment: environment,
+                infoDictionary: infoDictionary,
+                fileManager: fileManager
+            ) ?? defaultOAuthRedirectURLString
+
+            return URL(string: resolvedString) ?? URL(string: defaultOAuthRedirectURLString)!
         }
 
         static func resolvedValue(

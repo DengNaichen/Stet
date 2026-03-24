@@ -341,11 +341,10 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     }
 
     nonisolated private static var microphoneAuthorizationStatusDescription: String {
-        switch AVCaptureDevice.authorizationStatus(for: .audio) {
-        case .authorized: return "authorized"
-        case .notDetermined: return "notDetermined"
+        switch AVAudioApplication.shared.recordPermission {
+        case .granted: return "granted"
+        case .undetermined: return "undetermined"
         case .denied: return "denied"
-        case .restricted: return "restricted"
         @unknown default: return "unknown"
         }
     }
