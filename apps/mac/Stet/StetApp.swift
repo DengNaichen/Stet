@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AppKit
+import StetVisuals
 
 @main
 struct StetApp: App {
@@ -48,6 +49,14 @@ struct StetApp: App {
                 width: MacUI.WindowMetrics.preferencesDefaultSize(for: NSScreen.main).width,
                 height: MacUI.WindowMetrics.preferencesDefaultSize(for: NSScreen.main).height
             )
+            .windowResizability(.automatic)
+
+            Window("Shader Debug", id: MacWindowSceneID.shaderDebug) {
+                MacDictationShaderWorkbenchView()
+            }
+            .defaultLaunchBehavior(.suppressed)
+            .restorationBehavior(.disabled)
+            .defaultSize(width: 1180, height: 820)
             .windowResizability(.automatic)
 
             .commands {
