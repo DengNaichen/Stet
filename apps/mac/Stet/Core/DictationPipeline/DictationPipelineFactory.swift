@@ -21,7 +21,6 @@ struct DictationPipelineFactory: Sendable {
         @Sendable (
             RelayAuthenticationContext,
             URLSession,
-            Bool,
             [String]
         ) -> any AudioFileTranscriptionService
     var makeRewriteService: @Sendable (OpenAIConfiguration, URLSession) -> any TextRewriteService
@@ -40,12 +39,10 @@ struct DictationPipelineFactory: Sendable {
             makeRelayTranscriptionService: {
                 authentication,
                 session,
-                rewriteEnabled,
                 preferredSpellings in
                 RelayDictationTranscriptionService(
                     authentication: authentication,
                     session: session,
-                    rewriteEnabled: rewriteEnabled,
                     preferredSpellings: preferredSpellings
                 )
             },
@@ -85,16 +82,11 @@ struct DictationPipelineFactory: Sendable {
             rewriteAdditionalContext = direct.languageMode.rewriteAdditionalContext
             usesAudienceAwareLocalPrompts = snapshot.executionMode == .byok
 
-            if direct.rewriteEnabled, let rewriteConfiguration = direct.rewriteConfiguration {
-                rewriteService = makeRewriteService(rewriteConfiguration, networkSession)
-            } else {
-                rewriteService = nil
-            }
+            rewriteService = makeRewriteService(direct.rewriteConfiguration, networkSession)
         case .relay(let relay):
             transcriptionService = makeRelayTranscriptionService(
                 relay.authentication,
                 networkSession,
-                relay.rewriteEnabled,
                 relay.preferredSpellings
             )
             transcriptionLanguageCode = relay.languageMode.transcriptionLanguageCode

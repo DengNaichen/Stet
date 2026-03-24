@@ -21,7 +21,6 @@ private func makeSnapshot(
         apiKey: "sk-test",
         providerPair: DictationProviderPair(transcriptionProvider: .openAI, rewriteProvider: .openAI)
     ),
-    rewriteEnabled: Bool = false,
     dictationLanguageMode: DictationLanguageMode = .automatic,
     personalDictionary: [String] = []
 ) -> DictationSettingsSnapshot {
@@ -29,7 +28,7 @@ private func makeSnapshot(
         transcriptionProvider: transcriptionProvider,
         rewriteProvider: rewriteProvider,
         executionMode: mode,
-        isRewriteEnabled: rewriteEnabled,
+        isRewriteEnabled: true,
         dictationLanguageMode: dictationLanguageMode,
         shouldPauseMediaDuringDictation: false,
         transcriptionProviderConfiguration: transcriptionProviderConfiguration,
@@ -53,8 +52,7 @@ struct LogicPrimitiveTests {
         switch route {
         case .direct(let direct):
             #expect(await direct.transcriptionConfiguration.apiKey == "sk-test")
-            #expect(await direct.rewriteConfiguration == nil)
-            #expect(await direct.rewriteEnabled == false)
+            #expect(await direct.rewriteConfiguration.apiKey == "sk-test")
             #expect(await direct.languageMode == .automatic)
             #expect(await direct.preferredSpellings.isEmpty)
         default:
@@ -116,8 +114,7 @@ struct LogicPrimitiveTests {
         let snapshot = makeSnapshot(
             mode: .byok,
             transcriptionProviderConfiguration: nil,
-            rewriteProviderConfiguration: nil,
-            rewriteEnabled: true
+            rewriteProviderConfiguration: nil
         )
 
         await #expect(
@@ -142,8 +139,7 @@ struct LogicPrimitiveTests {
                     transcriptionProvider: .groq,
                     rewriteProvider: .openAI
                 )
-            ),
-            rewriteEnabled: true
+            )
         )
 
         await #expect(
@@ -167,8 +163,7 @@ struct LogicPrimitiveTests {
                     rewriteProvider: .openAI
                 )
             ),
-            rewriteProviderConfiguration: nil,
-            rewriteEnabled: true
+            rewriteProviderConfiguration: nil
         )
 
         await #expect(
@@ -192,8 +187,7 @@ struct LogicPrimitiveTests {
                     rewriteProvider: .groq
                 )
             ),
-            rewriteProviderConfiguration: nil,
-            rewriteEnabled: true
+            rewriteProviderConfiguration: nil
         )
 
         await #expect(
@@ -221,7 +215,7 @@ struct LogicPrimitiveTests {
                 capturedTranscriptionConfiguration = configuration
                 return direct
             },
-            makeRelayTranscriptionService: { _, _, _, _ in relay },
+            makeRelayTranscriptionService: { _, _, _ in relay },
             makeRewriteService: { configuration, _ in
                 capturedRewriteConfiguration = configuration
                 return RecordingRewriteService()
@@ -229,7 +223,6 @@ struct LogicPrimitiveTests {
         )
         let snapshot = makeSnapshot(
             mode: .automatic,
-            rewriteEnabled: true,
             personalDictionary: ["OpenAI", "Groq"]
         )
 
@@ -267,7 +260,7 @@ struct LogicPrimitiveTests {
                 )
             },
             makeDirectTranscriptionService: { _, _ in direct },
-            makeRelayTranscriptionService: { _, _, _, _ in relay },
+            makeRelayTranscriptionService: { _, _, _ in relay },
             makeRewriteService: { _, _ in RecordingRewriteService() }
         )
         let snapshot = makeSnapshot(
@@ -303,7 +296,7 @@ struct LogicPrimitiveTests {
                 capturedTranscriptionConfiguration = configuration
                 return direct
             },
-            makeRelayTranscriptionService: { _, _, _, _ in relay },
+            makeRelayTranscriptionService: { _, _, _ in relay },
             makeRewriteService: { configuration, _ in
                 capturedRewriteConfiguration = configuration
                 return rewrite
@@ -327,7 +320,6 @@ struct LogicPrimitiveTests {
                     rewriteProvider: .openAI
                 )
             ),
-            rewriteEnabled: true,
             dictationLanguageMode: .mixedChineseEnglish
         )
         let audioFileURL = try makeTemporaryWavURL()

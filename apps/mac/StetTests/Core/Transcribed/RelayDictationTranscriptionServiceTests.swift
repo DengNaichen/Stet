@@ -33,7 +33,6 @@ struct RelayDictationTranscriptionServiceTests {
         let service = RelayDictationTranscriptionService(
             authentication: authentication,
             session: session,
-            rewriteEnabled: true,
             preferredSpellings: ["OpenAI", "Groq"]
         )
 
@@ -86,7 +85,6 @@ struct RelayDictationTranscriptionServiceTests {
         let service = RelayDictationTranscriptionService(
             authentication: authentication,
             session: session,
-            rewriteEnabled: false,
             preferredSpellings: []
         )
 
@@ -126,7 +124,6 @@ struct RelayDictationTranscriptionServiceTests {
         let service = RelayDictationTranscriptionService(
             authentication: authentication,
             session: session,
-            rewriteEnabled: false,
             preferredSpellings: []
         )
 

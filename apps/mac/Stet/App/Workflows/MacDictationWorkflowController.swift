@@ -127,9 +127,7 @@
                 break
             }
 
-            return settingsSnapshot.isRewriteEnabled
-                ? "Transcribing with \(providerName) and rewriting..."
-                : "Transcribing with \(providerName)..."
+            return "Transcribing with \(providerName) and rewriting..."
         }
 
         func startDictationCapture(

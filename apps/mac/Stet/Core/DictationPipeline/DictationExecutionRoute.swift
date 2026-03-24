@@ -68,15 +68,13 @@ enum ProviderConfigurationError: LocalizedError, Equatable {
 enum DictationExecutionRoute: Sendable {
     struct Direct: Sendable {
         let transcriptionConfiguration: OpenAIConfiguration
-        let rewriteConfiguration: OpenAIConfiguration?
-        let rewriteEnabled: Bool
+        let rewriteConfiguration: OpenAIConfiguration
         let languageMode: DictationLanguageMode
         let preferredSpellings: [String]
     }
 
     struct Relay: Sendable {
         let authentication: RelayAuthenticationContext
-        let rewriteEnabled: Bool
         let languageMode: DictationLanguageMode
         let preferredSpellings: [String]
     }
@@ -100,7 +98,6 @@ enum DictationExecutionRouteResolver {
                 return .relay(
                     .init(
                         authentication: relayAuthentication,
-                        rewriteEnabled: snapshot.isRewriteEnabled,
                         languageMode: snapshot.dictationLanguageMode,
                         preferredSpellings: snapshot.personalDictionary
                     )
@@ -116,7 +113,6 @@ enum DictationExecutionRouteResolver {
             return .relay(
                 .init(
                     authentication: relayAuthentication,
-                    rewriteEnabled: snapshot.isRewriteEnabled,
                     languageMode: snapshot.dictationLanguageMode,
                     preferredSpellings: snapshot.personalDictionary
                 )
@@ -129,7 +125,7 @@ enum DictationExecutionRouteResolver {
     nonisolated private static func resolveDirectRoute(
         snapshot: DictationSettingsSnapshot
     ) throws -> DictationExecutionRoute.Direct {
-        if snapshot.isRewriteEnabled && !OpenAIConfiguration.isSupportedProviderPair(snapshot.providerPair) {
+        if !OpenAIConfiguration.isSupportedProviderPair(snapshot.providerPair) {
             throw ProviderConfigurationError.unsupportedProviderCombination(snapshot.providerPair)
         }
 
@@ -155,10 +151,18 @@ enum DictationExecutionRouteResolver {
             ])
         }
 
+        guard let rewriteConfiguration = snapshot.rewriteProviderConfiguration else {
+            throw ProviderConfigurationError.missingRequirements([
+                ProviderConfigurationRequirement(
+                    step: .rewrite,
+                    provider: snapshot.rewriteProvider
+                )
+            ])
+        }
+
         return .init(
             transcriptionConfiguration: transcriptionConfiguration,
-            rewriteConfiguration: snapshot.isRewriteEnabled ? snapshot.rewriteProviderConfiguration : nil,
-            rewriteEnabled: snapshot.isRewriteEnabled,
+            rewriteConfiguration: rewriteConfiguration,
             languageMode: snapshot.dictationLanguageMode,
             preferredSpellings: snapshot.personalDictionary
         )

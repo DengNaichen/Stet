@@ -42,22 +42,6 @@
                                 .pickerStyle(.menu)
                                 .frame(width: controlWidth, alignment: .trailing)
                             }
-                        } else {
-                            MacSettingsValueRow(title: "Cloud models") {
-                                Text(viewModel.managedConfigurationSummary)
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.trailing)
-                                    .frame(width: controlWidth, alignment: .trailing)
-                            }
-                        }
-
-                        MacSettingsValueRow(title: "Status") {
-                            MacSettingsStatusBadge(
-                                text: viewModel.connectionStatusText,
-                                tint: viewModel.connectionNeedsAttention ? .orange : .green
-                            )
-                            .frame(width: controlWidth, alignment: .trailing)
                         }
                     }
                 } header: {
@@ -76,8 +60,6 @@
                             .pickerStyle(.menu)
                             .frame(width: controlWidth, alignment: .trailing)
                         }
-
-                        Toggle(viewModel.rewriteToggleTitle, isOn: $viewModel.rewriteEnabled)
                     }
                 } header: {
                     Text("Dictation")

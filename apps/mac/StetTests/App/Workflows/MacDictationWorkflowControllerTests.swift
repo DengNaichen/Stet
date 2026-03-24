@@ -164,16 +164,12 @@
             subject.viewModel.send(.resetTapped)
         }
 
-        @Test func processingStatusTextReflectsProviderAndRewriteSetting() {
+        @Test func processingStatusTextAlwaysReflectsRewrite() {
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(DictationProvider.groq.rawValue, forKey: MacPreferences.transcriptionProvider)
-            defaults.set(true, forKey: MacPreferences.rewriteEnabled)
             let subject = makeController(defaults: defaults)
 
             #expect(subject.controller.processingStatusText == "Transcribing with Groq and rewriting...")
-
-            defaults.set(false, forKey: MacPreferences.rewriteEnabled)
-            #expect(subject.controller.processingStatusText == "Transcribing with Groq...")
         }
 
         @Test func stateTransitionsPauseAndResumeMediaWhenConfigured() async {
