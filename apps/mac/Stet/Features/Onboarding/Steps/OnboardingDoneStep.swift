@@ -6,29 +6,24 @@
 
         var body: some View {
             VStack(alignment: .leading, spacing: 18) {
-                GroupBox("Overview") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        SummaryRow(title: "Shortcut", value: viewModel.shortcutSummaryText)
-                        SummaryRow(
-                            title: "Current Mode",
-                            value: viewModel.onboardingMode == .apiKey ? "API Key" : "Logged In"
-                        )
-                        SummaryRow(
-                            title: "Permissions",
-                            value: viewModel.hasRequiredPermissions ? "Enabled" : "Check required"
-                        )
-                    }
-                    .padding(8)
-                }
+                Text("Appearance")
+                    .font(.title2.weight(.semibold))
+                
+                Text("Choose your preferred theme")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
 
                 Spacer()
 
                 HStack {
-                    Spacer()
-
-                    OnboardingActionButton(title: "Get Started", minHeight: 50) {
+                    OnboardingActionButton(
+                        title: "Finish",
+                        minHeight: 48
+                    ) {
                         viewModel.finishOnboarding()
                     }
+                    
+                    Spacer()
                 }
             }
         }

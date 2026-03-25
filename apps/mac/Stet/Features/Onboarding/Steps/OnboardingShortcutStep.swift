@@ -6,13 +6,8 @@
 
         var body: some View {
             VStack(alignment: .leading, spacing: 18) {
-                GroupBox("Set Shortcut") {
-                    VStack(alignment: .leading, spacing: 14) {
-                        MacHotKeySettingsSectionView(hotkey: .dictation) { shortcut in
-                            viewModel.updateShortcutSummary(shortcut)
-                        }
-                    }
-                    .padding(8)
+                MacHotKeySettingsSectionView(hotkey: .dictation) { shortcut in
+                    viewModel.updateShortcutSummary(shortcut)
                 }
 
                 Text("We've set Command + . as your default shortcut. Try pressing it now to see it in action.")
@@ -22,9 +17,7 @@
                 Spacer()
 
                 HStack {
-                    Button("Back") {
-                        viewModel.retreatOnboarding()
-                    }
+                    OnboardingBackButton { viewModel.retreatOnboarding() }
 
                     Spacer()
 

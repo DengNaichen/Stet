@@ -5,93 +5,83 @@
         @ObservedObject var viewModel: OnboardingViewModel
 
         var body: some View {
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(spacing: 12) {
-                    OnboardingBrandActionButton(
-                        title: "Continue with Google",
-                        background: Color.black.opacity(0.94),
-                        foreground: Color(red: 0.92, green: 0.92, blue: 0.92),
-                        strokeColor: Color.white.opacity(0.18)
-                    ) {
-                        GoogleBrandMark()
-                    } action: {
-                        Task {
-                            await viewModel.signInWithGoogle()
-                        }
+            VStack(alignment: .center, spacing: 18) {
+                // OAuth sign-in
+                VStack(spacing: 10) {
+                    AppleSignInButton {
+                        // TODO: Implement Apple sign-in
                     }
+                    .frame(width: 316)
 
-                    OnboardingBrandActionButton(
-                        title: "Continue with GitHub",
-                        background: Color(red: 0.14, green: 0.16, blue: 0.18),
-                        foreground: .white
-                    ) {
-                        GitHubBrandMark()
-                    } action: {
-                        Task {
-                            await viewModel.signInWithGitHub()
-                        }
+                    GoogleSignInButton {
+                        Task { await viewModel.signInWithGoogle() }
                     }
+                    .frame(width: 316)
+
+                    GitHubSignInButton {
+                        Task { await viewModel.signInWithGitHub() }
+                    }
+                    .frame(width: 316)
                 }
                 .disabled(viewModel.isAuthenticating)
 
-                GroupBox("Continue with Email") {
-                    VStack(alignment: .leading, spacing: 14) {
-                        if viewModel.isRelaySessionActive {
-                            MessageBanner(
-                                text: "Logged in as \(viewModel.relaySessionEmail ?? "current account").",
-                                role: .success
-                            )
+                // Divider
+                HStack(spacing: 10) {
+                    Rectangle().fill(Color.primary.opacity(0.09)).frame(height: 1)
+                    Text("or email").font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                    Rectangle().fill(Color.primary.opacity(0.09)).frame(height: 1)
+                }
 
-                            HStack {
-                                Spacer()
+                // Email section
+                if viewModel.isRelaySessionActive {
+                    MessageBanner(
+                        text: "Logged in as \(viewModel.relaySessionEmail ?? "current account").",
+                        role: .success
+                    )
+                    .fixedSize(horizontal: true, vertical: false)
 
-                                OnboardingActionButton(
-                                    title: "Continue",
-                                    minHeight: 48
-                                ) {
-                                    viewModel.continueManagedFlow()
-                                }
-                            }
-                        } else {
-                            TextField("name@example.com", text: $viewModel.email)
-                                .textFieldStyle(.roundedBorder)
-
-                            SecureField("Enter password", text: $viewModel.password)
-                                .textFieldStyle(.roundedBorder)
-
-                            if let authErrorMessage = viewModel.authErrorMessage {
-                                MessageBanner(text: authErrorMessage, role: .error)
-                            } else if let authStatusMessage = viewModel.authStatusMessage {
-                                MessageBanner(text: authStatusMessage, role: .success)
-                            }
-
-                            HStack {
-                                Spacer()
-
-                                OnboardingActionButton(
-                                    title: "Continue with Email",
-                                    isEnabled: viewModel.canSubmitEmailLogin,
-                                    minHeight: 48
-                                ) {
-                                    Task {
-                                        await viewModel.signInWithEmail()
-                                    }
-                                }
-                            }
-                        }
+                    OnboardingActionButton(title: "Continue", minHeight: 48) {
+                        viewModel.continueManagedFlow()
                     }
-                    .padding(8)
+                    .frame(width: 316)
+                } else {
+                    VStack(spacing: 14) {
+                        OnboardingInputField(
+                            label: "Email",
+                            placeholder: "name@example.com",
+                            text: $viewModel.email,
+                            mode: .text
+                        )
+                        .frame(width: 316)
+
+                        OnboardingInputField(
+                            label: "Password",
+                            placeholder: "Enter password",
+                            text: $viewModel.password,
+                            mode: .secure
+                        )
+                        .frame(width: 316)
+
+                        if let msg = viewModel.authErrorMessage {
+                            MessageBanner(text: msg, role: .error)
+                                .fixedSize(horizontal: true, vertical: false)
+                        } else if let msg = viewModel.authStatusMessage {
+                            MessageBanner(text: msg, role: .success)
+                                .fixedSize(horizontal: true, vertical: false)
+                        }
+
+                        OnboardingActionButton(
+                            title: "Continue with Email",
+                            isEnabled: viewModel.canSubmitEmailLogin,
+                            minHeight: 48
+                        ) {
+                            Task { await viewModel.signInWithEmail() }
+                        }
+                        .frame(width: 316)
+                    }
                 }
 
                 Spacer()
-
-                HStack {
-                    Button("Back") {
-                        viewModel.retreatOnboarding()
-                    }
-
-                    Spacer()
-                }
             }
         }
     }

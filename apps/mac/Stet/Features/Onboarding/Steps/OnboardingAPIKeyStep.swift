@@ -5,28 +5,34 @@
         @ObservedObject var viewModel: OnboardingViewModel
 
         var body: some View {
-            VStack(alignment: .leading, spacing: 18) {
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Picker("Provider", selection: $viewModel.apiKeyProvider) {
-                            ForEach(DictationProvider.allCases) { provider in
-                                Text(provider.displayName).tag(provider)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(width: 220)
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Provider")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
 
-                        SecureField("Enter API Key", text: $viewModel.apiKey)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.system(.body, design: .monospaced))
+                    OnboardingProviderPicker(
+                        items: Array(DictationProvider.allCases),
+                        displayName: { $0.displayName },
+                        selection: $viewModel.apiKeyProvider
+                    )
+                }
 
-                        if let apiKeyStatusMessage = viewModel.apiKeyStatusMessage {
-                            MessageBanner(text: apiKeyStatusMessage, role: .success)
-                        } else if let apiKeyErrorMessage = viewModel.apiKeyErrorMessage {
-                            MessageBanner(text: apiKeyErrorMessage, role: .error)
-                        }
-                    }
-                    .padding(8)
+                OnboardingInputField(
+                    label: "API Key",
+                    placeholder: viewModel.apiKeyProvider.apiKeyPlaceholder,
+                    text: $viewModel.apiKey,
+                    mode: .secure,
+                    isMonospaced: true
+                )
+                .fixedSize(horizontal: false, vertical: true)
+
+                if let msg = viewModel.apiKeyStatusMessage {
+                    MessageBanner(text: msg, role: .success)
+                        .fixedSize(horizontal: true, vertical: false)
+                } else if let msg = viewModel.apiKeyErrorMessage {
+                    MessageBanner(text: msg, role: .error)
+                        .fixedSize(horizontal: true, vertical: false)
                 }
 
                 Spacer()

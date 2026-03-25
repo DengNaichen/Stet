@@ -6,74 +6,66 @@
 
         var body: some View {
             VStack(alignment: .leading, spacing: 18) {
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 14) {
-                        PermissionGateRow(
-                            title: "Microphone",
-                            description: "Used to receive voice input",
-                            statusText: viewModel.microphoneAccessStatusText,
-                            tint: viewModel.microphoneAccessNeedsAttention ? .orange : .green
+                VStack(alignment: .leading, spacing: 14) {
+                    PermissionGateRow(
+                        title: "Microphone",
+                        description: "Used to receive voice input",
+                        statusText: viewModel.microphoneAccessStatusText,
+                        tint: viewModel.microphoneAccessNeedsAttention ? .orange : .green
+                    ) {
+                        OnboardingActionButton(
+                            title: viewModel.microphonePermissionActionTitle,
+                            background: Color.white.opacity(0.08),
+                            foreground: .primary,
+                            strokeColor: Color.white.opacity(0.10),
+                            minHeight: 44
                         ) {
+                            viewModel.resolveMicrophoneAccess()
+                        }
+                    }
+
+                    PermissionGateRow(
+                        title: "Accessibility / Input Control",
+                        description: "Used to insert text into active apps",
+                        statusText: viewModel.autoPasteStatusText,
+                        tint: viewModel.autoPasteAccessNeedsAttention ? .orange : .green
+                    ) {
+                        HStack(spacing: 8) {
                             OnboardingActionButton(
-                                title: viewModel.microphonePermissionActionTitle,
-                                systemImage: "mic.fill",
+                                title: "Allow",
                                 background: Color.white.opacity(0.08),
                                 foreground: .primary,
                                 strokeColor: Color.white.opacity(0.10),
                                 minHeight: 44
                             ) {
-                                viewModel.resolveMicrophoneAccess()
+                                viewModel.requestAutoPasteAccess()
                             }
-                        }
 
-                        PermissionGateRow(
-                            title: "Accessibility / Input Control",
-                            description: "Used to insert text into active apps",
-                            statusText: viewModel.autoPasteStatusText,
-                            tint: viewModel.autoPasteAccessNeedsAttention ? .orange : .green
-                        ) {
-                            HStack(spacing: 8) {
-                                OnboardingActionButton(
-                                    title: "Grant Permission",
-                                    systemImage: "checkmark.shield",
-                                    background: Color.white.opacity(0.08),
-                                    foreground: .primary,
-                                    strokeColor: Color.white.opacity(0.10),
-                                    minHeight: 44
-                                ) {
-                                    viewModel.requestAutoPasteAccess()
-                                }
-
-                                OnboardingActionButton(
-                                    title: "Open System Settings",
-                                    systemImage: "gearshape",
-                                    background: Color.white.opacity(0.08),
-                                    foreground: .primary,
-                                    strokeColor: Color.white.opacity(0.10),
-                                    minHeight: 44
-                                ) {
-                                    viewModel.openAccessibilitySettings()
-                                }
+                            OnboardingActionButton(
+                                title: "Open Settings",
+                                background: Color.white.opacity(0.08),
+                                foreground: .primary,
+                                strokeColor: Color.white.opacity(0.10),
+                                minHeight: 44
+                            ) {
+                                viewModel.openAccessibilitySettings()
                             }
-                        }
-
-                        if viewModel.microphoneAccessNeedsAttention || viewModel.autoPasteAccessNeedsAttention {
-                            MessageBanner(
-                                text: "Permissions not yet detected. Please authorize in System Settings and return.",
-                                role: .warning
-                            )
                         }
                     }
-                    .padding(8)
+
+                    if viewModel.microphoneAccessNeedsAttention || viewModel.autoPasteAccessNeedsAttention {
+                        MessageBanner(
+                            text: "Permissions not yet detected. Please authorize in System Settings and return.",
+                            role: .warning
+                        )
+                    }
                 }
 
                 Spacer()
 
                 HStack {
                     if viewModel.onboardingMode != nil {
-                        Button("Back") {
-                            viewModel.retreatOnboarding()
-                        }
+                        OnboardingBackButton { viewModel.retreatOnboarding() }
                     }
 
                     Spacer()
