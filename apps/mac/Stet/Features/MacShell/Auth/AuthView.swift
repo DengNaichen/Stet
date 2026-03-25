@@ -111,10 +111,18 @@ struct AuthView: View {
 
     private var signedOutCard: some View {
         MacSettingsCard(
-            title: "Continue with Google or GitHub"
+            title: "Continue with Apple, Google, or GitHub"
         ) {
             VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 12) {
+                VStack(spacing: 10) {
+                    AppleSignInButton {
+                        shouldDismissAfterAuthentication = true
+                        Task {
+                            await viewModel.signInWithApple()
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+
                     oauthButton(
                         title: "Continue with Google",
                         systemImage: "g.circle.fill"

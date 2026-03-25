@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "./error.ts";
 import { log } from "./log.ts";
+import { getRelayPolicy } from "./config.ts";
 import type {
   RelayAccount,
   RelayBillingBackend,
@@ -40,10 +41,16 @@ export class ManagedRelayBillingBackend implements RelayBillingBackend {
       );
     }
 
-    return {
+    let relayAccount = {
       ...(data as Omit<RelayAccount, "billing_backend">),
       billing_backend: this.kind,
     };
+
+    if (relayAccount.managed_enabled) {
+      relayAccount = await this.ensureBetaTrialCredits(admin, relayAccount);
+    }
+
+    return relayAccount;
   }
 
   getWalletSummary(
@@ -60,6 +67,7 @@ export class ManagedRelayBillingBackend implements RelayBillingBackend {
     provider: "openai" | "groq";
     modelId: string;
     audioDurationSeconds: number;
+    requestMetadata?: Record<string, unknown>;
   }) {
     const reservation = quoteReservedCredits({
       provider: args.provider,
@@ -75,6 +83,7 @@ export class ManagedRelayBillingBackend implements RelayBillingBackend {
       quantity: args.audioDurationSeconds,
       reservedCredits: reservation.reservedCredits,
       modelId: args.modelId,
+      requestMetadata: args.requestMetadata,
     });
   }
 
@@ -237,6 +246,7 @@ export class ManagedRelayBillingBackend implements RelayBillingBackend {
       userId: payload.userId,
       credits: payload.credits,
       externalReference: event.id,
+      provider: "stripe",
       metadata: {
         stripe_event_type: event.type,
         stripe_customer_id: payload.customerId ?? null,
@@ -256,6 +266,49 @@ export class ManagedRelayBillingBackend implements RelayBillingBackend {
       balance_credits: topup.balance_credits,
     };
   }
+
+  private async ensureBetaTrialCredits(
+    admin: SupabaseClient,
+    relayAccount: RelayAccount,
+  ): Promise<RelayAccount> {
+    const policy = getRelayPolicy();
+    const trialReference = betaTrialReference(relayAccount.user_id);
+
+    await applyCreditTopupRpc(admin, {
+      userId: relayAccount.user_id,
+      credits: policy.betaTrialCredits,
+      externalReference: trialReference,
+      provider: "manual",
+      metadata: {
+        grant_kind: "beta_trial",
+        grant_version: 1,
+        managed_enabled: relayAccount.managed_enabled,
+      },
+    });
+
+    const { data, error } = await admin
+      .from("billing_accounts")
+      .select("*")
+      .eq("user_id", relayAccount.user_id)
+      .single();
+
+    if (error || !data) {
+      throw new ApiError(
+        500,
+        "billing_account_error",
+        "The relay could not refresh billing account details.",
+      );
+    }
+
+    return {
+      ...(data as Omit<RelayAccount, "billing_backend">),
+      billing_backend: this.kind,
+    };
+  }
+}
+
+function betaTrialReference(userId: string): string {
+  return `beta_trial_v1:${userId}`;
 }
 
 type StripeWebhookEvent = {

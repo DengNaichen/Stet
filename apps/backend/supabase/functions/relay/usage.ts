@@ -1,5 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "./error.ts";
+import { getRelayPolicy } from "./config.ts";
 import {
   CreditTopupResult,
   UsageKind,
@@ -48,8 +49,10 @@ export async function beginUsage(
     quantity: number;
     reservedCredits: number;
     modelId?: string;
+    requestMetadata?: Record<string, unknown>;
   },
 ): Promise<UsageReservation> {
+  const policy = getRelayPolicy();
   let data;
   let error;
   try {
@@ -61,6 +64,10 @@ export async function beginUsage(
       p_model_id: args.modelId ?? null,
       p_quantity: args.quantity,
       p_reserved_credits: args.reservedCredits,
+      p_request_metadata: args.requestMetadata ?? {},
+      p_max_requests_per_minute: policy.maxRequestsPerMinute,
+      p_max_concurrent_requests: policy.maxConcurrentRequests,
+      p_daily_credit_limit: policy.dailyCreditLimit,
     }));
   } catch {
     throw new ApiError(
@@ -189,6 +196,7 @@ export async function applyCreditTopup(
     credits: number;
     externalReference: string;
     metadata?: Record<string, unknown>;
+    provider?: string;
   },
 ): Promise<CreditTopupResult> {
   let data;
@@ -199,6 +207,7 @@ export async function applyCreditTopup(
       p_credits: args.credits,
       p_external_reference: args.externalReference,
       p_metadata: args.metadata ?? {},
+      p_provider: args.provider ?? "stripe",
     }));
   } catch {
     throw new ApiError(

@@ -243,6 +243,10 @@
             await signInWithOAuth(provider: .google)
         }
 
+        func signInWithApple() async {
+            await signInWithOAuth(provider: .apple)
+        }
+
         func signInWithGitHub() async {
             await signInWithOAuth(provider: .github)
         }
@@ -356,6 +360,8 @@
             let nsError = error as NSError
             return nsError.domain == ASWebAuthenticationSessionErrorDomain
                 && nsError.code == ASWebAuthenticationSessionError.canceledLogin.rawValue
+                || nsError.domain == ASAuthorizationError.errorDomain
+                && nsError.code == ASAuthorizationError.canceled.rawValue
         }
     }
 

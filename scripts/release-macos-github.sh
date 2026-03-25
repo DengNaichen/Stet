@@ -8,21 +8,32 @@ APP_NAME="Stet"
 DIST_DIR="$ROOT_DIR/dist/github-release"
 ENV_FILE="$ROOT_DIR/.env.release"
 
-if [[ -f "$ENV_FILE" ]]; then
+load_env_file() {
+  local env_file="$1"
+
+  [[ -f "$env_file" ]] || return
+
   while IFS= read -r line || [[ -n "$line" ]]; do
     line="${line#"${line%%[![:space:]]*}"}"
     [[ -z "$line" || "${line:0:1}" == "#" ]] && continue
     [[ "$line" != *"="* ]] && continue
 
-    key="${line%%=*}"
-    value="${line#*=}"
+    local key="${line%%=*}"
+    local value="${line#*=}"
     key="${key%"${key##*[![:space:]]}"}"
     value="${value#"${value%%[![:space:]]*}"}"
     value="${value%"${value##*[![:space:]]}"}"
 
+    # Explicit environment variables passed to the script should win.
+    if [[ ${+parameters[$key]} -eq 1 ]]; then
+      continue
+    fi
+
     export "$key=$value"
-  done < "$ENV_FILE"
-fi
+  done < "$env_file"
+}
+
+load_env_file "$ENV_FILE"
 
 : "${APPLE_TEAM_ID:?APPLE_TEAM_ID is required.}"
 : "${NOTARY_PROFILE:?NOTARY_PROFILE is required.}"
@@ -49,9 +60,16 @@ NOTARY_LOG_JSON="$WORK_DIR/notary-log.json"
 SPARKLE_DIR="$WORK_DIR/sparkle"
 SPARKLE_GENERATE_APPCAST="$ROOT_DIR/.build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
 APP_ENTITLEMENTS="$WORK_DIR/${APP_NAME}.entitlements.plist"
+NPX_BIN="${NPX_BIN:-$(command -v npx || true)}"
+NPM_CACHE_DIR="${NPM_CACHE_DIR:-$WORK_DIR/.npm-cache}"
 
 mkdir -p "$WORK_DIR"
-rm -rf "$ARCHIVE_PATH" "$APP_PATH" "$DMG_OUTPUT_DIR" "$SPARKLE_DIR" "$APP_ENTITLEMENTS"
+rm -rf "$ARCHIVE_PATH" "$APP_PATH" "$DMG_OUTPUT_DIR" "$SPARKLE_DIR" "$APP_ENTITLEMENTS" "$NPM_CACHE_DIR"
+
+if [[ -z "$NPX_BIN" ]]; then
+  echo "Missing npx in PATH. Install Node.js or set NPX_BIN to a working npx binary."
+  exit 1
+fi
 
 if ! security find-identity -v -p codesigning | grep -Fq "$DEVELOPER_ID_APPLICATION"; then
   echo "Missing signing identity: $DEVELOPER_ID_APPLICATION"
@@ -132,7 +150,7 @@ codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 echo "Creating release DMG..."
 rm -rf "$DMG_OUTPUT_DIR"
 mkdir -p "$DMG_OUTPUT_DIR"
-npx --yes create-dmg \
+NPM_CONFIG_CACHE="$NPM_CACHE_DIR" "$NPX_BIN" --yes create-dmg \
   --overwrite \
   --identity "$DEVELOPER_ID_APPLICATION" \
   --dmg-title "$APP_NAME" \
@@ -146,6 +164,12 @@ if (( ${#dmg_matches[@]} != 1 )); then
 fi
 
 FINAL_DMG="${dmg_matches[1]}"
+RELEASE_DMG_NAME="${RELEASE_DMG_NAME:-${APP_NAME}-${GITHUB_TAG}.dmg}"
+
+if [[ "$(basename "$FINAL_DMG")" != "$RELEASE_DMG_NAME" ]]; then
+  mv "$FINAL_DMG" "$DMG_OUTPUT_DIR/$RELEASE_DMG_NAME"
+  FINAL_DMG="$DMG_OUTPUT_DIR/$RELEASE_DMG_NAME"
+fi
 
 echo "Submitting DMG for notarization..."
 xcrun notarytool submit \

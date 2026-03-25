@@ -71,6 +71,7 @@ export interface RelayBillingBackend {
     provider: ProviderName;
     modelId: string;
     audioDurationSeconds: number;
+    requestMetadata?: Record<string, unknown>;
   }): Promise<UsageReservation>;
 
   finalizeTranscriptionUsage(args: {
