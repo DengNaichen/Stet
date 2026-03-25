@@ -35,7 +35,7 @@
         @State private var articulationSignal = 0.36
         @State private var useStateDetail = true
         @State private var manualDetail = 1.0
-        @State private var selectedTheme: MacDictationShaderTheme = .defaultTheme
+        @State private var selectedTheme: MacDictationShaderTheme = .egg
         @State private var isPaused = false
         @State private var frozenTime = 0.0
         @State private var surfaceWidth = Double(MacDictationPanelConstants.Layout.mainWidthListening)

@@ -3,31 +3,32 @@
 
     struct OnboardingView: View {
         @StateObject private var viewModel: OnboardingViewModel
+        @StateObject private var appearanceViewModel: MacAppearanceSettingsViewModel
 
         init(appModel: any MacPermissionsCoordinating) {
             _viewModel = StateObject(wrappedValue: OnboardingViewModel(coordinator: appModel))
+            _appearanceViewModel = StateObject(wrappedValue: .shared)
         }
 
         init(viewModel: OnboardingViewModel) {
             _viewModel = StateObject(wrappedValue: viewModel)
+            _appearanceViewModel = StateObject(wrappedValue: .shared)
         }
 
         // MARK: - Layout constants
         // Outer window: 1280 × 720  (16:9)
-        private let windowWidth:  CGFloat = 1280
+        private let windowWidth: CGFloat = 1280
         private let windowHeight: CGFloat = 720
         // Inner card:   960 × 540  (16:9)
-        private let cardWidth:    CGFloat = 960
-        private let cardHeight:   CGFloat = 540
+        private let cardWidth: CGFloat = 960
+        private let cardHeight: CGFloat = 540
         // Golden ratio split (φ ≈ 1.618): left ≈ 367, right ≈ 592
         private let φ: CGFloat = 1.618
         private var rightPanelWidth: CGFloat { (cardWidth * φ / (1 + φ)).rounded() }
 
         var body: some View {
             ZStack {
-                // ── Background image placeholder ──────────────────────────
-                // Replace Color.white with Image("your-asset") when ready.
-                Color.white
+                onboardingBackground
                     .ignoresSafeArea()
 
                 // ── Floating card ─────────────────────────────────────────
@@ -54,10 +55,38 @@
                 // ── Progress strip on top border ──────────────────────────
                 .overlay(alignment: .top) {
                     progressStrip
-                        .offset(y: -16) // straddles the top edge of the card
+                        .offset(y: -16)  // straddles the top edge of the card
                 }
             }
             .frame(width: windowWidth, height: windowHeight)
+        }
+
+        @ViewBuilder
+        private var onboardingBackground: some View {
+            switch viewModel.onboardingStep {
+            case .apiKey, .login:
+                Image("onboardingEggBackground")
+                    .resizable()
+                    .scaledToFill()
+            case .permissions:
+                Image("onboardingPermissionsBackground")
+                    .resizable()
+                    .scaledToFill()
+            case .shortcut:
+                Image("onboardingShortcutBackground")
+                    .resizable()
+                    .scaledToFill()
+            case .firstSuccess:
+                Image("onboardingFirstSuccessBackground")
+                    .resizable()
+                    .scaledToFill()
+            case .appearance:
+                Image("onboardingAppearanceBackground")
+                    .resizable()
+                    .scaledToFill()
+            default:
+                Color.white
+            }
         }
 
         private var leftPanel: some View {
@@ -112,7 +141,8 @@
                                 ? Color.accentColor : Color.black.opacity(0.12)
                         )
                         .frame(width: 28, height: 4)
-                        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: viewModel.onboardingStep.progressIndex)
+                        .animation(
+                            .spring(response: 0.4, dampingFraction: 0.7), value: viewModel.onboardingStep.progressIndex)
                 }
             }
             .padding(.horizontal, 16)
@@ -131,7 +161,7 @@
         @ViewBuilder
         private var stepContent: some View {
             switch viewModel.onboardingStep {
-            case .mode, .apiKey, .login:
+            case .apiKey, .login:
                 OnboardingModeStep(viewModel: viewModel)
             case .permissions:
                 OnboardingPermissionsStep(viewModel: viewModel)
@@ -140,7 +170,10 @@
             case .firstSuccess:
                 OnboardingFirstSuccessStep(viewModel: viewModel)
             case .appearance:
-                OnboardingAppearanceStep(viewModel: viewModel)
+                OnboardingAppearanceStep(
+                    viewModel: viewModel,
+                    appearanceViewModel: appearanceViewModel
+                )
             case .done:
                 OnboardingDoneStep(viewModel: viewModel)
             }
@@ -155,18 +188,26 @@
             case .login:
                 OnboardingLoginStep(viewModel: viewModel)
                     .padding(40)
-            case .mode:
-                Color.clear
             case .permissions, .shortcut, .firstSuccess, .appearance, .done:
-                OnboardingVisualPanel(step: viewModel.onboardingStep, viewModel: viewModel)
+                OnboardingVisualPanel(
+                    step: viewModel.onboardingStep,
+                    viewModel: viewModel,
+                    appearanceViewModel: appearanceViewModel,
+                    onAppearanceThemeChange: { theme in
+                        viewModel.selectOnboardingAppearanceTheme(theme)
+                    },
+                    onAppearanceThemeApply: { theme in
+                        viewModel.selectOnboardingAppearanceTheme(theme)
+                        viewModel.applyOnboardingAppearanceTheme()
+                    }
+                )
             }
         }
 
-
         private var titleText: String {
             switch viewModel.onboardingStep {
-            case .mode, .apiKey:
-                return "Choose how you start"
+            case .apiKey:
+                return "Use API Key"
             case .login:
                 return "Login to continue"
             case .permissions:
@@ -184,9 +225,6 @@
 
         private var subtitleText: String {
             switch viewModel.onboardingStep {
-            case .mode:
-                return
-                    "Choose your access method first. Permissions, shortcuts, and initial setup will follow automatically."
             case .apiKey:
                 return "Select a provider and enter your API Key to proceed."
             case .login:
@@ -200,7 +238,7 @@
                 return
                     "Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup."
             case .appearance:
-                return "Customize the look and feel of your app."
+                return "Apply the theme on the right, then finish."
             case .done:
                 return "Hold your shortcut and start speaking anywhere you can type text."
             }
@@ -233,19 +271,15 @@
         }
 
         #Preview("Interactive Flow") {
-            makeOnboardingPreview(step: .mode)
-        }
-
-        #Preview("Mode") {
-            makeOnboardingPreview(step: .mode)
-        }
-
-        #Preview("API Key") {
-            makeOnboardingPreview(step: .apiKey, mode: .apiKey)
+            makeOnboardingPreview(step: .login)
         }
 
         #Preview("Login") {
             makeOnboardingPreview(step: .login, mode: .managed)
+        }
+
+        #Preview("API Key") {
+            makeOnboardingPreview(step: .apiKey, mode: .apiKey)
         }
 
         #Preview("Permissions") {

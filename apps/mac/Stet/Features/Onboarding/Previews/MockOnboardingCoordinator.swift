@@ -75,6 +75,10 @@
             didSet { notifyChange() }
         }
 
+        var canFinishAppearanceOnboarding: Bool {
+            didSet { notifyChange() }
+        }
+
         var shortcutSummaryText: String = "Shortcut configured" {
             didSet { notifyChange() }
         }
@@ -82,7 +86,7 @@
         var onboardingStep: MacOnboardingStep { mockStep }
         var onboardingMode: MacOnboardingMode? { mockMode }
 
-        init(step: MacOnboardingStep = .mode, mode: MacOnboardingMode? = nil) {
+        init(step: MacOnboardingStep = .login, mode: MacOnboardingMode? = nil) {
             self.mockStep = step
             self.mockMode = mode
             self.autoPasteStatusText = "Granted"
@@ -99,6 +103,7 @@
             self.firstSuccessFailureMessage = nil
             self.canContinueFirstSuccessOnboarding = true
             self.canSkipFirstSuccessOnboarding = true
+            self.canFinishAppearanceOnboarding = false
             configurePreviewState(for: step)
         }
 
@@ -117,10 +122,17 @@
             mockStep = mode == .apiKey ? .apiKey : .login
         }
 
+        func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme) {
+            canFinishAppearanceOnboarding = false
+            _ = theme
+        }
+
+        func applyOnboardingAppearanceTheme() {
+            canFinishAppearanceOnboarding = true
+        }
+
         func advanceOnboarding() {
             switch mockStep {
-            case .mode:
-                break
             case .apiKey:
                 mockStep = .permissions
             case .login:
@@ -140,10 +152,10 @@
 
         func retreatOnboarding() {
             switch mockStep {
-            case .mode:
-                break
             case .apiKey, .login:
-                mockStep = .mode
+                if mockStep == .apiKey {
+                    mockStep = .login
+                }
             case .permissions:
                 mockStep = mockMode == .managed ? .login : .apiKey
             case .shortcut:
@@ -174,8 +186,6 @@
 
         private func configurePreviewState(for step: MacOnboardingStep) {
             switch step {
-            case .mode:
-                break
             case .apiKey:
                 mockMode = .apiKey
             case .login:
@@ -207,6 +217,10 @@
         }
 
         func signIn(provider _: Provider) async throws {
+            hasCurrentSession = true
+        }
+
+        func signUp(email _: String, password _: String) async throws {
             hasCurrentSession = true
         }
     }

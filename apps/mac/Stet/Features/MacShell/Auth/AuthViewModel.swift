@@ -6,6 +6,11 @@ internal import Auth
 @MainActor
 @Observable
 final class AuthViewModel {
+    enum AuthMode {
+        case signIn
+        case signUp
+    }
+
     private enum AuthAction {
         case signIn
         case signUp
@@ -27,6 +32,7 @@ final class AuthViewModel {
         case missingEmail
         case invalidEmail
         case missingPassword
+        case passwordMismatch
 
         var errorDescription: String? {
             switch self {
@@ -36,12 +42,16 @@ final class AuthViewModel {
                 return "Enter a valid email address."
             case .missingPassword:
                 return "Enter your password before continuing."
+            case .passwordMismatch:
+                return "Passwords do not match."
             }
         }
     }
 
     var email = ""
     var password = ""
+    var confirmPassword = ""
+    var authMode: AuthMode = .signIn
     var isLoading = false
     var errorMessage: String? = nil
     var statusMessage: String? = nil
@@ -57,7 +67,10 @@ final class AuthViewModel {
     }
 
     var canSubmit: Bool {
-        !normalizedEmail.isEmpty && !password.isEmpty && !isLoading
+        !normalizedEmail.isEmpty
+            && !password.isEmpty
+            && (authMode == .signIn || !confirmPassword.isEmpty)
+            && !isLoading
     }
 
     var isSignedIn: Bool {
@@ -72,22 +85,23 @@ final class AuthViewModel {
         accountEmail ?? "Unknown user"
     }
 
-    var isSupabaseConfigured: Bool {
-        supabase.isConfigured
+    var showsConfirmPasswordField: Bool {
+        authMode == .signUp
     }
 
-    var configurationStatusText: String {
-        isSupabaseConfigured ? "Supabase Ready" : "Setup Required"
+    var primaryActionTitle: String {
+        authMode == .signIn ? "Sign In" : "Sign Up"
     }
 
-    var configurationStatusTint: Bool {
-        isSupabaseConfigured
+    var modeToggleTitle: String {
+        authMode == .signIn ? "Create Account" : "Sign In"
     }
 
     func signIn() async {
         await perform(.signIn) { email, password in
             try await supabase.signIn(email: email, password: password)
             self.password = ""
+            self.confirmPassword = ""
         }
     }
 
@@ -103,10 +117,15 @@ final class AuthViewModel {
         await performOAuth(provider: .github)
     }
 
+    func signInWithApple() async {
+        await performOAuth(provider: .apple)
+    }
+
     func signUp() async {
         await perform(.signUp) { email, password in
             try await supabase.signUp(email: email, password: password)
             self.password = ""
+            self.confirmPassword = ""
             self.statusMessage =
                 "Account created. If email confirmation is enabled, check your inbox before signing in."
         }
@@ -121,6 +140,13 @@ final class AuthViewModel {
     func clearFeedback() {
         errorMessage = nil
         statusMessage = nil
+    }
+
+    func toggleAuthMode() {
+        authMode = authMode == .signIn ? .signUp : .signIn
+        password = ""
+        confirmPassword = ""
+        clearFeedback()
     }
 
     private var normalizedEmail: String {
@@ -175,6 +201,9 @@ final class AuthViewModel {
             guard !email.isEmpty else { throw ValidationError.missingEmail }
             guard email.contains("@"), email.contains(".") else { throw ValidationError.invalidEmail }
             guard !password.isEmpty else { throw ValidationError.missingPassword }
+            if action == .signUp, password != confirmPassword {
+                throw ValidationError.passwordMismatch
+            }
             return (email, password)
         }
     }

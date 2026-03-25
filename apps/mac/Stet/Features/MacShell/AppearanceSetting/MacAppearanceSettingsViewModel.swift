@@ -4,26 +4,41 @@
 
     @MainActor
     final class MacAppearanceSettingsViewModel: ObservableObject {
-        @Published var shaderTheme = MacDictationVisualTheme.defaultTheme {
-            didSet {
-                guard hasLoadedPreferences else { return }
-                defaults.set(shaderTheme.rawValue, forKey: MacPreferences.shaderTheme)
-            }
-        }
+        static let shared = MacAppearanceSettingsViewModel()
+
+        @Published private(set) var shaderTheme = MacDictationVisualTheme.egg
+        @Published private(set) var appliedShaderTheme = MacDictationVisualTheme.egg
 
         private let defaults: UserDefaults
-        private var hasLoadedPreferences = false
 
         init(defaults: UserDefaults = .standard) {
             self.defaults = defaults
+            load()
         }
 
         func load() {
-            hasLoadedPreferences = false
-            shaderTheme = MacDictationVisualTheme.fromStoredValue(
+            let storedTheme = MacDictationVisualTheme.fromStoredValue(
                 defaults.string(forKey: MacPreferences.shaderTheme)
             )
-            hasLoadedPreferences = true
+            shaderTheme = storedTheme
+            appliedShaderTheme = storedTheme
+        }
+
+        func updateShaderTheme(_ theme: MacDictationVisualTheme, persist: Bool) {
+            shaderTheme = theme
+
+            if persist {
+                applySelectedTheme()
+            }
+        }
+
+        func applySelectedTheme() {
+            defaults.set(shaderTheme.rawValue, forKey: MacPreferences.shaderTheme)
+            appliedShaderTheme = shaderTheme
+        }
+
+        var hasAppliedSelectedTheme: Bool {
+            shaderTheme == appliedShaderTheme
         }
     }
 #endif

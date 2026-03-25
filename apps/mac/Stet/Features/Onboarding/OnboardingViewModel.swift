@@ -8,10 +8,16 @@
 
     @MainActor
     final class OnboardingViewModel: ObservableObject {
+        enum AuthMode {
+            case signIn
+            case signUp
+        }
+
         private enum LoginValidationError: LocalizedError {
             case missingEmail
             case invalidEmail
             case missingPassword
+            case passwordMismatch
 
             var errorDescription: String? {
                 switch self {
@@ -21,6 +27,8 @@
                     return "Please enter valid email "
                 case .missingPassword:
                     return "Please enter password"
+                case .passwordMismatch:
+                    return "Passwords do not match"
                 }
             }
         }
@@ -45,6 +53,8 @@
         @Published private(set) var apiKeyErrorMessage: String?
         @Published var email = ""
         @Published var password = ""
+        @Published var confirmPassword = ""
+        @Published private(set) var authMode: AuthMode = .signIn
         @Published private(set) var isAuthenticating = false
         @Published private(set) var authErrorMessage: String?
         @Published private(set) var authStatusMessage: String?
@@ -145,6 +155,10 @@
             coordinator.canSkipFirstSuccessOnboarding
         }
 
+        var canFinishAppearanceOnboarding: Bool {
+            coordinator.canFinishAppearanceOnboarding
+        }
+
         var apiKeyPrimaryButtonTitle: String {
             if isAPIKeyValidated {
                 return "Continue"
@@ -158,7 +172,22 @@
         }
 
         var canSubmitEmailLogin: Bool {
-            !normalizedEmail.isEmpty && !password.isEmpty && !isAuthenticating
+            !normalizedEmail.isEmpty
+                && !password.isEmpty
+                && (authMode == .signIn || !confirmPassword.isEmpty)
+                && !isAuthenticating
+        }
+
+        var emailPrimaryActionTitle: String {
+            authMode == .signIn ? "Sign In" : "Sign Up"
+        }
+
+        var emailModeToggleTitle: String {
+            authMode == .signIn ? "Create Account" : "Sign In"
+        }
+
+        var showsConfirmPasswordField: Bool {
+            authMode == .signUp
         }
 
         func requestAutoPasteAccess() {
@@ -176,6 +205,14 @@
         func chooseOnboardingMode(_ mode: MacOnboardingMode) {
             clearFlowMessages()
             coordinator.chooseOnboardingMode(mode)
+        }
+
+        func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme) {
+            coordinator.selectOnboardingAppearanceTheme(theme)
+        }
+
+        func applyOnboardingAppearanceTheme() {
+            coordinator.applyOnboardingAppearanceTheme()
         }
 
         func continueOnboarding() {
@@ -227,16 +264,49 @@
             authStatusMessage = nil
 
             do {
-                let credentials = try validatedCredentials()
+                let credentials = try validatedCredentials(for: .signIn)
                 isAuthenticating = true
                 defer { isAuthenticating = false }
                 try await supabase.signIn(email: credentials.email, password: credentials.password)
                 password = ""
+                confirmPassword = ""
                 authStatusMessage = "Login successful."
                 coordinator.completeManagedOnboarding()
             } catch {
                 authErrorMessage = error.localizedDescription
             }
+        }
+
+        func signUpWithEmail() async {
+            authErrorMessage = nil
+            authStatusMessage = nil
+
+            do {
+                let credentials = try validatedCredentials(for: .signUp)
+                isAuthenticating = true
+                defer { isAuthenticating = false }
+                try await supabase.signUp(email: credentials.email, password: credentials.password)
+                password = ""
+                confirmPassword = ""
+
+                if supabase.hasCurrentSession {
+                    authStatusMessage = "Account created."
+                    coordinator.completeManagedOnboarding()
+                } else {
+                    authStatusMessage =
+                        "Account created. If email confirmation is enabled, check your inbox before signing in."
+                }
+            } catch {
+                authErrorMessage = error.localizedDescription
+            }
+        }
+
+        func toggleEmailAuthMode() {
+            authMode = authMode == .signIn ? .signUp : .signIn
+            password = ""
+            confirmPassword = ""
+            authErrorMessage = nil
+            authStatusMessage = nil
         }
 
         func signInWithGoogle() async {
@@ -249,6 +319,10 @@
 
         func signInWithGitHub() async {
             await signInWithOAuth(provider: .github)
+        }
+
+        func signInWithApple() async {
+            await signInWithOAuth(provider: .apple)
         }
 
         func useUnavailableIdentityProvider(_ providerName: String) {
@@ -311,7 +385,7 @@
             email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         }
 
-        private func validatedCredentials() throws -> (email: String, password: String) {
+        private func validatedCredentials(for mode: AuthMode) throws -> (email: String, password: String) {
             let trimmedEmail = normalizedEmail
 
             guard !trimmedEmail.isEmpty else { throw LoginValidationError.missingEmail }
@@ -319,6 +393,9 @@
                 throw LoginValidationError.invalidEmail
             }
             guard !password.isEmpty else { throw LoginValidationError.missingPassword }
+            if mode == .signUp, password != confirmPassword {
+                throw LoginValidationError.passwordMismatch
+            }
 
             return (trimmedEmail, password)
         }
@@ -401,6 +478,7 @@
         var hasCurrentSession: Bool { get }
         func signIn(email: String, password: String) async throws
         func signIn(provider: Provider) async throws
+        func signUp(email: String, password: String) async throws
     }
 
     protocol OnboardingAPIKeyValidating {

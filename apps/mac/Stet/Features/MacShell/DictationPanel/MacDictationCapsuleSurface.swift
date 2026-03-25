@@ -4,7 +4,7 @@
     struct MacDictationCapsuleSurface: View {
         @ObservedObject var viewModel: MacDictationPanelViewModel
         let panelSize: CGSize
-        @AppStorage(MacPreferences.shaderTheme) private var shaderThemeRawValue = MacDictationVisualTheme.defaultTheme
+        @AppStorage(MacPreferences.shaderTheme) private var shaderThemeRawValue = MacDictationVisualTheme.egg
             .rawValue
 
         var body: some View {

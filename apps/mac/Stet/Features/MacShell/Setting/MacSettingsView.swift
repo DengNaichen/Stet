@@ -123,7 +123,7 @@
             }
             .sheet(isPresented: $isShowingAccountSheet) {
                 AuthView()
-                    .frame(minWidth: 520, minHeight: 480)
+                    .frame(minWidth: 520, minHeight: 580)
             }
             .onChange(of: searchText) { _, _ in
                 synchronizeSelectionWithFilter()

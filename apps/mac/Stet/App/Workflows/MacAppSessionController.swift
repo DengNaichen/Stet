@@ -26,6 +26,8 @@
         private weak var presentationModel: (any MacAppPresentationModeling)?
         private var onboardingStepState: MacOnboardingStep
         private var onboardingModeState: MacOnboardingMode?
+        private var onboardingAppearanceThemeState: MacDictationVisualTheme
+        private var hasAppliedOnboardingAppearanceTheme = false
         private var shortcutTestDetectedPressState = false
         private var shortcutTestCompletedRoundTripState = false
         private var shortcutTestPreviewTextState: String?
@@ -57,6 +59,8 @@
             self.notificationCenter = notificationCenter
             self.hotkeyRegistrar = hotkeyRegistrar
             self.onboardingStepState = .done
+            self.onboardingAppearanceThemeState = .egg
+            self.hasAppliedOnboardingAppearanceTheme = false
 
             configure()
         }
@@ -369,6 +373,18 @@
             notifyChange()
         }
 
+        func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme) {
+            onboardingAppearanceThemeState = theme
+            hasAppliedOnboardingAppearanceTheme = false
+            notifyChange()
+        }
+
+        func applyOnboardingAppearanceTheme() {
+            defaults.set(onboardingAppearanceThemeState.rawValue, forKey: MacPreferences.shaderTheme)
+            hasAppliedOnboardingAppearanceTheme = true
+            notifyChange()
+        }
+
         func advanceOnboarding() {
             guard requiresOnboarding else {
                 onboardingStepState = .done
@@ -386,7 +402,7 @@
             case .firstSuccess:
                 guard canContinueFirstSuccessOnboarding || canSkipFirstSuccessOnboarding else { return }
                 onboardingStepState = .appearance
-            case .mode, .apiKey, .login, .appearance, .done:
+            case .apiKey, .login, .appearance, .done:
                 break
             }
 
@@ -401,10 +417,10 @@
             }
 
             switch onboardingStepState {
-            case .mode:
-                break
             case .apiKey, .login:
-                onboardingStepState = .mode
+                if onboardingStepState == .apiKey {
+                    onboardingStepState = .login
+                }
             case .permissions:
                 if requiresOnboarding {
                     onboardingStepState = onboardingModeState == .managed ? .login : .apiKey
@@ -440,6 +456,10 @@
             onboardingModeState = nil
             permissionGateController.hide()
             notifyChange()
+        }
+
+        var canFinishAppearanceOnboarding: Bool {
+            hasAppliedOnboardingAppearanceTheme
         }
 
         func setDebugForceOnboardingEnabled(_ enabled: Bool) {
@@ -946,7 +966,7 @@
                 return
             }
 
-            onboardingStepState = .mode
+            onboardingStepState = .login
         }
 
         private func syncOnboardingPresentation() {

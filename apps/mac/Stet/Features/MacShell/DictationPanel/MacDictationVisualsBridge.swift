@@ -59,16 +59,7 @@
         }
 
         private var shaderTheme: MacDictationShaderTheme {
-            switch theme {
-            case .defaultTheme:
-                return .defaultTheme
-            case .midnight:
-                return .midnight
-            case .sunset:
-                return .sunset
-            case .forest:
-                return .forest
-            }
+            MacDictationShaderTheme(rawValue: theme.rawValue) ?? .egg
         }
     }
 #endif
