@@ -2,9 +2,6 @@
     import Foundation
 
     enum MacDictationVisualTheme: String, CaseIterable, Identifiable, Hashable {
-        case midnight
-        case sunset
-        case forest
         case blossom
         case egg
         case harbor
@@ -16,12 +13,6 @@
 
         var title: String {
             switch self {
-            case .midnight:
-                return "Midnight"
-            case .sunset:
-                return "Sunset"
-            case .forest:
-                return "Forest"
             case .blossom:
                 return "Blossom"
             case .egg:

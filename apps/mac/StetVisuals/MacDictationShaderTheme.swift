@@ -2,9 +2,6 @@
     import SwiftUI
 
     public enum MacDictationShaderTheme: String, CaseIterable, Identifiable, Hashable {
-        case midnight
-        case sunset
-        case forest
         case blossom
         case egg
         case harbor
@@ -16,12 +13,6 @@
 
         public var title: String {
             switch self {
-            case .midnight:
-                return "Midnight"
-            case .sunset:
-                return "Sunset"
-            case .forest:
-                return "Forest"
             case .blossom:
                 return "Blossom"
             case .egg:
@@ -39,75 +30,6 @@
 
         var palette: MacDictationShaderThemePalette {
             switch self {
-            case .midnight:
-                return MacDictationShaderThemePalette(
-                    idle: .init(
-                        top: (0.93, 0.95, 1.00),
-                        mid: (0.78, 0.82, 0.92),
-                        low: (0.56, 0.61, 0.74)
-                    ),
-                    starting: .init(
-                        top: (0.73, 0.80, 1.00),
-                        mid: (0.37, 0.49, 0.90),
-                        low: (0.20, 0.28, 0.72)
-                    ),
-                    speaking: .init(
-                        top: (0.52, 0.86, 1.00),
-                        mid: (0.18, 0.63, 0.97),
-                        low: (0.11, 0.38, 0.80)
-                    ),
-                    processing: .init(
-                        top: (0.96, 0.76, 1.00),
-                        mid: (0.74, 0.42, 0.96),
-                        low: (0.52, 0.20, 0.72)
-                    )
-                )
-            case .sunset:
-                return MacDictationShaderThemePalette(
-                    idle: .init(
-                        top: (1.00, 0.96, 0.93),
-                        mid: (0.94, 0.86, 0.78),
-                        low: (0.82, 0.69, 0.58)
-                    ),
-                    starting: .init(
-                        top: (1.00, 0.78, 0.58),
-                        mid: (0.96, 0.55, 0.34),
-                        low: (0.78, 0.30, 0.16)
-                    ),
-                    speaking: .init(
-                        top: (1.00, 0.64, 0.52),
-                        mid: (0.98, 0.40, 0.28),
-                        low: (0.84, 0.21, 0.16)
-                    ),
-                    processing: .init(
-                        top: (1.00, 0.88, 0.48),
-                        mid: (1.00, 0.64, 0.12),
-                        low: (0.86, 0.34, 0.08)
-                    )
-                )
-            case .forest:
-                return MacDictationShaderThemePalette(
-                    idle: .init(
-                        top: (0.94, 0.97, 0.92),
-                        mid: (0.83, 0.88, 0.79),
-                        low: (0.64, 0.73, 0.63)
-                    ),
-                    starting: .init(
-                        top: (0.72, 0.92, 0.78),
-                        mid: (0.34, 0.72, 0.50),
-                        low: (0.16, 0.48, 0.28)
-                    ),
-                    speaking: .init(
-                        top: (0.58, 0.94, 0.70),
-                        mid: (0.20, 0.74, 0.46),
-                        low: (0.08, 0.46, 0.24)
-                    ),
-                    processing: .init(
-                        top: (0.96, 0.88, 0.50),
-                        mid: (0.82, 0.58, 0.16),
-                        low: (0.56, 0.30, 0.08)
-                    )
-                )
             case .blossom:
                 let sky = (0.5294117647058824, 0.7019607843137254, 0.8862745098039215)
                 let leaf = (0.7176470588235294, 0.796078431372549, 0.3607843137254902)
