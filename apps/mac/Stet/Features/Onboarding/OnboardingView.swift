@@ -12,95 +12,56 @@
             _viewModel = StateObject(wrappedValue: viewModel)
         }
 
+        // MARK: - Layout constants
+        // Outer window: 1280 × 720  (16:9)
+        private let windowWidth:  CGFloat = 1280
+        private let windowHeight: CGFloat = 720
+        // Inner card:   960 × 540  (16:9)
+        private let cardWidth:    CGFloat = 960
+        private let cardHeight:   CGFloat = 540
+        // Golden ratio split (φ ≈ 1.618): left ≈ 367, right ≈ 592
+        private let φ: CGFloat = 1.618
+        private var rightPanelWidth: CGFloat { (cardWidth * φ / (1 + φ)).rounded() }
+
         var body: some View {
             ZStack {
-                backgroundLayer
+                // ── Background image placeholder ──────────────────────────
+                // Replace Color.white with Image("your-asset") when ready.
+                Color.white
+                    .ignoresSafeArea()
 
+                // ── Floating card ─────────────────────────────────────────
                 HStack(spacing: 0) {
                     leftPanel
 
                     separator
 
                     rightPanel
-                        .frame(width: 400, height: 680)
+                        .frame(width: rightPanelWidth, height: cardHeight)
                         .background(Color(nsColor: .controlBackgroundColor).opacity(0.08))
                 }
-                .frame(width: 900, height: 680)
+                .frame(width: cardWidth, height: cardHeight)
                 .background(
-                    RoundedRectangle(cornerRadius: 30, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.66))
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.80))
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 30, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .strokeBorder(Color.black.opacity(0.08), lineWidth: 1)
                 )
-                .shadow(color: Color.black.opacity(0.20), radius: 26, x: 0, y: 12)
+                .shadow(color: Color.black.opacity(0.18), radius: 40, x: 0, y: 16)
+                // ── Progress strip on top border ──────────────────────────
+                .overlay(alignment: .top) {
+                    progressStrip
+                        .offset(y: -16) // straddles the top edge of the card
+                }
             }
-            .frame(width: 900, height: 680)
-            .background(rootBackground)
-        }
-
-        private var backgroundLayer: some View {
-            ZStack {
-                rootBackground
-
-                RadialGradient(
-                    colors: [Color.accentColor.opacity(0.18), .clear],
-                    center: .topLeading,
-                    startRadius: 20,
-                    endRadius: 320
-                )
-                .blur(radius: 2)
-                .offset(x: -220, y: -180)
-
-                RadialGradient(
-                    colors: [Color.blue.opacity(0.16), .clear],
-                    center: .topTrailing,
-                    startRadius: 20,
-                    endRadius: 280
-                )
-                .blur(radius: 2)
-                .offset(x: 240, y: -160)
-
-                RadialGradient(
-                    colors: [Color.purple.opacity(0.14), .clear],
-                    center: .bottomLeading,
-                    startRadius: 20,
-                    endRadius: 260
-                )
-                .blur(radius: 2)
-                .offset(x: -200, y: 200)
-            }
-            .ignoresSafeArea()
-        }
-
-        private var rootBackground: some View {
-            LinearGradient(
-                colors: [
-                    Color(nsColor: .windowBackgroundColor),
-                    Color(nsColor: .controlBackgroundColor).opacity(0.95),
-                    Color(nsColor: .windowBackgroundColor),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            .frame(width: windowWidth, height: windowHeight)
         }
 
         private var leftPanel: some View {
             VStack(alignment: .leading, spacing: 18) {
-                HStack(alignment: .center, spacing: 12) {
-                    OnboardingPill(
-                        text: "Stet onboarding", systemImage: "sparkles", tint: .accentColor)
-
-                    Spacer(minLength: 0)
-
-                    Text("Step \(viewModel.onboardingStep.progressIndex) of 5")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-
                 VStack(alignment: .leading, spacing: 10) {
                     Text(titleText)
                         .font(.system(size: 28, weight: .semibold, design: .rounded))
@@ -112,16 +73,11 @@
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                progressStrip
-
                 stepContent
-                    .groupBoxStyle(CleanGroupBoxStyle())
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-
-                footer
             }
             .padding(28)
-            .frame(width: 499, height: 680, alignment: .topLeading)
+            .frame(width: cardWidth - rightPanelWidth - 1, height: cardHeight, alignment: .topLeading)
             .background(
                 LinearGradient(
                     colors: [
@@ -148,31 +104,43 @@
         }
 
         private var progressStrip: some View {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 ForEach(1...5, id: \.self) { index in
                     Capsule(style: .continuous)
                         .fill(
                             index <= viewModel.onboardingStep.progressIndex
-                                ? Color.accentColor : Color.secondary.opacity(0.20)
+                                ? Color.accentColor : Color.black.opacity(0.12)
                         )
-                        .frame(height: 6)
+                        .frame(width: 28, height: 4)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: viewModel.onboardingStep.progressIndex)
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(.white)
+                    .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 2)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.06), lineWidth: 1)
+            )
         }
 
         @ViewBuilder
         private var stepContent: some View {
             switch viewModel.onboardingStep {
-            case .mode, .apiKey:
+            case .mode, .apiKey, .login:
                 OnboardingModeStep(viewModel: viewModel)
-            case .login:
-                OnboardingLoginStep(viewModel: viewModel)
             case .permissions:
                 OnboardingPermissionsStep(viewModel: viewModel)
             case .shortcut:
                 OnboardingShortcutStep(viewModel: viewModel)
             case .firstSuccess:
                 OnboardingFirstSuccessStep(viewModel: viewModel)
+            case .appearance:
+                OnboardingAppearanceStep(viewModel: viewModel)
             case .done:
                 OnboardingDoneStep(viewModel: viewModel)
             }
@@ -180,43 +148,20 @@
 
         @ViewBuilder
         private var rightPanel: some View {
-            if viewModel.onboardingStep == .apiKey {
+            switch viewModel.onboardingStep {
+            case .apiKey:
                 OnboardingAPIKeyStep(viewModel: viewModel)
                     .padding(40)
-            } else {
-                OnboardingVisualPanel(step: viewModel.onboardingStep, viewModel: viewModel)
-                    .padding(.vertical, 0)
-                    .padding(.trailing, 0)
-                    .padding(.leading, 0)
-            }
-        }
-
-        private var footer: some View {
-            HStack(spacing: 12) {
-                Spacer()
-
-                Text(titleBadgeText)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
-        }
-
-        private var titleBadgeText: String {
-            switch viewModel.onboardingStep {
-            case .mode, .apiKey:
-                return "Same flow, clearer layout"
             case .login:
-                return "Managed sign-in"
-            case .permissions:
-                return "Permission gate"
-            case .shortcut:
-                return "Shortcut setup"
-            case .firstSuccess:
-                return "First success check"
-            case .done:
-                return "Ready"
+                OnboardingLoginStep(viewModel: viewModel)
+                    .padding(40)
+            case .mode:
+                Color.clear
+            case .permissions, .shortcut, .firstSuccess, .appearance, .done:
+                OnboardingVisualPanel(step: viewModel.onboardingStep, viewModel: viewModel)
             }
         }
+
 
         private var titleText: String {
             switch viewModel.onboardingStep {
@@ -230,6 +175,8 @@
                 return "Set your speaking shortcut"
             case .firstSuccess:
                 return "Try saying something"
+            case .appearance:
+                return "Choose your theme"
             case .done:
                 return "You're all set"
             }
@@ -252,6 +199,8 @@
             case .firstSuccess:
                 return
                     "Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup."
+            case .appearance:
+                return "Customize the look and feel of your app."
             case .done:
                 return "Hold your shortcut and start speaking anywhere you can type text."
             }

@@ -9,6 +9,7 @@
         case hotkey
         case openAI
         case dictionary
+        case shaderDebug
 
         var id: String { rawValue }
 
@@ -26,6 +27,8 @@
                 return "AI"
             case .dictionary:
                 return "Dictionary"
+            case .shaderDebug:
+                return "Debug"
             }
         }
 
@@ -43,6 +46,8 @@
                 return "AI service, transcript improvement, and account access."
             case .dictionary:
                 return "Personal dictionary entries used during transcription and transcript cleanup."
+            case .shaderDebug:
+                return "Large shader preview and color input controls."
             }
         }
 
@@ -60,6 +65,8 @@
                 return "key.horizontal"
             case .dictionary:
                 return "text.book.closed"
+            case .shaderDebug:
+                return "hammer"
             }
         }
 
@@ -77,6 +84,8 @@
                 return ["service", "access key", "sign in", "transcript", "improve", "rewrite", "groq", "openai"]
             case .dictionary:
                 return ["entries", "personal dictionary", "names", "brands"]
+            case .shaderDebug:
+                return ["shader", "preview", "debug", "window", "colors"]
             }
         }
 
@@ -250,6 +259,9 @@
                 MacOpenAISettingsView(viewModel: openAISettingsViewModel)
             case .dictionary:
                 DictionaryView(viewModel: dictionaryViewModel)
+            case .shaderDebug:
+                MacShaderDebugSettingsView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
 

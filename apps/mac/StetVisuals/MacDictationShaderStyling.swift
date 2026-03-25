@@ -30,6 +30,7 @@
             let palette = theme.palette
             let sustained = eased(max(signals.body, signals.presence * 0.92))
             let accent = eased(max(signals.pulse, signals.articulation * 0.68))
+            let mixStrength = 0.72
 
             let baseTop: (Double, Double, Double)
             let baseMid: (Double, Double, Double)
@@ -44,7 +45,7 @@
                 baseTop = palette.idle.top
                 baseMid = palette.idle.mid
                 baseLow = palette.idle.low
-                injection = min(1, 0.46 + sustained * 0.32 + accent * 0.22)
+                injection = min(0.86, (0.46 + sustained * 0.32 + accent * 0.22) * mixStrength)
                 targetTop = palette.processing.top
                 targetMid = palette.processing.mid
                 targetLow = palette.processing.low
@@ -52,7 +53,7 @@
                 baseTop = palette.starting.top
                 baseMid = palette.starting.mid
                 baseLow = palette.starting.low
-                injection = min(1, 0.28 + sustained * 0.18 + accent * 0.10)
+                injection = min(0.62, (0.28 + sustained * 0.18 + accent * 0.10) * mixStrength)
                 targetTop = palette.starting.top
                 targetMid = palette.starting.mid
                 targetLow = palette.starting.low
@@ -60,7 +61,7 @@
                 baseTop = palette.idle.top
                 baseMid = palette.idle.mid
                 baseLow = palette.idle.low
-                injection = min(1, 0.12 + sustained * 0.68 + accent * 0.20)
+                injection = min(0.86, (0.12 + sustained * 0.68 + accent * 0.20) * mixStrength)
                 targetTop = palette.speaking.top
                 targetMid = palette.speaking.mid
                 targetLow = palette.speaking.low
@@ -68,7 +69,7 @@
                 baseTop = palette.idle.top
                 baseMid = palette.idle.mid
                 baseLow = palette.idle.low
-                injection = 0.4
+                injection = 0.28
                 targetTop = palette.speaking.top
                 targetMid = palette.speaking.mid
                 targetLow = palette.speaking.low

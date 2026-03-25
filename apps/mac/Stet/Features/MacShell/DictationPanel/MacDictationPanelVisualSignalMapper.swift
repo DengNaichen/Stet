@@ -21,15 +21,15 @@
 
         private enum Timing {
             static let bodyAttack: TimeInterval = 0.12
-            static let bodyRelease: TimeInterval = 0.34
+            static let bodyRelease: TimeInterval = 0.22
             static let fastAttack: TimeInterval = 0.026
-            static let fastRelease: TimeInterval = 0.11
+            static let fastRelease: TimeInterval = 0.08
             static let presenceAttack: TimeInterval = 0.05
-            static let presenceRelease: TimeInterval = 0.20
+            static let presenceRelease: TimeInterval = 0.14
             static let pulseAttack: TimeInterval = 0.012
-            static let pulseRelease: TimeInterval = 0.09
+            static let pulseRelease: TimeInterval = 0.06
             static let articulationAttack: TimeInterval = 0.02
-            static let articulationRelease: TimeInterval = 0.12
+            static let articulationRelease: TimeInterval = 0.08
             static let minimumTimeConstant: TimeInterval = 0.001
         }
 

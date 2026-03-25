@@ -130,9 +130,11 @@
             case .shortcut:
                 mockStep = .firstSuccess
             case .firstSuccess:
-                mockStep = .done
+                mockStep = .appearance
             case .done:
                 break
+            case .appearance:
+                mockStep = .done
             }
         }
 
@@ -149,6 +151,8 @@
             case .firstSuccess:
                 mockStep = .shortcut
             case .done:
+                mockStep = .firstSuccess
+            case .appearance:
                 mockStep = .firstSuccess
             }
         }
@@ -184,6 +188,8 @@
                 mockStep = .firstSuccess
             case .done:
                 mockStep = .done
+            case .appearance:
+                mockStep = .appearance
             }
         }
 
