@@ -14,6 +14,8 @@ import { createClient } from "@supabase/supabase-js";
 import { requireEnv } from "./utils.ts";
 import type { Context, Next } from "hono";
 import { makeRelayBillingBackend } from "./billing_factory.ts";
+import { getRelayPolicy } from "./config.ts";
+import { validateAudioUpload } from "./request_validation.ts";
 
 // ---------------------------------------------------------------------------
 // Provider selection
@@ -26,6 +28,7 @@ const PROVIDER_NAME: ProviderName = configuredProvider === "openai"
   ? "openai"
   : "groq";
 const BILLING_BACKEND = makeRelayBillingBackend();
+const RELAY_POLICY = getRelayPolicy();
 
 function makeProvider(): AIProvider {
   switch (PROVIDER_NAME) {
@@ -109,6 +112,14 @@ app.get("/me/wallet", handleWalletSummary);
 // ---------------------------------------------------------------------------
 
 app.post("/billing/stripe/webhook", async (c: RelayContext) => {
+  if (!RELAY_POLICY.stripeWebhookEnabled) {
+    throw new ApiError(
+      501,
+      "stripe_webhook_disabled",
+      "Stripe top-ups are not enabled for this environment.",
+    );
+  }
+
   const requestId = c.get("requestId");
   const rawBody = await c.req.raw.text();
   const signature = c.req.header("stripe-signature");
@@ -210,6 +221,12 @@ app.post("/audio/transcriptions", async (c: RelayContext) => {
     );
   }
 
+  const uploadAudit = validateAudioUpload({
+    file,
+    audioDurationSeconds,
+    policy: RELAY_POLICY,
+  });
+
   log("info", "dictation_pipeline_started", requestId, {
     userId: user.id,
     provider: PROVIDER_NAME,
@@ -217,6 +234,9 @@ app.post("/audio/transcriptions", async (c: RelayContext) => {
     fileSize: file.size,
     audioDurationSeconds,
     language,
+    contentType: uploadAudit.contentType,
+    fileExtension: uploadAudit.fileExtension,
+    observedBytesPerSecond: Math.round(uploadAudit.observedBytesPerSecond),
     hasPrompt: Boolean(prompt),
     rewrite: shouldRewrite,
     preferredSpellingsCount: preferredSpellings.length,
@@ -229,6 +249,14 @@ app.post("/audio/transcriptions", async (c: RelayContext) => {
     userId: user.id,
     audio: audioBytes,
     audioDurationSeconds,
+    requestMetadata: {
+      file_name: uploadAudit.fileName,
+      content_type: uploadAudit.contentType,
+      file_extension: uploadAudit.fileExtension,
+      file_size_bytes: uploadAudit.fileSizeBytes,
+      claimed_duration_seconds: uploadAudit.claimedDurationSeconds,
+      observed_bytes_per_second: uploadAudit.observedBytesPerSecond,
+    },
     options: {
       language: language ?? undefined,
       prompt: prompt ?? undefined,
@@ -309,7 +337,7 @@ app.onError((error: unknown, c: RelayContext) => {
         retry_after_seconds: error.retryAfterSeconds ?? null,
         request_id: requestId,
       },
-      error.status,
+      error.status as never,
     );
   }
 

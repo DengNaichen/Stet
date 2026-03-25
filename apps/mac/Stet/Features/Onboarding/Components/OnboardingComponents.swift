@@ -4,6 +4,16 @@
     import ApplicationServices
     import SwiftUI
 
+    // MARK: - Extensions
+
+    extension Text {
+        /// Apply a custom font with a fallback to system font
+        func fallbackFont(_ fallback: Font) -> Text {
+            // SwiftUI will automatically fall back to system font if custom font is not available
+            return self
+        }
+    }
+
     // MARK: - Shared Surfaces
 
     struct OnboardingGlassCard<Content: View>: View {
@@ -136,38 +146,31 @@
 
     // MARK: - Components
 
-    struct OnboardingChoiceCard: View {
-        let title: String
-        let details: [String]
-        let buttonTitle: String
+    struct OnboardingBackButton: View {
         let action: () -> Void
+        @State private var isHovering = false
 
         var body: some View {
-            OnboardingGlassCard(cornerRadius: 22, fillOpacity: 0.12, strokeOpacity: 0.18) {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(title)
-                        .font(.headline.weight(.semibold))
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        ForEach(details, id: \.self) { detail in
-                            BulletRow(text: detail)
-                        }
-                    }
-
-                    Spacer(minLength: 0)
-
-                    OnboardingActionButton(
-                        title: buttonTitle,
-                        background: Color.accentColor,
-                        foreground: .white,
-                        minHeight: 48,
-                        action: action
+            Button(action: action) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .frame(width: 48, height: 48)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.primary.opacity(isHovering ? 0.10 : 0.06))
                     )
-                }
-                .frame(maxWidth: .infinity, minHeight: 172, alignment: .topLeading)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1)
+                    )
             }
+            .buttonStyle(.plain)
+            .onHover { isHovering = $0 }
+            .animation(.easeInOut(duration: 0.12), value: isHovering)
         }
     }
+
 
     struct OnboardingActionButton: View {
         let title: String
@@ -266,21 +269,358 @@
 
     struct GoogleBrandMark: View {
         var body: some View {
+            // Google "G" logo with proper brand colors
+            Image(systemName: "g.circle.fill")
+                .font(.system(size: 18))
+                .symbolRenderingMode(.multicolor)
+        }
+    }
+
+    /// Google Sign-In button following official branding guidelines
+    /// Reference: https://developers.google.com/identity/branding-guidelines
+    struct GoogleSignInButton: View {
+        let action: () -> Void
+        @Environment(\.colorScheme) private var colorScheme
+        @State private var isHovering = false
+        @State private var isPressed = false
+
+        var body: some View {
+            Button(action: action) {
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+
+                    // Google "G" logo
+                    googleLogo
+
+                    // Fixed spacing between logo and text
+                    Spacer()
+                        .frame(width: 10)
+
+                    // Button text
+                    Text("Sign in with Google")
+                        .font(.custom("Roboto-Medium", size: 14))
+                        .fallbackFont(.system(size: 14, weight: .medium))
+
+                    Spacer(minLength: 0)
+                }
+                .frame(height: 48)
+                .frame(maxWidth: .infinity)
+                .background(backgroundColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(borderColor, lineWidth: 1)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .onHover { isHovering = $0 }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in isPressed = true }
+                    .onEnded { _ in isPressed = false }
+            )
+        }
+
+        private var googleLogo: some View {
+            // Standard Google "G" logo
+            // Using SF Symbol as placeholder - in production, use official Google logo SVG
             ZStack {
                 Circle()
                     .fill(Color.white)
                     .frame(width: 18, height: 18)
 
+                // Google "G" with brand colors
                 Text("G")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.blue, .red, .yellow, .green],
+                            colors: [
+                                Color(red: 0.26, green: 0.52, blue: 0.96), // Google Blue
+                                Color(red: 0.92, green: 0.25, blue: 0.21), // Google Red
+                                Color(red: 0.98, green: 0.74, blue: 0.02), // Google Yellow
+                                Color(red: 0.15, green: 0.68, blue: 0.38)  // Google Green
+                            ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
             }
+        }
+
+        private var backgroundColor: Color {
+            switch colorScheme {
+            case .light:
+                // Light theme: #FFFFFF
+                return isPressed ? Color(white: 0.95) : (isHovering ? Color(white: 0.98) : Color.white)
+            case .dark:
+                // Dark theme: #131314
+                return isPressed ? Color(red: 0.09, green: 0.09, blue: 0.10) : (isHovering ? Color(red: 0.10, green: 0.10, blue: 0.11) : Color(red: 0.075, green: 0.075, blue: 0.078))
+            @unknown default:
+                return Color.white
+            }
+        }
+
+        private var borderColor: Color {
+            switch colorScheme {
+            case .light:
+                // Light theme: #747775
+                return Color(red: 0.455, green: 0.467, blue: 0.459)
+            case .dark:
+                // Dark theme: #8E918F
+                return Color(red: 0.557, green: 0.569, blue: 0.561)
+            @unknown default:
+                return Color.gray
+            }
+        }
+    }
+
+    /// Apple Sign-In button following Apple Human Interface Guidelines
+    /// Reference: https://developer.apple.com/design/human-interface-guidelines/sign-in-with-apple
+    struct AppleSignInButton: View {
+        let action: () -> Void
+        @Environment(\.colorScheme) private var colorScheme
+        @State private var isHovering = false
+        @State private var isPressed = false
+
+        var body: some View {
+            Button(action: action) {
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+
+                    // Apple logo
+                    appleLogo
+
+                    // Fixed spacing between logo and text
+                    Spacer()
+                        .frame(width: 10)
+
+                    // Button text
+                    Text("Sign in with Apple")
+                        .font(.system(size: 14, weight: .medium))
+
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(textColor)
+                .frame(height: 48)
+                .frame(maxWidth: .infinity)
+                .background(backgroundColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(borderColor, lineWidth: borderWidth)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .onHover { isHovering = $0 }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in isPressed = true }
+                    .onEnded { _ in isPressed = false }
+            )
+        }
+
+        private var appleLogo: some View {
+            Image(systemName: "apple.logo")
+                .font(.system(size: 18, weight: .regular))
+                .foregroundStyle(logoColor)
+        }
+
+        private var backgroundColor: Color {
+            switch colorScheme {
+            case .light:
+                // Light theme: white background
+                return isPressed ? Color(white: 0.95) : (isHovering ? Color(white: 0.98) : Color.white)
+            case .dark:
+                // Dark theme: black background
+                return isPressed ? Color(white: 0.05) : (isHovering ? Color(white: 0.03) : Color.black)
+            @unknown default:
+                return Color.white
+            }
+        }
+
+        private var textColor: Color {
+            switch colorScheme {
+            case .light:
+                return Color.black
+            case .dark:
+                return Color.white
+            @unknown default:
+                return Color.black
+            }
+        }
+
+        private var logoColor: Color {
+            switch colorScheme {
+            case .light:
+                return Color.black
+            case .dark:
+                return Color.white
+            @unknown default:
+                return Color.black
+            }
+        }
+
+        private var borderColor: Color {
+            switch colorScheme {
+            case .light:
+                return Color.black.opacity(0.2)
+            case .dark:
+                return Color.white.opacity(0.2)
+            @unknown default:
+                return Color.gray
+            }
+        }
+
+        private var borderWidth: CGFloat {
+            return 1
+        }
+    }
+
+    /// GitHub Sign-In button following GitHub branding guidelines
+    /// Reference: https://github.com/logos
+    struct GitHubSignInButton: View {
+        let action: () -> Void
+        @Environment(\.colorScheme) private var colorScheme
+        @State private var isHovering = false
+        @State private var isPressed = false
+
+        var body: some View {
+            Button(action: action) {
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+
+                    // GitHub logo
+                    githubLogo
+
+                    // Fixed spacing between logo and text
+                    Spacer()
+                        .frame(width: 10)
+
+                    // Button text
+                    Text("Continue with GitHub")
+                        .font(.system(size: 14, weight: .medium))
+
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(textColor)
+                .frame(height: 48)
+                .frame(maxWidth: .infinity)
+                .background(backgroundColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(borderColor, lineWidth: 1)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .onHover { isHovering = $0 }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in isPressed = true }
+                    .onEnded { _ in isPressed = false }
+            )
+        }
+
+        private var githubLogo: some View {
+            // GitHub Invertocat logo
+            Image(systemName: "chevron.left.forwardslash.chevron.right")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(logoColor)
+        }
+
+        private var backgroundColor: Color {
+            switch colorScheme {
+            case .light:
+                // Light theme: white background
+                return isPressed ? Color(white: 0.95) : (isHovering ? Color(white: 0.98) : Color.white)
+            case .dark:
+                // Dark theme: dark background
+                return isPressed ? Color(red: 0.09, green: 0.09, blue: 0.10) : (isHovering ? Color(red: 0.10, green: 0.10, blue: 0.11) : Color(red: 0.075, green: 0.075, blue: 0.078))
+            @unknown default:
+                return Color.white
+            }
+        }
+
+        private var textColor: Color {
+            switch colorScheme {
+            case .light:
+                return Color.black
+            case .dark:
+                return Color.white
+            @unknown default:
+                return Color.black
+            }
+        }
+
+        private var logoColor: Color {
+            switch colorScheme {
+            case .light:
+                return Color.black
+            case .dark:
+                return Color.white
+            @unknown default:
+                return Color.black
+            }
+        }
+
+        private var borderColor: Color {
+            switch colorScheme {
+            case .light:
+                return Color(red: 0.455, green: 0.467, blue: 0.459)
+            case .dark:
+                return Color(red: 0.557, green: 0.569, blue: 0.561)
+            @unknown default:
+                return Color.gray
+            }
+        }
+    }
+
+    /// Microphone level meter for onboarding
+    struct OnboardingMicrophoneLevelMeter: View {
+        let level: Double
+        
+        private let barCount = 20
+        private let spacing: CGFloat = 2
+        
+        var body: some View {
+            GeometryReader { geometry in
+                HStack(spacing: spacing) {
+                    ForEach(0..<barCount, id: \.self) { index in
+                        OnboardingLevelBar(
+                            isActive: isBarActive(index: index),
+                            height: barHeight(for: index, in: geometry.size.height)
+                        )
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        
+        private func isBarActive(index: Int) -> Bool {
+            let threshold = Double(index) / Double(barCount)
+            return level >= threshold
+        }
+        
+        private func barHeight(for index: Int, in totalHeight: CGFloat) -> CGFloat {
+            let centerIndex = barCount / 2
+            let distanceFromCenter = abs(index - centerIndex)
+            let maxHeight = totalHeight * 0.3
+            let minHeight: CGFloat = 4
+            
+            let heightFactor = 1.0 - (Double(distanceFromCenter) / Double(centerIndex)) * 0.5
+            return minHeight + (maxHeight - minHeight) * CGFloat(heightFactor)
+        }
+    }
+    
+    private struct OnboardingLevelBar: View {
+        let isActive: Bool
+        let height: CGFloat
+        
+        var body: some View {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(isActive ? .green : Color.gray.opacity(0.3))
+                .frame(height: height)
+                .animation(.easeInOut(duration: 0.1), value: isActive)
         }
     }
 
@@ -288,7 +628,6 @@
         var body: some View {
             Image(systemName: "chevron.left.forwardslash.chevron.right")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
         }
     }
 
@@ -354,31 +693,147 @@
         }
     }
 
-    // MARK: - Visual Panel
 
-    struct CleanGroupBoxStyle: GroupBoxStyle {
-        func makeBody(configuration: Configuration) -> some View {
-            VStack(alignment: .leading, spacing: 14) {
-                if let label = configuration.label as? Text {
-                    label
-                        .font(.headline.weight(.semibold))
-                        .foregroundStyle(.primary)
+    // MARK: - Custom Input Controls
+
+    /// Segmented-style picker rendered as pill buttons inside a glass track.
+    struct OnboardingProviderPicker<Item>: View where Item: Hashable & Identifiable {
+        let items: [Item]
+        let displayName: (Item) -> String
+        @Binding var selection: Item
+
+        var body: some View {
+            HStack(spacing: 4) {
+                ForEach(items) { item in
+                    let isSelected = selection == item
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) { selection = item }
+                    } label: {
+                        Text(displayName(item))
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundStyle(isSelected ? .white : .secondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(isSelected ? Color.accentColor : Color.clear)
+                                    .shadow(
+                                        color: isSelected ? Color.accentColor.opacity(0.28) : .clear,
+                                        radius: 6, x: 0, y: 2
+                                    )
+                            )
+                            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .animation(.easeInOut(duration: 0.18), value: isSelected)
                 }
-
-                configuration.content
             }
-            .padding(20)
+            .padding(4)
             .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.78))
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.14))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1)
             )
-            .shadow(color: Color.black.opacity(0.08), radius: 10, x: 0, y: 5)
         }
     }
+
+    /// Glass-style labeled text or secure field matching the onboarding design system.
+    struct OnboardingInputField: View {
+        enum Mode { case text, secure }
+
+        let label: String
+        let placeholder: String
+        @Binding var text: String
+        var mode: Mode = .text
+        var isMonospaced: Bool = false
+
+        @FocusState private var isFocused: Bool
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(label)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(nsColor: .controlBackgroundColor)
+                            .opacity(isFocused ? 0.20 : 0.12))
+
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(
+                            isFocused
+                                ? Color.accentColor.opacity(0.45)
+                                : Color.primary.opacity(0.12),
+                            lineWidth: isFocused ? 1.5 : 1
+                        )
+
+                    Group {
+                        if mode == .secure {
+                            SecureField(placeholder, text: $text)
+                        } else {
+                            TextField(placeholder, text: $text)
+                        }
+                    }
+                    .textFieldStyle(.plain)
+                    .font(isMonospaced
+                        ? .system(.body, design: .monospaced)
+                        : .body)
+                    .focused($isFocused)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                }
+                .frame(minHeight: 36)
+                .animation(.easeInOut(duration: 0.15), value: isFocused)
+            }
+        }
+    }
+
+    /// Glass-style social/OAuth sign-in button with a leading icon slot.
+    struct OnboardingOAuthButton<Icon: View>: View {
+        let title: String
+        let action: () -> Void
+        @ViewBuilder let icon: () -> Icon
+
+        @State private var isHovering = false
+
+        var body: some View {
+            Button(action: action) {
+                HStack(spacing: 12) {
+                    icon()
+                        .frame(width: 20, height: 20)
+
+                    Text(title)
+                        .font(.system(size: 14, weight: .semibold))
+
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity, minHeight: 46)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(nsColor: .controlBackgroundColor)
+                            .opacity(isHovering ? 0.22 : 0.12))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .onHover { isHovering = $0 }
+            .animation(.easeInOut(duration: 0.12), value: isHovering)
+        }
+    }
+
+
+    // MARK: - Visual Panel
+
 
     private final class OnboardingKeyboardMonitor: ObservableObject {
         @Published var pressedKeys: Set<UInt16> = []
@@ -523,7 +978,7 @@
 
         var body: some View {
             VStack(spacing: 30) {
-                VStack(spacing: 12) {
+                VStack(alignment: .trailing, spacing: 12) {
                     // Row 1: N, M, ,, ., /, Shift
                     HStack(spacing: 10) {
                         KeyCap(
@@ -546,9 +1001,11 @@
                             isPressed: keyboardMonitor.modifierFlags.contains(.maskShift))
                     }
 
-                    // Row 2: Command (R), Option (R), Arrows
+                    // Row 2: Space, Command (R), Option (R), Arrows
                     HStack(alignment: .bottom, spacing: 10) {
-                        Spacer(minLength: 40)
+                        KeyCap(
+                            text: "space", subtext: nil, icon: nil, width: 130,
+                            isPressed: keyboardMonitor.pressedKeys.contains(49))
                         KeyCap(
                             text: "command", subtext: "⌘", icon: nil, width: 70,
                             isPressed: keyboardMonitor.modifierFlags.contains(.maskCommand))
@@ -558,7 +1015,7 @@
 
                         HStack(alignment: .bottom, spacing: 4) {
                             KeyCap(
-                                text: "", subtext: nil, icon: "chevron.left", width: 44, height: 26,
+                                text: "", subtext: nil, icon: "chevron.left", width: 44, height: 23,
                                 isPressed: keyboardMonitor.pressedKeys.contains(123))
 
                             VStack(spacing: 4) {
@@ -574,19 +1031,10 @@
 
                             KeyCap(
                                 text: "", subtext: nil, icon: "chevron.right", width: 44,
-                                height: 26, isPressed: keyboardMonitor.pressedKeys.contains(124))
+                                height: 23, isPressed: keyboardMonitor.pressedKeys.contains(124))
                         }
                     }
                 }
-                .padding(40)
-                .background(
-                    RoundedRectangle(cornerRadius: 32, style: .continuous)
-                        .fill(Color(nsColor: .windowBackgroundColor).opacity(0.3))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 32, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-                )
 
                 Text("When pressed, do you see the button turn black?")
                     .font(.system(size: 16, weight: .medium))
@@ -614,29 +1062,30 @@
                 if let icon {
                     Image(systemName: icon)
                         .font(.system(size: 10))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading, 6)
+                        .frame(maxWidth: .infinity, alignment: text.isEmpty ? .center : .leading)
+                        .padding(.leading, text.isEmpty ? 0 : 6)
                         .padding(.top, 4)
                 }
 
                 if let subtext {
                     Text(subtext)
                         .font(.system(size: 10))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading, 6)
+                        .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 4)
                 }
 
                 Spacer(minLength: 0)
 
-                Text(text)
-                    .font(.system(size: 13, weight: .regular))
-                    .frame(
-                        maxWidth: .infinity,
-                        alignment: icon != nil || subtext != nil ? .leading : .center
-                    )
-                    .padding(.leading, icon != nil || subtext != nil ? 6 : 0)
-                    .padding(.bottom, 6)
+                if !text.isEmpty {
+                    Text(text)
+                        .font(.system(size: 13, weight: .regular))
+                        .frame(
+                            maxWidth: .infinity,
+                            alignment: icon != nil && !text.isEmpty ? .leading : .center
+                        )
+                        .padding(.leading, icon != nil && !text.isEmpty ? 6 : 0)
+                        .padding(.bottom, 6)
+                }
             }
             .frame(width: width, height: height)
             .background(
@@ -653,395 +1102,772 @@
         }
     }
 
-    struct OnboardingVisualPanel: View {
-        let step: MacOnboardingStep
-        let viewModel: OnboardingViewModel
+struct OnboardingVisualPanel: View {
+    let step: MacOnboardingStep
+    let viewModel: OnboardingViewModel
+    @State private var firstSuccessDraftText = ""
+    @FocusState private var isFirstSuccessDraftFocused: Bool
+    
+    var body: some View {
+        ZStack {
+            backgroundGradient
+            
+            if step == .shortcut {
+                OnboardingKeyboardView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if step == .permissions {
+                // Microphone test panel
+                VStack(spacing: 24) {
+                    Spacer()
+                    
+                    // Microphone level meter
+                    OnboardingMicrophoneLevelMeter(level: 0.0)
+                        .frame(height: 40)
+                        .padding(.horizontal, 32)
+                    
+                    // Start recording button
+                    OnboardingActionButton(
+                        title: "Start Recording",
+                        systemImage: "record.circle",
+                        background: Color.white.opacity(0.08),
+                        foreground: .primary,
+                        strokeColor: Color.white.opacity(0.10),
+                        minHeight: 48
+                    ) {
+                        // TODO: Implement recording
+                    }
+                    .frame(width: 316)
+                    
+                    Spacer()
+                }
+                .padding(22)
+            } else if step == .firstSuccess {
+                // Voice input test panel
+                VStack(spacing: 24) {
+                    Spacer()
+                    
+                    // Prompt text
+                    VStack(spacing: 8) {
+                        Text("Try saying:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        
+                        Text("Hello, this is a test")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(.primary)
+                    }
+                    
+                    // Input box
+                    ZStack(alignment: .topLeading) {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color(nsColor: .textBackgroundColor).opacity(0.72))
 
-        var body: some View {
-            ZStack {
-                backgroundGradient
-
-                if step == .shortcut {
-                    OnboardingKeyboardView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack(alignment: .center, spacing: 12) {
-                            OnboardingPill(
-                                text: "Live preview", systemImage: "sparkles", tint: accentColor)
-
-                            Spacer(minLength: 0)
-
-                            Image(systemName: stepSystemImage)
-                                .font(.headline.weight(.semibold))
-                                .foregroundStyle(accentColor)
-                                .padding(10)
-                                .background(
-                                    Circle()
-                                        .fill(accentColor.opacity(0.12))
-                                )
-                        }
-
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(panelTitle)
-                                .font(.system(size: 24, weight: .semibold, design: .rounded))
-
-                            Text(panelSubtitle)
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-
-                        OnboardingStageArtifact(
-                            title: heroTitle,
-                            subtitle: heroSubtitle,
-                            systemImage: stepSystemImage,
-                            tint: accentColor
+                        TextField(
+                            "",
+                            text: $firstSuccessDraftText,
+                            axis: .vertical
                         )
-
-                        VStack(spacing: 10) {
-                            ForEach(metrics) { metric in
-                                OnboardingGlassCard(
-                                    cornerRadius: 18, fillOpacity: 0.08, strokeOpacity: 0.14,
-                                    shadowOpacity: 0.08
-                                ) {
-                                    OnboardingMetricCard(
-                                        title: metric.title,
-                                        value: metric.value,
-                                        systemImage: metric.systemImage,
-                                        tint: metric.tint
-                                    )
-                                }
-                            }
-                        }
-
-                        OnboardingGlassCard(
-                            cornerRadius: 18, fillOpacity: 0.06, strokeOpacity: 0.10,
-                            shadowOpacity: 0.06
-                        ) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(footerTitle)
-                                    .font(.subheadline.weight(.semibold))
-
-                                Text(footerSubtitle)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
+                        .textFieldStyle(.plain)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .focused($isFirstSuccessDraftFocused)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    }
+                    .frame(height: 120)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+                    )
+                    
+                    // Interactive hotkey display
+                    OnboardingHotkeyDisplay()
+                    
+                    Spacer()
+                }
+                .padding(32)
+                .onAppear {
+                    if firstSuccessDraftText.isEmpty {
+                        firstSuccessDraftText = viewModel.firstSuccessPreviewText ?? ""
+                    }
+                    isFirstSuccessDraftFocused = true
+                }
+            } else if step == .appearance {
+                OnboardingAppearanceCoverFlowPanel()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(18)
+            } else if step == .done {
+                // Empty panel for appearance/theme selection
+                VStack {
+                    Spacer()
+                    // TODO: Add theme selection UI here
+                    Spacer()
+                }
+                .padding(32)
+            } else {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(alignment: .center, spacing: 12) {
+                        OnboardingPill(
+                            text: "Live preview", systemImage: "sparkles", tint: accentColor)
+                        
+                        Spacer(minLength: 0)
+                        
+                        Image(systemName: stepSystemImage)
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(accentColor)
+                            .padding(10)
+                            .background(
+                                Circle()
+                                    .fill(accentColor.opacity(0.12))
+                            )
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(panelTitle)
+                            .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        
+                        Text(panelSubtitle)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    
+                    OnboardingStageArtifact(
+                        title: heroTitle,
+                        subtitle: heroSubtitle,
+                        systemImage: stepSystemImage,
+                        tint: accentColor
+                    )
+                    
+                    VStack(spacing: 10) {
+                        ForEach(metrics) { metric in
+                            OnboardingGlassCard(
+                                cornerRadius: 18, fillOpacity: 0.08, strokeOpacity: 0.14,
+                                shadowOpacity: 0.08
+                            ) {
+                                OnboardingMetricCard(
+                                    title: metric.title,
+                                    value: metric.value,
+                                    systemImage: metric.systemImage,
+                                    tint: metric.tint
+                                )
                             }
                         }
                     }
-                    .padding(22)
+                    
+                    OnboardingGlassCard(
+                        cornerRadius: 18, fillOpacity: 0.06, strokeOpacity: 0.10,
+                        shadowOpacity: 0.06
+                    ) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(footerTitle)
+                                .font(.subheadline.weight(.semibold))
+                            
+                            Text(footerSubtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
                 }
+                .padding(22)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.16), radius: 24, x: 0, y: 12)
+        .accessibilityHidden(true)
+    }
+    
+    private var backgroundGradient: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(nsColor: .controlBackgroundColor).opacity(0.96),
+                    accentColor.opacity(0.10),
+                    Color(nsColor: .controlBackgroundColor).opacity(0.88),
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
-            .shadow(color: Color.black.opacity(0.16), radius: 24, x: 0, y: 12)
-            .accessibilityHidden(true)
-        }
-
-        private var backgroundGradient: some View {
-            ZStack {
-                LinearGradient(
-                    colors: [
-                        Color(nsColor: .controlBackgroundColor).opacity(0.96),
-                        accentColor.opacity(0.10),
-                        Color(nsColor: .controlBackgroundColor).opacity(0.88),
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-
-                RadialGradient(
-                    colors: [accentColor.opacity(0.28), .clear],
-                    center: .topLeading,
-                    startRadius: 20,
-                    endRadius: 280
-                )
-                .blur(radius: 2)
-
-                RadialGradient(
-                    colors: [accentColor.opacity(0.18), .clear],
-                    center: .bottomTrailing,
-                    startRadius: 20,
-                    endRadius: 220
-                )
-                .blur(radius: 2)
-            }
-        }
-
-        private var panelTitle: String {
-            switch step {
-            case .mode:
-                return "Pick your path"
-            case .apiKey:
-                return "Verify access"
-            case .login:
-                return "Sign in and sync"
-            case .permissions:
-                return "Grant the basics"
-            case .shortcut:
-                return "Set your shortcut"
-            case .firstSuccess:
-                return "Say something in the box"
-            case .done:
-                return "Ready to go"
-            }
-        }
-
-        private var panelSubtitle: String {
-            switch step {
-            case .mode:
-                return "Managed login and BYOK still lead to the same next steps."
-            case .apiKey:
-                return "Choose a provider, enter a key, and continue once it validates."
-            case .login:
-                return "Use Google, GitHub, or email to finish the managed path."
-            case .permissions:
-                return "Mic and input control remain the only permissions Stet needs."
-            case .shortcut:
-                return "Choose the shortcut you want to use."
-            case .firstSuccess:
-                return "Click the text box, then use your hotkey to speak a sentence."
-            case .done:
-                return "Everything needed for the onboarding path is now in place."
-            }
-        }
-
-        private var heroTitle: String {
-            switch step {
-            case .mode:
-                return "Two options, one flow."
-            case .apiKey:
-                return "\(viewModel.apiKeyProvider.displayName) key"
-            case .login:
-                return viewModel.relaySessionEmail ?? "Managed account"
-            case .permissions:
-                return "Permission ready state"
-            case .shortcut:
-                return viewModel.shortcutSummaryText
-            case .firstSuccess:
-                return viewModel.firstSuccessPreviewText ?? "Awaiting first capture"
-            case .done:
-                return "You're all set."
-            }
-        }
-
-        private var heroSubtitle: String {
-            switch step {
-            case .mode:
-                return "Choose API key or login, then continue with the same onboarding sequence."
-            case .apiKey:
-                return isAPIKeyValidated
-                    ? "The current key is verified and ready for use."
-                    : "Enter a key from your provider and verify it before proceeding."
-            case .login:
-                return viewModel.isRelaySessionActive
-                    ? "Signed in and ready to continue."
-                    : "Use a supported provider or email to complete the managed path."
-            case .permissions:
-                return viewModel.hasRequiredPermissions
-                    ? "Everything required has been detected."
-                    : "The onboarding flow still needs microphone and input control permissions."
-            case .shortcut:
-                return "The shortcut is ready to use."
-            case .firstSuccess:
-                return viewModel.canContinueFirstSuccessOnboarding
-                    ? "A successful result is visible in the box."
-                    : "Speak naturally and let the first pass finish."
-            case .done:
-                return "The onboarding path is complete and the app is ready to use."
-            }
-        }
-
-        private var footerTitle: String {
-            switch step {
-            case .mode:
-                return "No branching complexity"
-            case .apiKey:
-                return "Provider-aware"
-            case .login:
-                return "Managed services enabled"
-            case .permissions:
-                return "Use only what is needed"
-            case .shortcut:
-                return "Shortcut setup"
-            case .firstSuccess:
-                return "Live input check"
-            case .done:
-                return "Start dictating anywhere"
-            }
-        }
-
-        private var footerSubtitle: String {
-            switch step {
-            case .mode:
-                return "Your choice only determines which existing step comes next."
-            case .apiKey:
-                return "This path still saves and validates the provider key before advancing."
-            case .login:
-                return "A successful sign-in still leads straight through the existing flow."
-            case .permissions:
-                return "Permission checks remain exactly where the app expects them."
-            case .shortcut:
-                return "The recorder is all you need here."
-            case .firstSuccess:
-                return "This step now exercises a real text target."
-            case .done:
-                return "Finish the flow and begin using the app immediately."
-            }
-        }
-
-        private var accentColor: Color {
-            switch step {
-            case .mode:
-                return .teal
-            case .apiKey:
-                return .orange
-            case .login:
-                return .indigo
-            case .permissions:
-                return .green
-            case .shortcut:
-                return .pink
-            case .firstSuccess:
-                return .mint
-            case .done:
-                return .purple
-            }
-        }
-
-        private var stepSystemImage: String {
-            switch step {
-            case .mode:
-                return "arrow.triangle.branch"
-            case .apiKey:
-                return "key.fill"
-            case .login:
-                return "person.crop.circle.badge.checkmark"
-            case .permissions:
-                return "shield.checkerboard"
-            case .shortcut:
-                return "keyboard"
-            case .firstSuccess:
-                return "waveform"
-            case .done:
-                return "checkmark.seal.fill"
-            }
-        }
-
-        private var isAPIKeyValidated: Bool {
-            viewModel.isAPIKeyValidated
-        }
-
-        private var metrics: [OnboardingVisualMetric] {
-            switch step {
-            case .mode:
-                return [
-                    .init(
-                        title: "BYOK", value: "Your provider", systemImage: "key.fill",
-                        tint: .orange),
-                    .init(
-                        title: "Managed", value: "Login flow",
-                        systemImage: "person.crop.circle.badge.checkmark", tint: .indigo),
-                    .init(
-                        title: "Next", value: "Permissions", systemImage: "arrow.right.circle.fill",
-                        tint: .green),
-                ]
-            case .apiKey:
-                return [
-                    .init(
-                        title: "Provider", value: viewModel.apiKeyProvider.displayName,
-                        systemImage: "server.rack", tint: .orange),
-                    .init(
-                        title: "Status", value: isAPIKeyValidated ? "Verified" : "Awaiting key",
-                        systemImage: "checkmark.shield", tint: .green),
-                    .init(
-                        title: "Storage", value: "Saved in Keychain", systemImage: "lock.shield",
-                        tint: .blue),
-                ]
-            case .login:
-                return [
-                    .init(
-                        title: "Session", value: viewModel.relaySessionEmail ?? "Not signed in",
-                        systemImage: "person.text.rectangle", tint: .indigo),
-                    .init(
-                        title: "Providers", value: "Google, GitHub, Email",
-                        systemImage: "person.2.fill", tint: .blue),
-                    .init(
-                        title: "Continue", value: "Managed flow",
-                        systemImage: "arrow.right.circle.fill", tint: .green),
-                ]
-            case .permissions:
-                return [
-                    .init(
-                        title: "Microphone", value: viewModel.microphoneAccessStatusText,
-                        systemImage: "mic.fill",
-                        tint: viewModel.microphoneAccessNeedsAttention ? .orange : .green),
-                    .init(
-                        title: "Input control", value: viewModel.autoPasteStatusText,
-                        systemImage: "keyboard",
-                        tint: viewModel.autoPasteAccessNeedsAttention ? .orange : .green),
-                    .init(
-                        title: "Ready",
-                        value: viewModel.hasRequiredPermissions ? "Yes" : "Needs attention",
-                        systemImage: "checkmark.circle.fill",
-                        tint: viewModel.hasRequiredPermissions ? .green : .orange),
-                ]
-            case .shortcut:
-                return [
-                    .init(
-                        title: "Shortcut", value: viewModel.shortcutSummaryText,
-                        systemImage: "keyboard", tint: .pink),
-                    .init(
-                        title: "Next", value: "Continue to first run",
-                        systemImage: "arrow.right.circle.fill", tint: .blue),
-                    .init(
-                        title: "Later", value: "Adjust in Settings", systemImage: "gearshape",
-                        tint: .green),
-                ]
-            case .firstSuccess:
-                return [
-                    .init(
-                        title: "Result",
-                        value: viewModel.firstSuccessPreviewText ?? "No preview yet",
-                        systemImage: "text.quote", tint: .mint),
-                    .init(
-                        title: "Gate",
-                        value: viewModel.canContinueFirstSuccessOnboarding ? "Open" : "Waiting",
-                        systemImage: "checkmark.circle", tint: .green),
-                    .init(
-                        title: "Fallback",
-                        value: viewModel.canSkipFirstSuccessOnboarding
-                            ? "Skip allowed" : "Required", systemImage: "arrow.right.circle",
-                        tint: .orange),
-                ]
-            case .done:
-                return [
-                    .init(
-                        title: "Shortcut", value: viewModel.shortcutSummaryText,
-                        systemImage: "keyboard", tint: .purple),
-                    .init(
-                        title: "Mode",
-                        value: viewModel.onboardingMode == .apiKey ? "API Key" : "Logged In",
-                        systemImage: "arrow.triangle.branch", tint: .blue),
-                    .init(
-                        title: "Permissions",
-                        value: viewModel.hasRequiredPermissions ? "Enabled" : "Check required",
-                        systemImage: "shield.checkerboard", tint: .green),
-                ]
-            }
+            
+            RadialGradient(
+                colors: [accentColor.opacity(0.28), .clear],
+                center: .topLeading,
+                startRadius: 20,
+                endRadius: 280
+            )
+            .blur(radius: 2)
+            
+            RadialGradient(
+                colors: [accentColor.opacity(0.18), .clear],
+                center: .bottomTrailing,
+                startRadius: 20,
+                endRadius: 220
+            )
+            .blur(radius: 2)
         }
     }
-
+    
+    private var panelTitle: String {
+        switch step {
+        case .apiKey:
+            return "Verify access"
+        case .permissions:
+            return "Grant the basics"
+        case .shortcut:
+            return "Set your shortcut"
+        case .firstSuccess:
+            return "Say something in the box"
+        case .done:
+            return "Ready to go"
+        default:
+            return ""
+        }
+    }
+    
+    private var panelSubtitle: String {
+        switch step {
+        case .apiKey:
+            return "Choose a provider, enter a key, and continue once it validates."
+        case .permissions:
+            return "Mic and input control remain the only permissions Stet needs."
+        case .shortcut:
+            return "Choose the shortcut you want to use."
+        case .firstSuccess:
+            return "Click the text box, then use your hotkey to speak a sentence."
+        case .done:
+            return "Everything needed for the onboarding path is now in place."
+        default:
+            return ""
+        }
+    }
+    
+    private var heroTitle: String {
+        switch step {
+        case .apiKey:
+            return "\(viewModel.apiKeyProvider.displayName) key"
+        case .permissions:
+            return "Permission ready state"
+        case .shortcut:
+            return viewModel.shortcutSummaryText
+        case .firstSuccess:
+            return viewModel.firstSuccessPreviewText ?? "Awaiting first capture"
+        case .done:
+            return "You're all set."
+        default:
+            return ""
+        }
+    }
+    
+    private var heroSubtitle: String {
+        switch step {
+        case .apiKey:
+            return isAPIKeyValidated
+            ? "The current key is verified and ready for use."
+            : "Enter a key from your provider and verify it before proceeding."
+        case .permissions:
+            return viewModel.hasRequiredPermissions
+            ? "Everything required has been detected."
+            : "The onboarding flow still needs microphone and input control permissions."
+        case .shortcut:
+            return "The shortcut is ready to use."
+        case .firstSuccess:
+            return viewModel.canContinueFirstSuccessOnboarding
+            ? "A successful result is visible in the box."
+            : "Speak naturally and let the first pass finish."
+        case .done:
+            return "The onboarding path is complete and the app is ready to use."
+        default:
+            return ""
+        }
+    }
+    
+    private var footerTitle: String {
+        switch step {
+        case .apiKey:
+            return "Provider-aware"
+        case .permissions:
+            return "Use only what is needed"
+        case .shortcut:
+            return "Shortcut setup"
+        case .firstSuccess:
+            return "Live input check"
+        case .done:
+            return "Start dictating anywhere"
+        default:
+            return ""
+        }
+    }
+    
+    private var footerSubtitle: String {
+        switch step {
+        case .apiKey:
+            return "This path still saves and validates the provider key before advancing."
+        case .permissions:
+            return "Permission checks remain exactly where the app expects them."
+        case .shortcut:
+            return "The recorder is all you need here."
+        case .firstSuccess:
+            return "This step now exercises a real text target."
+        case .done:
+            return "Finish the flow and begin using the app immediately."
+        default:
+            return ""
+        }
+    }
+    
+    private var accentColor: Color {
+        switch step {
+        case .apiKey:
+            return .orange
+        case .permissions:
+            return .green
+        case .shortcut:
+            return .pink
+        case .firstSuccess:
+            return .mint
+        case .done:
+            return .purple
+        default:
+            return .accentColor
+        }
+    }
+    
+    private var stepSystemImage: String {
+        switch step {
+        case .apiKey:
+            return "key.fill"
+        case .permissions:
+            return "shield.checkerboard"
+        case .shortcut:
+            return "keyboard"
+        case .firstSuccess:
+            return "waveform"
+        case .done:
+            return "checkmark.seal.fill"
+        default:
+            return "sparkles"
+        }
+    }
+    
+    private var isAPIKeyValidated: Bool {
+        viewModel.isAPIKeyValidated
+    }
+    
+    private var metrics: [OnboardingVisualMetric] {
+        switch step {
+        case .apiKey:
+            return [
+                .init(
+                    title: "Provider", value: viewModel.apiKeyProvider.displayName,
+                    systemImage: "server.rack", tint: .orange),
+                .init(
+                    title: "Status", value: isAPIKeyValidated ? "Verified" : "Awaiting key",
+                    systemImage: "checkmark.shield", tint: .green),
+                .init(
+                    title: "Storage", value: "Saved in Keychain", systemImage: "lock.shield",
+                    tint: .blue),
+            ]
+        case .permissions:
+            return [
+                .init(
+                    title: "Microphone", value: viewModel.microphoneAccessStatusText,
+                    systemImage: "mic.fill",
+                    tint: viewModel.microphoneAccessNeedsAttention ? .orange : .green),
+                .init(
+                    title: "Input control", value: viewModel.autoPasteStatusText,
+                    systemImage: "keyboard",
+                    tint: viewModel.autoPasteAccessNeedsAttention ? .orange : .green),
+                .init(
+                    title: "Ready",
+                    value: viewModel.hasRequiredPermissions ? "Yes" : "Needs attention",
+                    systemImage: "checkmark.circle.fill",
+                    tint: viewModel.hasRequiredPermissions ? .green : .orange),
+            ]
+        case .shortcut:
+            return [
+                .init(
+                    title: "Shortcut", value: viewModel.shortcutSummaryText,
+                    systemImage: "keyboard", tint: .pink),
+                .init(
+                    title: "Next", value: "Continue to first run",
+                    systemImage: "arrow.right.circle.fill", tint: .blue),
+                .init(
+                    title: "Later", value: "Adjust in Settings", systemImage: "gearshape",
+                    tint: .green),
+            ]
+        case .firstSuccess:
+            return [
+                .init(
+                    title: "Result",
+                    value: viewModel.firstSuccessPreviewText ?? "No preview yet",
+                    systemImage: "text.quote", tint: .mint),
+                .init(
+                    title: "Gate",
+                    value: viewModel.canContinueFirstSuccessOnboarding ? "Open" : "Waiting",
+                    systemImage: "checkmark.circle", tint: .green),
+                .init(
+                    title: "Fallback",
+                    value: viewModel.canSkipFirstSuccessOnboarding
+                    ? "Skip allowed" : "Required", systemImage: "arrow.right.circle",
+                    tint: .orange),
+            ]
+        case .done:
+            return [
+                .init(
+                    title: "Shortcut", value: viewModel.shortcutSummaryText,
+                    systemImage: "keyboard", tint: .purple),
+                .init(
+                    title: "Mode",
+                    value: viewModel.onboardingMode == .apiKey ? "API Key" : "Logged In",
+                    systemImage: "arrow.triangle.branch", tint: .blue),
+                .init(
+                    title: "Permissions",
+                    value: viewModel.hasRequiredPermissions ? "Enabled" : "Check required",
+                    systemImage: "shield.checkerboard", tint: .green),
+            ]
+        default:
+            return []
+        }
+    }
+    
+    
+    
     private struct OnboardingVisualMetric: Identifiable {
         let id = UUID()
         let title: String
         let value: String
         let systemImage: String
         let tint: Color
+    }
+}
+
+private struct OnboardingAppearanceCoverFlowPanel: View {
+    private struct CardSpec: Identifiable {
+        let id = UUID()
+        let badge: String
+        let color: Color
+    }
+
+    private struct LayoutSpec {
+        let size: CGSize
+        let xOffset: CGFloat
+        let yOffset: CGFloat
+        let yRotation: Double
+        let scale: CGFloat
+        let opacity: Double
+        let zIndex: Double
+        let isInteractive: Bool
+    }
+
+    private struct SwatchSpec {
+        let color: Color
+    }
+
+    @State private var focusedIndex = 0
+
+    private let cards: [CardSpec] = [
+        .init(
+            badge: "01",
+            color: Color(red: 0.24, green: 0.62, blue: 0.96)
+        ),
+        .init(
+            badge: "02",
+            color: Color(red: 0.20, green: 0.64, blue: 0.45)
+        ),
+        .init(
+            badge: "03",
+            color: Color(red: 0.93, green: 0.50, blue: 0.24)
+        ),
+        .init(
+            badge: "04",
+            color: Color(red: 0.70, green: 0.38, blue: 0.90)
+        ),
+        .init(
+            badge: "05",
+            color: Color(red: 0.95, green: 0.73, blue: 0.20)
+        ),
+        .init(
+            badge: "06",
+            color: Color(red: 0.29, green: 0.78, blue: 0.76)
+        ),
+    ]
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.88),
+                    Color.black.opacity(0.96),
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            RadialGradient(
+                colors: [
+                    Color.white.opacity(0.05),
+                    .clear,
+                ],
+                center: .top,
+                startRadius: 0,
+                endRadius: 240
+            )
+            .blendMode(.screen)
+
+            RadialGradient(
+                colors: [
+                    Color.blue.opacity(0.10),
+                    .clear,
+                ],
+                center: .leading,
+                startRadius: 0,
+                endRadius: 220
+            )
+            .blendMode(.screen)
+            .offset(x: -60)
+
+            RadialGradient(
+                colors: [
+                    Color.orange.opacity(0.10),
+                    .clear,
+                ],
+                center: .trailing,
+                startRadius: 0,
+                endRadius: 220
+            )
+            .blendMode(.screen)
+            .offset(x: 60)
+
+            VStack(spacing: 16) {
+                Spacer(minLength: 0)
+
+                HStack(spacing: 12) {
+                    ForEach(swatchSpecs(for: focusedIndex).indices, id: \.self) { index in
+                        let swatch = swatchSpecs(for: focusedIndex)[index]
+
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(swatch.color)
+                            .frame(width: 46, height: 46)
+                            .shadow(color: Color.black.opacity(0.22), radius: 10, x: 0, y: 6)
+                    }
+                }
+                .animation(.spring(response: 0.45, dampingFraction: 0.82), value: focusedIndex)
+
+                ZStack {
+                    ForEach(cards.indices, id: \.self) { index in
+                        let card = cards[index]
+                        let relativeOffset = relativeOffset(for: index)
+                        let layout = layout(for: relativeOffset)
+
+                        OnboardingCoverFlowCard(badge: card.badge, color: card.color)
+                            .frame(width: layout.size.width, height: layout.size.height)
+                            .scaleEffect(layout.scale)
+                            .rotation3DEffect(
+                                .degrees(layout.yRotation),
+                                axis: (x: 0, y: 1, z: 0),
+                                perspective: 0.78
+                            )
+                            .offset(x: layout.xOffset, y: layout.yOffset)
+                            .opacity(layout.opacity)
+                            .zIndex(layout.zIndex)
+                            .allowsHitTesting(layout.isInteractive)
+                            .onTapGesture {
+                                guard relativeOffset == -1 || relativeOffset == 1 else { return }
+                                rotateFocus(by: relativeOffset)
+                            }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .animation(.spring(response: 0.45, dampingFraction: 0.82), value: focusedIndex)
+
+                Text("6-card Cover Flow / centered carousel")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.58))
+
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 8)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private func swatchSpecs(for focusedIndex: Int) -> [SwatchSpec] {
+        let baseColor = cards[normalizedIndex(focusedIndex)].color
+        return [
+            SwatchSpec(color: baseColor.opacity(0.96)),
+            SwatchSpec(color: baseColor.opacity(0.72)),
+            SwatchSpec(color: baseColor.opacity(0.54)),
+        ]
+    }
+
+    private func relativeOffset(for index: Int) -> Int {
+        guard !cards.isEmpty else { return 0 }
+
+        let count = cards.count
+        var offset = index - focusedIndex
+        if offset > count / 2 {
+            offset -= count
+        }
+        if offset < -(count / 2) {
+            offset += count
+        }
+        return offset
+    }
+
+    private func layout(for offset: Int) -> LayoutSpec {
+        switch offset {
+        case 0:
+            return LayoutSpec(
+                size: CGSize(width: 210, height: 294),
+                xOffset: 0,
+                yOffset: 0,
+                yRotation: 0,
+                scale: 1.0,
+                opacity: 1.0,
+                zIndex: 3,
+                isInteractive: false
+            )
+        case -1:
+            return LayoutSpec(
+                size: CGSize(width: 150, height: 224),
+                xOffset: -148,
+                yOffset: 18,
+                yRotation: 28,
+                scale: 0.92,
+                opacity: 1.0,
+                zIndex: 2,
+                isInteractive: true
+            )
+        case 1:
+            return LayoutSpec(
+                size: CGSize(width: 150, height: 224),
+                xOffset: 148,
+                yOffset: 18,
+                yRotation: -28,
+                scale: 0.92,
+                opacity: 1.0,
+                zIndex: 1,
+                isInteractive: true
+            )
+        default:
+            let hiddenIsLeft = offset < 0
+            return LayoutSpec(
+                size: CGSize(width: 150, height: 224),
+                xOffset: hiddenIsLeft ? -280 : 280,
+                yOffset: 28,
+                yRotation: hiddenIsLeft ? 34 : -34,
+                scale: 0.8,
+                opacity: 0.0,
+                zIndex: 0,
+                isInteractive: false
+            )
+        }
+    }
+
+    private func rotateFocus(by delta: Int) {
+        guard delta != 0 else { return }
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+            focusedIndex = normalizedIndex(focusedIndex + delta)
+        }
+    }
+
+    private func normalizedIndex(_ index: Int) -> Int {
+        guard !cards.isEmpty else { return 0 }
+        let modulo = index % cards.count
+        return modulo >= 0 ? modulo : modulo + cards.count
+    }
+}
+
+private struct OnboardingCoverFlowCard: View {
+    let badge: String
+    let color: Color
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(color)
+
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.12),
+                            Color.white.opacity(0.04),
+                            .clear,
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+
+            Capsule(style: .continuous)
+                .fill(Color.white.opacity(0.16))
+                .frame(width: 36, height: 22)
+                .overlay(
+                    Text(badge)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                )
+                .padding(14)
+
+            VStack {
+                Spacer()
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.white.opacity(0.10))
+                    .frame(height: 54)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+                    )
+                    .padding(12)
+            }
+        }
+        .shadow(color: Color.black.opacity(0.30), radius: 18, x: 0, y: 12)
+    }
+}
+
+    /// Interactive hotkey display that shows pressed keys
+    struct OnboardingHotkeyDisplay: View {
+        @StateObject private var keyboardMonitor = OnboardingKeyboardMonitor()
+        
+        var body: some View {
+            VStack(spacing: 12) {
+                Text("Press your hotkey")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                
+                HStack(spacing: 8) {
+                    // Command key
+                    KeyCap(
+                        text: "command", subtext: "⌘", icon: nil, width: 80,
+                        isPressed: keyboardMonitor.modifierFlags.contains(.maskCommand))
+                    
+                    Text("+")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    
+                    // Period key (default)
+                    KeyCap(
+                        text: ".", subtext: nil, icon: nil, width: 50,
+                        isPressed: keyboardMonitor.pressedKeys.contains(47))
+                }
+            }
+            .onAppear {
+                keyboardMonitor.start()
+            }
+            .onDisappear {
+                keyboardMonitor.stop()
+            }
+        }
     }
 
 #endif

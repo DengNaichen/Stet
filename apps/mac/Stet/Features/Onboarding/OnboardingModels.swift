@@ -13,6 +13,7 @@
         case permissions
         case shortcut
         case firstSuccess
+        case appearance
         case done
 
         var progressIndex: Int {
@@ -25,7 +26,7 @@
                 return 3
             case .firstSuccess:
                 return 4
-            case .done:
+            case .appearance, .done:
                 return 5
             }
         }
@@ -34,7 +35,7 @@
             switch self {
             case .shortcut, .firstSuccess:
                 return true
-            case .mode, .apiKey, .login, .permissions, .done:
+            case .mode, .apiKey, .login, .permissions, .appearance, .done:
                 return false
             }
         }

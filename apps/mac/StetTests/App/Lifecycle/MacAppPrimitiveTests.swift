@@ -15,6 +15,7 @@
             (MacOnboardingStep.permissions, 2, false),
             (MacOnboardingStep.shortcut, 3, true),
             (MacOnboardingStep.firstSuccess, 4, true),
+            (MacOnboardingStep.appearance, 5, false),
             (MacOnboardingStep.done, 5, false),
         ])
         func onboardingStepMetadata(

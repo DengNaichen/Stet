@@ -385,8 +385,8 @@
                 onboardingStepState = .firstSuccess
             case .firstSuccess:
                 guard canContinueFirstSuccessOnboarding || canSkipFirstSuccessOnboarding else { return }
-                onboardingStepState = .done
-            case .mode, .apiKey, .login, .done:
+                onboardingStepState = .appearance
+            case .mode, .apiKey, .login, .appearance, .done:
                 break
             }
 
@@ -413,8 +413,10 @@
                 onboardingStepState = .permissions
             case .firstSuccess:
                 onboardingStepState = .shortcut
-            case .done:
+            case .appearance:
                 onboardingStepState = .firstSuccess
+            case .done:
+                onboardingStepState = .appearance
             }
 
             notifyChange()
