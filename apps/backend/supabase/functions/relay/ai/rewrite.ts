@@ -80,7 +80,6 @@ export async function performRewrite(args: {
     userId: args.userId,
     inputLength: input.length,
     rewriteModel: rewriteModelId,
-    inputText: input,
     hasPreferredSpellings: Boolean(args.preferredSpellings?.length),
     reservedCredits: usage.reserved_credits,
   });
@@ -100,7 +99,6 @@ export async function performRewrite(args: {
     log("info", "rewrite_completed", args.requestId, {
       userId: args.userId,
       rewriteModel: rewriteModelId,
-      rewrittenText: result.text,
       outputLength: result.text.length,
       billedCredits: settlement.billedCredits,
     });

@@ -48,6 +48,7 @@ export class UnmeteredRelayBillingBackend implements RelayBillingBackend {
     provider: "openai" | "groq";
     modelId: string;
     audioDurationSeconds: number;
+    requestMetadata?: Record<string, unknown>;
   }) {
     return {
       request_id: `${args.requestId}:asr`,

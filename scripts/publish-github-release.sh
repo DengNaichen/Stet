@@ -5,21 +5,32 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="$ROOT_DIR/.env.release"
 DIST_ROOT="$ROOT_DIR/dist/github-release"
 
-if [[ -f "$ENV_FILE" ]]; then
+load_env_file() {
+  local env_file="$1"
+
+  [[ -f "$env_file" ]] || return
+
   while IFS= read -r line || [[ -n "$line" ]]; do
     line="${line#"${line%%[![:space:]]*}"}"
     [[ -z "$line" || "${line:0:1}" == "#" ]] && continue
     [[ "$line" != *"="* ]] && continue
 
-    key="${line%%=*}"
-    value="${line#*=}"
+    local key="${line%%=*}"
+    local value="${line#*=}"
     key="${key%"${key##*[![:space:]]}"}"
     value="${value#"${value%%[![:space:]]*}"}"
     value="${value%"${value##*[![:space:]]}"}"
 
+    # Explicit environment variables passed to the script should win.
+    if [[ ${+parameters[$key]} -eq 1 ]]; then
+      continue
+    fi
+
     export "$key=$value"
-  done < "$ENV_FILE"
-fi
+  done < "$env_file"
+}
+
+load_env_file "$ENV_FILE"
 
 : "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required.}"
 : "${GITHUB_TAG:?GITHUB_TAG is required.}"

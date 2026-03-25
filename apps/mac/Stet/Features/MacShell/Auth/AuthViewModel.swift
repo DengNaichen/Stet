@@ -109,6 +109,10 @@ final class AuthViewModel {
         await performOAuth(provider: .google)
     }
 
+    func signInWithApple() async {
+        await performOAuth(provider: .apple)
+    }
+
     func signInWithGitHub() async {
         await performOAuth(provider: .github)
     }
@@ -236,6 +240,8 @@ final class AuthViewModel {
         let nsError = error as NSError
         return nsError.domain == ASWebAuthenticationSessionErrorDomain
             && nsError.code == ASWebAuthenticationSessionError.canceledLogin.rawValue
+            || nsError.domain == ASAuthorizationError.errorDomain
+            && nsError.code == ASAuthorizationError.canceled.rawValue
     }
 
 }

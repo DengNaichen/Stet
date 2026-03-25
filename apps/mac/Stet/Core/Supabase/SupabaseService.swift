@@ -1,4 +1,7 @@
 import Foundation
+import AppKit
+import AuthenticationServices
+import CryptoKit
 import Observation
 import Supabase
 internal import Auth
@@ -157,18 +160,25 @@ final class SupabaseService {
 
     private enum ServiceError: LocalizedError {
         case missingConfiguration
+        case missingPresentationAnchor
+        case missingAppleIdentityToken
 
         var errorDescription: String? {
             switch self {
             case .missingConfiguration:
                 return
                     "Supabase is not configured. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in the scheme environment, target build settings, or a local .env file before signing in."
+            case .missingPresentationAnchor:
+                return "Apple sign-in requires an active window to present the authentication sheet."
+            case .missingAppleIdentityToken:
+                return "Apple sign-in did not return an identity token."
             }
         }
     }
 
     let client: SupabaseClient
     private var authStateTask: Task<Void, Never>?
+    private var appleAuthorizationCoordinator: AppleAuthorizationCoordinator?
 
     private(set) var currentSession: Session?
     var isConfigured: Bool { Configuration.isConfigured }
@@ -204,6 +214,11 @@ final class SupabaseService {
 
     func signIn(provider: Provider) async throws {
         try ensureConfiguration()
+        if provider == .apple {
+            try await signInWithApple()
+            return
+        }
+
         _ = try await client.auth.signInWithOAuth(
             provider: provider,
             redirectTo: Configuration.oauthRedirectURL,
@@ -219,6 +234,57 @@ final class SupabaseService {
     func signOut() async throws {
         try ensureConfiguration()
         try await client.auth.signOut()
+    }
+
+    private func signInWithApple() async throws {
+        let rawNonce = Self.randomNonceString()
+        defer { appleAuthorizationCoordinator = nil }
+
+        let authorization = try await requestAppleAuthorization(nonce: rawNonce)
+        guard let identityToken = authorization.identityToken,
+            let idToken = String(data: identityToken, encoding: .utf8)
+        else {
+            throw ServiceError.missingAppleIdentityToken
+        }
+
+        let credentials = OpenIDConnectCredentials(
+            provider: .apple,
+            idToken: idToken,
+            nonce: rawNonce
+        )
+        _ = try await client.auth.signInWithIdToken(credentials: credentials)
+    }
+
+    private func requestAppleAuthorization(nonce: String) async throws -> AppleAuthorizationResult {
+        try await withCheckedThrowingContinuation { continuation in
+            do {
+                let coordinator = AppleAuthorizationCoordinator(
+                    nonce: nonce,
+                    presentationAnchor: try currentPresentationAnchor(),
+                    continuation: continuation
+                )
+                appleAuthorizationCoordinator = coordinator
+                coordinator.start()
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+    }
+
+    private func currentPresentationAnchor() throws -> NSWindow {
+        if let keyWindow = NSApplication.shared.keyWindow {
+            return keyWindow
+        }
+
+        if let visibleWindow = NSApplication.shared.windows.first(where: { $0.isVisible }) {
+            return visibleWindow
+        }
+
+        if let anyWindow = NSApplication.shared.windows.first {
+            return anyWindow
+        }
+
+        throw ServiceError.missingPresentationAnchor
     }
 
     var functions: FunctionsClient {
@@ -252,6 +318,112 @@ final class SupabaseService {
         guard isConfigured else {
             throw ServiceError.missingConfiguration
         }
+    }
+
+    private static func randomNonceString(length: Int = 32) -> String {
+        precondition(length > 0)
+
+        let charset: [Character] =
+            Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        var result = ""
+        result.reserveCapacity(length)
+
+        var remainingLength = length
+        while remainingLength > 0 {
+            let randoms: [UInt8] = (0..<16).map { _ in UInt8.random(in: 0...255) }
+
+            for random in randoms {
+                if remainingLength == 0 {
+                    break
+                }
+
+                if random < charset.count {
+                    result.append(charset[Int(random)])
+                    remainingLength -= 1
+                }
+            }
+        }
+
+        return result
+    }
+}
+
+private extension SupabaseService {
+    enum AppleAuthorizationError: LocalizedError {
+        case missingCredentials
+
+        var errorDescription: String? {
+            switch self {
+            case .missingCredentials:
+                return "Apple sign-in did not return valid credentials."
+            }
+        }
+    }
+
+    struct AppleAuthorizationResult {
+        let identityToken: Data?
+    }
+
+    final class AppleAuthorizationCoordinator: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+        private let nonce: String
+        private let presentationAnchor: ASPresentationAnchor
+        private let continuation: CheckedContinuation<AppleAuthorizationResult, Error>
+        private var controller: ASAuthorizationController?
+
+        init(
+            nonce: String,
+            presentationAnchor: ASPresentationAnchor,
+            continuation: CheckedContinuation<AppleAuthorizationResult, Error>
+        ) {
+            self.nonce = nonce
+            self.presentationAnchor = presentationAnchor
+            self.continuation = continuation
+        }
+
+        func start() {
+            let request = ASAuthorizationAppleIDProvider().createRequest()
+            request.requestedScopes = [.email, .fullName]
+            request.nonce = SupabaseService.sha256(nonce)
+
+            let controller = ASAuthorizationController(authorizationRequests: [request])
+            controller.delegate = self
+            controller.presentationContextProvider = self
+            self.controller = controller
+            controller.performRequests()
+        }
+
+        func authorizationController(
+            controller: ASAuthorizationController,
+            didCompleteWithAuthorization authorization: ASAuthorization
+        ) {
+            guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+                continuation.resume(throwing: AppleAuthorizationError.missingCredentials)
+                return
+            }
+
+            continuation.resume(
+                returning: AppleAuthorizationResult(
+                    identityToken: appleIDCredential.identityToken
+                )
+            )
+        }
+
+        func authorizationController(
+            controller: ASAuthorizationController,
+            didCompleteWithError error: Error
+        ) {
+            continuation.resume(throwing: error)
+        }
+
+        func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+            presentationAnchor
+        }
+    }
+
+    static func sha256(_ input: String) -> String {
+        let inputData = Data(input.utf8)
+        let hashed = SHA256.hash(data: inputData)
+        return hashed.map { String(format: "%02x", $0) }.joined()
     }
 }
 

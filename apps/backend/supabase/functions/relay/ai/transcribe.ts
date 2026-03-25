@@ -11,6 +11,7 @@ export async function performTranscription(args: {
   userId: string;
   audio: Uint8Array;
   audioDurationSeconds: number;
+  requestMetadata?: Record<string, unknown>;
   options?: TranscribeOptions;
   provider: AIProvider;
   providerName: "openai" | "groq";
@@ -36,6 +37,7 @@ export async function performTranscription(args: {
       ? GroqModels.TRANSCRIBE
       : OpenAIModels.TRANSCRIBE,
     audioDurationSeconds: args.audioDurationSeconds,
+    requestMetadata: args.requestMetadata,
   });
   const transcriptionModelId = args.providerName === "groq"
     ? GroqModels.TRANSCRIBE
@@ -66,7 +68,6 @@ export async function performTranscription(args: {
       userId: args.userId,
       transcriptionModel: transcriptionModelId,
       textLength: result.text.length,
-      transcriptionText: result.text,
       transcriptionChars: settlement.transcriptionChars,
       billedCredits: settlement.billedCredits,
     });
