@@ -311,6 +311,7 @@
         @Environment(\.colorScheme) private var colorScheme
         @State private var isHovering = false
         @State private var isPressed = false
+        private let cornerRadius: CGFloat = 16
 
         var body: some View {
             Button(action: action) {
@@ -333,12 +334,16 @@
                 }
                 .frame(height: 48)
                 .frame(maxWidth: .infinity)
-                .background(backgroundColor)
+                .background(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(backgroundColor)
+                )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .strokeBorder(borderColor, lineWidth: 1)
                 )
-                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             }
             .buttonStyle(.plain)
             .onHover { isHovering = $0 }
@@ -412,6 +417,7 @@
         @Environment(\.colorScheme) private var colorScheme
         @State private var isHovering = false
         @State private var isPressed = false
+        private let cornerRadius: CGFloat = 16
 
         var body: some View {
             Button(action: action) {
@@ -434,12 +440,16 @@
                 .foregroundStyle(textColor)
                 .frame(height: 48)
                 .frame(maxWidth: .infinity)
-                .background(backgroundColor)
+                .background(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(backgroundColor)
+                )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .strokeBorder(borderColor, lineWidth: borderWidth)
                 )
-                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             }
             .buttonStyle(.plain)
             .onHover { isHovering = $0 }
@@ -514,6 +524,7 @@
         @Environment(\.colorScheme) private var colorScheme
         @State private var isHovering = false
         @State private var isPressed = false
+        private let cornerRadius: CGFloat = 16
 
         var body: some View {
             Button(action: action) {
@@ -536,12 +547,16 @@
                 .foregroundStyle(textColor)
                 .frame(height: 48)
                 .frame(maxWidth: .infinity)
-                .background(backgroundColor)
+                .background(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(backgroundColor)
+                )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .strokeBorder(borderColor, lineWidth: 1)
                 )
-                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             }
             .buttonStyle(.plain)
             .onHover { isHovering = $0 }
