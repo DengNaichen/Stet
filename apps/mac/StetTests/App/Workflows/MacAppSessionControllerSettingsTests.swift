@@ -267,6 +267,49 @@
             #expect(onChangeCount == 1)
         }
 
+        @Test func applyOnboardingAppearanceThemePersistsSelectedThemeImmediately() {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(false, forKey: MacPreferences.onboardingCompleted)
+            let textInjectionService = TestTextInjectionService()
+            let (sut, _, _, _, _) = makeSut(
+                defaults: defaults,
+                textInjectionService: textInjectionService
+            )
+
+            sut.selectOnboardingAppearanceTheme(.autumn)
+            sut.applyOnboardingAppearanceTheme()
+
+            #expect(
+                defaults.string(forKey: MacPreferences.shaderTheme)
+                    == MacDictationVisualTheme.autumn.rawValue
+            )
+            #expect(sut.canFinishAppearanceOnboarding)
+
+            sut.finishOnboarding()
+
+            #expect(defaults.bool(forKey: MacPreferences.onboardingCompleted))
+            #expect(
+                defaults.string(forKey: MacPreferences.shaderTheme)
+                    == MacDictationVisualTheme.autumn.rawValue
+            )
+        }
+
+        @Test func finishOnboardingDoesNotPersistThemeWithoutApply() {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(false, forKey: MacPreferences.onboardingCompleted)
+            let textInjectionService = TestTextInjectionService()
+            let (sut, _, _, _, _) = makeSut(
+                defaults: defaults,
+                textInjectionService: textInjectionService
+            )
+
+            sut.selectOnboardingAppearanceTheme(.autumn)
+            sut.finishOnboarding()
+
+            #expect(defaults.bool(forKey: MacPreferences.onboardingCompleted))
+            #expect(defaults.string(forKey: MacPreferences.shaderTheme) == nil)
+        }
+
         @Test func disablingDebugForceOnboardingRestoresCompletedOnboardingInDebugBuilds() {
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(false, forKey: MacPreferences.onboardingCompleted)

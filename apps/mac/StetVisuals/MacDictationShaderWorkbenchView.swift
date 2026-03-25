@@ -42,7 +42,7 @@
         }
 
         @State private var selectedState: DebugState = .listening
-        @State private var selectedTheme: MacDictationShaderTheme = .defaultTheme
+        @State private var selectedTheme: MacDictationShaderTheme = .egg
         @State private var bodySignal = 0.62
         @State private var presenceSignal = 0.58
         @State private var pulseSignal = 0.24
@@ -650,9 +650,11 @@
 
             levelTask?.cancel()
             levelTask = Task { [weak self] in
-                let stream = self?.levelBridge.makeStream() ?? AsyncStream<Double> { continuation in
-                    continuation.finish()
-                }
+                let stream =
+                    self?.levelBridge.makeStream()
+                    ?? AsyncStream<Double> { continuation in
+                        continuation.finish()
+                    }
 
                 for await level in stream {
                     guard !Task.isCancelled else { break }

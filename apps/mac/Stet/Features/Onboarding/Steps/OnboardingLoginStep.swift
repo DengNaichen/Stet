@@ -9,7 +9,7 @@
                 // OAuth sign-in
                 VStack(spacing: 10) {
                     AppleSignInButton {
-                        // TODO: Implement Apple sign-in
+                        Task { await viewModel.signInWithApple() }
                     }
                     .frame(width: 316)
 
@@ -62,6 +62,16 @@
                         )
                         .frame(width: 316)
 
+                        if viewModel.showsConfirmPasswordField {
+                            OnboardingInputField(
+                                label: "Confirm Password",
+                                placeholder: "Confirm password",
+                                text: $viewModel.confirmPassword,
+                                mode: .secure
+                            )
+                            .frame(width: 316)
+                        }
+
                         if let msg = viewModel.authErrorMessage {
                             MessageBanner(text: msg, role: .error)
                                 .fixedSize(horizontal: true, vertical: false)
@@ -70,12 +80,28 @@
                                 .fixedSize(horizontal: true, vertical: false)
                         }
 
-                        OnboardingActionButton(
-                            title: "Continue with Email",
-                            isEnabled: viewModel.canSubmitEmailLogin,
-                            minHeight: 48
-                        ) {
-                            Task { await viewModel.signInWithEmail() }
+                        HStack(spacing: 10) {
+                            Button(viewModel.emailModeToggleTitle) {
+                                viewModel.toggleEmailAuthMode()
+                            }
+                            .buttonStyle(.plain)
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                            OnboardingActionButton(
+                                title: viewModel.emailPrimaryActionTitle,
+                                isEnabled: viewModel.canSubmitEmailLogin,
+                                minHeight: 48
+                            ) {
+                                Task {
+                                    if viewModel.showsConfirmPasswordField {
+                                        await viewModel.signUpWithEmail()
+                                    } else {
+                                        await viewModel.signInWithEmail()
+                                    }
+                                }
+                            }
                         }
                         .frame(width: 316)
                     }

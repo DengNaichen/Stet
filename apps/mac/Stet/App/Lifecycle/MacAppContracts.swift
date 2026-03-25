@@ -46,10 +46,13 @@
         var firstSuccessFailureMessage: String? { get }
         var canContinueFirstSuccessOnboarding: Bool { get }
         var canSkipFirstSuccessOnboarding: Bool { get }
+        var canFinishAppearanceOnboarding: Bool { get }
         func requestAutoPasteAccess()
         func resolveMicrophoneAccess()
         func openAccessibilitySettings()
         func chooseOnboardingMode(_ mode: MacOnboardingMode)
+        func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme)
+        func applyOnboardingAppearanceTheme()
         func advanceOnboarding()
         func retreatOnboarding()
         func completeAPIKeyOnboarding(provider: DictationProvider)
@@ -69,8 +72,11 @@
         var firstSuccessFailureMessage: String? { nil }
         var canContinueFirstSuccessOnboarding: Bool { false }
         var canSkipFirstSuccessOnboarding: Bool { false }
+        var canFinishAppearanceOnboarding: Bool { false }
 
         func chooseOnboardingMode(_ mode: MacOnboardingMode) {}
+        func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme) {}
+        func applyOnboardingAppearanceTheme() {}
         func advanceOnboarding() {}
         func retreatOnboarding() {}
         func completeAPIKeyOnboarding(provider: DictationProvider) {}

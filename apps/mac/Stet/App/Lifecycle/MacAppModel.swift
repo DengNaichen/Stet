@@ -9,6 +9,8 @@
         private let settingsStore: DictationSettingsStore
         private let sessionController: MacAppSessionController
         private let interactionSoundPlayer: InteractionSoundPlayer
+        private let appearanceSettingsViewModel: MacAppearanceSettingsViewModel
+        private var cancellables = Set<AnyCancellable>()
 
         convenience init() {
             let settingsStore = DictationSettingsStore()
@@ -66,10 +68,16 @@
             self.settingsStore = settingsStore
             self.sessionController = sessionController
             self.interactionSoundPlayer = interactionSoundPlayer
+            self.appearanceSettingsViewModel = .shared
             let launchConfiguration = bootstrapper.prepareForLaunch()
             sessionController.onChange = { [weak self] in
                 self?.objectWillChange.send()
             }
+            appearanceSettingsViewModel.objectWillChange
+                .sink { [weak self] _ in
+                    self?.objectWillChange.send()
+                }
+                .store(in: &cancellables)
             sessionController.activate(presentationModel: self, showInDock: launchConfiguration.showInDock)
         }
 
@@ -204,6 +212,10 @@
             sessionController.canSkipFirstSuccessOnboarding
         }
 
+        var canFinishAppearanceOnboarding: Bool {
+            appearanceSettingsViewModel.hasAppliedSelectedTheme
+        }
+
         var menuBarSymbolName: String {
             return "mic"
         }
@@ -265,6 +277,14 @@
 
         func chooseOnboardingMode(_ mode: MacOnboardingMode) {
             sessionController.chooseOnboardingMode(mode)
+        }
+
+        func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme) {
+            appearanceSettingsViewModel.updateShaderTheme(theme, persist: false)
+        }
+
+        func applyOnboardingAppearanceTheme() {
+            appearanceSettingsViewModel.applySelectedTheme()
         }
 
         func advanceOnboarding() {

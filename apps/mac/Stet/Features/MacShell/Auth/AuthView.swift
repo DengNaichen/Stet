@@ -1,20 +1,12 @@
 import SwiftUI
 
 struct AuthView: View {
-    private enum Field: Hashable {
-        case email
-        case password
-    }
-
     @State private var viewModel = AuthViewModel()
     @Environment(\.dismiss) private var dismiss
-    @FocusState private var focusedField: Field?
     @State private var shouldDismissAfterAuthentication = false
 
     var body: some View {
         VStack(spacing: 20) {
-            headerCard
-
             if viewModel.isSignedIn {
                 signedInCard
             } else {
@@ -25,6 +17,11 @@ struct AuthView: View {
         .frame(maxWidth: 460)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(nsColor: .windowBackgroundColor))
+        .overlay(alignment: .topLeading) {
+            dismissButton
+                .padding(.top, 12)
+                .padding(.leading, 12)
+        }
         .onChange(of: viewModel.isSignedIn) { _, isSignedIn in
             guard isSignedIn else { return }
             viewModel.clearFeedback()
@@ -35,43 +32,26 @@ struct AuthView: View {
         }
     }
 
-    private var headerCard: some View {
-        HStack(spacing: 16) {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.accentColor.opacity(0.95), Color.accentColor.opacity(0.65)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+    private var dismissButton: some View {
+        Button {
+            dismiss()
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 24, height: 24)
+                .background(
+                    Circle()
+                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.95))
                 )
-                .frame(width: 56, height: 56)
-                .overlay {
-                    Image(systemName: "lock.shield.fill")
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Stet Account")
-                    .font(.title3.weight(.semibold))
-                Text("Use email, Google, or GitHub to access relay-backed features.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer()
+                .overlay(
+                    Circle()
+                        .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1)
+                )
         }
-        .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(.regularMaterial)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(.quaternary, lineWidth: 1)
-        )
+        .buttonStyle(.plain)
+        .keyboardShortcut(.cancelAction)
+        .help("Close")
     }
 
     private var signedInCard: some View {
@@ -111,84 +91,85 @@ struct AuthView: View {
 
     private var signedOutCard: some View {
         MacSettingsCard(
-            title: "Continue with Google or GitHub"
+            title: "Continue with Apple, Google, or GitHub"
         ) {
             VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 12) {
-                    oauthButton(
-                        title: "Continue with Google",
-                        systemImage: "g.circle.fill"
-                    ) {
+                VStack(spacing: 10) {
+                    AppleSignInButton {
+                        shouldDismissAfterAuthentication = true
+                        Task {
+                            await viewModel.signInWithApple()
+                        }
+                    }
+
+                    GoogleSignInButton {
                         shouldDismissAfterAuthentication = true
                         Task {
                             await viewModel.signInWithGoogle()
                         }
                     }
 
-                    oauthButton(
-                        title: "Continue with GitHub",
-                        systemImage: "chevron.left.forwardslash.chevron.right"
-                    ) {
+                    GitHubSignInButton {
                         shouldDismissAfterAuthentication = true
                         Task {
                             await viewModel.signInWithGitHub()
                         }
                     }
                 }
+                .disabled(viewModel.isLoading)
 
-                HStack {
-                    MacSettingsStatusBadge(
-                        text: viewModel.configurationStatusText,
-                        tint: viewModel.configurationStatusTint ? .green : .orange
-                    )
-
-                    Spacer()
-
-                    if viewModel.isLoading {
+                if viewModel.isLoading {
+                    HStack {
+                        Spacer()
                         ProgressView()
                             .controlSize(.small)
+                        Spacer()
                     }
                 }
 
-                LabeledTextField<Field>(
-                    title: "Email",
+                OnboardingInputField(
+                    label: "Email",
                     placeholder: "name@example.com",
                     text: $viewModel.email,
-                    focused: $focusedField,
-                    focusEquals: .email
+                    mode: .text
                 )
                 .disableAutocorrection(true)
 
-                LabeledSecureField<Field>(
-                    title: "Password",
+                OnboardingInputField(
+                    label: "Password",
                     placeholder: "Enter your password",
                     text: $viewModel.password,
-                    focused: $focusedField,
-                    focusEquals: .password
+                    mode: .secure
                 )
+
+                if viewModel.showsConfirmPasswordField {
+                    OnboardingInputField(
+                        label: "Confirm Password",
+                        placeholder: "Confirm password",
+                        text: $viewModel.confirmPassword,
+                        mode: .secure
+                    )
+                }
 
                 feedbackView
 
                 HStack(spacing: 12) {
-                    Button("Close") {
-                        dismiss()
+                    Button(viewModel.modeToggleTitle) {
+                        viewModel.toggleAuthMode()
                     }
-                    .keyboardShortcut(.cancelAction)
-
-                    Button("Create Account") {
-                        shouldDismissAfterAuthentication = true
-                        Task {
-                            await viewModel.signUp()
-                        }
-                    }
-                    .disabled(!viewModel.canSubmit)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
 
                     Spacer()
 
-                    Button("Sign In") {
+                    Button(viewModel.primaryActionTitle) {
                         shouldDismissAfterAuthentication = true
                         Task {
-                            await viewModel.signIn()
+                            if viewModel.showsConfirmPasswordField {
+                                await viewModel.signUp()
+                            } else {
+                                await viewModel.signIn()
+                            }
                         }
                     }
                     .keyboardShortcut(.defaultAction)
@@ -206,27 +187,6 @@ struct AuthView: View {
                 await viewModel.signIn()
             }
         }
-        .task {
-            if focusedField == nil {
-                focusedField = .email
-            }
-        }
-    }
-
-    private func oauthButton(
-        title: String,
-        systemImage: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.large)
-        .disabled(viewModel.isLoading)
     }
 
     @ViewBuilder
@@ -285,64 +245,9 @@ struct AuthView: View {
         }
     }
 
-    private struct LabeledField<Content: View>: View {
-        let title: String
-        @ViewBuilder var content: () -> Content
-
-        var body: some View {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                content()
-            }
-        }
-    }
-
-    private struct LabeledTextField<F: Hashable>: View {
-        let title: String
-        let placeholder: String
-        @Binding var text: String
-        var focused: FocusState<F?>.Binding?
-        var focusEquals: F?
-
-        var body: some View {
-            LabeledField(title: title) {
-                if let focused, let focusEquals {
-                    TextField(placeholder, text: $text)
-                        .textFieldStyle(.roundedBorder)
-                        .focused(focused, equals: focusEquals)
-                } else {
-                    TextField(placeholder, text: $text)
-                        .textFieldStyle(.roundedBorder)
-                }
-            }
-        }
-    }
-
-    private struct LabeledSecureField<F: Hashable>: View {
-        let title: String
-        let placeholder: String
-        @Binding var text: String
-        var focused: FocusState<F?>.Binding?
-        var focusEquals: F?
-
-        var body: some View {
-            LabeledField(title: title) {
-                if let focused, let focusEquals {
-                    SecureField(placeholder, text: $text)
-                        .textFieldStyle(.roundedBorder)
-                        .focused(focused, equals: focusEquals)
-                } else {
-                    SecureField(placeholder, text: $text)
-                        .textFieldStyle(.roundedBorder)
-                }
-            }
-        }
-    }
 }
 
 #Preview("Signed Out State") {
     AuthView()
-        .frame(width: 520, height: 480)
+        .frame(width: 520, height: 580)
 }

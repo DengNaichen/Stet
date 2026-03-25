@@ -2,7 +2,15 @@
     import SwiftUI
 
     struct MacAppearanceSettingsView: View {
-        @StateObject private var viewModel = MacAppearanceSettingsViewModel()
+        @StateObject private var viewModel: MacAppearanceSettingsViewModel
+
+        init() {
+            _viewModel = StateObject(wrappedValue: .shared)
+        }
+
+        init(viewModel: MacAppearanceSettingsViewModel) {
+            _viewModel = StateObject(wrappedValue: viewModel)
+        }
 
         var body: some View {
             Form {
@@ -18,7 +26,7 @@
 
         private var appearanceSection: some View {
             Section {
-                Picker("Capsule Theme", selection: $viewModel.shaderTheme) {
+                Picker("Capsule Theme", selection: shaderThemeBinding) {
                     ForEach(MacDictationVisualTheme.allCases) { theme in
                         Text(theme.title).tag(theme)
                     }
@@ -29,6 +37,13 @@
             } footer: {
                 Text("Choose the color palette used by the dictation capsule.")
             }
+        }
+
+        private var shaderThemeBinding: Binding<MacDictationVisualTheme> {
+            Binding(
+                get: { viewModel.shaderTheme },
+                set: { viewModel.updateShaderTheme($0, persist: true) }
+            )
         }
     }
 #endif

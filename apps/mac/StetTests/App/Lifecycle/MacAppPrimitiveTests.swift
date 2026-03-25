@@ -9,7 +9,6 @@
     @Suite("Mac App Primitives")
     struct MacAppPrimitiveTests {
         @Test(arguments: [
-            (MacOnboardingStep.mode, 1, false),
             (MacOnboardingStep.apiKey, 1, false),
             (MacOnboardingStep.login, 1, false),
             (MacOnboardingStep.permissions, 2, false),

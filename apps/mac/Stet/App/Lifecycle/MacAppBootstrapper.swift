@@ -36,7 +36,7 @@
             .bool(MacPreferences.rewriteEnabled, true),
             .bool(MacPreferences.interactionSoundsEnabled, true),
             .string(MacPreferences.interactionSoundPreset, InteractionSoundPreset.defaultPreset.rawValue),
-            .string(MacPreferences.shaderTheme, MacDictationVisualTheme.defaultTheme.rawValue),
+            .string(MacPreferences.shaderTheme, MacDictationVisualTheme.egg.rawValue),
             .bool(MacPreferences.showInDock, false),
         ]
 
