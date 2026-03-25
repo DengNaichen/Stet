@@ -9,12 +9,12 @@
     struct MacAppearanceSettingsViewModelTests {
         @Test func loadReadsStoredTheme() {
             let defaults = TestSupport.makeUserDefaults()
-            defaults.set(MacDictationVisualTheme.midnight.rawValue, forKey: MacPreferences.shaderTheme)
+            defaults.set(MacDictationVisualTheme.autumn.rawValue, forKey: MacPreferences.shaderTheme)
             let viewModel = MacAppearanceSettingsViewModel(defaults: defaults)
 
             viewModel.load()
 
-            #expect(viewModel.shaderTheme == .midnight)
+            #expect(viewModel.shaderTheme == .autumn)
         }
 
         @Test func themeChangesPersistAfterLoad() {
@@ -22,9 +22,9 @@
             let viewModel = MacAppearanceSettingsViewModel(defaults: defaults)
 
             viewModel.load()
-            viewModel.shaderTheme = .forest
+            viewModel.shaderTheme = .autumn
 
-            #expect(defaults.string(forKey: MacPreferences.shaderTheme) == MacDictationVisualTheme.forest.rawValue)
+            #expect(defaults.string(forKey: MacPreferences.shaderTheme) == MacDictationVisualTheme.autumn.rawValue)
         }
     }
 #endif

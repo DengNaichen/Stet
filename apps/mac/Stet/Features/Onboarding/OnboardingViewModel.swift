@@ -178,6 +178,10 @@
             coordinator.chooseOnboardingMode(mode)
         }
 
+        func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme) {
+            coordinator.selectOnboardingAppearanceTheme(theme)
+        }
+
         func continueOnboarding() {
             coordinator.advanceOnboarding()
         }

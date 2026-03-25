@@ -51,7 +51,7 @@
 
     #if DEBUG
         #Preview {
-            OnboardingModeStep(viewModel: OnboardingViewModel(coordinator: MockOnboardingCoordinator(step: .mode)))
+            OnboardingModeStep(viewModel: OnboardingViewModel(coordinator: MockOnboardingCoordinator(step: .login)))
                 .frame(width: 440)
                 .padding()
         }

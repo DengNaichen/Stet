@@ -23,8 +23,12 @@
 
             let hostingController = NSHostingController(rootView: OnboardingView(appModel: appModel))
             let window = NSWindow(contentViewController: hostingController)
-            window.title = "Stet Onboarding"
-            window.styleMask = [.titled, .closable, .miniaturizable]
+            window.title = ""
+            window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+            window.titleVisibility = .hidden
+            window.titlebarAppearsTransparent = true
+            window.isOpaque = false
+            window.backgroundColor = .clear
             window.isReleasedWhenClosed = false
             window.setContentSize(NSSize(width: 900, height: 680))
             window.center()

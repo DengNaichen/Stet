@@ -12,21 +12,21 @@
 
                 Spacer()
 
-                    HStack {
-                        OnboardingBackButton { viewModel.retreatOnboarding() }
+                HStack {
+                    OnboardingBackButton { viewModel.retreatOnboarding() }
 
-                        Spacer()
+                    Spacer()
 
-                        OnboardingActionButton(
-                            title: "Finish",
-                            minHeight: 48
-                        ) {
-                            viewModel.finishOnboarding()
-                        }
+                    OnboardingActionButton(
+                        title: "Finish",
+                        minHeight: 48
+                    ) {
+                        viewModel.finishOnboarding()
                     }
                 }
             }
         }
+    }
 
     #if DEBUG
         #Preview {

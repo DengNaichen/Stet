@@ -26,6 +26,7 @@
         private weak var presentationModel: (any MacAppPresentationModeling)?
         private var onboardingStepState: MacOnboardingStep
         private var onboardingModeState: MacOnboardingMode?
+        private var onboardingAppearanceThemeState: MacDictationVisualTheme
         private var shortcutTestDetectedPressState = false
         private var shortcutTestCompletedRoundTripState = false
         private var shortcutTestPreviewTextState: String?
@@ -57,6 +58,7 @@
             self.notificationCenter = notificationCenter
             self.hotkeyRegistrar = hotkeyRegistrar
             self.onboardingStepState = .done
+            self.onboardingAppearanceThemeState = .egg
 
             configure()
         }
@@ -369,6 +371,10 @@
             notifyChange()
         }
 
+        func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme) {
+            onboardingAppearanceThemeState = theme
+        }
+
         func advanceOnboarding() {
             guard requiresOnboarding else {
                 onboardingStepState = .done
@@ -386,7 +392,7 @@
             case .firstSuccess:
                 guard canContinueFirstSuccessOnboarding || canSkipFirstSuccessOnboarding else { return }
                 onboardingStepState = .appearance
-            case .mode, .apiKey, .login, .appearance, .done:
+            case .apiKey, .login, .appearance, .done:
                 break
             }
 
@@ -401,10 +407,10 @@
             }
 
             switch onboardingStepState {
-            case .mode:
-                break
             case .apiKey, .login:
-                onboardingStepState = .mode
+                if onboardingStepState == .apiKey {
+                    onboardingStepState = .login
+                }
             case .permissions:
                 if requiresOnboarding {
                     onboardingStepState = onboardingModeState == .managed ? .login : .apiKey
@@ -435,6 +441,7 @@
         }
 
         func finishOnboarding() {
+            defaults.set(onboardingAppearanceThemeState.rawValue, forKey: MacPreferences.shaderTheme)
             defaults.set(true, forKey: MacPreferences.onboardingCompleted)
             onboardingStepState = .done
             onboardingModeState = nil
@@ -946,7 +953,7 @@
                 return
             }
 
-            onboardingStepState = .mode
+            onboardingStepState = .login
         }
 
         private func syncOnboardingPresentation() {

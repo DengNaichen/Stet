@@ -50,6 +50,7 @@
         func resolveMicrophoneAccess()
         func openAccessibilitySettings()
         func chooseOnboardingMode(_ mode: MacOnboardingMode)
+        func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme)
         func advanceOnboarding()
         func retreatOnboarding()
         func completeAPIKeyOnboarding(provider: DictationProvider)
@@ -71,6 +72,7 @@
         var canSkipFirstSuccessOnboarding: Bool { false }
 
         func chooseOnboardingMode(_ mode: MacOnboardingMode) {}
+        func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme) {}
         func advanceOnboarding() {}
         func retreatOnboarding() {}
         func completeAPIKeyOnboarding(provider: DictationProvider) {}

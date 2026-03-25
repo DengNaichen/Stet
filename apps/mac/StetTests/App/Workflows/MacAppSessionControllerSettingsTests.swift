@@ -267,6 +267,25 @@
             #expect(onChangeCount == 1)
         }
 
+        @Test func finishOnboardingPersistsSelectedAppearanceTheme() {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(false, forKey: MacPreferences.onboardingCompleted)
+            let textInjectionService = TestTextInjectionService()
+            let (sut, _, _, _, _) = makeSut(
+                defaults: defaults,
+                textInjectionService: textInjectionService
+            )
+
+            sut.selectOnboardingAppearanceTheme(.autumn)
+            sut.finishOnboarding()
+
+            #expect(defaults.bool(forKey: MacPreferences.onboardingCompleted))
+            #expect(
+                defaults.string(forKey: MacPreferences.shaderTheme)
+                    == MacDictationVisualTheme.autumn.rawValue
+            )
+        }
+
         @Test func disablingDebugForceOnboardingRestoresCompletedOnboardingInDebugBuilds() {
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(false, forKey: MacPreferences.onboardingCompleted)

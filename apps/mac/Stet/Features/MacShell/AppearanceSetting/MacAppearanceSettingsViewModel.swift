@@ -4,7 +4,7 @@
 
     @MainActor
     final class MacAppearanceSettingsViewModel: ObservableObject {
-        @Published var shaderTheme = MacDictationVisualTheme.defaultTheme {
+        @Published var shaderTheme = MacDictationVisualTheme.egg {
             didSet {
                 guard hasLoadedPreferences else { return }
                 defaults.set(shaderTheme.rawValue, forKey: MacPreferences.shaderTheme)

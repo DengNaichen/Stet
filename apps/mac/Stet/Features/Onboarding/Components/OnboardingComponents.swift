@@ -14,6 +14,35 @@
         }
     }
 
+    extension Color {
+        init(hex: String) {
+            let hexString = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+            var value: UInt64 = 0
+            Scanner(string: hexString).scanHexInt64(&value)
+
+            let r, g, b, a: Double
+            switch hexString.count {
+            case 6:
+                r = Double((value >> 16) & 0xFF) / 255
+                g = Double((value >> 8) & 0xFF) / 255
+                b = Double(value & 0xFF) / 255
+                a = 1
+            case 8:
+                r = Double((value >> 24) & 0xFF) / 255
+                g = Double((value >> 16) & 0xFF) / 255
+                b = Double((value >> 8) & 0xFF) / 255
+                a = Double(value & 0xFF) / 255
+            default:
+                r = 0
+                g = 0
+                b = 0
+                a = 1
+            }
+
+            self.init(red: r, green: g, blue: b, opacity: a)
+        }
+    }
+
     // MARK: - Shared Surfaces
 
     struct OnboardingGlassCard<Content: View>: View {
@@ -1105,26 +1134,40 @@
 struct OnboardingVisualPanel: View {
     let step: MacOnboardingStep
     let viewModel: OnboardingViewModel
+    let onAppearanceThemeChange: ((MacDictationVisualTheme) -> Void)?
     @State private var firstSuccessDraftText = ""
     @FocusState private var isFirstSuccessDraftFocused: Bool
+
+    init(
+        step: MacOnboardingStep,
+        viewModel: OnboardingViewModel,
+        onAppearanceThemeChange: ((MacDictationVisualTheme) -> Void)? = nil
+    ) {
+        self.step = step
+        self.viewModel = viewModel
+        self.onAppearanceThemeChange = onAppearanceThemeChange
+    }
     
     var body: some View {
         ZStack {
-            backgroundGradient
+            if step == .appearance {
+                backgroundGradient
+            }
             
             if step == .shortcut {
                 OnboardingKeyboardView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(32)
             } else if step == .permissions {
                 // Microphone test panel
                 VStack(spacing: 24) {
                     Spacer()
-                    
+
                     // Microphone level meter
                     OnboardingMicrophoneLevelMeter(level: 0.0)
                         .frame(height: 40)
-                        .padding(.horizontal, 32)
-                    
+                        .padding(.horizontal, 0)
+
                     // Start recording button
                     OnboardingActionButton(
                         title: "Start Recording",
@@ -1137,15 +1180,15 @@ struct OnboardingVisualPanel: View {
                         // TODO: Implement recording
                     }
                     .frame(width: 316)
-                    
+
                     Spacer()
                 }
-                .padding(22)
+                .padding(32)
             } else if step == .firstSuccess {
                 // Voice input test panel
                 VStack(spacing: 24) {
                     Spacer()
-                    
+
                     // Prompt text
                     VStack(spacing: 8) {
                         Text("Try saying:")
@@ -1194,7 +1237,11 @@ struct OnboardingVisualPanel: View {
                     isFirstSuccessDraftFocused = true
                 }
             } else if step == .appearance {
-                OnboardingAppearanceCoverFlowPanel()
+                OnboardingAppearanceCoverFlowPanel(
+                    onFocusedThemeChange: { theme in
+                        onAppearanceThemeChange?(theme)
+                    }
+                )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(18)
             } else if step == .done {
@@ -1550,8 +1597,11 @@ struct OnboardingVisualPanel: View {
 private struct OnboardingAppearanceCoverFlowPanel: View {
     private struct CardSpec: Identifiable {
         let id = UUID()
+        let theme: MacDictationVisualTheme
         let badge: String
         let color: Color
+        let imageName: String?
+        let swatches: [Color]?
     }
 
     private struct LayoutSpec {
@@ -1570,139 +1620,146 @@ private struct OnboardingAppearanceCoverFlowPanel: View {
     }
 
     @State private var focusedIndex = 0
+    private let onFocusedThemeChange: (MacDictationVisualTheme) -> Void
+
+    init(onFocusedThemeChange: @escaping (MacDictationVisualTheme) -> Void = { _ in }) {
+        self.onFocusedThemeChange = onFocusedThemeChange
+    }
 
     private let cards: [CardSpec] = [
         .init(
+            theme: .blossom,
             badge: "01",
-            color: Color(red: 0.24, green: 0.62, blue: 0.96)
+            color: Color(red: 0.95, green: 0.78, blue: 0.84),
+            imageName: "flower",
+            swatches: [
+                Color(hex: "#87b3e2"),
+                Color(hex: "#b7cb5c"),
+                Color(hex: "#e78e92"),
+            ]
         ),
         .init(
+            theme: .egg,
             badge: "02",
-            color: Color(red: 0.20, green: 0.64, blue: 0.45)
+            color: Color(red: 0.20, green: 0.64, blue: 0.45),
+            imageName: "onboardingEgg",
+            swatches: [
+                Color(hex: "#5e8da7"),
+                Color(hex: "#dc9803"),
+                Color(hex: "#cacabf"),
+            ]
         ),
         .init(
+            theme: .harbor,
             badge: "03",
-            color: Color(red: 0.93, green: 0.50, blue: 0.24)
+            color: Color(red: 0.93, green: 0.50, blue: 0.24),
+            imageName: "onboardingArch",
+            swatches: [
+                Color(hex: "#014c69"),
+                Color(hex: "#3a2520"),
+                Color(hex: "#b05e5b"),
+            ]
         ),
         .init(
+            theme: .cat,
             badge: "04",
-            color: Color(red: 0.70, green: 0.38, blue: 0.90)
+            color: Color(red: 0.70, green: 0.38, blue: 0.90),
+            imageName: "onboardingFloat",
+            swatches: [
+                Color(hex: "#a22e2e"),
+                Color(hex: "#191718"),
+                Color(hex: "#eeeced"),
+            ]
         ),
         .init(
+            theme: .beacon,
             badge: "05",
-            color: Color(red: 0.95, green: 0.73, blue: 0.20)
+            color: Color(red: 0.95, green: 0.73, blue: 0.20),
+            imageName: "onboardingPanel5",
+            swatches: [
+                Color(hex: "#053447"),
+                Color(hex: "#0451ad"),
+                Color(hex: "#efa50f"),
+            ]
         ),
         .init(
+            theme: .autumn,
             badge: "06",
-            color: Color(red: 0.29, green: 0.78, blue: 0.76)
+            color: Color(red: 0.29, green: 0.78, blue: 0.76),
+            imageName: "autumn",
+            swatches: [
+                Color(hex: "#fdc24e"),
+                Color(hex: "#fe4c45"),
+                Color(hex: "#187789"),
+            ]
         ),
     ]
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    Color.black.opacity(0.88),
-                    Color.black.opacity(0.96),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+        VStack(spacing: 16) {
+            Spacer(minLength: 0)
 
-            RadialGradient(
-                colors: [
-                    Color.white.opacity(0.05),
-                    .clear,
-                ],
-                center: .top,
-                startRadius: 0,
-                endRadius: 240
-            )
-            .blendMode(.screen)
+            HStack(spacing: 12) {
+                ForEach(swatchSpecs(for: focusedIndex).indices, id: \.self) { index in
+                    let swatch = swatchSpecs(for: focusedIndex)[index]
 
-            RadialGradient(
-                colors: [
-                    Color.blue.opacity(0.10),
-                    .clear,
-                ],
-                center: .leading,
-                startRadius: 0,
-                endRadius: 220
-            )
-            .blendMode(.screen)
-            .offset(x: -60)
-
-            RadialGradient(
-                colors: [
-                    Color.orange.opacity(0.10),
-                    .clear,
-                ],
-                center: .trailing,
-                startRadius: 0,
-                endRadius: 220
-            )
-            .blendMode(.screen)
-            .offset(x: 60)
-
-            VStack(spacing: 16) {
-                Spacer(minLength: 0)
-
-                HStack(spacing: 12) {
-                    ForEach(swatchSpecs(for: focusedIndex).indices, id: \.self) { index in
-                        let swatch = swatchSpecs(for: focusedIndex)[index]
-
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(swatch.color)
-                            .frame(width: 46, height: 46)
-                            .shadow(color: Color.black.opacity(0.22), radius: 10, x: 0, y: 6)
-                    }
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(swatch.color)
+                        .frame(width: 46, height: 46)
+                        .shadow(color: Color.black.opacity(0.22), radius: 10, x: 0, y: 6)
                 }
-                .animation(.spring(response: 0.45, dampingFraction: 0.82), value: focusedIndex)
-
-                ZStack {
-                    ForEach(cards.indices, id: \.self) { index in
-                        let card = cards[index]
-                        let relativeOffset = relativeOffset(for: index)
-                        let layout = layout(for: relativeOffset)
-
-                        OnboardingCoverFlowCard(badge: card.badge, color: card.color)
-                            .frame(width: layout.size.width, height: layout.size.height)
-                            .scaleEffect(layout.scale)
-                            .rotation3DEffect(
-                                .degrees(layout.yRotation),
-                                axis: (x: 0, y: 1, z: 0),
-                                perspective: 0.78
-                            )
-                            .offset(x: layout.xOffset, y: layout.yOffset)
-                            .opacity(layout.opacity)
-                            .zIndex(layout.zIndex)
-                            .allowsHitTesting(layout.isInteractive)
-                            .onTapGesture {
-                                guard relativeOffset == -1 || relativeOffset == 1 else { return }
-                                rotateFocus(by: relativeOffset)
-                            }
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .animation(.spring(response: 0.45, dampingFraction: 0.82), value: focusedIndex)
-
-                Text("6-card Cover Flow / centered carousel")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.58))
-
-                Spacer(minLength: 0)
             }
-            .padding(.vertical, 8)
+            .animation(.spring(response: 0.45, dampingFraction: 0.82), value: focusedIndex)
+
+            ZStack {
+                ForEach(cards.indices, id: \.self) { index in
+                    let card = cards[index]
+                    let relativeOffset = relativeOffset(for: index)
+                    let layout = layout(for: relativeOffset)
+
+                    OnboardingCoverFlowCard(
+                        badge: card.badge,
+                        color: card.color,
+                        imageName: card.imageName
+                    )
+                        .frame(width: layout.size.width, height: layout.size.height)
+                        .scaleEffect(layout.scale)
+                        .rotation3DEffect(
+                            .degrees(layout.yRotation),
+                            axis: (x: 0, y: 1, z: 0),
+                            perspective: 0.78
+                        )
+                        .offset(x: layout.xOffset, y: layout.yOffset)
+                        .opacity(layout.opacity)
+                        .zIndex(layout.zIndex)
+                        .allowsHitTesting(layout.isInteractive)
+                        .onTapGesture {
+                            guard relativeOffset == -1 || relativeOffset == 1 else { return }
+                            rotateFocus(by: relativeOffset)
+                        }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .animation(.spring(response: 0.45, dampingFraction: 0.82), value: focusedIndex)
+
+            Spacer(minLength: 0)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .padding(.vertical, 8)
+        .onAppear {
+            onFocusedThemeChange(currentFocusedTheme)
+        }
     }
 
     private func swatchSpecs(for focusedIndex: Int) -> [SwatchSpec] {
-        let baseColor = cards[normalizedIndex(focusedIndex)].color
+        let card = cards[normalizedIndex(focusedIndex)]
+        if let swatches = card.swatches, swatches.count == 3 {
+            return swatches.map { SwatchSpec(color: $0) }
+        }
+
         return [
-            SwatchSpec(color: baseColor.opacity(0.96)),
-            SwatchSpec(color: baseColor.opacity(0.72)),
-            SwatchSpec(color: baseColor.opacity(0.54)),
+            SwatchSpec(color: card.color.opacity(0.96)),
+            SwatchSpec(color: card.color.opacity(0.72)),
+            SwatchSpec(color: card.color.opacity(0.54)),
         ]
     }
 
@@ -1775,6 +1832,7 @@ private struct OnboardingAppearanceCoverFlowPanel: View {
         withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
             focusedIndex = normalizedIndex(focusedIndex + delta)
         }
+        onFocusedThemeChange(currentFocusedTheme)
     }
 
     private func normalizedIndex(_ index: Int) -> Int {
@@ -1782,23 +1840,36 @@ private struct OnboardingAppearanceCoverFlowPanel: View {
         let modulo = index % cards.count
         return modulo >= 0 ? modulo : modulo + cards.count
     }
+
+    private var currentFocusedTheme: MacDictationVisualTheme {
+        cards[normalizedIndex(focusedIndex)].theme
+    }
 }
 
 private struct OnboardingCoverFlowCard: View {
     let badge: String
     let color: Color
+    let imageName: String?
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(color)
+            if let imageName {
+                Image(imageName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            } else {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(color)
+            }
 
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(0.12),
-                            Color.white.opacity(0.04),
+                            Color.white.opacity(imageName == nil ? 0.12 : 0.18),
+                            Color.white.opacity(imageName == nil ? 0.04 : 0.08),
                             .clear,
                         ],
                         startPoint: .topLeading,
@@ -1806,31 +1877,21 @@ private struct OnboardingCoverFlowCard: View {
                     )
                 )
 
+            if imageName != nil {
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(0.02),
+                        Color.black.opacity(0.12),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
-
-            Capsule(style: .continuous)
-                .fill(Color.white.opacity(0.16))
-                .frame(width: 36, height: 22)
-                .overlay(
-                    Text(badge)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.white)
-                )
-                .padding(14)
-
-            VStack {
-                Spacer()
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color.white.opacity(0.10))
-                    .frame(height: 54)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
-                    )
-                    .padding(12)
-            }
         }
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: Color.black.opacity(0.30), radius: 18, x: 0, y: 12)
     }
 }
