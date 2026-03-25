@@ -295,6 +295,58 @@
         }
     }
 
+    struct OAuthSignInButtonGroup: View {
+        var buttonWidth: CGFloat? = 316
+        var isEnabled: Bool = true
+        let appleAction: () -> Void
+        let googleAction: () -> Void
+        let githubAction: () -> Void
+
+        var body: some View {
+            VStack(spacing: 10) {
+                providerButton(AppleSignInButton(action: appleAction))
+                providerButton(GoogleSignInButton(action: googleAction))
+                providerButton(GitHubSignInButton(action: githubAction))
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .disabled(!isEnabled)
+        }
+
+        @ViewBuilder
+        private func providerButton<Content: View>(_ content: Content) -> some View {
+            if let buttonWidth {
+                content.frame(width: buttonWidth)
+            } else {
+                content
+            }
+        }
+    }
+
+    private struct OAuthButtonLabel<Icon: View>: View {
+        let title: String
+        var contentWidth: CGFloat = 176
+        var iconSlotWidth: CGFloat = 20
+        @ViewBuilder let icon: () -> Icon
+
+        var body: some View {
+            HStack {
+                Spacer(minLength: 0)
+
+                HStack(spacing: 10) {
+                    icon()
+                        .frame(width: iconSlotWidth, height: 20, alignment: .center)
+
+                    Text(title)
+                        .font(.system(size: 14, weight: .medium))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(width: contentWidth, alignment: .leading)
+
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
     struct GoogleBrandMark: View {
         var body: some View {
             // Google "G" logo with proper brand colors
@@ -315,22 +367,8 @@
 
         var body: some View {
             Button(action: action) {
-                HStack(spacing: 0) {
-                    Spacer(minLength: 0)
-
-                    // Google "G" logo
+                OAuthButtonLabel(title: "Sign in with Google") {
                     googleLogo
-
-                    // Fixed spacing between logo and text
-                    Spacer()
-                        .frame(width: 10)
-
-                    // Button text
-                    Text("Sign in with Google")
-                        .font(.custom("Roboto-Medium", size: 14))
-                        .fallbackFont(.system(size: 14, weight: .medium))
-
-                    Spacer(minLength: 0)
                 }
                 .frame(height: 48)
                 .frame(maxWidth: .infinity)
@@ -355,29 +393,10 @@
         }
 
         private var googleLogo: some View {
-            // Standard Google "G" logo
-            // Using SF Symbol as placeholder - in production, use official Google logo SVG
-            ZStack {
-                Circle()
-                    .fill(Color.white)
-                    .frame(width: 18, height: 18)
-
-                // Google "G" with brand colors
-                Text("G")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.26, green: 0.52, blue: 0.96),  // Google Blue
-                                Color(red: 0.92, green: 0.25, blue: 0.21),  // Google Red
-                                Color(red: 0.98, green: 0.74, blue: 0.02),  // Google Yellow
-                                Color(red: 0.15, green: 0.68, blue: 0.38),  // Google Green
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
+            Image("googleSignInMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 18, height: 18)
         }
 
         private var backgroundColor: Color {
@@ -399,11 +418,9 @@
         private var borderColor: Color {
             switch colorScheme {
             case .light:
-                // Light theme: #747775
-                return Color(red: 0.455, green: 0.467, blue: 0.459)
+                return Color.black.opacity(0.2)
             case .dark:
-                // Dark theme: #8E918F
-                return Color(red: 0.557, green: 0.569, blue: 0.561)
+                return Color.white.opacity(0.2)
             @unknown default:
                 return Color.gray
             }
@@ -421,21 +438,8 @@
 
         var body: some View {
             Button(action: action) {
-                HStack(spacing: 0) {
-                    Spacer(minLength: 0)
-
-                    // Apple logo
+                OAuthButtonLabel(title: "Sign in with Apple") {
                     appleLogo
-
-                    // Fixed spacing between logo and text
-                    Spacer()
-                        .frame(width: 10)
-
-                    // Button text
-                    Text("Sign in with Apple")
-                        .font(.system(size: 14, weight: .medium))
-
-                    Spacer(minLength: 0)
                 }
                 .foregroundStyle(textColor)
                 .frame(height: 48)
@@ -462,7 +466,7 @@
 
         private var appleLogo: some View {
             Image(systemName: "apple.logo")
-                .font(.system(size: 18, weight: .regular))
+                .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(logoColor)
         }
 
@@ -528,21 +532,8 @@
 
         var body: some View {
             Button(action: action) {
-                HStack(spacing: 0) {
-                    Spacer(minLength: 0)
-
-                    // GitHub logo
+                OAuthButtonLabel(title: "Sign in with GitHub") {
                     githubLogo
-
-                    // Fixed spacing between logo and text
-                    Spacer()
-                        .frame(width: 10)
-
-                    // Button text
-                    Text("Continue with GitHub")
-                        .font(.system(size: 14, weight: .medium))
-
-                    Spacer(minLength: 0)
                 }
                 .foregroundStyle(textColor)
                 .frame(height: 48)
@@ -568,10 +559,10 @@
         }
 
         private var githubLogo: some View {
-            // GitHub Invertocat logo
-            Image(systemName: "chevron.left.forwardslash.chevron.right")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(logoColor)
+            Image("githubSignInMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 18, height: 18)
         }
 
         private var backgroundColor: Color {
@@ -615,9 +606,9 @@
         private var borderColor: Color {
             switch colorScheme {
             case .light:
-                return Color(red: 0.455, green: 0.467, blue: 0.459)
+                return Color.black.opacity(0.2)
             case .dark:
-                return Color(red: 0.557, green: 0.569, blue: 0.561)
+                return Color.white.opacity(0.2)
             @unknown default:
                 return Color.gray
             }

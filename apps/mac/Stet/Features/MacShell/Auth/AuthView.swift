@@ -94,29 +94,27 @@ struct AuthView: View {
             title: "Continue with Apple, Google, or GitHub"
         ) {
             VStack(alignment: .leading, spacing: 16) {
-                VStack(spacing: 10) {
-                    AppleSignInButton {
+                OAuthSignInButtonGroup(
+                    isEnabled: !viewModel.isLoading,
+                    appleAction: {
                         shouldDismissAfterAuthentication = true
                         Task {
                             await viewModel.signInWithApple()
                         }
-                    }
-
-                    GoogleSignInButton {
+                    },
+                    googleAction: {
                         shouldDismissAfterAuthentication = true
                         Task {
                             await viewModel.signInWithGoogle()
                         }
-                    }
-
-                    GitHubSignInButton {
+                    },
+                    githubAction: {
                         shouldDismissAfterAuthentication = true
                         Task {
                             await viewModel.signInWithGitHub()
                         }
                     }
-                }
-                .disabled(viewModel.isLoading)
+                )
 
                 if viewModel.isLoading {
                     HStack {

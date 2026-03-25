@@ -7,23 +7,18 @@
         var body: some View {
             VStack(alignment: .center, spacing: 18) {
                 // OAuth sign-in
-                VStack(spacing: 10) {
-                    AppleSignInButton {
+                OAuthSignInButtonGroup(
+                    isEnabled: !viewModel.isAuthenticating,
+                    appleAction: {
                         Task { await viewModel.signInWithApple() }
-                    }
-                    .frame(width: 316)
-
-                    GoogleSignInButton {
+                    },
+                    googleAction: {
                         Task { await viewModel.signInWithGoogle() }
-                    }
-                    .frame(width: 316)
-
-                    GitHubSignInButton {
+                    },
+                    githubAction: {
                         Task { await viewModel.signInWithGitHub() }
                     }
-                    .frame(width: 316)
-                }
-                .disabled(viewModel.isAuthenticating)
+                )
 
                 // Divider
                 HStack(spacing: 10) {
