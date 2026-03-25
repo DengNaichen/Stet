@@ -650,9 +650,11 @@
 
             levelTask?.cancel()
             levelTask = Task { [weak self] in
-                let stream = self?.levelBridge.makeStream() ?? AsyncStream<Double> { continuation in
-                    continuation.finish()
-                }
+                let stream =
+                    self?.levelBridge.makeStream()
+                    ?? AsyncStream<Double> { continuation in
+                        continuation.finish()
+                    }
 
                 for await level in stream {
                     guard !Task.isCancelled else { break }

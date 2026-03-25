@@ -8,7 +8,7 @@
             VStack(alignment: .leading, spacing: 18) {
                 Text("Appearance")
                     .font(.title2.weight(.semibold))
-                
+
                 Text("Choose your preferred theme")
                     .font(.body)
                     .foregroundStyle(.secondary)
@@ -22,7 +22,7 @@
                     ) {
                         viewModel.finishOnboarding()
                     }
-                    
+
                     Spacer()
                 }
             }

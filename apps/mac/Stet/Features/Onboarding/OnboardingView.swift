@@ -14,11 +14,11 @@
 
         // MARK: - Layout constants
         // Outer window: 1280 × 720  (16:9)
-        private let windowWidth:  CGFloat = 1280
+        private let windowWidth: CGFloat = 1280
         private let windowHeight: CGFloat = 720
         // Inner card:   960 × 540  (16:9)
-        private let cardWidth:    CGFloat = 960
-        private let cardHeight:   CGFloat = 540
+        private let cardWidth: CGFloat = 960
+        private let cardHeight: CGFloat = 540
         // Golden ratio split (φ ≈ 1.618): left ≈ 367, right ≈ 592
         private let φ: CGFloat = 1.618
         private var rightPanelWidth: CGFloat { (cardWidth * φ / (1 + φ)).rounded() }
@@ -52,7 +52,7 @@
                 // ── Progress strip on top border ──────────────────────────
                 .overlay(alignment: .top) {
                     progressStrip
-                        .offset(y: -16) // straddles the top edge of the card
+                        .offset(y: -16)  // straddles the top edge of the card
                 }
             }
             .frame(width: windowWidth, height: windowHeight)
@@ -138,7 +138,8 @@
                                 ? Color.accentColor : Color.black.opacity(0.12)
                         )
                         .frame(width: 28, height: 4)
-                        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: viewModel.onboardingStep.progressIndex)
+                        .animation(
+                            .spring(response: 0.4, dampingFraction: 0.7), value: viewModel.onboardingStep.progressIndex)
                 }
             }
             .padding(.horizontal, 16)
@@ -191,7 +192,6 @@
                 )
             }
         }
-
 
         private var titleText: String {
             switch viewModel.onboardingStep {
