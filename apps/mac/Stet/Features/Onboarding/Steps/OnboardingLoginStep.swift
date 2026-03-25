@@ -9,7 +9,7 @@
                 // OAuth sign-in
                 VStack(spacing: 10) {
                     AppleSignInButton {
-                        // TODO: Implement Apple sign-in
+                        Task { await viewModel.signInWithApple() }
                     }
                     .frame(width: 316)
 
