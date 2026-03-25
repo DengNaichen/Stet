@@ -1,5 +1,7 @@
 #if os(macOS)
     import AppKit
+    import AVFoundation
+    import Combine
     import SwiftUI
     import UniformTypeIdentifiers
 
@@ -55,9 +57,12 @@
         @State private var exportHeight = 1440.0
         @State private var isExportingPNG = false
         @State private var exportStatusText: String?
+        @State private var useLiveMicrophone = false
+        @State private var microphoneStatusText: String?
         @State private var topHex = "#F2F4FA"
         @State private var midHex = "#DCE0E8"
         @State private var lowHex = "#B7BCC8"
+        @StateObject private var microphoneMonitor = MacDictationShaderWorkbenchMicrophoneMonitor()
 
         public init() {}
 
@@ -87,12 +92,25 @@
             )
             .onAppear {
                 syncThemePreset()
+                if useLiveMicrophone {
+                    Task { @MainActor in
+                        await updateMicrophoneMonitoring(isEnabled: true)
+                    }
+                }
             }
             .onChange(of: selectedState) { _, _ in
                 syncThemePreset()
             }
             .onChange(of: selectedTheme) { _, _ in
                 syncThemePreset()
+            }
+            .onChange(of: useLiveMicrophone) { _, isEnabled in
+                Task { @MainActor in
+                    await updateMicrophoneMonitoring(isEnabled: isEnabled)
+                }
+            }
+            .onDisappear {
+                microphoneMonitor.stop()
             }
         }
 
@@ -102,7 +120,7 @@
                     Text("Shader Debug Window")
                         .font(.title2.weight(.semibold))
 
-                    Text("Large preview surface with direct hex color input.")
+                    Text("Large preview surface with direct hex color input and optional live mic input.")
                         .foregroundStyle(.secondary)
                 }
 
@@ -195,6 +213,21 @@
                     }
                     .padding(.top, 2)
                 }
+                .disabled(useLiveMicrophone)
+
+                Toggle("Use live microphone", isOn: $useLiveMicrophone)
+
+                if useLiveMicrophone {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(microphoneStatusText ?? microphoneMonitor.statusText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Text(signalSourceSummary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
                 Toggle("Pause timeline", isOn: $isPaused)
 
@@ -229,7 +262,28 @@
         }
 
         private var summaryText: String {
-            "state=\(selectedState.rawValue.lowercased()) theme=\(selectedTheme.rawValue) top=\(topHex) mid=\(midHex) low=\(lowHex)"
+            "state=\(selectedState.rawValue.lowercased()) theme=\(selectedTheme.rawValue) source=\(useLiveMicrophone ? "mic" : "manual") top=\(topHex) mid=\(midHex) low=\(lowHex)"
+        }
+
+        private var resolvedSignals: MacDictationCapsuleVisualSignals {
+            if useLiveMicrophone {
+                return microphoneMonitor.visualSignals
+            }
+
+            return MacDictationCapsuleVisualSignals(
+                body: bodySignal,
+                presence: presenceSignal,
+                pulse: pulseSignal,
+                articulation: articulationSignal
+            )
+        }
+
+        private var signalSourceSummary: String {
+            if useLiveMicrophone {
+                return "Signals are driven from the active microphone input."
+            }
+
+            return "Signals are driven from manual slider input."
         }
 
         private var currentElapsed: Double {
@@ -250,6 +304,23 @@
                 return "Uses the main screen size."
             case .custom:
                 return "Uses the custom export size."
+            }
+        }
+
+        @MainActor
+        private func updateMicrophoneMonitoring(isEnabled: Bool) async {
+            if isEnabled {
+                microphoneStatusText = nil
+                do {
+                    try await microphoneMonitor.start()
+                } catch {
+                    microphoneStatusText = "Microphone unavailable: \(error.localizedDescription)"
+                    useLiveMicrophone = false
+                    microphoneMonitor.stop()
+                }
+            } else {
+                microphoneStatusText = nil
+                microphoneMonitor.stop()
             }
         }
 
@@ -288,12 +359,7 @@
         private func shaderCanvas(size: CGSize) -> some View {
             TimelineView(.animation(minimumInterval: 1.0 / 40.0, paused: isPaused)) { timeline in
                 let elapsed = isPaused ? frozenTime : timeline.date.timeIntervalSince(startDate)
-                let signals = MacDictationCapsuleVisualSignals(
-                    body: bodySignal,
-                    presence: presenceSignal,
-                    pulse: pulseSignal,
-                    articulation: articulationSignal
-                )
+                let signals = resolvedSignals
                 let detail = MacDictationShaderStyling.detail(
                     for: selectedState.visualState,
                     signals: signals
@@ -441,12 +507,7 @@
 
             let exportSize = resolvedExportSize()
             let elapsed = currentElapsed
-            let signals = MacDictationCapsuleVisualSignals(
-                body: bodySignal,
-                presence: presenceSignal,
-                pulse: pulseSignal,
-                articulation: articulationSignal
-            )
+            let signals = resolvedSignals
             let detail = MacDictationShaderStyling.detail(
                 for: selectedState.visualState,
                 signals: signals
@@ -518,6 +579,277 @@
             let green = Int((components.1 * 255.0).rounded())
             let blue = Int((components.2 * 255.0).rounded())
             return String(format: "#%02X%02X%02X", red, green, blue)
+        }
+    }
+
+    @MainActor
+    final class MacDictationShaderWorkbenchMicrophoneMonitor: ObservableObject {
+        @Published private(set) var visualSignals = MacDictationCapsuleVisualSignals.zero
+        @Published private(set) var statusText = "Microphone is off."
+
+        private enum Timing {
+            static let bodyAttack: TimeInterval = 0.12
+            static let bodyRelease: TimeInterval = 0.22
+            static let fastAttack: TimeInterval = 0.026
+            static let fastRelease: TimeInterval = 0.08
+            static let presenceAttack: TimeInterval = 0.05
+            static let presenceRelease: TimeInterval = 0.14
+            static let pulseAttack: TimeInterval = 0.012
+            static let pulseRelease: TimeInterval = 0.06
+            static let articulationAttack: TimeInterval = 0.02
+            static let articulationRelease: TimeInterval = 0.08
+            static let minimumTimeConstant: TimeInterval = 0.001
+        }
+
+        private struct State {
+            var body: Double
+            var fast: Double
+            var presence: Double
+            var pulse: Double
+            var articulation: Double
+        }
+
+        private let levelBridge = MicrophoneLevelBridge()
+        private var audioEngine: AVAudioEngine?
+        private var levelTask: Task<Void, Never>?
+        private var signalState = State(body: 0, fast: 0, presence: 0, pulse: 0, articulation: 0)
+        private var isRunning = false
+
+        func start() async throws {
+            guard !isRunning else { return }
+
+            statusText = "Requesting microphone access..."
+            let granted = await requestMicrophoneAccess()
+            guard granted else {
+                statusText = "Microphone access denied."
+                throw CocoaError(.fileReadNoPermission)
+            }
+
+            let engine = AVAudioEngine()
+            let inputNode = engine.inputNode
+            let format = inputNode.inputFormat(forBus: 0)
+            let levelBridge = self.levelBridge
+
+            signalState = State(body: 0.08, fast: 0.08, presence: 0.08, pulse: 0, articulation: 0.08)
+            publishSignals(from: signalState)
+
+            inputNode.removeTap(onBus: 0)
+            inputNode.installTap(onBus: 0, bufferSize: 2048, format: format) { buffer, _ in
+                levelBridge.emit(Self.normalizedLevel(from: buffer))
+            }
+
+            do {
+                try engine.start()
+            } catch {
+                inputNode.removeTap(onBus: 0)
+                statusText = "Microphone failed to start: \(error.localizedDescription)"
+                throw error
+            }
+
+            audioEngine = engine
+            isRunning = true
+            statusText = "Microphone live."
+
+            levelTask?.cancel()
+            levelTask = Task { [weak self] in
+                let stream = self?.levelBridge.makeStream() ?? AsyncStream<Double> { continuation in
+                    continuation.finish()
+                }
+
+                for await level in stream {
+                    guard !Task.isCancelled else { break }
+                    await MainActor.run {
+                        self?.advance(level: level)
+                    }
+                }
+            }
+        }
+
+        func stop() {
+            levelTask?.cancel()
+            levelTask = nil
+
+            audioEngine?.inputNode.removeTap(onBus: 0)
+            audioEngine?.stop()
+            audioEngine = nil
+
+            isRunning = false
+            signalState = State(body: 0, fast: 0, presence: 0, pulse: 0, articulation: 0)
+            visualSignals = .zero
+            statusText = "Microphone is off."
+        }
+
+        private func advance(level: Double) {
+            let deltaTime = 1.0 / 40.0
+            let target = Self.amplifiedLevel(level)
+
+            let nextFast = smooth(
+                current: signalState.fast,
+                target: target,
+                deltaTime: deltaTime,
+                attack: Timing.fastAttack,
+                release: Timing.fastRelease
+            )
+
+            let nextBody = smooth(
+                current: signalState.body,
+                target: target,
+                deltaTime: deltaTime,
+                attack: Timing.bodyAttack,
+                release: Timing.bodyRelease
+            )
+
+            let transient = max(0, nextFast - nextBody)
+            let pulseTarget = min(1, transient * 4.2 + target * 0.10)
+            let nextPulse = smooth(
+                current: signalState.pulse,
+                target: pulseTarget,
+                deltaTime: deltaTime,
+                attack: Timing.pulseAttack,
+                release: Timing.pulseRelease
+            )
+
+            let nextPresence = smooth(
+                current: signalState.presence,
+                target: Self.presenceTarget(body: nextBody, fast: nextFast),
+                deltaTime: deltaTime,
+                attack: Timing.presenceAttack,
+                release: Timing.presenceRelease
+            )
+
+            let articulationTarget = min(
+                1,
+                transient * 2.0
+                    + max(0, nextFast - nextPresence * 0.66) * 1.02
+                    + target * 0.22
+            )
+            let nextArticulation = smooth(
+                current: signalState.articulation,
+                target: articulationTarget,
+                deltaTime: deltaTime,
+                attack: Timing.articulationAttack,
+                release: Timing.articulationRelease
+            )
+
+            signalState = State(
+                body: nextBody,
+                fast: nextFast,
+                presence: nextPresence,
+                pulse: nextPulse,
+                articulation: nextArticulation
+            )
+            publishSignals(from: signalState)
+        }
+
+        private func publishSignals(from state: State) {
+            visualSignals = MacDictationCapsuleVisualSignals(
+                body: state.body,
+                presence: state.presence,
+                pulse: state.pulse,
+                articulation: state.articulation
+            )
+        }
+
+        private func requestMicrophoneAccess() async -> Bool {
+            switch AVAudioApplication.shared.recordPermission {
+            case .granted:
+                return true
+            case .denied:
+                return false
+            case .undetermined:
+                return await withCheckedContinuation { continuation in
+                    AVAudioApplication.requestRecordPermission { granted in
+                        continuation.resume(returning: granted)
+                    }
+                }
+            @unknown default:
+                return false
+            }
+        }
+
+        private func smooth(
+            current: Double,
+            target: Double,
+            deltaTime: TimeInterval,
+            attack: TimeInterval,
+            release: TimeInterval
+        ) -> Double {
+            let timeConstant = target > current ? attack : release
+            let alpha = 1.0 - exp(-deltaTime / max(timeConstant, Timing.minimumTimeConstant))
+            return current + (target - current) * alpha
+        }
+
+        private static func presenceTarget(body: Double, fast: Double) -> Double {
+            min(1, max(body * 1.16 + fast * 0.58, fast * 1.02))
+        }
+
+        private static func amplifiedLevel(_ value: Double) -> Double {
+            min(max(value * 1.68, 0), 1)
+        }
+
+        private static func normalizedLevel(from buffer: AVAudioPCMBuffer) -> Double {
+            guard let channelData = buffer.floatChannelData else {
+                return 0.08
+            }
+
+            let frameLength = Int(buffer.frameLength)
+            let channelCount = Int(buffer.format.channelCount)
+            guard frameLength > 0, channelCount > 0 else {
+                return 0.08
+            }
+
+            var sum: Float = 0
+
+            for channel in 0..<channelCount {
+                let samples = channelData[channel]
+
+                for index in 0..<frameLength {
+                    let sample = samples[index]
+                    sum += sample * sample
+                }
+            }
+
+            let meanSquare = sum / Float(frameLength * channelCount)
+            let rms = sqrt(meanSquare)
+            return min(max(Double(rms) * 3.2, 0.08), 1)
+        }
+    }
+
+    private final class MicrophoneLevelBridge: @unchecked Sendable {
+        private let lock = NSLock()
+        private var continuations: [UUID: AsyncStream<Double>.Continuation] = [:]
+
+        func makeStream() -> AsyncStream<Double> {
+            let identifier = UUID()
+
+            return AsyncStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
+                lock.lock()
+                continuations[identifier] = continuation
+                lock.unlock()
+
+                continuation.onTermination = { [weak self] _ in
+                    self?.removeContinuation(for: identifier)
+                }
+            }
+        }
+
+        func emit(_ level: Double) {
+            let currentContinuations = withContinuations { Array($0.values) }
+            for continuation in currentContinuations {
+                continuation.yield(level)
+            }
+        }
+
+        private func removeContinuation(for identifier: UUID) {
+            lock.lock()
+            continuations.removeValue(forKey: identifier)
+            lock.unlock()
+        }
+
+        private func withContinuations<T>(_ operation: (inout [UUID: AsyncStream<Double>.Continuation]) -> T) -> T {
+            lock.lock()
+            defer { lock.unlock() }
+            return operation(&continuations)
         }
     }
 

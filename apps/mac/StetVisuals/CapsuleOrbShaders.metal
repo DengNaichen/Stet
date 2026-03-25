@@ -59,8 +59,8 @@ namespace Config {
     constant float FLUID_Y_BIAS = 0.78;
     constant float FLUID_WARP_BIAS = 0.95;
     constant float COLOR_LIFT_FACTOR = 0.08;
-    constant float MASK_BLUE_LOW = 0.12;
-    constant float MASK_BLUE_HIGH = 0.62;
+    constant float MASK_BLUE_LOW = 0.09;
+    constant float MASK_BLUE_HIGH = 0.56;
     constant float MASK_BLUE_SKEW = 0.34;
     constant float MASK_ORANGE_LOW = 0.10;
     constant float MASK_ORANGE_HIGH = 0.60;
@@ -276,6 +276,7 @@ static float2 vortexField(float2 p, float2 center, float strength) {
 
     float fluidBias = p.y * Config::FLUID_Y_BIAS + (w.y - 0.5) * (Config::FLUID_WARP_BIAS + 0.16 * edge);
     float colorLift = centerMask * (breath + 0.55 * kick) * Config::COLOR_LIFT_FACTOR;
+    float colorMix = 0.68;
 
     float maskBlue = smoothstep(
         Config::MASK_BLUE_LOW,
@@ -288,11 +289,12 @@ static float2 vortexField(float2 p, float2 center, float strength) {
         w.x + fluidBias * Config::MASK_ORANGE_SKEW + colorLift + edge * 0.06
     );
 
-    float3 base = mid;
-    base = mix(base, low, maskBlue);
-    base = mix(base, top, maskOrange);
-
     float depth = smoothstep(-1.0, 1.0, pRaw.y + (n - 0.5) * Config::DEPTH_SKEW);
+
+    float3 base = mid;
+    float lowWeight = clamp(maskBlue * colorMix + (1.0 - depth) * 0.14, 0.0, 1.0);
+    base = mix(base, low, lowWeight);
+    base = mix(base, top, maskOrange * colorMix * 0.92);
 
     float cloudDense = smoothstep(Config::CLOUD_DENSE_LOW, Config::CLOUD_DENSE_HIGH, n + centerMask * (breath + 0.40 * kick) * Config::COLOR_LIFT_FACTOR);
     float cloudSoft = smoothstep(Config::CLOUD_SOFT_LOW, Config::CLOUD_SOFT_HIGH, Config::CLOUD_SOFT_n_SKEW * n + Config::CLOUD_SOFT_w_SKEW * w.x + 0.08 * edge);
@@ -303,7 +305,7 @@ static float2 vortexField(float2 p, float2 center, float strength) {
     cloud *= (Config::DEPTH_BLEND_BASE + Config::DEPTH_BLEND_AMP * depth);
     cloud = clamp(cloud, 0.0, 1.0);
 
-    base = mix(base, float3(1.0), cloud * (Config::CLOUD_WHITE_BASE + Config::CLOUD_WHITE_AMP * (0.80 * breath + 0.20 * edge)));
+    base = mix(base, float3(1.0), cloud * 0.22 * (Config::CLOUD_WHITE_BASE + Config::CLOUD_WHITE_AMP * (0.80 * breath + 0.20 * edge)));
 
     float breathGlow = exp(-pRaw.y * pRaw.y * Config::GLOW_Y_SKEW) * exp(-pRaw.x * pRaw.x * Config::GLOW_X_SKEW);
     base += Config::GLOW_COLOR_BASE * breathGlow * (0.55 * breath + 0.85 * kick) * Config::GLOW_INTENSITY;
