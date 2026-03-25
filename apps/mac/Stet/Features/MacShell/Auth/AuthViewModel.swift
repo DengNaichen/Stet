@@ -72,18 +72,6 @@ final class AuthViewModel {
         accountEmail ?? "Unknown user"
     }
 
-    var isSupabaseConfigured: Bool {
-        supabase.isConfigured
-    }
-
-    var configurationStatusText: String {
-        isSupabaseConfigured ? "Supabase Ready" : "Setup Required"
-    }
-
-    var configurationStatusTint: Bool {
-        isSupabaseConfigured
-    }
-
     func signIn() async {
         await perform(.signIn) { email, password in
             try await supabase.signIn(email: email, password: password)

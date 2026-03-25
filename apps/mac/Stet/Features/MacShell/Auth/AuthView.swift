@@ -91,17 +91,12 @@ struct AuthView: View {
                 }
                 .disabled(viewModel.isLoading)
 
-                HStack {
-                    MacSettingsStatusBadge(
-                        text: viewModel.configurationStatusText,
-                        tint: viewModel.configurationStatusTint ? .green : .orange
-                    )
-
-                    Spacer()
-
-                    if viewModel.isLoading {
+                if viewModel.isLoading {
+                    HStack {
+                        Spacer()
                         ProgressView()
                             .controlSize(.small)
+                        Spacer()
                     }
                 }
 
