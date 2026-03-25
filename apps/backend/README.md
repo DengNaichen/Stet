@@ -122,9 +122,9 @@ The main dictation pipeline endpoint. Requires auth.
 
 ## Notes
 
-- Set `AI_PROVIDER` env var to `groq` (default) or `openai`.
+- Managed relay uses fixed upstreams: Groq for transcription and OpenAI for rewrite.
 - ASR is billed by audio duration and rewrite is billed by model token usage.
-- Groq managed-mode defaults to `openai/gpt-oss-120b` for rewrite and `whisper-large-v3-turbo` for transcription.
+- Managed relay uses `whisper-large-v3-turbo` for transcription and `gpt-5.4-nano-2026-03-17` for rewrite.
 - The relay requires `audio_duration_seconds` for managed mode requests.
 - Credits are prepaid and deducted from the user's wallet before upstream calls. Failed upstream calls are refunded, and successful rewrite calls reconcile any difference between the pre-reserved and actual token-based cost.
 - Stripe top-ups are handled via the `/billing/stripe/webhook` endpoint and should include `metadata.user_id` and `metadata.credits`.

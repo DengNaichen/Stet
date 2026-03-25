@@ -442,6 +442,13 @@
 
         func setDebugForceOnboardingEnabled(_ enabled: Bool) {
             defaults.set(enabled, forKey: MacPreferences.debugForceOnboarding)
+
+            #if DEBUG
+                if !enabled {
+                    defaults.set(true, forKey: MacPreferences.onboardingCompleted)
+                }
+            #endif
+
             resetOnboardingProgressIfNeeded()
             notifyChange()
         }

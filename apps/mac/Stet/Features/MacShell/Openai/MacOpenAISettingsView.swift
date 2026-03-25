@@ -20,34 +20,28 @@
                             .frame(width: controlWidth, alignment: .trailing)
                         }
 
-                        MacSettingsValueRow(title: "Transcription provider") {
-                            Picker("", selection: $viewModel.transcriptionProvider) {
-                                ForEach(DictationProvider.allCases) { provider in
-                                    Text(provider.displayName).tag(provider)
+                        if viewModel.showsProviderConfiguration {
+                            MacSettingsValueRow(title: "Transcription provider") {
+                                Picker("", selection: $viewModel.transcriptionProvider) {
+                                    ForEach(DictationProvider.allCases) { provider in
+                                        Text(provider.displayName).tag(provider)
+                                    }
                                 }
+                                .labelsHidden()
+                                .pickerStyle(.menu)
+                                .frame(width: controlWidth, alignment: .trailing)
                             }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .frame(width: controlWidth, alignment: .trailing)
-                        }
 
-                        MacSettingsValueRow(title: "Rewrite provider") {
-                            Picker("", selection: $viewModel.rewriteProvider) {
-                                ForEach(DictationProvider.allCases) { provider in
-                                    Text(provider.displayName).tag(provider)
+                            MacSettingsValueRow(title: "Rewrite provider") {
+                                Picker("", selection: $viewModel.rewriteProvider) {
+                                    ForEach(DictationProvider.allCases) { provider in
+                                        Text(provider.displayName).tag(provider)
+                                    }
                                 }
+                                .labelsHidden()
+                                .pickerStyle(.menu)
+                                .frame(width: controlWidth, alignment: .trailing)
                             }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .frame(width: controlWidth, alignment: .trailing)
-                        }
-
-                        MacSettingsValueRow(title: "Status") {
-                            MacSettingsStatusBadge(
-                                text: viewModel.connectionStatusText,
-                                tint: viewModel.connectionNeedsAttention ? .orange : .green
-                            )
-                            .frame(width: controlWidth, alignment: .trailing)
                         }
                     }
                 } header: {
@@ -66,8 +60,6 @@
                             .pickerStyle(.menu)
                             .frame(width: controlWidth, alignment: .trailing)
                         }
-
-                        Toggle(viewModel.rewriteToggleTitle, isOn: $viewModel.rewriteEnabled)
                     }
                 } header: {
                     Text("Dictation")
