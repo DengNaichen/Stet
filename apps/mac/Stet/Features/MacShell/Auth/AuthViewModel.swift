@@ -117,10 +117,6 @@ final class AuthViewModel {
         await performOAuth(provider: .github)
     }
 
-    func signInWithApple() async {
-        await performOAuth(provider: .apple)
-    }
-
     func signUp() async {
         await perform(.signUp) { email, password in
             try await supabase.signUp(email: email, password: password)

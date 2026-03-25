@@ -321,10 +321,6 @@
             await signInWithOAuth(provider: .github)
         }
 
-        func signInWithApple() async {
-            await signInWithOAuth(provider: .apple)
-        }
-
         func useUnavailableIdentityProvider(_ providerName: String) {
             authStatusMessage = nil
             authErrorMessage = "\(providerName) login is not yet integrated, please use Email to continue."

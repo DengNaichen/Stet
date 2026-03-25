@@ -295,6 +295,33 @@
         }
     }
 
+    struct OAuthSignInButtonGroup: View {
+        var buttonWidth: CGFloat? = 316
+        var isEnabled: Bool = true
+        let appleAction: () -> Void
+        let googleAction: () -> Void
+        let githubAction: () -> Void
+
+        var body: some View {
+            VStack(spacing: 10) {
+                providerButton(AppleSignInButton(action: appleAction))
+                providerButton(GoogleSignInButton(action: googleAction))
+                providerButton(GitHubSignInButton(action: githubAction))
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .disabled(!isEnabled)
+        }
+
+        @ViewBuilder
+        private func providerButton<Content: View>(_ content: Content) -> some View {
+            if let buttonWidth {
+                content.frame(width: buttonWidth)
+            } else {
+                content
+            }
+        }
+    }
+
     struct GoogleBrandMark: View {
         var body: some View {
             // Google "G" logo with proper brand colors
