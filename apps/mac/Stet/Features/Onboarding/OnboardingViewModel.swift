@@ -145,6 +145,10 @@
             coordinator.canSkipFirstSuccessOnboarding
         }
 
+        var canFinishAppearanceOnboarding: Bool {
+            coordinator.canFinishAppearanceOnboarding
+        }
+
         var apiKeyPrimaryButtonTitle: String {
             if isAPIKeyValidated {
                 return "Continue"
@@ -180,6 +184,10 @@
 
         func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme) {
             coordinator.selectOnboardingAppearanceTheme(theme)
+        }
+
+        func applyOnboardingAppearanceTheme() {
+            coordinator.applyOnboardingAppearanceTheme()
         }
 
         func continueOnboarding() {

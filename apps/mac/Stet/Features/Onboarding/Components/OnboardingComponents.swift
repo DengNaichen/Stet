@@ -1140,18 +1140,24 @@
     struct OnboardingVisualPanel: View {
         let step: MacOnboardingStep
         let viewModel: OnboardingViewModel
+        @ObservedObject var appearanceViewModel: MacAppearanceSettingsViewModel
         let onAppearanceThemeChange: ((MacDictationVisualTheme) -> Void)?
+        let onAppearanceThemeApply: ((MacDictationVisualTheme) -> Void)?
         @State private var firstSuccessDraftText = ""
         @FocusState private var isFirstSuccessDraftFocused: Bool
 
         init(
             step: MacOnboardingStep,
             viewModel: OnboardingViewModel,
-            onAppearanceThemeChange: ((MacDictationVisualTheme) -> Void)? = nil
+            appearanceViewModel: MacAppearanceSettingsViewModel,
+            onAppearanceThemeChange: ((MacDictationVisualTheme) -> Void)? = nil,
+            onAppearanceThemeApply: ((MacDictationVisualTheme) -> Void)? = nil
         ) {
             self.step = step
             self.viewModel = viewModel
+            self.appearanceViewModel = appearanceViewModel
             self.onAppearanceThemeChange = onAppearanceThemeChange
+            self.onAppearanceThemeApply = onAppearanceThemeApply
         }
 
         var body: some View {
@@ -1243,12 +1249,19 @@
                         isFirstSuccessDraftFocused = true
                     }
                 } else if step == .appearance {
-                    OnboardingAppearanceCoverFlowPanel(
-                        onFocusedThemeChange: { theme in
-                            onAppearanceThemeChange?(theme)
-                        }
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    VStack(spacing: 14) {
+                        OnboardingAppearanceCoverFlowPanel(
+                            selectedTheme: appearanceViewModel.shaderTheme,
+                            isSelectedThemeApplied: appearanceViewModel.hasAppliedSelectedTheme,
+                            onFocusedThemeChange: { theme in
+                                onAppearanceThemeChange?(theme)
+                            },
+                            onApplyTheme: { theme in
+                                onAppearanceThemeApply?(theme)
+                            }
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                     .padding(18)
                 } else if step == .done {
                     // Empty panel for appearance/theme selection
@@ -1624,10 +1637,21 @@
         }
 
         @State private var focusedIndex = 0
+        let selectedTheme: MacDictationVisualTheme
+        let isSelectedThemeApplied: Bool
         private let onFocusedThemeChange: (MacDictationVisualTheme) -> Void
+        private let onApplyTheme: (MacDictationVisualTheme) -> Void
 
-        init(onFocusedThemeChange: @escaping (MacDictationVisualTheme) -> Void = { _ in }) {
+        init(
+            selectedTheme: MacDictationVisualTheme,
+            isSelectedThemeApplied: Bool,
+            onFocusedThemeChange: @escaping (MacDictationVisualTheme) -> Void = { _ in },
+            onApplyTheme: @escaping (MacDictationVisualTheme) -> Void = { _ in }
+        ) {
+            self.selectedTheme = selectedTheme
+            self.isSelectedThemeApplied = isSelectedThemeApplied
             self.onFocusedThemeChange = onFocusedThemeChange
+            self.onApplyTheme = onApplyTheme
         }
 
         private let cards: [CardSpec] = [
@@ -1747,10 +1771,29 @@
                 .animation(.spring(response: 0.45, dampingFraction: 0.82), value: focusedIndex)
 
                 Spacer(minLength: 0)
+
+                OnboardingActionButton(
+                    title: isSelectedThemeApplied ? "Applied" : "Apply Theme",
+                    systemImage: "paintbrush",
+                    isEnabled: !isSelectedThemeApplied,
+                    background: isSelectedThemeApplied ? Color.accentColor : Color.white.opacity(0.12),
+                    foreground: isSelectedThemeApplied ? .white : .primary,
+                    strokeColor: Color.white.opacity(0.12),
+                    minHeight: 44
+                ) {
+                    onApplyTheme(currentFocusedTheme)
+                }
+                .frame(width: 190)
             }
             .padding(.vertical, 8)
             .onAppear {
+                focusedIndex = normalizedIndex(index(for: selectedTheme))
                 onFocusedThemeChange(currentFocusedTheme)
+            }
+            .onChange(of: selectedTheme) { _, newTheme in
+                let nextIndex = normalizedIndex(index(for: newTheme))
+                guard nextIndex != focusedIndex else { return }
+                focusedIndex = nextIndex
             }
         }
 
@@ -1843,6 +1886,10 @@
             guard !cards.isEmpty else { return 0 }
             let modulo = index % cards.count
             return modulo >= 0 ? modulo : modulo + cards.count
+        }
+
+        private func index(for theme: MacDictationVisualTheme) -> Int {
+            cards.firstIndex(where: { $0.theme == theme }) ?? 0
         }
 
         private var currentFocusedTheme: MacDictationVisualTheme {

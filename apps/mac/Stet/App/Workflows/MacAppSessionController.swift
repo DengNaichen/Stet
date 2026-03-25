@@ -27,6 +27,7 @@
         private var onboardingStepState: MacOnboardingStep
         private var onboardingModeState: MacOnboardingMode?
         private var onboardingAppearanceThemeState: MacDictationVisualTheme
+        private var hasAppliedOnboardingAppearanceTheme = false
         private var shortcutTestDetectedPressState = false
         private var shortcutTestCompletedRoundTripState = false
         private var shortcutTestPreviewTextState: String?
@@ -59,6 +60,7 @@
             self.hotkeyRegistrar = hotkeyRegistrar
             self.onboardingStepState = .done
             self.onboardingAppearanceThemeState = .egg
+            self.hasAppliedOnboardingAppearanceTheme = false
 
             configure()
         }
@@ -373,6 +375,14 @@
 
         func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme) {
             onboardingAppearanceThemeState = theme
+            hasAppliedOnboardingAppearanceTheme = false
+            notifyChange()
+        }
+
+        func applyOnboardingAppearanceTheme() {
+            defaults.set(onboardingAppearanceThemeState.rawValue, forKey: MacPreferences.shaderTheme)
+            hasAppliedOnboardingAppearanceTheme = true
+            notifyChange()
         }
 
         func advanceOnboarding() {
@@ -441,12 +451,15 @@
         }
 
         func finishOnboarding() {
-            defaults.set(onboardingAppearanceThemeState.rawValue, forKey: MacPreferences.shaderTheme)
             defaults.set(true, forKey: MacPreferences.onboardingCompleted)
             onboardingStepState = .done
             onboardingModeState = nil
             permissionGateController.hide()
             notifyChange()
+        }
+
+        var canFinishAppearanceOnboarding: Bool {
+            hasAppliedOnboardingAppearanceTheme
         }
 
         func setDebugForceOnboardingEnabled(_ enabled: Bool) {

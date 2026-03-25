@@ -75,6 +75,10 @@
             didSet { notifyChange() }
         }
 
+        var canFinishAppearanceOnboarding: Bool {
+            didSet { notifyChange() }
+        }
+
         var shortcutSummaryText: String = "Shortcut configured" {
             didSet { notifyChange() }
         }
@@ -99,6 +103,7 @@
             self.firstSuccessFailureMessage = nil
             self.canContinueFirstSuccessOnboarding = true
             self.canSkipFirstSuccessOnboarding = true
+            self.canFinishAppearanceOnboarding = false
             configurePreviewState(for: step)
         }
 
@@ -118,7 +123,12 @@
         }
 
         func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme) {
+            canFinishAppearanceOnboarding = false
             _ = theme
+        }
+
+        func applyOnboardingAppearanceTheme() {
+            canFinishAppearanceOnboarding = true
         }
 
         func advanceOnboarding() {

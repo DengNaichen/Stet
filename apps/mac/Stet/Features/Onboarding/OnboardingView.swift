@@ -3,13 +3,16 @@
 
     struct OnboardingView: View {
         @StateObject private var viewModel: OnboardingViewModel
+        @StateObject private var appearanceViewModel: MacAppearanceSettingsViewModel
 
         init(appModel: any MacPermissionsCoordinating) {
             _viewModel = StateObject(wrappedValue: OnboardingViewModel(coordinator: appModel))
+            _appearanceViewModel = StateObject(wrappedValue: .shared)
         }
 
         init(viewModel: OnboardingViewModel) {
             _viewModel = StateObject(wrappedValue: viewModel)
+            _appearanceViewModel = StateObject(wrappedValue: .shared)
         }
 
         // MARK: - Layout constants
@@ -167,7 +170,10 @@
             case .firstSuccess:
                 OnboardingFirstSuccessStep(viewModel: viewModel)
             case .appearance:
-                OnboardingAppearanceStep(viewModel: viewModel)
+                OnboardingAppearanceStep(
+                    viewModel: viewModel,
+                    appearanceViewModel: appearanceViewModel
+                )
             case .done:
                 OnboardingDoneStep(viewModel: viewModel)
             }
@@ -186,8 +192,13 @@
                 OnboardingVisualPanel(
                     step: viewModel.onboardingStep,
                     viewModel: viewModel,
+                    appearanceViewModel: appearanceViewModel,
                     onAppearanceThemeChange: { theme in
                         viewModel.selectOnboardingAppearanceTheme(theme)
+                    },
+                    onAppearanceThemeApply: { theme in
+                        viewModel.selectOnboardingAppearanceTheme(theme)
+                        viewModel.applyOnboardingAppearanceTheme()
                     }
                 )
             }
@@ -227,7 +238,7 @@
                 return
                     "Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup."
             case .appearance:
-                return "Customize the look and feel of your app."
+                return "Apply the theme on the right, then finish."
             case .done:
                 return "Hold your shortcut and start speaking anywhere you can type text."
             }
