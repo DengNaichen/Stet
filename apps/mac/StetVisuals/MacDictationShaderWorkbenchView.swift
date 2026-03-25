@@ -152,9 +152,9 @@
             VStack(alignment: .leading, spacing: 12) {
                 shaderCanvas(size: CGSize(width: surfaceWidth, height: surfaceHeight))
                     .frame(minHeight: 680)
-                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    .clipShape(Rectangle())
                     .overlay(
-                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        Rectangle()
                             .strokeBorder(.quaternary, lineWidth: 1)
                     )
 
@@ -388,40 +388,38 @@
             detail: Double,
             colors: (top: Color, mid: Color, low: Color)
         ) -> some View {
-            ZStack {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.black.opacity(0.08),
-                                Color.black.opacity(0.02),
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.black.opacity(0.08),
+                            Color.black.opacity(0.02),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
-
-                Capsule()
-                    .fill(.white)
-                    .colorEffect(
-                        StetVisualsShaderLibrary.cloudOrbGlassWide(
-                            size: size,
-                            time: elapsed,
-                            body: signals.body,
-                            presence: signals.presence,
-                            pulse: signals.pulse,
-                            articulation: signals.articulation,
-                            detail: detail,
-                            top: colors.top,
-                            mid: colors.mid,
-                            low: colors.low
+                )
+                .overlay {
+                    Rectangle()
+                        .fill(.white)
+                        .colorEffect(
+                            StetVisualsShaderLibrary.cloudOrbGlassWide(
+                                size: size,
+                                time: elapsed,
+                                body: signals.body,
+                                presence: signals.presence,
+                                pulse: signals.pulse,
+                                articulation: signals.articulation,
+                                detail: detail,
+                                top: colors.top,
+                                mid: colors.mid,
+                                low: colors.low
+                            )
                         )
-                    )
-                    .frame(width: size.width, height: size.height)
-                    .shadow(color: .black.opacity(0.12), radius: 16, y: 10)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(20)
+                        .frame(width: size.width, height: size.height)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(20)
         }
 
         @ViewBuilder
