@@ -219,6 +219,10 @@
         func signIn(provider _: Provider) async throws {
             hasCurrentSession = true
         }
+
+        func signUp(email _: String, password _: String) async throws {
+            hasCurrentSession = true
+        }
     }
 
     struct PreviewOnboardingAPIKeyValidationService: OnboardingAPIKeyValidating {

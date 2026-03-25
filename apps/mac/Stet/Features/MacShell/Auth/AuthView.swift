@@ -17,6 +17,11 @@ struct AuthView: View {
         .frame(maxWidth: 460)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(nsColor: .windowBackgroundColor))
+        .overlay(alignment: .topLeading) {
+            dismissButton
+                .padding(.top, 12)
+                .padding(.leading, 12)
+        }
         .onChange(of: viewModel.isSignedIn) { _, isSignedIn in
             guard isSignedIn else { return }
             viewModel.clearFeedback()
@@ -25,6 +30,28 @@ struct AuthView: View {
                 dismiss()
             }
         }
+    }
+
+    private var dismissButton: some View {
+        Button {
+            dismiss()
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 24, height: 24)
+                .background(
+                    Circle()
+                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.95))
+                )
+                .overlay(
+                    Circle()
+                        .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut(.cancelAction)
+        .help("Close")
     }
 
     private var signedInCard: some View {
@@ -115,28 +142,34 @@ struct AuthView: View {
                     mode: .secure
                 )
 
+                if viewModel.showsConfirmPasswordField {
+                    OnboardingInputField(
+                        label: "Confirm Password",
+                        placeholder: "Confirm password",
+                        text: $viewModel.confirmPassword,
+                        mode: .secure
+                    )
+                }
+
                 feedbackView
 
                 HStack(spacing: 12) {
-                    Button("Close") {
-                        dismiss()
+                    Button(viewModel.modeToggleTitle) {
+                        viewModel.toggleAuthMode()
                     }
-                    .keyboardShortcut(.cancelAction)
-
-                    Button("Create Account") {
-                        shouldDismissAfterAuthentication = true
-                        Task {
-                            await viewModel.signUp()
-                        }
-                    }
-                    .disabled(!viewModel.canSubmit)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
 
                     Spacer()
 
-                    Button("Sign In") {
+                    Button(viewModel.primaryActionTitle) {
                         shouldDismissAfterAuthentication = true
                         Task {
-                            await viewModel.signIn()
+                            if viewModel.showsConfirmPasswordField {
+                                await viewModel.signUp()
+                            } else {
+                                await viewModel.signIn()
+                            }
                         }
                     }
                     .keyboardShortcut(.defaultAction)
@@ -216,5 +249,5 @@ struct AuthView: View {
 
 #Preview("Signed Out State") {
     AuthView()
-        .frame(width: 520, height: 480)
+        .frame(width: 520, height: 580)
 }

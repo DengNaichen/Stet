@@ -837,7 +837,7 @@
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
                 }
-                .frame(minHeight: 36)
+                .frame(height: 48)
                 .animation(.easeInOut(duration: 0.15), value: isFocused)
             }
         }
