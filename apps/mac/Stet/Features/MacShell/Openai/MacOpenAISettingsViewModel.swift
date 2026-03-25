@@ -4,7 +4,7 @@
 
     @MainActor
     final class MacOpenAISettingsViewModel: ObservableObject {
-        @Published var executionMode: AIExecutionMode = .automatic {
+        @Published var executionMode: AIExecutionMode = .byok {
             didSet {
                 guard hasLoadedState else { return }
                 settingsStore.saveExecutionMode(executionMode)
@@ -25,12 +25,6 @@
         }
         @Published var openAIAPIKey = ""
         @Published var groqAPIKey = ""
-        @Published var rewriteEnabled = false {
-            didSet {
-                guard hasLoadedState else { return }
-                settingsStore.saveRewriteEnabled(rewriteEnabled)
-            }
-        }
         @Published var dictationLanguageMode: DictationLanguageMode = .automatic {
             didSet {
                 guard hasLoadedState else { return }
@@ -54,9 +48,6 @@
 
         var connectionNeedsAttention: Bool {
             switch executionMode {
-            case .automatic:
-                return !hasRelaySession
-                    && (!unsupportedProviderPairMessage.isNilOrEmpty || !missingRequiredProviders.isEmpty)
             case .managed:
                 return !hasRelaySession
             case .byok:
@@ -69,26 +60,10 @@
             executionMode = settingsStore.loadExecutionMode()
             transcriptionProvider = settingsStore.loadTranscriptionProvider()
             rewriteProvider = settingsStore.loadRewriteProvider(defaultingTo: transcriptionProvider)
-            rewriteEnabled = settingsStore.loadRewriteEnabled()
             dictationLanguageMode = settingsStore.loadDictationLanguageMode()
             openAIAPIKey = settingsStore.loadAPIKey(for: .openAI)
             groqAPIKey = settingsStore.loadAPIKey(for: .groq)
             hasLoadedState = true
-        }
-
-        var connectionStatusText: String {
-            if unsupportedProviderPairMessage != nil {
-                return "Unsupported Pair"
-            }
-
-            switch executionMode {
-            case .automatic:
-                return hasRelaySession ? "Relay Active" : (connectionNeedsAttention ? "Needs Setup" : "Ready")
-            case .managed:
-                return hasRelaySession ? "Relay Active" : "Sign In Required"
-            case .byok:
-                return connectionNeedsAttention ? "Needs Setup" : "Ready"
-            }
         }
 
         func saveCredential(for provider: DictationProvider) {
@@ -124,23 +99,18 @@
         }
 
         var visibleCredentialProviders: [DictationProvider] {
+            guard executionMode != .managed else { return [] }
+
             let selectedProviders = [
                 transcriptionProvider,
-                rewriteEnabled ? rewriteProvider : nil,
+                rewriteProvider,
             ].compactMap { $0 }
 
             return DictationProvider.allCases.filter { selectedProviders.contains($0) }
         }
 
-        var rewriteToggleTitle: String {
-            switch executionMode {
-            case .automatic:
-                return "Improve final transcript automatically"
-            case .managed:
-                return "Improve final transcript with your Stet account"
-            case .byok:
-                return "Improve final transcript with your own key"
-            }
+        var showsProviderConfiguration: Bool {
+            executionMode != .managed
         }
 
         func credentialFieldTitle(for provider: DictationProvider) -> String {
@@ -160,10 +130,6 @@
             guard !providerList.isEmpty else { return nil }
 
             switch executionMode {
-            case .automatic:
-                guard !hasRelaySession else { return nil }
-                return
-                    "Add \(providerList) API key\(missingRequiredProviders.count == 1 ? "" : "s") to use direct dictation when you're signed out."
             case .managed:
                 return hasRelaySession ? nil : "Sign in with your Stet account to use cloud dictation."
             case .byok:
@@ -188,7 +154,7 @@
         }
 
         private var unsupportedProviderPairMessage: String? {
-            guard rewriteEnabled, !OpenAIConfiguration.isSupportedProviderPair(selectedProviderPair) else {
+            guard !OpenAIConfiguration.isSupportedProviderPair(selectedProviderPair) else {
                 return nil
             }
 
@@ -201,8 +167,6 @@
 
         private var requiredProviders: [DictationProvider] {
             switch executionMode {
-            case .automatic:
-                return hasRelaySession ? [] : directProviders
             case .managed:
                 return []
             case .byok:
@@ -213,7 +177,7 @@
         private var directProviders: [DictationProvider] {
             let selectedProviders = [
                 transcriptionProvider,
-                rewriteEnabled ? rewriteProvider : nil,
+                rewriteProvider,
             ].compactMap { $0 }
 
             return DictationProvider.allCases.filter { selectedProviders.contains($0) }

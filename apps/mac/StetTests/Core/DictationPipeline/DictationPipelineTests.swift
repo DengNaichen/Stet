@@ -21,7 +21,6 @@ private func makeSnapshot(
         apiKey: "sk-test",
         providerPair: DictationProviderPair(transcriptionProvider: .openAI, rewriteProvider: .openAI)
     ),
-    rewriteEnabled: Bool = false,
     dictationLanguageMode: DictationLanguageMode = .automatic,
     personalDictionary: [String] = []
 ) -> DictationSettingsSnapshot {
@@ -29,7 +28,7 @@ private func makeSnapshot(
         transcriptionProvider: transcriptionProvider,
         rewriteProvider: rewriteProvider,
         executionMode: mode,
-        isRewriteEnabled: rewriteEnabled,
+        isRewriteEnabled: true,
         dictationLanguageMode: dictationLanguageMode,
         shouldPauseMediaDuringDictation: false,
         transcriptionProviderConfiguration: transcriptionProviderConfiguration,
@@ -42,34 +41,14 @@ private func makeSnapshot(
 
 @Suite("Dictation Pipeline Logic")
 struct LogicPrimitiveTests {
-    @Test func dictationExecutionRouteResolverFallsBackToDirectForAutomaticWithoutRelay() async throws {
-        let snapshot = makeSnapshot(mode: .automatic)
-
-        let route = try await DictationExecutionRouteResolver.resolve(
-            snapshot: snapshot,
-            relayAuthentication: nil
-        )
-
-        switch route {
-        case .direct(let direct):
-            #expect(await direct.transcriptionConfiguration.apiKey == "sk-test")
-            #expect(await direct.rewriteConfiguration == nil)
-            #expect(await direct.rewriteEnabled == false)
-            #expect(await direct.languageMode == .automatic)
-            #expect(await direct.preferredSpellings.isEmpty)
-        default:
-            Issue.record("Expected direct route.")
-        }
-    }
-
-    @Test func dictationExecutionRouteResolverPrefersRelayWhenAuthenticated() async throws {
+    @Test func dictationExecutionRouteResolverUsesManagedRelayWhenAuthenticated() async throws {
         let relayAuthentication = RelayAuthenticationContext(
             functionsBaseURL: URL(string: "https://example.supabase.co/functions/v1")!,
             publishableKey: "anon-key",
             accessToken: "access-token"
         )
         let snapshot = makeSnapshot(
-            mode: .automatic,
+            mode: .managed,
             personalDictionary: ["OpenAI"]
         )
 
@@ -116,8 +95,7 @@ struct LogicPrimitiveTests {
         let snapshot = makeSnapshot(
             mode: .byok,
             transcriptionProviderConfiguration: nil,
-            rewriteProviderConfiguration: nil,
-            rewriteEnabled: true
+            rewriteProviderConfiguration: nil
         )
 
         await #expect(
@@ -142,8 +120,7 @@ struct LogicPrimitiveTests {
                     transcriptionProvider: .groq,
                     rewriteProvider: .openAI
                 )
-            ),
-            rewriteEnabled: true
+            )
         )
 
         await #expect(
@@ -167,8 +144,7 @@ struct LogicPrimitiveTests {
                     rewriteProvider: .openAI
                 )
             ),
-            rewriteProviderConfiguration: nil,
-            rewriteEnabled: true
+            rewriteProviderConfiguration: nil
         )
 
         await #expect(
@@ -192,8 +168,7 @@ struct LogicPrimitiveTests {
                     rewriteProvider: .groq
                 )
             ),
-            rewriteProviderConfiguration: nil,
-            rewriteEnabled: true
+            rewriteProviderConfiguration: nil
         )
 
         await #expect(
@@ -208,51 +183,7 @@ struct LogicPrimitiveTests {
         }
     }
 
-    @Test func makePipelineSelectsDirectServiceForAutomaticWithoutRelay() async throws {
-        let direct = RecordingTranscriptionService(result: "direct")
-        let relay = RecordingTranscriptionService(result: "relay")
-        var capturedTranscriptionConfiguration: OpenAIConfiguration?
-        var capturedRewriteConfiguration: OpenAIConfiguration?
-        let audioFileURL = try makeTemporaryWavURL()
-        defer { try? FileManager.default.removeItem(at: audioFileURL) }
-        let factory = DictationPipelineFactory(
-            relayAuthenticationContext: { nil },
-            makeDirectTranscriptionService: { configuration, _ in
-                capturedTranscriptionConfiguration = configuration
-                return direct
-            },
-            makeRelayTranscriptionService: { _, _, _, _ in relay },
-            makeRewriteService: { configuration, _ in
-                capturedRewriteConfiguration = configuration
-                return RecordingRewriteService()
-            }
-        )
-        let snapshot = makeSnapshot(
-            mode: .automatic,
-            rewriteEnabled: true,
-            personalDictionary: ["OpenAI", "Groq"]
-        )
-
-        let pipeline = try await factory.makePipeline(from: snapshot)
-        let transcript = try await pipeline.transcriptionService.transcribe(
-            audioFileAt: audioFileURL,
-            languageCode: "en",
-            prompt: pipeline.promptProvider == nil ? nil : "should-not-be-used",
-            audioDurationSeconds: 1.2
-        )
-
-        #expect(transcript == "direct")
-        #expect(pipeline.promptProvider == nil)
-        #expect(pipeline.transcriptionLanguageCode == nil)
-        #expect(pipeline.usesAudienceAwareLocalPrompts == false)
-        #expect(await direct.callCount == 1)
-        #expect(await relay.callCount == 0)
-        #expect(await direct.capturedPrompt == nil)
-        #expect(capturedTranscriptionConfiguration?.provider == .openAI)
-        #expect(capturedRewriteConfiguration?.provider == .openAI)
-    }
-
-    @Test func makePipelineSelectsRelayServiceForAutomaticWithSession() async throws {
+    @Test func makePipelineSelectsRelayServiceForManagedWithSession() async throws {
         let direct = RecordingTranscriptionService(result: "direct")
         let relay = RecordingTranscriptionService(result: "relay")
         let audioFileURL = try makeTemporaryWavURL()
@@ -267,11 +198,11 @@ struct LogicPrimitiveTests {
                 )
             },
             makeDirectTranscriptionService: { _, _ in direct },
-            makeRelayTranscriptionService: { _, _, _, _ in relay },
+            makeRelayTranscriptionService: { _, _, _ in relay },
             makeRewriteService: { _, _ in RecordingRewriteService() }
         )
         let snapshot = makeSnapshot(
-            mode: .automatic,
+            mode: .managed,
             personalDictionary: ["OpenAI", "Groq"]
         )
 
@@ -303,7 +234,7 @@ struct LogicPrimitiveTests {
                 capturedTranscriptionConfiguration = configuration
                 return direct
             },
-            makeRelayTranscriptionService: { _, _, _, _ in relay },
+            makeRelayTranscriptionService: { _, _, _ in relay },
             makeRewriteService: { configuration, _ in
                 capturedRewriteConfiguration = configuration
                 return rewrite
@@ -327,7 +258,6 @@ struct LogicPrimitiveTests {
                     rewriteProvider: .openAI
                 )
             ),
-            rewriteEnabled: true,
             dictationLanguageMode: .mixedChineseEnglish
         )
         let audioFileURL = try makeTemporaryWavURL()

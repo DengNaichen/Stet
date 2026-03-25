@@ -266,5 +266,22 @@
             #expect(shellPresenter.applyDockVisibilityCalls == [true])
             #expect(onChangeCount == 1)
         }
+
+        @Test func disablingDebugForceOnboardingRestoresCompletedOnboardingInDebugBuilds() {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(false, forKey: MacPreferences.onboardingCompleted)
+            defaults.set(true, forKey: MacPreferences.debugForceOnboarding)
+            let textInjectionService = TestTextInjectionService()
+            let (sut, _, _, _, _) = makeSut(
+                defaults: defaults,
+                textInjectionService: textInjectionService
+            )
+
+            sut.setDebugForceOnboardingEnabled(false)
+
+            #expect(defaults.bool(forKey: MacPreferences.debugForceOnboarding) == false)
+            #expect(defaults.bool(forKey: MacPreferences.onboardingCompleted))
+            #expect(sut.onboardingStep == .done)
+        }
     }
 #endif

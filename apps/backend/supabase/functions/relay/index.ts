@@ -18,26 +18,22 @@ import { getRelayPolicy } from "./config.ts";
 import { validateAudioUpload } from "./request_validation.ts";
 
 // ---------------------------------------------------------------------------
-// Provider selection
+// Fixed managed providers
 // ---------------------------------------------------------------------------
 
 type ProviderName = "openai" | "groq";
 
-const configuredProvider = Deno.env.get("AI_PROVIDER")?.trim().toLowerCase();
-const PROVIDER_NAME: ProviderName = configuredProvider === "openai"
-  ? "openai"
-  : "groq";
+const TRANSCRIPTION_PROVIDER_NAME: ProviderName = "groq";
+const REWRITE_PROVIDER_NAME: ProviderName = "openai";
 const BILLING_BACKEND = makeRelayBillingBackend();
 const RELAY_POLICY = getRelayPolicy();
 
-function makeProvider(): AIProvider {
-  switch (PROVIDER_NAME) {
-    case "groq":
-      return new GroqProvider();
-    case "openai":
-    default:
-      return new OpenAIProvider();
-  }
+function makeTranscriptionProvider(): AIProvider {
+  return new GroqProvider();
+}
+
+function makeRewriteProvider(): AIProvider {
+  return new OpenAIProvider();
 }
 
 // ---------------------------------------------------------------------------
@@ -62,7 +58,8 @@ app.use("*", async (c: RelayContext, next: Next) => {
 
 app.get("/healthz", (c: RelayContext) => {
   log("info", "healthz", c.get("requestId"), {
-    provider: PROVIDER_NAME,
+    transcriptionProvider: TRANSCRIPTION_PROVIDER_NAME,
+    rewriteProvider: REWRITE_PROVIDER_NAME,
     billingBackend: BILLING_BACKEND.kind,
     openaiConfigured: Boolean(Deno.env.get("OPENAI_API_KEY")?.trim()),
     groqConfigured: Boolean(Deno.env.get("GROQ_API_KEY")?.trim()),
@@ -72,7 +69,8 @@ app.get("/healthz", (c: RelayContext) => {
     status: "ok",
     service: "stet-managed-relay",
     version: 2,
-    provider: PROVIDER_NAME,
+    transcription_provider: TRANSCRIPTION_PROVIDER_NAME,
+    rewrite_provider: REWRITE_PROVIDER_NAME,
     billing_backend: BILLING_BACKEND.kind,
   });
 });
@@ -205,7 +203,8 @@ app.post("/audio/transcriptions", async (c: RelayContext) => {
     );
   }
 
-  const provider = makeProvider();
+  const transcriptionProvider = makeTranscriptionProvider();
+  const rewriteProvider = makeRewriteProvider();
   let audioBytes: Uint8Array;
   try {
     audioBytes = new Uint8Array(await file.arrayBuffer());
@@ -229,7 +228,8 @@ app.post("/audio/transcriptions", async (c: RelayContext) => {
 
   log("info", "dictation_pipeline_started", requestId, {
     userId: user.id,
-    provider: PROVIDER_NAME,
+    transcriptionProvider: TRANSCRIPTION_PROVIDER_NAME,
+    rewriteProvider: REWRITE_PROVIDER_NAME,
     fileName: file.name,
     fileSize: file.size,
     audioDurationSeconds,
@@ -261,8 +261,8 @@ app.post("/audio/transcriptions", async (c: RelayContext) => {
       language: language ?? undefined,
       prompt: prompt ?? undefined,
     },
-    provider,
-    providerName: PROVIDER_NAME,
+    provider: transcriptionProvider,
+    providerName: TRANSCRIPTION_PROVIDER_NAME,
     billingBackend: BILLING_BACKEND,
   });
 
@@ -277,8 +277,8 @@ app.post("/audio/transcriptions", async (c: RelayContext) => {
       admin,
       userId: user.id,
       rawText: finalText,
-      provider,
-      providerName: PROVIDER_NAME,
+      provider: rewriteProvider,
+      providerName: REWRITE_PROVIDER_NAME,
       preferredSpellings,
       billingBackend: BILLING_BACKEND,
     });

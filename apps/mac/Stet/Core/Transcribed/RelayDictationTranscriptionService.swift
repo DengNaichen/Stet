@@ -22,18 +22,15 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
 
     private let authentication: RelayAuthenticationContext
     private let session: URLSession
-    private let rewriteEnabled: Bool
     private let preferredSpellings: [String]
 
     nonisolated init(
         authentication: RelayAuthenticationContext,
         session: URLSession = .shared,
-        rewriteEnabled: Bool,
         preferredSpellings: [String]
     ) {
         self.authentication = authentication
         self.session = session
-        self.rewriteEnabled = rewriteEnabled
         self.preferredSpellings = preferredSpellings
     }
 
@@ -76,14 +73,13 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
             languageCode: Self.normalizedText(languageCode),
             prompt: Self.normalizedText(prompt),
             audioDurationSeconds: audioDurationSeconds,
-            rewriteEnabled: rewriteEnabled,
             preferredSpellings: preferredSpellings,
             timeoutInterval: timeoutInterval,
             clientRequestID: clientRequestID
         )
 
         AppLogger.info(
-            "Relay transcription request started. requestID=\(clientRequestID) url=\(request.url?.absoluteString ?? "unknown") audioBytes=\(audioData.count) fileType=\(fileType.stetContentType) rewriteEnabled=\(rewriteEnabled) preferredSpellingsCount=\(preferredSpellings.count) timeoutSeconds=\(String(format: "%.1f", timeoutInterval))",
+            "Relay transcription request started. requestID=\(clientRequestID) url=\(request.url?.absoluteString ?? "unknown") audioBytes=\(audioData.count) fileType=\(fileType.stetContentType) rewriteEnabled=true preferredSpellingsCount=\(preferredSpellings.count) timeoutSeconds=\(String(format: "%.1f", timeoutInterval))",
             category: .dictation
         )
 
@@ -201,7 +197,6 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
         languageCode: String?,
         prompt: String?,
         audioDurationSeconds: TimeInterval,
-        rewriteEnabled: Bool,
         preferredSpellings: [String],
         timeoutInterval: TimeInterval,
         clientRequestID: String
@@ -212,7 +207,6 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
                 languageCode: languageCode,
                 prompt: prompt,
                 audioDurationSeconds: audioDurationSeconds,
-                rewriteEnabled: rewriteEnabled,
                 preferredSpellings: preferredSpellings
             ),
             file: MultipartFormFile(
@@ -243,7 +237,6 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
         languageCode: String?,
         prompt: String?,
         audioDurationSeconds: TimeInterval,
-        rewriteEnabled: Bool,
         preferredSpellings: [String]
     ) -> [MultipartFormField] {
         var fields: [MultipartFormField] = []
@@ -263,9 +256,7 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
             )
         )
 
-        if rewriteEnabled {
-            fields.append(.init(name: "rewrite", value: "true"))
-        }
+        fields.append(.init(name: "rewrite", value: "true"))
 
         let normalizedPreferredSpellings =
             preferredSpellings
