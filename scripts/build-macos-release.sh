@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PROJECT_PATH="$ROOT_DIR/apps/mac/Stet.xcodeproj"
+PROJECT_PATH="$ROOT_DIR/Stet.xcodeproj"
 SCHEME="Stet"
 LOCAL_RELEASE_BUNDLE_ID="${LOCAL_RELEASE_BUNDLE_ID:-NaichengDeng.Stet.LocalRelease}"
 LOCAL_RELEASE_URL_SCHEME="${LOCAL_RELEASE_URL_SCHEME:-naichengdeng.stet.localrelease}"

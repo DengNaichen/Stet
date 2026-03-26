@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PROJECT_PATH="$ROOT_DIR/apps/mac/Stet.xcodeproj"
+PROJECT_PATH="$ROOT_DIR/Stet.xcodeproj"
 SCHEME="Stet"
 APP_NAME="Stet"
 DIST_DIR="$ROOT_DIR/dist/github-release"
@@ -74,8 +74,8 @@ find_sparkle_generate_appcast() {
 
   candidates+=(
     "$ROOT_DIR/.build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
-    "$ROOT_DIR/apps/mac/build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
-    "$ROOT_DIR/apps/mac/.derivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
+    "$ROOT_DIR/build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
+    "$ROOT_DIR/.derivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
   )
 
   candidates+=("$HOME"/Library/Developer/Xcode/DerivedData/*/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast(N))

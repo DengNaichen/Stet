@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PROJECT_PATH="$ROOT_DIR/apps/mac/Stet.xcodeproj"
+PROJECT_PATH="$ROOT_DIR/Stet.xcodeproj"
 SCHEME="StetVisuals"
 BUILD_DIR="$ROOT_DIR/build/StetVisuals"
 ARCHIVE_PATH="$BUILD_DIR/StetVisuals-macOS.xcarchive"

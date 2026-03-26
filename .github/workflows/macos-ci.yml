@@ -7,7 +7,13 @@ on:
       - ".swift-format"
       - ".swiftlint.yml"
       - "package.json"
-      - "apps/mac/**"
+      - "Info.plist"
+      - ".kiro/**"
+      - "Stet.xcodeproj/**"
+      - "Stet/**"
+      - "StetTests/**"
+      - "StetUITests/**"
+      - "StetVisuals/**"
   push:
     branches:
       - main
@@ -16,7 +22,13 @@ on:
       - ".swift-format"
       - ".swiftlint.yml"
       - "package.json"
-      - "apps/mac/**"
+      - "Info.plist"
+      - ".kiro/**"
+      - "Stet.xcodeproj/**"
+      - "Stet/**"
+      - "StetTests/**"
+      - "StetUITests/**"
+      - "StetVisuals/**"
 
 jobs:
   swiftlint:

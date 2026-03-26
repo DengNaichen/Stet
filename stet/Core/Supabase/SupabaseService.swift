@@ -106,10 +106,8 @@ final class SupabaseService {
             let relativePaths = [
                 ".env",
                 ".env.local",
-                "apps/mac/Stet/.env",
-                "apps/mac/Stet/.env.local",
-                "apps/backend/.env",
-                "apps/backend/.env.local",
+                "Stet/.env",
+                "Stet/.env.local",
             ]
 
             for baseURL in [currentDirectory, homeDirectory] {

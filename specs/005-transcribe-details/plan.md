@@ -1,6 +1,6 @@
 # Implementation Plan: BYOK Remote Transcribe and Rewrite Provider Selection on Mac
 
-**Branch**: `005-transcribe-details` | **Date**: 2026-03-23 | **Spec**: [/Users/nd/Developer/Stet/specs/005-transcribe-details/spec.md](/Users/nd/Developer/Stet/specs/005-transcribe-details/spec.md)
+**Branch**: `005-transcribe-details` | **Date**: 2026-03-23 | **Spec**: [/Users/nd/Developer/stet-project/Stet/specs/005-transcribe-details/spec.md](/Users/nd/Developer/stet-project/Stet/specs/005-transcribe-details/spec.md)
 **Input**: Feature specification from `/specs/005-transcribe-details/spec.md`
 
 ## Summary
@@ -22,7 +22,7 @@ The main work is in settings, snapshot/config modeling, capability-specific pipe
 **Language/Version**: Swift 5, Swift Concurrency, macOS target in Xcode project  
 **Primary Dependencies**: SwiftUI, Foundation, third-party `OpenAI` Swift SDK, existing OpenAI-compatible provider integration, UserDefaults, Keychain-backed secret store  
 **Storage**: UserDefaults for settings, Keychain for provider API keys, in-memory pipeline state at runtime  
-**Testing**: Swift Testing / XCTest-style existing test targets in `apps/mac/StetTests`  
+**Testing**: Swift Testing / XCTest-style existing test targets in `StetTests`  
 **Target Platform**: macOS desktop app  
 **Project Type**: Desktop app with remote AI providers  
 **Performance Goals**: Preserve the current BYOK dictation flow latency profile while adding provider selection and preflight checks; do not add unnecessary extra network steps beyond the existing two-step BYOK flow  
@@ -57,7 +57,7 @@ specs/005-transcribe-details/
 ### Source Code (repository root)
 
 ```text
-apps/mac/Stet/
+Stet/
 ├── App/Lifecycle/
 │   └── MacAppBootstrapper.swift
 ├── Core/
@@ -92,7 +92,7 @@ apps/mac/Stet/
     ├── DictationSettingsStore.swift
     └── MacPreferences.swift
 
-apps/mac/StetTests/
+StetTests/
 ├── Core/
 │   ├── DictationPipeline/DictationPipelineTests.swift
 │   └── Speech/ConfigurableSpeechServiceTests.swift
