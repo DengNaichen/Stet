@@ -1,12 +1,12 @@
 included:
-  - apps/mac/Stet
-  - apps/mac/StetTests
-  - apps/mac/StetUITests
-  - apps/mac/StetVisuals
+  - Stet
+  - StetTests
+  - StetUITests
+  - StetVisuals
 
 excluded:
-  - apps/mac/build
-  - apps/mac/.derivedData
+  - build
+  - .derivedData
 
 only_rules:
   - empty_count

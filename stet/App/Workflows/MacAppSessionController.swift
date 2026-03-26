@@ -683,11 +683,12 @@
                     workflow: completedWorkflow,
                     showTransientPanel: showTransientPanel
                 )
-                let recoveredTextPreserved = if case .failed(let failure) = outcome {
-                    failure.preservesRecoveredTextInClipboard
-                } else {
-                    false
-                }
+                let recoveredTextPreserved =
+                    if case .failed(let failure) = outcome {
+                        failure.preservesRecoveredTextInClipboard
+                    } else {
+                        false
+                    }
                 Task {
                     await DictationRuntimeProbe.shared.markResultHandled(
                         clipboardPending: outcome == .clipboardPending || recoveredTextPreserved,

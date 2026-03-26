@@ -284,16 +284,18 @@
             subject.shell.showTransientPanel(appModel: presentationModel)
             subject.clipboardService.shouldFailCopy = true
 
-            #expect(await TestSupport.eventually {
-                subject.workflow.dictationViewModel.state == .clipboardPending("needs copy")
-            })
+            #expect(
+                await TestSupport.eventually {
+                    subject.workflow.dictationViewModel.state == .clipboardPending("needs copy")
+                })
             #expect(subject.shell.isPanelVisible)
 
             subject.session.performPrimaryAction()
 
-            #expect(await TestSupport.eventually {
-                subject.workflow.dictationViewModel.state == .clipboardPending("needs copy")
-            })
+            #expect(
+                await TestSupport.eventually {
+                    subject.workflow.dictationViewModel.state == .clipboardPending("needs copy")
+                })
             #expect(subject.shell.hidePanelCallCount == 0)
             #expect(subject.shell.isPanelVisible)
         }
@@ -306,9 +308,10 @@
 
             subject.workflow.dictationViewModel.send(.transcriptionSucceeded("transcript"))
 
-            #expect(await TestSupport.eventually {
-                subject.workflow.dictationViewModel.state == .clipboardPending("transcript")
-            })
+            #expect(
+                await TestSupport.eventually {
+                    subject.workflow.dictationViewModel.state == .clipboardPending("transcript")
+                })
             #expect(subject.clipboardService.copiedTexts == ["transcript", "transcript"])
             #expect(subject.shell.isPanelVisible)
         }

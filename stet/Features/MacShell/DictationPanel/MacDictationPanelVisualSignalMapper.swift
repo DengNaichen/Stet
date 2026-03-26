@@ -84,7 +84,8 @@
 
             let transient = max(0, nextFast - nextBody)
             let quietAssist = quietResponse(for: target)
-            let pulseTarget = isVoiceReactive
+            let pulseTarget =
+                isVoiceReactive
                 ? clamp01(
                     transient * 4.20
                         + target * (0.10 + quietAssist * Tuning.quietPulseBoost)
@@ -160,7 +161,8 @@
         private static func amplifiedLevel(_ value: Double) -> Double {
             let clamped = clamp01(value)
             let quietAssist = quietResponse(for: clamped)
-            let boosted = clamped * Tuning.amplitudeGain
+            let boosted =
+                clamped * Tuning.amplitudeGain
                 + clamped * quietAssist * Tuning.quietAmplitudeBoost
             return clamp01(boosted)
         }

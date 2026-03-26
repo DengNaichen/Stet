@@ -162,9 +162,11 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
         case .clipboardWriteFailed:
             return "Failed to write text to clipboard. Please try again or paste manually."
         case .autoPastePermissionMissing:
-            return "Stet needs Input Monitoring or Accessibility permission to paste text automatically. Text has been copied to clipboard."
+            return
+                "Stet needs Input Monitoring or Accessibility permission to paste text automatically. Text has been copied to clipboard."
         case .pasteVerificationUnavailable:
-            return "Stet could not verify the paste because the target app did not expose enough text metadata. Text has been copied to clipboard."
+            return
+                "Stet could not verify the paste because the target app did not expose enough text metadata. Text has been copied to clipboard."
         case .pasteVerificationFailed:
             return "Could not verify text was pasted successfully. Text has been copied to clipboard as a fallback."
         case .unknown(let message):

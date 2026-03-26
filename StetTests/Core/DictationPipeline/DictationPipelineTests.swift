@@ -13,14 +13,16 @@ private func makeSnapshot(
     mode: AIExecutionMode,
     transcriptionProvider: DictationProvider = .openAI,
     rewriteProvider: DictationProvider = .openAI,
-    transcriptionProviderConfiguration: TranscriptionProviderConfiguration? = DictationProviderConfigurationResolver.transcriptionConfiguration(
-        apiKey: "sk-test",
-        providerPair: DictationProviderPair(transcriptionProvider: .openAI, rewriteProvider: .openAI)
-    ),
-    rewriteProviderConfiguration: RewriteProviderConfiguration? = DictationProviderConfigurationResolver.rewriteConfiguration(
-        apiKey: "sk-test",
-        providerPair: DictationProviderPair(transcriptionProvider: .openAI, rewriteProvider: .openAI)
-    ),
+    transcriptionProviderConfiguration: TranscriptionProviderConfiguration? =
+        DictationProviderConfigurationResolver.transcriptionConfiguration(
+            apiKey: "sk-test",
+            providerPair: DictationProviderPair(transcriptionProvider: .openAI, rewriteProvider: .openAI)
+        ),
+    rewriteProviderConfiguration: RewriteProviderConfiguration? =
+        DictationProviderConfigurationResolver.rewriteConfiguration(
+            apiKey: "sk-test",
+            providerPair: DictationProviderPair(transcriptionProvider: .openAI, rewriteProvider: .openAI)
+        ),
     rewriteEnabled: Bool = false,
     dictationLanguageMode: DictationLanguageMode = .automatic,
     personalDictionary: [String] = []
