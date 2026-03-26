@@ -19,6 +19,18 @@
             }
         }
 
+        private enum Tuning {
+            static let amplitudeGain: Double = 1.84
+            static let quietAssistThreshold: Double = 0.62
+            static let quietAmplitudeBoost: Double = 0.48
+            static let quietPresenceBoost: Double = 0.38
+            static let quietPulseBoost: Double = 0.10
+            static let quietArticulationBoost: Double = 0.08
+            static let sustainedPulseFloor: Double = 0.16
+            static let sustainedArticulationFloor: Double = 0.14
+            static let lowTonePresenceWeight: Double = 0.22
+        }
+
         private enum Timing {
             static let bodyAttack: TimeInterval = 0.12
             static let bodyRelease: TimeInterval = 0.22
@@ -71,7 +83,14 @@
             )
 
             let transient = max(0, nextFast - nextBody)
-            let pulseTarget = isVoiceReactive ? clamp01(transient * 4.20 + target * 0.10) : 0
+            let quietAssist = quietResponse(for: target)
+            let pulseTarget = isVoiceReactive
+                ? clamp01(
+                    transient * 4.20
+                        + target * (0.10 + quietAssist * Tuning.quietPulseBoost)
+                        + nextBody * Tuning.sustainedPulseFloor
+                )
+                : 0
             let nextPulse = smooth(
                 current: state.pulse,
                 target: pulseTarget,
@@ -93,7 +112,8 @@
                 ? clamp01(
                     transient * 2.0
                         + max(0, nextFast - nextPresence * 0.66) * 1.02
-                        + target * 0.22
+                        + target * (0.22 + quietAssist * Tuning.quietArticulationBoost)
+                        + nextBody * Tuning.sustainedArticulationFloor
                 ) : 0
             let nextArticulation = smooth(
                 current: state.articulation,
@@ -113,7 +133,12 @@
         }
 
         private static func presenceTarget(body: Double, fast: Double) -> Double {
-            clamp01(max(body * 1.16 + fast * 0.58, fast * 1.02))
+            let anchor = max(body, fast)
+            let quietAssist = quietResponse(for: anchor)
+            return clamp01(
+                max(body * 1.24 + fast * 0.46, fast * 0.92 + body * Tuning.lowTonePresenceWeight)
+                    + anchor * quietAssist * Tuning.quietPresenceBoost
+            )
         }
 
         private static func smooth(
@@ -133,7 +158,17 @@
         }
 
         private static func amplifiedLevel(_ value: Double) -> Double {
-            clamp01(value * 1.68)
+            let clamped = clamp01(value)
+            let quietAssist = quietResponse(for: clamped)
+            let boosted = clamped * Tuning.amplitudeGain
+                + clamped * quietAssist * Tuning.quietAmplitudeBoost
+            return clamp01(boosted)
+        }
+
+        private static func quietResponse(for value: Double) -> Double {
+            let clamped = clamp01(value)
+            let quietRange = max(Tuning.quietAssistThreshold - clamped, 0)
+            return clamp01(quietRange / Tuning.quietAssistThreshold)
         }
     }
 #endif

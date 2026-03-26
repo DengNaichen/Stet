@@ -10,7 +10,7 @@
             static let attackTime: TimeInterval = 0.080
             static let releaseTime: TimeInterval = 0.320
             static let decayTime: TimeInterval = 0.200
-            static let silenceFloor: Double = 0.006
+            static let silenceFloor: Double = 0.003
             static let publishEpsilon: Double = 0.0005
             static let snapToZeroThreshold: Double = 0.0015
         }
@@ -22,7 +22,9 @@
         }
 
         enum Normalization {
-            static let levelPower: Double = 0.66
+            static let levelPower: Double = 0.54
+            static let quietSpeechThreshold: Double = 0.42
+            static let quietSpeechBoost: Double = 0.52
             static let divisorEpsilon: Double = 0.0001
         }
     }
@@ -163,7 +165,11 @@
             let gated =
                 max(0, clamped - Constants.Tuning.silenceFloor)
                 / max(1.0 - Constants.Tuning.silenceFloor, Constants.Normalization.divisorEpsilon)
-            return pow(gated, Constants.Normalization.levelPower)
+            let curved = pow(gated, Constants.Normalization.levelPower)
+            let quietBand = max(0, Constants.Normalization.quietSpeechThreshold - gated)
+                / max(Constants.Normalization.quietSpeechThreshold, Constants.Normalization.divisorEpsilon)
+            let quietCompensation = gated * quietBand * Constants.Normalization.quietSpeechBoost
+            return min(1, curved + quietCompensation)
         }
 
         private static func isVoiceReactiveState(_ state: DictationState) -> Bool {
