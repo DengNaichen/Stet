@@ -261,11 +261,9 @@ struct DictationViewModelTests {
         let speechService = ControllableSpeechService()
         await speechService.setStopBehavior(
             .fail(
-                ProviderConfigurationError.unsupportedProviderCombination(
-                    DictationProviderPair(
-                        transcriptionProvider: .openAI,
-                        rewriteProvider: .groq
-                    )
+                DictationFailure.unsupportedProviderCombination(
+                    transcriptionProvider: .openAI,
+                    rewriteProvider: .groq
                 )
             )
         )

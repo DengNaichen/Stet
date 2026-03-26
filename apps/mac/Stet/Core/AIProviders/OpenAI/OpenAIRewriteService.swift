@@ -7,11 +7,11 @@ struct OpenAIRewriteService: TextRewriteService {
     private let supportsResponsesStore: Bool
 
     nonisolated init(
-        configuration: OpenAIConfiguration,
+        configuration: RewriteProviderConfiguration,
         session: URLSession = .shared
     ) {
-        self.clientFactory = OpenAISDKClientFactory(configuration: configuration, session: session)
-        self.defaultModel = configuration.rewriteModel
+        self.clientFactory = OpenAISDKClientFactory(endpoint: configuration.endpoint, session: session)
+        self.defaultModel = configuration.model
         self.supportsResponsesStore = configuration.supportsResponsesStore
     }
 

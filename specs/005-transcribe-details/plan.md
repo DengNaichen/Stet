@@ -5,17 +5,17 @@
 
 ## Summary
 
-Extend the existing macOS BYOK dictation flow from a single-provider configuration to a two-provider configuration:
+Refactor the macOS BYOK dictation flow so the lowest abstraction layer is provider-agnostic by capability:
 
-- one provider selection for transcription
-- one provider selection for rewrite
+- transcription
+- rewrite
 
-The implementation will preserve the current BYOK two-step runtime shape on Mac:
+The runtime shape stays the same:
 
 1. transcribe recorded audio remotely
 2. rewrite the transcript remotely
 
-The main work is not in the SDK transport layer. The main work is in settings, snapshot/config modeling, BYOK preflight validation, pipeline wiring, error modeling, and UI/test updates. Managed/relay behavior remains unchanged and out of scope for this feature.
+The main work is in settings, snapshot/config modeling, capability-specific pipeline wiring, adapter-layer cleanup, policy relocation, and regression-safe tests. Managed/relay behavior remains unchanged and out of scope for this feature.
 
 ## Technical Context
 
@@ -26,15 +26,15 @@ The main work is not in the SDK transport layer. The main work is in settings, s
 **Target Platform**: macOS desktop app  
 **Project Type**: Desktop app with remote AI providers  
 **Performance Goals**: Preserve the current BYOK dictation flow latency profile while adding provider selection and preflight checks; do not add unnecessary extra network steps beyond the existing two-step BYOK flow  
-**Constraints**: Keep managed/relay behavior unchanged; do not over-abstract the provider model; keep the implementation practical for Swift; keep API keys stored per provider rather than per step  
-**Scale/Scope**: Narrow feature slice limited to BYOK dictation cleanup, provider selection, preflight validation, limited naming cleanup, and regression-safe test coverage
+**Constraints**: Keep managed/relay behavior unchanged; do not introduce a single generalized provider protocol; keep API keys stored per provider rather than per step; allow broad naming/file cleanup when it improves the abstraction boundary  
+**Scale/Scope**: Narrow feature slice limited to BYOK dictation cleanup, provider selection, capability-specific config split, settings/UI policy cleanup, doc sync, and regression-safe test coverage
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 - Constitution file is still an unfilled template, so there are no repo-specific enforceable gates to evaluate.
-- This plan keeps complexity bounded by reusing the current OpenAI-compatible SDK transport instead of introducing a new provider abstraction layer.
+- This plan keeps complexity bounded by reusing the current OpenAI-compatible SDK transport as an adapter layer instead of introducing a generalized provider framework.
 - This plan preserves existing managed/relay behavior instead of expanding scope into backend or session-driven paths.
 - This plan requires regression tests for settings, preflight validation, BYOK pipeline wiring, and existing relay behavior.
 
@@ -64,16 +64,23 @@ apps/mac/Stet/
 │   ├── DictationPipeline/
 │   │   ├── DictationExecutionRoute.swift
 │   │   └── DictationPipelineFactory.swift
-│   ├── OpenAI/
-│   │   ├── OpenAIConfiguration.swift
-│   │   └── OpenAISDKClientFactory.swift
+│   ├── AIProviders/
+│   │   ├── Shared/
+│   │   │   └── DictationProviderPair.swift
+│   │   ├── OpenAI/
+│   │   │   ├── OpenAIRewriteService.swift
+│   │   │   └── OpenAITranscriptionService.swift
+│   │   └── OpenAICompatible/
+│   │       ├── OpenAICompatibleProviderConfiguration.swift
+│   │       ├── OpenAISDKClientFactory.swift
+│   │       ├── OpenAIError.swift
+│   │       └── OpenAIMiddlewareSupport.swift
 │   ├── Rewrite/
-│   │   ├── OpenAIRewriteService.swift
 │   │   └── TextRewriteService.swift
 │   ├── Speech/
 │   │   └── ConfigurableSpeechService.swift
 │   └── Transcribed/
-│       └── OpenAITranscriptionService.swift
+│       └── AudioFileTranscriptionService.swift
 ├── Features/
 │   ├── Dictation/
 │   │   └── DictationFailure.swift
@@ -93,7 +100,7 @@ apps/mac/StetTests/
     └── Dictation/DictationViewModelTests.swift
 ```
 
-**Structure Decision**: Keep the current macOS app structure. Concentrate changes in settings, pipeline wiring, error/UI messaging, and targeted naming cleanup. Do not create a new generalized provider framework.
+**Structure Decision**: Keep the current macOS app structure, but introduce a visible split between capability-level provider-neutral configuration and the OpenAI-compatible adapter layer. Folder creation and file moves are allowed when they improve that boundary.
 
 ## Phase 0: Research Conclusions Applied
 
@@ -101,11 +108,9 @@ apps/mac/StetTests/
 - Independent provider selection is required because the best provider choice differs between ASR and rewrite.
 - The current OpenAI-compatible SDK stack can continue to serve both OpenAI and Groq.
 - Provider API keys are already stored per provider, which reduces migration cost.
-- Supported default combinations for this feature are:
-  - `OpenAI -> OpenAI`
-  - `Groq -> Groq`
-  - `Groq -> OpenAI`
-- `OpenAI -> Groq` will not receive a first-class default configuration in this feature.
+- The lower layers must be able to represent all provider combinations, including `OpenAI -> Groq`.
+- Settings/UI policy still treats `OpenAI -> Groq` as unsupported on Mac.
+- Provider API keys remain stored per provider, which reduces migration cost.
 
 ## Implementation Design
 
@@ -126,20 +131,23 @@ Implementation intent:
 
 This feature should not store API keys by step. Keys remain stored by provider and are looked up according to the selected step provider.
 
-### 2. Introduce provider-neutral configuration naming without over-abstracting
+### 2. Introduce capability-specific provider-neutral configuration types
 
-The current naming implies OpenAI-only ownership even though the code already serves OpenAI and Groq. The feature should correct the misleading configuration-facing naming, but avoid a full protocol-heavy provider framework.
+The current `OpenAIConfiguration` shape leaks vendor naming across both capabilities. The feature should replace it with provider-neutral capability-specific configuration while keeping the OpenAI-compatible adapter layer explicit.
 
 Implementation intent:
 
-- move toward provider-neutral naming at the configuration/settings/pipeline layer
-- keep two capability-specific concepts:
+- add one shared OpenAI-compatible endpoint/auth configuration used by both capabilities
+- add one capability config per step:
+  - `TranscriptionProviderConfiguration`
+  - `RewriteProviderConfiguration`
+- keep two stable capability concepts:
   - transcription provider
   - rewrite provider
 - do not introduce a single generic provider protocol spanning all AI capabilities
-- allow some existing transport-layer `OpenAI*` names to remain if they still clearly represent the OpenAI-compatible SDK adapter layer
+- keep `OpenAI*` naming only where it still clearly represents the OpenAI-compatible adapter layer
 
-This is a limited naming cleanup, not a full repository-wide rename.
+This is an architectural boundary cleanup, not a transport rewrite.
 
 ### 3. Add BYOK preflight validation before dictation starts
 
@@ -161,7 +169,7 @@ Implementation intent:
   - the blocked step
   - the missing provider key
 
-This step is required to support mixed-provider setups cleanly.
+This step is required to support mixed-provider setups cleanly, but it should not enforce product-level pair policy.
 
 ### 4. Rewire the BYOK pipeline to use per-step providers
 
@@ -176,15 +184,24 @@ Implementation intent:
 
 - keep `ConfigurableSpeechService` as the main orchestration layer
 - update `DictationPipelineFactory` and related route/snapshot input so BYOK/direct can create:
-  - transcription service configured for the selected transcription provider
-  - rewrite service configured for the selected rewrite provider
+  - transcription service configured from `TranscriptionProviderConfiguration`
+  - rewrite service configured from `RewriteProviderConfiguration`
 - keep relay/managed unchanged:
   - relay still provides transcription through relay
   - relay still skips local rewrite on Mac
 
 This feature should rewire inputs, not replace the underlying service implementations.
 
-### 5. Expand the error model and user-facing messaging
+### 5. Move unsupported-pair policy to settings/UI only
+
+The previous implementation enforced `OpenAI -> Groq` in execution/preflight. The new boundary should allow lower layers to express that combination while keeping the product policy in settings/UI.
+
+Implementation intent:
+
+- remove unsupported-pair rejection from route resolution and BYOK preflight
+- keep the warning and block in settings/UI policy only
+- preserve the current user-facing unsupported-pair message on Mac
+### 6. Expand the error model and user-facing messaging
 
 Current configuration errors are provider-only. They need to become step-aware for this feature.
 
@@ -201,7 +218,7 @@ Implementation intent:
 
 The UI should not force the user to infer whether the missing key belongs to transcription or rewrite.
 
-### 6. Update settings and onboarding surfaces for dual-provider BYOK
+### 7. Update settings and onboarding surfaces for dual-provider BYOK
 
 The current settings flow assumes one provider and one visible credential field. This feature needs a dual-provider mental model.
 
@@ -241,11 +258,16 @@ Implementation intent:
   - `OpenAI -> OpenAI`
   - `Groq -> Groq`
   - `Groq -> OpenAI`
-- verify `OpenAI -> Groq` behavior is not silently treated as a supported default combination
+- verify lower layers can represent `OpenAI -> Groq` without execution-time rejection
 - verify transcription success feeds rewrite input
 - verify transcription failure prevents rewrite
 - verify rewrite failure surfaces as a failed dictation result
 - verify final user-visible output is the rewritten text rather than the intermediate transcript
+
+### Settings/UI policy behavior
+
+- verify settings/UI still warns on `OpenAI -> Groq`
+- verify unsupported-pair messaging remains a settings/UI policy concern rather than an execution concern
 
 ### Regression coverage
 

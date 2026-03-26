@@ -255,7 +255,7 @@
             let viewModel = OnboardingViewModel(
                 coordinator: coordinator,
                 supabase: PreviewOnboardingSupabaseService(),
-                apiKeyValidationService: PreviewOnboardingAPIKeyValidationService()
+                credentialValidationService: PreviewOnboardingAPIKeyValidationService()
             )
 
             if step == .apiKey {

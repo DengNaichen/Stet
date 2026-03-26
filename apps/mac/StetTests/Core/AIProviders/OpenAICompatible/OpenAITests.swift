@@ -25,10 +25,46 @@ private final class RequestAttemptCounter: @unchecked Sendable {
 @MainActor
 @Suite("OpenAI Adapters", .serialized)
 struct OpenAITests {
-    @Test func openAIConfigurationBuildsSDKConfigurationFromBaseURL() throws {
-        let configuration = OpenAIConfiguration(
-            apiKey: "sk-test",
-            baseURL: URL(string: "https://api.example.com/v1")!,
+    private func makeEndpoint(
+        provider: DictationProvider = .openAI,
+        apiKey: String = "sk-test",
+        baseURL: URL = URL(string: "https://api.example.com/v1")!,
+        organizationID: String? = nil,
+        projectID: String? = nil
+    ) -> OpenAICompatibleProviderEndpointConfiguration {
+        OpenAICompatibleProviderEndpointConfiguration(
+            provider: provider,
+            apiKey: apiKey,
+            baseURL: baseURL,
+            organizationID: organizationID,
+            projectID: projectID
+        )
+    }
+
+    private func makeTranscriptionConfiguration(
+        provider: DictationProvider = .openAI,
+        apiKey: String = "sk-test",
+        baseURL: URL = URL(string: "https://api.example.com/v1")!
+    ) -> TranscriptionProviderConfiguration {
+        TranscriptionProviderConfiguration(
+            endpoint: makeEndpoint(provider: provider, apiKey: apiKey, baseURL: baseURL),
+            model: DictationProviderDefaults.transcriptionModel(for: provider)
+        )
+    }
+
+    private func makeRewriteConfiguration(
+        provider: DictationProvider = .openAI,
+        apiKey: String = "sk-test",
+        baseURL: URL = URL(string: "https://api.example.com/v1")!
+    ) -> RewriteProviderConfiguration {
+        RewriteProviderConfiguration(
+            endpoint: makeEndpoint(provider: provider, apiKey: apiKey, baseURL: baseURL),
+            model: DictationProviderDefaults.rewriteModel(for: provider)
+        )
+    }
+
+    @Test func openAICompatibleEndpointBuildsSDKConfigurationFromBaseURL() throws {
+        let configuration = makeEndpoint(
             organizationID: "org_123",
             projectID: "proj_123"
         )
@@ -68,7 +104,7 @@ struct OpenAITests {
             return (response, Data(#"{"text":"hello"}"#.utf8))
         }
         let service = OpenAITranscriptionService(
-            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            configuration: makeTranscriptionConfiguration(),
             session: session
         )
 
@@ -98,7 +134,7 @@ struct OpenAITests {
             return (response, Data(#"{"error":{"message":"unknown param `stream`"}}"#.utf8))
         }
         let service = OpenAITranscriptionService(
-            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            configuration: makeTranscriptionConfiguration(),
             session: session
         )
 
@@ -125,7 +161,7 @@ struct OpenAITests {
             return (response, Data(#"{"text":"   "}"#.utf8))
         }
         let service = OpenAITranscriptionService(
-            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            configuration: makeTranscriptionConfiguration(),
             session: session
         )
 
@@ -156,7 +192,7 @@ struct OpenAITests {
             return (response, Data("  recovered via fallback  ".utf8))
         }
         let service = OpenAITranscriptionService(
-            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            configuration: makeTranscriptionConfiguration(),
             session: session
         )
 
@@ -204,7 +240,7 @@ struct OpenAITests {
             return (response, Data(#"{"text":"retried successfully"}"#.utf8))
         }
         let service = OpenAITranscriptionService(
-            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            configuration: makeTranscriptionConfiguration(),
             session: session
         )
         defer {
@@ -282,7 +318,7 @@ struct OpenAITests {
             return (response, data)
         }
         let service = OpenAIRewriteService(
-            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            configuration: makeRewriteConfiguration(),
             session: session
         )
 
@@ -307,7 +343,7 @@ struct OpenAITests {
             )
         }
         let service = OpenAIRewriteService(
-            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            configuration: makeRewriteConfiguration(),
             session: session
         )
 
@@ -375,7 +411,7 @@ struct OpenAITests {
             return (response, data)
         }
         let service = OpenAIRewriteService(
-            configuration: OpenAIConfiguration(apiKey: "sk-test", baseURL: URL(string: "https://api.example.com/v1")!),
+            configuration: makeRewriteConfiguration(),
             session: session
         )
 

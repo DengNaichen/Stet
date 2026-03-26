@@ -18,18 +18,18 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
         static let timeoutPerAudioSecond: TimeInterval = 2
     }
 
-    private let configuration: OpenAIConfiguration
+    private let configuration: TranscriptionProviderConfiguration
     private let session: URLSession
     private let defaultModel: String
     private let provider: DictationProvider
 
     nonisolated init(
-        configuration: OpenAIConfiguration,
+        configuration: TranscriptionProviderConfiguration,
         session: URLSession = .shared
     ) {
         self.configuration = configuration
         self.session = session
-        self.defaultModel = configuration.transcriptionModel
+        self.defaultModel = configuration.model
         self.provider = configuration.provider
     }
 
@@ -163,7 +163,7 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
     }
 
     private static func makeTranscriptionRequest(
-        configuration: OpenAIConfiguration,
+        configuration: TranscriptionProviderConfiguration,
         audioData: Data,
         fileType: AudioTranscriptionQuery.FileType,
         model: String,
@@ -172,7 +172,7 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
         additionalHeaders: [String: String],
         timeoutInterval: TimeInterval
     ) throws -> URLRequest {
-        let sdkConfiguration = try configuration.sdkConfiguration(
+        let sdkConfiguration = try configuration.endpoint.sdkConfiguration(
             additionalHeaders: additionalHeaders,
             timeoutInterval: timeoutInterval
         )

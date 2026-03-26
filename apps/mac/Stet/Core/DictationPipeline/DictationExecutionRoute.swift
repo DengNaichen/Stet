@@ -32,7 +32,6 @@ enum AIExecutionError: LocalizedError, Equatable {
 
 enum ProviderConfigurationError: LocalizedError, Equatable {
     case missingRequirements([ProviderConfigurationRequirement])
-    case unsupportedProviderCombination(DictationProviderPair)
 
     nonisolated var errorDescription: String? {
         switch self {
@@ -59,16 +58,15 @@ enum ProviderConfigurationError: LocalizedError, Equatable {
                 .map { "\($0.provider.displayName) for \($0.step.displayName)" }
                 .joined(separator: ", ")
             return "Add API keys for \(detail) before starting dictation."
-        case .unsupportedProviderCombination:
-            return "OpenAI transcription with Groq rewrite is not supported as a default BYOK pair on Mac."
         }
     }
 }
 
 enum DictationExecutionRoute: Sendable {
     struct Direct: Sendable {
-        let transcriptionConfiguration: OpenAIConfiguration
-        let rewriteConfiguration: OpenAIConfiguration
+        let transcriptionConfiguration: TranscriptionProviderConfiguration
+        let rewriteConfiguration: RewriteProviderConfiguration?
+        let rewriteEnabled: Bool
         let languageMode: DictationLanguageMode
         let preferredSpellings: [String]
     }
@@ -113,10 +111,6 @@ enum DictationExecutionRouteResolver {
     nonisolated private static func resolveDirectRoute(
         snapshot: DictationSettingsSnapshot
     ) throws -> DictationExecutionRoute.Direct {
-        if !OpenAIConfiguration.isSupportedProviderPair(snapshot.providerPair) {
-            throw ProviderConfigurationError.unsupportedProviderCombination(snapshot.providerPair)
-        }
-
         let missingRequirements = snapshot.requiredProviderRequirements().filter { requirement in
             switch requirement.step {
             case .transcription:
@@ -151,6 +145,7 @@ enum DictationExecutionRouteResolver {
         return .init(
             transcriptionConfiguration: transcriptionConfiguration,
             rewriteConfiguration: rewriteConfiguration,
+            rewriteEnabled: snapshot.isRewriteEnabled,
             languageMode: snapshot.dictationLanguageMode,
             preferredSpellings: snapshot.personalDictionary
         )

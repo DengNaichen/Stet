@@ -154,11 +154,7 @@
         }
 
         private var unsupportedProviderPairMessage: String? {
-            guard !OpenAIConfiguration.isSupportedProviderPair(selectedProviderPair) else {
-                return nil
-            }
-
-            return "OpenAI transcription with Groq rewrite is not supported as a default BYOK pair on Mac."
+            return DictationProviderPairPolicy.unsupportedSettingsMessage(for: selectedProviderPair)
         }
 
         private var missingRequiredProviders: [DictationProvider] {

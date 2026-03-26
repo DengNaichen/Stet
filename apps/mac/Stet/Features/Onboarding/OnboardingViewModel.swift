@@ -3,7 +3,6 @@
     import Combine
     import Foundation
     import KeyboardShortcuts
-    import OpenAI
     internal import Auth
 
     @MainActor
@@ -63,7 +62,7 @@
         private let coordinator: any MacPermissionsCoordinating
         private let settingsStore: DictationSettingsStore
         private let supabase: any OnboardingSupabaseAuthenticating
-        private let apiKeyValidationService: any OnboardingAPIKeyValidating
+        private let credentialValidationService: any ProviderCredentialValidating
         private var cancellables = Set<AnyCancellable>()
         private var lastValidatedKey: String?
         private var lastValidatedProvider: DictationProvider?
@@ -72,12 +71,12 @@
             coordinator: any MacPermissionsCoordinating,
             settingsStore: DictationSettingsStore = DictationSettingsStore(),
             supabase: (any OnboardingSupabaseAuthenticating)? = nil,
-            apiKeyValidationService: (any OnboardingAPIKeyValidating)? = nil
+            credentialValidationService: (any ProviderCredentialValidating)? = nil
         ) {
             self.coordinator = coordinator
             self.settingsStore = settingsStore
             self.supabase = supabase ?? SupabaseService.shared
-            self.apiKeyValidationService = apiKeyValidationService ?? APIKeyValidationService()
+            self.credentialValidationService = credentialValidationService ?? ProviderCredentialValidationService()
             self.apiKeyProvider = settingsStore.loadProvider()
             coordinator.updates
                 .receive(on: DispatchQueue.main)
@@ -242,7 +241,7 @@
             apiKeyStatusMessage = nil
 
             do {
-                try await apiKeyValidationService.validate(
+                try await credentialValidationService.validateCredential(
                     apiKey: trimmedKey,
                     provider: apiKeyProvider
                 )
@@ -438,46 +437,11 @@
         }
     }
 
-    struct APIKeyValidationService: OnboardingAPIKeyValidating, Sendable {
-        func validate(apiKey: String, provider: DictationProvider) async throws {
-            let configuration = OpenAIConfiguration(apiKey: apiKey, provider: provider)
-            let requestContext = try OpenAISDKClientFactory(configuration: configuration)
-                .makeRequestContext(timeoutInterval: 15)
-
-            do {
-                let response = try await requestContext.client.responses.createResponse(
-                    query: CreateModelResponseQuery(
-                        input: .inputItemList([
-                            .inputMessage(
-                                EasyInputMessage(
-                                    role: .user,
-                                    content: .textInput("Reply with ok.")
-                                )
-                            )
-                        ]),
-                        model: configuration.rewriteModel,
-                        store: configuration.supportsResponsesStore ? false : nil
-                    )
-                )
-
-                guard response.stetOutputText != nil else {
-                    throw OpenAIError.invalidResponse(provider: provider)
-                }
-            } catch {
-                throw requestContext.mapError(error)
-            }
-        }
-    }
-
     @MainActor
     protocol OnboardingSupabaseAuthenticating: AnyObject {
         var hasCurrentSession: Bool { get }
         func signIn(email: String, password: String) async throws
         func signIn(provider: Provider) async throws
         func signUp(email: String, password: String) async throws
-    }
-
-    protocol OnboardingAPIKeyValidating {
-        func validate(apiKey: String, provider: DictationProvider) async throws
     }
 #endif

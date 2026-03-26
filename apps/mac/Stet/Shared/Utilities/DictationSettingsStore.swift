@@ -34,8 +34,8 @@ struct DictationSettingsSnapshot: Sendable {
     let isRewriteEnabled: Bool
     let dictationLanguageMode: DictationLanguageMode
     let shouldPauseMediaDuringDictation: Bool
-    let transcriptionProviderConfiguration: OpenAIConfiguration?
-    let rewriteProviderConfiguration: OpenAIConfiguration?
+    let transcriptionProviderConfiguration: TranscriptionProviderConfiguration?
+    let rewriteProviderConfiguration: RewriteProviderConfiguration?
     let personalDictionary: [String]
     let interactionSoundsEnabled: Bool
     let interactionSoundPreset: InteractionSoundPreset
@@ -44,7 +44,7 @@ struct DictationSettingsSnapshot: Sendable {
         transcriptionProvider
     }
 
-    nonisolated var providerConfiguration: OpenAIConfiguration? {
+    nonisolated var providerConfiguration: TranscriptionProviderConfiguration? {
         transcriptionProviderConfiguration
     }
 
@@ -122,17 +122,17 @@ struct DictationSettingsStore: Sendable {
             defaultsStore.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
         let interactionSoundPreset = loadInteractionSoundPreset()
 
-        let transcriptionConfiguration: OpenAIConfiguration? =
+        let transcriptionConfiguration: TranscriptionProviderConfiguration? =
             transcriptionAPIKey.isEmpty
             ? nil
-            : OpenAIConfiguration.transcriptionConfiguration(
+            : DictationProviderConfigurationResolver.transcriptionConfiguration(
                 apiKey: transcriptionAPIKey,
                 providerPair: providerPair
             )
-        let rewriteConfiguration: OpenAIConfiguration? =
+        let rewriteConfiguration: RewriteProviderConfiguration? =
             rewriteAPIKey.isEmpty
             ? nil
-            : OpenAIConfiguration.rewriteConfiguration(
+            : DictationProviderConfigurationResolver.rewriteConfiguration(
                 apiKey: rewriteAPIKey,
                 providerPair: providerPair
             )

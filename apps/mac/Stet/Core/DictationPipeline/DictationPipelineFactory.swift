@@ -14,7 +14,7 @@ struct DictationPipelineFactory: Sendable {
     var relayAuthenticationContext: @Sendable () async -> RelayAuthenticationContext?
     var makeDirectTranscriptionService:
         @Sendable (
-            OpenAIConfiguration,
+            TranscriptionProviderConfiguration,
             URLSession
         ) -> any AudioFileTranscriptionService
     var makeRelayTranscriptionService:
@@ -23,7 +23,7 @@ struct DictationPipelineFactory: Sendable {
             URLSession,
             [String]
         ) -> any AudioFileTranscriptionService
-    var makeRewriteService: @Sendable (OpenAIConfiguration, URLSession) -> any TextRewriteService
+    var makeRewriteService: @Sendable (RewriteProviderConfiguration, URLSession) -> any TextRewriteService
 
     static func live(
         relayAuthenticationContext: @escaping @Sendable () async -> RelayAuthenticationContext?
@@ -82,7 +82,11 @@ struct DictationPipelineFactory: Sendable {
             rewriteAdditionalContext = direct.languageMode.rewriteAdditionalContext
             usesAudienceAwareLocalPrompts = snapshot.executionMode == .byok
 
-            rewriteService = makeRewriteService(direct.rewriteConfiguration, networkSession)
+            if direct.rewriteEnabled, let rewriteConfiguration = direct.rewriteConfiguration {
+                rewriteService = makeRewriteService(rewriteConfiguration, networkSession)
+            } else {
+                rewriteService = nil
+            }
         case .relay(let relay):
             transcriptionService = makeRelayTranscriptionService(
                 relay.authentication,

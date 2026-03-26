@@ -225,8 +225,8 @@
         }
     }
 
-    struct PreviewOnboardingAPIKeyValidationService: OnboardingAPIKeyValidating {
-        func validate(apiKey _: String, provider _: DictationProvider) async throws {}
+    struct PreviewOnboardingAPIKeyValidationService: ProviderCredentialValidating {
+        func validateCredential(apiKey _: String, provider _: DictationProvider) async throws {}
     }
 
 #endif
