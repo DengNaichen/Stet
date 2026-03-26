@@ -114,8 +114,7 @@ jobs:
         run: ./scripts/setup-notarytool-profile.sh
 
       - name: Build Release Candidate
-        run: |
-          zsh -x ./scripts/release-macos-github.sh
+        run: ./scripts/release-macos-github.sh
 
       - name: Upload Release Candidate Artifacts
         if: always()
