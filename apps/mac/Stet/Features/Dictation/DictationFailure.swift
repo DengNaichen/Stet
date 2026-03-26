@@ -7,6 +7,7 @@ enum DictationFailure: Equatable, Sendable {
         case authentication
         case network
         case noSpeech
+        case output
         case service
         case state
         case unknown
@@ -28,6 +29,10 @@ enum DictationFailure: Equatable, Sendable {
     case relayAuthenticationRequired
     case relayInvocation(statusCode: Int?, message: String, requestID: String?)
     case network(code: URLError.Code, message: String)
+    case clipboardWriteFailed
+    case autoPastePermissionMissing
+    case pasteVerificationUnavailable
+    case pasteVerificationFailed
     case unknown(message: String)
 
     var classification: Classification {
@@ -44,6 +49,10 @@ enum DictationFailure: Equatable, Sendable {
             return .noSpeech
         case .alreadyRecording, .notRecording:
             return .state
+        case .clipboardWriteFailed, .pasteVerificationUnavailable, .pasteVerificationFailed:
+            return .output
+        case .autoPastePermissionMissing:
+            return .permissions
         case .missingProviderConfiguration, .missingAPIKey, .invalidBaseURL, .unsupportedProviderCombination:
             return .configuration
         case .providerAPI(_, let statusCode, _):
@@ -96,6 +105,12 @@ enum DictationFailure: Equatable, Sendable {
             return "Managed Relay request failed"
         case .network:
             return "Network problem"
+        case .clipboardWriteFailed:
+            return "Clipboard write failed"
+        case .autoPastePermissionMissing:
+            return "Input control permission required"
+        case .pasteVerificationUnavailable, .pasteVerificationFailed:
+            return "Text copied to clipboard"
         case .unknown:
             return "Something went wrong"
         }
@@ -144,8 +159,25 @@ enum DictationFailure: Equatable, Sendable {
             ).localizedDescription
         case .network(_, let message):
             return message
+        case .clipboardWriteFailed:
+            return "Failed to write text to clipboard. Please try again or paste manually."
+        case .autoPastePermissionMissing:
+            return "Stet needs Input Monitoring or Accessibility permission to paste text automatically. Text has been copied to clipboard."
+        case .pasteVerificationUnavailable:
+            return "Stet could not verify the paste because the target app did not expose enough text metadata. Text has been copied to clipboard."
+        case .pasteVerificationFailed:
+            return "Could not verify text was pasted successfully. Text has been copied to clipboard as a fallback."
         case .unknown(let message):
             return message
+        }
+    }
+
+    var preservesRecoveredTextInClipboard: Bool {
+        switch self {
+        case .autoPastePermissionMissing, .pasteVerificationUnavailable, .pasteVerificationFailed:
+            return true
+        default:
+            return false
         }
     }
 

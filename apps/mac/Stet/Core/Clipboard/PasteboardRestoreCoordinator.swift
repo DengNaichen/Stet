@@ -42,6 +42,10 @@
                 }
 
                 guard temporarySnapshot.matches(pasteboard) else {
+                    AppLogger.info(
+                        "Pasteboard restore skipped: temporary snapshot no longer matches current pasteboard",
+                        category: .dictation
+                    )
                     return
                 }
 
@@ -105,7 +109,18 @@
             }
 
             if !restoredItems.isEmpty {
-                pasteboard.writeObjects(restoredItems)
+                let success = pasteboard.writeObjects(restoredItems)
+                if !success {
+                    AppLogger.warning(
+                        "Pasteboard restore failed: unable to write restored items to pasteboard",
+                        category: .dictation
+                    )
+                }
+            } else if !items.isEmpty {
+                AppLogger.warning(
+                    "Pasteboard restore failed: no items could be restored from snapshot",
+                    category: .dictation
+                )
             }
         }
     }

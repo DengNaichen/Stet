@@ -246,7 +246,7 @@
             #expect(showPanelCount == 0)
         }
 
-        @Test func failedSelectionReplacementRequestsAccessWithoutRevealingPanel() async {
+        @Test func failedSelectionReplacementFallsBackToClipboardCopy() async {
             let textInjectionService = TestTextInjectionService()
             textInjectionService.isAvailable = false
             textInjectionService.accessState = .init(
@@ -264,9 +264,67 @@
                 showPanelCount += 1
             }
 
-            #expect(outcome == .clipboardPending)
+            #expect(outcome == .failed(.autoPastePermissionMissing))
+            #expect(subject.clipboard.copiedTexts == ["rewritten"])
             #expect(subject.textInjectionService.replacementTexts == ["rewritten"])
             #expect(subject.textInjectionService.didRequestAccessIfNeeded)
+            #expect(showPanelCount == 0)
+        }
+
+        @Test func verificationUnavailableFallsBackToClipboardWithDistinctFailure() async {
+            let textInjectionService = TestTextInjectionService()
+            textInjectionService.pasteOutcome = .eventPostedVerificationUnavailable
+            let subject = makeController(textInjectionService: textInjectionService)
+            var showPanelCount = 0
+
+            let outcome = await subject.controller.handleCompletedResult(
+                text: "hello",
+                workflow: .dictation
+            ) {
+                showPanelCount += 1
+            }
+
+            #expect(outcome == .failed(.pasteVerificationUnavailable))
+            #expect(subject.clipboard.copiedTexts == ["hello", "hello"])
+            #expect(subject.textInjectionService.pasteTargets.count == 1)
+            #expect(subject.textInjectionService.didRequestAccessIfNeeded == false)
+            #expect(showPanelCount == 0)
+        }
+
+        @Test func selectionReplacementClipboardWriteFailureSurfacesExplicitFailure() async {
+            let textInjectionService = TestTextInjectionService()
+            textInjectionService.replacementOutcome = .clipboardWriteFailed
+            let subject = makeController(textInjectionService: textInjectionService)
+            var showPanelCount = 0
+
+            let outcome = await subject.controller.handleCompletedResult(
+                text: "rewritten",
+                workflow: .rewriteFromSelection(sourceText: "hello")
+            ) {
+                showPanelCount += 1
+            }
+
+            #expect(outcome == .failed(.clipboardWriteFailed))
+            #expect(subject.textInjectionService.replacementTexts == ["rewritten"])
+            #expect(subject.textInjectionService.didRequestAccessIfNeeded == false)
+            #expect(showPanelCount == 0)
+        }
+
+        @Test func emptyCompletionTextReturnsEmptyTranscriptionFailure() async {
+            let subject = makeController()
+            var showPanelCount = 0
+
+            let outcome = await subject.controller.handleCompletedResult(
+                text: "  \n ",
+                workflow: .dictation
+            ) {
+                showPanelCount += 1
+            }
+
+            #expect(outcome == .failed(.emptyTranscription))
+            #expect(subject.clipboard.copiedTexts.isEmpty)
+            #expect(subject.textInjectionService.pasteTargets.isEmpty)
+            #expect(subject.textInjectionService.replacementTexts.isEmpty)
             #expect(showPanelCount == 0)
         }
 
@@ -297,8 +355,19 @@
         @Test func copyPendingResultToClipboardForwardsText() {
             let subject = makeController()
 
-            subject.controller.copyPendingResultToClipboard("needs-review")
+            let success = subject.controller.copyPendingResultToClipboard("needs-review")
 
+            #expect(success)
+            #expect(subject.clipboard.copiedTexts == ["needs-review"])
+        }
+
+        @Test func copyPendingResultToClipboardReturnsFailureWhenClipboardWriteFails() {
+            let subject = makeController()
+            subject.clipboard.shouldFailCopy = true
+
+            let success = subject.controller.copyPendingResultToClipboard("needs-review")
+
+            #expect(!success)
             #expect(subject.clipboard.copiedTexts == ["needs-review"])
         }
 

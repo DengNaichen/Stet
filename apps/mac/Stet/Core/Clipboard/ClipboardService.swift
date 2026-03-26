@@ -8,11 +8,13 @@ import Foundation
 
 @MainActor
 protocol ClipboardService {
-    func copy(_ text: String, transient: Bool)
+    @discardableResult
+    func copy(_ text: String, transient: Bool) -> Bool
 }
 
 extension ClipboardService {
-    func copy(_ text: String) {
+    @discardableResult
+    func copy(_ text: String) -> Bool {
         copy(text, transient: false)
     }
 }
@@ -30,18 +32,38 @@ final class SystemClipboardService: ClipboardService {
         }
     #endif
 
-    func copy(_ text: String, transient: Bool) {
+    @discardableResult
+    func copy(_ text: String, transient: Bool) -> Bool {
         #if os(macOS)
-            pasteboard.clearContents()
-            pasteboard.setString(text, forType: .string)
-            if let bundleIdentifier = Bundle.main.bundleIdentifier {
-                pasteboard.setString(bundleIdentifier, forType: Self.sourceType)
-            }
-            if transient {
-                pasteboard.setData(Data(), forType: Self.transientType)
+            do {
+                pasteboard.clearContents()
+
+                guard pasteboard.setString(text, forType: .string) else {
+                    AppLogger.error(
+                        "Failed to write text to clipboard (setString returned false)",
+                        category: .general
+                    )
+                    return false
+                }
+
+                if let bundleIdentifier = Bundle.main.bundleIdentifier {
+                    _ = pasteboard.setString(bundleIdentifier, forType: Self.sourceType)
+                }
+                if transient {
+                    _ = pasteboard.setData(Data(), forType: Self.transientType)
+                }
+
+                return true
+            } catch {
+                AppLogger.error(
+                    "Failed to write text to clipboard: \(error.localizedDescription)",
+                    category: .general
+                )
+                return false
             }
         #elseif canImport(UIKit)
             UIPasteboard.general.string = text
+            return true
         #endif
     }
 }

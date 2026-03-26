@@ -14,6 +14,30 @@
     }
 
     @MainActor
+    enum TextInjectionOutcome: Equatable {
+        case verifiedSuccess
+        case eventPostedVerificationUnavailable
+        case verificationFailed
+        case eventPostFailed
+
+        var didSucceed: Bool {
+            switch self {
+            case .verifiedSuccess:
+                return true
+            case .eventPostedVerificationUnavailable, .verificationFailed, .eventPostFailed:
+                return false
+            }
+        }
+    }
+
+    @MainActor
+    enum TextReplacementOutcome: Equatable {
+        case replaced
+        case clipboardWriteFailed
+        case injectionFailed(TextInjectionOutcome)
+    }
+
+    @MainActor
     protocol TextInjectionService {
         var accessState: TextInjectionAccessState { get }
         var isAvailable: Bool { get }
@@ -21,13 +45,13 @@
         func requestAccess()
         func requestAccessIfNeeded()
         func openAccessibilitySettings()
-        func pasteClipboard(into application: NSRunningApplication?) async -> Bool
+        func pasteClipboard(into application: NSRunningApplication?) async -> TextInjectionOutcome
         func selectedText() -> String?
         func replaceSelectedText(
             _ text: String,
             into application: NSRunningApplication?,
             keepResultInClipboard: Bool
-        ) async -> Bool
+        ) async -> TextReplacementOutcome
     }
 
     @MainActor
@@ -46,15 +70,36 @@
             let value: String?
             let selectedText: String?
             let selectionRange: SelectionRange?
+            let numberOfCharacters: Int?
 
             var canVerifyPaste: Bool {
-                value != nil || selectedText != nil || selectionRange != nil
+                value != nil || selectedText != nil || selectionRange != nil || numberOfCharacters != nil
             }
 
             func indicatesMutation(comparedTo previous: Self) -> Bool {
-                value != previous.value
-                    || selectedText != previous.selectedText
-                    || selectionRange != previous.selectionRange
+                if let value, let previousValue = previous.value, value != previousValue {
+                    return true
+                }
+                if let selectedText, let previousSelectedText = previous.selectedText,
+                    selectedText != previousSelectedText
+                {
+                    return true
+                }
+                if let selectionRange, let previousSelectionRange = previous.selectionRange,
+                    selectionRange != previousSelectionRange
+                {
+                    return true
+                }
+                if let numberOfCharacters, let previousCount = previous.numberOfCharacters,
+                    numberOfCharacters != previousCount
+                {
+                    return true
+                }
+
+                return (value != nil) != (previous.value != nil)
+                    || (selectedText != nil) != (previous.selectedText != nil)
+                    || (selectionRange != nil) != (previous.selectionRange != nil)
+                    || (numberOfCharacters != nil) != (previous.numberOfCharacters != nil)
             }
         }
 
@@ -112,9 +157,9 @@
             NSWorkspace.shared.open(url)
         }
 
-        func pasteClipboard(into application: NSRunningApplication?) async -> Bool {
+        func pasteClipboard(into application: NSRunningApplication?) async -> TextInjectionOutcome {
             guard accessState.canSimulateInput else {
-                return false
+                return .eventPostFailed
             }
 
             let snapshotBeforePaste = focusedElementSnapshot()
@@ -129,21 +174,21 @@
 
             try? await Task.sleep(for: .milliseconds(60))
             guard simulateCommandKey(KeyCode.paste) else {
-                return false
+                return .eventPostFailed
             }
 
-            // Posting Command+V only tells us the event was emitted, not that the target accepted it.
             guard let snapshotBeforePaste, snapshotBeforePaste.canVerifyPaste else {
-                return false
+                return .eventPostedVerificationUnavailable
             }
 
             try? await Task.sleep(for: .milliseconds(180))
 
             guard let snapshotAfterPaste = focusedElementSnapshot() else {
-                return false
+                return .eventPostedVerificationUnavailable
             }
 
             return snapshotAfterPaste.indicatesMutation(comparedTo: snapshotBeforePaste)
+                ? .verifiedSuccess : .verificationFailed
         }
 
         func selectedText() -> String? {
@@ -160,8 +205,8 @@
             _ text: String,
             into application: NSRunningApplication?,
             keepResultInClipboard: Bool
-        ) async -> Bool {
-            guard !text.isEmpty else { return false }
+        ) async -> TextReplacementOutcome {
+            guard !text.isEmpty else { return .injectionFailed(.verificationFailed) }
 
             if keepResultInClipboard {
                 pasteboardRestoreCoordinator.discardPendingRestore()
@@ -169,23 +214,33 @@
                 pasteboardRestoreCoordinator.prepareForTemporaryOverride(on: pasteboard)
             }
 
-            clipboardService.copy(text, transient: !keepResultInClipboard)
-            let didPaste = await pasteClipboard(into: application)
-
-            guard didPaste else {
+            let clipboardWriteSucceeded = clipboardService.copy(
+                text,
+                transient: !keepResultInClipboard
+            )
+            guard clipboardWriteSucceeded else {
                 if !keepResultInClipboard {
                     pasteboardRestoreCoordinator.restoreImmediatelyIfNeeded(on: pasteboard)
                 }
-                return false
+                return .clipboardWriteFailed
+            }
+
+            let outcome = await pasteClipboard(into: application)
+
+            guard outcome.didSucceed else {
+                if !keepResultInClipboard {
+                    pasteboardRestoreCoordinator.restoreImmediatelyIfNeeded(on: pasteboard)
+                }
+                return .injectionFailed(outcome)
             }
 
             guard !keepResultInClipboard else {
-                return didPaste
+                return .replaced
             }
 
             pasteboardRestoreCoordinator.scheduleRestoreIfNeeded(on: pasteboard)
 
-            return didPaste
+            return .replaced
         }
 
         private func selectedTextFromAXFocusedElement() -> String? {
@@ -284,7 +339,8 @@
                 value: stringAttribute(kAXValueAttribute as CFString, from: focusedElement),
                 selectedText: stringAttribute(
                     kAXSelectedTextAttribute as CFString, from: focusedElement),
-                selectionRange: selectedRange(from: focusedElement)
+                selectionRange: selectedRange(from: focusedElement),
+                numberOfCharacters: numberOfCharacters(from: focusedElement)
             )
         }
 
@@ -354,6 +410,24 @@
             }
 
             return SelectionRange(location: range.location, length: range.length)
+        }
+
+        private func numberOfCharacters(from element: AXUIElement) -> Int? {
+            var valueRef: CFTypeRef?
+            let status = AXUIElementCopyAttributeValue(
+                element,
+                kAXNumberOfCharactersAttribute as CFString,
+                &valueRef
+            )
+
+            guard status == .success,
+                let valueRef,
+                let number = valueRef as? NSNumber
+            else {
+                return nil
+            }
+
+            return number.intValue
         }
 
         private func requestMissingAccesses(trigger: String) {

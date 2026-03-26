@@ -124,6 +124,7 @@ final class TestSecretStore: DictationSecretStore, @unchecked Sendable {
 @MainActor
 final class TestClipboardService: ClipboardService {
     private(set) var copyOperations: [(text: String, transient: Bool)] = []
+    var shouldFailCopy = false
 
     var copiedTexts: [String] {
         copyOperations.map(\.text)
@@ -133,8 +134,10 @@ final class TestClipboardService: ClipboardService {
         copyOperations.map(\.transient)
     }
 
-    func copy(_ text: String, transient: Bool) {
+    @discardableResult
+    func copy(_ text: String, transient: Bool) -> Bool {
         copyOperations.append((text, transient))
+        return !shouldFailCopy
     }
 }
 
@@ -145,6 +148,8 @@ final class TestTextInjectionService: TextInjectionService {
     var didRequestAccessIfNeeded = false
     var didOpenAccessibilitySettings = false
     var pasteResult = true
+    var pasteOutcome: TextInjectionOutcome = .verifiedSuccess
+    var replacementOutcome: TextReplacementOutcome = .replaced
     var selectedTextValue: String?
     var accessState = TextInjectionAccessState(
         hasAccessibilityAccess: true,
@@ -165,9 +170,9 @@ final class TestTextInjectionService: TextInjectionService {
         didOpenAccessibilitySettings = true
     }
 
-    func pasteClipboard(into application: NSRunningApplication?) async -> Bool {
+    func pasteClipboard(into application: NSRunningApplication?) async -> TextInjectionOutcome {
         pasteTargets.append(application?.bundleIdentifier)
-        return pasteResult
+        return pasteResult ? pasteOutcome : .verificationFailed
     }
 
     func selectedText() -> String? {
@@ -178,10 +183,14 @@ final class TestTextInjectionService: TextInjectionService {
         _ text: String,
         into application: NSRunningApplication?,
         keepResultInClipboard: Bool
-    ) async -> Bool {
+    ) async -> TextReplacementOutcome {
         replacementTexts.append(text)
         pasteTargets.append(application?.bundleIdentifier)
-        return pasteResult
+        guard pasteResult else {
+            let failure: TextInjectionOutcome = isAvailable ? .verificationFailed : .eventPostFailed
+            return .injectionFailed(failure)
+        }
+        return replacementOutcome
     }
 }
 

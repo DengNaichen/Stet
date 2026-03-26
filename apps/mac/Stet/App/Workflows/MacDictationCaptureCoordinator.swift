@@ -7,6 +7,7 @@
         enum CompletionOutcome: Equatable {
             case completed
             case clipboardPending
+            case failed(DictationFailure)
         }
 
         struct CaptureSettings {
@@ -39,6 +40,11 @@
             settings: CaptureSettings,
             showPanel: @escaping @MainActor () -> Void
         ) async -> CompletionOutcome {
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                await DictationLatencyProbe.shared.record(.systemWriteSkipped, note: "empty_text")
+                return .completed
+            }
+
             let shouldRestoreClipboardAfterSuccessfulPaste =
                 settings.shouldAutoPaste && !settings.shouldCopyToClipboard
 
@@ -49,38 +55,93 @@
             }
 
             if settings.shouldCopyToClipboard || settings.shouldAutoPaste {
-                clipboardService.copy(
+                let clipboardSuccess = clipboardService.copy(
                     text,
                     transient: settings.shouldAutoPaste && !settings.shouldCopyToClipboard
                 )
+                if !clipboardSuccess {
+                    await DictationLatencyProbe.shared.record(
+                        .systemWriteFailed, note: "clipboard_write_failed")
+                    return .failed(.clipboardWriteFailed)
+                }
             }
 
             if settings.shouldAutoPaste {
-                let didPaste = await textInjectionService.pasteClipboard(into: targetApplication)
+                if !textInjectionService.isAvailable {
+                    if shouldRestoreClipboardAfterSuccessfulPaste {
+                        pasteboardRestoreCoordinator.restoreImmediatelyIfNeeded(on: pasteboard)
+                    }
 
-                if didPaste {
+                    if !settings.shouldCopyToClipboard {
+                        let fallbackSuccess = clipboardService.copy(text, transient: false)
+                        if !fallbackSuccess {
+                            await DictationLatencyProbe.shared.record(
+                                .systemWriteFailed, note: "clipboard_fallback_failed")
+                            return .failed(.clipboardWriteFailed)
+                        }
+                    }
+
+                    textInjectionService.requestAccessIfNeeded()
+                    if settings.shouldRevealPanelOnCapture {
+                        showPanel()
+                    }
+
+                    await DictationLatencyProbe.shared.record(
+                        .systemWriteFailed, note: "auto_paste_permission_missing")
+                    return .failed(.autoPastePermissionMissing)
+                }
+
+                let pasteOutcome = await textInjectionService.pasteClipboard(into: targetApplication)
+
+                switch pasteOutcome {
+                case .verifiedSuccess:
                     if shouldRestoreClipboardAfterSuccessfulPaste {
                         pasteboardRestoreCoordinator.scheduleRestoreIfNeeded(on: pasteboard)
                     }
                     await DictationLatencyProbe.shared.record(.systemWriteCompleted)
                     return .completed
-                } else {
+
+                case .eventPostedVerificationUnavailable, .verificationFailed, .eventPostFailed:
                     if shouldRestoreClipboardAfterSuccessfulPaste {
                         pasteboardRestoreCoordinator.restoreImmediatelyIfNeeded(on: pasteboard)
                     }
+
+                    if !settings.shouldCopyToClipboard {
+                        let fallbackSuccess = clipboardService.copy(text, transient: false)
+                        if !fallbackSuccess {
+                            await DictationLatencyProbe.shared.record(
+                                .systemWriteFailed, note: "clipboard_fallback_failed")
+                            return .failed(.clipboardWriteFailed)
+                        }
+                    }
+
+                    let failure: DictationFailure
+                    let failureNote: String
+
+                    switch pasteOutcome {
+                    case .eventPostedVerificationUnavailable:
+                        failure = .pasteVerificationUnavailable
+                        failureNote = "paste_verification_unavailable"
+                    case .verificationFailed:
+                        failure = .pasteVerificationFailed
+                        failureNote = "paste_verification_failed"
+                    case .eventPostFailed:
+                        failure = .pasteVerificationFailed
+                        failureNote = "paste_event_post_failed"
+                    case .verifiedSuccess:
+                        failure = .pasteVerificationFailed
+                        failureNote = "unexpected"
+                    }
+
+                    if settings.shouldRevealPanelOnCapture {
+                        showPanel()
+                    }
+
                     await DictationLatencyProbe.shared.record(
-                        .systemWriteFailed, note: "paste_failed")
-                }
+                        .systemWriteFailed, note: failureNote)
 
-                if !didPaste && !textInjectionService.isAvailable {
-                    textInjectionService.requestAccessIfNeeded()
+                    return .failed(failure)
                 }
-
-                if settings.shouldRevealPanelOnCapture && !didPaste {
-                    showPanel()
-                }
-
-                return settings.shouldCopyToClipboard ? .completed : .clipboardPending
             } else if settings.shouldRevealPanelOnCapture {
                 await DictationLatencyProbe.shared.record(
                     .systemWriteSkipped, note: "auto_paste_disabled")
@@ -93,9 +154,12 @@
             return settings.shouldCopyToClipboard ? .completed : .clipboardPending
         }
 
-        func copyToClipboard(_ text: String) {
+        func copyToClipboard(_ text: String) -> Bool {
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return true
+            }
             pasteboardRestoreCoordinator.discardPendingRestore()
-            clipboardService.copy(text, transient: false)
+            return clipboardService.copy(text, transient: false)
         }
     }
 #endif

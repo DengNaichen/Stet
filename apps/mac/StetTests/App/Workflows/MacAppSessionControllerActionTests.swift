@@ -164,7 +164,9 @@
             session: MacAppSessionController,
             workflow: MacDictationWorkflowController,
             shell: FakeShellPresenter,
-            permissionGate: FakePermissionGatePresenter
+            permissionGate: FakePermissionGatePresenter,
+            clipboardService: TestClipboardService,
+            textInjectionService: TestTextInjectionService
         ) {
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(true, forKey: MacPreferences.onboardingCompleted)
@@ -209,7 +211,14 @@
                 hotkeyRegistrar: hotkeyRegistrar
             )
 
-            return (session: session, workflow: workflow, shell: shell, permissionGate: permissionGate)
+            return (
+                session: session,
+                workflow: workflow,
+                shell: shell,
+                permissionGate: permissionGate,
+                clipboardService: clipboardService,
+                textInjectionService: textInjectionService
+            )
         }
 
         @Test func cancelActiveCaptureHidesPanelAndResetsWorkflowState() {
@@ -264,6 +273,43 @@
                 await TestSupport.eventually {
                     subject.shell.showTransientPanelCallCount == 1
                 })
+            #expect(subject.shell.isPanelVisible)
+        }
+
+        @Test func pendingCopyFailureKeepsPanelVisibleAndPreservesTranscript() async {
+            let subject = makeSubject()
+            let presentationModel = FakePresentationModel()
+            subject.session.activate(presentationModel: presentationModel, showInDock: false)
+            subject.workflow.dictationViewModel.send(.clipboardPending("needs copy"))
+            subject.shell.showTransientPanel(appModel: presentationModel)
+            subject.clipboardService.shouldFailCopy = true
+
+            #expect(await TestSupport.eventually {
+                subject.workflow.dictationViewModel.state == .clipboardPending("needs copy")
+            })
+            #expect(subject.shell.isPanelVisible)
+
+            subject.session.performPrimaryAction()
+
+            #expect(await TestSupport.eventually {
+                subject.workflow.dictationViewModel.state == .clipboardPending("needs copy")
+            })
+            #expect(subject.shell.hidePanelCallCount == 0)
+            #expect(subject.shell.isPanelVisible)
+        }
+
+        @Test func verificationFailureFallsBackToClipboardPendingSurface() async {
+            let subject = makeSubject()
+            let presentationModel = FakePresentationModel()
+            subject.session.activate(presentationModel: presentationModel, showInDock: false)
+            subject.textInjectionService.pasteOutcome = .verificationFailed
+
+            subject.workflow.dictationViewModel.send(.transcriptionSucceeded("transcript"))
+
+            #expect(await TestSupport.eventually {
+                subject.workflow.dictationViewModel.state == .clipboardPending("transcript")
+            })
+            #expect(subject.clipboardService.copiedTexts == ["transcript", "transcript"])
             #expect(subject.shell.isPanelVisible)
         }
     }
