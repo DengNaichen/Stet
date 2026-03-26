@@ -279,6 +279,11 @@ static float2 blobOrbitCenter(float time, float orbitSpeed, float orbitPhase,
     float kick = pulseClamped * pulseClamped * (3.0 - 2.0 * pulseClamped);
     kick = max(kick, pulseClamped * 0.30);
     float life = max(presenceClamped, 0.18);
+    
+    // --- Processing mode detection ---
+    // When pulse and articulation are both zero and body is high, we're in processing mode
+    bool isProcessing = (pulseClamped < 0.01 && articulationClamped < 0.01 && bodyClamped > 0.3);
+    float progress = isProcessing ? bodyClamped : 0.0;
 
     // --- Original motion (restored) ---
     pRaw.y += Config::MOTION_Y_AMP * (0.60 + 0.55 * life) * sin(time * Config::MOTION_Y_FREQ);
@@ -350,9 +355,30 @@ static float2 blobOrbitCenter(float time, float orbitSpeed, float orbitPhase,
     float pulseDrift = kick * Config::PULSE_DISPLACEMENT;
     float aspectStretch = max(0.0, (aspect - 1.0)) * Config::ORBIT_ASPECT_SCALE;
 
-    float2 centerA = blobOrbitCenter(time, Config::ORBIT_SPEED_A, Config::ORBIT_PHASE_A, audioAmp, pulseDrift, aspectStretch);
-    float2 centerB = blobOrbitCenter(time, Config::ORBIT_SPEED_B, Config::ORBIT_PHASE_B, audioAmp, pulseDrift, aspectStretch);
-    float2 centerC = blobOrbitCenter(time, Config::ORBIT_SPEED_C, Config::ORBIT_PHASE_C, audioAmp, pulseDrift, aspectStretch);
+    float2 centerA, centerB, centerC;
+    
+    if (isProcessing) {
+        // Processing mode: arrange blobs in a horizontal line from left to right
+        // Progress controls how far the "wave" has traveled
+        float progressEdge = progress * 2.0 - 1.0;  // Map [0,1] to [-1,1]
+        
+        // Three blobs follow each other with slight delays
+        float offsetA = progressEdge - 0.3;
+        float offsetB = progressEdge;
+        float offsetC = progressEdge + 0.3;
+        
+        // Y position has subtle wave motion
+        float waveY = 0.08 * sin(time * 1.2 + progress * 3.14);
+        
+        centerA = float2(offsetA * aspect, waveY + 0.05 * sin(time * 1.5));
+        centerB = float2(offsetB * aspect, waveY);
+        centerC = float2(offsetC * aspect, waveY - 0.05 * sin(time * 1.8));
+    } else {
+        // Normal mode: orbiting blobs
+        centerA = blobOrbitCenter(time, Config::ORBIT_SPEED_A, Config::ORBIT_PHASE_A, audioAmp, pulseDrift, aspectStretch);
+        centerB = blobOrbitCenter(time, Config::ORBIT_SPEED_B, Config::ORBIT_PHASE_B, audioAmp, pulseDrift, aspectStretch);
+        centerC = blobOrbitCenter(time, Config::ORBIT_SPEED_C, Config::ORBIT_PHASE_C, audioAmp, pulseDrift, aspectStretch);
+    }
 
     // --- Distances with noise perturbation + mild warp influence ---
     float noiseTime = time * 0.03;
@@ -459,6 +485,68 @@ static float2 blobOrbitCenter(float time, float orbitSpeed, float orbitPhase,
     base += Config::LIFT_COLOR * (0.70 * breath + 0.30 * life);
     base *= (1.0 + Config::PRESENCE_BRIGHT * life);
     base = clamp(base, 0.0, 1.0);
+
+    // ============================================================
+    // PROCESSING PROGRESS BAR
+    // ============================================================
+    
+    if (isProcessing) {
+        // Save original color
+        float3 originalBase = base;
+        
+        // Create wave version using existing cloud texture
+        // Define wave colors: deep sea blue and white foam
+        float3 deepBlue = float3(0.30, 0.55, 0.75);   // Even brighter ocean blue
+        float3 foamWhite = float3(0.95, 0.98, 1.00);  // Almost pure white foam
+        float3 midBlue = float3(0.55, 0.75, 0.88);    // Brighter mid-tone blue
+        
+        // Use the same wave field for color bands
+        float waveField = fbmFast(
+            p * 0.5 + float2(time * 0.025, -time * 0.018)
+        ) + p.x * 0.12 + p.y * 0.08;
+        
+        float waveCycle = fract(waveField * 1.2) * 3.0;
+        float bandA = max(0.0, cos((waveCycle - 0.0) * 2.094) * 0.5 + 0.5);
+        float bandB = max(0.0, cos((waveCycle - 1.0) * 2.094) * 0.5 + 0.5);
+        float bandC = max(0.0, cos((waveCycle - 2.0) * 2.094) * 0.5 + 0.5);
+        float bandSum = bandA + bandB + bandC + 1e-6;
+        
+        // Wave colors: blue-white palette
+        float3 waveCloudColor = (bandA * deepBlue + bandB * foamWhite + bandC * midBlue) / bandSum;
+        
+        // Apply cloud texture with wave colors - stronger mixing
+        float3 waveBase = base;  // Start with base colors
+        waveBase = mix(waveBase, waveCloudColor, cloud * Config::CLOUD_COLOR_STRENGTH * 2.0);
+        
+        // Add extra brightness to simulate foam - stronger effect
+        waveBase += foamWhite * cloud * 0.25;
+        
+        // Add base wave color to make it more opaque
+        waveBase = mix(waveBase, waveCloudColor, 0.4);
+        
+        waveBase = clamp(waveBase, 0.0, 1.0);
+        
+        // Calculate horizontal position and progress edge with noise
+        float pixelX = (uv.x - 0.5) * 2.0;
+        float progressEdge = -1.0 + progress * 2.0;
+        
+        // Add cloud-like noise to the edge
+        float edgeNoise = fbm(
+            float2(uv.x * 4.0, uv.y * 6.0 + time * 0.12)
+        );
+        float edgeNoise2 = noise2D(
+            float2(uv.x * 8.0 + time * 0.06, uv.y * 10.0)
+        );
+        float noiseOffset = (edgeNoise * 0.7 + edgeNoise2 * 0.3 - 0.5) * 0.10;
+        float noisyEdge = progressEdge + noiseOffset;
+        
+        // Smooth transition
+        float edgeWidth = 0.12;
+        float fillAmount = smoothstep(noisyEdge + edgeWidth, noisyEdge - edgeWidth, pixelX);
+        
+        // Mix: left side shows wave, right side shows original
+        base = mix(originalBase, waveBase, fillAmount);
+    }
 
     return half4(half3(base), currentColor.a);
 }

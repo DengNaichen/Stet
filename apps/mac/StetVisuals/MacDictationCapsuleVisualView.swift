@@ -23,6 +23,7 @@
         @State private var isPanelShown = false
         @State private var showOrbs = true
         @State private var startDate = Date()
+        @State private var processingStartDate: Date?
         @State private var orbRevealTask: Task<Void, Never>?
 
         private var orbFontSize: CGFloat {
@@ -83,7 +84,7 @@
                         state: model.state,
                         mainWidth: model.mainWidth,
                         controlHeight: model.controlHeight,
-                        startDate: startDate,
+                        startDate: processingStartDate ?? startDate,
                         shaderFrameInterval: model.shaderFrameInterval,
                         signals: model.signals,
                         shaderTheme: model.shaderTheme,
@@ -102,7 +103,13 @@
             .onAppear {
                 syncVisualState(animated: true)
             }
-            .onChange(of: model.state) { _ in
+            .onChange(of: model.state) { newState in
+                // Reset processing timer immediately when entering processing state
+                if case .processing = newState {
+                    processingStartDate = Date()
+                } else {
+                    processingStartDate = nil
+                }
                 syncVisualState(animated: true)
             }
             .onDisappear {
@@ -136,6 +143,7 @@
                 if model.shouldShowPanel {
                     if !isPanelShown {
                         startDate = Date()
+                        processingStartDate = nil
                     }
 
                     withAnimation(MacDictationCapsuleVisualTuning.panelSpring) {
