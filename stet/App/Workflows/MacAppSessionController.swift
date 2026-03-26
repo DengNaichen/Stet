@@ -520,7 +520,11 @@
         }
 
         private var requiresOnboarding: Bool {
-            isDebugForceOnboardingEnabled || !defaults.bool(forKey: MacPreferences.onboardingCompleted)
+            guard ReleaseHotfixFlags.onboardingEnabled else {
+                return false
+            }
+
+            return isDebugForceOnboardingEnabled || !defaults.bool(forKey: MacPreferences.onboardingCompleted)
         }
 
         private var shouldPresentOnboardingGate: Bool {

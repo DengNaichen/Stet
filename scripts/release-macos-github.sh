@@ -92,6 +92,13 @@ find_sparkle_generate_appcast() {
 
 SPARKLE_GENERATE_APPCAST="$(find_sparkle_generate_appcast || true)"
 
+plist_has_key() {
+  local plist_path="$1"
+  local key_path="$2"
+
+  /usr/bin/plutil -extract "$key_path" raw -o /dev/null "$plist_path" >/dev/null 2>&1
+}
+
 mkdir -p "$WORK_DIR"
 rm -rf "$ARCHIVE_PATH" "$APP_PATH" "$DMG_OUTPUT_DIR" "$SPARKLE_DIR" "$APP_ENTITLEMENTS" "$NPM_CACHE_DIR"
 
@@ -144,6 +151,33 @@ fi
 ditto "$ARCHIVE_PATH/Products/Applications/${APP_NAME}.app" "$APP_PATH"
 
 codesign -d --entitlements :- "$APP_PATH" > "$APP_ENTITLEMENTS" 2>/dev/null
+
+if plist_has_key "$APP_ENTITLEMENTS" "com.apple.developer.applesignin"; then
+  if [[ "$ARCHIVE_CODE_SIGN_STYLE" != "Manual" ]]; then
+    cat <<'EOF'
+Release signing is misconfigured for Sign in with Apple.
+
+This app includes the restricted entitlement com.apple.developer.applesignin.
+Automatic archive signing produces a development-signed app that launchd will reject
+after the bundle is re-signed for Developer ID distribution.
+
+Use Manual archive signing with your Developer ID Application identity and a matching
+distribution provisioning profile for NaichengDeng.Stet.
+EOF
+    exit 1
+  fi
+
+  if [[ -z "$ARCHIVE_PROVISIONING_PROFILE_SPECIFIER" ]]; then
+    cat <<'EOF'
+Missing distribution provisioning profile for restricted entitlements.
+
+This app includes com.apple.developer.applesignin, so the shipped app needs a
+matching distribution provisioning profile when signed for Developer ID release.
+Set ARCHIVE_PROVISIONING_PROFILE_SPECIFIER to that profile and try again.
+EOF
+    exit 1
+  fi
+fi
 
 resign_component() {
   local target_path="$1"

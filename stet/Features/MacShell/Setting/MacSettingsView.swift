@@ -121,7 +121,12 @@
                 reloadStateFromPreferences()
                 synchronizeSelectionWithFilter()
             }
-            .sheet(isPresented: $isShowingAccountSheet) {
+            .sheet(
+                isPresented: Binding(
+                    get: { ReleaseHotfixFlags.loginEnabled && isShowingAccountSheet },
+                    set: { isShowingAccountSheet = ReleaseHotfixFlags.loginEnabled && $0 }
+                )
+            ) {
                 AuthView()
                     .frame(minWidth: 520, minHeight: 580)
             }
@@ -138,17 +143,19 @@
 
         private var sidebar: some View {
             VStack(spacing: 0) {
-                Button {
-                    isShowingAccountSheet = true
-                } label: {
-                    sidebarAccountRow
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, MacUI.SettingsViewMetrics.sidebarAccountRowHorizontalPadding)
-                        .padding(.vertical, MacUI.SettingsViewMetrics.sidebarAccountRowVerticalPadding)
-                }
-                .buttonStyle(.plain)
+                if ReleaseHotfixFlags.loginEnabled {
+                    Button {
+                        isShowingAccountSheet = true
+                    } label: {
+                        sidebarAccountRow
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, MacUI.SettingsViewMetrics.sidebarAccountRowHorizontalPadding)
+                            .padding(.vertical, MacUI.SettingsViewMetrics.sidebarAccountRowVerticalPadding)
+                    }
+                    .buttonStyle(.plain)
 
-                Divider()
+                    Divider()
+                }
 
                 List(selection: $selectedTab) {
                     if filteredTabs.isEmpty {

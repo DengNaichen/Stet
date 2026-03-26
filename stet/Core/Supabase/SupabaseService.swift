@@ -160,6 +160,7 @@ final class SupabaseService {
         case missingConfiguration
         case missingPresentationAnchor
         case missingAppleIdentityToken
+        case appleSignInUnavailable
 
         var errorDescription: String? {
             switch self {
@@ -170,6 +171,8 @@ final class SupabaseService {
                 return "Apple sign-in requires an active window to present the authentication sheet."
             case .missingAppleIdentityToken:
                 return "Apple sign-in did not return an identity token."
+            case .appleSignInUnavailable:
+                return "Apple sign-in is temporarily unavailable in this build."
             }
         }
     }
@@ -213,6 +216,9 @@ final class SupabaseService {
     func signIn(provider: Provider) async throws {
         try ensureConfiguration()
         if provider == .apple {
+            guard ReleaseHotfixFlags.appleSignInEnabled else {
+                throw ServiceError.appleSignInUnavailable
+            }
             try await signInWithApple()
             return
         }
