@@ -7,15 +7,15 @@ Validate BYOK dictation provider splitting on macOS without regressing relay or 
 ## Entry Points
 
 - Settings persistence and provider selection:
-  - `/Users/nd/Developer/Stet/apps/mac/Stet/Features/MacShell/Openai/MacOpenAISettingsViewModel.swift`
-  - `/Users/nd/Developer/Stet/apps/mac/Stet/Features/MacShell/Openai/MacOpenAISettingsView.swift`
+  - `/Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/Openai/MacOpenAISettingsViewModel.swift`
+  - `/Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/Openai/MacOpenAISettingsView.swift`
 - Runtime routing and pipeline wiring:
-  - `/Users/nd/Developer/Stet/apps/mac/Stet/Core/DictationPipeline/DictationExecutionRoute.swift`
-  - `/Users/nd/Developer/Stet/apps/mac/Stet/Core/DictationPipeline/DictationPipelineFactory.swift`
-  - `/Users/nd/Developer/Stet/apps/mac/Stet/Core/Speech/ConfigurableSpeechService.swift`
+  - `/Users/nd/Developer/stet-project/Stet/Stet/Core/DictationPipeline/DictationExecutionRoute.swift`
+  - `/Users/nd/Developer/stet-project/Stet/Stet/Core/DictationPipeline/DictationPipelineFactory.swift`
+  - `/Users/nd/Developer/stet-project/Stet/Stet/Core/Speech/ConfigurableSpeechService.swift`
 - User-facing failure mapping:
-  - `/Users/nd/Developer/Stet/apps/mac/Stet/Features/Dictation/DictationFailure.swift`
-  - `/Users/nd/Developer/Stet/apps/mac/Stet/Features/Dictation/DictationViewModel.swift`
+  - `/Users/nd/Developer/stet-project/Stet/Stet/Features/Dictation/DictationFailure.swift`
+  - `/Users/nd/Developer/stet-project/Stet/Stet/Features/Dictation/DictationViewModel.swift`
 
 ## Supported Provider Combinations
 
@@ -39,7 +39,7 @@ Unsupported default pair:
 Targeted feature suites:
 
 ```bash
-xcodebuild test -project apps/mac/Stet.xcodeproj -scheme Stet -destination 'platform=macOS,arch=arm64' \
+xcodebuild test -project Stet.xcodeproj -scheme Stet -destination 'platform=macOS,arch=arm64' \
   -only-testing:StetTests/LogicPrimitiveTests \
   -only-testing:StetTests/ConfigurableSpeechServiceTests \
   -only-testing:StetTests/DictationViewModelTests \
@@ -50,7 +50,7 @@ xcodebuild test -project apps/mac/Stet.xcodeproj -scheme Stet -destination 'plat
 Known-stable focused retry for the two historically flaky selections:
 
 ```bash
-xcodebuild test -project apps/mac/Stet.xcodeproj -scheme Stet -destination 'platform=macOS,arch=arm64' \
+xcodebuild test -project Stet.xcodeproj -scheme Stet -destination 'platform=macOS,arch=arm64' \
   -only-testing:StetTests/MacOpenAISettingsViewModelTests/managedModeWithoutRelaySessionShowsSignInRequired \
   -only-testing:StetTests/ConfigurableSpeechServiceTests/byokUsesAIAudiencePromptWhenTargetAppIsUnknown
 ```
@@ -60,7 +60,7 @@ xcodebuild test -project apps/mac/Stet.xcodeproj -scheme Stet -destination 'plat
 - `2026-03-23`: targeted validation passed with:
 
 ```bash
-xcodebuild test -project apps/mac/Stet.xcodeproj -scheme Stet -destination 'platform=macOS,arch=arm64' \
+xcodebuild test -project Stet.xcodeproj -scheme Stet -destination 'platform=macOS,arch=arm64' \
   -only-testing:StetTests/LogicPrimitiveTests/dictationExecutionRouteResolverRejectsByokWithoutRequiredProviderKeys \
   -only-testing:StetTests/LogicPrimitiveTests/dictationExecutionRouteResolverRejectsByokWhenOnlyTranscriptionKeyIsMissing \
   -only-testing:StetTests/LogicPrimitiveTests/dictationExecutionRouteResolverRejectsByokWhenOnlyRewriteKeyIsMissing \

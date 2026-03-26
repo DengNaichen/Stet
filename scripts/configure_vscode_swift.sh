@@ -4,7 +4,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-project="apps/mac/Stet.xcodeproj"
+project="Stet.xcodeproj"
 scheme="Stet"
 
 if ! command -v xcode-build-server >/dev/null 2>&1; then
