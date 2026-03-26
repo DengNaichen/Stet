@@ -236,8 +236,6 @@ final class AuthViewModel {
         let nsError = error as NSError
         return nsError.domain == ASWebAuthenticationSessionErrorDomain
             && nsError.code == ASWebAuthenticationSessionError.canceledLogin.rawValue
-            || nsError.domain == ASAuthorizationError.errorDomain
-            && nsError.code == ASAuthorizationError.canceled.rawValue
     }
 
 }
