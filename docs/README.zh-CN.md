@@ -4,6 +4,8 @@
 
 Stet 是一款 macOS 菜单栏语音听写应用。
 
+这个仓库只负责 Stet 的 macOS 客户端。
+
 ## 简介
 
 Stet 会录音、转写，并且可以把结果直接粘贴回当前应用，或者替换掉已选文本。它常驻在菜单栏，通过全局快捷键启动，目标是尽量少改动地保留原始表达。
@@ -28,7 +30,7 @@ Stet 会录音、转写，并且可以把结果直接粘贴回当前应用，或
 
 ## 快速开始
 
-在 Xcode 中打开 `apps/mac/Stet.xcodeproj`，让依赖自动解析后运行 `Stet` scheme。
+在 Xcode 中打开 `Stet.xcodeproj`，让依赖自动解析后运行 `Stet` scheme。
 
 也可以直接从仓库根目录构建：
 
@@ -39,7 +41,7 @@ npm run mac:build
 或者直接使用 `xcodebuild`：
 
 ```bash
-xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' build
+xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' build
 ```
 
 ## 配置说明
@@ -83,7 +85,7 @@ xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -configuration Debug -d
 运行 macOS 测试：
 
 ```bash
-xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -destination 'platform=macOS' test
+xcodebuild -project Stet.xcodeproj -scheme Stet -destination 'platform=macOS' test
 ```
 
 ## 发布
@@ -105,4 +107,4 @@ xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -destination 'platform=
 
 ## 许可证
 
-Apache-2.0
+GPL-3.0-only

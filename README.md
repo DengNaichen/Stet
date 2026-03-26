@@ -4,6 +4,8 @@ English | [中文](docs/README.zh-CN.md)
 
 Stet is a macOS menu bar dictation app that turns speech into usable text with minimal rewriting.
 
+This repository is the macOS app repository for Stet.
+
 ## About
 
 Stet records speech, transcribes it, and can paste the result back into the current app or replace selected text. The app stays in the menu bar, starts from a global hotkey, and aims to keep the transcript close to the speaker's intent.
@@ -28,7 +30,7 @@ Stet records speech, transcribes it, and can paste the result back into the curr
 
 ## Getting Started
 
-Open `apps/mac/Stet.xcodeproj` in Xcode, let Swift Package dependencies resolve, then run the `Stet` scheme.
+Open `Stet.xcodeproj` in Xcode, let Swift Package dependencies resolve, then run the `Stet` scheme.
 
 Or build from the repository root:
 
@@ -39,7 +41,7 @@ npm run mac:build
 Or call `xcodebuild` directly:
 
 ```bash
-xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' build
+xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' build
 ```
 
 ## Configuration
@@ -83,7 +85,7 @@ The capture pipeline can still use the existing macOS audio capture backend. Onl
 Run the macOS test suite:
 
 ```bash
-xcodebuild -project apps/mac/Stet.xcodeproj -scheme Stet -destination 'platform=macOS' test
+xcodebuild -project Stet.xcodeproj -scheme Stet -destination 'platform=macOS' test
 ```
 
 ## Release
@@ -121,4 +123,4 @@ SPARKLE_GENERATE_APPCAST=/absolute/path/to/generate_appcast
 
 ## License
 
-Apache-2.0
+GPL-3.0-only
