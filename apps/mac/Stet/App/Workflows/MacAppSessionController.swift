@@ -598,6 +598,7 @@
 
         private func bindState() {
             workflowController.dictationViewModel.$state
+                .dropFirst()
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] state in
                     self?.handleDictationStateChange(state)
@@ -682,9 +683,14 @@
                     workflow: completedWorkflow,
                     showTransientPanel: showTransientPanel
                 )
+                let recoveredTextPreserved = if case .failed(let failure) = outcome {
+                    failure.preservesRecoveredTextInClipboard
+                } else {
+                    false
+                }
                 Task {
                     await DictationRuntimeProbe.shared.markResultHandled(
-                        clipboardPending: outcome == .clipboardPending,
+                        clipboardPending: outcome == .clipboardPending || recoveredTextPreserved,
                         textLength: text.count
                     )
                 }
@@ -701,6 +707,15 @@
                         showTransientPanel()
                     }
                     workflowController.dictationViewModel.send(.clipboardPending(text))
+                case .failed(let failure):
+                    if failure.preservesRecoveredTextInClipboard {
+                        if !isPanelVisible {
+                            showTransientPanel()
+                        }
+                        workflowController.dictationViewModel.send(.clipboardPending(text))
+                    } else {
+                        workflowController.dictationViewModel.send(.transcriptionFailed(failure))
+                    }
                 }
             }
         }
@@ -805,7 +820,11 @@
         }
 
         private func commitPendingCopy(_ text: String) {
-            workflowController.copyPendingResultToClipboard(text)
+            let copied = workflowController.copyPendingResultToClipboard(text)
+            guard copied else {
+                return
+            }
+
             hidePanel()
             workflowController.dictationViewModel.send(.resetTapped)
             Task {
@@ -846,6 +865,10 @@
                     let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
                     firstSuccessPreviewTextState = trimmedText.isEmpty ? nil : trimmedText
                     firstSuccessFailureMessageState = nil
+                } else if case .clipboardPending(let text) = state {
+                    let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    firstSuccessPreviewTextState = trimmedText.isEmpty ? nil : trimmedText
+                    firstSuccessFailureMessageState = nil
                 } else if case .error(let failure) = state {
                     firstSuccessFailureCount += 1
                     firstSuccessFailureMessageState = inferredFirstSuccessFailureMessage(for: failure)
@@ -879,6 +902,10 @@
         }
 
         private func inferredFirstSuccessFailureMessage(for failure: DictationFailure) -> String {
+            if failure == .autoPastePermissionMissing {
+                return "Unable to paste automatically, please grant Input Monitoring or Accessibility access."
+            }
+
             switch failure.classification {
             case .authentication:
                 return "Connection unavailable, please re-verify your login status."
@@ -893,6 +920,8 @@
                 return "Unable to access microphone, please check system permissions."
             case .noSpeech:
                 return "No voice input detected, please try again."
+            case .output:
+                return "Text output failed, but your transcription is available."
             case .service, .state, .unknown:
                 return "Dictation failed, please try again."
             }

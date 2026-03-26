@@ -225,6 +225,10 @@
             Task {
                 await DictationRuntimeProbe.shared.markAction("handleCompletedResult workflow=\(workflow)")
             }
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                await DictationLatencyProbe.shared.record(.systemWriteSkipped, note: "empty_text")
+                return .failed(.emptyTranscription)
+            }
             if workflow.isSelectionReplacement {
                 return await handleSelectedTextReplacementResult(text: text, showTransientPanel: showTransientPanel)
             }
@@ -237,11 +241,11 @@
             )
         }
 
-        func copyPendingResultToClipboard(_ text: String) {
+        func copyPendingResultToClipboard(_ text: String) -> Bool {
             Task {
                 await DictationRuntimeProbe.shared.markAction("copyPendingResultToClipboard")
             }
-            captureCoordinator.copyToClipboard(text)
+            return captureCoordinator.copyToClipboard(text)
         }
 
         private func handleSelectedTextReplacementResult(
@@ -249,30 +253,64 @@
             showTransientPanel: @escaping @MainActor () -> Void
         ) async -> CompletionOutcome {
             let keepResultInClipboard = captureSettings.shouldCopyToClipboard
-            let didReplaceSelection = await textInjectionService.replaceSelectedText(
+            let replacementOutcome = await textInjectionService.replaceSelectedText(
                 text,
                 into: lastTargetApplication,
                 keepResultInClipboard: keepResultInClipboard
             )
 
-            if didReplaceSelection {
+            if replacementOutcome == .replaced {
                 await DictationLatencyProbe.shared.record(.systemWriteCompleted)
                 return .completed
             } else {
                 await DictationLatencyProbe.shared.record(.systemWriteFailed, note: "replace_selected_text_failed")
             }
 
-            if !didReplaceSelection {
-                if !textInjectionService.isAvailable {
+            switch replacementOutcome {
+            case .replaced:
+                return .completed
+
+            case .clipboardWriteFailed:
+                return .failed(.clipboardWriteFailed)
+
+            case .injectionFailed(let injectionOutcome):
+                if injectionOutcome == .eventPostFailed && !textInjectionService.isAvailable {
                     textInjectionService.requestAccessIfNeeded()
+
+                    if !keepResultInClipboard {
+                        let clipboardSuccess = captureCoordinator.copyToClipboard(text)
+                        if !clipboardSuccess {
+                            return .failed(.clipboardWriteFailed)
+                        }
+                    }
+
+                    if captureSettings.shouldRevealPanelOnCapture {
+                        showTransientPanel()
+                    }
+
+                    return .failed(.autoPastePermissionMissing)
+                }
+
+                if !keepResultInClipboard {
+                    let clipboardSuccess = captureCoordinator.copyToClipboard(text)
+                    if !clipboardSuccess {
+                        return .failed(.clipboardWriteFailed)
+                    }
                 }
 
                 if captureSettings.shouldRevealPanelOnCapture {
                     showTransientPanel()
                 }
-            }
 
-            return keepResultInClipboard ? .completed : .clipboardPending
+                switch injectionOutcome {
+                case .eventPostedVerificationUnavailable:
+                    return .failed(.pasteVerificationUnavailable)
+                case .verificationFailed, .eventPostFailed:
+                    return .failed(.pasteVerificationFailed)
+                case .verifiedSuccess:
+                    return .completed
+                }
+            }
         }
 
         private func refreshTargetApplication(allowingCurrentAppTarget: Bool) {
