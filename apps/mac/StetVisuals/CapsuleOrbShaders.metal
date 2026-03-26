@@ -47,29 +47,39 @@ namespace Config {
     constant float VORTEX_SPIN_AMP = 0.28;
     
     // Rendering Params
+    constant float VIEW_PULLBACK = 1.8;
     constant float WARP_SCALE = 0.42;
     constant float WARP_TIME_SCALE = 0.82;
     constant float FBM_NOISE_SCALE = 0.48;
     constant float FBM_WARP_SKEW_BASE = 1.20;
     constant float FBM_TIME_FLOW = 0.14;
+    constant float MICRO_DETAIL_SCALE = 3.4;
+    constant float MICRO_DETAIL_WARP = 0.24;
+    constant float MICRO_DETAIL_TIME_FLOW = 0.11;
+    constant float MICRO_DETAIL_STRENGTH = 0.055;
     constant float SMOOTHSTEP_LOW = 0.10;
     constant float SMOOTHSTEP_HIGH = 0.92;
     
     // Colors & Fluid
     constant float FLUID_Y_BIAS = 0.78;
     constant float FLUID_WARP_BIAS = 0.95;
-    constant float COLOR_LIFT_FACTOR = 0.08;
-    constant float MASK_BLUE_LOW = 0.09;
-    constant float MASK_BLUE_HIGH = 0.56;
+    constant float COLOR_LIFT_FACTOR = 0.06;
+    constant float MASK_BLUE_LOW = 0.16;
+    constant float MASK_BLUE_HIGH = 0.46;
     constant float MASK_BLUE_SKEW = 0.34;
-    constant float MASK_ORANGE_LOW = 0.10;
-    constant float MASK_ORANGE_HIGH = 0.60;
+    constant float MASK_ORANGE_LOW = 0.18;
+    constant float MASK_ORANGE_HIGH = 0.48;
     constant float MASK_ORANGE_SKEW = 0.30;
     
     // Depth
     constant float DEPTH_SKEW = 0.48;
     constant float DEPTH_BLEND_BASE = 0.74;
     constant float DEPTH_BLEND_AMP = 0.26;
+    constant float MID_BASE_STRENGTH = 0.92;
+    constant float LOW_COLOR_STRENGTH = 0.72;
+    constant float LOW_DEPTH_BLEND = 0.08;
+    constant float TOP_COLOR_STRENGTH = 0.70;
+    constant float TOP_EDGE_SUPPRESSION = 0.14;
     
     // Cloud Appearance
     constant float CLOUD_DENSE_LOW = 0.32;
@@ -203,7 +213,7 @@ static float2 vortexField(float2 p, float2 center, float strength) {
     float aspect = safeSize.x / safeSize.y;
 
     float2 pRaw = float2((uv.x - 0.5) * 2.0 * aspect,
-                         (uv.y - 0.5) * 2.0);
+                         (uv.y - 0.5) * 2.0) * Config::VIEW_PULLBACK;
 
     float detailClamped = clamp(detail, 0.0, 1.0);
     float bodyClamped = clamp(body, 0.0, 1.0);
@@ -248,53 +258,64 @@ static float2 vortexField(float2 p, float2 center, float strength) {
 
     float bulge = 1.0 - (0.06 * breath + 0.03 * kick) * centerMask;
     float2 p = pRaw * bulge
-             + wind * (0.18 + 0.10 * kick)
-             + curl * ((0.08 + 0.20 * breath + 0.24 * kick + 0.10 * edge) * detailClamped);
+             + wind * (0.18 + 0.05 * kick)
+             + curl * ((0.08 + 0.20 * breath + 0.10 * kick + 0.04 * edge) * detailClamped);
 
     float2 w;
     float n;
     if (detailClamped < 0.72) {
-        w = domainWarpFast(p * (Config::WARP_SCALE + 0.03 * edge), time * Config::WARP_TIME_SCALE * (0.92 + 0.28 * life));
+        w = domainWarpFast(p * (Config::WARP_SCALE + 0.015 * edge), time * Config::WARP_TIME_SCALE * (0.92 + 0.28 * life));
         n = fbmFast(
             p * Config::FBM_NOISE_SCALE
-            + w * (0.72 + breath * 0.34 + kick * 0.26)
+            + w * (0.72 + breath * 0.34 + kick * 0.12)
             + float2(0.0, time * Config::FBM_TIME_FLOW * (0.85 + 0.30 * life))
         );
     } else {
-        w = domainWarp(p * (Config::WARP_SCALE + 0.04 * edge), time * Config::WARP_TIME_SCALE * (0.92 + 0.30 * life));
+        w = domainWarp(p * (Config::WARP_SCALE + 0.02 * edge), time * Config::WARP_TIME_SCALE * (0.92 + 0.30 * life));
         n = fbm(
             p * Config::FBM_NOISE_SCALE
-            + w * (Config::FBM_WARP_SKEW_BASE + breath * 0.56 + kick * 0.30 + edge * 0.22)
+            + w * (Config::FBM_WARP_SKEW_BASE + breath * 0.56 + kick * 0.14 + edge * 0.08)
             + float2(0.0, time * Config::FBM_TIME_FLOW * (0.88 + 0.34 * life))
         );
     }
+
+    float microDetail = noise2D(
+        p * (Config::FBM_NOISE_SCALE * Config::MICRO_DETAIL_SCALE + 0.12 * edge)
+        + w * Config::MICRO_DETAIL_WARP
+        + float2(
+            time * Config::MICRO_DETAIL_TIME_FLOW * (0.82 + 0.18 * life),
+            -time * Config::MICRO_DETAIL_TIME_FLOW * (0.68 + 0.16 * breath)
+        )
+    );
+    n += (microDetail - 0.5) * Config::MICRO_DETAIL_STRENGTH * (0.35 + 0.65 * detailClamped);
     n = smoothstep(Config::SMOOTHSTEP_LOW, Config::SMOOTHSTEP_HIGH, n);
 
     float3 top = float3(colorTop.rgb);
     float3 mid = float3(colorMid.rgb);
     float3 low = float3(colorLow.rgb);
 
-    float fluidBias = p.y * Config::FLUID_Y_BIAS + (w.y - 0.5) * (Config::FLUID_WARP_BIAS + 0.16 * edge);
-    float colorLift = centerMask * (breath + 0.55 * kick) * Config::COLOR_LIFT_FACTOR;
-    float colorMix = 0.68;
+    float fluidBias = p.y * Config::FLUID_Y_BIAS + (w.y - 0.5) * (Config::FLUID_WARP_BIAS + 0.08 * edge);
+    float colorLift = centerMask * (breath + 0.22 * kick) * Config::COLOR_LIFT_FACTOR;
+    float colorMix = 0.38;
 
     float maskBlue = smoothstep(
         Config::MASK_BLUE_LOW,
         Config::MASK_BLUE_HIGH,
-        n - fluidBias * (Config::MASK_BLUE_SKEW + 0.06 * edge) - colorLift
+        n - fluidBias * (Config::MASK_BLUE_SKEW + 0.02 * edge) - colorLift
     );
     float maskOrange = smoothstep(
         Config::MASK_ORANGE_LOW,
         Config::MASK_ORANGE_HIGH,
-        w.x + fluidBias * Config::MASK_ORANGE_SKEW + colorLift + edge * 0.06
+        w.x + fluidBias * Config::MASK_ORANGE_SKEW + colorLift + edge * 0.02
     );
 
     float depth = smoothstep(-1.0, 1.0, pRaw.y + (n - 0.5) * Config::DEPTH_SKEW);
 
-    float3 base = mid;
-    float lowWeight = clamp(maskBlue * colorMix + (1.0 - depth) * 0.14, 0.0, 1.0);
+    float3 base = mid * Config::MID_BASE_STRENGTH;
+    float lowWeight = clamp(maskBlue * colorMix * Config::LOW_COLOR_STRENGTH + (1.0 - depth) * Config::LOW_DEPTH_BLEND, 0.0, 1.0);
+    float topWeight = clamp(maskOrange * colorMix * Config::TOP_COLOR_STRENGTH - lowWeight * Config::TOP_EDGE_SUPPRESSION, 0.0, 1.0);
     base = mix(base, low, lowWeight);
-    base = mix(base, top, maskOrange * colorMix * 0.92);
+    base = mix(base, top, topWeight);
 
     float cloudDense = smoothstep(Config::CLOUD_DENSE_LOW, Config::CLOUD_DENSE_HIGH, n + centerMask * (breath + 0.40 * kick) * Config::COLOR_LIFT_FACTOR);
     float cloudSoft = smoothstep(Config::CLOUD_SOFT_LOW, Config::CLOUD_SOFT_HIGH, Config::CLOUD_SOFT_n_SKEW * n + Config::CLOUD_SOFT_w_SKEW * w.x + 0.08 * edge);
