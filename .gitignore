@@ -10,6 +10,7 @@ Packages/
 *.swiftpm/
 *.xcuserstate
 xcuserdata/
+*.profraw
 *.tmp
 *.swp
 
@@ -23,7 +24,6 @@ xcuserdata/
 # Editor / local tooling
 .vscode/
 .idea/
-.backup/
 
 # Node / web
 node_modules/
