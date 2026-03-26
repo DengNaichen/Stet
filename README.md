@@ -99,8 +99,8 @@ Build a local Release app bundle:
 Build the signed and notarized GitHub release artifacts:
 
 ```bash
-GITHUB_TAG=v0.0.7 GITHUB_REPOSITORY=DengNaichen/Stet ./scripts/release-macos-github.sh
-GITHUB_TAG=v0.0.7 GITHUB_REPOSITORY=DengNaichen/Stet ./scripts/publish-github-release.sh
+GITHUB_TAG=v0.0.8 GITHUB_REPOSITORY=DengNaichen/Stet ./scripts/release-macos-github.sh
+GITHUB_TAG=v0.0.8 GITHUB_REPOSITORY=DengNaichen/Stet ./scripts/publish-github-release.sh
 ```
 
 Release artifacts are written to `dist/github-release/<tag>/`.
