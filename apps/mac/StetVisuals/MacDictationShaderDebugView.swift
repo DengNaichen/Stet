@@ -122,9 +122,9 @@
                                     pulse: signals.pulse,
                                     articulation: signals.articulation,
                                     detail: detail,
-                                    top: colors.top,
-                                    mid: colors.mid,
-                                    low: colors.low
+                                    a: colors.a,
+                                    b: colors.b,
+                                    c: colors.c
                                 )
                             )
                             .frame(width: surfaceWidth, height: surfaceHeight)

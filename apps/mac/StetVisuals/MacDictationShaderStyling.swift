@@ -26,85 +26,83 @@
             theme: MacDictationShaderTheme,
             elapsed: Double,
             signals: MacDictationCapsuleVisualSignals
-        ) -> (top: Color, mid: Color, low: Color) {
+        ) -> (a: Color, b: Color, c: Color) {
             let palette = theme.palette
-            let sustained = eased(max(signals.body, signals.presence * 0.92))
-            let accent = eased(max(signals.pulse, signals.articulation * 0.68))
-            let mixStrength = 0.72
 
-            let baseTop: (Double, Double, Double)
-            let baseMid: (Double, Double, Double)
-            let baseLow: (Double, Double, Double)
-            let injection: Double
-            let targetTop: (Double, Double, Double)
-            let targetMid: (Double, Double, Double)
-            let targetLow: (Double, Double, Double)
+            // State-time driven transition instead of audio-driven injection.
+            // The elapsed time since entering the state drives the crossfade,
+            // not the instantaneous audio strength.
+            let transitionSpeed = 0.35
+            let stateProgress = min(1.0, elapsed * transitionSpeed)
+            let injection = eased(stateProgress)
+
+            let baseA: (Double, Double, Double)
+            let baseB: (Double, Double, Double)
+            let baseC: (Double, Double, Double)
+            let targetA: (Double, Double, Double)
+            let targetB: (Double, Double, Double)
+            let targetC: (Double, Double, Double)
 
             switch state {
             case .processing:
-                baseTop = palette.idle.top
-                baseMid = palette.idle.mid
-                baseLow = palette.idle.low
-                injection = min(0.86, (0.46 + sustained * 0.32 + accent * 0.22) * mixStrength)
-                targetTop = palette.processing.top
-                targetMid = palette.processing.mid
-                targetLow = palette.processing.low
+                baseA = palette.idle.a
+                baseB = palette.idle.b
+                baseC = palette.idle.c
+                targetA = palette.processing.a
+                targetB = palette.processing.b
+                targetC = palette.processing.c
             case .starting:
-                baseTop = palette.starting.top
-                baseMid = palette.starting.mid
-                baseLow = palette.starting.low
-                injection = min(0.62, (0.28 + sustained * 0.18 + accent * 0.10) * mixStrength)
-                targetTop = palette.starting.top
-                targetMid = palette.starting.mid
-                targetLow = palette.starting.low
+                baseA = palette.idle.a
+                baseB = palette.idle.b
+                baseC = palette.idle.c
+                targetA = palette.starting.a
+                targetB = palette.starting.b
+                targetC = palette.starting.c
             case .listening:
-                baseTop = palette.idle.top
-                baseMid = palette.idle.mid
-                baseLow = palette.idle.low
-                injection = min(0.86, (0.12 + sustained * 0.68 + accent * 0.20) * mixStrength)
-                targetTop = palette.speaking.top
-                targetMid = palette.speaking.mid
-                targetLow = palette.speaking.low
+                baseA = palette.idle.a
+                baseB = palette.idle.b
+                baseC = palette.idle.c
+                targetA = palette.speaking.a
+                targetB = palette.speaking.b
+                targetC = palette.speaking.c
             case .result:
-                baseTop = palette.idle.top
-                baseMid = palette.idle.mid
-                baseLow = palette.idle.low
-                injection = 0.28
-                targetTop = palette.speaking.top
-                targetMid = palette.speaking.mid
-                targetLow = palette.speaking.low
+                baseA = palette.idle.a
+                baseB = palette.idle.b
+                baseC = palette.idle.c
+                targetA = palette.speaking.a
+                targetB = palette.speaking.b
+                targetC = palette.speaking.c
             default:
-                baseTop = palette.idle.top
-                baseMid = palette.idle.mid
-                baseLow = palette.idle.low
-                injection = 0
-                targetTop = palette.idle.top
-                targetMid = palette.idle.mid
-                targetLow = palette.idle.low
+                baseA = palette.idle.a
+                baseB = palette.idle.b
+                baseC = palette.idle.c
+                targetA = palette.idle.a
+                targetB = palette.idle.b
+                targetC = palette.idle.c
             }
 
-            let top = color(
+            let a = color(
                 from: (
-                    lerp(baseTop.0, targetTop.0, injection),
-                    lerp(baseTop.1, targetTop.1, injection),
-                    lerp(baseTop.2, targetTop.2, injection)
+                    lerp(baseA.0, targetA.0, injection),
+                    lerp(baseA.1, targetA.1, injection),
+                    lerp(baseA.2, targetA.2, injection)
                 )
             )
-            let mid = color(
+            let b = color(
                 from: (
-                    lerp(baseMid.0, targetMid.0, injection),
-                    lerp(baseMid.1, targetMid.1, injection),
-                    lerp(baseMid.2, targetMid.2, injection)
+                    lerp(baseB.0, targetB.0, injection),
+                    lerp(baseB.1, targetB.1, injection),
+                    lerp(baseB.2, targetB.2, injection)
                 )
             )
-            let low = color(
+            let c = color(
                 from: (
-                    lerp(baseLow.0, targetLow.0, injection),
-                    lerp(baseLow.1, targetLow.1, injection),
-                    lerp(baseLow.2, targetLow.2, injection)
+                    lerp(baseC.0, targetC.0, injection),
+                    lerp(baseC.1, targetC.1, injection),
+                    lerp(baseC.2, targetC.2, injection)
                 )
             )
-            return (top, mid, low)
+            return (a, b, c)
         }
 
         private static func lerp(_ a: Double, _ b: Double, _ t: Double) -> Double {

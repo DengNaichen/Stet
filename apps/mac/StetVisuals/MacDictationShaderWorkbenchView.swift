@@ -59,9 +59,9 @@
         @State private var exportStatusText: String?
         @State private var useLiveMicrophone = false
         @State private var microphoneStatusText: String?
-        @State private var topHex = "#F2F4FA"
-        @State private var midHex = "#DCE0E8"
-        @State private var lowHex = "#B7BCC8"
+        @State private var hexA = "#F2F4FA"
+        @State private var hexB = "#DCE0E8"
+        @State private var hexC = "#B7BCC8"
         @StateObject private var microphoneMonitor = MacDictationShaderWorkbenchMicrophoneMonitor()
 
         public init() {}
@@ -197,9 +197,9 @@
 
                 GroupBox("Color codes") {
                     VStack(alignment: .leading, spacing: 10) {
-                        hexField(title: "Top", text: $topHex)
-                        hexField(title: "Mid", text: $midHex)
-                        hexField(title: "Low", text: $lowHex)
+                        hexField(title: "A", text: $hexA)
+                        hexField(title: "B", text: $hexB)
+                        hexField(title: "C", text: $hexC)
                     }
                     .padding(.top, 2)
                 }
@@ -262,7 +262,7 @@
         }
 
         private var summaryText: String {
-            "state=\(selectedState.rawValue.lowercased()) theme=\(selectedTheme.rawValue) source=\(useLiveMicrophone ? "mic" : "manual") top=\(topHex) mid=\(midHex) low=\(lowHex)"
+            "state=\(selectedState.rawValue.lowercased()) theme=\(selectedTheme.rawValue) source=\(useLiveMicrophone ? "mic" : "manual") a=\(hexA) b=\(hexB) c=\(hexC)"
         }
 
         private var resolvedSignals: MacDictationCapsuleVisualSignals {
@@ -340,18 +340,18 @@
                 target = palette.speaking
             }
 
-            topHex = Self.hexString(from: target.top)
-            midHex = Self.hexString(from: target.mid)
-            lowHex = Self.hexString(from: target.low)
+            hexA = Self.hexString(from: target.a)
+            hexB = Self.hexString(from: target.b)
+            hexC = Self.hexString(from: target.c)
         }
 
         private func manualColors(elapsed _: Double, detail _: Double, signals _: MacDictationCapsuleVisualSignals) -> (
-            top: Color, mid: Color, low: Color
+            a: Color, b: Color, c: Color
         ) {
             (
-                top: Self.color(fromHex: topHex) ?? .white,
-                mid: Self.color(fromHex: midHex) ?? .white,
-                low: Self.color(fromHex: lowHex) ?? .white
+                a: Self.color(fromHex: hexA) ?? .white,
+                b: Self.color(fromHex: hexB) ?? .white,
+                c: Self.color(fromHex: hexC) ?? .white
             )
         }
 
@@ -386,7 +386,7 @@
             elapsed: Double,
             signals: MacDictationCapsuleVisualSignals,
             detail: Double,
-            colors: (top: Color, mid: Color, low: Color)
+            colors: (a: Color, b: Color, c: Color)
         ) -> some View {
             Rectangle()
                 .fill(
@@ -411,9 +411,9 @@
                                 pulse: signals.pulse,
                                 articulation: signals.articulation,
                                 detail: detail,
-                                top: colors.top,
-                                mid: colors.mid,
-                                low: colors.low
+                                a: colors.a,
+                                b: colors.b,
+                                c: colors.c
                             )
                         )
                         .frame(width: size.width, height: size.height)

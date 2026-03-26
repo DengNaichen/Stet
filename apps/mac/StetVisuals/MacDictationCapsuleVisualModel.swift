@@ -147,9 +147,9 @@
                 pulse: 0.05,
                 articulation: 0.08,
                 detail: 1.0,
-                top: .white,
-                mid: .white,
-                low: .white
+                a: .white,
+                b: .white,
+                c: .white
             )
             try? await shader.compile(as: .colorEffect)
         }

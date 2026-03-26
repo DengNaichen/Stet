@@ -36,24 +36,24 @@
                 let petal = (0.9058823529411765, 0.5568627450980392, 0.5725490196078431)
                 return MacDictationShaderThemePalette(
                     idle: .init(
-                        top: sky,
-                        mid: leaf,
-                        low: petal
+                        a: sky,
+                        b: leaf,
+                        c: petal
                     ),
                     starting: .init(
-                        top: sky,
-                        mid: leaf,
-                        low: petal
+                        a: sky,
+                        b: leaf,
+                        c: petal
                     ),
                     speaking: .init(
-                        top: sky,
-                        mid: leaf,
-                        low: petal
+                        a: sky,
+                        b: leaf,
+                        c: petal
                     ),
                     processing: .init(
-                        top: sky,
-                        mid: leaf,
-                        low: petal
+                        a: sky,
+                        b: leaf,
+                        c: petal
                     )
                 )
             case .egg:
@@ -62,24 +62,24 @@
                 let shell = (0.792156862745098, 0.792156862745098, 0.7490196078431373)
                 return MacDictationShaderThemePalette(
                     idle: .init(
-                        top: sky,
-                        mid: yolk,
-                        low: shell
+                        a: sky,
+                        b: yolk,
+                        c: shell
                     ),
                     starting: .init(
-                        top: sky,
-                        mid: yolk,
-                        low: shell
+                        a: sky,
+                        b: yolk,
+                        c: shell
                     ),
                     speaking: .init(
-                        top: shell,
-                        mid: sky,
-                        low: yolk
+                        a: shell,
+                        b: sky,
+                        c: yolk
                     ),
                     processing: .init(
-                        top: yolk,
-                        mid: shell,
-                        low: sky
+                        a: yolk,
+                        b: shell,
+                        c: sky
                     )
                 )
             case .harbor:
@@ -88,24 +88,24 @@
                 let clay = (0.6901960784313725, 0.3686274509803922, 0.3568627450980392)
                 return MacDictationShaderThemePalette(
                     idle: .init(
-                        top: tide,
-                        mid: timber,
-                        low: clay
+                        a: tide,
+                        b: timber,
+                        c: clay
                     ),
                     starting: .init(
-                        top: tide,
-                        mid: timber,
-                        low: clay
+                        a: tide,
+                        b: timber,
+                        c: clay
                     ),
                     speaking: .init(
-                        top: clay,
-                        mid: tide,
-                        low: timber
+                        a: clay,
+                        b: tide,
+                        c: timber
                     ),
                     processing: .init(
-                        top: timber,
-                        mid: clay,
-                        low: tide
+                        a: timber,
+                        b: clay,
+                        c: tide
                     )
                 )
             case .cat:
@@ -114,24 +114,24 @@
                 let black = (0.09803921568627451, 0.09019607843137255, 0.09411764705882353)
                 return MacDictationShaderThemePalette(
                     idle: .init(
-                        top: red,
-                        mid: paper,
-                        low: black
+                        a: red,
+                        b: paper,
+                        c: black
                     ),
                     starting: .init(
-                        top: red,
-                        mid: paper,
-                        low: black
+                        a: red,
+                        b: paper,
+                        c: black
                     ),
                     speaking: .init(
-                        top: paper,
-                        mid: red,
-                        low: black
+                        a: paper,
+                        b: red,
+                        c: black
                     ),
                     processing: .init(
-                        top: red,
-                        mid: black,
-                        low: paper
+                        a: red,
+                        b: black,
+                        c: paper
                     )
                 )
             case .beacon:
@@ -140,24 +140,24 @@
                 let gold = (0.9372549019607843, 0.6470588235294118, 0.058823529411764705)
                 return MacDictationShaderThemePalette(
                     idle: .init(
-                        top: gold,
-                        mid: blue,
-                        low: teal
+                        a: gold,
+                        b: blue,
+                        c: teal
                     ),
                     starting: .init(
-                        top: blue,
-                        mid: gold,
-                        low: teal
+                        a: blue,
+                        b: gold,
+                        c: teal
                     ),
                     speaking: .init(
-                        top: teal,
-                        mid: gold,
-                        low: blue
+                        a: teal,
+                        b: gold,
+                        c: blue
                     ),
                     processing: .init(
-                        top: gold,
-                        mid: teal,
-                        low: blue
+                        a: gold,
+                        b: teal,
+                        c: blue
                     )
                 )
             case .autumn:
@@ -166,24 +166,24 @@
                 let teal = (0.09411764705882353, 0.4666666666666667, 0.5372549019607843)
                 return MacDictationShaderThemePalette(
                     idle: .init(
-                        top: yellow,
-                        mid: red,
-                        low: teal
+                        a: yellow,
+                        b: red,
+                        c: teal
                     ),
                     starting: .init(
-                        top: yellow,
-                        mid: red,
-                        low: teal
+                        a: yellow,
+                        b: red,
+                        c: teal
                     ),
                     speaking: .init(
-                        top: red,
-                        mid: yellow,
-                        low: teal
+                        a: red,
+                        b: yellow,
+                        c: teal
                     ),
                     processing: .init(
-                        top: yellow,
-                        mid: teal,
-                        low: red
+                        a: yellow,
+                        b: teal,
+                        c: red
                     )
                 )
             }
@@ -198,8 +198,8 @@
     }
 
     struct MacDictationShaderThemeColorSet {
-        let top: (Double, Double, Double)
-        let mid: (Double, Double, Double)
-        let low: (Double, Double, Double)
+        let a: (Double, Double, Double)
+        let b: (Double, Double, Double)
+        let c: (Double, Double, Double)
     }
 #endif
