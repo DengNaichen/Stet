@@ -145,6 +145,7 @@ enum DictationExecutionRouteResolver {
         return .init(
             transcriptionConfiguration: transcriptionConfiguration,
             rewriteConfiguration: rewriteConfiguration,
+            rewriteEnabled: snapshot.isRewriteEnabled,
             languageMode: snapshot.dictationLanguageMode,
             preferredSpellings: snapshot.personalDictionary
         )

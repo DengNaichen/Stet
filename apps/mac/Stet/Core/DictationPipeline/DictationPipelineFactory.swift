@@ -82,7 +82,11 @@ struct DictationPipelineFactory: Sendable {
             rewriteAdditionalContext = direct.languageMode.rewriteAdditionalContext
             usesAudienceAwareLocalPrompts = snapshot.executionMode == .byok
 
-            rewriteService = makeRewriteService(direct.rewriteConfiguration, networkSession)
+            if direct.rewriteEnabled, let rewriteConfiguration = direct.rewriteConfiguration {
+                rewriteService = makeRewriteService(rewriteConfiguration, networkSession)
+            } else {
+                rewriteService = nil
+            }
         case .relay(let relay):
             transcriptionService = makeRelayTranscriptionService(
                 relay.authentication,

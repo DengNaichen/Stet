@@ -85,5 +85,7 @@
         func signIn(email _: String, password _: String) async throws {}
 
         func signIn(provider _: Provider) async throws {}
+
+        func signUp(email _: String, password _: String) async throws {}
     }
 #endif

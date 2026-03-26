@@ -21,6 +21,7 @@ private func makeSnapshot(
         apiKey: "sk-test",
         providerPair: DictationProviderPair(transcriptionProvider: .openAI, rewriteProvider: .openAI)
     ),
+    rewriteEnabled: Bool = false,
     dictationLanguageMode: DictationLanguageMode = .automatic,
     personalDictionary: [String] = []
 ) -> DictationSettingsSnapshot {
@@ -28,7 +29,7 @@ private func makeSnapshot(
         transcriptionProvider: transcriptionProvider,
         rewriteProvider: rewriteProvider,
         executionMode: mode,
-        isRewriteEnabled: true,
+        isRewriteEnabled: rewriteEnabled,
         dictationLanguageMode: dictationLanguageMode,
         shouldPauseMediaDuringDictation: false,
         transcriptionProviderConfiguration: transcriptionProviderConfiguration,
@@ -202,7 +203,7 @@ struct LogicPrimitiveTests {
                 capturedTranscriptionConfiguration = configuration
                 return direct
             },
-            makeRelayTranscriptionService: { _, _, _, _ in relay },
+            makeRelayTranscriptionService: { _, _, _ in relay },
             makeRewriteService: { configuration, _ in
                 capturedRewriteConfiguration = configuration
                 return RecordingRewriteService()
@@ -308,6 +309,7 @@ struct LogicPrimitiveTests {
                     rewriteProvider: .openAI
                 )
             ),
+            rewriteEnabled: true,
             dictationLanguageMode: .mixedChineseEnglish
         )
         let audioFileURL = try makeTemporaryWavURL()
