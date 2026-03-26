@@ -2,15 +2,15 @@
     import SwiftUI
 
     private enum MacDictationCapsuleVisualTuning {
-        static let orbSpacing: CGFloat = 28
-        static let orbTravelDistance: CGFloat = 132
-        static let orbHiddenScale: CGFloat = 0.92
+        static let orbSpacing: CGFloat = 18.144
+        static let orbTravelDistance: CGFloat = 150
+        static let orbHiddenScale: CGFloat = 0.84
         static let panelHiddenScale: CGFloat = 0.90
-        static let orbRevealDelay: Duration = .milliseconds(70)
+        static let orbRevealDelay: Duration = .milliseconds(130)
         static let closeAnimationDuration: UInt64 = 320_000_000
 
         static let panelSpring = Animation.spring(response: 0.34, dampingFraction: 0.90)
-        static let orbSpring = Animation.spring(response: 0.42, dampingFraction: 0.96)
+        static let orbSpring = Animation.spring(response: 0.62, dampingFraction: 0.90)
         static let closeSpring = Animation.spring(response: 0.30, dampingFraction: 0.92)
     }
 
@@ -49,7 +49,7 @@
                             }
                             .buttonStyle(.plain)
                             .frame(width: model.controlHeight, height: model.controlHeight)
-                            .glassEffect(.regular)
+                            .glassEffect(.regular.tint(nil))
                             .glassEffectID("cancel", in: glassNamespace)
                             .opacity(isPanelShown && showOrbs ? 1 : 0)
                             .offset(x: isPanelShown && showOrbs ? 0 : MacDictationCapsuleVisualTuning.orbTravelDistance)
@@ -58,7 +58,7 @@
 
                             Capsule()
                                 .frame(width: model.mainWidth, height: model.controlHeight)
-                                .glassEffect(.regular.tint(.white))
+                                .glassEffect(.regular.tint(nil))
                                 .glassEffectID("main", in: glassNamespace)
 
                             Button(action: actions.onConfirm) {
@@ -68,7 +68,7 @@
                             }
                             .buttonStyle(.plain)
                             .frame(width: model.controlHeight, height: model.controlHeight)
-                            .glassEffect(.regular)
+                            .glassEffect(.regular.tint(nil))
                             .glassEffectID("done", in: glassNamespace)
                             .opacity(isPanelShown && showOrbs ? 1 : 0)
                             .offset(
