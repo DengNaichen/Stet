@@ -8,7 +8,7 @@ DIST_ROOT="$ROOT_DIR/dist/github-release"
 load_env_file() {
   local env_file="$1"
 
-  [[ -f "$env_file" ]] || return
+  [[ -f "$env_file" ]] || return 0
 
   while IFS= read -r line || [[ -n "$line" ]]; do
     line="${line#"${line%%[![:space:]]*}"}"
