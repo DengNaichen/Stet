@@ -166,7 +166,8 @@
                 max(0, clamped - Constants.Tuning.silenceFloor)
                 / max(1.0 - Constants.Tuning.silenceFloor, Constants.Normalization.divisorEpsilon)
             let curved = pow(gated, Constants.Normalization.levelPower)
-            let quietBand = max(0, Constants.Normalization.quietSpeechThreshold - gated)
+            let quietBand =
+                max(0, Constants.Normalization.quietSpeechThreshold - gated)
                 / max(Constants.Normalization.quietSpeechThreshold, Constants.Normalization.divisorEpsilon)
             let quietCompensation = gated * quietBand * Constants.Normalization.quietSpeechBoost
             return min(1, curved + quietCompensation)

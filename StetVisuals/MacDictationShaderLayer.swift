@@ -53,7 +53,7 @@
                 // Clamp elapsed to prevent negative or huge values
                 let clampedElapsed = max(0, elapsed)
                 let progress = min(0.95, 1.0 - exp(-clampedElapsed * 1.2))
-                
+
                 // body 表示进度，presence 保持高位表示活跃，其他信号静默
                 return MacDictationCapsuleVisualSignals(
                     body: progress,
@@ -65,7 +65,6 @@
 
             return signals
         }
-
 
     }
 #endif
