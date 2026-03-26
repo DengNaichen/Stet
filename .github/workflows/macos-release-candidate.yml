@@ -114,7 +114,10 @@ jobs:
         run: ./scripts/setup-notarytool-profile.sh
 
       - name: Build Release Candidate
-        run: npm run mac:release:github
+        shell: /bin/zsh --noprofile --norc -eo pipefail {0}
+        run: |
+          set -x
+          ./scripts/release-macos-github.sh
 
       - name: Upload Release Candidate Artifacts
         if: always()
