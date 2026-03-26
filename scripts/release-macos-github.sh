@@ -41,6 +41,9 @@ load_env_file "$ENV_FILE"
 : "${GITHUB_TAG:?GITHUB_TAG is required, for example v1.0.0.}"
 
 DEVELOPER_ID_APPLICATION="${DEVELOPER_ID_APPLICATION:-Developer ID Application}"
+ARCHIVE_CODE_SIGN_STYLE="${ARCHIVE_CODE_SIGN_STYLE:-Automatic}"
+ARCHIVE_CODE_SIGN_IDENTITY="${ARCHIVE_CODE_SIGN_IDENTITY:-$DEVELOPER_ID_APPLICATION}"
+ARCHIVE_PROVISIONING_PROFILE_SPECIFIER="${ARCHIVE_PROVISIONING_PROFILE_SPECIFIER:-}"
 GENERATE_SPARKLE_APPCAST="${GENERATE_SPARKLE_APPCAST:-1}"
 SPARKLE_KEYCHAIN_ACCOUNT="${SPARKLE_KEYCHAIN_ACCOUNT:-ed25519}"
 SPARKLE_FEED_BASE_URL="${SPARKLE_FEED_BASE_URL:-https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_TAG}}"
@@ -58,10 +61,36 @@ DMG_OUTPUT_DIR="$WORK_DIR/dmg"
 NOTARY_SUBMISSION_PLIST="$WORK_DIR/notary-submission.plist"
 NOTARY_LOG_JSON="$WORK_DIR/notary-log.json"
 SPARKLE_DIR="$WORK_DIR/sparkle"
-SPARKLE_GENERATE_APPCAST="$ROOT_DIR/.build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
 APP_ENTITLEMENTS="$WORK_DIR/${APP_NAME}.entitlements.plist"
 NPX_BIN="${NPX_BIN:-$(command -v npx || true)}"
 NPM_CACHE_DIR="${NPM_CACHE_DIR:-$WORK_DIR/.npm-cache}"
+
+find_sparkle_generate_appcast() {
+  local candidates=()
+
+  if [[ -n "${SPARKLE_GENERATE_APPCAST:-}" ]]; then
+    candidates+=("$SPARKLE_GENERATE_APPCAST")
+  fi
+
+  candidates+=(
+    "$ROOT_DIR/.build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
+    "$ROOT_DIR/apps/mac/build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
+    "$ROOT_DIR/apps/mac/.derivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
+  )
+
+  candidates+=("$HOME"/Library/Developer/Xcode/DerivedData/*/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast(N))
+
+  for candidate in "${candidates[@]}"; do
+    if [[ -x "$candidate" ]]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+SPARKLE_GENERATE_APPCAST="$(find_sparkle_generate_appcast || true)"
 
 mkdir -p "$WORK_DIR"
 rm -rf "$ARCHIVE_PATH" "$APP_PATH" "$DMG_OUTPUT_DIR" "$SPARKLE_DIR" "$APP_ENTITLEMENTS" "$NPM_CACHE_DIR"
@@ -77,7 +106,7 @@ if ! security find-identity -v -p codesigning | grep -Fq "$DEVELOPER_ID_APPLICAT
   exit 1
 fi
 
-echo "Archiving $APP_NAME with Developer ID signing..."
+echo "Archiving $APP_NAME with $ARCHIVE_CODE_SIGN_STYLE signing..."
 XCODEBUILD_COMMAND=(
   xcodebuild
   -project "$PROJECT_PATH" \
@@ -86,11 +115,22 @@ XCODEBUILD_COMMAND=(
   -destination 'generic/platform=macOS' \
   -archivePath "$ARCHIVE_PATH" \
   archive \
-  CODE_SIGN_STYLE=Manual \
-  DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-  CODE_SIGN_IDENTITY="$DEVELOPER_ID_APPLICATION" \
-  OTHER_CODE_SIGN_FLAGS="--timestamp"
+  CODE_SIGN_STYLE="$ARCHIVE_CODE_SIGN_STYLE" \
+  DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
 )
+
+if [[ "$ARCHIVE_CODE_SIGN_STYLE" == "Manual" ]]; then
+  XCODEBUILD_COMMAND+=(
+    CODE_SIGN_IDENTITY="$ARCHIVE_CODE_SIGN_IDENTITY"
+    OTHER_CODE_SIGN_FLAGS="--timestamp"
+  )
+fi
+
+if [[ -n "$ARCHIVE_PROVISIONING_PROFILE_SPECIFIER" ]]; then
+  XCODEBUILD_COMMAND+=(
+    PROVISIONING_PROFILE_SPECIFIER="$ARCHIVE_PROVISIONING_PROFILE_SPECIFIER"
+  )
+fi
 
 if [[ "$GENERATE_SPARKLE_APPCAST" == "1" ]]; then
   XCODEBUILD_COMMAND+=(
@@ -117,17 +157,18 @@ resign_component() {
     --sign "$DEVELOPER_ID_APPLICATION" \
     --timestamp \
     --options runtime \
-    --preserve-metadata=identifier,entitlements,requirements,flags \
+    --preserve-metadata=identifier,entitlements,flags \
     "$target_path"
 }
 
-SPARKLE_ROOT="$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/Current"
+SPARKLE_FRAMEWORK="$APP_PATH/Contents/Frameworks/Sparkle.framework"
+SPARKLE_ROOT="$SPARKLE_FRAMEWORK/Versions/Current"
 resign_component "$SPARKLE_ROOT/Autoupdate"
 resign_component "$SPARKLE_ROOT/XPCServices/Downloader.xpc"
 resign_component "$SPARKLE_ROOT/XPCServices/Installer.xpc"
 resign_component "$SPARKLE_ROOT/Updater.app"
-resign_component "$SPARKLE_ROOT"
-resign_component "$APP_PATH/Contents/Frameworks/StetVisuals.framework/Versions/Current"
+resign_component "$SPARKLE_FRAMEWORK"
+resign_component "$APP_PATH/Contents/Frameworks/StetVisuals.framework"
 
 codesign \
   --force \
@@ -202,7 +243,7 @@ fi
 
 if [[ "$GENERATE_SPARKLE_APPCAST" == "1" ]]; then
   if [[ ! -x "$SPARKLE_GENERATE_APPCAST" ]]; then
-    echo "Missing Sparkle tool: $SPARKLE_GENERATE_APPCAST"
+    echo "Missing Sparkle tool. Set SPARKLE_GENERATE_APPCAST or install Sparkle artifacts in a standard location."
     exit 1
   fi
 

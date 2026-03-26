@@ -97,11 +97,23 @@ Build a local Release app bundle:
 Build the signed and notarized GitHub release artifacts:
 
 ```bash
-./scripts/release-macos-github.sh
-./scripts/publish-github-release.sh
+GITHUB_TAG=v0.0.6 GITHUB_REPOSITORY=DengNaichen/Stet ./scripts/release-macos-github.sh
+GITHUB_TAG=v0.0.6 GITHUB_REPOSITORY=DengNaichen/Stet ./scripts/publish-github-release.sh
 ```
 
 Release artifacts are written to `dist/github-release/<tag>/`.
+
+Useful release overrides:
+
+```bash
+# Override archive signing if your local setup needs it
+ARCHIVE_CODE_SIGN_STYLE=Manual
+ARCHIVE_CODE_SIGN_IDENTITY="Developer ID Application"
+ARCHIVE_PROVISIONING_PROFILE_SPECIFIER="Mac Team Provisioning Profile: NaichengDeng.Stet"
+
+# Override Sparkle tool path if auto-discovery misses your local install
+SPARKLE_GENERATE_APPCAST=/absolute/path/to/generate_appcast
+```
 
 ## Documentation
 

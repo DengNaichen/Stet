@@ -38,9 +38,9 @@
                             pulse: effectiveSignals.pulse,
                             articulation: effectiveSignals.articulation,
                             detail: shaderDetail,
-                            top: colors.top,
-                            mid: colors.mid,
-                            low: colors.low
+                            a: colors.a,
+                            b: colors.b,
+                            c: colors.c
                         )
                     )
                     .overlay {

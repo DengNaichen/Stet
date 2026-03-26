@@ -14,9 +14,9 @@
             pulse: Double,
             articulation: Double,
             detail: Double,
-            top: Color,
-            mid: Color,
-            low: Color
+            a: Color,
+            b: Color,
+            c: Color
         ) -> Shader {
             ShaderLibrary.bundle(shaderBundle).cloudOrbGlassWide(
                 .float2(size.width, size.height),
@@ -26,9 +26,9 @@
                 .float(pulse),
                 .float(articulation),
                 .float(detail),
-                .color(top),
-                .color(mid),
-                .color(low)
+                .color(a),
+                .color(b),
+                .color(c)
             )
         }
 

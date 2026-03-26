@@ -3,13 +3,13 @@
 
     enum MacDictationPanelConstants {
         enum Layout {
-            static let mainWidthIdle: CGFloat = 200
-            static let mainWidthStarting: CGFloat = 200
-            static let mainWidthListening: CGFloat = 200
-            static let mainWidthProcessing: CGFloat = 200
-            static let mainWidthResult: CGFloat = 200
-            static let mainWidthClipboard: CGFloat = 200
-            static let mainWidthError: CGFloat = 200
+            static let mainWidthIdle: CGFloat = 152
+            static let mainWidthStarting: CGFloat = 152
+            static let mainWidthListening: CGFloat = 152
+            static let mainWidthProcessing: CGFloat = 152
+            static let mainWidthResult: CGFloat = 152
+            static let mainWidthClipboard: CGFloat = 152
+            static let mainWidthError: CGFloat = 152
 
             static let controlHeight: CGFloat = 40
             static let clipboardHeight: CGFloat = 118
