@@ -38,13 +38,8 @@
             }
             .frame(width: layout.panelSize.width, height: layout.panelSize.height, alignment: .center)
             .background {
-                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .glassEffect(.regular)
-                    .shadow(
-                        color: .black.opacity(0.22),
-                        radius: 18,
-                        y: 10
-                    )
             }
             .opacity(contentVisible ? 1 : 0)
             .offset(y: contentVisible ? 0 : 8)
