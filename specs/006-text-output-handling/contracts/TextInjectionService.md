@@ -59,11 +59,13 @@ protocol TextInjectionService {
 
 - The service MUST treat simulated input as permission-gated.
 - The service MUST distinguish verified success from unverifiable or failed paste attempts.
+- The service MUST evaluate paste verification against the target application's focused element after target-app activation has been given a chance to settle.
+- The service SHOULD use a bounded verification window rather than a single immediate metadata read when inferring paste success.
 - The service SHOULD return best-effort results when the target app does not expose enough metadata for full verification.
 - The service MUST not promise that an input field is detected ahead of time.
 - The service MUST allow callers to preserve the result in clipboard when a replacement or paste path needs recovery support.
 
 ## Notes
 
-- The concrete implementation may use accessibility focus data, simulated key events, and clipboard snapshotting to infer whether the paste or replacement succeeded.
+- The concrete implementation may use accessibility focus data, simulated key events, target-app activation, bounded verification polling, and clipboard snapshotting to infer whether the paste or replacement succeeded.
 - Those mechanics are implementation details and are not part of the public contract surface.
