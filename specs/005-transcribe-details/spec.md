@@ -38,6 +38,7 @@ As a BYOK user, I can choose whether rewrite is handled by OpenAI or Groq indepe
 2. **Given** transcription is set to `Groq` and rewrite is set to `OpenAI`, **When** dictation starts, **Then** the Mac app requires both a Groq API key and an OpenAI API key.
 3. **Given** transcription is set to `OpenAI` and rewrite is set to `Groq`, **When** dictation starts, **Then** the Mac app requires both an OpenAI API key and a Groq API key.
 4. **Given** the selected rewrite provider is missing its API key, **When** the user tries to start dictation, **Then** the Mac app fails before any remote request is sent and explains which provider key is required for rewrite.
+5. **Given** transcription is set to `OpenAI` and rewrite is set to `Groq`, **When** the user views the current Mac BYOK settings, **Then** the app shows a configuration warning that this pair is not supported as a default BYOK pair on Mac.
 
 ---
 
@@ -80,6 +81,7 @@ As a BYOK user, I get clear, user-directed configuration errors before dictation
 
 - What happens when the transcription provider and rewrite provider are different and only one of the two required API keys is configured?
 - What happens when both required API keys are missing for a mixed-provider setup?
+- What happens when the user selects `OpenAI` transcription with `Groq` rewrite, which the current Mac settings treat as an unsupported default pair?
 - What happens when transcription succeeds but returns empty or whitespace-only text?
 - What happens when rewrite is enabled but transcription fails before any rewrite request can be sent?
 - What happens when the rewrite provider returns invalid or empty output after a valid transcript was produced?
@@ -91,23 +93,24 @@ As a BYOK user, I get clear, user-directed configuration errors before dictation
 - **FR-001**: The Mac app MUST support a dedicated `transcriptionProvider` setting in BYOK mode.
 - **FR-002**: The Mac app MUST support a dedicated `rewriteProvider` setting in BYOK mode.
 - **FR-003**: The Mac app MUST allow `transcriptionProvider` and `rewriteProvider` to be selected independently from `OpenAI` and `Groq`.
-- **FR-004**: The Mac app MUST run BYOK dictation as two distinct remote steps: transcription first, rewrite second.
-- **FR-005**: The Mac app MUST send recorded audio to the selected transcription provider.
-- **FR-006**: The Mac app MUST treat the transcript returned from transcription as an internal intermediate result and MUST NOT surface it as the final user-visible output of this flow.
-- **FR-007**: The Mac app MUST send the intermediate transcript to the selected rewrite provider for dictation cleanup.
-- **FR-008**: The Mac app MUST return the rewrite result as the final user-visible output of the BYOK dictation flow.
-- **FR-009**: The Mac app MUST require the API key for the selected transcription provider before starting BYOK dictation.
-- **FR-010**: The Mac app MUST require the API key for the selected rewrite provider before starting BYOK dictation.
-- **FR-011**: If transcription and rewrite use different providers, the Mac app MUST require both providers' API keys before starting BYOK dictation.
-- **FR-012**: The Mac app MUST validate all required provider keys before sending any remote request for the BYOK dictation flow.
-- **FR-013**: If required keys are missing, the Mac app MUST fail before transcription begins.
-- **FR-014**: Configuration errors MUST identify which step is blocked (`transcription` or `rewrite`) and which provider key is required.
-- **FR-015**: Configuration errors SHOULD use user-directed guidance such as `Add an OpenAI API key to use OpenAI for rewrite.`
-- **FR-016**: If transcription fails, the Mac app MUST stop the flow and MUST NOT attempt rewrite.
-- **FR-017**: If rewrite fails, the Mac app MUST report rewrite failure and MUST NOT present a successful dictation result.
-- **FR-018**: This feature spec MUST remain limited to Mac-side behavior and MUST NOT define backend implementation details.
-- **FR-019**: This feature spec MUST remain limited to BYOK dictation cleanup and MUST NOT define managed/relay behavior.
-- **FR-020**: This feature spec MUST NOT include selection rewrite.
+- **FR-004**: The Mac app MUST show a configuration warning when the current provider pair is `OpenAI` transcription with `Groq` rewrite, because the current Mac settings treat that pair as unsupported as a default BYOK pair.
+- **FR-005**: The Mac app MUST run BYOK dictation as two distinct remote steps: transcription first, rewrite second.
+- **FR-006**: The Mac app MUST send recorded audio to the selected transcription provider.
+- **FR-007**: The Mac app MUST treat the transcript returned from transcription as an internal intermediate result and MUST NOT surface it as the final user-visible output of this flow.
+- **FR-008**: The Mac app MUST send the intermediate transcript to the selected rewrite provider for dictation cleanup.
+- **FR-009**: The Mac app MUST return the rewrite result as the final user-visible output of the BYOK dictation flow.
+- **FR-010**: The Mac app MUST require the API key for the selected transcription provider before starting BYOK dictation.
+- **FR-011**: The Mac app MUST require the API key for the selected rewrite provider before starting BYOK dictation.
+- **FR-012**: If transcription and rewrite use different providers, the Mac app MUST require both providers' API keys before starting BYOK dictation.
+- **FR-013**: The Mac app MUST validate all required provider keys before sending any remote request for the BYOK dictation flow.
+- **FR-014**: If required keys are missing, the Mac app MUST fail before transcription begins.
+- **FR-015**: Configuration errors MUST identify which step is blocked (`transcription` or `rewrite`) and which provider key is required.
+- **FR-016**: Configuration errors SHOULD use user-directed guidance such as `Add an OpenAI API key to use OpenAI for rewrite.`
+- **FR-017**: If transcription fails, the Mac app MUST stop the flow and MUST NOT attempt rewrite.
+- **FR-018**: If rewrite fails, the Mac app MUST report rewrite failure and MUST NOT present a successful dictation result.
+- **FR-019**: This feature spec MUST remain limited to Mac-side behavior and MUST NOT define backend implementation details.
+- **FR-020**: This feature spec MUST remain limited to BYOK dictation cleanup and MUST NOT define managed/relay behavior.
+- **FR-021**: This feature spec MUST NOT include selection rewrite.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -122,9 +125,18 @@ As a BYOK user, I get clear, user-directed configuration errors before dictation
 
 ### Measurable Outcomes
 
-- **SC-001**: Mac-side automated tests cover successful BYOK dictation for all provider combinations: `OpenAI -> OpenAI`, `OpenAI -> Groq`, `Groq -> OpenAI`, and `Groq -> Groq`.
-- **SC-002**: Mac-side automated tests cover preflight configuration failures for missing transcription keys, missing rewrite keys, and mixed-provider setups missing both required keys.
-- **SC-003**: Mac-side automated tests verify that transcription failure prevents rewrite from running.
-- **SC-004**: Mac-side automated tests verify that rewrite failure is surfaced as a failed dictation result after successful transcription.
-- **SC-005**: A developer can read this spec and identify a clear boundary between Mac responsibilities and backend responsibilities.
-- **SC-006**: Existing managed/relay behavior remains outside the scope of this spec and is not implicitly changed by this feature definition.
+- **SC-001**: Mac-side automated tests cover successful BYOK dictation for the currently exercised provider combinations: `OpenAI -> OpenAI`, `Groq -> Groq`, and `Groq -> OpenAI`.
+- **SC-002**: Mac-side automated tests cover mixed-provider route resolution, including the `OpenAI -> Groq` combination, without reintroducing execution-time route rejection.
+- **SC-003**: Mac-side automated tests cover preflight configuration failures for missing transcription keys, missing rewrite keys, and mixed-provider setups missing both required keys.
+- **SC-004**: Mac-side automated tests verify that transcription failure prevents rewrite from running.
+- **SC-005**: Mac-side automated tests verify that rewrite failure is surfaced as a failed dictation result after successful transcription.
+- **SC-006**: The Mac settings surface warns when the current provider pair is `OpenAI` transcription with `Groq` rewrite.
+- **SC-007**: A developer can read this spec and identify a clear boundary between Mac responsibilities and backend responsibilities.
+- **SC-008**: Existing managed/relay behavior remains outside the scope of this spec and is not implicitly changed by this feature definition.
+
+## Assumptions
+
+- This specification is limited to the macOS direct BYOK dictation-cleanup flow.
+- Managed relay behavior remains outside the scope of this feature even though it shares some runtime surfaces.
+- Provider API keys are stored per provider and reused by whichever pipeline step selects that provider.
+- The settings UI may warn about some provider pairs while the lower execution layers still model direct-mode configuration by step.
