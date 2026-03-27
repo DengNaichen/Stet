@@ -7,135 +7,62 @@
 Every feature must follow the standardized documentation structure:
 
 **Required Documents**:
+
 - `spec.md` - Feature specification with user stories, requirements, and success criteria
 - `plan.md` - Technical planning with architecture, structure, and implementation phases
 - `data-model.md` - Data structures, entities, and their relationships
 - `contracts/` - Public API contracts exposed to external consumers
 - `tasks.md` - Implementation tasks (generated after planning phase)
 
+**Optional Supporting Documents**:
+
+- `research.md` - Decision rationale, investigation notes, and supporting research when a feature needs exploratory work; it is optional and may live outside the feature folder when the research is cross-cutting or maintained in another repository
+
 **contracts/ Directory Purpose**:
+
 - Contains ONLY the public APIs that this feature exposes to other modules
 - Documents the interface contract for external consumers
 - Does NOT include internal implementation details or private interfaces
 - Each contract document must specify: method signatures, input/output specifications, error handling, usage examples
 
-### II. Separation of Concerns
+### II. Documentation Quality
 
-**Component Responsibilities**:
-- Each component must have a single, well-defined responsibility
-- Business logic must be separated from system APIs (CoreAudio, AVFoundation, etc.)
-- UI components must be separated from business logic
-- Use protocol abstractions to decouple dependencies
+**Specification**:
 
-**Testing Strategy**:
-- Business logic: Unit tests with mock dependencies
-- UI components: Not unit tested (ViewModels are tested instead)
-- System integration: Hardware integration tests (clearly marked)
-- Correctness: Property-based tests for invariants
+- `spec.md` MUST be written as a product specification.
+- It MUST define prioritized and independently testable user stories, user-visible requirements, relevant edge cases, measurable and technology-agnostic success criteria, and explicit assumptions.
+- It MUST avoid implementation detail unless that detail directly affects user-visible behavior or feature scope.
 
-### III. Swift Concurrency Model (Swift 6)
+**Data Model**:
 
-**Actor Isolation**:
-- UI-bound state must use `@MainActor`
-- Stateless utilities should be `nonisolated`
-- Cross-actor access must use thread-safe mechanisms (NSLock, actors)
-- Avoid `nonisolated(unsafe)` unless absolutely necessary with proper synchronization
+- `data-model.md` MUST describe the feature's core domain entities, the key attributes that matter to product behavior, the relationships between entities, relevant state transitions, and the invariants that must always hold.
+- It MUST identify what data is persisted and which identifiers must remain stable.
+- It MUST avoid implementation-specific detail such as API contracts, framework types, storage engine mechanics, or internal class structure unless those details directly affect the domain model.
 
-**Concurrency Patterns**:
-- Use `@Published` properties for SwiftUI state
-- Provide synchronous access methods for non-async contexts when needed
-- Document thread-safety guarantees in contracts
-- Use `Sendable` conformance for data passed across actors
+**Contracts**:
 
-### IV. Error Handling and Resilience
+- `contracts/` MUST describe only the public interfaces a feature exposes across module or system boundaries.
+- Each contract MUST define the consumer-visible interface, expected inputs, outputs, error behavior, constraints, and usage expectations.
+- It MUST avoid internal implementation detail, private structures, and framework wiring that are not part of the external contract.
+- If an interface is not consumed across a boundary, it SHOULD NOT be documented in `contracts/`.
 
-**Error Strategy**:
-- Graceful degradation over crashes
-- Return empty/nil on non-critical failures
-- Throw errors only for critical failures that caller must handle
-- Log warnings for debugging without exposing technical details to users
+**Plan**:
 
-**Fallback Mechanisms**:
-- Implement multiple fallback strategies for critical operations
-- Document fallback order and retry logic
-- Provide clear error messages when all fallbacks fail
-- Preserve user preferences even when fallback is active
+- `plan.md` MUST translate the approved specification into a concrete technical approach.
+- It MUST define the implementation strategy, technical context, constitution check, intended project structure, and any justified complexity required for delivery.
+- It MUST not replace the spec, the data model, the contracts, or the task list.
 
-### V. Data Persistence
+**Tasks**:
 
-**UserDefaults Usage**:
-- Use for lightweight user preferences only
-- Define keys in centralized enum (e.g., `MacPreferences`)
-- Handle read/write failures gracefully
-- Never block on persistence operations
+- `tasks.md` MUST be generated from the current specification, plan, data model, and contracts using the task template's structure.
+- It MUST organize work into clear, executable tasks that map back to user stories and support incremental delivery.
+- `tasks.md` is a disposable execution artifact rather than a long-lived source of truth and MAY be regenerated whenever scope, design, or sequencing changes.
+- It MUST not contain product requirements, domain modeling, or technical design detail that belongs in other documents.
 
-**Persistence Guarantees**:
-- User preferences must survive app restarts
-- Use stable identifiers (UIDs, not session IDs)
-- Validate data on load, use defaults if corrupted
-- Document migration strategy for schema changes
+**Research**:
 
-## Development Workflow
-
-### Feature Development Process
-
-1. **Specification Phase**:
-   - Write `spec.md` with user stories and requirements
-   - Get user approval before proceeding
-
-2. **Planning Phase**:
-   - Write `plan.md` with technical approach
-   - Write `data-model.md` with entities and relationships
-   - Write `contracts/` for public APIs
-   - Perform Constitution Check
-
-3. **Implementation Phase**:
-   - Generate `tasks.md` from design documents
-   - Implement in priority order (P1 → P2 → P3)
-   - Write tests alongside implementation
-   - Verify contracts are honored
-
-4. **Verification Phase**:
-   - All tests pass (unit, integration, property-based)
-   - Performance targets met
-   - Constitution compliance verified
-   - User acceptance testing
-
-### Code Review Requirements
-
-- All changes must pass Constitution Check
-- Public API changes require contract documentation updates
-- Breaking changes require migration plan
-- Complexity must be justified in plan.md
-
-## Quality Standards
-
-### Testing Requirements
-
-**Coverage Targets**:
-- Business logic: >80% code coverage
-- Property-based tests for all documented invariants
-- Integration tests for external API interactions
-- Performance tests for critical paths
-
-**Test Organization**:
-- Unit tests: Test individual components in isolation
-- Integration tests: Test component interactions
-- Property tests: Verify invariants hold for all inputs
-- Hardware tests: Test against real system APIs (optional in CI)
-
-### Performance Standards
-
-**Response Time Targets**:
-- UI interactions: <50ms
-- Device enumeration: <100ms
-- Recording startup: <2 seconds (including fallbacks)
-- State updates: <10ms
-
-**Resource Constraints**:
-- Memory: Minimal allocations in hot paths
-- CPU: No blocking operations on main thread
-- Battery: Stop monitoring when not needed
+- `research.md` is optional and exists to capture decision rationale, investigation notes, and supporting research when a feature needs exploratory work.
+- Research MAY live outside the feature folder when it is cross-cutting or maintained in another repository.
 
 ## Governance
 
@@ -155,4 +82,4 @@ Every feature must follow the standardized documentation structure:
 - Code reviews must verify compliance
 - Automated checks where possible (linting, tests)
 
-**Version**: 1.0.0 | **Ratified**: 2026-03-26 | **Last Amended**: 2026-03-26
+**Version**: 0.1.5 | **Ratified**: 2026-03-26 | **Last Amended**: 2026-03-26
