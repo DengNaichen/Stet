@@ -9,7 +9,7 @@ This feature extends the existing macOS BYOK dictation model from a single provi
 
 The data model remains Mac-side only. It does not define backend entities.
 
-## Entities
+## Core Entities
 
 ### 1. Transcription Provider Selection
 
@@ -97,7 +97,7 @@ Represents the selected provider combination for the two-step BYOK pipeline.
 **Validation rules**
 
 - The pair must always have both values populated in BYOK mode.
-- Unsupported default combinations must not silently receive an approved default model pair.
+- `OpenAI -> Groq` is a settings/UI policy warning in the current implementation rather than a direct-route validation failure.
 
 **State implications**
 
@@ -187,7 +187,6 @@ Represents the preflight result that checks whether the selected BYOK provider p
 - `missing transcription provider key`
 - `missing rewrite provider key`
 - `missing both required provider keys`
-- optional unsupported-default-combination outcome if the implementation treats unsupported provider pairs as configuration-invalid
 
 **Responsibilities**
 
@@ -198,6 +197,7 @@ Represents the preflight result that checks whether the selected BYOK provider p
 
 - Must run before any remote transcription or rewrite request in BYOK mode.
 - Must identify the blocked step and the missing provider.
+- Must remain separate from the settings-level unsupported-pair warning policy.
 
 ---
 
@@ -314,3 +314,26 @@ Represents structured failure states for the BYOK dictation flow.
 - Provider API keys remain stored by provider, not by step.
 - Default models are resolved from the selected provider pair.
 - `OpenAI -> Groq` does not receive a first-class default model combination in this feature.
+
+## Relationships
+
+- `Transcription Provider Selection` and `Rewrite Provider Selection` combine into a `Provider Pair`.
+- The `Provider Pair` drives `Transcription Configuration`, `Rewrite Configuration`, and `Provider Configuration Validation`.
+- `Provider Configuration Validation` must pass before the feature can produce an `Intermediate Transcript`.
+- `Intermediate Transcript` is the required handoff input to the rewrite step and precedes `Final Dictation Output`.
+- `Provider-Aware Dictation Failure` can be produced from preflight validation, transcription, or rewrite, but never alongside a successful final output.
+
+## Persistence
+
+- `transcriptionProvider` is persisted in Mac preferences.
+- `rewriteProvider` is persisted in Mac preferences and defaults to the transcription provider until explicitly changed.
+- Provider API keys are persisted per provider in secure local storage rather than per pipeline step.
+- Provider pair validation results, intermediate transcripts, final outputs, and runtime failures are transient and are not persisted by this feature.
+
+## Invariants
+
+- A BYOK direct-mode provider pair always has both a transcription provider and a rewrite provider.
+- No remote request should start until provider configuration validation succeeds for the selected pair.
+- The intermediate transcript is never the final user-visible success result for this feature.
+- A final dictation output only exists after both transcription and rewrite succeed.
+- Provider credentials remain provider-scoped even when the two steps choose different providers.
