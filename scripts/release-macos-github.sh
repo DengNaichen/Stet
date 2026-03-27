@@ -74,11 +74,15 @@ find_sparkle_generate_appcast() {
 
   candidates+=(
     "$ROOT_DIR/.build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
+    "$ROOT_DIR/.build/SourcePackages/checkouts/Sparkle/bin/generate_appcast"
     "$ROOT_DIR/build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
+    "$ROOT_DIR/build/SourcePackages/checkouts/Sparkle/bin/generate_appcast"
     "$ROOT_DIR/.derivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
+    "$ROOT_DIR/.derivedData/SourcePackages/checkouts/Sparkle/bin/generate_appcast"
   )
 
   candidates+=("$HOME"/Library/Developer/Xcode/DerivedData/*/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast(N))
+  candidates+=("$HOME"/Library/Developer/Xcode/DerivedData/*/SourcePackages/checkouts/Sparkle/bin/generate_appcast(N))
 
   for candidate in "${candidates[@]}"; do
     if [[ -x "$candidate" ]]; then

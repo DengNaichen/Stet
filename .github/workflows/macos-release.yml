@@ -173,7 +173,10 @@ jobs:
 
           candidates=(
             "$GITHUB_WORKSPACE/.build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
+            "$GITHUB_WORKSPACE/.build/SourcePackages/checkouts/Sparkle/bin/generate_appcast"
             "$GITHUB_WORKSPACE/build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
+            "$GITHUB_WORKSPACE/build/SourcePackages/checkouts/Sparkle/bin/generate_appcast"
+            "$HOME"/Library/Developer/Xcode/DerivedData/*/SourcePackages/checkouts/Sparkle/bin/generate_appcast
             "$HOME"/Library/Developer/Xcode/DerivedData/*/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast
           )
 
@@ -198,9 +201,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: macos-release-${{ github.ref_name }}
+          name: macos-release-${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
           path: |
-            dist/github-release/${{ github.ref_name }}
+            dist/github-release/${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
           if-no-files-found: warn
           retention-days: 30
 
