@@ -163,7 +163,7 @@ jobs:
           fi
 
           SPARKLE_PRIVATE_KEY_PATH="$RUNNER_TEMP/sparkle-private-key"
-          echo "$SPARKLE_PRIVATE_KEY_BASE64" | base64 -D > "$SPARKLE_PRIVATE_KEY_PATH"
+          printf '%s' "$SPARKLE_PRIVATE_KEY_BASE64" > "$SPARKLE_PRIVATE_KEY_PATH"
           chmod 600 "$SPARKLE_PRIVATE_KEY_PATH"
           echo "SPARKLE_PRIVATE_KEY_PATH=$SPARKLE_PRIVATE_KEY_PATH" >> "$GITHUB_ENV"
 
