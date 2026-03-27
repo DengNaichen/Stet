@@ -167,6 +167,42 @@ jobs:
           chmod 600 "$SPARKLE_PRIVATE_KEY_PATH"
           echo "SPARKLE_PRIVATE_KEY_PATH=$SPARKLE_PRIVATE_KEY_PATH" >> "$GITHUB_ENV"
 
+      - name: Build Sparkle Appcast Tool
+        run: |
+          PACKAGE_RESOLVED="Stet.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+          SPARKLE_VERSION="$(
+            ruby -rjson -e '
+              package = JSON.parse(File.read(ARGV[0]))
+              sparkle = package.fetch("pins").find { |pin| pin["identity"] == "sparkle" }
+              abort("Unable to resolve Sparkle version from Package.resolved") if sparkle.nil?
+              version = sparkle.dig("state", "version")
+              abort("Sparkle version is missing from Package.resolved") if version.nil? || version.empty?
+              puts version
+            ' "$PACKAGE_RESOLVED"
+          )"
+
+          SPARKLE_SOURCE_DIR="$RUNNER_TEMP/Sparkle-$SPARKLE_VERSION"
+          SPARKLE_DERIVED_DATA="$RUNNER_TEMP/sparkle-derived-data"
+          SPARKLE_BINARY="$SPARKLE_DERIVED_DATA/Build/Products/Release/generate_appcast"
+
+          curl -fsSL "https://github.com/sparkle-project/Sparkle/archive/refs/tags/$SPARKLE_VERSION.tar.gz" \
+            | tar -xzf - -C "$RUNNER_TEMP"
+
+          xcodebuild \
+            -project "$SPARKLE_SOURCE_DIR/Sparkle.xcodeproj" \
+            -scheme generate_appcast \
+            -configuration Release \
+            -derivedDataPath "$SPARKLE_DERIVED_DATA" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+          if [[ ! -x "$SPARKLE_BINARY" ]]; then
+            echo "generate_appcast was not built at the expected location: $SPARKLE_BINARY"
+            exit 1
+          fi
+
+          echo "SPARKLE_GENERATE_APPCAST=$SPARKLE_BINARY" >> "$GITHUB_ENV"
+
       - name: Build Release
         run: ./scripts/release-macos-github.sh
 
