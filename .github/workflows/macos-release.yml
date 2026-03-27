@@ -167,30 +167,6 @@ jobs:
           chmod 600 "$SPARKLE_PRIVATE_KEY_PATH"
           echo "SPARKLE_PRIVATE_KEY_PATH=$SPARKLE_PRIVATE_KEY_PATH" >> "$GITHUB_ENV"
 
-      - name: Resolve Sparkle Tooling
-        run: |
-          shopt -s nullglob
-
-          candidates=(
-            "$GITHUB_WORKSPACE/.build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
-            "$GITHUB_WORKSPACE/.build/SourcePackages/checkouts/Sparkle/bin/generate_appcast"
-            "$GITHUB_WORKSPACE/build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
-            "$GITHUB_WORKSPACE/build/SourcePackages/checkouts/Sparkle/bin/generate_appcast"
-            "$HOME"/Library/Developer/Xcode/DerivedData/*/SourcePackages/checkouts/Sparkle/bin/generate_appcast
-            "$HOME"/Library/Developer/Xcode/DerivedData/*/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast
-          )
-
-          for candidate in "${candidates[@]}"; do
-            if [[ -x "$candidate" ]]; then
-              echo "SPARKLE_GENERATE_APPCAST=$candidate" >> "$GITHUB_ENV"
-              echo "Using generate_appcast at $candidate"
-              exit 0
-            fi
-          done
-
-          echo "Unable to find Sparkle generate_appcast tool in standard artifact locations."
-          exit 1
-
       - name: Build Release
         run: ./scripts/release-macos-github.sh
 
