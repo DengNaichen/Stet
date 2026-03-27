@@ -4,12 +4,23 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: Branch, tag, or commit SHA to build
+        required: false
+        default: main
+        type: string
+      release_tag:
+        description: Release tag to publish, for example v0.0.10-rc1
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: macos-release-${{ github.ref_name }}
+  group: macos-release-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -28,7 +39,6 @@ jobs:
       DEVELOPER_ID_APPLICATION_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_PASSWORD }}
       GENERATE_SPARKLE_APPCAST: "1"
       GITHUB_REPOSITORY: ${{ github.repository }}
-      GITHUB_TAG: ${{ github.ref_name }}
       GH_TOKEN: ${{ github.token }}
       GITHUB_TOKEN: ${{ github.token }}
       NOTARY_PROFILE: stet-notary
@@ -41,6 +51,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.git_ref || github.ref }}
           fetch-depth: 0
 
       - name: Set Up Xcode
@@ -109,6 +120,40 @@ jobs:
 
       - name: Store Notarytool Credentials
         run: ./scripts/setup-notarytool-profile.sh
+
+      - name: Resolve Release Metadata
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            RELEASE_TAG="${{ inputs.release_tag }}"
+            RELEASE_DRAFT=true
+            RELEASE_PRERELEASE=true
+            RELEASE_LATEST=false
+            RELEASE_VERIFY_TAG=false
+            RELEASE_TARGET="${{ inputs.git_ref }}"
+          else
+            RELEASE_TAG="${GITHUB_REF_NAME}"
+            RELEASE_DRAFT=false
+            RELEASE_VERIFY_TAG=true
+
+            if [[ "$RELEASE_TAG" == *-* ]]; then
+              RELEASE_PRERELEASE=true
+              RELEASE_LATEST=false
+            else
+              RELEASE_PRERELEASE=false
+              RELEASE_LATEST=true
+            fi
+          fi
+
+          {
+            echo "GITHUB_TAG=$RELEASE_TAG"
+            echo "GITHUB_RELEASE_DRAFT=$RELEASE_DRAFT"
+            echo "GITHUB_RELEASE_PRERELEASE=$RELEASE_PRERELEASE"
+            echo "GITHUB_RELEASE_LATEST=$RELEASE_LATEST"
+            echo "GITHUB_RELEASE_VERIFY_TAG=$RELEASE_VERIFY_TAG"
+            if [[ -n "${RELEASE_TARGET:-}" ]]; then
+              echo "GITHUB_RELEASE_TARGET=$RELEASE_TARGET"
+            fi
+          } >> "$GITHUB_ENV"
 
       - name: Materialize Sparkle Private Key
         run: |
