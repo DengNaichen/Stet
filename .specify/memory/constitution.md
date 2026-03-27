@@ -9,10 +9,10 @@ Every feature must follow the standardized documentation structure:
 **Required Documents**:
 
 - `spec.md` - Feature specification with user stories, requirements, and success criteria
-- `plan.md` - Technical planning with architecture, structure, and implementation phases
+- `plan.md` - Feature design document with the technical approach, structure, and design decisions
 - `data-model.md` - Data structures, entities, and their relationships
 - `contracts/` - Public API contracts exposed to external consumers
-- `tasks.md` - Implementation tasks (generated after planning phase)
+- `tasks.md` - Execution task list generated after the design phase
 
 **Optional Supporting Documents**:
 
@@ -48,14 +48,14 @@ Every feature must follow the standardized documentation structure:
 
 **Plan**:
 
-- `plan.md` MUST translate the approved specification into a concrete technical approach.
+- `plan.md` serves as the feature's design document and MUST translate the approved specification into a concrete technical approach.
 - It MUST define the implementation strategy, technical context, constitution check, intended project structure, and any justified complexity required for delivery.
 - It MUST not replace the spec, the data model, the contracts, or the task list.
 
 **Tasks**:
 
 - `tasks.md` MUST be generated from the current specification, plan, data model, and contracts using the task template's structure.
-- It MUST organize work into clear, executable tasks that map back to user stories and support incremental delivery.
+- It MUST serve as the execution plan by organizing work into clear, executable tasks that map back to user stories and support incremental delivery.
 - `tasks.md` is a disposable execution artifact rather than a long-lived source of truth and MAY be regenerated whenever scope, design, or sequencing changes.
 - It MUST not contain product requirements, domain modeling, or technical design detail that belongs in other documents.
 
