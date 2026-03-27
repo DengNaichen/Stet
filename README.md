@@ -120,6 +120,8 @@ SPARKLE_GENERATE_APPCAST=/absolute/path/to/generate_appcast
 ## Documentation
 
 - Chinese version: [docs/README.zh-CN.md](docs/README.zh-CN.md)
+- Release guide: [docs/release.md](docs/release.md)
+- 发布指南: [docs/release.zh-CN.md](docs/release.zh-CN.md)
 
 ## License
 

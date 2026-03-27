@@ -105,6 +105,8 @@ xcodebuild -project Stet.xcodeproj -scheme Stet -destination 'platform=macOS' te
 
 发布产物会写入 `dist/github-release/<tag>/`。
 
+更完整的 CI/CD 发布说明见：[release.zh-CN.md](release.zh-CN.md)
+
 ## 许可证
 
 GPL-3.0-only

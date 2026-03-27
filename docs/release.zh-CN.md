@@ -1,0 +1,149 @@
+# 发布指南
+
+这份文档记录了 Stet 当前已经跑通的发布流程。
+
+## 总览
+
+Stet 现在有三条 GitHub Actions workflow：
+
+- `macOS CI`
+  - 文件：`.github/workflows/macos-ci.yml`
+  - 触发：PR 和普通 CI push
+  - 用途：lint、build、test
+
+- `macOS Release Candidate`
+  - 文件：`.github/workflows/macos-release-candidate.yml`
+  - 触发：`workflow_dispatch`
+  - environment：`release-candidate`
+  - 用途：生成签名并公证过的候选发布产物，但不创建 GitHub Release
+
+- `macOS Release`
+  - 文件：`.github/workflows/macos-release.yml`
+  - 触发：`v*` tag 的 `push`，以及用于安全手测的 `workflow_dispatch`
+  - environment：`production`
+  - 用途：构建、签名、公证、生成 Sparkle appcast、发布 GitHub Release、上传产物
+
+## 日常发布流程
+
+日常开发：
+
+1. 开分支并提 PR。
+2. 等 `macOS CI` 通过。
+3. 合并到 `main`。
+
+发布前验证：
+
+1. 需要时，在 GitHub Actions 手动运行 `macOS Release Candidate`。
+2. 使用测试标签，例如 `v0.0.10-rc1`。
+3. 确认签名、公证、DMG 生成、artifact 上传都成功。
+
+正式发布：
+
+1. 更新项目里的版本号和 build number。
+2. 确认 `main` 上已经是要发布的 commit。
+3. 推送正式 tag，例如 `v0.0.10`。
+4. GitHub Actions 自动运行 `macOS Release`。
+5. workflow 会把 DMG 和 `appcast.xml` 发布到 GitHub Releases。
+
+## GitHub Environments
+
+### `release-candidate`
+
+Secrets：
+
+- `APPLE_ID`
+- `APPLE_TEAM_ID`
+- `APP_SPECIFIC_PASSWORD`
+- `DEVELOPER_ID_APPLICATION_P12_BASE64`
+- `DEVELOPER_ID_APPLICATION_P12_PASSWORD`
+
+Variables：
+
+- `DEVELOPER_ID_APPLICATION`
+- `ARCHIVE_PROVISIONING_PROFILE_SPECIFIER`
+  - 只有当发布 archive 需要 distribution provisioning profile 时才需要
+
+### `production`
+
+Secrets：
+
+- `APPLE_ID`
+- `APPLE_TEAM_ID`
+- `APP_SPECIFIC_PASSWORD`
+- `DEVELOPER_ID_APPLICATION_P12_BASE64`
+- `DEVELOPER_ID_APPLICATION_P12_PASSWORD`
+- `SPARKLE_PRIVATE_KEY_BASE64`
+
+Variables：
+
+- `DEVELOPER_ID_APPLICATION`
+- `ARCHIVE_PROVISIONING_PROFILE_SPECIFIER`
+  - 如有需要再配置
+- `SPARKLE_APPCAST_URL`
+- `SPARKLE_PUBLIC_ED_KEY`
+- `SPARKLE_FEED_BASE_URL`
+
+## Sparkle 最重要的注意点
+
+最容易填错的值是：
+
+- `SPARKLE_PRIVATE_KEY_BASE64`
+
+这个 secret 不能直接从 Keychain Access 里手工复制“密码”来填。
+
+正确的值必须来自 Sparkle 官方 `generate_keys -x` 导出的文件，或者等价的标准 Sparkle 导出文件。
+
+正确做法：
+
+1. 先构建 Sparkle 的 `generate_keys` 工具。
+2. 导出密钥：
+
+```bash
+generate_keys -x /tmp/private-key.txt
+```
+
+3. 把 `/tmp/private-key.txt` 的文件内容直接写入 GitHub `production` environment 的 `SPARKLE_PRIVATE_KEY_BASE64`。
+
+注意：
+
+- 这个导出文件本身已经是 Sparkle 期望的 base64 文本。
+- 不要在写入 GitHub 之前再做一次解码。
+- 不要用 Keychain Access 里手工复制出来的原始文本替代它。
+
+## 当前 Workflow 的行为
+
+### Release candidate
+
+`macOS Release Candidate` 会做这些事：
+
+- 把 Developer ID 证书导入临时 keychain
+- 存储 `notarytool` 凭据
+- 运行 `scripts/release-macos-github.sh`
+- 把 `dist/github-release/<release_tag>/` 上传为 artifact
+
+这里刻意关闭了 Sparkle appcast 生成。
+
+### Production release
+
+`macOS Release` 额外会做这些事：
+
+- 根据正式 tag 或手动测试模式解析 release 元数据
+- 把 Sparkle secret 写到 runner 上的临时文件
+- 按 `Package.resolved` 中的 Sparkle 版本下载 Sparkle 源码
+- 在 CI 里构建 `generate_appcast`
+- 运行 `scripts/release-macos-github.sh`
+- 运行 `scripts/publish-github-release.sh`
+
+手动 `workflow_dispatch` 测试模式是安全的，因为它会设置：
+
+- draft release = `true`
+- prerelease = `true`
+- latest = `false`
+- verify tag = `false`
+
+## 已知说明
+
+- 在 CI 里，`spctl` 对 DMG 有时会返回 `source=Insufficient Context`。当前流程以 `stapler validate` 成功为更可靠的信号。
+- 现在这条正式发布 workflow 会在 CI 中编译 Sparkle 的 `generate_appcast`，因为 Sparkle 的 SwiftPM 包只提供框架二进制，不提供 CLI 工具。
+- 手动 release 测试时，artifact 上传路径使用你输入的 `release_tag`，不是 `github.ref_name`。
+
