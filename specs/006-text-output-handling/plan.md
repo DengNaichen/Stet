@@ -5,9 +5,9 @@
 
 ## Summary
 
-This plan documents the current design of Stet's macOS text output handling flow. The feature delivers recognized text through the existing dictation and rewrite workflows, uses clipboard-backed automatic output, verifies whether paste succeeded, and falls back to clipboard-preserved recovery when automatic output is unavailable or unverified.
+This plan documents the current design of Stet's macOS text output handling flow. The feature delivers recognized text through the existing dictation and rewrite workflows, uses clipboard-backed automatic output, activates the target app before collecting verification metadata, verifies whether paste succeeded through bounded post-paste polling, and falls back to clipboard-preserved recovery when automatic output is unavailable or unverified.
 
-This is a documentation pass, not an implementation pass. The purpose of the plan is to explain how the current codebase is structured so that `spec.md`, `data-model.md`, and `contracts/` stay aligned with the implementation that currently ships in this branch.
+This is a documentation-alignment pass. The purpose of the plan is to explain how the current codebase is structured so that `spec.md`, `data-model.md`, and `contracts/` stay aligned with the implementation that currently ships in this branch.
 
 ## Technical Context
 
@@ -31,7 +31,7 @@ This is a documentation pass, not an implementation pass. The purpose of the pla
 **Performance Goals**: Output should feel immediate to the user, and clipboard restoration should remain best effort without blocking the main interaction flow  
 **Constraints**:
 - Documentation must reflect the current implementation exactly
-- No code changes are part of this documentation pass
+- This document describes the implementation that exists in the branch; it is not proposing a separate task list or future redesign
 - Current implementation takes precedence over the legacy `.kiro` draft when they differ
 - `plan.md` must describe design, not a task list
 
@@ -96,6 +96,9 @@ StetTests/App/Workflows/
 StetTests/Core/Clipboard/
 ├── ClipboardServiceTests.swift
 └── PasteboardRestoreCoordinatorTests.swift
+
+StetTests/Core/TextInput/
+└── SystemTextInjectionServiceTests.swift
 ```
 
 **Structure Decision**: The documentation for this feature lives entirely under `specs/006-text-output-handling/`, and the source references are the existing workflow, clipboard, input-injection, and UI-state files that already implement the feature.
@@ -124,9 +127,13 @@ Dictation completion and rewrite-from-selection both flow through the same clipb
 
 The current implementation distinguishes clipboard write failure, missing input-control permission, paste-verification unavailable, and paste-verification failed. That classification is important to preserve in the docs because the UI can show different recovery guidance depending on which branch occurred.
 
-### 6. TextInjectionService Coverage Is Indirect
+### 6. Paste Verification Is Evaluated Against the Reactivated Target App
 
-The current branch does not include a dedicated `TextInjectionService` test file. Its behavior is exercised indirectly through the workflow and capture coordinator tests, so the documentation should avoid claiming a deeper unit-test coverage level than the repository currently provides.
+The current implementation does not capture the verification baseline from whichever app happens to be frontmost when the workflow finishes. Instead, `TextInjectionService` reactivates the target application, waits briefly for focus to settle, collects the focused-element snapshot, posts the paste event, and then polls focused-element metadata for a bounded interval before deciding whether the paste was verified.
+
+### 7. TextInjectionService Coverage Is Both Direct and Indirect
+
+The current branch now includes a dedicated `SystemTextInjectionServiceTests.swift` file for paste-verification timing and activation ordering, while the workflow and capture coordinator tests continue to exercise the same behavior indirectly through the higher-level output paths.
 
 ## Complexity Tracking
 

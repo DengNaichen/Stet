@@ -32,6 +32,7 @@ Represents the resolved outcome of a text-output attempt.
 
 **Important Behavior**:
 - `completed` means the workflow no longer needs to keep the capture result in an active pending state.
+- For automatic output, `completed` means the input-injection layer observed a verifiable mutation within its bounded post-paste verification window.
 - `clipboardPending(text)` keeps the text available without claiming the output succeeded.
 
 ### TextInjectionAccessState
@@ -76,7 +77,7 @@ Represents the user-visible failure categories the output pipeline can emit.
 
 - `MacDictationWorkflowController` produces `TextOutputRequest`-like inputs for the output pipeline and consumes `TextOutputResult`.
 - `ClipboardService` writes the textual payload that the workflow wants to preserve or deliver.
-- `TextInjectionService` uses `TextInjectionAccessState` to decide whether the system can attempt input simulation.
+- `TextInjectionService` uses `TextInjectionAccessState` to decide whether the system can attempt input simulation, reactivates the target app before taking its verification baseline, and classifies paste success or failure after a bounded metadata-polling window.
 - `PasteboardRestoreCoordinator` keeps a best-effort `ClipboardSnapshot` so temporary overrides can be restored after a successful injection.
 - `MacAppSessionController` turns `TextOutputResult` into the visible dictation panel state.
 
@@ -86,11 +87,16 @@ Represents the user-visible failure categories the output pipeline can emit.
 
 ```text
 pending text
+  -> target app activated
+  -> pre-paste focus snapshot
   -> attempt clipboard write
   -> attempt text injection
+  -> bounded verification polling
   -> completed
 
 pending text
+  -> target app activated
+  -> pre-paste focus snapshot
   -> clipboard write succeeds
   -> injection unavailable or unverified
   -> clipboard-pending or failure state with recovered text preserved

@@ -61,12 +61,12 @@
             static let paste: CGKeyCode = 9
         }
 
-        private struct SelectionRange: Equatable {
+        struct SelectionRange: Equatable {
             let location: Int
             let length: Int
         }
 
-        private struct FocusedElementSnapshot: Equatable {
+        struct FocusedElementSnapshot: Equatable {
             let value: String?
             let selectedText: String?
             let selectionRange: SelectionRange?
@@ -158,37 +158,22 @@
         }
 
         func pasteClipboard(into application: NSRunningApplication?) async -> TextInjectionOutcome {
-            guard accessState.canSimulateInput else {
-                return .eventPostFailed
-            }
-
-            let snapshotBeforePaste = focusedElementSnapshot()
-
-            if let application,
-                !application.isTerminated,
-                application.bundleIdentifier != Bundle.main.bundleIdentifier
-            {
-                _ = application.activate()
-                try? await Task.sleep(for: .milliseconds(180))
-            }
-
-            try? await Task.sleep(for: .milliseconds(60))
-            guard simulateCommandKey(KeyCode.paste) else {
-                return .eventPostFailed
-            }
-
-            guard let snapshotBeforePaste, snapshotBeforePaste.canVerifyPaste else {
-                return .eventPostedVerificationUnavailable
-            }
-
-            try? await Task.sleep(for: .milliseconds(180))
-
-            guard let snapshotAfterPaste = focusedElementSnapshot() else {
-                return .eventPostedVerificationUnavailable
-            }
-
-            return snapshotAfterPaste.indicatesMutation(comparedTo: snapshotBeforePaste)
-                ? .verifiedSuccess : .verificationFailed
+            await performPasteClipboard(
+                into: application,
+                accessState: accessState,
+                activateApplication: { application in
+                    _ = application.activate()
+                },
+                snapshotProvider: { [weak self] in
+                    self?.focusedElementSnapshot()
+                },
+                simulatePasteCommand: { [weak self] in
+                    self?.simulateCommandKey(KeyCode.paste) ?? false
+                },
+                sleep: { duration in
+                    try? await Task.sleep(for: duration)
+                }
+            )
         }
 
         func selectedText() -> String? {
@@ -326,6 +311,84 @@
             keyDown.post(tap: .cghidEventTap)
             keyUp.post(tap: .cghidEventTap)
             return true
+        }
+
+        func performPasteClipboard(
+            into application: NSRunningApplication?,
+            accessState: TextInjectionAccessState,
+            activateApplication: @MainActor (NSRunningApplication) -> Void,
+            snapshotProvider: @MainActor () -> FocusedElementSnapshot?,
+            simulatePasteCommand: @MainActor () -> Bool,
+            sleep: @escaping @Sendable (Duration) async -> Void,
+            activationDelay: Duration = .milliseconds(180),
+            prePasteDelay: Duration = .milliseconds(60),
+            verificationPollInterval: Duration = .milliseconds(120),
+            verificationAttempts: Int = 4
+        ) async -> TextInjectionOutcome {
+            guard accessState.canSimulateInput else {
+                return .eventPostFailed
+            }
+
+            if let application,
+                !application.isTerminated,
+                application.bundleIdentifier != Bundle.main.bundleIdentifier
+            {
+                activateApplication(application)
+                await sleep(activationDelay)
+            }
+
+            await sleep(prePasteDelay)
+            let snapshotBeforePaste = snapshotProvider()
+
+            guard simulatePasteCommand() else {
+                return .eventPostFailed
+            }
+
+            guard let snapshotBeforePaste, snapshotBeforePaste.canVerifyPaste else {
+                return .eventPostedVerificationUnavailable
+            }
+
+            return await verifyPasteOutcome(
+                comparedTo: snapshotBeforePaste,
+                snapshotProvider: snapshotProvider,
+                sleep: sleep,
+                pollInterval: verificationPollInterval,
+                attempts: verificationAttempts
+            )
+        }
+
+        func verifyPasteOutcome(
+            comparedTo snapshotBeforePaste: FocusedElementSnapshot,
+            snapshotProvider: @MainActor () -> FocusedElementSnapshot?,
+            sleep: @escaping @Sendable (Duration) async -> Void,
+            pollInterval: Duration = .milliseconds(120),
+            attempts: Int = 4
+        ) async -> TextInjectionOutcome {
+            guard snapshotBeforePaste.canVerifyPaste else {
+                return .eventPostedVerificationUnavailable
+            }
+
+            let retryCount = max(1, attempts)
+            var observedVerifiableSnapshot = false
+
+            for _ in 0..<retryCount {
+                await sleep(pollInterval)
+
+                guard let snapshotAfterPaste = snapshotProvider() else {
+                    continue
+                }
+
+                observedVerifiableSnapshot =
+                    observedVerifiableSnapshot || snapshotAfterPaste.canVerifyPaste
+
+                if snapshotAfterPaste.indicatesMutation(comparedTo: snapshotBeforePaste) {
+                    return .verifiedSuccess
+                }
+            }
+
+            return observedVerifiableSnapshot
+                ? .verificationFailed
+                : .eventPostedVerificationUnavailable
         }
 
         private func focusedElementSnapshot() -> FocusedElementSnapshot? {

@@ -8,6 +8,10 @@
 
         @State private var contentVisible = false
 
+        private var surfaceShape: RoundedRectangle {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+        }
+
         var body: some View {
             VStack(spacing: 8) {
                 Text(text)
@@ -37,15 +41,7 @@
                 .buttonStyle(.plain)
             }
             .frame(width: layout.panelSize.width, height: layout.panelSize.height, alignment: .center)
-            .background {
-                RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .glassEffect(.regular)
-                    .shadow(
-                        color: .black.opacity(0.22),
-                        radius: 18,
-                        y: 10
-                    )
-            }
+            .glassEffect(in: surfaceShape)
             .opacity(contentVisible ? 1 : 0)
             .offset(y: contentVisible ? 0 : 8)
             .scaleEffect(contentVisible ? 1 : 0.985)

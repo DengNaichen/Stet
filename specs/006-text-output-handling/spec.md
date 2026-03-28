@@ -19,6 +19,7 @@ As a user, when dictation or rewrite completes, I want the resulting text delive
 
 1. **Given** a supported target app is captured for the workflow, **When** the text output flow completes successfully, **Then** the text appears in that target app and the workflow completes.
 2. **Given** the output flow can verify the paste, **When** the paste succeeds, **Then** the system treats the output as completed rather than pending.
+3. **Given** the target app updates its focus metadata slightly after the paste event is posted, **When** the bounded verification window still observes the mutation, **Then** the system treats the output as completed rather than falling back to clipboard-pending recovery.
 
 ---
 
@@ -82,6 +83,7 @@ As a user, when transcription produces no usable text, I want the system to avoi
 ### Edge Cases
 
 - What happens when automatic text injection is unavailable because the system lacks input-control permissions?
+- What happens when the target app's focus metadata updates slightly after the paste event is posted?
 - What happens when the target app does not expose enough focus metadata to verify a paste?
 - What happens when clipboard writing fails during the fallback path?
 - What happens when the clipboard changes externally before a delayed restore runs?
@@ -92,7 +94,7 @@ As a user, when transcription produces no usable text, I want the system to avoi
 ### Functional Requirements
 
 - **FR-001**: The system MUST deliver completed dictation and rewrite text through the current output workflow without requiring manual paste when automatic output is enabled by the workflow.
-- **FR-002**: The system MUST attempt text injection into the workflow target app and MUST treat the result as unconfirmed unless the available focus metadata indicates success.
+- **FR-002**: The system MUST attempt text injection into the workflow target app, MUST verify against the reactivated target app's available focus metadata within a bounded post-paste window, and MUST treat the result as unconfirmed unless that metadata indicates success.
 - **FR-003**: The system MUST preserve the text in clipboard when automatic text injection cannot proceed because required permissions are missing.
 - **FR-004**: The system MUST preserve the text in clipboard when injection fails or cannot be verified, and MUST surface a distinct output failure state for that condition.
 - **FR-005**: The system MUST use best-effort clipboard restoration when automatic output temporarily overrides clipboard contents.
