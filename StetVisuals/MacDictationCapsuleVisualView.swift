@@ -103,7 +103,7 @@
             .onAppear {
                 syncVisualState(animated: true)
             }
-            .onChange(of: model.state) { newState in
+            .onChange(of: model.state) { _, newState in
                 // Reset processing timer immediately when entering processing state
                 if case .processing = newState {
                     processingStartDate = Date()

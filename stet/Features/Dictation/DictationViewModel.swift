@@ -1,5 +1,8 @@
 import Foundation
 import Combine
+#if os(macOS)
+    import StetVisuals
+#endif
 
 @MainActor
 final class DictationViewModel: ObservableObject {
@@ -12,6 +15,9 @@ final class DictationViewModel: ObservableObject {
     private var captureStartupTask: Task<Void, Error>?
     private var activationFallbackTask: Task<Void, Never>?
     private var levelTask: Task<Void, Never>?
+    #if os(macOS)
+        private var audioFeatureTask: Task<Void, Never>?
+    #endif
 
     private var isStartingRecording = false
     private var isActivatingRecordingWindow = false
@@ -23,6 +29,9 @@ final class DictationViewModel: ObservableObject {
 
     @Published private(set) var state: DictationState = .idle
     @Published private(set) var recordingLevel = 0.0
+    #if os(macOS)
+        @Published private(set) var audioFeatures = MacDictationCapsuleVisualSignals.zero
+    #endif
 
     init(
         speechService: any SpeechService,
@@ -81,6 +90,9 @@ final class DictationViewModel: ObservableObject {
         captureStartupTask?.cancel()
         activationFallbackTask?.cancel()
         levelTask?.cancel()
+        #if os(macOS)
+            audioFeatureTask?.cancel()
+        #endif
         isStartingRecording = true
         isActivatingRecordingWindow = false
         hasPreparedCapture = false
@@ -112,6 +124,9 @@ final class DictationViewModel: ObservableObject {
                 hasPreparedCapture = true
                 recordingLevel = 0.08
                 startLevelMonitoring()
+                #if os(macOS)
+                    startAudioFeatureMonitoring()
+                #endif
 
                 if pendingStopAfterStart {
                     pendingStopAfterStart = false
@@ -147,6 +162,9 @@ final class DictationViewModel: ObservableObject {
                 pendingCaptureStoppedHandler = nil
                 resultTransformer = nil
                 finishLevelMonitoring()
+                #if os(macOS)
+                    finishAudioFeatureMonitoring()
+                #endif
 
                 state = .idle
                 Task {
@@ -168,6 +186,9 @@ final class DictationViewModel: ObservableObject {
                 pendingCaptureStoppedHandler = nil
                 resultTransformer = nil
                 finishLevelMonitoring()
+                #if os(macOS)
+                    finishAudioFeatureMonitoring()
+                #endif
 
                 state = .error(.from(error))
                 Task {
@@ -206,6 +227,9 @@ final class DictationViewModel: ObservableObject {
                 pendingActivationAfterStart = false
                 resultTransformer = nil
                 finishLevelMonitoring()
+                #if os(macOS)
+                    finishAudioFeatureMonitoring()
+                #endif
 
                 state = .idle
             } catch {
@@ -216,6 +240,9 @@ final class DictationViewModel: ObservableObject {
                 pendingActivationAfterStart = false
                 resultTransformer = nil
                 finishLevelMonitoring()
+                #if os(macOS)
+                    finishAudioFeatureMonitoring()
+                #endif
 
                 state = .error(.from(error))
             }
@@ -275,6 +302,9 @@ final class DictationViewModel: ObservableObject {
         hasPreparedCapture = false
         isActivatingRecordingWindow = false
         finishLevelMonitoring()
+        #if os(macOS)
+            finishAudioFeatureMonitoring()
+        #endif
         // finishCaptureEventMonitoring()
         state = .processing
         let captureStoppedHandler = pendingCaptureStoppedHandler
@@ -310,6 +340,9 @@ final class DictationViewModel: ObservableObject {
                 isActivatingRecordingWindow = false
                 pendingCaptureStoppedHandler = nil
                 finishLevelMonitoring()
+                #if os(macOS)
+                    finishAudioFeatureMonitoring()
+                #endif
 
                 state = .idle
             } catch let error as SpeechServiceError where error == .emptyTranscription {
@@ -320,6 +353,9 @@ final class DictationViewModel: ObservableObject {
                 isActivatingRecordingWindow = false
                 pendingCaptureStoppedHandler = nil
                 finishLevelMonitoring()
+                #if os(macOS)
+                    finishAudioFeatureMonitoring()
+                #endif
 
                 state = .idle
                 Task {
@@ -333,6 +369,9 @@ final class DictationViewModel: ObservableObject {
                 isActivatingRecordingWindow = false
                 pendingCaptureStoppedHandler = nil
                 finishLevelMonitoring()
+                #if os(macOS)
+                    finishAudioFeatureMonitoring()
+                #endif
 
                 send(.transcriptionFailed(.from(error)))
                 Task {
@@ -349,6 +388,9 @@ final class DictationViewModel: ObservableObject {
         activationFallbackTask?.cancel()
         activationFallbackTask = nil
         finishLevelMonitoring()
+        #if os(macOS)
+            finishAudioFeatureMonitoring()
+        #endif
         // finishCaptureEventMonitoring()
         isStartingRecording = false
         isActivatingRecordingWindow = false
@@ -366,10 +408,16 @@ final class DictationViewModel: ObservableObject {
                 send(.transcriptionSucceeded(text))
             } catch is CancellationError {
                 finishLevelMonitoring()
+                #if os(macOS)
+                    finishAudioFeatureMonitoring()
+                #endif
 
                 state = .idle
             } catch {
                 finishLevelMonitoring()
+                #if os(macOS)
+                    finishAudioFeatureMonitoring()
+                #endif
 
                 send(.transcriptionFailed(.from(error)))
             }
@@ -387,6 +435,9 @@ final class DictationViewModel: ObservableObject {
         activationFallbackTask?.cancel()
         activationFallbackTask = nil
         finishLevelMonitoring()
+        #if os(macOS)
+            finishAudioFeatureMonitoring()
+        #endif
         isStartingRecording = false
         isActivatingRecordingWindow = false
         hasPreparedCapture = false
@@ -440,6 +491,27 @@ final class DictationViewModel: ObservableObject {
         levelTask = nil
         recordingLevel = 0
     }
+
+    #if os(macOS)
+        private func startAudioFeatureMonitoring() {
+            audioFeatureTask?.cancel()
+            guard let streamingService = speechService as? any AudioFeatureSource else { return }
+
+            audioFeatureTask = Task { @MainActor [weak self] in
+                let stream = await streamingService.makeAudioFeatureStream()
+                for await features in stream {
+                    guard !Task.isCancelled else { break }
+                    self?.audioFeatures = features
+                }
+            }
+        }
+
+        private func finishAudioFeatureMonitoring() {
+            audioFeatureTask?.cancel()
+            audioFeatureTask = nil
+            audioFeatures = .zero
+        }
+    #endif
 
     private func actionName(for action: DictationAction) -> String {
         switch action {

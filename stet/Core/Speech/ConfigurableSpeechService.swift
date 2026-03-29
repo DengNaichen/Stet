@@ -1,4 +1,7 @@
 import Foundation
+#if os(macOS)
+    import StetVisuals
+#endif
 
 actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     private let settingsStore: DictationSettingsStore
@@ -8,10 +11,16 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     private let captureServiceFactory: @Sendable () -> any AudioCaptureService
     private let audioPostProcessor: any AudioPostProcessing
     private let audioLevelBridge = AudioLevelBridge()
+    #if os(macOS)
+        private let audioFeatureBridge = AudioFeatureBridge()
+    #endif
 
     private var activePipeline: DictationPipeline?
     private var activeCaptureService: (any AudioCaptureService)?
     private var audioLevelTask: Task<Void, Never>?
+    #if os(macOS)
+        private var audioFeatureTask: Task<Void, Never>?
+    #endif
     private var reusableCaptureService: (any AudioCaptureService)?
 
     init(
@@ -51,6 +60,12 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     func makeAudioLevelStream() async -> AsyncStream<Double> {
         audioLevelBridge.makeStream()
     }
+
+    #if os(macOS)
+        func makeAudioFeatureStream() async -> AsyncStream<MacDictationCapsuleVisualSignals> {
+            audioFeatureBridge.makeStream()
+        }
+    #endif
 
     func startRecording() async throws {
         try await startRecording(activateRecordingWindow: false)
@@ -100,16 +115,25 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             }
 
             await startAudioLevelForwarding(using: captureService)
+            #if os(macOS)
+                await startAudioFeatureForwarding(using: captureService)
+            #endif
         } catch is CancellationError {
             activePipeline = nil
             activeCaptureService = nil
             stopAudioLevelForwarding()
+            #if os(macOS)
+                stopAudioFeatureForwarding()
+            #endif
             await DictationStartupProbe.shared.record(.cancelled)
             throw CancellationError()
         } catch {
             activePipeline = nil
             activeCaptureService = nil
             stopAudioLevelForwarding()
+            #if os(macOS)
+                stopAudioFeatureForwarding()
+            #endif
             await DictationStartupProbe.shared.record(.failed, note: error.localizedDescription)
             throw error
         }
@@ -136,6 +160,9 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             self.activePipeline = nil
             self.activeCaptureService = nil
             stopAudioLevelForwarding()
+            #if os(macOS)
+                stopAudioFeatureForwarding()
+            #endif
         }
 
         let captureResult = try await captureService.stopRecording()
@@ -222,6 +249,9 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         let captureService = activeCaptureService
         activeCaptureService = nil
         stopAudioLevelForwarding()
+        #if os(macOS)
+            stopAudioFeatureForwarding()
+        #endif
         if let captureService {
             await captureService.cancelRecording()
         }
@@ -268,6 +298,33 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         audioLevelBridge.emit(0)
     }
 
+    #if os(macOS)
+        private func startAudioFeatureForwarding(using captureService: any AudioCaptureService) async {
+            audioFeatureTask?.cancel()
+            audioFeatureTask = nil
+
+            guard let streamingService = captureService as? any AudioFeatureSource else { return }
+            let audioFeatureBridge = self.audioFeatureBridge
+            let stream = await streamingService.makeAudioFeatureStream()
+
+            audioFeatureTask = Task {
+                for await features in stream {
+                    if Task.isCancelled {
+                        break
+                    }
+
+                    audioFeatureBridge.emit(features)
+                }
+            }
+        }
+
+        private func stopAudioFeatureForwarding() {
+            audioFeatureTask?.cancel()
+            audioFeatureTask = nil
+            audioFeatureBridge.emit(.zero)
+        }
+    #endif
+
     private nonisolated static func logStartupTiming(_ payload: String) {
         guard UserDefaults.standard.bool(forKey: MacPreferences.dictationPerfTracingEnabled) else {
             return
@@ -284,3 +341,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         String(format: "%.1f", duration)
     }
 }
+
+#if os(macOS)
+    extension ConfigurableSpeechService: AudioFeatureSource {}
+#endif
