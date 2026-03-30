@@ -59,19 +59,12 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Set Up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
       - name: Install Metal Toolchain
         run: xcodebuild -downloadComponent MetalToolchain
 
       - name: Show Tool Versions
         run: |
           xcodebuild -version
-          node --version
-          npm --version
           gh --version
 
       - name: Import Developer ID Certificate
@@ -206,8 +199,8 @@ jobs:
       - name: Build Release
         run: ./scripts/release-macos-github.sh
 
-      - name: Publish GitHub Release
-        run: ./scripts/publish-github-release.sh
+      # - name: Publish GitHub Release
+      #   run: ./scripts/publish-github-release.sh
 
       - name: Upload Release Artifacts
         if: always()

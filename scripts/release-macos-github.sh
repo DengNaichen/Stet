@@ -62,8 +62,7 @@ NOTARY_SUBMISSION_PLIST="$WORK_DIR/notary-submission.plist"
 NOTARY_LOG_JSON="$WORK_DIR/notary-log.json"
 SPARKLE_DIR="$WORK_DIR/sparkle"
 APP_ENTITLEMENTS="$WORK_DIR/${APP_NAME}.entitlements.plist"
-NPX_BIN="${NPX_BIN:-$(command -v npx || true)}"
-NPM_CACHE_DIR="${NPM_CACHE_DIR:-$WORK_DIR/.npm-cache}"
+DMG_STAGING_DIR="$WORK_DIR/dmg-staging"
 
 find_sparkle_generate_appcast() {
   local candidates=()
@@ -104,12 +103,7 @@ plist_has_key() {
 }
 
 mkdir -p "$WORK_DIR"
-rm -rf "$ARCHIVE_PATH" "$APP_PATH" "$DMG_OUTPUT_DIR" "$SPARKLE_DIR" "$APP_ENTITLEMENTS" "$NPM_CACHE_DIR"
-
-if [[ -z "$NPX_BIN" ]]; then
-  echo "Missing npx in PATH. Install Node.js or set NPX_BIN to a working npx binary."
-  exit 1
-fi
+rm -rf "$ARCHIVE_PATH" "$APP_PATH" "$DMG_OUTPUT_DIR" "$SPARKLE_DIR" "$APP_ENTITLEMENTS" "$DMG_STAGING_DIR"
 
 if ! security find-identity -v -p codesigning | grep -Fq "$DEVELOPER_ID_APPLICATION"; then
   echo "Missing signing identity: $DEVELOPER_ID_APPLICATION"
@@ -229,26 +223,29 @@ codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 echo "Creating release DMG..."
 rm -rf "$DMG_OUTPUT_DIR"
 mkdir -p "$DMG_OUTPUT_DIR"
-NPM_CONFIG_CACHE="$NPM_CACHE_DIR" "$NPX_BIN" --yes create-dmg \
-  --overwrite \
-  --identity "$DEVELOPER_ID_APPLICATION" \
-  --dmg-title "$APP_NAME" \
-  "$APP_PATH" \
-  "$DMG_OUTPUT_DIR"
-
-dmg_matches=("$DMG_OUTPUT_DIR"/*.dmg(N))
-if (( ${#dmg_matches[@]} != 1 )); then
-  echo "Expected exactly one DMG in $DMG_OUTPUT_DIR, found ${#dmg_matches[@]}"
-  exit 1
-fi
-
-FINAL_DMG="${dmg_matches[1]}"
 RELEASE_DMG_NAME="${RELEASE_DMG_NAME:-${APP_NAME}-${GITHUB_TAG}.dmg}"
+FINAL_DMG="$DMG_OUTPUT_DIR/$RELEASE_DMG_NAME"
 
-if [[ "$(basename "$FINAL_DMG")" != "$RELEASE_DMG_NAME" ]]; then
-  mv "$FINAL_DMG" "$DMG_OUTPUT_DIR/$RELEASE_DMG_NAME"
-  FINAL_DMG="$DMG_OUTPUT_DIR/$RELEASE_DMG_NAME"
-fi
+rm -rf "$DMG_STAGING_DIR"
+mkdir -p "$DMG_STAGING_DIR"
+ditto "$APP_PATH" "$DMG_STAGING_DIR/${APP_NAME}.app"
+ln -s /Applications "$DMG_STAGING_DIR/Applications"
+
+hdiutil create \
+  -volname "$APP_NAME" \
+  -srcfolder "$DMG_STAGING_DIR" \
+  -ov \
+  -format UDZO \
+  -fs HFS+ \
+  "$FINAL_DMG"
+
+codesign \
+  --force \
+  --sign "$DEVELOPER_ID_APPLICATION" \
+  --timestamp \
+  "$FINAL_DMG"
+
+codesign --verify --verbose=2 "$FINAL_DMG"
 
 echo "Submitting DMG for notarization..."
 xcrun notarytool submit \

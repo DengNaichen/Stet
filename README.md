@@ -63,12 +63,11 @@ If `Stet Debug` does not appear in System Settings and clicking `Request Access`
 Do not use the same bundle identifier for local Xcode builds and the installed `/Applications/Stet.app`.
 
 - `Debug` uses `NaichengDeng.Stet.Debug`
-- local `./scripts/build-macos-release.sh` now uses `NaichengDeng.Stet.LocalRelease`
 - shipped / notarized Release uses `NaichengDeng.Stet`
 
 Keeping these separate avoids TCC and Launch Services collisions across microphone permission, Accessibility permission, and OAuth callback handling.
 
-If you previously launched a local Release build signed with Apple Development using `NaichengDeng.Stet`, macOS may have stored Accessibility consent for the wrong code requirement. In that case the installed Developer ID app can still show as enabled in System Settings but fail `AXIsProcessTrusted()` at runtime.
+If you previously launched a locally signed build using `NaichengDeng.Stet`, macOS may have stored Accessibility consent for the wrong code requirement. In that case the installed Developer ID app can still show as enabled in System Settings but fail `AXIsProcessTrusted()` at runtime.
 
 ### Onboarding still shows microphone access as blocked after Allow
 
@@ -90,32 +89,22 @@ xcodebuild -project Stet.xcodeproj -scheme Stet -destination 'platform=macOS' te
 
 ## Release
 
-Build a local Release app bundle:
+The engineering release flow for this repository is:
 
-```bash
-./scripts/build-macos-release.sh
-```
+1. Do normal development locally and validate with `npm run mac:build` and `npm run mac:test`.
+2. If you need a release-quality test build, run the `macOS Release Candidate` GitHub Actions workflow with a label such as `v0.0.10-rc1`.
+3. Download the workflow artifact and verify install, launch, permissions, and update-related behavior from the CI-generated DMG.
+4. When ready for a formal release, push a `v*` tag from the release commit on `main`.
+5. Let the `macOS Release` GitHub Actions workflow generate the signed and notarized DMG, plus Sparkle appcast data.
 
-Build the signed and notarized GitHub release artifacts:
+Formal release artifacts are CI-generated only. The release process does not rely on local packaging or local release validation on a developer machine.
 
-```bash
-GITHUB_TAG=v0.0.8 GITHUB_REPOSITORY=DengNaichen/Stet ./scripts/release-macos-github.sh
-GITHUB_TAG=v0.0.8 GITHUB_REPOSITORY=DengNaichen/Stet ./scripts/publish-github-release.sh
-```
+Current repository behavior:
+
+- release-candidate builds on GitHub but does not publish a GitHub Release
+- production release builds on GitHub and prepares release artifacts, but GitHub Release publishing is currently still a separate/manual step because the workflow does not call `scripts/publish-github-release.sh`
 
 Release artifacts are written to `dist/github-release/<tag>/`.
-
-Useful release overrides:
-
-```bash
-# Override archive signing if your local setup needs it
-ARCHIVE_CODE_SIGN_STYLE=Manual
-ARCHIVE_CODE_SIGN_IDENTITY="Developer ID Application"
-ARCHIVE_PROVISIONING_PROFILE_SPECIFIER="Mac Team Provisioning Profile: NaichengDeng.Stet"
-
-# Override Sparkle tool path if auto-discovery misses your local install
-SPARKLE_GENERATE_APPCAST=/absolute/path/to/generate_appcast
-```
 
 ## Documentation
 
