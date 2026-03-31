@@ -7,13 +7,22 @@
     @MainActor
     @Suite("Mac Dictation Capture Coordinator", .serialized)
     struct MacDictationCaptureCoordinatorTests {
+        private func makeCoordinator(
+            clipboard: TestClipboardService,
+            textInjection: TestTextInjectionService,
+            frontmostBundleIdentifier: String? = nil
+        ) -> MacDictationCaptureCoordinator {
+            MacDictationCaptureCoordinator(
+                clipboardService: clipboard,
+                textInjectionService: textInjection,
+                frontmostBundleIdentifierProvider: { frontmostBundleIdentifier }
+            )
+        }
+
         @Test func completedCaptureCopiesTextWithoutAutoPaste() async {
             let clipboard = TestClipboardService()
             let textInjection = TestTextInjectionService()
-            let coordinator = MacDictationCaptureCoordinator(
-                clipboardService: clipboard,
-                textInjectionService: textInjection
-            )
+            let coordinator = makeCoordinator(clipboard: clipboard, textInjection: textInjection)
 
             let outcome = await coordinator.handleCompletedCapture(
                 text: "hello",
@@ -36,10 +45,7 @@
             let clipboard = TestClipboardService()
             let textInjection = TestTextInjectionService()
             textInjection.pasteResult = true
-            let coordinator = MacDictationCaptureCoordinator(
-                clipboardService: clipboard,
-                textInjectionService: textInjection
-            )
+            let coordinator = makeCoordinator(clipboard: clipboard, textInjection: textInjection)
             var revealCount = 0
 
             let outcome = await coordinator.handleCompletedCapture(
@@ -64,10 +70,7 @@
             let clipboard = TestClipboardService()
             let textInjection = TestTextInjectionService()
             textInjection.pasteResult = true
-            let coordinator = MacDictationCaptureCoordinator(
-                clipboardService: clipboard,
-                textInjectionService: textInjection
-            )
+            let coordinator = makeCoordinator(clipboard: clipboard, textInjection: textInjection)
             var revealCount = 0
 
             let outcome = await coordinator.handleCompletedCapture(
@@ -96,10 +99,7 @@
             let textInjection = TestTextInjectionService()
             textInjection.isAvailable = false
             textInjection.pasteResult = false
-            let coordinator = MacDictationCaptureCoordinator(
-                clipboardService: clipboard,
-                textInjectionService: textInjection
-            )
+            let coordinator = makeCoordinator(clipboard: clipboard, textInjection: textInjection)
             var revealCount = 0
 
             let outcome = await coordinator.handleCompletedCapture(
@@ -129,10 +129,7 @@
                 hasPostEventAccess: false
             )
             textInjection.pasteResult = false
-            let coordinator = MacDictationCaptureCoordinator(
-                clipboardService: clipboard,
-                textInjectionService: textInjection
-            )
+            let coordinator = makeCoordinator(clipboard: clipboard, textInjection: textInjection)
             var revealCount = 0
 
             let outcome = await coordinator.handleCompletedCapture(
@@ -156,10 +153,7 @@
         @Test func completedCaptureRevealsPanelWhenAutoPasteDisabled() async {
             let clipboard = TestClipboardService()
             let textInjection = TestTextInjectionService()
-            let coordinator = MacDictationCaptureCoordinator(
-                clipboardService: clipboard,
-                textInjectionService: textInjection
-            )
+            let coordinator = makeCoordinator(clipboard: clipboard, textInjection: textInjection)
             var revealCount = 0
 
             let outcome = await coordinator.handleCompletedCapture(
@@ -182,10 +176,7 @@
         @Test func copyToClipboardCopiesText() {
             let clipboard = TestClipboardService()
             let textInjection = TestTextInjectionService()
-            let coordinator = MacDictationCaptureCoordinator(
-                clipboardService: clipboard,
-                textInjectionService: textInjection
-            )
+            let coordinator = makeCoordinator(clipboard: clipboard, textInjection: textInjection)
 
             coordinator.copyToClipboard("snippet")
 
@@ -197,10 +188,7 @@
             let clipboard = TestClipboardService()
             let textInjection = TestTextInjectionService()
             textInjection.pasteOutcome = .eventPostedVerificationUnavailable
-            let coordinator = MacDictationCaptureCoordinator(
-                clipboardService: clipboard,
-                textInjectionService: textInjection
-            )
+            let coordinator = makeCoordinator(clipboard: clipboard, textInjection: textInjection)
             var revealCount = 0
 
             let outcome = await coordinator.handleCompletedCapture(
@@ -221,13 +209,65 @@
             #expect(revealCount == 0)
         }
 
+        @Test func vsCodeVerificationUnavailableCompletesWithoutFallbackOrPanel() async {
+            let clipboard = TestClipboardService()
+            let textInjection = TestTextInjectionService()
+            textInjection.pasteOutcome = .eventPostedVerificationUnavailable
+            let coordinator = makeCoordinator(
+                clipboard: clipboard,
+                textInjection: textInjection,
+                frontmostBundleIdentifier: "com.microsoft.VSCode"
+            )
+            var revealCount = 0
+
+            let outcome = await coordinator.handleCompletedCapture(
+                text: "hello",
+                targetApplication: nil,
+                settings: .init(
+                    shouldCopyToClipboard: false,
+                    shouldAutoPaste: true,
+                    shouldRevealPanelOnCapture: true
+                ),
+                showPanel: { revealCount += 1 }
+            )
+
+            #expect(outcome == .completed)
+            #expect(clipboard.copiedTexts == ["hello"])
+            #expect(clipboard.transientFlags == [true])
+            #expect(textInjection.pasteTargets.count == 1)
+            #expect(textInjection.didRequestAccessIfNeeded == false)
+            #expect(revealCount == 0)
+        }
+
+        @Test func verificationUnavailableRequestsMissingAccessibilityAccess() async {
+            let clipboard = TestClipboardService()
+            let textInjection = TestTextInjectionService()
+            textInjection.accessState = .init(
+                hasAccessibilityAccess: false,
+                hasPostEventAccess: true
+            )
+            textInjection.pasteOutcome = .eventPostedVerificationUnavailable
+            let coordinator = makeCoordinator(clipboard: clipboard, textInjection: textInjection)
+
+            let outcome = await coordinator.handleCompletedCapture(
+                text: "hello",
+                targetApplication: nil,
+                settings: .init(
+                    shouldCopyToClipboard: false,
+                    shouldAutoPaste: true,
+                    shouldRevealPanelOnCapture: false
+                ),
+                showPanel: {}
+            )
+
+            #expect(outcome == .failed(.pasteVerificationUnavailable))
+            #expect(textInjection.didRequestAccessIfNeeded)
+        }
+
         @Test func completedCaptureSkipsClipboardWhenCopyAndPasteAreDisabled() async {
             let clipboard = TestClipboardService()
             let textInjection = TestTextInjectionService()
-            let coordinator = MacDictationCaptureCoordinator(
-                clipboardService: clipboard,
-                textInjectionService: textInjection
-            )
+            let coordinator = makeCoordinator(clipboard: clipboard, textInjection: textInjection)
 
             let outcome = await coordinator.handleCompletedCapture(
                 text: "hello",
@@ -248,10 +288,7 @@
         @Test func completedCaptureSkipsEmptyText() async {
             let clipboard = TestClipboardService()
             let textInjection = TestTextInjectionService()
-            let coordinator = MacDictationCaptureCoordinator(
-                clipboardService: clipboard,
-                textInjectionService: textInjection
-            )
+            let coordinator = makeCoordinator(clipboard: clipboard, textInjection: textInjection)
 
             let outcome = await coordinator.handleCompletedCapture(
                 text: " \n\t ",

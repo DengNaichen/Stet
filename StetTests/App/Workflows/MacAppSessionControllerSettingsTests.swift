@@ -147,7 +147,8 @@
             let clipboardService = TestClipboardService()
             let captureCoordinator = MacDictationCaptureCoordinator(
                 clipboardService: clipboardService,
-                textInjectionService: textInjectionService
+                textInjectionService: textInjectionService,
+                frontmostBundleIdentifierProvider: { nil }
             )
             let settingsStore = DictationSettingsStore(
                 defaults: defaults,

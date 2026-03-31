@@ -75,6 +75,57 @@
             #expect(outcome == .verifiedSuccess)
         }
 
+        @Test func pasteWaitsForVerifiableBaselineBeforeDeclaringVerificationUnavailable() async {
+            let service = SystemTextInjectionService(clipboardService: TestClipboardService())
+            let beforePaste = Self.makeSnapshot(
+                value: "before",
+                selectionLocation: 6,
+                numberOfCharacters: 6
+            )
+            let afterPaste = Self.makeSnapshot(
+                value: "before hello",
+                selectionLocation: 12,
+                numberOfCharacters: 12
+            )
+            var didSimulatePaste = false
+            var prePasteSnapshots: [SystemTextInjectionService.FocusedElementSnapshot?] = [
+                nil,
+                nil,
+                beforePaste,
+            ]
+            var postPasteSnapshots: [SystemTextInjectionService.FocusedElementSnapshot?] = [
+                afterPaste
+            ]
+
+            let outcome = await service.performPasteClipboard(
+                into: nil,
+                accessState: .init(hasAccessibilityAccess: true, hasPostEventAccess: true),
+                activateApplication: { _ in },
+                snapshotProvider: {
+                    if didSimulatePaste {
+                        guard !postPasteSnapshots.isEmpty else { return afterPaste }
+                        return postPasteSnapshots.removeFirst()
+                    }
+
+                    guard !prePasteSnapshots.isEmpty else { return beforePaste }
+                    return prePasteSnapshots.removeFirst()
+                },
+                simulatePasteCommand: {
+                    didSimulatePaste = true
+                    return true
+                },
+                sleep: { _ in },
+                activationDelay: .milliseconds(0),
+                prePasteDelay: .milliseconds(0),
+                verificationBaselinePollInterval: .milliseconds(0),
+                verificationBaselineAttempts: 3,
+                verificationPollInterval: .milliseconds(0),
+                verificationAttempts: 1
+            )
+
+            #expect(outcome == .verifiedSuccess)
+        }
+
         private static func makeSnapshot(
             value: String?,
             selectionLocation: Int,

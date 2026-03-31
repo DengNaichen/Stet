@@ -699,8 +699,25 @@
                     )
                 }
 
-                guard !Task.isCancelled else { return }
-                guard case .result = dictationState else { return }
+                guard !Task.isCancelled else {
+                    AppLogger.info(
+                        "OutputTrace stage=session_result_mapping_skipped reason=task_cancelled outcome=\(completionOutcomeLabel(outcome))",
+                        category: .perfTrace
+                    )
+                    return
+                }
+                guard case .result = dictationState else {
+                    AppLogger.info(
+                        "OutputTrace stage=session_result_mapping_skipped reason=state_changed currentState=\(stateLabel(dictationState)) outcome=\(completionOutcomeLabel(outcome))",
+                        category: .perfTrace
+                    )
+                    return
+                }
+
+                AppLogger.info(
+                    "OutputTrace stage=session_result_mapping_apply outcome=\(completionOutcomeLabel(outcome)) recoveredTextPreserved=\(recoveredTextPreserved) panelVisible=\(isPanelVisible)",
+                    category: .perfTrace
+                )
 
                 switch outcome {
                 case .completed:
@@ -967,6 +984,34 @@
                 return "clipboardPending"
             case .error:
                 return "error"
+            }
+        }
+
+        private func completionOutcomeLabel(
+            _ outcome: MacDictationCaptureCoordinator.CompletionOutcome
+        ) -> String {
+            switch outcome {
+            case .completed:
+                return "completed"
+            case .clipboardPending:
+                return "clipboardPending"
+            case .failed(let failure):
+                return "failed:\(failureLabel(failure))"
+            }
+        }
+
+        private func failureLabel(_ failure: DictationFailure) -> String {
+            switch failure {
+            case .clipboardWriteFailed:
+                return "clipboardWriteFailed"
+            case .autoPastePermissionMissing:
+                return "autoPastePermissionMissing"
+            case .pasteVerificationUnavailable:
+                return "pasteVerificationUnavailable"
+            case .pasteVerificationFailed:
+                return "pasteVerificationFailed"
+            default:
+                return "other"
             }
         }
 
