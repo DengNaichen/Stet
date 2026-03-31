@@ -216,7 +216,8 @@
 
         private var liveSignalSummary: String {
             let summary = resolvedSignals.estimatedSummary
-            return "level=\(summary.level.formatted(.number.precision(.fractionLength(2)))) flow=(\(summary.flowX.formatted(.number.precision(.fractionLength(2)))), \(summary.flowY.formatted(.number.precision(.fractionLength(2)))))"
+            return
+                "level=\(summary.level.formatted(.number.precision(.fractionLength(2)))) flow=(\(summary.flowX.formatted(.number.precision(.fractionLength(2)))), \(summary.flowY.formatted(.number.precision(.fractionLength(2)))))"
         }
 
         private var exportDescription: String {
