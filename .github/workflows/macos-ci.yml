@@ -6,9 +6,7 @@ on:
       - ".github/workflows/macos-ci.yml"
       - ".swift-format"
       - ".swiftlint.yml"
-      - "package.json"
       - "Info.plist"
-      - ".kiro/**"
       - "Stet.xcodeproj/**"
       - "Stet/**"
       - "StetTests/**"
@@ -21,9 +19,7 @@ on:
       - ".github/workflows/macos-ci.yml"
       - ".swift-format"
       - ".swiftlint.yml"
-      - "package.json"
       - "Info.plist"
-      - ".kiro/**"
       - "Stet.xcodeproj/**"
       - "Stet/**"
       - "StetTests/**"
@@ -46,7 +42,7 @@ jobs:
         run: brew install swiftlint
 
       - name: Run SwiftLint
-        run: npm run mac:lint
+        run: make swiftlint
 
   swift-format:
     name: Swift Format
@@ -60,7 +56,7 @@ jobs:
           xcode-version: latest-stable
 
       - name: Run Swift Format Lint
-        run: npm run mac:format:lint
+        run: make format-lint
 
   macos-build:
     name: macOS Build
@@ -80,7 +76,7 @@ jobs:
         run: xcodebuild -version
 
       - name: Build macOS app
-        run: npm run mac:ci:build
+        run: make ci-build
 
   macos-tests:
     name: macOS Tests
@@ -100,4 +96,4 @@ jobs:
         run: xcodebuild -version
 
       - name: Run macOS tests
-        run: npm run mac:test
+        run: make test

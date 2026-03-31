@@ -43,7 +43,6 @@ jobs:
       GITHUB_TOKEN: ${{ github.token }}
       NOTARY_PROFILE: stet-notary
       SPARKLE_APPCAST_URL: ${{ vars.SPARKLE_APPCAST_URL }}
-      SPARKLE_FEED_BASE_URL: ${{ vars.SPARKLE_FEED_BASE_URL }}
       SPARKLE_PRIVATE_KEY_BASE64: ${{ secrets.SPARKLE_PRIVATE_KEY_BASE64 }}
       SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
 
@@ -199,8 +198,8 @@ jobs:
       - name: Build Release
         run: ./scripts/release-macos-github.sh
 
-      # - name: Publish GitHub Release
-      #   run: ./scripts/publish-github-release.sh
+      - name: Publish GitHub Release
+        run: ./scripts/publish-github-release.sh
 
       - name: Upload Release Artifacts
         if: always()

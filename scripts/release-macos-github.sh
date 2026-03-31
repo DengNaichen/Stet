@@ -46,7 +46,7 @@ ARCHIVE_CODE_SIGN_IDENTITY="${ARCHIVE_CODE_SIGN_IDENTITY:-$DEVELOPER_ID_APPLICAT
 ARCHIVE_PROVISIONING_PROFILE_SPECIFIER="${ARCHIVE_PROVISIONING_PROFILE_SPECIFIER:-}"
 GENERATE_SPARKLE_APPCAST="${GENERATE_SPARKLE_APPCAST:-1}"
 SPARKLE_KEYCHAIN_ACCOUNT="${SPARKLE_KEYCHAIN_ACCOUNT:-ed25519}"
-SPARKLE_FEED_BASE_URL="${SPARKLE_FEED_BASE_URL:-https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_TAG}/}"
+SPARKLE_FEED_BASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_TAG}/"
 RELEASES_PAGE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_TAG}"
 
 if [[ "$GENERATE_SPARKLE_APPCAST" == "1" ]]; then
@@ -217,6 +217,35 @@ BUILD="$(
   /usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleVersion' "$ARCHIVE_PATH/Info.plist"
 )"
 RELEASE_BASENAME="${APP_NAME}-${VERSION}-${BUILD}-mac"
+EXPECTED_TAG_PREFIX="v${VERSION}"
+EXPECTED_BUILD="${VERSION##*.}"
+
+if [[ "$GITHUB_TAG" != "$EXPECTED_TAG_PREFIX" && "$GITHUB_TAG" != ${EXPECTED_TAG_PREFIX}-* ]]; then
+  cat <<EOF
+Release tag does not match the archived app version.
+
+Expected tag: ${EXPECTED_TAG_PREFIX} or ${EXPECTED_TAG_PREFIX}-<suffix>
+Actual tag:   ${GITHUB_TAG}
+App version:  ${VERSION}
+App build:    ${BUILD}
+
+Update MARKETING_VERSION before running the release workflow.
+EOF
+  exit 1
+fi
+
+if [[ "$BUILD" != "$EXPECTED_BUILD" ]]; then
+  cat <<EOF
+Release build number does not match the app version.
+
+Expected CURRENT_PROJECT_VERSION: ${EXPECTED_BUILD}
+Actual CURRENT_PROJECT_VERSION:   ${BUILD}
+App version:                      ${VERSION}
+
+Update CURRENT_PROJECT_VERSION before running the release workflow.
+EOF
+  exit 1
+fi
 
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
