@@ -9,26 +9,11 @@
             case hotkey
         }
 
-        enum CaptureWorkflow: Equatable {
-            case dictation
-            case rewriteFromSelection(sourceText: String)
-
-            var isSelectionReplacement: Bool {
-                switch self {
-                case .rewriteFromSelection:
-                    return true
-                case .dictation:
-                    return false
-                }
-            }
-        }
-
         typealias CompletionOutcome = MacDictationCaptureCoordinator.CompletionOutcome
 
         let dictationViewModel: DictationViewModel
 
         private let captureCoordinator: MacDictationCaptureCoordinator
-        private let textInjectionService: any TextInjectionService
         private let mediaPlaybackController: any MediaPlaybackControlling
         private let systemAudioMuting: (any SystemAudioMuting)?
         private let settingsStore: DictationSettingsStore
@@ -38,14 +23,12 @@
 
         private weak var lastTargetApplication: NSRunningApplication?
         private(set) var activeRecordingSource: PrimaryActionSource?
-        private(set) var activeWorkflow: CaptureWorkflow = .dictation
         private var mediaResumeTask: Task<Void, Never>?
         private var startActivationTask: Task<Void, Never>?
 
         init(
             dictationViewModel: DictationViewModel,
             captureCoordinator: MacDictationCaptureCoordinator,
-            textInjectionService: any TextInjectionService,
             mediaPlaybackController: any MediaPlaybackControlling,
             systemAudioMuting: (any SystemAudioMuting)? = nil,
             settingsStore: DictationSettingsStore,
@@ -55,7 +38,6 @@
         ) {
             self.dictationViewModel = dictationViewModel
             self.captureCoordinator = captureCoordinator
-            self.textInjectionService = textInjectionService
             self.mediaPlaybackController = mediaPlaybackController
             self.systemAudioMuting = systemAudioMuting
             self.settingsStore = settingsStore
@@ -78,40 +60,15 @@
             case .idle:
                 return "Ready"
             case .starting:
-                switch activeWorkflow {
-                case .rewriteFromSelection:
-                    return "Preparing rewrite capture..."
-                case .dictation:
-                    return "Starting microphone..."
-                }
+                return "Starting microphone..."
             case .listening:
-                switch activeWorkflow {
-                case .rewriteFromSelection:
-                    return "Listening for rewrite instructions..."
-                case .dictation:
-                    return "Listening..."
-                }
+                return "Listening..."
             case .processing:
-                switch activeWorkflow {
-                case .rewriteFromSelection:
-                    return "Rewriting selected text..."
-                case .dictation:
-                    return "Processing..."
-                }
+                return "Processing..."
             case .result:
-                switch activeWorkflow {
-                case .rewriteFromSelection:
-                    return "Rewrite complete"
-                case .dictation:
-                    return "Transcription complete"
-                }
+                return "Transcription complete"
             case .clipboardPending:
-                switch activeWorkflow {
-                case .rewriteFromSelection:
-                    return "Copy rewritten text"
-                case .dictation:
-                    return "Copy to clipboard"
-                }
+                return "Copy to clipboard"
             case .error(let failure):
                 return failure.statusText
             }
@@ -119,14 +76,6 @@
 
         var processingStatusText: String {
             let providerName = settingsSnapshot.provider.displayName
-
-            switch activeWorkflow {
-            case .rewriteFromSelection:
-                return "Rewriting selected text with \(providerName)..."
-            case .dictation:
-                break
-            }
-
             return "Transcribing with \(providerName) and rewriting..."
         }
 
@@ -139,7 +88,6 @@
                 await DictationRuntimeProbe.shared.markAction("startDictationCapture")
             }
             refreshTargetApplication(allowingCurrentAppTarget: allowCurrentAppTarget)
-            activeWorkflow = .dictation
             activeRecordingSource = source
             mediaResumeTask?.cancel()
             mediaResumeTask = nil
@@ -210,7 +158,6 @@
 
         func resetWorkflowIfNeeded() {
             guard activeRecordingSource == nil else { return }
-            activeWorkflow = .dictation
         }
 
         func prewarm() async {
@@ -219,18 +166,14 @@
 
         func handleCompletedResult(
             text: String,
-            workflow: CaptureWorkflow,
             showTransientPanel: @escaping @MainActor () -> Void
         ) async -> CompletionOutcome {
             Task {
-                await DictationRuntimeProbe.shared.markAction("handleCompletedResult workflow=\(workflow)")
+                await DictationRuntimeProbe.shared.markAction("handleCompletedResult")
             }
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 await DictationLatencyProbe.shared.record(.systemWriteSkipped, note: "empty_text")
                 return .failed(.emptyTranscription)
-            }
-            if workflow.isSelectionReplacement {
-                return await handleSelectedTextReplacementResult(text: text, showTransientPanel: showTransientPanel)
             }
 
             return await captureCoordinator.handleCompletedCapture(
@@ -246,71 +189,6 @@
                 await DictationRuntimeProbe.shared.markAction("copyPendingResultToClipboard")
             }
             return captureCoordinator.copyToClipboard(text)
-        }
-
-        private func handleSelectedTextReplacementResult(
-            text: String,
-            showTransientPanel: @escaping @MainActor () -> Void
-        ) async -> CompletionOutcome {
-            let keepResultInClipboard = captureSettings.shouldCopyToClipboard
-            let replacementOutcome = await textInjectionService.replaceSelectedText(
-                text,
-                into: lastTargetApplication,
-                keepResultInClipboard: keepResultInClipboard
-            )
-
-            if replacementOutcome == .replaced {
-                await DictationLatencyProbe.shared.record(.systemWriteCompleted)
-                return .completed
-            } else {
-                await DictationLatencyProbe.shared.record(.systemWriteFailed, note: "replace_selected_text_failed")
-            }
-
-            switch replacementOutcome {
-            case .replaced:
-                return .completed
-
-            case .clipboardWriteFailed:
-                return .failed(.clipboardWriteFailed)
-
-            case .injectionFailed(let injectionOutcome):
-                if injectionOutcome == .eventPostFailed && !textInjectionService.isAvailable {
-                    textInjectionService.requestAccessIfNeeded()
-
-                    if !keepResultInClipboard {
-                        let clipboardSuccess = captureCoordinator.copyToClipboard(text)
-                        if !clipboardSuccess {
-                            return .failed(.clipboardWriteFailed)
-                        }
-                    }
-
-                    if captureSettings.shouldRevealPanelOnCapture {
-                        showTransientPanel()
-                    }
-
-                    return .failed(.autoPastePermissionMissing)
-                }
-
-                if !keepResultInClipboard {
-                    let clipboardSuccess = captureCoordinator.copyToClipboard(text)
-                    if !clipboardSuccess {
-                        return .failed(.clipboardWriteFailed)
-                    }
-                }
-
-                if captureSettings.shouldRevealPanelOnCapture {
-                    showTransientPanel()
-                }
-
-                switch injectionOutcome {
-                case .eventPostedVerificationUnavailable:
-                    return .failed(.pasteVerificationUnavailable)
-                case .verificationFailed, .eventPostFailed:
-                    return .failed(.pasteVerificationFailed)
-                case .verifiedSuccess:
-                    return .completed
-                }
-            }
         }
 
         private func refreshTargetApplication(allowingCurrentAppTarget: Bool) {

@@ -344,7 +344,6 @@ struct LogicPrimitiveTests {
 
     @Test func localRewritePromptBuilderBuildsHumanCleanupPrompt() {
         let prompt = LocalRewritePromptBuilder.systemPrompt(
-            for: .dictationCleanup,
             audience: .human,
             preferredSpellings: ["OpenAI"]
         )
@@ -358,7 +357,6 @@ struct LogicPrimitiveTests {
 
     @Test func localRewritePromptBuilderBuildsAICleanupPrompt() {
         let prompt = LocalRewritePromptBuilder.systemPrompt(
-            for: .dictationCleanup,
             audience: .ai
         )
 
@@ -388,27 +386,14 @@ struct LogicPrimitiveTests {
         #expect(request.additionalUserContext == "Preserve mixed Chinese and English.")
     }
 
-    @Test func textRewriteRequestSelectionRewriteBuildsAudienceSpecificPrompts() {
-        let humanRequest = TextRewriteRequest.rewriteSelection(
-            sourceText: "hello world",
-            instruction: "Make it concise",
-            audience: .human
-        )
-        let aiRequest = TextRewriteRequest.rewriteSelection(
-            sourceText: "hello world",
-            instruction: "Make it concise",
-            audience: .ai,
-            preferredSpellings: ["Cursor"]
+    @Test func textRewriteRequestCleanupDefaultsNilAudienceToHumanPrompt() {
+        let request = TextRewriteRequest.cleanup(
+            "raw transcript",
+            preferredSpellings: ["Groq"]
         )
 
-        #expect(humanRequest.systemPrompt?.contains("smallest edits needed") == true)
-        #expect(humanRequest.systemPrompt?.contains("appropriate punctuation and capitalization") == true)
-        #expect(aiRequest.systemPrompt?.contains("AI or coding context") == true)
-        #expect(aiRequest.systemPrompt?.contains("clean, efficient written text") == true)
-        #expect(aiRequest.systemPrompt?.contains("Normalize spoken or fragmented phrasing") == true)
-        #expect(aiRequest.systemPrompt?.contains("simple numbering") == true)
-        #expect(aiRequest.systemPrompt?.contains("Do not add a title.") == true)
-        #expect(aiRequest.systemPrompt?.contains("Cursor") == true)
+        #expect(request.systemPrompt?.contains("IMPORTANT: You are a text cleanup tool.") == true)
+        #expect(request.systemPrompt?.contains("Groq") == true)
     }
 
     @Test func makeTranscriptionPromptIncludesPreferredSpellings() throws {

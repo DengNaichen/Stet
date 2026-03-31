@@ -680,12 +680,10 @@
         private func handleResultLifecycle(for state: DictationState) {
             guard case .result(let text) = state else { return }
 
-            let completedWorkflow = workflowController.activeWorkflow
             completionHandlingTask = Task { @MainActor [weak self] in
                 guard let self else { return }
                 let outcome = await workflowController.handleCompletedResult(
                     text: text,
-                    workflow: completedWorkflow,
                     showTransientPanel: showTransientPanel
                 )
                 let recoveredTextPreserved =

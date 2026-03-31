@@ -323,9 +323,9 @@ struct OpenAITests {
         )
 
         let text = try await service.rewrite(
-            .rewriteSelection(
-                sourceText: "hello",
-                instruction: "Make it concise",
+            .cleanup(
+                "hello",
+                audience: .human,
                 preferredSpellings: ["OpenAI"]
             )
         )
@@ -348,7 +348,7 @@ struct OpenAITests {
         )
 
         await #expect(throws: OpenAIError.api(provider: .openAI, statusCode: 401, message: "bad key")) {
-            try await service.rewrite(.rewriteSelection(sourceText: "hello", instruction: "Make it concise"))
+            try await service.rewrite(.cleanup("hello"))
         }
     }
 
@@ -416,10 +416,7 @@ struct OpenAITests {
         )
 
         let text = try await service.rewrite(
-            .rewriteSelection(
-                sourceText: "hello",
-                instruction: "Make it concise"
-            )
+            .cleanup("hello")
         )
 
         #expect(text == "recovered rewrite")

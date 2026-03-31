@@ -56,7 +56,6 @@
             let workflowController = MacDictationWorkflowController(
                 dictationViewModel: DictationViewModel(speechService: speechService),
                 captureCoordinator: captureCoordinator,
-                textInjectionService: textInjectionService,
                 mediaPlaybackController: mediaPlaybackController,
                 systemAudioMuting: systemAudioMuting,
                 settingsStore: settingsStore,
