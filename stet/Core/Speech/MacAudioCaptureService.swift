@@ -45,9 +45,9 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     }
 
     #if os(macOS)
-    func makeAudioFeatureStream() async -> AsyncStream<MacDictationCapsuleVisualSignals> {
-        audioFeatureBridge.makeStream()
-    }
+        func makeAudioFeatureStream() async -> AsyncStream<MacDictationCapsuleVisualSignals> {
+            audioFeatureBridge.makeStream()
+        }
     #endif
 
     func startRecording() async throws {
@@ -289,7 +289,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             isRecording = true
             audioLevelBridge.emit(0.08)
             #if os(macOS)
-            audioFeatureBridge.emit(.zero)
+                audioFeatureBridge.emit(.zero)
             #endif
 
             if let selectedInputDevice {
@@ -360,7 +360,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         // the current UI honest without tearing down the stream permanently.
         audioLevelBridge.emit(0)
         #if os(macOS)
-        audioFeatureBridge.emit(.zero)
+            audioFeatureBridge.emit(.zero)
         #endif
     }
 
