@@ -110,7 +110,7 @@ Rationale: The root `research.md` is useful source material, but it is broader a
 
 Source material incorporated:
 
-- Root-level model comparison and cost/latency findings from `/Users/nd/Developer/stet-project/Stet/research.md`
+- Root-level model comparison and cost/latency findings from `/research.md`
 - Current provider defaults in `Stet/Core/AIProviders/OpenAICompatible/OpenAICompatibleProviderConfiguration.swift`
 
 Alternatives considered:

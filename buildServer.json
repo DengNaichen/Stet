@@ -12,8 +12,8 @@
 	"argv": [
 		"/opt/homebrew/bin/xcode-build-server"
 	],
-	"workspace": "/Users/nd/Developer/stet-project/Stet/Stet.xcodeproj/project.xcworkspace",
-	"build_root": "/Users/nd/Library/Developer/Xcode/DerivedData/Stet-bobrrrjgsckrogdxzvehrkjgwumr",
+	"workspace": "Stet.xcodeproj/project.xcworkspace",
+	"build_root": ".derivedData/vscode",
 	"scheme": "Stet",
 	"kind": "xcode"
 }
