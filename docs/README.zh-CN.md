@@ -35,7 +35,7 @@ Stet 会录音、转写，并且可以把结果直接粘贴回当前应用，或
 也可以直接从仓库根目录构建：
 
 ```bash
-npm run mac:build
+make build
 ```
 
 或者直接使用 `xcodebuild`：
@@ -93,7 +93,7 @@ xcodebuild -project Stet.xcodeproj -scheme Stet -destination 'platform=macOS' te
 
 正式流程是：
 
-1. 本地完成开发，并用 `npm run mac:build`、`npm run mac:test` 做常规验证。
+1. 本地完成开发，并用 `make build`、`make test` 做常规验证。
 2. 需要候选发布时，手动运行 `macOS Release Candidate`。
 3. 从 GitHub Actions 下载 DMG artifact 做发布前验证。
 4. 正式发布时，从 `main` 对应 commit 推送 `v*` tag，让 `macOS Release` 生成签名、公证后的正式产物。

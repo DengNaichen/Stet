@@ -201,14 +201,40 @@ jobs:
       - name: Publish GitHub Release
         run: ./scripts/publish-github-release.sh
 
+      - name: Prepare Release Artifact Payload
+        run: |
+          RELEASE_DIR="dist/github-release/${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}"
+          ARTIFACT_DIR="$RUNNER_TEMP/macos-release-${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}"
+
+          rm -rf "$ARTIFACT_DIR"
+          mkdir -p "$ARTIFACT_DIR"
+
+          if ! compgen -G "$RELEASE_DIR/dmg/*.dmg" >/dev/null; then
+            echo "Expected DMG artifact was not found in $RELEASE_DIR/dmg"
+            exit 1
+          fi
+
+          cp "$RELEASE_DIR"/dmg/*.dmg "$ARTIFACT_DIR"/
+
+          for optional_file in \
+            "$RELEASE_DIR/sparkle/appcast.xml" \
+            "$RELEASE_DIR/notary-submission.plist" \
+            "$RELEASE_DIR/notary-log.json"; do
+            if [[ -f "$optional_file" ]]; then
+              cp "$optional_file" "$ARTIFACT_DIR"/
+            fi
+          done
+
+          echo "RELEASE_ARTIFACT_DIR=$ARTIFACT_DIR" >> "$GITHUB_ENV"
+
       - name: Upload Release Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: macos-release-${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
-          path: |
-            dist/github-release/${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+          path: ${{ env.RELEASE_ARTIFACT_DIR }}
           if-no-files-found: warn
+          compression-level: 0
           retention-days: 30
 
       - name: Clean Up Temporary Keychain

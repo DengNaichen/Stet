@@ -35,7 +35,7 @@ Open `Stet.xcodeproj` in Xcode, let Swift Package dependencies resolve, then run
 Or build from the repository root:
 
 ```bash
-npm run mac:build
+make build
 ```
 
 Or call `xcodebuild` directly:
@@ -91,7 +91,7 @@ xcodebuild -project Stet.xcodeproj -scheme Stet -destination 'platform=macOS' te
 
 The engineering release flow for this repository is:
 
-1. Do normal development locally and validate with `npm run mac:build` and `npm run mac:test`.
+1. Do normal development locally and validate with `make build` and `make test`.
 2. If you need a release-quality test build, run the `macOS Release Candidate` GitHub Actions workflow with a label such as `v0.0.10-rc1`.
 3. Download the workflow artifact and verify install, launch, permissions, and update-related behavior from the CI-generated DMG.
 4. When ready for a formal release, push a `v*` tag from the release commit on `main`.
