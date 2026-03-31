@@ -251,8 +251,8 @@ fragment float4 audioReactiveOrbFragment(
     float2 flow = float2(summary.flowX, summary.flowY);
     float4 bands = summary.groupedBands;
 
-    float motionMix = 0.12 + 0.88 * level;
-    float tilt = sin(uniforms.time * (0.45 + 0.9 * motionMix) + bands.z * 2.4) * (0.05 + 0.34 * level) + flow.x * 0.66;
+    float motionMix = level;
+    float tilt = flow.x * (0.66 + 0.22 * level) + (bands.z - bands.x) * 0.08;
     float basinCurve = 0.15 + 0.08 * bands.x;
     float surfaceHeight = -0.24 + p.x * tilt - abs(p.x * p.x) * basinCurve + flow.y * 0.48;
     float depth = p.y - surfaceHeight;

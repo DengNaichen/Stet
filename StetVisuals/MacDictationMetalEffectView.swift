@@ -164,10 +164,14 @@
             guard let commandQueue = device.makeCommandQueue(),
                 let library = try? device.makeDefaultLibrary(bundle: Self.shaderBundle),
                 let renderPipeline = Self.makeRenderPipeline(device: device, library: library, view: view),
-                let splatPipeline = Self.makeComputePipeline(device: device, library: library, name: "audioFieldSplatKernel"),
-                let blurPipeline = Self.makeComputePipeline(device: device, library: library, name: "audioFieldBlurKernel"),
-                let gradientPipeline = Self.makeComputePipeline(device: device, library: library, name: "audioFieldGradientKernel"),
-                let summaryPipeline = Self.makeComputePipeline(device: device, library: library, name: "audioFieldSummaryKernel"),
+                let splatPipeline = Self.makeComputePipeline(
+                    device: device, library: library, name: "audioFieldSplatKernel"),
+                let blurPipeline = Self.makeComputePipeline(
+                    device: device, library: library, name: "audioFieldBlurKernel"),
+                let gradientPipeline = Self.makeComputePipeline(
+                    device: device, library: library, name: "audioFieldGradientKernel"),
+                let summaryPipeline = Self.makeComputePipeline(
+                    device: device, library: library, name: "audioFieldSummaryKernel"),
                 let featureBuffer = device.makeBuffer(
                     length: MemoryLayout<AudioBandFeatureGPU>.stride * MacDictationCapsuleVisualSignals.bandCount,
                     options: .storageModeShared
@@ -229,6 +233,9 @@
                 accumulatedPauseDuration = 0
                 pauseStartedAt = nil
                 pausedElapsed = 0
+                summaryBufferIndex = 0
+                memset(summaryBuffers[0].contents(), 0, MemoryLayout<AudioFieldSummaryGPU>.stride)
+                memset(summaryBuffers[1].contents(), 0, MemoryLayout<AudioFieldSummaryGPU>.stride)
             }
 
             if configuration.isPaused, !previousPaused {
@@ -354,7 +361,8 @@
             encoder.setBuffer(computeUniformBuffer, offset: 0, index: 1)
             encoder.setBuffer(previousSummaryBuffer, offset: 0, index: 2)
             encoder.setBuffer(currentSummaryBuffer, offset: 0, index: 3)
-            encoder.dispatchThreads(MTLSize(width: 1, height: 1, depth: 1), threadsPerThreadgroup: MTLSize(width: 1, height: 1, depth: 1))
+            encoder.dispatchThreads(
+                MTLSize(width: 1, height: 1, depth: 1), threadsPerThreadgroup: MTLSize(width: 1, height: 1, depth: 1))
         }
 
         private func dispatch2D(pipeline: MTLComputePipelineState, encoder: MTLComputeCommandEncoder) {
@@ -365,14 +373,19 @@
             )
             let threads = MTLSize(
                 width: min(pipeline.threadExecutionWidth, MacDictationAudioFieldConstants.fieldGridSize),
-                height: max(1, min(pipeline.maxTotalThreadsPerThreadgroup / max(pipeline.threadExecutionWidth, 1), MacDictationAudioFieldConstants.fieldGridSize)),
+                height: max(
+                    1,
+                    min(
+                        pipeline.maxTotalThreadsPerThreadgroup / max(pipeline.threadExecutionWidth, 1),
+                        MacDictationAudioFieldConstants.fieldGridSize)),
                 depth: 1
             )
             encoder.dispatchThreads(size, threadsPerThreadgroup: threads)
         }
 
         private func currentElapsed(now: Date) -> TimeInterval {
-            let pauseDuration = accumulatedPauseDuration
+            let pauseDuration =
+                accumulatedPauseDuration
                 + (configuration.isPaused ? now.timeIntervalSince(pauseStartedAt ?? now) : 0)
             return max(0, now.timeIntervalSince(configuration.startDate) - pauseDuration)
         }
