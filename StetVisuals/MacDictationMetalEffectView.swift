@@ -28,7 +28,7 @@
         var fieldGain: Float = 1
         var fieldBlurSigma: Float = MacDictationAudioFieldConstants.fieldBlurSigma
         var gradientBlurSigma: Float = MacDictationAudioFieldConstants.gradientBlurSigma
-        var motionGain: Float = 1
+        var motionGain: Float = 10
 
         func makeCoordinator() -> Coordinator {
             Coordinator()
@@ -152,7 +152,7 @@
             fieldGain: 1,
             fieldBlurSigma: MacDictationAudioFieldConstants.fieldBlurSigma,
             gradientBlurSigma: MacDictationAudioFieldConstants.gradientBlurSigma,
-            motionGain: 1
+            motionGain: 10
         )
         private var lastKnownStartDate = Date.distantPast
         private var accumulatedPauseDuration: TimeInterval = 0
