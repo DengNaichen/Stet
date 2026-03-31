@@ -30,6 +30,20 @@
             model.controlHeight * 0.6
         }
 
+        private var collapsedOrbOffset: CGFloat {
+            (model.mainWidth * 0.5)
+                + MacDictationCapsuleVisualTuning.orbSpacing
+                + (model.controlHeight * 0.5)
+        }
+
+        private var hiddenLeftOrbOffset: CGFloat {
+            model.shouldShowPanel ? collapsedOrbOffset : MacDictationCapsuleVisualTuning.orbTravelDistance
+        }
+
+        private var hiddenRightOrbOffset: CGFloat {
+            model.shouldShowPanel ? -collapsedOrbOffset : -MacDictationCapsuleVisualTuning.orbTravelDistance
+        }
+
         public init(
             model: MacDictationCapsuleVisualModel,
             actions: MacDictationCapsuleVisualActions
@@ -53,7 +67,7 @@
                             .glassEffect(.regular.tint(nil))
                             .glassEffectID("cancel", in: glassNamespace)
                             .opacity(isPanelShown && showOrbs ? 1 : 0)
-                            .offset(x: isPanelShown && showOrbs ? 0 : MacDictationCapsuleVisualTuning.orbTravelDistance)
+                            .offset(x: isPanelShown && showOrbs ? 0 : hiddenLeftOrbOffset)
                             .scaleEffect(isPanelShown && showOrbs ? 1 : MacDictationCapsuleVisualTuning.orbHiddenScale)
                             .allowsHitTesting(isPanelShown && showOrbs)
 
@@ -72,9 +86,7 @@
                             .glassEffect(.regular.tint(nil))
                             .glassEffectID("done", in: glassNamespace)
                             .opacity(isPanelShown && showOrbs ? 1 : 0)
-                            .offset(
-                                x: isPanelShown && showOrbs ? 0 : -MacDictationCapsuleVisualTuning.orbTravelDistance
-                            )
+                            .offset(x: isPanelShown && showOrbs ? 0 : hiddenRightOrbOffset)
                             .scaleEffect(isPanelShown && showOrbs ? 1 : MacDictationCapsuleVisualTuning.orbHiddenScale)
                             .allowsHitTesting(isPanelShown && showOrbs)
                         }

@@ -242,6 +242,7 @@ fragment float4 audioReactiveOrbFragment(
     constant AudioFieldSummaryGPU& summary [[buffer(1)]]
 ) {
     float2 p = in.uv * 2.0 - 1.0;
+    p *= 1.08;
     float3 colCottonFoam = uniforms.cottonFoam;
     float3 colWaveTop = uniforms.waveTop;
     float3 colDeepSea = uniforms.deepSea;
