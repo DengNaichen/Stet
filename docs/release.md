@@ -35,11 +35,13 @@ Release validation:
 
 1. If needed, run `macOS Release Candidate` manually from GitHub Actions.
 2. Use a test label such as `v0.0.10-rc1`.
+   Before running it, update `Stet.xcodeproj/project.pbxproj` so `MARKETING_VERSION` matches the release version and `CURRENT_PROJECT_VERSION` matches the build number. For example, `v0.0.12-rc1` requires `MARKETING_VERSION = 0.0.12` and `CURRENT_PROJECT_VERSION = 12`.
 3. Confirm signing, notarization, DMG generation, and artifact upload all succeed.
 
 Formal release:
 
 1. Update app version and build number in the project.
+   Edit `Stet.xcodeproj/project.pbxproj`, not `Info.plist`. `Info.plist` reads `$(MARKETING_VERSION)` and `$(CURRENT_PROJECT_VERSION)` from the project build settings.
 2. Ensure `main` contains the release commit.
 3. Push a tag such as `v0.0.10`.
 4. GitHub Actions runs `macOS Release`.
