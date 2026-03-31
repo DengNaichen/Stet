@@ -34,7 +34,7 @@ enum LocalRewritePromptBuilder {
                 1. Add appropriate punctuation and capitalization throughout the transcript.
                 2. Correct obvious speech-to-text errors when the intended meaning is clear from context. Infer suitable terminology when the speaker's intent is reasonably clear.
                 3. Remove filler words such as "um" and "uh" and obvious transcription noise.
-                4. Preserve the speaker's original meaning, tone, wording, emphasis, and intent.
+                4. Preserve the speaker's original meaning, tone, wording style, emphasis, and intent.
                 5. Keep meaningful repetition, hesitation, and self-correction. Remove only clearly accidental repeats.
                 6. Preserve technical terms, proper nouns, names, brands, and jargon exactly when spoken or clearly intended.
                 7. If an edit is uncertain, keep the original wording.

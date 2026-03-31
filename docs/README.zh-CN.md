@@ -63,12 +63,11 @@ xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destinatio
 不要让本地 Xcode 构建和 `/Applications/Stet.app` 共用同一个 bundle identifier。
 
 - `Debug` 使用 `NaichengDeng.Stet.Debug`
-- 本地 `./scripts/build-macos-release.sh` 现在使用 `NaichengDeng.Stet.LocalRelease`
 - 正式分发 / 公证后的 Release 使用 `NaichengDeng.Stet`
 
 把两者分开可以避免麦克风权限、辅助功能权限和 OAuth 回调在 TCC / Launch Services 里互相污染。
 
-如果你之前启动过一个用 Apple Development 签名、但 bundle id 仍然是 `NaichengDeng.Stet` 的本地 Release，macOS 可能已经把辅助功能授权绑定到了错误的代码需求上。这样系统设置里看起来像是“已经允许”，但运行时 `AXIsProcessTrusted()` 仍然会失败。
+如果你之前启动过一个用 Apple Development 签名、但 bundle id 仍然是 `NaichengDeng.Stet` 的本地构建，macOS 可能已经把辅助功能授权绑定到了错误的代码需求上。这样系统设置里看起来像是“已经允许”，但运行时 `AXIsProcessTrusted()` 仍然会失败。
 
 ### 已经 Allow，但 onboarding 仍然显示麦克风未通过
 
@@ -90,22 +89,16 @@ xcodebuild -project Stet.xcodeproj -scheme Stet -destination 'platform=macOS' te
 
 ## 发布
 
-生成本地 Release 应用：
+这个仓库的正式发布产物只认 GitHub Actions 生成的结果，不把本地打包或本地 release 验证作为正式流程的一部分。
 
-```bash
-./scripts/build-macos-release.sh
-```
+正式流程是：
 
-生成适合发布的签名和公证产物：
+1. 本地完成开发，并用 `npm run mac:build`、`npm run mac:test` 做常规验证。
+2. 需要候选发布时，手动运行 `macOS Release Candidate`。
+3. 从 GitHub Actions 下载 DMG artifact 做发布前验证。
+4. 正式发布时，从 `main` 对应 commit 推送 `v*` tag，让 `macOS Release` 生成签名、公证后的正式产物。
 
-```bash
-./scripts/release-macos-github.sh
-./scripts/publish-github-release.sh
-```
-
-发布产物会写入 `dist/github-release/<tag>/`。
-
-更完整的 CI/CD 发布说明见：[release.zh-CN.md](release.zh-CN.md)
+发布产物写入 `dist/github-release/<tag>/`，更完整的 CI/CD 发布说明见：[release.zh-CN.md](release.zh-CN.md)。
 
 ## 许可证
 

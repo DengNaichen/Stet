@@ -1,37 +1,15 @@
 #if os(macOS)
+    import AppKit
     import SwiftUI
 
     enum MacDictationShaderStyling {
-        static func detail(
-            for state: MacDictationCapsuleVisualState,
-            signals: MacDictationCapsuleVisualSignals
-        ) -> Double {
-            let sustained = eased(signals.body)
-            let edge = max(signals.pulse, signals.articulation)
-
-            switch state {
-            case .starting:
-                return min(0.86, 0.56 + sustained * 0.18 + edge * 0.10)
-            case .listening:
-                return min(1.0, 0.76 + signals.articulation * 0.16 + signals.pulse * 0.08)
-            case .processing:
-                return 0.92
-            default:
-                return 0.52
-            }
-        }
-
         static func colors(
             for state: MacDictationCapsuleVisualState,
             theme: MacDictationShaderTheme,
-            elapsed: Double,
-            signals: MacDictationCapsuleVisualSignals
+            elapsed: Double
         ) -> (a: Color, b: Color, c: Color) {
             let palette = theme.palette
 
-            // State-time driven transition instead of audio-driven injection.
-            // The elapsed time since entering the state drives the crossfade,
-            // not the instantaneous audio strength.
             let transitionSpeed = 0.35
             let stateProgress = min(1.0, elapsed * transitionSpeed)
             let injection = eased(stateProgress)
@@ -105,6 +83,19 @@
             return (a, b, c)
         }
 
+        static func orbColors(
+            for state: MacDictationCapsuleVisualState,
+            theme: MacDictationShaderTheme,
+            elapsed: Double
+        ) -> (cottonFoam: Color, waveTop: Color, deepSea: Color) {
+            let palette = colors(for: state, theme: theme, elapsed: elapsed)
+            return (
+                cottonFoam: lifted(palette.a, toward: .white, amount: 0.28),
+                waveTop: palette.b,
+                deepSea: deepened(palette.c, amount: 0.14)
+            )
+        }
+
         private static func lerp(_ a: Double, _ b: Double, _ t: Double) -> Double {
             a + (b - a) * t
         }
@@ -116,6 +107,25 @@
 
         private static func color(from components: (Double, Double, Double)) -> Color {
             Color(red: components.0, green: components.1, blue: components.2)
+        }
+
+        private static func lifted(_ color: Color, toward target: Color, amount: Double) -> Color {
+            blend(color, target, amount: amount)
+        }
+
+        private static func deepened(_ color: Color, amount: Double) -> Color {
+            blend(color, .black, amount: amount)
+        }
+
+        private static func blend(_ source: Color, _ target: Color, amount: Double) -> Color {
+            let sourceColor = NSColor(source).usingColorSpace(.deviceRGB) ?? .white
+            let targetColor = NSColor(target).usingColorSpace(.deviceRGB) ?? .white
+            let clamped = min(max(amount, 0), 1)
+            return Color(
+                red: sourceColor.redComponent + (targetColor.redComponent - sourceColor.redComponent) * clamped,
+                green: sourceColor.greenComponent + (targetColor.greenComponent - sourceColor.greenComponent) * clamped,
+                blue: sourceColor.blueComponent + (targetColor.blueComponent - sourceColor.blueComponent) * clamped
+            )
         }
     }
 #endif

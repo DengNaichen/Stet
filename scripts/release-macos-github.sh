@@ -46,7 +46,7 @@ ARCHIVE_CODE_SIGN_IDENTITY="${ARCHIVE_CODE_SIGN_IDENTITY:-$DEVELOPER_ID_APPLICAT
 ARCHIVE_PROVISIONING_PROFILE_SPECIFIER="${ARCHIVE_PROVISIONING_PROFILE_SPECIFIER:-}"
 GENERATE_SPARKLE_APPCAST="${GENERATE_SPARKLE_APPCAST:-1}"
 SPARKLE_KEYCHAIN_ACCOUNT="${SPARKLE_KEYCHAIN_ACCOUNT:-ed25519}"
-SPARKLE_FEED_BASE_URL="${SPARKLE_FEED_BASE_URL:-https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_TAG}/}"
+SPARKLE_FEED_BASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_TAG}/"
 RELEASES_PAGE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_TAG}"
 
 if [[ "$GENERATE_SPARKLE_APPCAST" == "1" ]]; then
@@ -62,8 +62,7 @@ NOTARY_SUBMISSION_PLIST="$WORK_DIR/notary-submission.plist"
 NOTARY_LOG_JSON="$WORK_DIR/notary-log.json"
 SPARKLE_DIR="$WORK_DIR/sparkle"
 APP_ENTITLEMENTS="$WORK_DIR/${APP_NAME}.entitlements.plist"
-NPX_BIN="${NPX_BIN:-$(command -v npx || true)}"
-NPM_CACHE_DIR="${NPM_CACHE_DIR:-$WORK_DIR/.npm-cache}"
+DMG_STAGING_DIR="$WORK_DIR/dmg-staging"
 
 find_sparkle_generate_appcast() {
   local candidates=()
@@ -104,12 +103,7 @@ plist_has_key() {
 }
 
 mkdir -p "$WORK_DIR"
-rm -rf "$ARCHIVE_PATH" "$APP_PATH" "$DMG_OUTPUT_DIR" "$SPARKLE_DIR" "$APP_ENTITLEMENTS" "$NPM_CACHE_DIR"
-
-if [[ -z "$NPX_BIN" ]]; then
-  echo "Missing npx in PATH. Install Node.js or set NPX_BIN to a working npx binary."
-  exit 1
-fi
+rm -rf "$ARCHIVE_PATH" "$APP_PATH" "$DMG_OUTPUT_DIR" "$SPARKLE_DIR" "$APP_ENTITLEMENTS" "$DMG_STAGING_DIR"
 
 if ! security find-identity -v -p codesigning | grep -Fq "$DEVELOPER_ID_APPLICATION"; then
   echo "Missing signing identity: $DEVELOPER_ID_APPLICATION"
@@ -223,32 +217,64 @@ BUILD="$(
   /usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleVersion' "$ARCHIVE_PATH/Info.plist"
 )"
 RELEASE_BASENAME="${APP_NAME}-${VERSION}-${BUILD}-mac"
+EXPECTED_TAG_PREFIX="v${VERSION}"
+EXPECTED_BUILD="${VERSION##*.}"
+
+if [[ "$GITHUB_TAG" != "$EXPECTED_TAG_PREFIX" && "$GITHUB_TAG" != ${EXPECTED_TAG_PREFIX}-* ]]; then
+  cat <<EOF
+Release tag does not match the archived app version.
+
+Expected tag: ${EXPECTED_TAG_PREFIX} or ${EXPECTED_TAG_PREFIX}-<suffix>
+Actual tag:   ${GITHUB_TAG}
+App version:  ${VERSION}
+App build:    ${BUILD}
+
+Update MARKETING_VERSION before running the release workflow.
+EOF
+  exit 1
+fi
+
+if [[ "$BUILD" != "$EXPECTED_BUILD" ]]; then
+  cat <<EOF
+Release build number does not match the app version.
+
+Expected CURRENT_PROJECT_VERSION: ${EXPECTED_BUILD}
+Actual CURRENT_PROJECT_VERSION:   ${BUILD}
+App version:                      ${VERSION}
+
+Update CURRENT_PROJECT_VERSION before running the release workflow.
+EOF
+  exit 1
+fi
 
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
 echo "Creating release DMG..."
 rm -rf "$DMG_OUTPUT_DIR"
 mkdir -p "$DMG_OUTPUT_DIR"
-NPM_CONFIG_CACHE="$NPM_CACHE_DIR" "$NPX_BIN" --yes create-dmg \
-  --overwrite \
-  --identity "$DEVELOPER_ID_APPLICATION" \
-  --dmg-title "$APP_NAME" \
-  "$APP_PATH" \
-  "$DMG_OUTPUT_DIR"
-
-dmg_matches=("$DMG_OUTPUT_DIR"/*.dmg(N))
-if (( ${#dmg_matches[@]} != 1 )); then
-  echo "Expected exactly one DMG in $DMG_OUTPUT_DIR, found ${#dmg_matches[@]}"
-  exit 1
-fi
-
-FINAL_DMG="${dmg_matches[1]}"
 RELEASE_DMG_NAME="${RELEASE_DMG_NAME:-${APP_NAME}-${GITHUB_TAG}.dmg}"
+FINAL_DMG="$DMG_OUTPUT_DIR/$RELEASE_DMG_NAME"
 
-if [[ "$(basename "$FINAL_DMG")" != "$RELEASE_DMG_NAME" ]]; then
-  mv "$FINAL_DMG" "$DMG_OUTPUT_DIR/$RELEASE_DMG_NAME"
-  FINAL_DMG="$DMG_OUTPUT_DIR/$RELEASE_DMG_NAME"
-fi
+rm -rf "$DMG_STAGING_DIR"
+mkdir -p "$DMG_STAGING_DIR"
+ditto "$APP_PATH" "$DMG_STAGING_DIR/${APP_NAME}.app"
+ln -s /Applications "$DMG_STAGING_DIR/Applications"
+
+hdiutil create \
+  -volname "$APP_NAME" \
+  -srcfolder "$DMG_STAGING_DIR" \
+  -ov \
+  -format UDZO \
+  -fs HFS+ \
+  "$FINAL_DMG"
+
+codesign \
+  --force \
+  --sign "$DEVELOPER_ID_APPLICATION" \
+  --timestamp \
+  "$FINAL_DMG"
+
+codesign --verify --verbose=2 "$FINAL_DMG"
 
 echo "Submitting DMG for notarization..."
 xcrun notarytool submit \

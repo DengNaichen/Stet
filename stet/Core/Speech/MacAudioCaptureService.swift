@@ -1,8 +1,14 @@
 @preconcurrency import AVFoundation
 import Foundation
+#if os(macOS)
+    import StetVisuals
+#endif
 
 actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     private let audioLevelBridge: AudioLevelBridge
+    #if os(macOS)
+        private let audioFeatureBridge: AudioFeatureBridge
+    #endif
     #if os(macOS)
         private let macAudioFileRecorder: MacCaptureAudioFileRecorder
     #endif
@@ -16,9 +22,14 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         let audioLevelBridge = AudioLevelBridge()
         self.audioLevelBridge = audioLevelBridge
         #if os(macOS)
+            let audioFeatureBridge = AudioFeatureBridge()
+            self.audioFeatureBridge = audioFeatureBridge
             self.macAudioFileRecorder = MacCaptureAudioFileRecorder(
                 audioLevelHandler: { level in
                     audioLevelBridge.emit(level)
+                },
+                audioFeatureHandler: { features in
+                    audioFeatureBridge.emit(features)
                 },
                 onFirstRecordedBufferWritten: {
                     Task {
@@ -32,6 +43,12 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     func makeAudioLevelStream() async -> AsyncStream<Double> {
         audioLevelBridge.makeStream()
     }
+
+    #if os(macOS)
+        func makeAudioFeatureStream() async -> AsyncStream<MacDictationCapsuleVisualSignals> {
+            audioFeatureBridge.makeStream()
+        }
+    #endif
 
     func startRecording() async throws {
         Task {
@@ -271,6 +288,9 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             recordingFileURL = fileURL
             isRecording = true
             audioLevelBridge.emit(0.08)
+            #if os(macOS)
+                audioFeatureBridge.emit(.zero)
+            #endif
 
             if let selectedInputDevice {
                 AppLogger.info(
@@ -339,6 +359,9 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         // The capture service is reused across sessions. Emitting silence keeps
         // the current UI honest without tearing down the stream permanently.
         audioLevelBridge.emit(0)
+        #if os(macOS)
+            audioFeatureBridge.emit(.zero)
+        #endif
     }
 
     nonisolated private static var microphoneAuthorizationStatusDescription: String {
@@ -387,3 +410,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         String(format: "%.1f", duration)
     }
 }
+
+#if os(macOS)
+    extension MacAudioCaptureService: AudioFeatureSource {}
+#endif

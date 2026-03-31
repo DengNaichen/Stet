@@ -50,12 +50,7 @@
         }
 
         private var visualSignals: MacDictationCapsuleVisualSignals {
-            MacDictationCapsuleVisualSignals(
-                body: signals.body,
-                presence: signals.presence,
-                pulse: signals.pulse,
-                articulation: signals.articulation
-            )
+            signals
         }
 
         private var shaderTheme: MacDictationShaderTheme {

@@ -1,6 +1,7 @@
 #if os(macOS)
     import Combine
     import Foundation
+    import StetVisuals
 
     @MainActor
     final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, MacSettingsShellCoordinating,
@@ -249,6 +250,10 @@
 
         var recordingLevel: Double {
             sessionController.recordingLevel
+        }
+
+        var audioFeatures: MacDictationCapsuleVisualSignals {
+            sessionController.audioFeatures
         }
 
         var detectedTargetApplication: AppInfo? {

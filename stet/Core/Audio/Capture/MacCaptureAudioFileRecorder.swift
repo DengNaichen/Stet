@@ -3,6 +3,7 @@
     import CoreAudio
     import CoreMedia
     import Foundation
+    import StetVisuals
 
     nonisolated final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
         private enum Configuration {
@@ -17,7 +18,9 @@
             qos: .userInitiated
         )
         private let audioLevelHandler: @Sendable (Double) -> Void
+        private let audioFeatureHandler: @Sendable (MacDictationCapsuleVisualSignals) -> Void
         private let onFirstRecordedBufferWritten: @Sendable () -> Void
+        private let audioFeatureAnalyzer = MacDictationAudioFeatureAnalyzer()
 
         private var captureResources: CaptureResources?
         private var activeSession: MacAudioFileRecordingSession?
@@ -25,9 +28,11 @@
 
         nonisolated init(
             audioLevelHandler: @escaping @Sendable (Double) -> Void = { _ in },
+            audioFeatureHandler: @escaping @Sendable (MacDictationCapsuleVisualSignals) -> Void = { _ in },
             onFirstRecordedBufferWritten: @escaping @Sendable () -> Void = {}
         ) {
             self.audioLevelHandler = audioLevelHandler
+            self.audioFeatureHandler = audioFeatureHandler
             self.onFirstRecordedBufferWritten = onFirstRecordedBufferWritten
             super.init()
         }
@@ -258,6 +263,9 @@
             do {
                 let inputBuffer = try MacCaptureAudioSampleBufferConverter.pcmBuffer(from: sampleBuffer)
                 audioLevelHandler(AudioLevelNormalizer.normalizedLevel(from: inputBuffer))
+                if let audioFeatureAnalyzer {
+                    audioFeatureHandler(audioFeatureAnalyzer.analyze(buffer: inputBuffer))
+                }
 
                 guard let snapshot = try session.snapshot(for: inputBuffer.format) else {
                     return

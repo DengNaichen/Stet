@@ -2,6 +2,7 @@
     import AppKit
     import Combine
     import Foundation
+    import StetVisuals
     internal import Auth
 
     @MainActor
@@ -154,6 +155,10 @@
 
         var recordingLevel: Double {
             workflowController.dictationViewModel.recordingLevel
+        }
+
+        var audioFeatures: MacDictationCapsuleVisualSignals {
+            workflowController.dictationViewModel.audioFeatures
         }
 
         var detectedTargetApplication: AppInfo? {

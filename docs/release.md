@@ -21,7 +21,7 @@ Stet now uses three GitHub Actions workflows:
   - file: `.github/workflows/macos-release.yml`
   - trigger: `push` on `v*` tags, plus `workflow_dispatch` for safe manual testing
   - environment: `production`
-  - purpose: build, sign, notarize, generate Sparkle appcast, publish GitHub Release, upload assets
+  - purpose: build, sign, notarize, generate Sparkle appcast, publish the GitHub Release, and upload release artifacts from GitHub Actions
 
 ## Daily Release Flow
 
@@ -43,7 +43,8 @@ Formal release:
 2. Ensure `main` contains the release commit.
 3. Push a tag such as `v0.0.10`.
 4. GitHub Actions runs `macOS Release`.
-5. The workflow publishes the DMG and `appcast.xml` to GitHub Releases.
+5. The workflow generates the DMG and `appcast.xml` artifacts in GitHub Actions.
+6. The workflow publishes the GitHub Release and uploads the generated assets.
 
 ## GitHub Environments
 
@@ -79,7 +80,6 @@ Variables:
 - `ARCHIVE_PROVISIONING_PROFILE_SPECIFIER` if required
 - `SPARKLE_APPCAST_URL`
 - `SPARKLE_PUBLIC_ED_KEY`
-- `SPARKLE_FEED_BASE_URL`
 
 ## Important Sparkle Note
 
@@ -131,6 +131,7 @@ Sparkle appcast generation is intentionally disabled there.
 - builds `generate_appcast` in CI
 - runs `scripts/release-macos-github.sh`
 - runs `scripts/publish-github-release.sh`
+- uploads `dist/github-release/<release_tag>/` as an artifact
 
 The manual `workflow_dispatch` path is safe for testing because it sets:
 
@@ -144,4 +145,3 @@ The manual `workflow_dispatch` path is safe for testing because it sets:
 - `spctl` may report `source=Insufficient Context` for the DMG inside CI. The workflow treats stapler validation as the stronger signal.
 - The release workflow currently builds Sparkle's `generate_appcast` from source because Sparkle's SwiftPM package only provides the framework binary target, not the CLI tool.
 - For manual release tests, artifact upload uses the provided `release_tag`, not `github.ref_name`.
-

@@ -30,6 +30,29 @@
             model.controlHeight * 0.6
         }
 
+        private var collapsedOrbOffset: CGFloat {
+            (model.mainWidth * 0.5)
+                + MacDictationCapsuleVisualTuning.orbSpacing
+                + (model.controlHeight * 0.5)
+        }
+
+        private var keepsHiddenOrbsCollapsed: Bool {
+            switch model.state {
+            case .processing, .result:
+                return true
+            case .hidden, .starting, .listening, .error:
+                return false
+            }
+        }
+
+        private var hiddenLeftOrbOffset: CGFloat {
+            keepsHiddenOrbsCollapsed ? collapsedOrbOffset : MacDictationCapsuleVisualTuning.orbTravelDistance
+        }
+
+        private var hiddenRightOrbOffset: CGFloat {
+            keepsHiddenOrbsCollapsed ? -collapsedOrbOffset : -MacDictationCapsuleVisualTuning.orbTravelDistance
+        }
+
         public init(
             model: MacDictationCapsuleVisualModel,
             actions: MacDictationCapsuleVisualActions
@@ -53,7 +76,7 @@
                             .glassEffect(.regular.tint(nil))
                             .glassEffectID("cancel", in: glassNamespace)
                             .opacity(isPanelShown && showOrbs ? 1 : 0)
-                            .offset(x: isPanelShown && showOrbs ? 0 : MacDictationCapsuleVisualTuning.orbTravelDistance)
+                            .offset(x: isPanelShown && showOrbs ? 0 : hiddenLeftOrbOffset)
                             .scaleEffect(isPanelShown && showOrbs ? 1 : MacDictationCapsuleVisualTuning.orbHiddenScale)
                             .allowsHitTesting(isPanelShown && showOrbs)
 
@@ -72,9 +95,7 @@
                             .glassEffect(.regular.tint(nil))
                             .glassEffectID("done", in: glassNamespace)
                             .opacity(isPanelShown && showOrbs ? 1 : 0)
-                            .offset(
-                                x: isPanelShown && showOrbs ? 0 : -MacDictationCapsuleVisualTuning.orbTravelDistance
-                            )
+                            .offset(x: isPanelShown && showOrbs ? 0 : hiddenRightOrbOffset)
                             .scaleEffect(isPanelShown && showOrbs ? 1 : MacDictationCapsuleVisualTuning.orbHiddenScale)
                             .allowsHitTesting(isPanelShown && showOrbs)
                         }
@@ -103,7 +124,7 @@
             .onAppear {
                 syncVisualState(animated: true)
             }
-            .onChange(of: model.state) { newState in
+            .onChange(of: model.state) { _, newState in
                 // Reset processing timer immediately when entering processing state
                 if case .processing = newState {
                     processingStartDate = Date()

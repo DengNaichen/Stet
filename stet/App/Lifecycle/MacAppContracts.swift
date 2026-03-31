@@ -1,6 +1,7 @@
 #if os(macOS)
     import Combine
     import Foundation
+    import StetVisuals
 
     @MainActor
     protocol MacAppStatusObserving: AnyObject {
@@ -21,6 +22,7 @@
         var dictationState: DictationState { get }
         var statusText: String { get }
         var recordingLevel: Double { get }
+        var audioFeatures: MacDictationCapsuleVisualSignals { get }
         var detectedTargetApplication: AppInfo? { get }
         func hidePanel()
         func dismissPendingCopy()

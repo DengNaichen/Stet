@@ -1,4 +1,5 @@
 #if os(macOS)
+    import Metal
     import SwiftUI
 
     public enum MacDictationCapsuleVisualState: Equatable {
@@ -8,36 +9,6 @@
         case processing
         case result
         case error(message: String)
-    }
-
-    public struct MacDictationCapsuleVisualSignals: Equatable {
-        public let body: Double
-        public let presence: Double
-        public let pulse: Double
-        public let articulation: Double
-
-        public init(
-            body: Double,
-            presence: Double,
-            pulse: Double,
-            articulation: Double
-        ) {
-            self.body = Self.clamp(body)
-            self.presence = Self.clamp(presence)
-            self.pulse = Self.clamp(pulse)
-            self.articulation = Self.clamp(articulation)
-        }
-
-        public static let zero = MacDictationCapsuleVisualSignals(
-            body: 0,
-            presence: 0,
-            pulse: 0,
-            articulation: 0
-        )
-
-        private static func clamp(_ value: Double) -> Double {
-            min(max(value, 0), 1)
-        }
     }
 
     public struct MacDictationCapsuleVisualModel: Equatable {
@@ -135,23 +106,7 @@
     public enum MacDictationCapsuleVisualShaderWarmup {
         @MainActor
         public static func prewarmIfAvailable() async {
-            guard #available(macOS 15.0, *) else {
-                return
-            }
-
-            let shader = StetVisualsShaderLibrary.cloudOrbGlassWide(
-                size: CGSize(width: 250, height: 52),
-                time: 0,
-                body: 0.1,
-                presence: 0.1,
-                pulse: 0.05,
-                articulation: 0.08,
-                detail: 1.0,
-                a: .white,
-                b: .white,
-                c: .white
-            )
-            try? await shader.compile(as: .colorEffect)
+            _ = MTLCreateSystemDefaultDevice()
         }
     }
 #endif
