@@ -21,7 +21,7 @@ Stet 现在有三条 GitHub Actions workflow：
   - 文件：`.github/workflows/macos-release.yml`
   - 触发：`v*` tag 的 `push`，以及用于安全手测的 `workflow_dispatch`
   - environment：`production`
-  - 用途：在 GitHub Actions 中构建、签名、公证、生成 Sparkle appcast，并上传发布产物
+  - 用途：在 GitHub Actions 中构建、签名、公证、生成 Sparkle appcast、发布 GitHub Release，并上传发布产物
 
 ## 日常发布流程
 
@@ -44,7 +44,7 @@ Stet 现在有三条 GitHub Actions workflow：
 3. 推送正式 tag，例如 `v0.0.10`。
 4. GitHub Actions 自动运行 `macOS Release`。
 5. workflow 会在 GitHub Actions 中生成 DMG 和 `appcast.xml` 产物。
-6. 在 workflow 重新接回 `scripts/publish-github-release.sh` 之前，GitHub Release 发布仍然是单独的手动步骤。
+6. workflow 会直接发布 GitHub Release 并上传这些产物。
 
 ## GitHub Environments
 
@@ -82,7 +82,6 @@ Variables：
   - 如有需要再配置
 - `SPARKLE_APPCAST_URL`
 - `SPARKLE_PUBLIC_ED_KEY`
-- `SPARKLE_FEED_BASE_URL`
 
 ## Sparkle 最重要的注意点
 
@@ -133,8 +132,8 @@ generate_keys -x /tmp/private-key.txt
 - 按 `Package.resolved` 中的 Sparkle 版本下载 Sparkle 源码
 - 在 CI 里构建 `generate_appcast`
 - 运行 `scripts/release-macos-github.sh`
+- 运行 `scripts/publish-github-release.sh`
 - 把 `dist/github-release/<release_tag>/` 上传为 artifact
-<!-- - 运行 `scripts/publish-github-release.sh` -->
 
 手动 `workflow_dispatch` 测试模式是安全的，因为它会设置：
 

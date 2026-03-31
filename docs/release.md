@@ -21,7 +21,7 @@ Stet now uses three GitHub Actions workflows:
   - file: `.github/workflows/macos-release.yml`
   - trigger: `push` on `v*` tags, plus `workflow_dispatch` for safe manual testing
   - environment: `production`
-  - purpose: build, sign, notarize, generate Sparkle appcast, and upload release artifacts from GitHub Actions
+  - purpose: build, sign, notarize, generate Sparkle appcast, publish the GitHub Release, and upload release artifacts from GitHub Actions
 
 ## Daily Release Flow
 
@@ -44,7 +44,7 @@ Formal release:
 3. Push a tag such as `v0.0.10`.
 4. GitHub Actions runs `macOS Release`.
 5. The workflow generates the DMG and `appcast.xml` artifacts in GitHub Actions.
-6. Publish the GitHub Release as a separate/manual step until the workflow re-enables `scripts/publish-github-release.sh`.
+6. The workflow publishes the GitHub Release and uploads the generated assets.
 
 ## GitHub Environments
 
@@ -80,7 +80,6 @@ Variables:
 - `ARCHIVE_PROVISIONING_PROFILE_SPECIFIER` if required
 - `SPARKLE_APPCAST_URL`
 - `SPARKLE_PUBLIC_ED_KEY`
-- `SPARKLE_FEED_BASE_URL`
 
 ## Important Sparkle Note
 
@@ -131,8 +130,8 @@ Sparkle appcast generation is intentionally disabled there.
 - downloads Sparkle source matching `Package.resolved`
 - builds `generate_appcast` in CI
 - runs `scripts/release-macos-github.sh`
+- runs `scripts/publish-github-release.sh`
 - uploads `dist/github-release/<release_tag>/` as an artifact
-<!-- - runs `scripts/publish-github-release.sh` -->
 
 The manual `workflow_dispatch` path is safe for testing because it sets:
 

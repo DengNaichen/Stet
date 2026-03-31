@@ -102,7 +102,7 @@ Formal release artifacts are CI-generated only. The release process does not rel
 Current repository behavior:
 
 - release-candidate builds on GitHub but does not publish a GitHub Release
-- production release builds on GitHub and prepares release artifacts, but GitHub Release publishing is currently still a separate/manual step because the workflow does not call `scripts/publish-github-release.sh`
+- production release builds on GitHub, generates Sparkle appcast data, and publishes the GitHub Release from the same workflow
 
 Release artifacts are written to `dist/github-release/<tag>/`.
 
