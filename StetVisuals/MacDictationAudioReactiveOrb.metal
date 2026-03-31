@@ -175,7 +175,7 @@ kernel void audioFieldSummaryKernel(
 
     float rawLevel = min(1.0, fieldMax * 4.5) * uniforms.motionGain;
     float rawFlowX = forceX * 0.85 * uniforms.motionGain;
-    float rawFlowY = forceY * 0.55 * uniforms.motionGain;
+    float rawFlowY = forceY * 1.1 * uniforms.motionGain;
 
     AudioFieldSummaryGPU previous = previousSummary[0];
     AudioFieldSummaryGPU result;
