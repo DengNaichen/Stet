@@ -36,12 +36,21 @@
                 + (model.controlHeight * 0.5)
         }
 
+        private var keepsHiddenOrbsCollapsed: Bool {
+            switch model.state {
+            case .processing, .result:
+                return true
+            case .hidden, .starting, .listening, .error:
+                return false
+            }
+        }
+
         private var hiddenLeftOrbOffset: CGFloat {
-            model.shouldShowPanel ? collapsedOrbOffset : MacDictationCapsuleVisualTuning.orbTravelDistance
+            keepsHiddenOrbsCollapsed ? collapsedOrbOffset : MacDictationCapsuleVisualTuning.orbTravelDistance
         }
 
         private var hiddenRightOrbOffset: CGFloat {
-            model.shouldShowPanel ? -collapsedOrbOffset : -MacDictationCapsuleVisualTuning.orbTravelDistance
+            keepsHiddenOrbsCollapsed ? -collapsedOrbOffset : -MacDictationCapsuleVisualTuning.orbTravelDistance
         }
 
         public init(
