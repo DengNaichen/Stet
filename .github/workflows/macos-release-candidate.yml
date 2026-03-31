@@ -109,14 +109,41 @@ jobs:
       - name: Build Release Candidate
         run: ./scripts/release-macos-github.sh
 
+      - name: Prepare Release Candidate Artifact Payload
+        run: |
+          RELEASE_DIR="dist/github-release/${{ inputs.release_tag }}"
+          ARTIFACT_DIR="$RUNNER_TEMP/macos-release-candidate-${{ inputs.release_tag }}"
+
+          rm -rf "$ARTIFACT_DIR"
+          mkdir -p "$ARTIFACT_DIR"
+
+          if ! compgen -G "$RELEASE_DIR/dmg/*.dmg" >/dev/null; then
+            echo "Expected DMG artifact was not found in $RELEASE_DIR/dmg"
+            exit 1
+          fi
+
+          cp "$RELEASE_DIR"/dmg/*.dmg "$ARTIFACT_DIR"/
+
+          for optional_file in \
+            "$RELEASE_DIR/notary-submission.plist" \
+            "$RELEASE_DIR/notary-log.json"; do
+            if [[ -f "$optional_file" ]]; then
+              cp "$optional_file" "$ARTIFACT_DIR"/
+            fi
+          done
+
+          {
+            echo "RELEASE_CANDIDATE_ARTIFACT_DIR=$ARTIFACT_DIR"
+          } >> "$GITHUB_ENV"
+
       - name: Upload Release Candidate Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: macos-release-candidate-${{ inputs.release_tag }}
-          path: |
-            dist/github-release/${{ inputs.release_tag }}
+          path: ${{ env.RELEASE_CANDIDATE_ARTIFACT_DIR }}
           if-no-files-found: warn
+          compression-level: 0
           retention-days: 14
 
       - name: Clean Up Temporary Keychain
