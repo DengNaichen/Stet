@@ -58,6 +58,49 @@
             #expect(pasteboard.string(forType: .string) == "user-copy")
         }
 
+        @Test func delayOverrideKeepsTemporaryClipboardUntilOverrideExpires() async {
+            let pasteboard = makePasteboard()
+            let clipboard = SystemClipboardService(pasteboard: pasteboard)
+            let coordinator = PasteboardRestoreCoordinator(restoreDelay: .milliseconds(40))
+
+            pasteboard.clearContents()
+            pasteboard.setString("original", forType: .string)
+
+            coordinator.prepareForTemporaryOverride(on: pasteboard)
+            clipboard.copy("temporary")
+            coordinator.scheduleRestoreIfNeeded(
+                on: pasteboard,
+                delayOverride: .milliseconds(120)
+            )
+
+            try? await Task.sleep(for: .milliseconds(70))
+            #expect(pasteboard.string(forType: .string) == "temporary")
+            #expect(await restoresOriginalClipboardEventually(pasteboard))
+        }
+
+        @Test func delayOverrideStillSkipsRestoreAfterExternalClipboardChange() async {
+            let pasteboard = makePasteboard()
+            let clipboard = SystemClipboardService(pasteboard: pasteboard)
+            let coordinator = PasteboardRestoreCoordinator(restoreDelay: .milliseconds(40))
+
+            pasteboard.clearContents()
+            pasteboard.setString("original", forType: .string)
+
+            coordinator.prepareForTemporaryOverride(on: pasteboard)
+            clipboard.copy("temporary")
+            coordinator.scheduleRestoreIfNeeded(
+                on: pasteboard,
+                delayOverride: .milliseconds(120)
+            )
+
+            try? await Task.sleep(for: .milliseconds(60))
+            clipboard.copy("user-copy")
+
+            try? await Task.sleep(for: .milliseconds(100))
+
+            #expect(pasteboard.string(forType: .string) == "user-copy")
+        }
+
         @Test func discardPendingRestoreKeepsLatestClipboardValue() async {
             let pasteboard = makePasteboard()
             let clipboard = SystemClipboardService(pasteboard: pasteboard)

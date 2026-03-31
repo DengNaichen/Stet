@@ -7,7 +7,7 @@
 
 This plan documents the current design of Stet's macOS text output handling flow. The feature delivers recognized text through the existing dictation and rewrite workflows, uses clipboard-backed automatic output, activates the target app before collecting verification metadata, verifies whether paste succeeded through bounded post-paste polling, and falls back to clipboard-preserved recovery when automatic output is unavailable or unverified.
 
-This is a documentation-alignment pass. The purpose of the plan is to explain how the current codebase is structured so that `spec.md`, `data-model.md`, and `contracts/` stay aligned with the implementation that currently ships in this branch.
+This plan remains grounded in the current implementation, but it now also records the approved scoped design addition needed to align the feature with the updated spec: explicit optimistic delivery for verification-blind target apps. The first implementation pass is intentionally narrow and is limited to VS Code rather than a generic unverifiable-success policy.
 
 ## Technical Context
 
@@ -34,6 +34,9 @@ This is a documentation-alignment pass. The purpose of the plan is to explain ho
 - This document describes the implementation that exists in the branch; it is not proposing a separate task list or future redesign
 - Current implementation takes precedence over the legacy `.kiro` draft when they differ
 - `plan.md` must describe design, not a task list
+- The approved design delta must stay inside the explicit optimistic-delivery scope defined by `spec.md`
+- The first implementation pass must be limited to `com.microsoft.VSCode`
+- No editor extension, no global "verification unavailable means success" rule, and no unrelated output-flow cleanup are in scope
 
 ## Constitution Check
 
@@ -134,6 +137,92 @@ The current implementation does not capture the verification baseline from which
 ### 7. TextInjectionService Coverage Is Both Direct and Indirect
 
 The current branch now includes a dedicated `SystemTextInjectionServiceTests.swift` file for paste-verification timing and activation ordering, while the workflow and capture coordinator tests continue to exercise the same behavior indirectly through the higher-level output paths.
+
+## Scoped Design Addition
+
+The following design addition is intentionally incremental. It does not replace the current implementation notes above; it defines the smallest approved change needed to eliminate false clipboard-recovery UI in VS Code without broadening the feature beyond the newly approved spec.
+
+### 1. Product Goal
+
+When Stet posts `Cmd+V` successfully into VS Code but cannot verify the paste through accessibility metadata, the product should avoid surfacing `clipboardPending` or other failure UI immediately. At the same time, it must avoid silent text loss if the paste did not actually land.
+
+### 2. Design Boundary
+
+- The optimistic-delivery path applies only to explicitly profiled target apps.
+- The first implementation pass includes only `com.microsoft.VSCode`.
+- Non-profiled apps keep the current behavior exactly: unverifiable paste remains a failure that preserves text in clipboard and surfaces recovery UI.
+- No changes are proposed to rewrite-specific selection replacement semantics beyond the shared output path behavior.
+
+### 3. Output Decision Model
+
+The existing `TextInjectionOutcome` contract remains in place. In particular, `.eventPostedVerificationUnavailable` continues to mean that the paste event was posted but the generic verification path could not confirm success.
+
+The approved design change happens in the workflow layer:
+
+1. Resolve an internal `TargetAppOutputProfile` from the workflow's `targetApplication` when available.
+2. If the workflow has no explicit target app, fall back to the frontmost application observed immediately before the paste attempt.
+3. If the resolved profile is `optimisticVerificationBlind` and the injection result is `.eventPostedVerificationUnavailable`, treat the output as an optimistic completion rather than a visible failure.
+4. If the profile is absent, preserve the current fallback and failure behavior.
+
+This keeps the `TextInjectionService` contract stable while containing app-specific policy in the output workflow.
+
+### 4. Clipboard Recovery Window
+
+The optimistic-delivery path does not introduce a new UI state. Instead, it changes clipboard timing:
+
+- Stet still writes the result into the clipboard before posting `Cmd+V`.
+- On the optimistic-delivery path, it does not immediately restore the user's previous clipboard contents.
+- Instead, it keeps the delivered text recoverable in clipboard for a short recovery window of 10 seconds.
+- After that window, the existing best-effort restore logic runs and restores the original clipboard only if the clipboard has not changed externally.
+
+This is the main mitigation against the false-success risk. If VS Code failed to accept the paste, the user can still paste manually during the recovery window.
+
+### 5. Component-Level Design
+
+#### `Stet/Core/TextInput/TextInjectionService.swift`
+
+- Keep the public `TextInjectionOutcome` contract unchanged.
+- Continue bounded verification polling for all apps.
+- Continue returning `.eventPostedVerificationUnavailable` when the paste event is posted but the focused-element baseline or follow-up snapshots are unavailable.
+- No VS Code-specific policy should be embedded here.
+
+#### `Stet/App/Workflows/MacDictationCaptureCoordinator.swift`
+
+- Add the internal target-app profile resolution step before interpreting the paste result.
+- Reclassify `.eventPostedVerificationUnavailable` as completed only when the resolved target-app profile is optimistic-verification-blind.
+- Skip fallback clipboard copy and skip visible failure/panel behavior for that profiled path.
+- Request permission remediation only for the existing missing-permission path, not for the profiled optimistic case.
+
+#### `Stet/Core/Clipboard/PasteboardRestoreCoordinator.swift`
+
+- Extend restore scheduling so the output workflow can request a longer restore delay for the optimistic-delivery path.
+- Reuse the existing snapshot-match guard so delayed restoration still avoids overwriting newer clipboard content.
+
+#### `Stet/App/Workflows/MacAppSessionController.swift`
+
+- No new session or panel states are required.
+- The session controller should continue mapping `completed`, `clipboardPending`, and `failed` exactly as it does now.
+- The feature change should therefore be expressed by producing `completed` more selectively in the capture coordinator, not by introducing a new panel state.
+
+### 6. Validation Scope
+
+Automated coverage should focus on four behaviors:
+
+- VS Code profile: `.eventPostedVerificationUnavailable` resolves to completed and does not surface `clipboardPending`
+- VS Code profile: the clipboard result remains recoverable during the 10-second recovery window
+- Generic app path: `.eventPostedVerificationUnavailable` still falls back to clipboard-preserved recovery
+- Clipboard restore path: delayed restore still respects external clipboard changes
+
+Manual validation should confirm the intended UX in both VS Code and a non-profiled app such as TextEdit so the scope boundary is visible in product behavior.
+
+### 7. Risks and Mitigations
+
+- **Risk**: VS Code paste truly fails and the product does not surface recovery UI.
+  **Mitigation**: limit the optimistic path to the explicit VS Code profile, require a successfully posted paste event, and keep the transcript recoverable in clipboard for 10 seconds.
+- **Risk**: The delayed restore window overwrites newer clipboard data.
+  **Mitigation**: retain the existing snapshot-match guard in `PasteboardRestoreCoordinator`.
+- **Risk**: The feature expands into a general app-profile system.
+  **Mitigation**: keep the first pass to a single explicit bundle identifier and avoid generalized routing or user-facing configuration.
 
 ## Complexity Tracking
 

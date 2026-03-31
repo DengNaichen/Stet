@@ -76,6 +76,17 @@
                 value != nil || selectedText != nil || selectionRange != nil || numberOfCharacters != nil
             }
 
+            var traceSummary: String {
+                let valueLength = value.map { String($0.count) } ?? "nil"
+                let selectedTextLength = selectedText.map { String($0.count) } ?? "nil"
+                let selectionRangeSummary =
+                    selectionRange.map { "\($0.location):\($0.length)" } ?? "nil"
+                let characterCount = numberOfCharacters.map(String.init) ?? "nil"
+
+                return
+                    "valueLen=\(valueLength) selectedLen=\(selectedTextLength) range=\(selectionRangeSummary) chars=\(characterCount)"
+            }
+
             func indicatesMutation(comparedTo previous: Self) -> Bool {
                 if let value, let previousValue = previous.value, value != previousValue {
                     return true
@@ -136,7 +147,13 @@
         }
 
         func requestAccessIfNeeded() {
-            guard !isAvailable, !didPromptForMissingAccessThisSession else {
+            let state = accessState
+            let needsVerificationAccess = !state.hasAccessibilityAccess
+
+            guard
+                (!state.canSimulateInput || needsVerificationAccess),
+                !didPromptForMissingAccessThisSession
+            else {
                 return
             }
 
@@ -322,10 +339,25 @@
             sleep: @escaping @Sendable (Duration) async -> Void,
             activationDelay: Duration = .milliseconds(180),
             prePasteDelay: Duration = .milliseconds(60),
+            verificationBaselinePollInterval: Duration = .milliseconds(60),
+            verificationBaselineAttempts: Int = 4,
             verificationPollInterval: Duration = .milliseconds(120),
             verificationAttempts: Int = 4
         ) async -> TextInjectionOutcome {
+            let traceID = makeTextInjectionTraceID()
+            emitTextInjectionTrace(
+                traceID,
+                stage: "begin",
+                details:
+                    "target=\(applicationSummary(application)) frontmost=\(frontmostApplicationSummary()) accessibility=\(accessState.hasAccessibilityAccess) postEvent=\(accessState.hasPostEventAccess)"
+            )
+
             guard accessState.canSimulateInput else {
+                emitTextInjectionTrace(
+                    traceID,
+                    stage: "outcome",
+                    details: "outcome=\(outcomeLabel(.eventPostFailed)) reason=no_input_access"
+                )
                 return .eventPostFailed
             }
 
@@ -333,18 +365,60 @@
                 !application.isTerminated,
                 application.bundleIdentifier != Bundle.main.bundleIdentifier
             {
+                emitTextInjectionTrace(
+                    traceID,
+                    stage: "activate_target",
+                    details:
+                        "target=\(applicationSummary(application)) frontmostBefore=\(frontmostApplicationSummary()) delayMs=\(durationMilliseconds(activationDelay))"
+                )
                 activateApplication(application)
                 await sleep(activationDelay)
+                emitTextInjectionTrace(
+                    traceID,
+                    stage: "activate_target_settled",
+                    details: "frontmostAfter=\(frontmostApplicationSummary())"
+                )
             }
 
             await sleep(prePasteDelay)
-            let snapshotBeforePaste = snapshotProvider()
+            emitTextInjectionTrace(
+                traceID,
+                stage: "baseline_capture_start",
+                details:
+                    "attempts=\(max(1, verificationBaselineAttempts)) pollMs=\(durationMilliseconds(verificationBaselinePollInterval)) frontmost=\(frontmostApplicationSummary())"
+            )
+            let snapshotBeforePaste = await captureVerificationBaseline(
+                snapshotProvider: snapshotProvider,
+                sleep: sleep,
+                pollInterval: verificationBaselinePollInterval,
+                attempts: verificationBaselineAttempts,
+                traceID: traceID
+            )
 
-            guard simulatePasteCommand() else {
+            let pasteCommandPosted = simulatePasteCommand()
+            emitTextInjectionTrace(
+                traceID,
+                stage: "paste_command",
+                details:
+                    "success=\(pasteCommandPosted) baseline=\(snapshotBeforePaste?.traceSummary ?? "nil") frontmost=\(frontmostApplicationSummary())"
+            )
+
+            guard pasteCommandPosted else {
+                emitTextInjectionTrace(
+                    traceID,
+                    stage: "outcome",
+                    details: "outcome=\(outcomeLabel(.eventPostFailed))"
+                )
                 return .eventPostFailed
             }
 
             guard let snapshotBeforePaste, snapshotBeforePaste.canVerifyPaste else {
+                emitTextInjectionTrace(
+                    traceID,
+                    stage: "outcome",
+                    details:
+                        "outcome=\(outcomeLabel(.eventPostedVerificationUnavailable)) reason=missing_verifiable_baseline frontmost=\(frontmostApplicationSummary())"
+                )
                 return .eventPostedVerificationUnavailable
             }
 
@@ -353,7 +427,8 @@
                 snapshotProvider: snapshotProvider,
                 sleep: sleep,
                 pollInterval: verificationPollInterval,
-                attempts: verificationAttempts
+                attempts: verificationAttempts,
+                traceID: traceID
             )
         }
 
@@ -362,33 +437,106 @@
             snapshotProvider: @MainActor () -> FocusedElementSnapshot?,
             sleep: @escaping @Sendable (Duration) async -> Void,
             pollInterval: Duration = .milliseconds(120),
-            attempts: Int = 4
+            attempts: Int = 4,
+            traceID: String? = nil
         ) async -> TextInjectionOutcome {
             guard snapshotBeforePaste.canVerifyPaste else {
+                emitTextInjectionTrace(
+                    traceID,
+                    stage: "outcome",
+                    details:
+                        "outcome=\(outcomeLabel(.eventPostedVerificationUnavailable)) reason=baseline_not_verifiable"
+                )
                 return .eventPostedVerificationUnavailable
             }
 
             let retryCount = max(1, attempts)
             var observedVerifiableSnapshot = false
+            emitTextInjectionTrace(
+                traceID,
+                stage: "verification_start",
+                details:
+                    "attempts=\(retryCount) pollMs=\(durationMilliseconds(pollInterval)) baseline=\(snapshotBeforePaste.traceSummary)"
+            )
 
-            for _ in 0..<retryCount {
+            for attempt in 0..<retryCount {
                 await sleep(pollInterval)
 
                 guard let snapshotAfterPaste = snapshotProvider() else {
+                    emitTextInjectionTrace(
+                        traceID,
+                        stage: "verification_poll",
+                        details:
+                            "attempt=\(attempt + 1)/\(retryCount) snapshot=nil frontmost=\(frontmostApplicationSummary())"
+                    )
                     continue
                 }
 
                 observedVerifiableSnapshot =
                     observedVerifiableSnapshot || snapshotAfterPaste.canVerifyPaste
+                let didMutate = snapshotAfterPaste.indicatesMutation(comparedTo: snapshotBeforePaste)
 
-                if snapshotAfterPaste.indicatesMutation(comparedTo: snapshotBeforePaste) {
+                emitTextInjectionTrace(
+                    traceID,
+                    stage: "verification_poll",
+                    details:
+                        "attempt=\(attempt + 1)/\(retryCount) snapshot=\(snapshotAfterPaste.traceSummary) verifiable=\(snapshotAfterPaste.canVerifyPaste) mutated=\(didMutate) frontmost=\(frontmostApplicationSummary())"
+                )
+
+                if didMutate {
+                    emitTextInjectionTrace(
+                        traceID,
+                        stage: "outcome",
+                        details:
+                            "outcome=\(outcomeLabel(.verifiedSuccess)) attempt=\(attempt + 1)"
+                    )
                     return .verifiedSuccess
                 }
             }
 
-            return observedVerifiableSnapshot
+            let outcome: TextInjectionOutcome =
+                observedVerifiableSnapshot
                 ? .verificationFailed
                 : .eventPostedVerificationUnavailable
+            emitTextInjectionTrace(
+                traceID,
+                stage: "outcome",
+                details:
+                    "outcome=\(outcomeLabel(outcome)) observedVerifiableSnapshot=\(observedVerifiableSnapshot)"
+            )
+            return outcome
+        }
+
+        private func captureVerificationBaseline(
+            snapshotProvider: @MainActor () -> FocusedElementSnapshot?,
+            sleep: @escaping @Sendable (Duration) async -> Void,
+            pollInterval: Duration,
+            attempts: Int,
+            traceID: String? = nil
+        ) async -> FocusedElementSnapshot? {
+            let retryCount = max(1, attempts)
+
+            for attempt in 0..<retryCount {
+                let snapshot = snapshotProvider()
+                emitTextInjectionTrace(
+                    traceID,
+                    stage: "baseline_capture_attempt",
+                    details:
+                        "attempt=\(attempt + 1)/\(retryCount) snapshot=\(snapshot?.traceSummary ?? "nil") frontmost=\(frontmostApplicationSummary())"
+                )
+
+                if let snapshot, snapshot.canVerifyPaste {
+                    return snapshot
+                }
+
+                guard attempt + 1 < retryCount else {
+                    break
+                }
+
+                await sleep(pollInterval)
+            }
+
+            return nil
         }
 
         private func focusedElementSnapshot() -> FocusedElementSnapshot? {
@@ -511,6 +659,50 @@
                     ] as CFDictionary
                 _ = AXIsProcessTrustedWithOptions(options)
             }
+        }
+
+        private func makeTextInjectionTraceID() -> String {
+            String(UUID().uuidString.prefix(8))
+        }
+
+        private func emitTextInjectionTrace(_ traceID: String?, stage: String, details: String? = nil) {
+            guard let traceID else { return }
+            let detailsSuffix = details.map { " \($0)" } ?? ""
+            AppLogger.info(
+                "TextInjectionTrace id=\(traceID) stage=\(stage)\(detailsSuffix)",
+                category: .perfTrace
+            )
+        }
+
+        private func applicationSummary(_ application: NSRunningApplication?) -> String {
+            guard let application else { return "nil" }
+            let bundleIdentifier = application.bundleIdentifier ?? "unknown"
+            return "\(bundleIdentifier)(pid=\(application.processIdentifier))"
+        }
+
+        private func frontmostApplicationSummary() -> String {
+            applicationSummary(NSWorkspace.shared.frontmostApplication)
+        }
+
+        private func outcomeLabel(_ outcome: TextInjectionOutcome) -> String {
+            switch outcome {
+            case .verifiedSuccess:
+                return "verifiedSuccess"
+            case .eventPostedVerificationUnavailable:
+                return "eventPostedVerificationUnavailable"
+            case .verificationFailed:
+                return "verificationFailed"
+            case .eventPostFailed:
+                return "eventPostFailed"
+            }
+        }
+
+        private func durationMilliseconds(_ duration: Duration) -> String {
+            let components = duration.components
+            let milliseconds =
+                (Double(components.seconds) * 1_000)
+                + (Double(components.attoseconds) / 1_000_000_000_000_000)
+            return String(format: "%.1f", milliseconds)
         }
 
     }

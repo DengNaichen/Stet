@@ -86,6 +86,7 @@
             mediaPlaybackController: TestMediaPlaybackController? = nil,
             systemAudioMuting: TestSystemAudioMuting? = nil,
             interactionSoundPlayer: TestInteractionSoundPlayer? = nil,
+            frontmostBundleIdentifier: String? = nil,
             mediaResumeDelay: Duration = .zero
         ) -> (
             controller: MacDictationWorkflowController,
@@ -116,7 +117,8 @@
             let clipboard = TestClipboardService()
             let captureCoordinator = MacDictationCaptureCoordinator(
                 clipboardService: clipboard,
-                textInjectionService: textInjectionService
+                textInjectionService: textInjectionService,
+                frontmostBundleIdentifierProvider: { frontmostBundleIdentifier }
             )
 
             let controller = MacDictationWorkflowController(

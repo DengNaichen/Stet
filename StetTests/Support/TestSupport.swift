@@ -163,7 +163,7 @@ final class TestTextInjectionService: TextInjectionService {
     }
 
     func requestAccessIfNeeded() {
-        didRequestAccessIfNeeded = true
+        didRequestAccessIfNeeded = !isAvailable || !accessState.hasAccessibilityAccess
     }
 
     func openAccessibilitySettings() {

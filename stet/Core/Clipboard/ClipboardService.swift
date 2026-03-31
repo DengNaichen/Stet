@@ -35,35 +35,53 @@ final class SystemClipboardService: ClipboardService {
     @discardableResult
     func copy(_ text: String, transient: Bool) -> Bool {
         #if os(macOS)
-            do {
-                pasteboard.clearContents()
+            let changeCountBefore = pasteboard.changeCount
+            emitClipboardTrace(
+                stage: "copy_begin",
+                details:
+                    "transient=\(transient) textLength=\(text.count) changeCountBefore=\(changeCountBefore)"
+            )
 
-                guard pasteboard.setString(text, forType: .string) else {
-                    AppLogger.error(
-                        "Failed to write text to clipboard (setString returned false)",
-                        category: .general
-                    )
-                    return false
-                }
+            pasteboard.clearContents()
 
-                if let bundleIdentifier = Bundle.main.bundleIdentifier {
-                    _ = pasteboard.setString(bundleIdentifier, forType: Self.sourceType)
-                }
-                if transient {
-                    _ = pasteboard.setData(Data(), forType: Self.transientType)
-                }
-
-                return true
-            } catch {
+            guard pasteboard.setString(text, forType: .string) else {
                 AppLogger.error(
-                    "Failed to write text to clipboard: \(error.localizedDescription)",
+                    "Failed to write text to clipboard (setString returned false)",
                     category: .general
+                )
+                emitClipboardTrace(
+                    stage: "copy_end",
+                    details:
+                        "success=false transient=\(transient) textLength=\(text.count) changeCountBefore=\(changeCountBefore) changeCountAfter=\(pasteboard.changeCount)"
                 )
                 return false
             }
+
+            if let bundleIdentifier = Bundle.main.bundleIdentifier {
+                _ = pasteboard.setString(bundleIdentifier, forType: Self.sourceType)
+            }
+            if transient {
+                _ = pasteboard.setData(Data(), forType: Self.transientType)
+            }
+
+            emitClipboardTrace(
+                stage: "copy_end",
+                details:
+                    "success=true transient=\(transient) textLength=\(text.count) changeCountBefore=\(changeCountBefore) changeCountAfter=\(pasteboard.changeCount)"
+            )
+            return true
         #elseif canImport(UIKit)
             UIPasteboard.general.string = text
             return true
         #endif
     }
+
+    #if os(macOS)
+        private func emitClipboardTrace(stage: String, details: String) {
+            AppLogger.info(
+                "ClipboardTrace stage=\(stage) \(details)",
+                category: .perfTrace
+            )
+        }
+    #endif
 }
