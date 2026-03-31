@@ -7,15 +7,15 @@ Validate BYOK dictation provider splitting on macOS without regressing relay or 
 ## Entry Points
 
 - Settings persistence and provider selection:
-  - `/Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/Openai/MacOpenAISettingsViewModel.swift`
-  - `/Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/Openai/MacOpenAISettingsView.swift`
+  - `Stet/Features/MacShell/Openai/MacOpenAISettingsViewModel.swift`
+  - `Stet/Features/MacShell/Openai/MacOpenAISettingsView.swift`
 - Runtime routing and pipeline wiring:
-  - `/Users/nd/Developer/stet-project/Stet/Stet/Core/DictationPipeline/DictationExecutionRoute.swift`
-  - `/Users/nd/Developer/stet-project/Stet/Stet/Core/DictationPipeline/DictationPipelineFactory.swift`
-  - `/Users/nd/Developer/stet-project/Stet/Stet/Core/Speech/ConfigurableSpeechService.swift`
+  - `Stet/Core/DictationPipeline/DictationExecutionRoute.swift`
+  - `Stet/Core/DictationPipeline/DictationPipelineFactory.swift`
+  - `Stet/Core/Speech/ConfigurableSpeechService.swift`
 - User-facing failure mapping:
-  - `/Users/nd/Developer/stet-project/Stet/Stet/Features/Dictation/DictationFailure.swift`
-  - `/Users/nd/Developer/stet-project/Stet/Stet/Features/Dictation/DictationViewModel.swift`
+  - `Stet/Features/Dictation/DictationFailure.swift`
+  - `Stet/Features/Dictation/DictationViewModel.swift`
 
 ## Supported Provider Combinations
 

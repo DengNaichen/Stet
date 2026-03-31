@@ -1,6 +1,6 @@
 # Implementation Plan: App Branch
 
-**Branch**: `007-app-branch` | **Date**: 2026-03-27 | **Spec**: [/Users/nd/Developer/stet-project/Stet-001-audio-device-management/specs/007-app-branch/spec.md](/Users/nd/Developer/stet-project/Stet-001-audio-device-management/specs/007-app-branch/spec.md)
+**Branch**: `007-app-branch` | **Date**: 2026-03-27 | **Spec**: [`spec.md`](./spec.md)
 **Input**: Feature specification from `/specs/007-app-branch/spec.md`
 
 ## Summary
