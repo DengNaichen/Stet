@@ -494,7 +494,8 @@
                 }
             }
 
-            let outcome: TextInjectionOutcome = observedVerifiableSnapshot
+            let outcome: TextInjectionOutcome =
+                observedVerifiableSnapshot
                 ? .verificationFailed
                 : .eventPostedVerificationUnavailable
             emitTextInjectionTrace(

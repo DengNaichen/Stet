@@ -92,7 +92,11 @@
                         "success=\(clipboardSuccess) transient=\(isTransientCopy) pasteboardChangeCount=\(pasteboard.changeCount)"
                 )
                 if !clipboardSuccess {
-                    emitOutputTrace(traceID, stage: "completion", details: "outcome=failed failure=clipboardWriteFailed")
+                    emitOutputTrace(
+                        traceID,
+                        stage: "completion",
+                        details: "outcome=failed failure=clipboardWriteFailed"
+                    )
                     await DictationLatencyProbe.shared.record(
                         .systemWriteFailed, note: "clipboard_write_failed")
                     return .failed(.clipboardWriteFailed)
@@ -117,10 +121,15 @@
                         emitOutputTrace(
                             traceID,
                             stage: "fallback_clipboard_copy",
-                            details: "success=\(fallbackSuccess) transient=false pasteboardChangeCount=\(pasteboard.changeCount)"
+                            details:
+                                "success=\(fallbackSuccess) transient=false pasteboardChangeCount=\(pasteboard.changeCount)"
                         )
                         if !fallbackSuccess {
-                            emitOutputTrace(traceID, stage: "completion", details: "outcome=failed failure=clipboardWriteFailed")
+                            emitOutputTrace(
+                                traceID,
+                                stage: "completion",
+                                details: "outcome=failed failure=clipboardWriteFailed"
+                            )
                             await DictationLatencyProbe.shared.record(
                                 .systemWriteFailed, note: "clipboard_fallback_failed")
                             return .failed(.clipboardWriteFailed)
@@ -134,7 +143,11 @@
 
                     await DictationLatencyProbe.shared.record(
                         .systemWriteFailed, note: "auto_paste_permission_missing")
-                    emitOutputTrace(traceID, stage: "completion", details: "outcome=failed failure=autoPastePermissionMissing")
+                    emitOutputTrace(
+                        traceID,
+                        stage: "completion",
+                        details: "outcome=failed failure=autoPastePermissionMissing"
+                    )
                     return .failed(.autoPastePermissionMissing)
                 }
 
@@ -189,10 +202,15 @@
                         emitOutputTrace(
                             traceID,
                             stage: "fallback_clipboard_copy",
-                            details: "success=\(fallbackSuccess) transient=false pasteboardChangeCount=\(pasteboard.changeCount)"
+                            details:
+                                "success=\(fallbackSuccess) transient=false pasteboardChangeCount=\(pasteboard.changeCount)"
                         )
                         if !fallbackSuccess {
-                            emitOutputTrace(traceID, stage: "completion", details: "outcome=failed failure=clipboardWriteFailed")
+                            emitOutputTrace(
+                                traceID,
+                                stage: "completion",
+                                details: "outcome=failed failure=clipboardWriteFailed"
+                            )
                             await DictationLatencyProbe.shared.record(
                                 .systemWriteFailed, note: "clipboard_fallback_failed")
                             return .failed(.clipboardWriteFailed)
