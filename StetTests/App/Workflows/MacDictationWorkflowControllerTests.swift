@@ -122,7 +122,6 @@
             let controller = MacDictationWorkflowController(
                 dictationViewModel: viewModel,
                 captureCoordinator: captureCoordinator,
-                textInjectionService: textInjectionService,
                 mediaPlaybackController: mediaPlaybackController,
                 systemAudioMuting: systemAudioMuting,
                 settingsStore: settingsStore,
@@ -151,7 +150,6 @@
             }
 
             #expect(showPanelCount == 1)
-            #expect(subject.controller.activeWorkflow == .dictation)
             #expect(subject.viewModel.state.isCaptureInFlight)
             #expect(await TestSupport.eventually { subject.viewModel.state == .listening })
             #expect(subject.controller.statusText == "Listening...")
@@ -234,8 +232,7 @@
             var showPanelCount = 0
 
             let outcome = await subject.controller.handleCompletedResult(
-                text: "hello",
-                workflow: .dictation
+                text: "hello"
             ) {
                 showPanelCount += 1
             }
@@ -246,31 +243,6 @@
             #expect(showPanelCount == 0)
         }
 
-        @Test func failedSelectionReplacementFallsBackToClipboardCopy() async {
-            let textInjectionService = TestTextInjectionService()
-            textInjectionService.isAvailable = false
-            textInjectionService.accessState = .init(
-                hasAccessibilityAccess: false,
-                hasPostEventAccess: false
-            )
-            textInjectionService.pasteResult = false
-            let subject = makeController(textInjectionService: textInjectionService)
-            var showPanelCount = 0
-
-            let outcome = await subject.controller.handleCompletedResult(
-                text: "rewritten",
-                workflow: .rewriteFromSelection(sourceText: "hello")
-            ) {
-                showPanelCount += 1
-            }
-
-            #expect(outcome == .failed(.autoPastePermissionMissing))
-            #expect(subject.clipboard.copiedTexts == ["rewritten"])
-            #expect(subject.textInjectionService.replacementTexts == ["rewritten"])
-            #expect(subject.textInjectionService.didRequestAccessIfNeeded)
-            #expect(showPanelCount == 0)
-        }
-
         @Test func verificationUnavailableFallsBackToClipboardWithDistinctFailure() async {
             let textInjectionService = TestTextInjectionService()
             textInjectionService.pasteOutcome = .eventPostedVerificationUnavailable
@@ -278,8 +250,7 @@
             var showPanelCount = 0
 
             let outcome = await subject.controller.handleCompletedResult(
-                text: "hello",
-                workflow: .dictation
+                text: "hello"
             ) {
                 showPanelCount += 1
             }
@@ -291,32 +262,12 @@
             #expect(showPanelCount == 0)
         }
 
-        @Test func selectionReplacementClipboardWriteFailureSurfacesExplicitFailure() async {
-            let textInjectionService = TestTextInjectionService()
-            textInjectionService.replacementOutcome = .clipboardWriteFailed
-            let subject = makeController(textInjectionService: textInjectionService)
-            var showPanelCount = 0
-
-            let outcome = await subject.controller.handleCompletedResult(
-                text: "rewritten",
-                workflow: .rewriteFromSelection(sourceText: "hello")
-            ) {
-                showPanelCount += 1
-            }
-
-            #expect(outcome == .failed(.clipboardWriteFailed))
-            #expect(subject.textInjectionService.replacementTexts == ["rewritten"])
-            #expect(subject.textInjectionService.didRequestAccessIfNeeded == false)
-            #expect(showPanelCount == 0)
-        }
-
         @Test func emptyCompletionTextReturnsEmptyTranscriptionFailure() async {
             let subject = makeController()
             var showPanelCount = 0
 
             let outcome = await subject.controller.handleCompletedResult(
-                text: "  \n ",
-                workflow: .dictation
+                text: "  \n "
             ) {
                 showPanelCount += 1
             }
@@ -337,7 +288,6 @@
 
             subject.controller.resetWorkflowIfNeeded()
 
-            #expect(subject.controller.activeWorkflow == .dictation)
             #expect(subject.controller.activeRecordingSource == .hotkey)
         }
 
@@ -348,7 +298,6 @@
 
             subject.controller.resetWorkflowIfNeeded()
 
-            #expect(subject.controller.activeWorkflow == .dictation)
             #expect(subject.controller.activeRecordingSource == nil)
         }
 

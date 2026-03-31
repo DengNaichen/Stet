@@ -1,6 +1,7 @@
 #if os(macOS)
     import Combine
     import Foundation
+    import StetVisuals
     import Testing
 
     @testable import Stet
@@ -117,6 +118,7 @@
         var dictationState: DictationState = .idle
         var statusText: String = "Ready"
         var recordingLevel: Double = 0
+        var audioFeatures: MacDictationCapsuleVisualSignals = .zero
         var detectedTargetApplication: AppInfo?
         var autoPasteStatusText: String = "Enabled"
         var microphoneAccessStatusText: String = "Allowed"
@@ -187,7 +189,6 @@
             let workflow = MacDictationWorkflowController(
                 dictationViewModel: dictationViewModel,
                 captureCoordinator: captureCoordinator,
-                textInjectionService: textInjectionService,
                 mediaPlaybackController: mediaPlaybackController,
                 settingsStore: settingsStore,
                 interactionSoundPlayer: InteractionSoundPlayer(),
