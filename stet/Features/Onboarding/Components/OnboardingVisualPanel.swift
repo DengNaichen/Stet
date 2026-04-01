@@ -248,8 +248,12 @@
                     accentColor: .orange,
                     systemImage: "key.fill",
                     metrics: [
-                        .init(title: "Provider", value: viewModel.apiKeyProvider.displayName, systemImage: "server.rack", tint: .orange),
-                        .init(title: "Status", value: isAPIKeyValidated ? "Verified" : "Awaiting key", systemImage: "checkmark.shield", tint: .green),
+                        .init(
+                            title: "Provider", value: viewModel.apiKeyProvider.displayName, systemImage: "server.rack",
+                            tint: .orange),
+                        .init(
+                            title: "Status", value: isAPIKeyValidated ? "Verified" : "Awaiting key",
+                            systemImage: "checkmark.shield", tint: .green),
                         .init(title: "Storage", value: "Saved in Keychain", systemImage: "lock.shield", tint: .blue),
                     ]
                 )
@@ -266,9 +270,16 @@
                     accentColor: .green,
                     systemImage: "shield.checkerboard",
                     metrics: [
-                        .init(title: "Microphone", value: viewModel.microphoneAccessStatusText, systemImage: "mic.fill", tint: viewModel.microphoneAccessNeedsAttention ? .orange : .green),
-                        .init(title: "Input control", value: viewModel.autoPasteStatusText, systemImage: "keyboard", tint: viewModel.autoPasteAccessNeedsAttention ? .orange : .green),
-                        .init(title: "Ready", value: viewModel.hasRequiredPermissions ? "Yes" : "Needs attention", systemImage: "checkmark.circle.fill", tint: viewModel.hasRequiredPermissions ? .green : .orange),
+                        .init(
+                            title: "Microphone", value: viewModel.microphoneAccessStatusText, systemImage: "mic.fill",
+                            tint: viewModel.microphoneAccessNeedsAttention ? .orange : .green),
+                        .init(
+                            title: "Input control", value: viewModel.autoPasteStatusText, systemImage: "keyboard",
+                            tint: viewModel.autoPasteAccessNeedsAttention ? .orange : .green),
+                        .init(
+                            title: "Ready", value: viewModel.hasRequiredPermissions ? "Yes" : "Needs attention",
+                            systemImage: "checkmark.circle.fill",
+                            tint: viewModel.hasRequiredPermissions ? .green : .orange),
                     ]
                 )
             case .shortcut:
@@ -282,8 +293,12 @@
                     accentColor: .pink,
                     systemImage: "keyboard",
                     metrics: [
-                        .init(title: "Shortcut", value: viewModel.shortcutSummaryText, systemImage: "keyboard", tint: .pink),
-                        .init(title: "Next", value: "Continue to first run", systemImage: "arrow.right.circle.fill", tint: .blue),
+                        .init(
+                            title: "Shortcut", value: viewModel.shortcutSummaryText, systemImage: "keyboard",
+                            tint: .pink),
+                        .init(
+                            title: "Next", value: "Continue to first run", systemImage: "arrow.right.circle.fill",
+                            tint: .blue),
                         .init(title: "Later", value: "Adjust in Settings", systemImage: "gearshape", tint: .green),
                     ]
                 )
@@ -300,9 +315,16 @@
                     accentColor: .mint,
                     systemImage: "waveform",
                     metrics: [
-                        .init(title: "Result", value: viewModel.firstSuccessPreviewText ?? "No preview yet", systemImage: "text.quote", tint: .mint),
-                        .init(title: "Gate", value: viewModel.canContinueFirstSuccessOnboarding ? "Open" : "Waiting", systemImage: "checkmark.circle", tint: .green),
-                        .init(title: "Fallback", value: viewModel.canSkipFirstSuccessOnboarding ? "Skip allowed" : "Required", systemImage: "arrow.right.circle", tint: .orange),
+                        .init(
+                            title: "Result", value: viewModel.firstSuccessPreviewText ?? "No preview yet",
+                            systemImage: "text.quote", tint: .mint),
+                        .init(
+                            title: "Gate", value: viewModel.canContinueFirstSuccessOnboarding ? "Open" : "Waiting",
+                            systemImage: "checkmark.circle", tint: .green),
+                        .init(
+                            title: "Fallback",
+                            value: viewModel.canSkipFirstSuccessOnboarding ? "Skip allowed" : "Required",
+                            systemImage: "arrow.right.circle", tint: .orange),
                     ]
                 )
             case .done:
@@ -316,9 +338,16 @@
                     accentColor: .purple,
                     systemImage: "checkmark.seal.fill",
                     metrics: [
-                        .init(title: "Shortcut", value: viewModel.shortcutSummaryText, systemImage: "keyboard", tint: .purple),
-                        .init(title: "Mode", value: viewModel.onboardingMode == .apiKey ? "API Key" : "Logged In", systemImage: "arrow.triangle.branch", tint: .blue),
-                        .init(title: "Permissions", value: viewModel.hasRequiredPermissions ? "Enabled" : "Check required", systemImage: "shield.checkerboard", tint: .green),
+                        .init(
+                            title: "Shortcut", value: viewModel.shortcutSummaryText, systemImage: "keyboard",
+                            tint: .purple),
+                        .init(
+                            title: "Mode", value: viewModel.onboardingMode == .apiKey ? "API Key" : "Logged In",
+                            systemImage: "arrow.triangle.branch", tint: .blue),
+                        .init(
+                            title: "Permissions",
+                            value: viewModel.hasRequiredPermissions ? "Enabled" : "Check required",
+                            systemImage: "shield.checkerboard", tint: .green),
                     ]
                 )
             default:
