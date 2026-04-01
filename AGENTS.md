@@ -53,6 +53,7 @@
 - For UI work, do not add extra buttons, toggles, menus, panels, or settings without an explicit product or spec reason. Prefer the smallest UI change that satisfies the request.
 - When changing behavior, update or add tests where practical, starting with the feature's documented `Relevant Tests`.
 - If automated coverage is weak for the affected flow, record the manual validation performed or still required.
+- Do not run multiple Git commands that write the index in parallel. Commands such as `git add`, `git commit`, `git restore`, and `git cherry-pick` should be executed sequentially to avoid leaving a stale `.git/index.lock`.
 - Do not edit `dist/` artifacts, release automation, signing, notarization, Sparkle configuration, dependency versions, or any release scripts unless the task explicitly targets those areas.
 
 ## Repository Tree
