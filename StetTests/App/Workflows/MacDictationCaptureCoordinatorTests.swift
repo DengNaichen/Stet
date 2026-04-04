@@ -212,7 +212,7 @@
         @Test func vsCodeVerificationUnavailableCompletesWithoutFallbackOrPanel() async {
             let clipboard = TestClipboardService()
             let textInjection = TestTextInjectionService()
-            textInjection.pasteOutcome = .eventPostedVerificationUnavailable
+            textInjection.pasteOutcome = .eventPostedVerificationUnavailableInTextInput
             let coordinator = makeCoordinator(
                 clipboard: clipboard,
                 textInjection: textInjection,
@@ -251,7 +251,7 @@
             for bundleIdentifier in bundleIdentifiers {
                 let clipboard = TestClipboardService()
                 let textInjection = TestTextInjectionService()
-                textInjection.pasteOutcome = .eventPostedVerificationUnavailable
+                textInjection.pasteOutcome = .eventPostedVerificationUnavailableInTextInput
                 let coordinator = makeCoordinator(
                     clipboard: clipboard,
                     textInjection: textInjection,
@@ -279,6 +279,35 @@
                     "Expected \(bundleIdentifier) not to request access")
                 #expect(revealCount == 0, "Expected \(bundleIdentifier) not to reveal panel")
             }
+        }
+
+        @Test func vsCodeGenericVerificationUnavailableFallsBackToClipboardRecovery() async {
+            let clipboard = TestClipboardService()
+            let textInjection = TestTextInjectionService()
+            textInjection.pasteOutcome = .eventPostedVerificationUnavailable
+            let coordinator = makeCoordinator(
+                clipboard: clipboard,
+                textInjection: textInjection,
+                frontmostBundleIdentifier: "com.microsoft.VSCode"
+            )
+            var revealCount = 0
+
+            let outcome = await coordinator.handleCompletedCapture(
+                text: "hello",
+                targetApplication: nil,
+                settings: .init(
+                    shouldCopyToClipboard: false,
+                    shouldAutoPaste: true,
+                    shouldRevealPanelOnCapture: false
+                ),
+                showPanel: { revealCount += 1 }
+            )
+
+            #expect(outcome == .failed(.pasteVerificationUnavailable))
+            #expect(clipboard.copiedTexts == ["hello", "hello"])
+            #expect(clipboard.transientFlags == [true, false])
+            #expect(textInjection.didRequestAccessIfNeeded)
+            #expect(revealCount == 0)
         }
 
         @Test func verificationUnavailableRequestsMissingAccessibilityAccess() async {

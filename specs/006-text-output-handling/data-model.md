@@ -28,11 +28,13 @@ Represents a single completion attempt that needs to deliver text to the user.
 Represents the resolved outcome of a text-output attempt.
 
 **States**:
+
 - `completed`: The text was delivered successfully or intentionally copied for later manual use
 - `clipboardPending(text)`: The text is preserved in clipboard for manual copy or recovery
 - `failed(failure)`: The output could not complete and surfaced a specific failure
 
 **Important Behavior**:
+
 - `completed` means the workflow no longer needs to keep the capture result in an active pending state.
 - For automatic output, `completed` means the input-injection layer observed a verifiable mutation within its bounded post-paste verification window.
 - `clipboardPending(text)` keeps the text available without claiming the output succeeded.
@@ -101,6 +103,7 @@ Represents the user-visible failure categories the output pipeline can emit.
 - `MacDictationWorkflowController` produces `TextOutputRequest`-like inputs for the output pipeline and consumes `TextOutputResult`.
 - `ClipboardService` writes the textual payload that the workflow wants to preserve or deliver.
 - `TextInjectionService` uses `TextInjectionAccessState` to decide whether the system can attempt input simulation, reactivates the target app before taking its verification baseline, and classifies paste success or failure after a bounded metadata-polling window.
+- The injection outcome model may distinguish between a fully opaque verification miss and a likely text-input context that still remained unverifiable, so the workflow can keep optimistic-delivery heuristics narrow.
 - `MacDictationCaptureCoordinator` resolves a `TargetAppOutputProfile` before interpreting paste outcomes so explicit optimistic-delivery handling stays outside the generic injection service.
 - `PasteboardRestoreCoordinator` keeps a best-effort `ClipboardSnapshot` so temporary overrides can be restored after a successful injection.
 - `MacAppSessionController` turns `TextOutputResult` into the visible dictation panel state.

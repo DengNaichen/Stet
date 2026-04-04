@@ -16,6 +16,7 @@
     @MainActor
     enum TextInjectionOutcome: Equatable {
         case verifiedSuccess
+        case eventPostedVerificationUnavailableInTextInput
         case eventPostedVerificationUnavailable
         case verificationFailed
         case eventPostFailed
@@ -24,7 +25,10 @@
             switch self {
             case .verifiedSuccess:
                 return true
-            case .eventPostedVerificationUnavailable, .verificationFailed, .eventPostFailed:
+            case .eventPostedVerificationUnavailableInTextInput,
+                .eventPostedVerificationUnavailable,
+                .verificationFailed,
+                .eventPostFailed:
                 return false
             }
         }
@@ -56,6 +60,12 @@
 
     @MainActor
     final class SystemTextInjectionService: TextInjectionService {
+        private enum VerificationBaseline {
+            case verifiable(FocusedElementSnapshot)
+            case likelyTextInput(FocusedElementSnapshot)
+            case unavailable
+        }
+
         private enum KeyCode {
             static let copy: CGKeyCode = 8
             static let paste: CGKeyCode = 9
@@ -71,9 +81,30 @@
             let selectedText: String?
             let selectionRange: SelectionRange?
             let numberOfCharacters: Int?
+            let role: String?
+            let isEditable: Bool?
 
             var canVerifyPaste: Bool {
                 value != nil || selectedText != nil || selectionRange != nil || numberOfCharacters != nil
+            }
+
+            var likelyAcceptsPastedText: Bool {
+                if canVerifyPaste || isEditable == true {
+                    return true
+                }
+
+                switch role {
+                case "AXTextArea",
+                    "AXTextField",
+                    "AXSearchField",
+                    "AXComboBox",
+                    "AXTextView":
+                    return true
+                case "AXWebArea":
+                    return isEditable == true
+                default:
+                    return false
+                }
             }
 
             var traceSummary: String {
@@ -82,9 +113,11 @@
                 let selectionRangeSummary =
                     selectionRange.map { "\($0.location):\($0.length)" } ?? "nil"
                 let characterCount = numberOfCharacters.map(String.init) ?? "nil"
+                let roleSummary = role ?? "nil"
+                let editableSummary = isEditable.map(String.init) ?? "nil"
 
                 return
-                    "valueLen=\(valueLength) selectedLen=\(selectedTextLength) range=\(selectionRangeSummary) chars=\(characterCount)"
+                    "valueLen=\(valueLength) selectedLen=\(selectedTextLength) range=\(selectionRangeSummary) chars=\(characterCount) role=\(roleSummary) editable=\(editableSummary)"
             }
 
             func indicatesMutation(comparedTo previous: Self) -> Bool {
@@ -400,7 +433,7 @@
                 traceID,
                 stage: "paste_command",
                 details:
-                    "success=\(pasteCommandPosted) baseline=\(snapshotBeforePaste?.traceSummary ?? "nil") frontmost=\(frontmostApplicationSummary())"
+                    "success=\(pasteCommandPosted) baseline=\(verificationBaselineSummary(snapshotBeforePaste)) frontmost=\(frontmostApplicationSummary())"
             )
 
             guard pasteCommandPosted else {
@@ -412,7 +445,27 @@
                 return .eventPostFailed
             }
 
-            guard let snapshotBeforePaste, snapshotBeforePaste.canVerifyPaste else {
+            switch snapshotBeforePaste {
+            case .verifiable(let snapshot):
+                return await verifyPasteOutcome(
+                    comparedTo: snapshot,
+                    snapshotProvider: snapshotProvider,
+                    sleep: sleep,
+                    pollInterval: verificationPollInterval,
+                    attempts: verificationAttempts,
+                    traceID: traceID
+                )
+
+            case .likelyTextInput(let snapshot):
+                emitTextInjectionTrace(
+                    traceID,
+                    stage: "outcome",
+                    details:
+                        "outcome=\(outcomeLabel(.eventPostedVerificationUnavailableInTextInput)) reason=missing_verifiable_baseline_likely_text_input baseline=\(snapshot.traceSummary) frontmost=\(frontmostApplicationSummary())"
+                )
+                return .eventPostedVerificationUnavailableInTextInput
+
+            case .unavailable:
                 emitTextInjectionTrace(
                     traceID,
                     stage: "outcome",
@@ -421,15 +474,6 @@
                 )
                 return .eventPostedVerificationUnavailable
             }
-
-            return await verifyPasteOutcome(
-                comparedTo: snapshotBeforePaste,
-                snapshotProvider: snapshotProvider,
-                sleep: sleep,
-                pollInterval: verificationPollInterval,
-                attempts: verificationAttempts,
-                traceID: traceID
-            )
         }
 
         func verifyPasteOutcome(
@@ -497,7 +541,7 @@
             let outcome: TextInjectionOutcome =
                 observedVerifiableSnapshot
                 ? .verificationFailed
-                : .eventPostedVerificationUnavailable
+                : .eventPostedVerificationUnavailableInTextInput
             emitTextInjectionTrace(
                 traceID,
                 stage: "outcome",
@@ -513,8 +557,9 @@
             pollInterval: Duration,
             attempts: Int,
             traceID: String? = nil
-        ) async -> FocusedElementSnapshot? {
+        ) async -> VerificationBaseline {
             let retryCount = max(1, attempts)
+            var likelyTextInputSnapshot: FocusedElementSnapshot?
 
             for attempt in 0..<retryCount {
                 let snapshot = snapshotProvider()
@@ -526,7 +571,11 @@
                 )
 
                 if let snapshot, snapshot.canVerifyPaste {
-                    return snapshot
+                    return .verifiable(snapshot)
+                }
+
+                if let snapshot, snapshot.likelyAcceptsPastedText {
+                    likelyTextInputSnapshot = snapshot
                 }
 
                 guard attempt + 1 < retryCount else {
@@ -536,7 +585,11 @@
                 await sleep(pollInterval)
             }
 
-            return nil
+            if let likelyTextInputSnapshot {
+                return .likelyTextInput(likelyTextInputSnapshot)
+            }
+
+            return .unavailable
         }
 
         private func focusedElementSnapshot() -> FocusedElementSnapshot? {
@@ -551,7 +604,9 @@
                 selectedText: stringAttribute(
                     kAXSelectedTextAttribute as CFString, from: focusedElement),
                 selectionRange: selectedRange(from: focusedElement),
-                numberOfCharacters: numberOfCharacters(from: focusedElement)
+                numberOfCharacters: numberOfCharacters(from: focusedElement),
+                role: stringAttribute(kAXRoleAttribute as CFString, from: focusedElement),
+                isEditable: boolAttribute("AXEditable" as CFString, from: focusedElement)
             )
         }
 
@@ -641,6 +696,17 @@
             return number.intValue
         }
 
+        private func boolAttribute(_ attribute: CFString, from element: AXUIElement) -> Bool? {
+            var valueRef: CFTypeRef?
+            let status = AXUIElementCopyAttributeValue(element, attribute, &valueRef)
+
+            guard status == .success, let number = valueRef as? NSNumber else {
+                return nil
+            }
+
+            return number.boolValue
+        }
+
         private func requestMissingAccesses(trigger: String) {
             let state = accessState
             AppLogger.info(
@@ -688,12 +754,25 @@
             switch outcome {
             case .verifiedSuccess:
                 return "verifiedSuccess"
+            case .eventPostedVerificationUnavailableInTextInput:
+                return "eventPostedVerificationUnavailableInTextInput"
             case .eventPostedVerificationUnavailable:
                 return "eventPostedVerificationUnavailable"
             case .verificationFailed:
                 return "verificationFailed"
             case .eventPostFailed:
                 return "eventPostFailed"
+            }
+        }
+
+        private func verificationBaselineSummary(_ baseline: VerificationBaseline) -> String {
+            switch baseline {
+            case .verifiable(let snapshot):
+                return "verifiable:\(snapshot.traceSummary)"
+            case .likelyTextInput(let snapshot):
+                return "likelyTextInput:\(snapshot.traceSummary)"
+            case .unavailable:
+                return "unavailable"
             }
         }
 

@@ -75,6 +75,27 @@
             #expect(outcome == .verifiedSuccess)
         }
 
+        @Test func pasteReturnsTextInputUnavailableWhenBaselineWasVerifiableButFollowUpsWereOpaque()
+            async
+        {
+            let service = SystemTextInjectionService(clipboardService: TestClipboardService())
+            let beforePaste = Self.makeSnapshot(
+                value: "before",
+                selectionLocation: 6,
+                numberOfCharacters: 6
+            )
+
+            let outcome = await service.verifyPasteOutcome(
+                comparedTo: beforePaste,
+                snapshotProvider: { nil },
+                sleep: { _ in },
+                pollInterval: .milliseconds(0),
+                attempts: 2
+            )
+
+            #expect(outcome == .eventPostedVerificationUnavailableInTextInput)
+        }
+
         @Test func pasteWaitsForVerifiableBaselineBeforeDeclaringVerificationUnavailable() async {
             let service = SystemTextInjectionService(clipboardService: TestClipboardService())
             let beforePaste = Self.makeSnapshot(
@@ -126,16 +147,76 @@
             #expect(outcome == .verifiedSuccess)
         }
 
+        @Test func pasteTreatsEditableButUnverifiableBaselineAsTextInputContext() async {
+            let service = SystemTextInjectionService(clipboardService: TestClipboardService())
+            let likelyTextInput = Self.makeSnapshot(
+                value: nil,
+                selectionLocation: nil,
+                numberOfCharacters: nil,
+                role: "AXWebArea",
+                isEditable: true
+            )
+
+            let outcome = await service.performPasteClipboard(
+                into: nil,
+                accessState: .init(hasAccessibilityAccess: true, hasPostEventAccess: true),
+                activateApplication: { _ in },
+                snapshotProvider: { likelyTextInput },
+                simulatePasteCommand: { true },
+                sleep: { _ in },
+                activationDelay: .milliseconds(0),
+                prePasteDelay: .milliseconds(0),
+                verificationBaselinePollInterval: .milliseconds(0),
+                verificationBaselineAttempts: 1,
+                verificationPollInterval: .milliseconds(0),
+                verificationAttempts: 1
+            )
+
+            #expect(outcome == .eventPostedVerificationUnavailableInTextInput)
+        }
+
+        @Test func pasteKeepsGenericUnavailableWhenBaselineHasNoTextInputSignal() async {
+            let service = SystemTextInjectionService(clipboardService: TestClipboardService())
+            let unknownFocusedElement = Self.makeSnapshot(
+                value: nil,
+                selectionLocation: nil,
+                numberOfCharacters: nil,
+                role: "AXGroup",
+                isEditable: false
+            )
+
+            let outcome = await service.performPasteClipboard(
+                into: nil,
+                accessState: .init(hasAccessibilityAccess: true, hasPostEventAccess: true),
+                activateApplication: { _ in },
+                snapshotProvider: { unknownFocusedElement },
+                simulatePasteCommand: { true },
+                sleep: { _ in },
+                activationDelay: .milliseconds(0),
+                prePasteDelay: .milliseconds(0),
+                verificationBaselinePollInterval: .milliseconds(0),
+                verificationBaselineAttempts: 1,
+                verificationPollInterval: .milliseconds(0),
+                verificationAttempts: 1
+            )
+
+            #expect(outcome == .eventPostedVerificationUnavailable)
+        }
+
         private static func makeSnapshot(
             value: String?,
-            selectionLocation: Int,
-            numberOfCharacters: Int
+            selectionLocation: Int?,
+            numberOfCharacters: Int?,
+            role: String? = nil,
+            isEditable: Bool? = nil
         ) -> SystemTextInjectionService.FocusedElementSnapshot {
             .init(
                 value: value,
                 selectedText: nil,
-                selectionRange: .init(location: selectionLocation, length: 0),
-                numberOfCharacters: numberOfCharacters
+                selectionRange: selectionLocation.map { .init(location: $0, length: 0) },
+                numberOfCharacters: numberOfCharacters,
+                role: role,
+                isEditable: isEditable
             )
         }
 
