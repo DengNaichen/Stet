@@ -16,7 +16,7 @@
             VStack(spacing: 8) {
                 Text(text)
                     .font(.system(size: 15, weight: .medium, design: .rounded))
-                    .foregroundStyle(.black.opacity(0.92))
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(2)
                     .padding(.horizontal, 24)
