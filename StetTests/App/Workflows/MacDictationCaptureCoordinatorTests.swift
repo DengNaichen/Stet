@@ -306,7 +306,7 @@
             #expect(outcome == .failed(.pasteVerificationUnavailable))
             #expect(clipboard.copiedTexts == ["hello", "hello"])
             #expect(clipboard.transientFlags == [true, false])
-            #expect(textInjection.didRequestAccessIfNeeded)
+            #expect(textInjection.didRequestAccessIfNeeded == false)
             #expect(revealCount == 0)
         }
 

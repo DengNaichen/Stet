@@ -431,7 +431,7 @@
                     workflow.dictationViewModel.state == .clipboardPending("transcript")
                 })
             #expect(clipboardService.copiedTexts == ["transcript", "transcript"])
-            #expect(textInjectionService.didRequestAccessIfNeeded)
+            #expect(textInjectionService.didRequestAccessIfNeeded == false)
             #expect(shell.isPanelVisible)
         }
     }
