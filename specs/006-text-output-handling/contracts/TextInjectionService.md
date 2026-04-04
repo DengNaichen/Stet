@@ -25,6 +25,7 @@ struct TextInjectionAccessState: Equatable {
 @MainActor
 enum TextInjectionOutcome: Equatable {
     case verifiedSuccess
+    case eventPostedVerificationUnavailableInTextInput
     case eventPostedVerificationUnavailable
     case verificationFailed
     case eventPostFailed
@@ -59,6 +60,7 @@ protocol TextInjectionService {
 
 - The service MUST treat simulated input as permission-gated.
 - The service MUST distinguish verified success from unverifiable or failed paste attempts.
+- The service SHOULD distinguish a likely text-input context from a fully opaque verification miss when the paste event was posted but accessibility metadata remains insufficient.
 - The service MUST evaluate paste verification against the target application's focused element after target-app activation has been given a chance to settle.
 - The service SHOULD use a bounded verification window rather than a single immediate metadata read when inferring paste success.
 - The service SHOULD return best-effort results when the target app does not expose enough metadata for full verification.

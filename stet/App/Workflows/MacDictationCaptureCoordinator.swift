@@ -160,7 +160,7 @@
                         "outcome=\(textInjectionOutcomeLabel(pasteOutcome)) profile=\(targetAppProfileLabel(targetAppProfile))"
                 )
 
-                if case .eventPostedVerificationUnavailable = pasteOutcome,
+                if case .eventPostedVerificationUnavailableInTextInput = pasteOutcome,
                     case let .optimisticVerificationBlind(recoveryWindow)? = targetAppProfile
                 {
                     if shouldRestoreClipboardAfterSuccessfulPaste {
@@ -192,7 +192,10 @@
                     emitOutputTrace(traceID, stage: "completion", details: "outcome=completed")
                     return .completed
 
-                case .eventPostedVerificationUnavailable, .verificationFailed, .eventPostFailed:
+                case .eventPostedVerificationUnavailableInTextInput,
+                    .eventPostedVerificationUnavailable,
+                    .verificationFailed,
+                    .eventPostFailed:
                     if shouldRestoreClipboardAfterSuccessfulPaste {
                         pasteboardRestoreCoordinator.restoreImmediatelyIfNeeded(on: pasteboard)
                     }
@@ -221,6 +224,9 @@
                     let failureNote: String
 
                     switch pasteOutcome {
+                    case .eventPostedVerificationUnavailableInTextInput:
+                        failure = .pasteVerificationUnavailable
+                        failureNote = "paste_verification_unavailable_likely_text_input"
                     case .eventPostedVerificationUnavailable:
                         textInjectionService.requestAccessIfNeeded()
                         failure = .pasteVerificationUnavailable
@@ -298,6 +304,8 @@
             switch outcome {
             case .verifiedSuccess:
                 return "verifiedSuccess"
+            case .eventPostedVerificationUnavailableInTextInput:
+                return "eventPostedVerificationUnavailableInTextInput"
             case .eventPostedVerificationUnavailable:
                 return "eventPostedVerificationUnavailable"
             case .verificationFailed:

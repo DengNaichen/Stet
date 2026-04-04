@@ -158,13 +158,13 @@ When Stet posts `Cmd+V` successfully into an explicitly profiled editor such as 
 
 ### 3. Output Decision Model
 
-The existing `TextInjectionOutcome` contract remains in place. In particular, `.eventPostedVerificationUnavailable` continues to mean that the paste event was posted but the generic verification path could not confirm success.
+The existing `TextInjectionOutcome` contract remains in place conceptually, but the implementation may classify unverifiable posted-paste results more narrowly. In particular, the workflow can distinguish between a generic `.eventPostedVerificationUnavailable` result and an `.eventPostedVerificationUnavailableInTextInput` result where accessibility still suggests the focused element is a likely text-editing context even though mutation could not be confirmed.
 
 The approved design change happens in the workflow layer:
 
 1. Resolve an internal `TargetAppOutputProfile` from the workflow's `targetApplication` when available.
 2. If the workflow has no explicit target app, fall back to the frontmost application observed immediately before the paste attempt.
-3. If the resolved profile is `optimisticVerificationBlind` and the injection result is `.eventPostedVerificationUnavailable`, treat the output as an optimistic completion rather than a visible failure.
+3. If the resolved profile is `optimisticVerificationBlind` and the injection result is `.eventPostedVerificationUnavailableInTextInput`, treat the output as an optimistic completion rather than a visible failure.
 4. If the profile is absent, preserve the current fallback and failure behavior.
 
 This keeps the `TextInjectionService` contract stable while containing app-specific policy in the output workflow.
@@ -184,15 +184,16 @@ This is the main mitigation against the false-success risk. If one of the profil
 
 #### `Stet/Core/TextInput/TextInjectionService.swift`
 
-- Keep the public `TextInjectionOutcome` contract unchanged.
+- Keep the `TextInjectionOutcome` surface small and outcome-oriented rather than pushing app-specific policy into the service.
 - Continue bounded verification polling for all apps.
-- Continue returning `.eventPostedVerificationUnavailable` when the paste event is posted but the focused-element baseline or follow-up snapshots are unavailable.
+- Continue returning a generic verification-unavailable result when the paste event is posted but the focused-element baseline offers no positive text-input signal.
+- Allow the implementation to return a narrower text-input-context verification-unavailable result when the paste event is posted, the focused element still looks editable or text-like, and mutation still cannot be confirmed.
 - No app-specific policy should be embedded here.
 
 #### `Stet/App/Workflows/MacDictationCaptureCoordinator.swift`
 
 - Add the internal target-app profile resolution step before interpreting the paste result.
-- Reclassify `.eventPostedVerificationUnavailable` as completed only when the resolved target-app profile is optimistic-verification-blind.
+- Reclassify only the text-input-context verification-unavailable outcome as completed when the resolved target-app profile is optimistic-verification-blind.
 - Skip fallback clipboard copy and skip visible failure/panel behavior for that profiled path.
 - Request permission remediation only for the existing missing-permission path, not for the profiled optimistic case.
 
@@ -211,9 +212,9 @@ This is the main mitigation against the false-success risk. If one of the profil
 
 Automated coverage should focus on four behaviors:
 
-- Explicit-profile apps: `.eventPostedVerificationUnavailable` resolves to completed and does not surface `clipboardPending`
+- Explicit-profile apps: `.eventPostedVerificationUnavailableInTextInput` resolves to completed and does not surface `clipboardPending`
 - Explicit-profile apps: the clipboard result remains recoverable during the 10-second recovery window
-- Generic app path: `.eventPostedVerificationUnavailable` still falls back to clipboard-preserved recovery
+- Generic or non-text-input path: `.eventPostedVerificationUnavailable` still falls back to clipboard-preserved recovery
 - Clipboard restore path: delayed restore still respects external clipboard changes
 
 Manual validation should confirm the intended UX in the profiled editor set and in a non-profiled app such as TextEdit so the scope boundary is visible in product behavior.
