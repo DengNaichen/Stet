@@ -239,6 +239,48 @@
             #expect(revealCount == 0)
         }
 
+        @Test func otherOptimisticAppsVerificationUnavailableCompleteWithoutFallbackOrPanel()
+            async
+        {
+            let bundleIdentifiers = [
+                "com.openai.codex",
+                "com.google.antigravity",
+                "dev.zed.Zed",
+            ]
+
+            for bundleIdentifier in bundleIdentifiers {
+                let clipboard = TestClipboardService()
+                let textInjection = TestTextInjectionService()
+                textInjection.pasteOutcome = .eventPostedVerificationUnavailable
+                let coordinator = makeCoordinator(
+                    clipboard: clipboard,
+                    textInjection: textInjection,
+                    frontmostBundleIdentifier: bundleIdentifier
+                )
+                var revealCount = 0
+
+                let outcome = await coordinator.handleCompletedCapture(
+                    text: "hello",
+                    targetApplication: nil,
+                    settings: .init(
+                        shouldCopyToClipboard: false,
+                        shouldAutoPaste: true,
+                        shouldRevealPanelOnCapture: true
+                    ),
+                    showPanel: { revealCount += 1 }
+                )
+
+                #expect(outcome == .completed, "Expected \(bundleIdentifier) to complete")
+                #expect(clipboard.copiedTexts == ["hello"], "Expected \(bundleIdentifier) to copy once")
+                #expect(clipboard.transientFlags == [true], "Expected \(bundleIdentifier) to use transient copy")
+                #expect(textInjection.pasteTargets.count == 1, "Expected \(bundleIdentifier) to attempt one paste")
+                #expect(
+                    textInjection.didRequestAccessIfNeeded == false,
+                    "Expected \(bundleIdentifier) not to request access")
+                #expect(revealCount == 0, "Expected \(bundleIdentifier) not to reveal panel")
+            }
+        }
+
         @Test func verificationUnavailableRequestsMissingAccessibilityAccess() async {
             let clipboard = TestClipboardService()
             let textInjection = TestTextInjectionService()
