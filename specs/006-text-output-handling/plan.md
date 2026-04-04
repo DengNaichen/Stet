@@ -7,7 +7,7 @@
 
 This plan documents the current design of Stet's macOS text output handling flow. The feature delivers recognized text through the existing dictation and rewrite workflows, uses clipboard-backed automatic output, activates the target app before collecting verification metadata, verifies whether paste succeeded through bounded post-paste polling, and falls back to clipboard-preserved recovery when automatic output is unavailable or unverified.
 
-This plan remains grounded in the current implementation, but it now also records the approved scoped design addition needed to align the feature with the updated spec: explicit optimistic delivery for verification-blind target apps. The first implementation pass is intentionally narrow and is limited to VS Code rather than a generic unverifiable-success policy.
+This plan remains grounded in the current implementation, but it now also records the approved scoped design addition needed to align the feature with the updated spec: explicit optimistic delivery for verification-blind target apps. The first implementation pass is intentionally narrow and is limited to a small explicit bundle-identifier set rather than a generic unverifiable-success policy.
 
 ## Technical Context
 
@@ -19,10 +19,12 @@ This plan remains grounded in the current implementation, but it now also record
 - SwiftUI and Combine for panel state propagation and user-visible state
 
 **Storage**:
+
 - No new durable storage is introduced by this feature
 - Existing clipboard state and permission state are system-managed
 
 **Testing**:
+
 - Swift Testing for workflow coordination, clipboard handling, text injection, and panel state
 - Manual validation for system permissions and target-app interaction flows
 
@@ -30,12 +32,13 @@ This plan remains grounded in the current implementation, but it now also record
 **Project Type**: Native desktop application  
 **Performance Goals**: Output should feel immediate to the user, and clipboard restoration should remain best effort without blocking the main interaction flow  
 **Constraints**:
+
 - Documentation must reflect the current implementation exactly
 - This document describes the implementation that exists in the branch; it is not proposing a separate task list or future redesign
 - Current implementation takes precedence over the legacy `.kiro` draft when they differ
 - `plan.md` must describe design, not a task list
 - The approved design delta must stay inside the explicit optimistic-delivery scope defined by `spec.md`
-- The first implementation pass must be limited to `com.microsoft.VSCode`
+- The first implementation pass must be limited to `com.microsoft.VSCode`, `com.openai.codex`, `com.google.antigravity`, and `dev.zed.Zed`
 - No editor extension, no global "verification unavailable means success" rule, and no unrelated output-flow cleanup are in scope
 
 ## Constitution Check
@@ -140,16 +143,16 @@ The current branch now includes a dedicated `SystemTextInjectionServiceTests.swi
 
 ## Scoped Design Addition
 
-The following design addition is intentionally incremental. It does not replace the current implementation notes above; it defines the smallest approved change needed to eliminate false clipboard-recovery UI in VS Code without broadening the feature beyond the newly approved spec.
+The following design addition is intentionally incremental. It does not replace the current implementation notes above; it defines the smallest approved change needed to eliminate false clipboard-recovery UI in the explicitly profiled editor set without broadening the feature beyond the newly approved spec.
 
 ### 1. Product Goal
 
-When Stet posts `Cmd+V` successfully into VS Code but cannot verify the paste through accessibility metadata, the product should avoid surfacing `clipboardPending` or other failure UI immediately. At the same time, it must avoid silent text loss if the paste did not actually land.
+When Stet posts `Cmd+V` successfully into an explicitly profiled editor such as VS Code, Codex, AntiGravity, or Zed but cannot verify the paste through accessibility metadata, the product should avoid surfacing `clipboardPending` or other failure UI immediately. At the same time, it must avoid silent text loss if the paste did not actually land.
 
 ### 2. Design Boundary
 
 - The optimistic-delivery path applies only to explicitly profiled target apps.
-- The first implementation pass includes only `com.microsoft.VSCode`.
+- The first implementation pass includes only `com.microsoft.VSCode`, `com.openai.codex`, `com.google.antigravity`, and `dev.zed.Zed`.
 - Non-profiled apps keep the current behavior exactly: unverifiable paste remains a failure that preserves text in clipboard and surfaces recovery UI.
 - No changes are proposed to rewrite-specific selection replacement semantics beyond the shared output path behavior.
 
@@ -175,7 +178,7 @@ The optimistic-delivery path does not introduce a new UI state. Instead, it chan
 - Instead, it keeps the delivered text recoverable in clipboard for a short recovery window of 10 seconds.
 - After that window, the existing best-effort restore logic runs and restores the original clipboard only if the clipboard has not changed externally.
 
-This is the main mitigation against the false-success risk. If VS Code failed to accept the paste, the user can still paste manually during the recovery window.
+This is the main mitigation against the false-success risk. If one of the profiled apps failed to accept the paste, the user can still paste manually during the recovery window.
 
 ### 5. Component-Level Design
 
@@ -184,7 +187,7 @@ This is the main mitigation against the false-success risk. If VS Code failed to
 - Keep the public `TextInjectionOutcome` contract unchanged.
 - Continue bounded verification polling for all apps.
 - Continue returning `.eventPostedVerificationUnavailable` when the paste event is posted but the focused-element baseline or follow-up snapshots are unavailable.
-- No VS Code-specific policy should be embedded here.
+- No app-specific policy should be embedded here.
 
 #### `Stet/App/Workflows/MacDictationCaptureCoordinator.swift`
 
@@ -208,21 +211,21 @@ This is the main mitigation against the false-success risk. If VS Code failed to
 
 Automated coverage should focus on four behaviors:
 
-- VS Code profile: `.eventPostedVerificationUnavailable` resolves to completed and does not surface `clipboardPending`
-- VS Code profile: the clipboard result remains recoverable during the 10-second recovery window
+- Explicit-profile apps: `.eventPostedVerificationUnavailable` resolves to completed and does not surface `clipboardPending`
+- Explicit-profile apps: the clipboard result remains recoverable during the 10-second recovery window
 - Generic app path: `.eventPostedVerificationUnavailable` still falls back to clipboard-preserved recovery
 - Clipboard restore path: delayed restore still respects external clipboard changes
 
-Manual validation should confirm the intended UX in both VS Code and a non-profiled app such as TextEdit so the scope boundary is visible in product behavior.
+Manual validation should confirm the intended UX in the profiled editor set and in a non-profiled app such as TextEdit so the scope boundary is visible in product behavior.
 
 ### 7. Risks and Mitigations
 
-- **Risk**: VS Code paste truly fails and the product does not surface recovery UI.
-  **Mitigation**: limit the optimistic path to the explicit VS Code profile, require a successfully posted paste event, and keep the transcript recoverable in clipboard for 10 seconds.
+- **Risk**: a profiled app paste truly fails and the product does not surface recovery UI.
+  **Mitigation**: limit the optimistic path to the explicit editor profile set, require a successfully posted paste event, and keep the transcript recoverable in clipboard for 10 seconds.
 - **Risk**: The delayed restore window overwrites newer clipboard data.
   **Mitigation**: retain the existing snapshot-match guard in `PasteboardRestoreCoordinator`.
 - **Risk**: The feature expands into a general app-profile system.
-  **Mitigation**: keep the first pass to a single explicit bundle identifier and avoid generalized routing or user-facing configuration.
+  **Mitigation**: keep the first pass to the explicit bundle-identifier set and avoid generalized routing or user-facing configuration.
 
 ## Complexity Tracking
 

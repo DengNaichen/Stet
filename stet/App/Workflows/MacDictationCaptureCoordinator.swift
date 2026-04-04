@@ -343,8 +343,11 @@
         }
 
         private func outputProfile(for bundleIdentifier: String?) -> TargetAppOutputProfile? {
-            switch bundleIdentifier {
-            case "com.microsoft.VSCode":
+            switch bundleIdentifier?.lowercased() {
+            case "com.microsoft.vscode",
+                "com.openai.codex",
+                "com.google.antigravity",
+                "dev.zed.zed":
                 return .optimisticVerificationBlind(recoveryWindow: .seconds(10))
             default:
                 return nil

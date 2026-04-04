@@ -154,4 +154,4 @@ As a user, when transcription produces no usable text, I want the system to avoi
 - Legacy `mac.copyToClipboardOnCapture`, `mac.autoPasteOnCapture`, and `mac.revealPanelOnCapture` keys are migration artifacts, not current user-facing controls in this branch.
 - The workflow may request or open system input-control permissions, but permission grant decisions remain controlled by the operating system.
 - The target application is the app captured by the workflow, not a separate user-selected destination model.
-- Some editor-style target apps, including VS Code, may require an explicit optimistic-delivery profile because their accessibility metadata is insufficient for reliable generic paste verification.
+- Some editor-style target apps, including VS Code, OpenAI Codex, AntiGravity, and Zed, may require an explicit optimistic-delivery profile because their accessibility metadata is insufficient for reliable generic paste verification.

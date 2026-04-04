@@ -11,6 +11,7 @@ This document describes the domain data and state that drive Stet's macOS text o
 Represents a single completion attempt that needs to deliver text to the user.
 
 **Key Attributes**:
+
 - `text`: The recognized or rewritten text to deliver
 - `workflow`: The capture workflow that produced the text, such as dictation or rewrite-from-selection
 - `targetApplication`: The application the workflow intends to target
@@ -18,6 +19,7 @@ Represents a single completion attempt that needs to deliver text to the user.
 - `revealPanelOnFailure`: Whether the UI should surface the panel when output cannot complete
 
 **Invariants**:
+
 - `text` is the exact text produced by the upstream workflow.
 - The request does not normalize or reformat the text.
 
@@ -40,23 +42,42 @@ Represents the resolved outcome of a text-output attempt.
 Represents the system's ability to simulate input into the target application.
 
 **Key Attributes**:
+
 - `hasAccessibilityAccess`
 - `hasPostEventAccess`
 - `canSimulateInput`
 
 **Important Behavior**:
+
 - `canSimulateInput` is derived from the underlying system permissions.
 - The feature does not store this state; it is evaluated from the OS at runtime.
+
+### TargetAppOutputProfile
+
+Represents explicit output-handling rules for a target app whose paste behavior is not reliably verified through the generic metadata path.
+
+**Key Attributes**:
+
+- `bundleIdentifier`: The app identity used to resolve the profile
+- `mode`: The output behavior to apply for that app
+- `recoveryWindow`: The clipboard recovery delay to use when the profile is optimistic
+
+**Important Behavior**:
+
+- Only explicitly profiled apps use optimistic-delivery handling.
+- The profile is resolved at runtime from the target app or the observed frontmost app.
 
 ### ClipboardSnapshot
 
 Represents the clipboard state captured before a temporary override is used for automatic output.
 
 **Key Attributes**:
+
 - `contents`: The clipboard payload before temporary override
 - `isOpaque`: Whether the snapshot is treated as best-effort recovery data rather than a durable app-owned record
 
 **Important Behavior**:
+
 - The snapshot exists only to support best-effort restoration after automatic output.
 
 ### TextOutputFailure
@@ -64,12 +85,14 @@ Represents the clipboard state captured before a temporary override is used for 
 Represents the user-visible failure categories the output pipeline can emit.
 
 **States**:
+
 - `clipboardWriteFailed`
 - `autoPastePermissionMissing`
 - `pasteVerificationUnavailable`
 - `pasteVerificationFailed`
 
 **Important Behavior**:
+
 - Failure states preserve the distinction between write failure, permission failure, and verification failure.
 - Some failures preserve the recovered text in clipboard; others do not.
 
@@ -78,6 +101,7 @@ Represents the user-visible failure categories the output pipeline can emit.
 - `MacDictationWorkflowController` produces `TextOutputRequest`-like inputs for the output pipeline and consumes `TextOutputResult`.
 - `ClipboardService` writes the textual payload that the workflow wants to preserve or deliver.
 - `TextInjectionService` uses `TextInjectionAccessState` to decide whether the system can attempt input simulation, reactivates the target app before taking its verification baseline, and classifies paste success or failure after a bounded metadata-polling window.
+- `MacDictationCaptureCoordinator` resolves a `TargetAppOutputProfile` before interpreting paste outcomes so explicit optimistic-delivery handling stays outside the generic injection service.
 - `PasteboardRestoreCoordinator` keeps a best-effort `ClipboardSnapshot` so temporary overrides can be restored after a successful injection.
 - `MacAppSessionController` turns `TextOutputResult` into the visible dictation panel state.
 
