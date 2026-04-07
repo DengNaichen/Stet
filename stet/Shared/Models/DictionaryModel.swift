@@ -2,17 +2,22 @@ import Foundation
 import SwiftData
 
 nonisolated private let sharedDictionaryModelContainer: ModelContainer? = {
-    let schema = Schema([DictionaryEntryRecord.self])
-    let configuration = ModelConfiguration(schema: schema)
-
     do {
-        return try ModelContainer(
-            for: schema,
-            configurations: [configuration]
-        )
+        return try DictionaryModel.makePersistentModelContainer()
     } catch {
         AppLogger.error(
             "Failed to create DictionaryModel container. Falling back to UserDefaults-backed dictionary. error=\(error)"
+        )
+        return nil
+    }
+}()
+
+nonisolated private let sharedLegacyDictionaryModelContainer: ModelContainer? = {
+    do {
+        return try DictionaryModel.makeLegacyPersistentModelContainerIfAvailable()
+    } catch {
+        AppLogger.error(
+            "Failed to create legacy DictionaryModel container for migration. error=\(error)"
         )
         return nil
     }
@@ -33,11 +38,13 @@ final class DictionaryEntryRecord {
 
 struct DictionaryModel: @unchecked Sendable {
     nonisolated private let modelContainer: ModelContainer?
+    nonisolated private let legacyModelContainer: ModelContainer?
     private let defaultsStore: UserDefaultsStore
 
     nonisolated init() {
         self.init(
             modelContainer: sharedDictionaryModelContainer,
+            legacyModelContainer: sharedLegacyDictionaryModelContainer,
             defaults: .standard
         )
     }
@@ -45,42 +52,82 @@ struct DictionaryModel: @unchecked Sendable {
     nonisolated init(defaults: UserDefaults) {
         self.init(
             modelContainer: sharedDictionaryModelContainer,
+            legacyModelContainer: sharedLegacyDictionaryModelContainer,
             defaults: defaults
         )
     }
 
     nonisolated init(
         modelContainer: ModelContainer?,
+        legacyModelContainer: ModelContainer? = nil,
         defaults: UserDefaults
     ) {
         self.modelContainer = modelContainer
+        self.legacyModelContainer = legacyModelContainer
         self.defaultsStore = UserDefaultsStore(defaults)
     }
 
     nonisolated func loadEntries() -> [String] {
-        guard let context = modelContext else {
-            return Self.normalizeEntries(
-                defaultsStore.stringArray(forKey: MacPreferences.personalDictionary) ?? []
-            )
-        }
-
-        let storedEntries = fetchEntries(using: context)
-
-        guard storedEntries.isEmpty else {
-            return storedEntries
-        }
-
-        let legacyEntries = Self.normalizeEntries(
+        let defaultsEntries = Self.normalizeEntries(
             defaultsStore.stringArray(forKey: MacPreferences.personalDictionary) ?? []
         )
 
-        guard !legacyEntries.isEmpty else {
+        guard let context = modelContext else {
+            return defaultsEntries
+        }
+
+        do {
+            let storedEntries = try fetchEntries(using: context)
+            if !storedEntries.isEmpty {
+                return storedEntries
+            }
+        } catch {
+            AppLogger.error(
+                "Failed to fetch dictionary entries from SwiftData store. Falling back to UserDefaults-backed dictionary. error=\(error)"
+            )
+        }
+
+        if !defaultsEntries.isEmpty {
+            do {
+                try replaceEntries(defaultsEntries, using: context)
+                defaultsStore.removeObject(forKey: MacPreferences.personalDictionary)
+            } catch {
+                AppLogger.error(
+                    "Failed to migrate UserDefaults-backed dictionary entries into SwiftData store. error=\(error)"
+                )
+            }
+
+            return defaultsEntries
+        }
+
+        guard let legacyContext = legacyModelContext else {
             return []
         }
 
-        replaceEntries(legacyEntries, using: context)
-        defaultsStore.removeObject(forKey: MacPreferences.personalDictionary)
-        return legacyEntries
+        let legacyStoreEntries: [String]
+        do {
+            legacyStoreEntries = try fetchEntries(using: legacyContext)
+        } catch {
+            AppLogger.error(
+                "Failed to fetch dictionary entries from legacy SwiftData store. error=\(error)"
+            )
+            return []
+        }
+
+        guard !legacyStoreEntries.isEmpty else {
+            return []
+        }
+
+        do {
+            try replaceEntries(legacyStoreEntries, using: context)
+        } catch {
+            AppLogger.error(
+                "Failed to migrate dictionary entries from legacy SwiftData store. Falling back to UserDefaults-backed dictionary. error=\(error)"
+            )
+            defaultsStore.set(legacyStoreEntries, forKey: MacPreferences.personalDictionary)
+        }
+
+        return legacyStoreEntries
     }
 
     nonisolated func loadIsEnabled() -> Bool {
@@ -95,8 +142,15 @@ struct DictionaryModel: @unchecked Sendable {
             return
         }
 
-        replaceEntries(entries, using: context)
-        defaultsStore.removeObject(forKey: MacPreferences.personalDictionary)
+        do {
+            try replaceEntries(normalizedEntries, using: context)
+            defaultsStore.removeObject(forKey: MacPreferences.personalDictionary)
+        } catch {
+            AppLogger.error(
+                "Failed to save dictionary entries to SwiftData store. Falling back to UserDefaults-backed dictionary. error=\(error)"
+            )
+            defaultsStore.set(normalizedEntries, forKey: MacPreferences.personalDictionary)
+        }
     }
 
     nonisolated func saveIsEnabled(_ enabled: Bool) {
@@ -143,6 +197,52 @@ struct DictionaryModel: @unchecked Sendable {
         )
     }
 
+    nonisolated static func makePersistentModelContainer(
+        appSupportDirectory: URL? = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first,
+        bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "NaichengDeng.Stet"
+    ) throws -> ModelContainer {
+        let schema = Schema([DictionaryEntryRecord.self])
+        let configuration = ModelConfiguration(
+            schema: schema,
+            url: try persistentStoreURL(
+                appSupportDirectory: appSupportDirectory,
+                bundleIdentifier: bundleIdentifier
+            )
+        )
+
+        return try ModelContainer(
+            for: schema,
+            configurations: [configuration]
+        )
+    }
+
+    nonisolated static func makeLegacyPersistentModelContainerIfAvailable(
+        appSupportDirectory: URL? = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first
+    ) throws -> ModelContainer? {
+        guard let legacyStoreURL = legacyPersistentStoreURL(appSupportDirectory: appSupportDirectory),
+            FileManager.default.fileExists(atPath: legacyStoreURL.path)
+        else {
+            return nil
+        }
+
+        let schema = Schema([DictionaryEntryRecord.self])
+        let configuration = ModelConfiguration(
+            schema: schema,
+            url: legacyStoreURL
+        )
+
+        return try ModelContainer(
+            for: schema,
+            configurations: [configuration]
+        )
+    }
+
     nonisolated private var modelContext: ModelContext? {
         guard let modelContainer else {
             return nil
@@ -151,7 +251,15 @@ struct DictionaryModel: @unchecked Sendable {
         return ModelContext(modelContainer)
     }
 
-    nonisolated private func fetchEntries(using context: ModelContext) -> [String] {
+    nonisolated private var legacyModelContext: ModelContext? {
+        guard let legacyModelContainer else {
+            return nil
+        }
+
+        return ModelContext(legacyModelContainer)
+    }
+
+    nonisolated private func fetchEntries(using context: ModelContext) throws -> [String] {
         let descriptor = FetchDescriptor<DictionaryEntryRecord>(
             sortBy: [
                 SortDescriptor(\.sortIndex),
@@ -159,17 +267,14 @@ struct DictionaryModel: @unchecked Sendable {
             ]
         )
 
-        guard let records = try? context.fetch(descriptor) else {
-            return []
-        }
-
+        let records = try context.fetch(descriptor)
         return records.map(\.displayText)
     }
 
-    nonisolated private func replaceEntries(_ entries: [String], using context: ModelContext) {
+    nonisolated private func replaceEntries(_ entries: [String], using context: ModelContext) throws {
         let normalizedEntries = Self.normalizeEntries(entries)
         let descriptor = FetchDescriptor<DictionaryEntryRecord>()
-        let existingRecords = (try? context.fetch(descriptor)) ?? []
+        let existingRecords = try context.fetch(descriptor)
 
         for record in existingRecords {
             context.delete(record)
@@ -185,7 +290,35 @@ struct DictionaryModel: @unchecked Sendable {
             )
         }
 
-        try? context.save()
+        try context.save()
+    }
+
+    nonisolated private static func persistentStoreURL(
+        appSupportDirectory: URL?,
+        bundleIdentifier: String
+    ) throws -> URL {
+        guard let appSupportDirectory else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+
+        let directoryURL =
+            appSupportDirectory
+            .appendingPathComponent(bundleIdentifier, isDirectory: true)
+            .appendingPathComponent("SwiftData", isDirectory: true)
+
+        try FileManager.default.createDirectory(
+            at: directoryURL,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+
+        return directoryURL.appendingPathComponent("PersonalDictionary.store")
+    }
+
+    nonisolated private static func legacyPersistentStoreURL(
+        appSupportDirectory: URL?
+    ) -> URL? {
+        appSupportDirectory?.appendingPathComponent("default.store")
     }
 
     nonisolated private static func normalizeEntries(_ entries: [String]) -> [String] {
