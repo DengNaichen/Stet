@@ -160,8 +160,8 @@
                         "outcome=\(textInjectionOutcomeLabel(pasteOutcome)) profile=\(targetAppProfileLabel(targetAppProfile))"
                 )
 
-                if case .eventPostedVerificationUnavailableInTextInput = pasteOutcome,
-                    case let .optimisticVerificationBlind(recoveryWindow)? = targetAppProfile
+                if case let .optimisticVerificationBlind(recoveryWindow)? = targetAppProfile,
+                    shouldTreatAsOptimisticCompletion(pasteOutcome)
                 {
                     if shouldRestoreClipboardAfterSuccessfulPaste {
                         pasteboardRestoreCoordinator.scheduleRestoreIfNeeded(
@@ -353,12 +353,26 @@
         private func outputProfile(for bundleIdentifier: String?) -> TargetAppOutputProfile? {
             switch bundleIdentifier?.lowercased() {
             case "com.microsoft.vscode",
+                "com.microsoft.vscodeinsiders",
                 "com.openai.codex",
                 "com.google.antigravity",
+                "dev.zed.app",
                 "dev.zed.zed":
                 return .optimisticVerificationBlind(recoveryWindow: .seconds(10))
             default:
                 return nil
+            }
+        }
+
+        private func shouldTreatAsOptimisticCompletion(_ outcome: TextInjectionOutcome) -> Bool {
+            switch outcome {
+            case .eventPostedVerificationUnavailableInTextInput,
+                .eventPostedVerificationUnavailable,
+                .verificationFailed:
+                return true
+            case .verifiedSuccess,
+                .eventPostFailed:
+                return false
             }
         }
 
