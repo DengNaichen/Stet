@@ -377,7 +377,67 @@
             #expect(shell.showTransientPanelCallCount == 0)
         }
 
-        @Test func vsCodeGenericVerificationUnavailableStillShowsClipboardPendingSurface() async {
+        @Test func vsCodeVerificationFailureCompletesWithoutClipboardPendingSurface() async {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(true, forKey: MacPreferences.onboardingCompleted)
+            defaults.set(false, forKey: MacPreferences.interactionSoundsEnabled)
+            let speechService = ControllableSpeechService()
+            let textInjectionService = TestTextInjectionService()
+            textInjectionService.pasteOutcome = .verificationFailed
+            let clipboardService = TestClipboardService()
+            let mediaPlaybackController = FakeMediaPlaybackController()
+            let settingsStore = DictationSettingsStore(
+                defaults: defaults,
+                secretStore: TestSecretStore()
+            )
+            let dictationViewModel = DictationViewModel(speechService: speechService)
+            let captureCoordinator = MacDictationCaptureCoordinator(
+                clipboardService: clipboardService,
+                textInjectionService: textInjectionService,
+                frontmostBundleIdentifierProvider: { "com.microsoft.VSCode" }
+            )
+            let workflow = MacDictationWorkflowController(
+                dictationViewModel: dictationViewModel,
+                captureCoordinator: captureCoordinator,
+                mediaPlaybackController: mediaPlaybackController,
+                settingsStore: settingsStore,
+                interactionSoundPlayer: InteractionSoundPlayer(),
+                mediaResumeDelay: .zero
+            )
+            let permissionManager = MacPermissionManager(textInjectionService: textInjectionService)
+            let shell = FakeShellPresenter()
+            let permissionGate = FakePermissionGatePresenter()
+            let hotkeyRegistrar = FakeHotkeyRegistrar()
+            let appBranchMonitor = AppBranchMonitor(
+                workspace: TestAppBranchWorkspace(),
+                callbackQueue: DispatchQueue(
+                    label: "com.stet.tests.sessioncontroller.action.appbranch.verificationfailed")
+            )
+
+            let session = MacAppSessionController(
+                workflowController: workflow,
+                shellPresentationController: shell,
+                permissionGateController: permissionGate,
+                permissionManager: permissionManager,
+                appBranchMonitor: appBranchMonitor,
+                hotkeyRegistrar: hotkeyRegistrar
+            )
+            let presentationModel = FakePresentationModel()
+            session.activate(presentationModel: presentationModel, showInDock: false)
+
+            workflow.dictationViewModel.send(.transcriptionSucceeded("transcript"))
+
+            #expect(
+                await TestSupport.eventually {
+                    workflow.dictationViewModel.state == .idle
+                })
+            #expect(clipboardService.copiedTexts == ["transcript"])
+            #expect(textInjectionService.didRequestAccessIfNeeded == false)
+            #expect(shell.isPanelVisible == false)
+            #expect(shell.showTransientPanelCallCount == 0)
+        }
+
+        @Test func vsCodeGenericVerificationUnavailableCompletesWithoutClipboardPendingSurface() async {
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(true, forKey: MacPreferences.onboardingCompleted)
             defaults.set(false, forKey: MacPreferences.interactionSoundsEnabled)
@@ -395,6 +455,66 @@
                 clipboardService: clipboardService,
                 textInjectionService: textInjectionService,
                 frontmostBundleIdentifierProvider: { "com.microsoft.VSCode" }
+            )
+            let workflow = MacDictationWorkflowController(
+                dictationViewModel: dictationViewModel,
+                captureCoordinator: captureCoordinator,
+                mediaPlaybackController: mediaPlaybackController,
+                settingsStore: settingsStore,
+                interactionSoundPlayer: InteractionSoundPlayer(),
+                mediaResumeDelay: .zero
+            )
+            let permissionManager = MacPermissionManager(textInjectionService: textInjectionService)
+            let shell = FakeShellPresenter()
+            let permissionGate = FakePermissionGatePresenter()
+            let hotkeyRegistrar = FakeHotkeyRegistrar()
+            let appBranchMonitor = AppBranchMonitor(
+                workspace: TestAppBranchWorkspace(),
+                callbackQueue: DispatchQueue(
+                    label: "com.stet.tests.sessioncontroller.action.appbranch.genericunavailable")
+            )
+
+            let session = MacAppSessionController(
+                workflowController: workflow,
+                shellPresentationController: shell,
+                permissionGateController: permissionGate,
+                permissionManager: permissionManager,
+                appBranchMonitor: appBranchMonitor,
+                hotkeyRegistrar: hotkeyRegistrar
+            )
+            let presentationModel = FakePresentationModel()
+            session.activate(presentationModel: presentationModel, showInDock: false)
+
+            workflow.dictationViewModel.send(.transcriptionSucceeded("transcript"))
+
+            #expect(
+                await TestSupport.eventually {
+                    workflow.dictationViewModel.state == .idle
+                })
+            #expect(clipboardService.copiedTexts == ["transcript"])
+            #expect(textInjectionService.didRequestAccessIfNeeded == false)
+            #expect(shell.isPanelVisible == false)
+            #expect(shell.showTransientPanelCallCount == 0)
+        }
+
+        @Test func nonProfiledGenericVerificationUnavailableStillShowsClipboardPendingSurface() async {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(true, forKey: MacPreferences.onboardingCompleted)
+            defaults.set(false, forKey: MacPreferences.interactionSoundsEnabled)
+            let speechService = ControllableSpeechService()
+            let textInjectionService = TestTextInjectionService()
+            textInjectionService.pasteOutcome = .eventPostedVerificationUnavailable
+            let clipboardService = TestClipboardService()
+            let mediaPlaybackController = FakeMediaPlaybackController()
+            let settingsStore = DictationSettingsStore(
+                defaults: defaults,
+                secretStore: TestSecretStore()
+            )
+            let dictationViewModel = DictationViewModel(speechService: speechService)
+            let captureCoordinator = MacDictationCaptureCoordinator(
+                clipboardService: clipboardService,
+                textInjectionService: textInjectionService,
+                frontmostBundleIdentifierProvider: { "com.apple.TextEdit" }
             )
             let workflow = MacDictationWorkflowController(
                 dictationViewModel: dictationViewModel,
