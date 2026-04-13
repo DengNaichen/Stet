@@ -239,12 +239,73 @@
             #expect(revealCount == 0)
         }
 
+        @Test func vsCodeVerificationFailureCompletesWithoutFallbackOrPanel() async {
+            let clipboard = TestClipboardService()
+            let textInjection = TestTextInjectionService()
+            textInjection.pasteOutcome = .verificationFailed
+            let coordinator = makeCoordinator(
+                clipboard: clipboard,
+                textInjection: textInjection,
+                frontmostBundleIdentifier: "com.microsoft.VSCode"
+            )
+            var revealCount = 0
+
+            let outcome = await coordinator.handleCompletedCapture(
+                text: "hello",
+                targetApplication: nil,
+                settings: .init(
+                    shouldCopyToClipboard: false,
+                    shouldAutoPaste: true,
+                    shouldRevealPanelOnCapture: true
+                ),
+                showPanel: { revealCount += 1 }
+            )
+
+            #expect(outcome == .completed)
+            #expect(clipboard.copiedTexts == ["hello"])
+            #expect(clipboard.transientFlags == [true])
+            #expect(textInjection.pasteTargets.count == 1)
+            #expect(textInjection.didRequestAccessIfNeeded == false)
+            #expect(revealCount == 0)
+        }
+
+        @Test func vsCodeGenericVerificationUnavailableCompletesWithoutFallbackOrPanel() async {
+            let clipboard = TestClipboardService()
+            let textInjection = TestTextInjectionService()
+            textInjection.pasteOutcome = .eventPostedVerificationUnavailable
+            let coordinator = makeCoordinator(
+                clipboard: clipboard,
+                textInjection: textInjection,
+                frontmostBundleIdentifier: "com.microsoft.VSCode"
+            )
+            var revealCount = 0
+
+            let outcome = await coordinator.handleCompletedCapture(
+                text: "hello",
+                targetApplication: nil,
+                settings: .init(
+                    shouldCopyToClipboard: false,
+                    shouldAutoPaste: true,
+                    shouldRevealPanelOnCapture: true
+                ),
+                showPanel: { revealCount += 1 }
+            )
+
+            #expect(outcome == .completed)
+            #expect(clipboard.copiedTexts == ["hello"])
+            #expect(clipboard.transientFlags == [true])
+            #expect(textInjection.pasteTargets.count == 1)
+            #expect(textInjection.didRequestAccessIfNeeded == false)
+            #expect(revealCount == 0)
+        }
+
         @Test func otherOptimisticAppsVerificationUnavailableCompleteWithoutFallbackOrPanel()
             async
         {
             let bundleIdentifiers = [
                 "com.openai.codex",
                 "com.google.antigravity",
+                "dev.zed.app",
                 "dev.zed.Zed",
             ]
 
@@ -281,14 +342,14 @@
             }
         }
 
-        @Test func vsCodeGenericVerificationUnavailableFallsBackToClipboardRecovery() async {
+        @Test func nonProfiledGenericVerificationUnavailableFallsBackToClipboardRecovery() async {
             let clipboard = TestClipboardService()
             let textInjection = TestTextInjectionService()
             textInjection.pasteOutcome = .eventPostedVerificationUnavailable
             let coordinator = makeCoordinator(
                 clipboard: clipboard,
                 textInjection: textInjection,
-                frontmostBundleIdentifier: "com.microsoft.VSCode"
+                frontmostBundleIdentifier: "com.apple.TextEdit"
             )
             var revealCount = 0
 
