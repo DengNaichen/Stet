@@ -76,10 +76,10 @@ struct DictationPipelineFactory: Sendable {
                 direct.transcriptionConfiguration,
                 networkSession
             )
-            transcriptionLanguageCode = direct.languageMode.transcriptionLanguageCode
+            transcriptionLanguageCode = nil
             promptProvider = nil
             preferredSpellings = direct.preferredSpellings
-            rewriteAdditionalContext = direct.languageMode.rewriteAdditionalContext
+            rewriteAdditionalContext = nil
             usesAudienceAwareLocalPrompts = snapshot.executionMode == .byok
 
             if direct.rewriteEnabled, let rewriteConfiguration = direct.rewriteConfiguration {
@@ -93,11 +93,10 @@ struct DictationPipelineFactory: Sendable {
                 networkSession,
                 relay.preferredSpellings
             )
-            transcriptionLanguageCode = relay.languageMode.transcriptionLanguageCode
-            // Let ASR auto-detect language without an English-side prompt bias.
+            transcriptionLanguageCode = nil
             promptProvider = nil
             rewriteService = nil
-            rewriteAdditionalContext = relay.languageMode.rewriteAdditionalContext
+            rewriteAdditionalContext = nil
             preferredSpellings = relay.preferredSpellings
             usesAudienceAwareLocalPrompts = false
         }

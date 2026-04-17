@@ -67,6 +67,7 @@ Every feature must follow the standardized documentation structure:
 ## Governance
 
 **Constitution Authority**:
+
 - This constitution supersedes all other development practices
 - All features must comply with these principles
 - Violations must be justified in plan.md Complexity Tracking section

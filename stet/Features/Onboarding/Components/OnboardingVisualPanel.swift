@@ -7,6 +7,9 @@
         @ObservedObject var appearanceViewModel: MacAppearanceSettingsViewModel
         let onAppearanceThemeChange: ((MacDictationVisualTheme) -> Void)?
         let onAppearanceThemeApply: ((MacDictationVisualTheme) -> Void)?
+        @StateObject private var microphoneTestViewModel = MicrophoneTestViewModel(
+            microphoneTestService: DefaultMicrophoneTestService.shared
+        )
         @State private var firstSuccessDraftText = ""
         @FocusState private var isFirstSuccessDraftFocused: Bool
 
@@ -38,24 +41,36 @@
                     VStack(spacing: 24) {
                         Spacer()
 
-                        OnboardingMicrophoneLevelMeter(level: 0.0)
+                        OnboardingMicrophoneLevelMeter(level: microphoneTestViewModel.audioLevel)
                             .frame(height: 40)
                             .padding(.horizontal, 0)
 
                         OnboardingActionButton(
-                            title: "Start Recording",
-                            systemImage: "record.circle",
-                            background: Color.white.opacity(0.08),
-                            foreground: .primary,
-                            strokeColor: Color.white.opacity(0.10),
-                            minHeight: 48
+                            title: microphoneTestViewModel.isRecording ? "Stop Recording" : "Start Recording",
+                            systemImage: microphoneTestViewModel.isRecording ? "stop.circle.fill" : "record.circle",
+                            background: microphoneTestViewModel.isRecording
+                                ? Color.red.opacity(0.15) : Color.white.opacity(0.08),
+                            foreground: microphoneTestViewModel.isRecording ? .red : .primary,
+                            strokeColor: microphoneTestViewModel.isRecording
+                                ? Color.red.opacity(0.50) : Color.primary.opacity(0.25),
+                            minHeight: 48,
+                            isCentered: true
                         ) {
+                            Task {
+                                if microphoneTestViewModel.isRecording {
+                                    await microphoneTestViewModel.stopRecording()
+                                } else {
+                                    await microphoneTestViewModel.startRecording()
+                                }
+                            }
                         }
-                        .frame(width: 316)
 
                         Spacer()
                     }
                     .padding(32)
+                    .onDisappear {
+                        Task { await microphoneTestViewModel.stopRecording() }
+                    }
                 } else if step == .firstSuccess {
                     VStack(spacing: 24) {
                         Spacer()

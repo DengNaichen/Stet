@@ -48,23 +48,6 @@
                     Text("AI setup")
                 }
 
-                Section {
-                    VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
-                        MacSettingsValueRow(title: "Dictation language") {
-                            Picker("", selection: $viewModel.dictationLanguageMode) {
-                                ForEach(DictationLanguageMode.allCases) { mode in
-                                    Text(mode.title).tag(mode)
-                                }
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .frame(width: controlWidth, alignment: .trailing)
-                        }
-                    }
-                } header: {
-                    Text("Dictation")
-                }
-
                 if let message = viewModel.missingCredentialMessage {
                     Section {
                         Text(message)

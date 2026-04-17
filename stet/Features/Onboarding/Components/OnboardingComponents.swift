@@ -197,6 +197,7 @@
         var foreground: Color = .white
         var strokeColor: Color? = nil
         var minHeight: CGFloat = 50
+        var isCentered: Bool = false
         let action: () -> Void
 
         var body: some View {
@@ -211,12 +212,14 @@
                     Text(title)
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
 
-                    Spacer(minLength: 0)
+                    if !isCentered {
+                        Spacer(minLength: 0)
+                    }
                 }
                 .foregroundStyle(foreground)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 13)
-                .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .leading)
+                .frame(maxWidth: .infinity, minHeight: minHeight, alignment: isCentered ? .center : .leading)
                 .background(background)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)

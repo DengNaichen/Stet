@@ -2,6 +2,10 @@
 
 English | [中文](docs/README.zh-CN.md)
 
+![Stet app icon](docs/assets/app-icon.png)
+
+![Stet demo](docs/assets/demo.gif)
+
 Stet is a macOS menu bar dictation app that turns speech into usable text with minimal rewriting.
 
 This repository is the macOS app repository for Stet.
@@ -17,7 +21,6 @@ Stet records speech, transcribes it, and can paste the result back into the curr
 - Microphone testing and input device selection
 - OpenAI and Groq transcription providers
 - `Automatic`, `Stet account`, and `Your own key` execution modes
-- Chinese, English, and mixed Chinese-English dictation preferences
 - Personal dictionary support
 - Sparkle-based automatic updates
 
@@ -46,7 +49,7 @@ xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destinatio
 
 ## Configuration
 
-On first launch, Stet guides you through permissions, dictation setup, and either a Stet account or your own API key. Settings also cover audio input, language preference, appearance, updates, and the personal dictionary.
+On first launch, Stet guides you through permissions, dictation setup, and either a Stet account or your own API key. Settings also cover audio input, appearance, updates, and the personal dictionary.
 
 ## Troubleshooting
 

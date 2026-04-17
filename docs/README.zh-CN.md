@@ -1,10 +1,12 @@
 # Stet
 
-[English](../README.md) | 中文
-
 Stet 是一款 macOS 菜单栏语音听写应用。
 
-这个仓库只负责 Stet 的 macOS 客户端。
+[English](../README.md) | 中文
+
+![Stet app icon](assets/app-icon.png)
+
+![Stet demo](assets/demo.gif)
 
 ## 简介
 

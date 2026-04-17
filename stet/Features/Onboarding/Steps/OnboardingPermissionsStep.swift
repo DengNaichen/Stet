@@ -17,7 +17,7 @@
                             title: viewModel.microphonePermissionActionTitle,
                             background: Color.white.opacity(0.08),
                             foreground: .primary,
-                            strokeColor: Color.white.opacity(0.10),
+                            strokeColor: Color.primary.opacity(0.25),
                             minHeight: 44
                         ) {
                             viewModel.resolveMicrophoneAccess()
