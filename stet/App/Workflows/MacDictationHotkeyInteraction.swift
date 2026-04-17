@@ -14,7 +14,7 @@ struct MacDictationHotkeyInteraction {
         case suppressNextKeyUp
     }
 
-    var holdThreshold: TimeInterval = 0.25
+    var holdThreshold: TimeInterval = 0.35
     private(set) var state: State = .idle
 
     mutating func handleKeyDown(
