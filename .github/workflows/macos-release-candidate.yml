@@ -138,7 +138,7 @@ jobs:
 
       - name: Upload Release Candidate Artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: macos-release-candidate-${{ inputs.release_tag }}
           path: ${{ env.RELEASE_CANDIDATE_ARTIFACT_DIR }}

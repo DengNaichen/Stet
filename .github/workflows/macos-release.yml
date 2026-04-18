@@ -229,7 +229,7 @@ jobs:
 
       - name: Upload Release Artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: macos-release-${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
           path: ${{ env.RELEASE_ARTIFACT_DIR }}
