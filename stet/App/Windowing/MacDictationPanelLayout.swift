@@ -7,7 +7,7 @@
         let scale: CGFloat
 
         static let fixed = MacDictationPanelLayout(
-            panelSize: CGSize(width: 370, height: 106),
+            panelSize: CGSize(width: 1480, height: 424),
             bottomInset: 12,
             scale: 0.66
         )

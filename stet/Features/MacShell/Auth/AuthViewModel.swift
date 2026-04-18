@@ -55,6 +55,7 @@ final class AuthViewModel {
     var isLoading = false
     var errorMessage: String? = nil
     var statusMessage: String? = nil
+    var balanceCredits: Int? = nil
 
     private let supabase: SupabaseService
 
@@ -130,6 +131,27 @@ final class AuthViewModel {
     func signOut() async {
         await perform(.signOut) { _, _ in
             try await supabase.signOut()
+        }
+    }
+
+    func fetchWallet() async {
+        guard let ctx = await supabase.relayAuthenticationContext() else { return }
+        let url = ctx.relayBaseURL.appendingPathComponent("me/quota")
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(ctx.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue(ctx.publishableKey, forHTTPHeaderField: "Apikey")
+
+        guard let (data, _) = try? await URLSession.shared.data(for: request) else { return }
+
+        struct Response: Decodable {
+            struct BillingAccount: Decodable {
+                let balance_credits: Int
+            }
+            let billing_account: BillingAccount
+        }
+
+        if let decoded = try? JSONDecoder().decode(Response.self, from: data) {
+            balanceCredits = decoded.billing_account.balance_credits
         }
     }
 

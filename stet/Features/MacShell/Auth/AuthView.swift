@@ -18,6 +18,10 @@ struct AuthView: View {
         .frame(maxWidth: 460)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(nsColor: .windowBackgroundColor))
+        .task(id: viewModel.isSignedIn) {
+            guard viewModel.isSignedIn else { return }
+            await viewModel.fetchWallet()
+        }
         .overlay(alignment: .topLeading) {
             dismissButton
                 .padding(.top, 12)
@@ -67,6 +71,17 @@ struct AuthView: View {
 
                 MacSettingsValueRow(title: "Status") {
                     MacSettingsStatusBadge(text: "Active", tint: .green)
+                }
+
+                MacSettingsValueRow(title: "Balance") {
+                    if let credits = viewModel.balanceCredits {
+                        Text("~\(formattedHourMin(creditsToSeconds(credits))) remaining")
+                            .font(.system(.body))
+                            .foregroundStyle(credits > 0 ? Color.primary : Color.red)
+                    } else {
+                        ProgressView()
+                            .controlSize(.mini)
+                    }
                 }
 
                 Divider()
@@ -132,6 +147,12 @@ struct AuthView: View {
             return String(format: k.truncatingRemainder(dividingBy: 1) == 0 ? "%.0fK" : "%.1fK", k)
         }
         return "\(count)"
+    }
+
+    private func creditsToSeconds(_ credits: Int) -> TimeInterval {
+        // Groq ASR at 2x markup: (0.04 USD/hr ÷ 3600) × 1_000_000 × 2.0 ≈ 22.22 credits/sec
+        let creditsPerSecond = (0.04 / 3600.0) * 1_000_000 * 2.0
+        return max(0, Double(credits) / creditsPerSecond)
     }
 
     private func formattedHourMin(_ seconds: TimeInterval) -> String {
