@@ -10,7 +10,7 @@
         case openAI
         case dictionary
         #if DEBUG
-        case shaderDebug
+            case shaderDebug
         #endif
 
         var id: String { rawValue }
@@ -30,8 +30,8 @@
             case .dictionary:
                 return "Dictionary"
             #if DEBUG
-            case .shaderDebug:
-                return "Debug"
+                case .shaderDebug:
+                    return "Debug"
             #endif
             }
         }
@@ -51,8 +51,8 @@
             case .dictionary:
                 return "Personal dictionary entries used during transcription and transcript cleanup."
             #if DEBUG
-            case .shaderDebug:
-                return "Large shader preview and color input controls."
+                case .shaderDebug:
+                    return "Large shader preview and color input controls."
             #endif
             }
         }
@@ -72,8 +72,8 @@
             case .dictionary:
                 return "text.book.closed"
             #if DEBUG
-            case .shaderDebug:
-                return "hammer"
+                case .shaderDebug:
+                    return "hammer"
             #endif
             }
         }
@@ -93,8 +93,8 @@
             case .dictionary:
                 return ["entries", "personal dictionary", "names", "brands"]
             #if DEBUG
-            case .shaderDebug:
-                return ["shader", "preview", "debug", "window", "colors"]
+                case .shaderDebug:
+                    return ["shader", "preview", "debug", "window", "colors"]
             #endif
             }
         }
@@ -148,18 +148,6 @@
 
         private var sidebar: some View {
             VStack(spacing: 0) {
-                Button {
-                    isShowingAccountSheet = true
-                } label: {
-                    sidebarAccountRow
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, MacUI.SettingsViewMetrics.sidebarAccountRowHorizontalPadding)
-                        .padding(.vertical, MacUI.SettingsViewMetrics.sidebarAccountRowVerticalPadding)
-                }
-                .buttonStyle(.plain)
-
-                Divider()
-
                 List(selection: $selectedTab) {
                     if filteredTabs.isEmpty {
                         ContentUnavailableView(
@@ -180,6 +168,16 @@
                 }
                 .environment(\.sidebarRowSize, .large)
                 .listStyle(.sidebar)
+
+                Button {
+                    isShowingAccountSheet = true
+                } label: {
+                    sidebarAccountRow
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, MacUI.SettingsViewMetrics.sidebarAccountRowHorizontalPadding)
+                        .padding(.vertical, MacUI.SettingsViewMetrics.sidebarAccountRowVerticalPadding)
+                }
+                .buttonStyle(.plain)
             }
             .navigationSplitViewColumnWidth(min: 144, ideal: 176, max: 240)
         }
@@ -226,32 +224,55 @@
             .contentShape(Rectangle())
         }
 
+        private var accountAvatarURL: URL? {
+            guard let urlString = supabase.currentSession?.user.userMetadata["avatar_url"]?.stringValue else {
+                return nil
+            }
+            return URL(string: urlString)
+        }
+
         private var accountAvatar: some View {
             ZStack(alignment: .bottomTrailing) {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: accountAvatarGradient,
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 42, height: 42)
-                    .overlay {
-                        Text(accountInitials)
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white)
+                Group {
+                    if let url = accountAvatarURL {
+                        AsyncImage(url: url) { image in
+                            image.resizable().scaledToFill()
+                        } placeholder: {
+                            initialsAvatar
+                        }
+                        .frame(width: 30, height: 30)
+                        .clipShape(Circle())
+                    } else {
+                        initialsAvatar
                     }
+                }
 
                 Circle()
                     .fill(supabase.currentSession == nil ? Color.secondary.opacity(0.6) : Color.green)
-                    .frame(width: 10, height: 10)
+                    .frame(width: 8, height: 8)
                     .overlay {
                         Circle()
-                            .stroke(Color(nsColor: .controlBackgroundColor), lineWidth: 2)
+                            .stroke(Color(nsColor: .controlBackgroundColor), lineWidth: 1.5)
                     }
             }
             .accessibilityHidden(true)
+        }
+
+        private var initialsAvatar: some View {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: accountAvatarGradient,
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 30, height: 30)
+                .overlay {
+                    Text(accountInitials)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                }
         }
 
         @ViewBuilder
@@ -270,9 +291,9 @@
             case .dictionary:
                 DictionaryView(viewModel: dictionaryViewModel)
             #if DEBUG
-            case .shaderDebug:
-                MacShaderDebugSettingsView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                case .shaderDebug:
+                    MacShaderDebugSettingsView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             #endif
             }
         }

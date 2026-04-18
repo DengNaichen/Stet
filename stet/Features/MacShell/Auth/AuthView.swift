@@ -125,64 +125,7 @@ struct AuthView: View {
                     }
                 }
 
-                OnboardingInputField(
-                    label: "Email",
-                    placeholder: "name@example.com",
-                    text: $viewModel.email,
-                    mode: .text
-                )
-                .disableAutocorrection(true)
-
-                OnboardingInputField(
-                    label: "Password",
-                    placeholder: "Enter your password",
-                    text: $viewModel.password,
-                    mode: .secure
-                )
-
-                if viewModel.showsConfirmPasswordField {
-                    OnboardingInputField(
-                        label: "Confirm Password",
-                        placeholder: "Confirm password",
-                        text: $viewModel.confirmPassword,
-                        mode: .secure
-                    )
-                }
-
                 feedbackView
-
-                HStack(spacing: 12) {
-                    Button(viewModel.modeToggleTitle) {
-                        viewModel.toggleAuthMode()
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    Button(viewModel.primaryActionTitle) {
-                        shouldDismissAfterAuthentication = true
-                        Task {
-                            if viewModel.showsConfirmPasswordField {
-                                await viewModel.signUp()
-                            } else {
-                                await viewModel.signIn()
-                            }
-                        }
-                    }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!viewModel.canSubmit)
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-        }
-        .onSubmit {
-            guard viewModel.canSubmit else { return }
-            shouldDismissAfterAuthentication = true
-            Task {
-                await viewModel.signIn()
             }
         }
     }
