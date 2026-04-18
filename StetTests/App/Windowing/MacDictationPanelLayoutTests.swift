@@ -10,7 +10,7 @@
         @Test func fixedLayoutUsesExpectedPanelMetrics() {
             let layout = MacDictationPanelLayout.fixed
 
-            #expect(layout.panelSize == CGSize(width: 1480, height: 424))
+            #expect(layout.panelSize == CGSize(width: 370, height: 106))
             #expect(layout.bottomInset == 12)
             #expect(layout.scale == 0.66)
         }

@@ -3,7 +3,7 @@
 
     enum MacDictationPanelConstants {
         enum Layout {
-            static let controlHeight: CGFloat = 160
+            static let controlHeight: CGFloat = 40
             static let mainCapsuleAspectRatio: CGFloat = 2
             static let mainCapsuleWidth: CGFloat = controlHeight * mainCapsuleAspectRatio
             static let mainWidthIdle: CGFloat = mainCapsuleWidth
