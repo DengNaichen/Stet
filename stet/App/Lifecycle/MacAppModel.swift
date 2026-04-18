@@ -59,7 +59,8 @@
                 mediaPlaybackController: mediaPlaybackController,
                 systemAudioMuting: systemAudioMuting,
                 settingsStore: settingsStore,
-                interactionSoundPlayer: interactionSoundPlayer
+                interactionSoundPlayer: interactionSoundPlayer,
+                statsModel: .shared
             )
             let sessionController = MacAppSessionController(
                 workflowController: workflowController,

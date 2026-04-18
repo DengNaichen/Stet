@@ -1,6 +1,7 @@
 #if os(macOS)
     import AppKit
     import Foundation
+    import NaturalLanguage
 
     @MainActor
     final class MacDictationWorkflowController {
@@ -25,6 +26,9 @@
         private(set) var activeRecordingSource: PrimaryActionSource?
         private var mediaResumeTask: Task<Void, Never>?
         private var startActivationTask: Task<Void, Never>?
+        private var sessionStartDate: Date?
+        private var pendingSessionDuration: TimeInterval?
+        private let statsModel: DictationStatsModel?
 
         init(
             dictationViewModel: DictationViewModel,
@@ -33,6 +37,7 @@
             systemAudioMuting: (any SystemAudioMuting)? = nil,
             settingsStore: DictationSettingsStore,
             interactionSoundPlayer: any InteractionSoundPlaying,
+            statsModel: DictationStatsModel? = nil,
             mediaResumeDelay: Duration = .seconds(1),
             startPromptActivationDeadline: Duration = .milliseconds(350)
         ) {
@@ -42,6 +47,7 @@
             self.systemAudioMuting = systemAudioMuting
             self.settingsStore = settingsStore
             self.interactionSoundPlayer = interactionSoundPlayer
+            self.statsModel = statsModel
             self.mediaResumeDelay = mediaResumeDelay
             self.startPromptActivationDeadline = startPromptActivationDeadline
         }
@@ -89,6 +95,7 @@
             }
             refreshTargetApplication(allowingCurrentAppTarget: allowCurrentAppTarget)
             activeRecordingSource = source
+            sessionStartDate = Date()
             mediaResumeTask?.cancel()
             mediaResumeTask = nil
 
@@ -119,6 +126,11 @@
         }
 
         func stopActiveCapture() {
+            if let start = sessionStartDate {
+                let duration = Date().timeIntervalSince(start)
+                pendingSessionDuration = duration >= 1 ? duration : nil
+                sessionStartDate = nil
+            }
             activeRecordingSource = nil
             startActivationTask?.cancel()
             startActivationTask = nil
@@ -134,6 +146,8 @@
         }
 
         func cancelActiveCapture() {
+            sessionStartDate = nil
+            pendingSessionDuration = nil
             activeRecordingSource = nil
             startActivationTask?.cancel()
             startActivationTask = nil
@@ -173,7 +187,15 @@
             }
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 await DictationLatencyProbe.shared.record(.systemWriteSkipped, note: "empty_text")
+                pendingSessionDuration = nil
                 return .failed(.emptyTranscription)
+            }
+
+            if let duration = pendingSessionDuration {
+                let wordCount = Self.countWords(in: text)
+                statsModel?.record(
+                    startedAt: Date().addingTimeInterval(-duration), durationSeconds: duration, wordCount: wordCount)
+                pendingSessionDuration = nil
             }
 
             return await captureCoordinator.handleCompletedCapture(
@@ -275,6 +297,17 @@
                 mediaPlaybackController.resumePlaybackIfNeeded()
                 mediaResumeTask = nil
             }
+        }
+
+        private static func countWords(in text: String) -> Int {
+            let tokenizer = NLTokenizer(unit: .word)
+            tokenizer.string = text
+            var count = 0
+            tokenizer.enumerateTokens(in: text.startIndex..<text.endIndex) { _, _ in
+                count += 1
+                return true
+            }
+            return count
         }
 
         private func matchesListeningState(_ state: DictationState) -> Bool {

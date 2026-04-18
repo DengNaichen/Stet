@@ -4,6 +4,7 @@ struct AuthView: View {
     @State private var viewModel = AuthViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var shouldDismissAfterAuthentication = false
+    private let stats = DictationStatsModel.shared
 
     var body: some View {
         VStack(spacing: 20) {
@@ -68,6 +69,10 @@ struct AuthView: View {
                     MacSettingsStatusBadge(text: "Active", tint: .green)
                 }
 
+                Divider()
+
+                statsGrid
+
                 feedbackView
 
                 HStack {
@@ -86,6 +91,89 @@ struct AuthView: View {
                     .disabled(viewModel.isLoading)
                 }
             }
+        }
+    }
+
+    private var statsGrid: some View {
+        let duration = stats.allTimeTotalDuration()
+        let words = stats.allTimeTotalWordCount()
+        let durationMinutes = duration / 60
+        let avgWPM = durationMinutes > 0 ? Int(Double(words) / durationMinutes) : 0
+        let typingMinutes = Double(words) / 40.0
+        let savedMinutes = max(0, typingMinutes - durationMinutes)
+
+        return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+            StatCard(
+                icon: "clock",
+                value: formattedHourMin(duration),
+                label: "Total dictation time"
+            )
+            StatCard(
+                icon: "mic",
+                value: formattedWordCount(words),
+                label: "Words dictated"
+            )
+            StatCard(
+                icon: "hourglass",
+                value: formattedHourMin(savedMinutes * 60),
+                label: "Time saved"
+            )
+            StatCard(
+                icon: "bolt",
+                value: "\(avgWPM) WPM",
+                label: "Avg dictation speed"
+            )
+        }
+    }
+
+    private func formattedWordCount(_ count: Int) -> String {
+        if count >= 1000 {
+            let k = Double(count) / 1000.0
+            return String(format: k.truncatingRemainder(dividingBy: 1) == 0 ? "%.0fK" : "%.1fK", k)
+        }
+        return "\(count)"
+    }
+
+    private func formattedHourMin(_ seconds: TimeInterval) -> String {
+        let totalMinutes = Int(seconds) / 60
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        if hours == 0 {
+            return "\(minutes) min"
+        }
+        if minutes == 0 {
+            return "\(hours) hr"
+        }
+        return "\(hours) hr \(minutes) min"
+    }
+
+    private struct StatCard: View {
+        let icon: String
+        let value: String
+        let label: String
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                Text(value)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            )
         }
     }
 
