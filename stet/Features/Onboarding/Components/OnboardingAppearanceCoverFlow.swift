@@ -137,19 +137,6 @@
                 .animation(.spring(response: 0.45, dampingFraction: 0.82), value: focusedIndex)
 
                 Spacer(minLength: 0)
-
-                OnboardingActionButton(
-                    title: isSelectedThemeApplied ? "Applied" : "Apply Theme",
-                    systemImage: "paintbrush",
-                    isEnabled: !isSelectedThemeApplied,
-                    background: isSelectedThemeApplied ? Color.accentColor : Color.white.opacity(0.12),
-                    foreground: isSelectedThemeApplied ? .white : .primary,
-                    strokeColor: Color.white.opacity(0.12),
-                    minHeight: 44
-                ) {
-                    onApplyTheme(currentFocusedTheme)
-                }
-                .frame(width: 190)
             }
             .padding(.vertical, 8)
             .onAppear {

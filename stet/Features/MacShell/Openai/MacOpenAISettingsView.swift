@@ -68,6 +68,7 @@
                                     set: { viewModel.setAPIKey($0, for: provider) }
                                 )
                             )
+                            .labelsHidden()
                             .textFieldStyle(.roundedBorder)
                             .font(.system(.body, design: .monospaced))
 

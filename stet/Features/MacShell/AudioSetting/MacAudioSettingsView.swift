@@ -12,7 +12,7 @@
                 )
             }
             .formStyle(.grouped)
-            .padding(.horizontal, MacUI.SettingsViewMetrics.formHorizontalPadding)
+            .padding(.leading, MacUI.SettingsViewMetrics.formHorizontalPadding)
             .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
                 viewModel.onAppear()

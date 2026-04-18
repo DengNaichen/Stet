@@ -1,4 +1,5 @@
 #if os(macOS)
+    import StetVisuals
     import SwiftUI
 
     struct OnboardingAppearanceStep: View {
@@ -7,9 +8,17 @@
 
         var body: some View {
             VStack(alignment: .leading, spacing: 18) {
-                Text(statusText)
+                Text("Browse themes on the right. The capsule shows a live preview.")
                     .font(.body)
-                    .foregroundStyle(appearanceViewModel.hasAppliedSelectedTheme ? .green : .secondary)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                MacDictationCapsulePreviewView(
+                    theme: MacDictationShaderTheme(rawValue: viewModel.onboardingPreviewTheme.rawValue) ?? .egg,
+                    scale: 2.5
+                )
+                .frame(maxWidth: .infinity, alignment: .center)
 
                 Spacer()
 
@@ -19,22 +28,14 @@
                     Spacer()
 
                     OnboardingActionButton(
-                        title: "Finish",
-                        isEnabled: appearanceViewModel.hasAppliedSelectedTheme,
+                        title: "Apply & Finish",
                         minHeight: 48
                     ) {
+                        viewModel.applyOnboardingAppearanceTheme()
                         viewModel.finishOnboarding()
                     }
                 }
             }
-        }
-
-        private var statusText: String {
-            if appearanceViewModel.hasAppliedSelectedTheme {
-                return "\(appearanceViewModel.shaderTheme.title) is applied. You can finish now."
-            }
-
-            return "Choose a theme on the right, apply it, then finish."
         }
     }
 

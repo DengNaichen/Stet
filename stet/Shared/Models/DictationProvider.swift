@@ -25,6 +25,6 @@ enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
     }
 
     nonisolated var apiKeyPlaceholder: String {
-        "Enter your access key"
+        ""
     }
 }

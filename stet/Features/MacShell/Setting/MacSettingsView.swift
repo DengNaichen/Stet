@@ -187,7 +187,6 @@
             if let activeTab {
                 selectedContent(for: activeTab)
                     .navigationTitle(activeTab.title)
-                    .navigationSubtitle(activeTab.subtitle)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else {
                 ContentUnavailableView(

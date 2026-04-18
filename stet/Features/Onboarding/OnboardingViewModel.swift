@@ -58,6 +58,7 @@
         @Published private(set) var authErrorMessage: String?
         @Published private(set) var authStatusMessage: String?
         @Published private(set) var shortcutSummaryText = "Shortcut configured"
+        @Published private(set) var onboardingPreviewTheme: MacDictationVisualTheme = .egg
 
         private let coordinator: any MacPermissionsCoordinating
         private let settingsStore: DictationSettingsStore
@@ -207,6 +208,7 @@
         }
 
         func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme) {
+            onboardingPreviewTheme = theme
             coordinator.selectOnboardingAppearanceTheme(theme)
         }
 

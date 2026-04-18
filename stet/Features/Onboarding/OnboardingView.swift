@@ -238,7 +238,7 @@
                 return
                     "Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup."
             case .appearance:
-                return "Apply the theme on the right, then finish."
+                return "Browse themes on the right, then apply and finish."
             case .done:
                 return "Hold your shortcut and start speaking anywhere you can type text."
             }
