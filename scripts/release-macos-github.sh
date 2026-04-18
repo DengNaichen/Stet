@@ -95,6 +95,30 @@ find_sparkle_generate_appcast() {
 
 SPARKLE_GENERATE_APPCAST="$(find_sparkle_generate_appcast || true)"
 
+expected_build_number_for_version() {
+  local version="$1"
+  local major=""
+  local minor=""
+  local patch=""
+  local extra=""
+
+  IFS='.' read -r major minor patch extra <<< "$version"
+
+  if [[ -n "$extra" || -z "$major" || -z "$minor" || -z "$patch" ]]; then
+    echo "Unsupported MARKETING_VERSION format: $version" >&2
+    echo "Expected semantic version in major.minor.patch format." >&2
+    exit 1
+  fi
+
+  if [[ ! "$major" =~ '^[0-9]+$' || ! "$minor" =~ '^[0-9]+$' || ! "$patch" =~ '^[0-9]+$' ]]; then
+    echo "Unsupported MARKETING_VERSION format: $version" >&2
+    echo "Each semantic version component must be numeric." >&2
+    exit 1
+  fi
+
+  printf '%d\n' $((10#$major * 1000000 + 10#$minor * 1000 + 10#$patch))
+}
+
 plist_has_key() {
   local plist_path="$1"
   local key_path="$2"
@@ -218,7 +242,7 @@ BUILD="$(
 )"
 RELEASE_BASENAME="${APP_NAME}-${VERSION}-${BUILD}-mac"
 EXPECTED_TAG_PREFIX="v${VERSION}"
-EXPECTED_BUILD="${VERSION##*.}"
+EXPECTED_BUILD="$(expected_build_number_for_version "$VERSION")"
 
 if [[ "$GITHUB_TAG" != "$EXPECTED_TAG_PREFIX" && "$GITHUB_TAG" != ${EXPECTED_TAG_PREFIX}-* ]]; then
   cat <<EOF

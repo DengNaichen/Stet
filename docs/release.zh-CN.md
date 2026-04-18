@@ -35,13 +35,16 @@ Stet 现在有三条 GitHub Actions workflow：
 
 1. 需要时，在 GitHub Actions 手动运行 `macOS Release Candidate`。
 2. 使用测试标签，例如 `v0.0.10-rc1`。
-   运行前先更新 `Stet.xcodeproj/project.pbxproj`，让 `MARKETING_VERSION` 对应发布版本，让 `CURRENT_PROJECT_VERSION` 对应 build number。比如 `v0.0.12-rc1` 需要 `MARKETING_VERSION = 0.0.12`，`CURRENT_PROJECT_VERSION = 12`。
+   运行前先更新 `Stet.xcodeproj/project.pbxproj`，让 `MARKETING_VERSION` 对应发布版本，让 `CURRENT_PROJECT_VERSION` 对应由语义化版本推导出的单调递增 Sparkle build number。
+   规则是 `CURRENT_PROJECT_VERSION = major * 1,000,000 + minor * 1,000 + patch`。
+   比如 `v0.0.12-rc1` 需要 `MARKETING_VERSION = 0.0.12`、`CURRENT_PROJECT_VERSION = 12`；`v0.1.1-rc1` 需要 `MARKETING_VERSION = 0.1.1`、`CURRENT_PROJECT_VERSION = 1001`。
 3. 确认签名、公证、DMG 生成、artifact 上传都成功。
 
 正式发布：
 
 1. 更新项目里的版本号和 build number。
    改 `Stet.xcodeproj/project.pbxproj`，不要直接改 `Info.plist`。`Info.plist` 只是引用项目里的 `$(MARKETING_VERSION)` 和 `$(CURRENT_PROJECT_VERSION)`。
+   `CURRENT_PROJECT_VERSION` 必须跨版本持续递增。Sparkle 比较的是 `CFBundleVersion`，如果新 minor 版本把 build number 又从小值开始计，会让新版本在更新判断里看起来比旧 patch 版本更老。
 2. 确认 `main` 上已经是要发布的 commit。
 3. 推送正式 tag，例如 `v0.0.10`。
 4. GitHub Actions 自动运行 `macOS Release`。
