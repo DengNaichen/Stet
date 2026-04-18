@@ -31,7 +31,7 @@ struct StetApp: App {
 
     var body: some Scene {
         #if os(macOS)
-            MenuBarExtra("", systemImage: dictationCommandsViewModel.menuBarSymbolName) {
+            MenuBarExtra("", image: "menuBarIcon") {
                 MacMenuBarView()
                     .environmentObject(settingsShellViewModel)
                     .environmentObject(appUpdateManager)
