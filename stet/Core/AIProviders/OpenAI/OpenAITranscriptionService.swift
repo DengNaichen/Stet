@@ -76,10 +76,12 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
                     timeoutInterval: timeoutInterval
                 )
                 AppLogger.info(
-                    "\(provider.displayName) request started. method=\(request.httpMethod ?? "POST"), url=\(request.url?.absoluteString ?? "nil")",
-                    category: .openAI
+                    "🚀 BYOK transcription request started. provider=\(provider.displayName) audioKB=\(String(format: "%.1f", Double(audioData.count) / 1024)) url=\(request.url?.absoluteString ?? "nil")",
+                    category: .perfTrace
                 )
+                let byokStart = Date()
                 let (responseData, response) = try await session.data(for: request)
+                let byokElapsed = Date().timeIntervalSince(byokStart)
                 await DictationLatencyProbe.shared.ensureUploadCompleted(note: "http_response")
 
                 guard let httpResponse = response as? HTTPURLResponse else {
@@ -88,8 +90,8 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
 
                 responseStatusCode = httpResponse.statusCode
                 AppLogger.info(
-                    "\(provider.displayName) response received. status=\(httpResponse.statusCode), url=\(request.url?.absoluteString ?? "nil")",
-                    category: .openAI
+                    "✅ BYOK transcription response received. provider=\(provider.displayName) status=\(httpResponse.statusCode) totalRoundTripMs=\(String(format: "%.0f", byokElapsed * 1000))",
+                    category: .perfTrace
                 )
 
                 if let text = Self.transcriptionText(from: responseData, statusCode: httpResponse.statusCode) {

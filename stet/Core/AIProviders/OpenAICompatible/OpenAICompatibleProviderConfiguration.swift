@@ -158,7 +158,7 @@ enum DictationProviderDefaults {
         case .openAI:
             return "gpt-5.4-nano-2026-03-17"
         case .groq:
-            return "llama-3.3-70b-versatile"
+            return "openai/gpt-oss-20b"
         }
     }
 }

@@ -22,7 +22,7 @@
             case .audio:
                 return "Audio"
             case .appearance:
-                return "Appearance"
+                return "Theme"
             case .hotkey:
                 return "Hotkey"
             case .openAI:

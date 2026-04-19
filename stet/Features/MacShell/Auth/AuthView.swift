@@ -60,9 +60,7 @@ struct AuthView: View {
     }
 
     private var signedInCard: some View {
-        MacSettingsCard(
-            title: "You're signed in"
-        ) {
+        MacSettingsCard(title: "You're signed in") {
             VStack(alignment: .leading, spacing: 14) {
                 MacSettingsValueRow(title: "Email") {
                     Text(viewModel.accountEmailText)
@@ -90,6 +88,8 @@ struct AuthView: View {
 
                 feedbackView
 
+                communityRow
+
                 HStack {
                     Button("Done") {
                         dismiss()
@@ -99,13 +99,57 @@ struct AuthView: View {
                     Spacer()
 
                     Button("Sign Out", role: .destructive) {
-                        Task {
-                            await viewModel.signOut()
-                        }
+                        Task { await viewModel.signOut() }
                     }
                     .disabled(viewModel.isLoading)
                 }
             }
+        }
+    }
+
+    private var communityRow: some View {
+        HStack(spacing: 8) {
+            Text("Join the community")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Button {
+                NSWorkspace.shared.open(URL(string: "https://discord.gg/BKcYVAEK")!)
+            } label: {
+                Image("discordLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 14, height: 14)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .help("Join on Discord")
+
+            Button {
+                NSWorkspace.shared.open(URL(string: "https://x.com/Danielvrnh")!)
+            } label: {
+                Image("xLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 13, height: 13)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .help("Follow on X")
+
+            Button {
+                NSWorkspace.shared.open(URL(string: "https://github.com/DengNaichen/Stet")!)
+            } label: {
+                Image("githubLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 14, height: 14)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .help("View on GitHub")
         }
     }
 
@@ -118,36 +162,55 @@ struct AuthView: View {
         let savedMinutes = max(0, typingMinutes - durationMinutes)
 
         return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-            StatCard(
-                icon: "clock",
-                value: formattedHourMin(duration),
-                label: "Total dictation time"
-            )
-            StatCard(
-                icon: "mic",
-                value: formattedWordCount(words),
-                label: "Words dictated"
-            )
-            StatCard(
-                icon: "hourglass",
-                value: formattedHourMin(savedMinutes * 60),
-                label: "Time saved"
-            )
-            StatCard(
-                icon: "bolt",
-                value: "\(avgWPM) WPM",
-                label: "Avg dictation speed"
-            )
+            StatCard(icon: "clock", value: formattedHourMin(duration), label: "Total dictation time")
+            StatCard(icon: "mic", value: formattedWordCount(words), label: "Words dictated")
+            StatCard(icon: "hourglass", value: formattedHourMin(savedMinutes * 60), label: "Time saved")
+            StatCard(icon: "bolt", value: "\(avgWPM) WPM", label: "Avg dictation speed")
         }
     }
 
-    private func formattedWordCount(_ count: Int) -> String {
-        if count >= 1000 {
-            let k = Double(count) / 1000.0
-            return String(format: k.truncatingRemainder(dividingBy: 1) == 0 ? "%.0fK" : "%.1fK", k)
+    private var signedOutCard: some View {
+        MacSettingsCard(title: "Continue with Apple, Google, or GitHub") {
+            VStack(alignment: .leading, spacing: 16) {
+                OAuthSignInButtonGroup(
+                    isEnabled: !viewModel.isLoading,
+                    appleAction: {
+                        shouldDismissAfterAuthentication = true
+                        Task { await viewModel.signInWithApple() }
+                    },
+                    googleAction: {
+                        shouldDismissAfterAuthentication = true
+                        Task { await viewModel.signInWithGoogle() }
+                    },
+                    githubAction: {
+                        shouldDismissAfterAuthentication = true
+                        Task { await viewModel.signInWithGitHub() }
+                    }
+                )
+
+                if viewModel.isLoading {
+                    HStack {
+                        Spacer()
+                        ProgressView().controlSize(.small)
+                        Spacer()
+                    }
+                }
+
+                feedbackView
+            }
         }
-        return "\(count)"
     }
+
+    @ViewBuilder
+    private var feedbackView: some View {
+        if let error = viewModel.errorMessage {
+            MessageBanner(text: error, role: .error)
+        } else if let status = viewModel.statusMessage {
+            MessageBanner(text: status, role: .info)
+        }
+    }
+
+    // MARK: - Formatters
 
     private func creditsToSeconds(_ credits: Int) -> TimeInterval {
         // Groq ASR at 2x markup: (0.04 USD/hr ÷ 3600) × 1_000_000 × 2.0 ≈ 22.22 credits/sec
@@ -159,14 +222,20 @@ struct AuthView: View {
         let totalMinutes = Int(seconds) / 60
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
-        if hours == 0 {
-            return "\(minutes) min"
-        }
-        if minutes == 0 {
-            return "\(hours) hr"
-        }
+        if hours == 0 { return "\(minutes) min" }
+        if minutes == 0 { return "\(hours) hr" }
         return "\(hours) hr \(minutes) min"
     }
+
+    private func formattedWordCount(_ count: Int) -> String {
+        if count >= 1000 {
+            let k = Double(count) / 1000.0
+            return String(format: k.truncatingRemainder(dividingBy: 1) == 0 ? "%.0fK" : "%.1fK", k)
+        }
+        return "\(count)"
+    }
+
+    // MARK: - Local Components
 
     private struct StatCard: View {
         let icon: String
@@ -197,58 +266,6 @@ struct AuthView: View {
             )
         }
     }
-
-    private var signedOutCard: some View {
-        MacSettingsCard(
-            title: "Continue with Apple, Google, or GitHub"
-        ) {
-            VStack(alignment: .leading, spacing: 16) {
-                OAuthSignInButtonGroup(
-                    isEnabled: !viewModel.isLoading,
-                    appleAction: {
-                        shouldDismissAfterAuthentication = true
-                        Task {
-                            await viewModel.signInWithApple()
-                        }
-                    },
-                    googleAction: {
-                        shouldDismissAfterAuthentication = true
-                        Task {
-                            await viewModel.signInWithGoogle()
-                        }
-                    },
-                    githubAction: {
-                        shouldDismissAfterAuthentication = true
-                        Task {
-                            await viewModel.signInWithGitHub()
-                        }
-                    }
-                )
-
-                if viewModel.isLoading {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                            .controlSize(.small)
-                        Spacer()
-                    }
-                }
-
-                feedbackView
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var feedbackView: some View {
-        if let error = viewModel.errorMessage {
-            MessageBanner(text: error, role: .error)
-        } else if let status = viewModel.statusMessage {
-            MessageBanner(text: status, role: .info)
-        }
-    }
-
-    // MARK: - Local UI components (scoped to AuthView)
 
     private enum MessageBannerRole {
         case info, success, warning, error
@@ -294,7 +311,6 @@ struct AuthView: View {
             )
         }
     }
-
 }
 
 #Preview("Signed Out State") {
