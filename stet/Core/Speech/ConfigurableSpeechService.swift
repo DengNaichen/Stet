@@ -230,7 +230,9 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 finalTranscript = intermediateTranscript
             }
 
-            let trimmedTranscript = finalTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedTranscript = Self.stripTrailingPeriod(
+                finalTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
             guard !trimmedTranscript.isEmpty else {
                 throw SpeechServiceError.emptyTranscription
             }
@@ -339,6 +341,19 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
     private nonisolated static func formatMilliseconds(_ duration: Double) -> String {
         String(format: "%.1f", duration)
+    }
+
+    /// Strips a single trailing period (ASCII or CJK full stop) from the final
+    /// transcript so that text pasted into AI tools does not end with an unwanted
+    /// sentence-terminator the model may have added.
+    private nonisolated static func stripTrailingPeriod(_ text: String) -> String {
+        if text.hasSuffix("。") {
+            return String(text.dropLast())
+        }
+        if text.hasSuffix(".") {
+            return String(text.dropLast())
+        }
+        return text
     }
 }
 

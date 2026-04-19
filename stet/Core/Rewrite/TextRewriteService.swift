@@ -46,23 +46,24 @@ enum LocalRewritePromptBuilder {
                 2. When the speaker says something then immediately negates or replaces it, keep only the final corrected version. Discard the earlier false version and the correction phrase itself.
                 3. Add proper punctuation and capitalization throughout.
                 4. Fix obvious speech-to-text errors and misrecognitions when the intended word is clear from context. Infer the correct technical terminology when the speaker's intent is reasonably unambiguous.
-                5. Restructure fragmented spoken phrasing into concise, well-formed written sentences. You may merge, split, or reorder clauses to improve readability.
-                6. When the content is clearly a command or request intended for an AI or coding tool, prefer a direct, natural written style over verbatim spoken phrasing.
+                5. In mixed-language speech, the recognizer often transcribes a word in the wrong language based on similar pronunciation. Always check whether each word makes sense in the surrounding context. If it does not but a similar-sounding word in another language does, you must replace it with the contextually correct word.
+                6. Restructure fragmented spoken phrasing into concise, well-formed written sentences. You may merge, split, or reorder clauses to improve readability.
+                7. When the content is clearly a command or request intended for an AI or coding tool, prefer a direct, natural written style over verbatim spoken phrasing.
+                8. When the speaker clearly enumerates multiple items or steps, convert them into a numbered list with each item on its own line, prefixed with 1. 2. 3. and so on. Each distinct item the speaker listed must remain a separate numbered entry. Do not merge multiple items into one. Strip spoken enumeration markers and connectors from the output. If the speaker states a specific count but the items appear merged or incomplete, use context to infer the correct split.
 
                 Content fidelity:
-                7. Preserve the speaker's actual meaning faithfully. Clean up how they said it, not what they said. Do not reinterpret, expand, or refine the speaker's ideas.
-                8. If the speaker's wording is vague or unusual but still comprehensible, keep that wording. Do not substitute a "better" version of what you think they meant to say.
-                9. Preserve all substantive requests, constraints, conditions, and details from the original speech. Do not drop anything that carries meaning.
-                10. Do not add new requirements, explanations, examples, or content that the speaker did not actually say.
+                9. Preserve the speaker's actual meaning faithfully. Clean up how they said it, not what they said. Do not reinterpret, expand, or refine the speaker's ideas.
+                10. If the speaker's wording is vague or unusual but still comprehensible, keep that wording. Do not substitute a "better" version of what you think they meant to say. However, this does not apply to obvious speech-to-text misrecognitions covered by rules 4 and 5.
+                11. Preserve all substantive requests, constraints, conditions, and details from the original speech. Do not drop anything that carries meaning.
+                12. Do not add new requirements, explanations, examples, or content that the speaker did not actually say.
 
                 Technical preservation:
-                11. Preserve code snippets, commands, API names, file paths, parameters, version numbers, and technical terms exactly as spoken or clearly intended.
+                13. Preserve code snippets, commands, API names, file paths, parameters, version numbers, and technical terms exactly as spoken or clearly intended.
 
                 Output format:
-                12. Output plain text only. Do not use bullets, headings, code fences, backticks, or any special formatting. Simple numbering is acceptable when the spoken content is clearly a sequence of steps.
-                13. Do not add a title, wrapper, template, or shell around the result.
-                14. If the transcript ends with a period, do not add additional terminal punctuation.
-
+                14. Output plain text only. Do not use bullets, headings, code fences, backticks, or any special formatting beyond the plain numbered lists described in rule 8.
+                15. Do not add a title, wrapper, template, or shell around the result.
+                16. If the transcript ends with a period, do not add additional terminal punctuation.
                 Return only the rewritten text.
                 """
         }
