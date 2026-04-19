@@ -22,6 +22,14 @@
                         layout: layout,
                         onFinish: viewModel.performPrimaryAction
                     )
+                } else if case .error(let failure) = viewModel.state {
+                    // Scenario C: Specialized Error Display
+                    MacDictationErrorSurface(
+                        text: failure.surfaceErrorMessage,
+                        isInsufficientFunds: failure.isInsufficientFunds,
+                        layout: layout,
+                        onFinish: { viewModel.hidePanel() }
+                    )
                 } else {
                     // Scenario A: Standard Dictation Capsule
                     MacDictationCapsuleSurface(

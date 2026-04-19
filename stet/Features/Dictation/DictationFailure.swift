@@ -183,6 +183,23 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
         }
     }
 
+    var isInsufficientFunds: Bool {
+        if case .relayInvocation(let statusCode, _, _) = self, statusCode == 402 {
+            return true
+        }
+        if case .providerAPI(_, let statusCode, _) = self, statusCode == 402 {
+            return true
+        }
+        return false
+    }
+
+    var surfaceErrorMessage: String {
+        if isInsufficientFunds {
+            return "Not enough credit."
+        }
+        return "Something went wrong."
+    }
+
     var errorDescription: String? {
         message
     }

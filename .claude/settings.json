@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/nd/Developer/stet-project/stet-relay/supabase/functions/relay/**)"
+    ]
+  }
+}

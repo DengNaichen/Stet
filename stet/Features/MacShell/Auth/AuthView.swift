@@ -72,13 +72,20 @@ struct AuthView: View {
                 }
 
                 MacSettingsValueRow(title: "Balance") {
-                    if let credits = viewModel.balanceCredits {
-                        Text("~\(formattedHourMin(creditsToSeconds(credits))) remaining")
-                            .font(.system(.body))
-                            .foregroundStyle(credits > 0 ? Color.primary : Color.red)
-                    } else {
-                        ProgressView()
-                            .controlSize(.mini)
+                    HStack(spacing: 8) {
+                        if let credits = viewModel.balanceCredits {
+                            Text("~\(formattedHourMin(creditsToSeconds(credits))) remaining")
+                                .font(.system(.body))
+                                .foregroundStyle(credits > 0 ? Color.primary : Color.red)
+                        } else {
+                            ProgressView()
+                                .controlSize(.mini)
+                        }
+
+                        Button("Top Up") {
+                            NSWorkspace.shared.open(URL(string: "https://www.stet.me")!)
+                        }
+                        .controlSize(.small)
                     }
                 }
 
