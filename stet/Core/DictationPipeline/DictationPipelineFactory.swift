@@ -43,7 +43,8 @@ struct DictationPipelineFactory: Sendable {
                 RelayDictationTranscriptionService(
                     authentication: authentication,
                     session: session,
-                    preferredSpellings: preferredSpellings
+                    preferredSpellings: preferredSpellings,
+                    audienceProvider: { AppBranchMonitor.shared.currentApp?.audience ?? .ai }
                 )
             },
             makeRewriteService: { configuration, session in

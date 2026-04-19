@@ -23,15 +23,18 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
     private let authentication: RelayAuthenticationContext
     private let session: URLSession
     private let preferredSpellings: [String]
+    private let audienceProvider: (@Sendable () -> AppAudience)?
 
     nonisolated init(
         authentication: RelayAuthenticationContext,
         session: URLSession = .shared,
-        preferredSpellings: [String]
+        preferredSpellings: [String],
+        audienceProvider: (@Sendable () -> AppAudience)? = nil
     ) {
         self.authentication = authentication
         self.session = session
         self.preferredSpellings = preferredSpellings
+        self.audienceProvider = audienceProvider
     }
 
     func transcribe(
@@ -74,17 +77,22 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
             prompt: Self.normalizedText(prompt),
             audioDurationSeconds: audioDurationSeconds,
             preferredSpellings: preferredSpellings,
+            audience: audienceProvider?(),
             timeoutInterval: timeoutInterval,
             clientRequestID: clientRequestID
         )
 
         AppLogger.info(
-            "Relay transcription request started. requestID=\(clientRequestID) url=\(request.url?.absoluteString ?? "unknown") audioBytes=\(audioData.count) fileType=\(fileType.stetContentType) rewriteEnabled=true preferredSpellingsCount=\(preferredSpellings.count) timeoutSeconds=\(String(format: "%.1f", timeoutInterval))",
-            category: .dictation
+            "🚀 Relay transcription request started. requestID=\(clientRequestID) url=\(request.url?.absoluteString ?? "unknown") audioBytes=\(audioData.count) audioKB=\(String(format: "%.1f", Double(audioData.count) / 1024)) fileType=\(fileType.stetContentType) rewriteEnabled=true preferredSpellingsCount=\(preferredSpellings.count) timeoutSeconds=\(String(format: "%.1f", timeoutInterval))",
+            category: .perfTrace
         )
+
+        let networkStart = Date()
 
         do {
             let (responseData, response) = try await session.data(for: request)
+
+            let networkElapsed = Date().timeIntervalSince(networkStart)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 AppLogger.error(
@@ -99,14 +107,14 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
             }
 
             AppLogger.info(
-                "Relay transcription response received. requestID=\(clientRequestID) status=\(httpResponse.statusCode) responseBytes=\(responseData.count) serverRequestID=\(httpResponse.value(forHTTPHeaderField: "x-request-id") ?? "missing")",
-                category: .dictation
+                "✅ Relay transcription response received. requestID=\(clientRequestID) status=\(httpResponse.statusCode) responseBytes=\(responseData.count) totalRoundTripMs=\(String(format: "%.0f", networkElapsed * 1000)) serverRequestID=\(httpResponse.value(forHTTPHeaderField: "x-request-id") ?? "missing") serverTiming=\(httpResponse.value(forHTTPHeaderField: "x-stet-timing") ?? "unavailable")",
+                category: .perfTrace
             )
 
             guard (200...299).contains(httpResponse.statusCode) else {
                 AppLogger.error(
                     "Relay transcription returned an error response. requestID=\(clientRequestID) status=\(httpResponse.statusCode) responsePreview=\(Self.responsePreview(from: responseData))",
-                    category: .dictation
+                    category: .perfTrace
                 )
                 throw Self.mapRelayError(
                     statusCode: httpResponse.statusCode,
@@ -198,6 +206,7 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
         prompt: String?,
         audioDurationSeconds: TimeInterval,
         preferredSpellings: [String],
+        audience: AppAudience?,
         timeoutInterval: TimeInterval,
         clientRequestID: String
     ) throws -> URLRequest {
@@ -207,7 +216,8 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
                 languageCode: languageCode,
                 prompt: prompt,
                 audioDurationSeconds: audioDurationSeconds,
-                preferredSpellings: preferredSpellings
+                preferredSpellings: preferredSpellings,
+                audience: audience
             ),
             file: MultipartFormFile(
                 name: "file",
@@ -237,7 +247,8 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
         languageCode: String?,
         prompt: String?,
         audioDurationSeconds: TimeInterval,
-        preferredSpellings: [String]
+        preferredSpellings: [String],
+        audience: AppAudience?
     ) -> [MultipartFormField] {
         var fields: [MultipartFormField] = []
 
@@ -257,6 +268,10 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
         )
 
         fields.append(.init(name: "rewrite", value: "true"))
+
+        if let audience {
+            fields.append(.init(name: "audience", value: audience.rawValue))
+        }
 
         let normalizedPreferredSpellings =
             preferredSpellings
