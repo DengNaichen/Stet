@@ -25,6 +25,7 @@ struct MacDictationPanelViewModelTests {
         private(set) var dismissPendingCopyCallCount = 0
         private(set) var cancelActiveCaptureCallCount = 0
         private(set) var performPrimaryActionCallCount = 0
+        private(set) var topUpCallCount = 0
 
         init(
             dictationState: DictationState = .idle,
@@ -56,6 +57,10 @@ struct MacDictationPanelViewModelTests {
 
         func performPrimaryAction() {
             performPrimaryActionCallCount += 1
+        }
+
+        func topUp() {
+            topUpCallCount += 1
         }
     }
 

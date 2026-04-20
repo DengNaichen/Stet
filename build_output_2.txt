@@ -1,0 +1,481 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -scheme Stet -destination platform=macOS build
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  swift-crypto: https://github.com/apple/swift-crypto.git @ 4.3.0
+  swift-transformers: https://github.com/huggingface/swift-transformers @ 1.2.0
+  EventSource: https://github.com/mattt/EventSource.git @ 1.4.1
+  Sparkle: https://github.com/sparkle-project/Sparkle.git @ 2.9.0
+  FluidAudio: https://github.com/FluidInference/FluidAudio.git @ main (0346057)
+  swift-http-types: https://github.com/apple/swift-http-types @ 1.5.1
+  swift-huggingface: https://github.com/huggingface/swift-huggingface.git @ 0.9.0
+  swift-system: https://github.com/apple/swift-system.git @ 1.6.4
+  swift-collections: https://github.com/apple/swift-collections.git @ 1.4.1
+  swift-clocks: https://github.com/pointfreeco/swift-clocks @ 1.0.6
+  Jinja: https://github.com/huggingface/swift-jinja.git @ 2.3.2
+  swift-concurrency-extras: https://github.com/pointfreeco/swift-concurrency-extras @ 1.3.2
+  OpenAI: https://github.com/MacPaw/OpenAI.git @ 0.4.7
+  Supabase: https://github.com/supabase-community/supabase-swift.git @ 2.41.1
+  yyjson: https://github.com/ibireme/yyjson.git @ 0.12.0
+  swift-atomics: https://github.com/apple/swift-atomics.git @ 1.3.0
+  swift-asn1: https://github.com/apple/swift-asn1.git @ 1.6.0
+  swift-openapi-runtime: https://github.com/apple/swift-openapi-runtime @ 1.11.0
+  swift-nio: https://github.com/apple/swift-nio.git @ 2.96.0
+  xctest-dynamic-overlay: https://github.com/pointfreeco/xctest-dynamic-overlay @ 1.9.0
+  KeyboardShortcuts: https://github.com/sindresorhus/KeyboardShortcuts @ 2.4.0
+
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:macOS, arch:arm64, id:00006040-000251CA0220801C, name:My Mac }
+{ platform:macOS, arch:x86_64, id:00006040-000251CA0220801C, name:My Mac }
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (68 targets)
+    Target 'Stet' in project 'Stet'
+        ➜ Explicit dependency on target 'StetVisuals' in project 'Stet'
+        ➜ Explicit dependency on target 'Supabase' in project 'Supabase'
+        ➜ Explicit dependency on target 'FluidAudio' in project 'FluidAudio'
+        ➜ Explicit dependency on target 'OpenAI' in project 'OpenAI'
+        ➜ Explicit dependency on target 'Sparkle' in project 'Sparkle'
+        ➜ Explicit dependency on target 'KeyboardShortcuts' in project 'KeyboardShortcuts'
+    Target 'KeyboardShortcuts' in project 'KeyboardShortcuts'
+        ➜ Explicit dependency on target 'KeyboardShortcuts' in project 'KeyboardShortcuts'
+        ➜ Explicit dependency on target 'KeyboardShortcuts_KeyboardShortcuts' in project 'KeyboardShortcuts'
+    Target 'KeyboardShortcuts' in project 'KeyboardShortcuts'
+        ➜ Explicit dependency on target 'KeyboardShortcuts_KeyboardShortcuts' in project 'KeyboardShortcuts'
+    Target 'KeyboardShortcuts_KeyboardShortcuts' in project 'KeyboardShortcuts' (no dependencies)
+    Target 'Sparkle' in project 'Sparkle' (no dependencies)
+    Target 'OpenAI' in project 'OpenAI'
+        ➜ Explicit dependency on target 'OpenAI' in project 'OpenAI'
+        ➜ Explicit dependency on target 'OpenAPIRuntime' in project 'swift-openapi-runtime'
+    Target 'OpenAI' in project 'OpenAI'
+        ➜ Explicit dependency on target 'OpenAPIRuntime' in project 'swift-openapi-runtime'
+    Target 'OpenAPIRuntime' in project 'swift-openapi-runtime'
+        ➜ Explicit dependency on target 'OpenAPIRuntime' in project 'swift-openapi-runtime'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+    Target 'OpenAPIRuntime' in project 'swift-openapi-runtime'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+    Target 'FluidAudio' in project 'FluidAudio'
+        ➜ Explicit dependency on target 'FluidAudio' in project 'FluidAudio'
+        ➜ Explicit dependency on target 'FastClusterWrapper' in project 'FluidAudio'
+        ➜ Explicit dependency on target 'MachTaskSelfWrapper' in project 'FluidAudio'
+        ➜ Explicit dependency on target 'Tokenizers' in project 'swift-transformers'
+    Target 'FluidAudio' in project 'FluidAudio'
+        ➜ Explicit dependency on target 'FastClusterWrapper' in project 'FluidAudio'
+        ➜ Explicit dependency on target 'MachTaskSelfWrapper' in project 'FluidAudio'
+        ➜ Explicit dependency on target 'Tokenizers' in project 'swift-transformers'
+    Target 'Tokenizers' in project 'swift-transformers'
+        ➜ Explicit dependency on target 'Tokenizers' in project 'swift-transformers'
+        ➜ Explicit dependency on target 'Hub' in project 'swift-transformers'
+        ➜ Explicit dependency on target 'Jinja' in project 'Jinja'
+        ➜ Explicit dependency on target 'HuggingFace' in project 'swift-huggingface'
+        ➜ Explicit dependency on target 'OrderedCollections' in project 'swift-collections'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'yyjson' in project 'yyjson'
+    Target 'Tokenizers' in project 'swift-transformers'
+        ➜ Explicit dependency on target 'Hub' in project 'swift-transformers'
+        ➜ Explicit dependency on target 'Jinja' in project 'Jinja'
+        ➜ Explicit dependency on target 'HuggingFace' in project 'swift-huggingface'
+        ➜ Explicit dependency on target 'OrderedCollections' in project 'swift-collections'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'yyjson' in project 'yyjson'
+    Target 'Hub' in project 'swift-transformers'
+        ➜ Explicit dependency on target 'swift-transformers_Hub' in project 'swift-transformers'
+        ➜ Explicit dependency on target 'Jinja' in project 'Jinja'
+        ➜ Explicit dependency on target 'HuggingFace' in project 'swift-huggingface'
+        ➜ Explicit dependency on target 'OrderedCollections' in project 'swift-collections'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'yyjson' in project 'yyjson'
+    Target 'yyjson' in project 'yyjson'
+        ➜ Explicit dependency on target 'yyjson' in project 'yyjson'
+    Target 'yyjson' in project 'yyjson' (no dependencies)
+    Target 'HuggingFace' in project 'swift-huggingface'
+        ➜ Explicit dependency on target 'HuggingFace' in project 'swift-huggingface'
+        ➜ Explicit dependency on target 'EventSource' in project 'EventSource'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+    Target 'HuggingFace' in project 'swift-huggingface'
+        ➜ Explicit dependency on target 'EventSource' in project 'EventSource'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+    Target 'EventSource' in project 'EventSource'
+        ➜ Explicit dependency on target 'EventSource' in project 'EventSource'
+        ➜ Explicit dependency on target 'NIOCore' in project 'swift-nio'
+    Target 'EventSource' in project 'EventSource'
+        ➜ Explicit dependency on target 'NIOCore' in project 'swift-nio'
+    Target 'NIOCore' in project 'swift-nio'
+        ➜ Explicit dependency on target 'NIOCore' in project 'swift-nio'
+        ➜ Explicit dependency on target 'CNIOAtomics' in project 'swift-nio'
+        ➜ Explicit dependency on target 'NIOConcurrencyHelpers' in project 'swift-nio'
+        ➜ Explicit dependency on target '_NIOBase64' in project 'swift-nio'
+        ➜ Explicit dependency on target 'CNIOOpenBSD' in project 'swift-nio'
+        ➜ Explicit dependency on target 'CNIODarwin' in project 'swift-nio'
+        ➜ Explicit dependency on target 'CNIOLinux' in project 'swift-nio'
+        ➜ Explicit dependency on target 'CNIOWindows' in project 'swift-nio'
+        ➜ Explicit dependency on target 'CNIOWASI' in project 'swift-nio'
+        ➜ Explicit dependency on target '_NIODataStructures' in project 'swift-nio'
+        ➜ Explicit dependency on target 'DequeModule' in project 'swift-collections'
+        ➜ Explicit dependency on target 'Atomics' in project 'swift-atomics'
+    Target 'NIOCore' in project 'swift-nio'
+        ➜ Explicit dependency on target 'CNIOAtomics' in project 'swift-nio'
+        ➜ Explicit dependency on target 'NIOConcurrencyHelpers' in project 'swift-nio'
+        ➜ Explicit dependency on target '_NIOBase64' in project 'swift-nio'
+        ➜ Explicit dependency on target 'CNIOOpenBSD' in project 'swift-nio'
+        ➜ Explicit dependency on target 'CNIODarwin' in project 'swift-nio'
+        ➜ Explicit dependency on target 'CNIOLinux' in project 'swift-nio'
+        ➜ Explicit dependency on target 'CNIOWindows' in project 'swift-nio'
+        ➜ Explicit dependency on target 'CNIOWASI' in project 'swift-nio'
+        ➜ Explicit dependency on target '_NIODataStructures' in project 'swift-nio'
+        ➜ Explicit dependency on target 'DequeModule' in project 'swift-collections'
+        ➜ Explicit dependency on target 'Atomics' in project 'swift-atomics'
+    Target 'Atomics' in project 'swift-atomics'
+        ➜ Explicit dependency on target 'Atomics' in project 'swift-atomics'
+        ➜ Explicit dependency on target '_AtomicsShims' in project 'swift-atomics'
+    Target 'Atomics' in project 'swift-atomics'
+        ➜ Explicit dependency on target '_AtomicsShims' in project 'swift-atomics'
+    Target '_AtomicsShims' in project 'swift-atomics' (no dependencies)
+    Target 'DequeModule' in project 'swift-collections'
+        ➜ Explicit dependency on target 'DequeModule' in project 'swift-collections'
+        ➜ Explicit dependency on target 'InternalCollectionsUtilities' in project 'swift-collections'
+        ➜ Explicit dependency on target 'ContainersPreview' in project 'swift-collections'
+    Target 'DequeModule' in project 'swift-collections'
+        ➜ Explicit dependency on target 'InternalCollectionsUtilities' in project 'swift-collections'
+        ➜ Explicit dependency on target 'ContainersPreview' in project 'swift-collections'
+    Target 'ContainersPreview' in project 'swift-collections'
+        ➜ Explicit dependency on target 'InternalCollectionsUtilities' in project 'swift-collections'
+    Target '_NIODataStructures' in project 'swift-nio' (no dependencies)
+    Target 'CNIOWASI' in project 'swift-nio' (no dependencies)
+    Target 'CNIOWindows' in project 'swift-nio' (no dependencies)
+    Target 'CNIOLinux' in project 'swift-nio' (no dependencies)
+    Target 'CNIODarwin' in project 'swift-nio' (no dependencies)
+    Target 'CNIOOpenBSD' in project 'swift-nio' (no dependencies)
+    Target '_NIOBase64' in project 'swift-nio' (no dependencies)
+    Target 'NIOConcurrencyHelpers' in project 'swift-nio'
+        ➜ Explicit dependency on target 'CNIOAtomics' in project 'swift-nio'
+    Target 'CNIOAtomics' in project 'swift-nio' (no dependencies)
+    Target 'Jinja' in project 'Jinja'
+        ➜ Explicit dependency on target 'Jinja' in project 'Jinja'
+        ➜ Explicit dependency on target 'OrderedCollections' in project 'swift-collections'
+    Target 'Jinja' in project 'Jinja'
+        ➜ Explicit dependency on target 'OrderedCollections' in project 'swift-collections'
+    Target 'OrderedCollections' in project 'swift-collections'
+        ➜ Explicit dependency on target 'OrderedCollections' in project 'swift-collections'
+        ➜ Explicit dependency on target 'InternalCollectionsUtilities' in project 'swift-collections'
+    Target 'OrderedCollections' in project 'swift-collections'
+        ➜ Explicit dependency on target 'InternalCollectionsUtilities' in project 'swift-collections'
+    Target 'InternalCollectionsUtilities' in project 'swift-collections' (no dependencies)
+    Target 'swift-transformers_Hub' in project 'swift-transformers' (no dependencies)
+    Target 'MachTaskSelfWrapper' in project 'FluidAudio' (no dependencies)
+    Target 'FastClusterWrapper' in project 'FluidAudio' (no dependencies)
+    Target 'Supabase' in project 'Supabase'
+        ➜ Explicit dependency on target 'Supabase' in project 'Supabase'
+        ➜ Explicit dependency on target 'Functions' in project 'Supabase'
+        ➜ Explicit dependency on target 'PostgREST' in project 'Supabase'
+        ➜ Explicit dependency on target 'Auth' in project 'Supabase'
+        ➜ Explicit dependency on target 'Realtime' in project 'Supabase'
+        ➜ Explicit dependency on target 'Storage' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'Supabase' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'Auth' in project 'Supabase'
+        ➜ Explicit dependency on target 'Functions' in project 'Supabase'
+        ➜ Explicit dependency on target 'PostgREST' in project 'Supabase'
+        ➜ Explicit dependency on target 'Realtime' in project 'Supabase'
+        ➜ Explicit dependency on target 'Storage' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'Storage' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'Realtime' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'PostgREST' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'Functions' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'Auth' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+    Target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'swift-crypto_Crypto' in project 'swift-crypto'
+    Target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'swift-crypto_Crypto' in project 'swift-crypto'
+    Target 'swift-crypto_Crypto' in project 'swift-crypto' (no dependencies)
+    Target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReportingPackageSupport' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReportingPackageSupport' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'IssueReporting' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReportingPackageSupport' in project 'xctest-dynamic-overlay'
+    Target 'IssueReporting' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReportingPackageSupport' in project 'xctest-dynamic-overlay'
+    Target 'IssueReportingPackageSupport' in project 'xctest-dynamic-overlay' (no dependencies)
+    Target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+    Target 'HTTPTypes' in project 'swift-http-types' (no dependencies)
+    Target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+    Target 'ConcurrencyExtras' in project 'swift-concurrency-extras' (no dependencies)
+    Target 'StetVisuals' in project 'Stet' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk -x c++ -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --version --output-format xml1
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+ReadFileContents /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/share/docc/features.json
+
+Build description signature: 3076efe3c8b157123bace1c25d738ab7
+Build description path: /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/XCBuildData/3076efe3c8b157123bace1c25d738ab7.xcbuilddata
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk /Users/nd/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/macosx26.4-25E251-688ef53f1462e2c8f657fdc38a81448f30f9ca8789b706f8bd3fc906a70d770f.sdkstatcache
+    cd /Users/nd/Developer/stet-project/Stet/Stet.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk -o /Users/nd/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/macosx26.4-25E251-688ef53f1462e2c8f657fdc38a81448f30f9ca8789b706f8bd3fc906a70d770f.sdkstatcache
+
+ProcessInfoPlistFile /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/swift-transformers_Hub.bundle/Contents/Info.plist /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/swift-transformers.build/Debug/swift-transformers_Hub.build/empty-swift-transformers_Hub.plist (in target 'swift-transformers_Hub' from project 'swift-transformers')
+    cd /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-transformers
+    builtin-infoPlistUtility /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/swift-transformers.build/Debug/swift-transformers_Hub.build/empty-swift-transformers_Hub.plist -producttype com.apple.product-type.bundle -expandbuildsettings -platform macosx -o /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/swift-transformers_Hub.bundle/Contents/Info.plist
+
+ProcessInfoPlistFile /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/swift-crypto_Crypto.bundle/Contents/Info.plist /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/swift-crypto.build/Debug/swift-crypto_Crypto.build/empty-swift-crypto_Crypto.plist (in target 'swift-crypto_Crypto' from project 'swift-crypto')
+    cd /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-crypto
+    builtin-infoPlistUtility /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/swift-crypto.build/Debug/swift-crypto_Crypto.build/empty-swift-crypto_Crypto.plist -producttype com.apple.product-type.bundle -expandbuildsettings -platform macosx -o /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/swift-crypto_Crypto.bundle/Contents/Info.plist
+
+ProcessInfoPlistFile /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/KeyboardShortcuts_KeyboardShortcuts.bundle/Contents/Info.plist /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/KeyboardShortcuts.build/Debug/KeyboardShortcuts_KeyboardShortcuts.build/empty-KeyboardShortcuts_KeyboardShortcuts.plist (in target 'KeyboardShortcuts_KeyboardShortcuts' from project 'KeyboardShortcuts')
+    cd /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/KeyboardShortcuts
+    builtin-infoPlistUtility /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/KeyboardShortcuts.build/Debug/KeyboardShortcuts_KeyboardShortcuts.build/empty-KeyboardShortcuts_KeyboardShortcuts.plist -producttype com.apple.product-type.bundle -expandbuildsettings -platform macosx -o /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/KeyboardShortcuts_KeyboardShortcuts.bundle/Contents/Info.plist
+
+SwiftDriver Stet normal arm64 com.apple.xcode.tools.swift.compiler (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name Stet -Onone @/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64/Stet\ Debug.SwiftFileList -DDEBUG -Xcc -fmodule-map-file\=/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/GeneratedModuleMaps/CNIOWASI.modulemap -Xcc -fmodule-map-file\=/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/GeneratedModuleMaps/CNIOLinux.modulemap -Xcc -fmodule-map-file\=/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/GeneratedModuleMaps/CNIODarwin.modulemap -Xcc -fmodule-map-file\=/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/GeneratedModuleMaps/CNIOOpenBSD.modulemap -Xcc -fmodule-map-file\=/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/GeneratedModuleMaps/CNIOAtomics.modulemap -Xcc -fmodule-map-file\=/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/GeneratedModuleMaps/yyjson.modulemap -default-isolation\=MainActor -enable-bare-slash-regex -enable-upcoming-feature DisableOutwardActorInference -enable-upcoming-feature InferSendableFromCaptures -enable-upcoming-feature GlobalActorIsolatedTypesUsability -enable-upcoming-feature MemberImportVisibility -enable-upcoming-feature InferIsolatedConformances -enable-upcoming-feature NonisolatedNonsendingByDefault -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk -target arm64-apple-macos26.0 -g -module-cache-path /Users/nd/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 5 -I /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug -emit-localized-strings -emit-localized-strings-path /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64 -c -j12 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/macosx26.4-25E251-688ef53f1462e2c8f657fdc38a81448f30f9ca8789b706f8bd3fc906a70d770f.sdkstatcache -output-file-map /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64/Stet-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/nd/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -sdk-module-cache-path /Users/nd/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64/Stet.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/nd/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64/Stet_const_extract_protocols.json -Xcc -iquote -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Stet\ Debug-generated-files.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Stet\ Debug-own-target-headers.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Stet\ Debug-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet-38011ed4f85a10a556e72240f4df1965-VFS/all-product-headers.yaml -Xcc -iquote -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Stet\ Debug-project-headers.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-atomics/Sources/_AtomicsShims/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-nio/Sources/CNIOWASI/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-nio/Sources/CNIOWindows/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-nio/Sources/CNIOLinux/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-nio/Sources/CNIODarwin/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-nio/Sources/CNIOOpenBSD/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-nio/Sources/CNIOAtomics/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/yyjson/src -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/FluidAudio/Sources/MachTaskSelfWrapper/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/FluidAudio/Sources/FastClusterWrapper/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/DerivedSources-normal/arm64 -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/DerivedSources/arm64 -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64/Stet-Swift.h -working-directory /Users/nd/Developer/stet-project/Stet -experimental-emit-module-separately -disable-cmo
+
+ProcessInfoPlistFile /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/StetVisuals.framework/Versions/A/Resources/Info.plist /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/StetVisuals.build/empty-StetVisuals.plist (in target 'StetVisuals' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    builtin-infoPlistUtility /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/StetVisuals.build/empty-StetVisuals.plist -producttype com.apple.product-type.framework -expandbuildsettings -platform macosx -o /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/StetVisuals.framework/Versions/A/Resources/Info.plist
+
+VerifyModule /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/StetVisuals.framework (in target 'StetVisuals' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/modules-verifier /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/StetVisuals.framework --clang /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang --diagnostic-filename-map /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/StetVisuals.build/StetVisuals-diagnostic-filename-map.json --sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk --intermediates-directory /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/StetVisuals.build/VerifyModule --target arm64-apple-macos26.0 --language objective-c --standard gnu17 --standard gnu++20
+
+SwiftCompile normal arm64 Compiling\ MacAppModel.swift /Users/nd/Developer/stet-project/Stet/Stet/App/Lifecycle/MacAppModel.swift (in target 'Stet' from project 'Stet')
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/App/Lifecycle/MacAppModel.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 Compiling\ SupabaseService.swift /Users/nd/Developer/stet-project/Stet/Stet/Core/Supabase/SupabaseService.swift (in target 'Stet' from project 'Stet')
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/Core/Supabase/SupabaseService.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 Compiling\ AuthViewModel.swift /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/Auth/AuthViewModel.swift (in target 'Stet' from project 'Stet')
+Failed frontend command:
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend -frontend -c -filelist /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64/sources-1 -primary-file /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/Auth/AuthViewModel.swift -emit-dependencies-path /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64/AuthViewModel.d -emit-const-values-path /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64/AuthViewModel.swiftconstvalues -emit-reference-dependencies-path /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64/AuthViewModel.swiftdeps -serialize-diagnostics-path /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64/AuthViewModel.dia -emit-localized-strings -emit-localized-strings-path /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64 -target arm64-apple-macos26.0 -module-can-import-version AppKit 2685.50.120 2685.50.120 -module-can-import-version DeveloperToolsSupport 23.40.26 23.40.26 -module-can-import-version SwiftUI 7.4.27 7.4.27 -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins/libFoundationMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server\#FoundationMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins/libObservationMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server\#ObservationMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins/libPreviewsMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server\#PreviewsMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins/libSwiftDataMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server\#SwiftDataMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins/libSwiftMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server\#SwiftMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins/libSwiftUIMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server\#SwiftUIMacros -disable-implicit-swift-modules -Xcc -fno-implicit-modules -Xcc -fno-implicit-module-maps -explicit-swift-module-map-file /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64/Stet-dependencies-1.json -debug-module-path /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64/Stet.swiftmodule -Xllvm -aarch64-use-tbi -enable-objc-interop -stack-check -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk -I /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug -no-color-diagnostics -Xcc -fno-color-diagnostics -enable-testing -g -debug-info-format\=dwarf -dwarf-version\=5 -module-cache-path /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -profile-generate -profile-coverage-mapping -swift-version 5 -Onone -D DEBUG -serialize-debugging-options -const-gather-protocols-file /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64/Stet_const_extract_protocols.json -enable-upcoming-feature DisableOutwardActorInference -enable-upcoming-feature InferSendableFromCaptures -enable-upcoming-feature GlobalActorIsolatedTypesUsability -enable-upcoming-feature MemberImportVisibility -enable-upcoming-feature InferIsolatedConformances -enable-upcoming-feature NonisolatedNonsendingByDefault -enable-experimental-feature DebugDescriptionMacro -enable-bare-slash-regex -default-isolation\=MainActor -empty-abi-descriptor -validate-clang-modules-once -clang-build-session-file /Users/nd/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/nd/Developer/stet-project/Stet -enable-anonymous-context-mangled-names -file-compilation-dir /Users/nd/Developer/stet-project/Stet -Xcc -fmodule-map-file\=/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/GeneratedModuleMaps/CNIOWASI.modulemap -Xcc -fmodule-map-file\=/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/GeneratedModuleMaps/CNIOLinux.modulemap -Xcc -fmodule-map-file\=/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/GeneratedModuleMaps/CNIODarwin.modulemap -Xcc -fmodule-map-file\=/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/GeneratedModuleMaps/CNIOOpenBSD.modulemap -Xcc -fmodule-map-file\=/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/GeneratedModuleMaps/CNIOAtomics.modulemap -Xcc -fmodule-map-file\=/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/GeneratedModuleMaps/yyjson.modulemap -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -Xcc -ivfsstatcache -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/macosx26.4-25E251-688ef53f1462e2c8f657fdc38a81448f30f9ca8789b706f8bd3fc906a70d770f.sdkstatcache -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/swift-overrides.hmap -Xcc -iquote -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Stet\ Debug-generated-files.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Stet\ Debug-own-target-headers.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Stet\ Debug-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet-38011ed4f85a10a556e72240f4df1965-VFS/all-product-headers.yaml -Xcc -iquote -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Stet\ Debug-project-headers.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-atomics/Sources/_AtomicsShims/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-nio/Sources/CNIOWASI/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-nio/Sources/CNIOWindows/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-nio/Sources/CNIOLinux/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-nio/Sources/CNIODarwin/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-nio/Sources/CNIOOpenBSD/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/swift-nio/Sources/CNIOAtomics/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/yyjson/src -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/FluidAudio/Sources/MachTaskSelfWrapper/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/SourcePackages/checkouts/FluidAudio/Sources/FastClusterWrapper/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/DerivedSources-normal/arm64 -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/DerivedSources/arm64 -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/DerivedSources -Xcc -DDEBUG\=1 -no-auto-bridging-header-chaining -module-name Stet -frontend-parseable-output -disable-clang-spi -clang-target arm64-apple-macos26.4 -target-sdk-version 26.4 -target-sdk-name macosx26.4 -in-process-plugin-server-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -o /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64/AuthViewModel.o -index-unit-output-path /Stet.build/Debug/Stet.build/Objects-normal/arm64/AuthViewModel.o -index-store-path /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Index.noindex/DataStore -index-system-modules
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/Auth/AuthViewModel.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+/Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/Auth/AuthViewModel.swift:73:27: error: main actor-isolated property 'billingObserver' can not be referenced from a nonisolated context
+        if let observer = billingObserver {
+                          ^
+/Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/Auth/AuthViewModel.swift:52:17: note: property declared here
+    private var billingObserver: Any?
+                ^
+
+SwiftCompile normal arm64 Compiling\ MacAppContracts.swift /Users/nd/Developer/stet-project/Stet/Stet/App/Lifecycle/MacAppContracts.swift (in target 'Stet' from project 'Stet')
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/App/Lifecycle/MacAppContracts.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ Stet (in target 'Stet' from project 'Stet')
+
+EmitSwiftModule normal arm64 (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 Compiling\ StetApp.swift /Users/nd/Developer/stet-project/Stet/Stet/StetApp.swift (in target 'Stet' from project 'Stet')
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/StetApp.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling MacAppContracts.swift (in target 'Stet' from project 'Stet')
+
+SwiftCompile normal arm64 Compiling\ MacShellPresentationController.swift,\ KeyboardShortcutsHotkeyRegistrar.swift,\ MacAppSessionController.swift /Users/nd/Developer/stet-project/Stet/Stet/App/Windowing/MacShellPresentationController.swift /Users/nd/Developer/stet-project/Stet/Stet/App/Workflows/KeyboardShortcutsHotkeyRegistrar.swift /Users/nd/Developer/stet-project/Stet/Stet/App/Workflows/MacAppSessionController.swift (in target 'Stet' from project 'Stet')
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/App/Windowing/MacShellPresentationController.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/App/Workflows/KeyboardShortcutsHotkeyRegistrar.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/App/Workflows/MacAppSessionController.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 Compiling\ MacOnboardingWindowController.swift,\ MacPanelController.swift,\ MacPermissionGateController.swift /Users/nd/Developer/stet-project/Stet/Stet/App/Windowing/MacOnboardingWindowController.swift /Users/nd/Developer/stet-project/Stet/Stet/App/Windowing/MacPanelController.swift /Users/nd/Developer/stet-project/Stet/Stet/App/Windowing/MacPermissionGateController.swift (in target 'Stet' from project 'Stet')
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/App/Windowing/MacOnboardingWindowController.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/App/Windowing/MacPanelController.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/App/Windowing/MacPermissionGateController.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 Compiling\ MacAppSessionController+Dictation.swift,\ MacAppSessionController+Interface.swift,\ MacAppSessionController+Onboarding.swift /Users/nd/Developer/stet-project/Stet/Stet/App/Workflows/MacAppSessionController+Dictation.swift /Users/nd/Developer/stet-project/Stet/Stet/App/Workflows/MacAppSessionController+Interface.swift /Users/nd/Developer/stet-project/Stet/Stet/App/Workflows/MacAppSessionController+Onboarding.swift (in target 'Stet' from project 'Stet')
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/App/Workflows/MacAppSessionController+Dictation.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/App/Workflows/MacAppSessionController+Interface.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/App/Workflows/MacAppSessionController+Onboarding.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 Compiling\ AudioInputDeviceSettingsSection.swift,\ AuthView.swift,\ MacDictationCapsuleSurface.swift /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/AudioDeviceManagement/AudioInputDeviceSettingsSection.swift /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/Auth/AuthView.swift /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/DictationPanel/MacDictationCapsuleSurface.swift (in target 'Stet' from project 'Stet')
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/AudioDeviceManagement/AudioInputDeviceSettingsSection.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/Auth/AuthView.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/DictationPanel/MacDictationCapsuleSurface.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 Compiling\ MacGeneralSettingsView.swift,\ MacHotKeySettingsSectionView.swift,\ RuntimePermissionFailureView.swift /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/GeneralSetting/MacGeneralSettingsView.swift /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/HotKeySetting/MacHotKeySettingsSectionView.swift /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/PermissionFailure/RuntimePermissionFailureView.swift (in target 'Stet' from project 'Stet')
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/GeneralSetting/MacGeneralSettingsView.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/HotKeySetting/MacHotKeySettingsSectionView.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/PermissionFailure/RuntimePermissionFailureView.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 Compiling\ AppBranchWorkspace.swift,\ AudioDeviceChangeMonitor.swift,\ AudioInputDeviceMenuSection.swift /Users/nd/Developer/stet-project/Stet/Stet/Core/AppBranch/AppBranchWorkspace.swift /Users/nd/Developer/stet-project/Stet/Stet/Core/Audio/Devices/AudioDeviceChangeMonitor.swift /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/AudioDeviceManagement/AudioInputDeviceMenuSection.swift (in target 'Stet' from project 'Stet')
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/Core/AppBranch/AppBranchWorkspace.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/Core/Audio/Devices/AudioDeviceChangeMonitor.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/AudioDeviceManagement/AudioInputDeviceMenuSection.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 Compiling\ OnboardingView.swift,\ OnboardingViewModel.swift /Users/nd/Developer/stet-project/Stet/Stet/Features/Onboarding/OnboardingView.swift /Users/nd/Developer/stet-project/Stet/Stet/Features/Onboarding/OnboardingViewModel.swift (in target 'Stet' from project 'Stet')
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/Features/Onboarding/OnboardingView.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/Features/Onboarding/OnboardingViewModel.swift (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    
+
+SwiftCompile normal arm64 Compiling\ OnboardingFirstSuccessStep.swift,\ OnboardingLoginStep.swift,\ OnboardingModeStep.swift /Users/nd/Developer/stet-project/Stet/Stet/Features/Onboarding/Steps/OnboardingFirstSuccessStep.swift /Users/nd/Developer/stet-project/Stet/Stet/Features/Onboarding/Steps/OnboardingLoginStep.swift /Users/nd/Developer/stet-project/Stet/Stet/Features/Onboarding/Steps/OnboardingModeStep.swift (in target 'Stet' from project 'Stet')
+
+SwiftDriverJobDiscovery normal arm64 Compiling StetApp.swift (in target 'Stet' from project 'Stet')
+
+Ld /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/Stet\ Debug.app/Contents/MacOS/__preview.dylib normal (in target 'Stet' from project 'Stet')
+    cd /Users/nd/Developer/stet-project/Stet
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-macos26.0 -dynamiclib -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk -O0 -L/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/PackageFrameworks -F/Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug -install_name @rpath/Stet\ Debug.debug.dylib -Xlinker -dead_strip -rdynamic -Xlinker -no_deduplicate -Xlinker -debug_variant -Xlinker -dependency_info -Xlinker /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Intermediates.noindex/Stet.build/Debug/Stet.build/Objects-normal/arm64/Stet\ Debug_dependency_info.dat -Xlinker -no_adhoc_codesign -o /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/Stet\ Debug.app/Contents/MacOS/__preview.dylib
+Command Ld failed with a nonzero exit code
+
+** BUILD FAILED **
+
+
+The following build commands failed:
+	SwiftCompile normal arm64 Compiling\ AuthViewModel.swift /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/Auth/AuthViewModel.swift (in target 'Stet' from project 'Stet')
+	SwiftCompile normal arm64 /Users/nd/Developer/stet-project/Stet/Stet/Features/MacShell/Auth/AuthViewModel.swift (in target 'Stet' from project 'Stet')
+	Ld /Users/nd/Library/Developer/Xcode/DerivedData/Stet-fbqwqmzpvnstjwernsgqykzlzypg/Build/Products/Debug/Stet\ Debug.app/Contents/MacOS/__preview.dylib normal (in target 'Stet' from project 'Stet')
+	Building project Stet with scheme Stet
+(4 failures)

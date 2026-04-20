@@ -83,9 +83,10 @@ struct AuthView: View {
                         }
 
                         Button("Top Up") {
-                            NSWorkspace.shared.open(URL(string: "https://www.stet.me")!)
+                            Task { await viewModel.topUp() }
                         }
                         .controlSize(.small)
+                        .disabled(viewModel.isLoading)
                     }
                 }
 
@@ -123,7 +124,7 @@ struct AuthView: View {
             Spacer()
 
             Button {
-                NSWorkspace.shared.open(URL(string: "https://discord.gg/BKcYVAEK")!)
+                NSWorkspace.shared.open(StetLinks.discord)
             } label: {
                 Image("discordLogo")
                     .resizable()
@@ -135,7 +136,7 @@ struct AuthView: View {
             .help("Join on Discord")
 
             Button {
-                NSWorkspace.shared.open(URL(string: "https://x.com/Danielvrnh")!)
+                NSWorkspace.shared.open(StetLinks.x)
             } label: {
                 Image("xLogo")
                     .resizable()
@@ -147,7 +148,7 @@ struct AuthView: View {
             .help("Follow on X")
 
             Button {
-                NSWorkspace.shared.open(URL(string: "https://github.com/DengNaichen/Stet")!)
+                NSWorkspace.shared.open(StetLinks.github)
             } label: {
                 Image("githubLogo")
                     .resizable()
@@ -220,8 +221,8 @@ struct AuthView: View {
     // MARK: - Formatters
 
     private func creditsToSeconds(_ credits: Int) -> TimeInterval {
-        // Groq ASR at 2x markup: (0.04 USD/hr ÷ 3600) × 1_000_000 × 2.0 ≈ 22.22 credits/sec
-        let creditsPerSecond = (0.04 / 3600.0) * 1_000_000 * 2.0
+        // Rate: ($0.20 USD/hr ÷ 3600) × 1,000,000 credits/USD ≈ 55.56 credits/sec
+        let creditsPerSecond = (0.20 / 3600.0) * 1_000_000.0
         return max(0, Double(credits) / creditsPerSecond)
     }
 

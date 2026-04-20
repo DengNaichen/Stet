@@ -6,6 +6,7 @@
         let text: String
         let isInsufficientFunds: Bool
         let layout: MacDictationPanelLayout
+        let onTopUp: () -> Void
         let onFinish: () -> Void
 
         @State private var contentVisible = false
@@ -26,9 +27,7 @@
                 HStack(spacing: 12) {
                     if isInsufficientFunds {
                         Button(action: {
-                            if let url = URL(string: "https://www.stet.me") {
-                                NSWorkspace.shared.open(url)
-                            }
+                            onTopUp()
                             onFinish()
                         }) {
                             HStack(spacing: 6) {

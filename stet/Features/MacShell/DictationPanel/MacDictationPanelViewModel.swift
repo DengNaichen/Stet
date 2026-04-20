@@ -127,5 +127,9 @@
         func performPrimaryAction() {
             appModel.performPrimaryAction()
         }
+
+        func topUp() {
+            appModel.topUp()
+        }
     }
 #endif

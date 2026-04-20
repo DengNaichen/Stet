@@ -1,6 +1,7 @@
 #if os(macOS)
     import Combine
     import Foundation
+    import AppKit
     import StetVisuals
 
     @MainActor
@@ -264,6 +265,20 @@
             sessionController.performPrimaryAction()
         }
 
+        func topUp() {
+            Task {
+                do {
+                    let url = try await SupabaseService.shared.createCheckoutSession(
+                        priceID: StetLinks.defaultPriceID
+                    )
+                    NSWorkspace.shared.open(url)
+                } catch {
+                    AppLogger.error("Failed to start checkout: \(error.localizedDescription)", category: .dictation)
+                    // TODO: Could show a banner here if we had a global messaging system
+                }
+            }
+        }
+
         func cancelActiveCapture() {
             sessionController.cancelActiveCapture()
         }
@@ -374,6 +389,21 @@
 
         func refreshRuntimeFromSettings() {
             sessionController.refreshRuntimeFromSettings()
+        }
+
+        func handleDeepLink(_ url: URL) {
+            AppLogger.info("Received deep link: \(url.absoluteString)", category: .dictation)
+
+            // Expected: naichengdeng.stet://billing/success
+            guard url.scheme == "naichengdeng.stet",
+                url.host == "billing",
+                url.path == "/success"
+            else {
+                return
+            }
+
+            AppLogger.info("Billing success detected, triggering refresh", category: .dictation)
+            NotificationCenter.default.post(name: .stetBillingCompleted, object: nil)
         }
 
         private var settingsSnapshot: DictationSettingsSnapshot {

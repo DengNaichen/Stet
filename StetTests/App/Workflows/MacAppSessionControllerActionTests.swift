@@ -130,6 +130,7 @@
         func dismissPendingCopy() {}
         func cancelActiveCapture() {}
         func performPrimaryAction() {}
+        func topUp() {}
         func requestAutoPasteAccess() {}
         func resolveMicrophoneAccess() {}
         func openAccessibilitySettings() {}

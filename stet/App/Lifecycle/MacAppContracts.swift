@@ -28,6 +28,7 @@
         func dismissPendingCopy()
         func cancelActiveCapture()
         func performPrimaryAction()
+        func topUp()
     }
 
     @MainActor
@@ -126,3 +127,7 @@
         func registerDictationKeyUp(_ handler: @escaping () -> Void)
     }
 #endif
+
+extension Notification.Name {
+    static let stetBillingCompleted = Notification.Name("stetBillingCompleted")
+}

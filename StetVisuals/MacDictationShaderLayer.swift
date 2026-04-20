@@ -15,6 +15,7 @@
         var body: some View {
             TimelineView(.animation(minimumInterval: shaderFrameInterval, paused: isPaused)) { timeline in
                 let elapsed = max(0, timeline.date.timeIntervalSince(startDate))
+                let isProcessing = isProcessingState
                 let colors = MacDictationShaderStyling.orbColors(
                     for: state,
                     theme: shaderTheme,
@@ -27,12 +28,21 @@
                     frameInterval: shaderFrameInterval,
                     signals: currentSignals(),
                     colors: colors,
-                    isPaused: isPaused
+                    isPaused: isPaused,
+                    motionGain: isProcessing ? 10.0 : 9.999
                 )
                 .frame(width: mainWidth, height: controlHeight)
                 .clipShape(Capsule())
                 .allowsHitTesting(false)
             }
+        }
+
+        private var isProcessingState: Bool {
+            if case .processing = state {
+                return true
+            }
+
+            return false
         }
 
         private func currentSignals() -> MacDictationCapsuleVisualSignals {

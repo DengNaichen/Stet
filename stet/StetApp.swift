@@ -35,6 +35,9 @@ struct StetApp: App {
                 MacMenuBarView()
                     .environmentObject(settingsShellViewModel)
                     .environmentObject(appUpdateManager)
+                    .onOpenURL { url in
+                        appModel.handleDeepLink(url)
+                    }
             }
             .menuBarExtraStyle(.menu)
 

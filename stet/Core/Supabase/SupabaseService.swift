@@ -246,6 +246,58 @@ final class SupabaseService {
         }
     }
 
+    func createCheckoutSession(priceID: String) async throws -> URL {
+        guard let ctx = await relayAuthenticationContext() else {
+            throw AIExecutionError.managedRequiresAuthenticatedSession
+        }
+
+        // ctx.relayBaseURL is .../functions/v1/relay/v1
+        let url = ctx.relayBaseURL.appendingPathComponent("me/billing/checkout", isDirectory: false)
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(ctx.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue(ctx.publishableKey, forHTTPHeaderField: "Apikey")
+
+        let body: [String: String] = [
+            "price_id": priceID,
+            "success_url": "naichengdeng.stet://billing/success",
+            "cancel_url": "naichengdeng.stet://billing/cancel",
+        ]
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AIExecutionError.relayInvocationFailed(
+                statusCode: nil,
+                message: "No response from server",
+                requestID: nil
+            )
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            struct ErrorResponse: Decodable {
+                let code: String?
+                let message: String
+                let request_id: String?
+            }
+            let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data)
+            throw AIExecutionError.relayInvocationFailed(
+                statusCode: httpResponse.statusCode,
+                message: errorResponse?.message ?? "Checkout failed",
+                requestID: errorResponse?.request_id
+            )
+        }
+
+        struct CheckoutResponse: Decodable {
+            let url: URL
+        }
+
+        let decoded = try JSONDecoder().decode(CheckoutResponse.self, from: data)
+        return decoded.url
+    }
+
     private func ensureConfiguration() throws {
         guard isConfigured else {
             throw ServiceError.missingConfiguration

@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import AuthenticationServices
 import Observation
 internal import Auth
@@ -48,6 +49,33 @@ final class AuthViewModel {
         }
     }
 
+    @ObservationIgnored
+    nonisolated(unsafe) private var billingObserver: (any NSObjectProtocol)?
+
+    init(supabase: SupabaseService) {
+        self.supabase = supabase
+
+        billingObserver = NotificationCenter.default.addObserver(
+            forName: .stetBillingCompleted,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task {
+                await self?.fetchWallet()
+            }
+        }
+    }
+
+    convenience init() {
+        self.init(supabase: .shared)
+    }
+
+    deinit {
+        if let observer = billingObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
     var email = ""
     var password = ""
     var confirmPassword = ""
@@ -58,14 +86,6 @@ final class AuthViewModel {
     var balanceCredits: Int? = nil
 
     private let supabase: SupabaseService
-
-    init(supabase: SupabaseService) {
-        self.supabase = supabase
-    }
-
-    convenience init() {
-        self.init(supabase: .shared)
-    }
 
     var canSubmit: Bool {
         !normalizedEmail.isEmpty
@@ -165,6 +185,19 @@ final class AuthViewModel {
         password = ""
         confirmPassword = ""
         clearFeedback()
+    }
+
+    func topUp() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            let url = try await supabase.createCheckoutSession(priceID: StetLinks.defaultPriceID)
+            NSWorkspace.shared.open(url)
+        } catch {
+            errorMessage = "Couldn't start checkout: \(error.localizedDescription)"
+        }
     }
 
     private var normalizedEmail: String {
