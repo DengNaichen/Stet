@@ -30,6 +30,7 @@ enum AudioSignalAnalyzer {
     private actor SharedVadService {
         static let shared = SharedVadService()
 
+        private var configuredThreshold: Float?
         private var managerTask: Task<VadManager, Error>?
 
         func segmentSpeech(
@@ -41,10 +42,11 @@ enum AudioSignalAnalyzer {
         }
 
         private func manager(for threshold: Float) async throws -> VadManager {
-            if let managerTask {
+            if let managerTask, configuredThreshold == threshold {
                 return try await managerTask.value
             }
 
+            configuredThreshold = threshold
             let task = Task {
                 try await VadManager(
                     config: VadConfig(defaultThreshold: threshold)
@@ -76,12 +78,26 @@ enum AudioSignalAnalyzer {
         static let attenuationThresholdAboveTargetDB: Double = 6
     }
 
+    struct VadSegmentation: Sendable {
+        let samples: [Float]
+        let sampleRate: Double
+        let segments: [VadSegment]
+    }
+
     static func analyze(
         samples: [Float],
         sampleRate: Double
     ) async throws -> AudioAnalysis {
+        let result = try await analyzeForPostProcessing(samples: samples, sampleRate: sampleRate)
+        return result.analysis
+    }
+
+    static func analyzeForPostProcessing(
+        samples: [Float],
+        sampleRate: Double
+    ) async throws -> (analysis: AudioAnalysis, segmentation: VadSegmentation) {
         guard !samples.isEmpty, sampleRate > 0 else {
-            return AudioAnalysis(
+            let analysis = AudioAnalysis(
                 shouldDiscardAsNoSpeech: true,
                 speechFrameRatio: 0,
                 noiseFloorDBFS: -160,
@@ -89,29 +105,35 @@ enum AudioSignalAnalyzer {
                 overallPeakDBFS: -160,
                 recommendedGainDB: 0
             )
+            return (
+                analysis: analysis,
+                segmentation: VadSegmentation(samples: [], sampleRate: Double(VadManager.sampleRate), segments: [])
+            )
         }
 
-        let analysisSampleRate = Double(VadManager.sampleRate)
-        let analysisSamples = try normalizeSamplesForAnalysis(samples: samples, sampleRate: sampleRate)
-
-        let allSegments = try await SharedVadService.shared.segmentSpeech(
-            analysisSamples,
+        let segmentation = try await segmentSpeechForVad(
+            samples: samples,
+            sampleRate: sampleRate,
             threshold: Configuration.speechProbabilityThreshold
         )
-        let segments = allSegments.filter { ($0.endTime - $0.startTime) >= Configuration.minimumSpeechSegmentDuration }
+        let analysisSamples = segmentation.samples
+        let analysisSampleRate = segmentation.sampleRate
+        let analysisSegments = segmentation.segments.filter {
+            ($0.endTime - $0.startTime) >= Configuration.minimumSpeechSegmentDuration
+        }
 
-        let shouldDiscardAsNoSpeech = segments.isEmpty
+        let shouldDiscardAsNoSpeech = analysisSegments.isEmpty
         let totalDuration = Double(analysisSamples.count) / analysisSampleRate
         let speechFrameRatio =
             totalDuration > 0
-            ? segments.reduce(0.0) { $0 + ($1.endTime - $1.startTime) } / totalDuration
+            ? analysisSegments.reduce(0.0) { $0 + ($1.endTime - $1.startTime) } / totalDuration
             : 0.0
 
         let overallPeakDBFS = peakDBFS(from: analysisSamples)
         let speechMask = makeSpeechMask(
             sampleCount: analysisSamples.count,
             sampleRate: analysisSampleRate,
-            segments: segments
+            segments: analysisSegments
         )
         let frameMetrics = frameMetrics(
             samples: analysisSamples,
@@ -128,7 +150,7 @@ enum AudioSignalAnalyzer {
             overallPeakDBFS: overallPeakDBFS
         )
 
-        return AudioAnalysis(
+        let analysis = AudioAnalysis(
             shouldDiscardAsNoSpeech: shouldDiscardAsNoSpeech,
             speechFrameRatio: speechFrameRatio,
             noiseFloorDBFS: noiseFloorDBFS,
@@ -136,6 +158,26 @@ enum AudioSignalAnalyzer {
             overallPeakDBFS: overallPeakDBFS,
             recommendedGainDB: recommendedGainDB
         )
+        return (analysis: analysis, segmentation: segmentation)
+    }
+
+    static func segmentSpeechForVad(
+        samples: [Float],
+        sampleRate: Double,
+        threshold: Float = Configuration.speechProbabilityThreshold
+    ) async throws -> VadSegmentation {
+        guard !samples.isEmpty, sampleRate > 0 else {
+            return VadSegmentation(samples: [], sampleRate: Double(VadManager.sampleRate), segments: [])
+        }
+
+        let analysisSampleRate = Double(VadManager.sampleRate)
+        let analysisSamples = try normalizeSamplesForAnalysis(samples: samples, sampleRate: sampleRate)
+
+        let allSegments = try await SharedVadService.shared.segmentSpeech(
+            analysisSamples,
+            threshold: threshold
+        )
+        return VadSegmentation(samples: analysisSamples, sampleRate: analysisSampleRate, segments: allSegments)
     }
 
     static func makeSpeechEnhancementPlan(from analysis: AudioAnalysis) -> SpeechEnhancementPlan {

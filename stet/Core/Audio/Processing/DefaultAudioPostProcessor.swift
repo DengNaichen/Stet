@@ -31,10 +31,12 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
             return .passthrough(url: sourceURL, duration: duration)
         }
 
-        let analysis = try await AudioSignalAnalyzer.analyze(
+        let analysisResult = try await AudioSignalAnalyzer.analyzeForPostProcessing(
             samples: samples,
             sampleRate: fileSampleRate
         )
+        let analysis = analysisResult.analysis
+        let vadSegmentation = analysisResult.segmentation
 
         AppLogger.info(
             "Audio post-processing analyzed capture. \(analysis.summaryLine)",
@@ -55,6 +57,10 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
             return .discard(url: sourceURL, duration: duration)
         }
 
+        var currentURL = sourceURL
+        var cleanupURLs: [URL] = [sourceURL]
+        var currentDuration = duration
+
         do {
             let enhancement = try speechEnhancer.enhanceAudioFile(
                 at: sourceURL,
@@ -62,14 +68,11 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
             )
 
             if enhancement.didRewriteAudio {
+                currentURL = enhancement.outputURL
+                cleanupURLs.append(enhancement.outputURL)
                 AppLogger.info(
                     "Audio post-processing rewrote capture. outputURL=\(enhancement.outputURL.lastPathComponent)",
                     category: .dictation
-                )
-                return .rewritten(
-                    sourceURL: sourceURL,
-                    rewrittenURL: enhancement.outputURL,
-                    duration: duration
                 )
             }
         } catch {
@@ -79,6 +82,67 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
             )
         }
 
-        return .passthrough(url: sourceURL, duration: duration)
+        do {
+            let trimmingSamples: [Float]
+            let trimmingSampleRate: Double
+            if currentURL == sourceURL {
+                trimmingSamples = vadSegmentation.samples
+                trimmingSampleRate = vadSegmentation.sampleRate
+            } else {
+                let rewrittenAudioFile = try AVAudioFile(forReading: currentURL)
+                trimmingSampleRate = rewrittenAudioFile.fileFormat.sampleRate
+                trimmingSamples = try AudioConverter().resampleAudioFile(currentURL)
+            }
+
+            let trimResult = VadSilenceTrimmer.trim(
+                samples: trimmingSamples,
+                sampleRate: trimmingSampleRate,
+                segments: vadSegmentation.segments
+            )
+
+            if trimResult.didTrim {
+                do {
+                    let trimmedURL = try AudioM4AWriter.writeAACM4A(
+                        samples: trimResult.samples,
+                        sampleRate: trimmingSampleRate,
+                        filePrefix: "speech-trimmed"
+                    )
+                    currentURL = trimmedURL
+                    cleanupURLs.append(trimmedURL)
+                } catch {
+                    AppLogger.warning(
+                        "Falling back to wav because trimmed m4a output could not be written. error=\(error.localizedDescription)",
+                        category: .dictation
+                    )
+                    let trimmedURL = try AudioWavWriter.writePCM16MonoWav(
+                        samples: trimResult.samples,
+                        filePrefix: "speech-trimmed"
+                    )
+                    currentURL = trimmedURL
+                    cleanupURLs.append(trimmedURL)
+                }
+                currentDuration = trimResult.duration
+                AppLogger.info(
+                    "Audio post-processing trimmed silence. removedSeconds=\(String(format: "%.2f", trimResult.removedSeconds))",
+                    category: .dictation
+                )
+            }
+        } catch {
+            AppLogger.warning(
+                "Skipping silence trimming because the output could not be rewritten. error=\(error.localizedDescription)",
+                category: .dictation
+            )
+        }
+
+        if currentURL == sourceURL, cleanupURLs.count == 1 {
+            return .passthrough(url: sourceURL, duration: currentDuration)
+        }
+
+        return AudioPostProcessingResult(
+            url: currentURL,
+            duration: currentDuration,
+            cleanupURLs: cleanupURLs,
+            shouldDiscardAsNoSpeech: false
+        )
     }
 }

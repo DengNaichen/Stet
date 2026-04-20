@@ -4,6 +4,7 @@ import Testing
 @testable import Stet
 
 @Suite("Default Audio Post Processor", .serialized)
+@MainActor
 struct DefaultAudioPostProcessorTests {
     @Test func silenceOnlyCaptureIsDiscarded() async throws {
         let fileURL = try Self.makePCMFileURL(
@@ -72,18 +73,20 @@ struct DefaultAudioPostProcessorTests {
             at: fileURL,
             duration: 1
         )
+        let outputURL = result.url
+        let cleanupURLs = result.cleanupURLs
         defer {
-            for url in result.cleanupURLs {
+            for url in cleanupURLs {
                 try? FileManager.default.removeItem(at: url)
             }
         }
 
         #expect(!result.shouldDiscardAsNoSpeech)
-        #expect(result.url != fileURL)
-        #expect(Set(result.cleanupURLs) == Set([fileURL, result.url]))
+        #expect(outputURL != fileURL)
+        #expect(Set(cleanupURLs) == Set([fileURL, outputURL]))
 
         let inputSummary = try Self.audioSummary(at: fileURL)
-        let outputSummary = try Self.audioSummary(at: result.url)
+        let outputSummary = try Self.audioSummary(at: outputURL)
         #expect(inputSummary.sampleRate == outputSummary.sampleRate)
         #expect(inputSummary.channelCount == outputSummary.channelCount)
         #expect(abs(inputSummary.duration - outputSummary.duration) < 0.0001)
@@ -102,18 +105,20 @@ struct DefaultAudioPostProcessorTests {
             at: fileURL,
             duration: 1
         )
+        let outputURL = result.url
+        let cleanupURLs = result.cleanupURLs
         defer {
-            for url in result.cleanupURLs {
+            for url in cleanupURLs {
                 try? FileManager.default.removeItem(at: url)
             }
         }
 
         #expect(!result.shouldDiscardAsNoSpeech)
-        #expect(result.url != fileURL)
-        #expect(Set(result.cleanupURLs) == Set([fileURL, result.url]))
+        #expect(outputURL != fileURL)
+        #expect(Set(cleanupURLs) == Set([fileURL, outputURL]))
 
         let inputSummary = try Self.audioSummary(at: fileURL)
-        let outputSummary = try Self.audioSummary(at: result.url)
+        let outputSummary = try Self.audioSummary(at: outputURL)
         #expect(outputSummary.rms > inputSummary.rms)
     }
 
@@ -129,6 +134,39 @@ struct DefaultAudioPostProcessorTests {
 
         #expect(!result.shouldDiscardAsNoSpeech)
         #expect(result.url == fileURL)
+    }
+
+    @Test func captureWithLongPauseIsTrimmed() async throws {
+        let spoken = Self.makeSpeechLikeSamples(amplitude: 12_500)
+        let longPause = Array(repeating: Int16(0), count: 32_000)
+        let samples = spoken + longPause + spoken
+
+        let fileURL = try Self.makePCMFileURL(samples: samples)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let result = try await Self.makePostProcessor(interactionSoundsEnabled: false).processAudioFile(
+            at: fileURL,
+            duration: 4
+        )
+        let outputURL = result.url
+        let cleanupURLs = result.cleanupURLs
+        let reportedDuration = result.duration
+        defer {
+            for url in cleanupURLs {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+
+        #expect(!result.shouldDiscardAsNoSpeech)
+        #expect(outputURL != fileURL)
+
+        let inputSummary = try Self.audioSummary(at: fileURL)
+        let outputSummary = try Self.audioSummary(at: outputURL)
+        #expect(outputSummary.duration < (inputSummary.duration - 1.0))
+        #expect(outputSummary.duration > 1.8)
+        if let reportedDuration {
+            #expect(abs(reportedDuration - outputSummary.duration) < 0.01)
+        }
     }
 
     private static func makePCMFileURL(samples: [Int16]) throws -> URL {
@@ -261,8 +299,8 @@ struct DefaultAudioPostProcessorTests {
         let samples = try Self.readSamples(from: fileURL)
 
         let sampleSum = samples.reduce(0.0) { partialResult, sample in
-            let normalized = Double(sample) / Double(Int16.max)
-            return partialResult + normalized * normalized
+            let value = Double(sample)
+            return partialResult + value * value
         }
         let rms = samples.isEmpty ? 0 : sqrt(sampleSum / Double(samples.count))
 
@@ -274,19 +312,14 @@ struct DefaultAudioPostProcessorTests {
         )
     }
 
-    private static func readSamples(from fileURL: URL) throws -> [Int16] {
+    private static func readSamples(from fileURL: URL) throws -> [Float] {
         let audioFile = try AVAudioFile(forReading: fileURL)
         let frameCount = AVAudioFrameCount(audioFile.length)
         guard frameCount > 0 else { return [] }
 
-        let buffer = try #require(
-            AVAudioPCMBuffer(
-                pcmFormat: audioFile.fileFormat,
-                frameCapacity: frameCount
-            )
-        )
+        let buffer = try #require(AVAudioPCMBuffer(pcmFormat: audioFile.processingFormat, frameCapacity: frameCount))
         try audioFile.read(into: buffer)
-        guard let channelData = buffer.int16ChannelData else { return [] }
+        guard let channelData = buffer.floatChannelData else { return [] }
 
         let length = Int(buffer.frameLength)
         return (0..<length).map { channelData[0][$0] }
