@@ -77,10 +77,10 @@ struct DictationPipelineFactory: Sendable {
                 direct.transcriptionConfiguration,
                 networkSession
             )
-            transcriptionLanguageCode = nil
+            transcriptionLanguageCode = snapshot.dictationLanguageMode.transcriptionLanguageCode
             promptProvider = nil
             preferredSpellings = direct.preferredSpellings
-            rewriteAdditionalContext = nil
+            rewriteAdditionalContext = snapshot.dictationLanguageMode.rewriteAdditionalContext
             usesAudienceAwareLocalPrompts = snapshot.executionMode == .byok
 
             if direct.rewriteEnabled, let rewriteConfiguration = direct.rewriteConfiguration {
@@ -94,10 +94,10 @@ struct DictationPipelineFactory: Sendable {
                 networkSession,
                 relay.preferredSpellings
             )
-            transcriptionLanguageCode = nil
+            transcriptionLanguageCode = snapshot.dictationLanguageMode.transcriptionLanguageCode
             promptProvider = nil
             rewriteService = nil
-            rewriteAdditionalContext = nil
+            rewriteAdditionalContext = snapshot.dictationLanguageMode.rewriteAdditionalContext
             preferredSpellings = relay.preferredSpellings
             usesAudienceAwareLocalPrompts = false
         }

@@ -64,7 +64,7 @@ enum AudioSignalAnalyzer {
     }
 
     struct Configuration {
-        static let speechProbabilityThreshold: Float = 0.8
+        static let speechProbabilityThreshold: Float = 0.6
         static let minimumSpeechSegmentDuration: TimeInterval = 0.4
         static let analysisFrameDuration: TimeInterval = 0.02
         static let analysisHopDuration: TimeInterval = 0.01
