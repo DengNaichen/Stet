@@ -27,7 +27,10 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
     case providerAPI(provider: DictationProvider, statusCode: Int?, message: String)
     case unsupportedProviderCombination(transcriptionProvider: DictationProvider, rewriteProvider: DictationProvider)
     case relayAuthenticationRequired
+    case managedUnavailable
     case relayInvocation(statusCode: Int?, message: String, requestID: String?)
+    case localWhisperModelMissing(expectedPath: String)
+    case localWhisperRuntimeUnavailable
     case network(code: URLError.Code, message: String)
     case clipboardWriteFailed
     case autoPastePermissionMissing
@@ -43,7 +46,8 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
             .unsupportedAudioFormat,
             .failedToStart,
             .invalidResponse,
-            .relayInvocation:
+            .relayInvocation,
+            .localWhisperRuntimeUnavailable:
             return .service
         case .emptyTranscription:
             return .noSpeech
@@ -53,7 +57,12 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
             return .output
         case .autoPastePermissionMissing:
             return .permissions
-        case .missingProviderConfiguration, .missingAPIKey, .invalidBaseURL, .unsupportedProviderCombination:
+        case .missingProviderConfiguration,
+            .missingAPIKey,
+            .invalidBaseURL,
+            .unsupportedProviderCombination,
+            .managedUnavailable,
+            .localWhisperModelMissing:
             return .configuration
         case .providerAPI(_, let statusCode, _):
             switch statusCode {
@@ -101,8 +110,14 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
             return "Unsupported provider pair"
         case .relayAuthenticationRequired:
             return "Sign-in required"
+        case .managedUnavailable:
+            return "Stet account unavailable"
         case .relayInvocation:
             return "Managed Relay request failed"
+        case .localWhisperModelMissing:
+            return "Local Whisper model required"
+        case .localWhisperRuntimeUnavailable:
+            return "Local Whisper unavailable"
         case .network:
             return "Network problem"
         case .clipboardWriteFailed:
@@ -143,20 +158,22 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
         case .providerAPI(let provider, let statusCode, let message):
             return OpenAIError.api(provider: provider, statusCode: statusCode, message: message).localizedDescription
         case .unsupportedProviderCombination(let transcriptionProvider, let rewriteProvider):
-            return DictationProviderPairPolicy.unsupportedSettingsMessage(
-                for: DictationProviderPair(
-                    transcriptionProvider: transcriptionProvider,
-                    rewriteProvider: rewriteProvider
-                )
-            ) ?? "Unsupported provider pair."
+            return
+                "\(transcriptionProvider.displayName) transcription with \(rewriteProvider.displayName) rewrite is unsupported."
         case .relayAuthenticationRequired:
             return AIExecutionError.managedRequiresAuthenticatedSession.localizedDescription
+        case .managedUnavailable:
+            return AIExecutionError.managedModeUnavailable.localizedDescription
         case .relayInvocation(let statusCode, let message, let requestID):
             return AIExecutionError.relayInvocationFailed(
                 statusCode: statusCode,
                 message: message,
                 requestID: requestID
             ).localizedDescription
+        case .localWhisperModelMissing(let expectedPath):
+            return "Local Whisper model not found. Place the model at \(expectedPath)."
+        case .localWhisperRuntimeUnavailable:
+            return LocalWhisperError.runtimeUnavailable.localizedDescription
         case .network(_, let message):
             return message
         case .clipboardWriteFailed:
@@ -256,8 +273,21 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
             switch executionError {
             case .managedRequiresAuthenticatedSession:
                 return .relayAuthenticationRequired
+            case .managedModeUnavailable:
+                return .managedUnavailable
             case .relayInvocationFailed(let statusCode, let message, let requestID):
                 return .relayInvocation(statusCode: statusCode, message: message, requestID: requestID)
+            }
+        }
+
+        if let localWhisperError = error as? LocalWhisperError {
+            switch localWhisperError {
+            case .modelDirectoryUnavailable, .runtimeUnavailable:
+                return .localWhisperRuntimeUnavailable
+            case .modelMissing(let expectedURL):
+                return .localWhisperModelMissing(expectedPath: expectedURL.path)
+            case .audioPreparationFailed, .transcriptionFailed:
+                return .unknown(message: localWhisperError.localizedDescription)
             }
         }
 

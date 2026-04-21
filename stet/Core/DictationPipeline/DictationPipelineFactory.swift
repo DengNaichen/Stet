@@ -12,11 +12,7 @@ struct DictationPipeline: Sendable {
 
 struct DictationPipelineFactory: Sendable {
     var relayAuthenticationContext: @Sendable () async -> RelayAuthenticationContext?
-    var makeDirectTranscriptionService:
-        @Sendable (
-            TranscriptionProviderConfiguration,
-            URLSession
-        ) -> any AudioFileTranscriptionService
+    var makeLocalTranscriptionService: @Sendable () throws -> any AudioFileTranscriptionService
     var makeRelayTranscriptionService:
         @Sendable (
             RelayAuthenticationContext,
@@ -30,10 +26,9 @@ struct DictationPipelineFactory: Sendable {
     ) -> Self {
         DictationPipelineFactory(
             relayAuthenticationContext: relayAuthenticationContext,
-            makeDirectTranscriptionService: { configuration, session in
-                OpenAITranscriptionService(
-                    configuration: configuration,
-                    session: session
+            makeLocalTranscriptionService: {
+                try LocalWhisperTranscriptionService(
+                    modelManager: LocalWhisperModelManager()
                 )
             },
             makeRelayTranscriptionService: {
@@ -73,10 +68,7 @@ struct DictationPipelineFactory: Sendable {
 
         switch route {
         case .direct(let direct):
-            transcriptionService = makeDirectTranscriptionService(
-                direct.transcriptionConfiguration,
-                networkSession
-            )
+            transcriptionService = try makeLocalTranscriptionService()
             transcriptionLanguageCode = snapshot.dictationLanguageMode.transcriptionLanguageCode
             promptProvider = nil
             preferredSpellings = direct.preferredSpellings

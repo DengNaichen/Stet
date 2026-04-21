@@ -7,10 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		225E4F5F084FB9A8CF38FFC7 /* whisper.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = C2A0BFBB79EE545CDABAF5B1 /* whisper.xcframework */; };
 		6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 6D3A1A982F675F44005DA839 /* KeyboardShortcuts */; };
 		6D8230732F69F4A00096571A /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 6D8230722F69F4A00096571A /* Supabase */; };
 		6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 6DCB53142F6DB36500358FE5 /* FluidAudio */; };
 		A7D90C1E4B4D4E5F8A1B2C30 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */; };
+		A8E6B49E242750EC6EF7072B /* whisper.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C2A0BFBB79EE545CDABAF5B1 /* whisper.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		C80A4F64301851B7005C2101 /* OpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = C80A4F66301851B7005C2101 /* OpenAI */; };
 		F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; };
 		F1A0B001000000000000000E /* StetVisuals.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -48,6 +50,7 @@
 			dstSubfolderSpec = 10;
 			files = (
 				F1A0B001000000000000000E /* StetVisuals.framework in Embed Frameworks */,
+				A8E6B49E242750EC6EF7072B /* whisper.xcframework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -58,27 +61,36 @@
 		6D29DC7D2F5FA23000267DEA /* Stet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = Stet.app; path = "Stet Debug.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		6D29DC8C2F5FA23100267DEA /* StetTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StetTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6D29DC962F5FA23100267DEA /* StetUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StetUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C2A0BFBB79EE545CDABAF5B1 /* whisper.xcframework */ = {isa = PBXFileReference; includeInIndex = 1; name = whisper.xcframework; path = ".deps/whisper.cpp/build-apple/whisper.xcframework"; sourceTree = "<group>"; };
 		F1A0B0010000000000000003 /* StetVisuals.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = StetVisuals.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6D29DC7F2F5FA23000267DEA /* Stet */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = Stet;
 			sourceTree = "<group>";
 		};
 		6D29DC8F2F5FA23100267DEA /* StetTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = StetTests;
 			sourceTree = "<group>";
 		};
 		6D29DC992F5FA23100267DEA /* StetUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = StetUITests;
 			sourceTree = "<group>";
 		};
 		F1A0B0010000000000000004 /* StetVisuals */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = StetVisuals;
 			sourceTree = "<group>";
 		};
@@ -95,6 +107,7 @@
 				C80A4F64301851B7005C2101 /* OpenAI in Frameworks */,
 				A7D90C1E4B4D4E5F8A1B2C30 /* Sparkle in Frameworks */,
 				6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */,
+				225E4F5F084FB9A8CF38FFC7 /* whisper.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -130,6 +143,7 @@
 				6D29DC8F2F5FA23100267DEA /* StetTests */,
 				6D29DC992F5FA23100267DEA /* StetUITests */,
 				6D29DC7E2F5FA23000267DEA /* Products */,
+				C398E9241FFFFE38D5ED67CD /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -142,6 +156,14 @@
 				6D29DC962F5FA23100267DEA /* StetUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		C398E9241FFFFE38D5ED67CD /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				C2A0BFBB79EE545CDABAF5B1 /* whisper.xcframework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -203,8 +225,6 @@
 				6D29DC8F2F5FA23100267DEA /* StetTests */,
 			);
 			name = StetTests;
-			packageProductDependencies = (
-			);
 			productName = StetTests;
 			productReference = 6D29DC8C2F5FA23100267DEA /* StetTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -226,8 +246,6 @@
 				6D29DC992F5FA23100267DEA /* StetUITests */,
 			);
 			name = StetUITests;
-			packageProductDependencies = (
-			);
 			productName = StetUITests;
 			productReference = 6D29DC962F5FA23100267DEA /* StetUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -249,8 +267,6 @@
 				F1A0B0010000000000000004 /* StetVisuals */,
 			);
 			name = StetVisuals;
-			packageProductDependencies = (
-			);
 			productName = StetVisuals;
 			productReference = F1A0B0010000000000000003 /* StetVisuals.framework */;
 			productType = "com.apple.product-type.framework";
@@ -540,6 +556,7 @@
 				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
+				FRAMEWORK_SEARCH_PATHS = "$(SRCROOT)/.deps/whisper.cpp/build-apple";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -595,6 +612,7 @@
 				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
+				FRAMEWORK_SEARCH_PATHS = "$(SRCROOT)/.deps/whisper.cpp/build-apple";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

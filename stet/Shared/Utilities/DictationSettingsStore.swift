@@ -186,7 +186,7 @@ struct DictationSettingsStore: Sendable {
     }
 
     nonisolated func loadProvider() -> DictationProvider {
-        loadTranscriptionProvider()
+        loadRewriteProvider(defaultingTo: loadTranscriptionProvider())
     }
 
     nonisolated func loadExecutionMode() -> AIExecutionMode {
@@ -211,7 +211,7 @@ struct DictationSettingsStore: Sendable {
     }
 
     nonisolated func saveProvider(_ provider: DictationProvider) {
-        saveTranscriptionProvider(provider)
+        saveRewriteProvider(provider)
     }
 
     nonisolated func saveExecutionMode(_ mode: AIExecutionMode) {

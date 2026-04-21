@@ -113,11 +113,6 @@
                     )
                 }
                 .opacity(isPanelShown ? 1.0 : 0)
-
-                mainContent()
-                    .frame(width: model.mainWidth, height: model.controlHeight)
-                    .offset(y: MacDictationPanelConstants.Layout.offsetYDefault)
-                    .opacity(isPanelShown ? 1 : 0)
             }
             .scaleEffect(isPanelShown ? 1.0 : MacDictationCapsuleVisualTuning.panelHiddenScale)
             .frame(width: model.panelSize.width, height: model.panelSize.height)
@@ -139,22 +134,7 @@
             }
         }
 
-        @ViewBuilder
-        private func mainContent() -> some View {
-            if let message = model.overlayMessage {
-                Text(message)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.96))
-                    .lineLimit(3)
-                    .minimumScaleFactor(0.9)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .multilineTextAlignment(.center)
-                    .shadow(color: .black.opacity(0.16), radius: 10, y: 4)
-                    .padding(.horizontal, 24)
-            } else {
-                EmptyView()
-            }
-        }
+
 
         private func syncVisualState(animated: Bool) {
             orbRevealTask?.cancel()

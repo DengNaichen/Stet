@@ -239,6 +239,38 @@
             #expect(revealCount == 0)
         }
 
+        @Test func nonProfiledLikelyTextInputVerificationUnavailableCompletesWithoutFallbackOrPanel()
+            async
+        {
+            let clipboard = TestClipboardService()
+            let textInjection = TestTextInjectionService()
+            textInjection.pasteOutcome = .eventPostedVerificationUnavailableInTextInput
+            let coordinator = makeCoordinator(
+                clipboard: clipboard,
+                textInjection: textInjection,
+                frontmostBundleIdentifier: "com.hnc.SomeElectronApp"
+            )
+            var revealCount = 0
+
+            let outcome = await coordinator.handleCompletedCapture(
+                text: "hello",
+                targetApplication: nil,
+                settings: .init(
+                    shouldCopyToClipboard: false,
+                    shouldAutoPaste: true,
+                    shouldRevealPanelOnCapture: true
+                ),
+                showPanel: { revealCount += 1 }
+            )
+
+            #expect(outcome == .completed)
+            #expect(clipboard.copiedTexts == ["hello"])
+            #expect(clipboard.transientFlags == [true])
+            #expect(textInjection.pasteTargets.count == 1)
+            #expect(textInjection.didRequestAccessIfNeeded == false)
+            #expect(revealCount == 0)
+        }
+
         @Test func vsCodeVerificationFailureCompletesWithoutFallbackOrPanel() async {
             let clipboard = TestClipboardService()
             let textInjection = TestTextInjectionService()
@@ -303,6 +335,7 @@
             async
         {
             let bundleIdentifiers = [
+                "com.hnc.Discord",
                 "com.openai.codex",
                 "com.google.antigravity",
                 "dev.zed.app",

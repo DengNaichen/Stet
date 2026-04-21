@@ -81,6 +81,7 @@
                 }
                 .store(in: &cancellables)
             sessionController.activate(presentationModel: self, showInDock: launchConfiguration.showInDock)
+            LocalWhisperWarmupCoordinator.shared.activateIfNeeded()
         }
 
         var updates: AnyPublisher<Void, Never> {
@@ -274,7 +275,6 @@
                     NSWorkspace.shared.open(url)
                 } catch {
                     AppLogger.error("Failed to start checkout: \(error.localizedDescription)", category: .dictation)
-                    // TODO: Could show a banner here if we had a global messaging system
                 }
             }
         }
@@ -317,7 +317,6 @@
 
         func completeAPIKeyOnboarding(provider: DictationProvider) {
             settingsStore.saveExecutionMode(.byok)
-            settingsStore.saveTranscriptionProvider(provider)
             settingsStore.saveRewriteProvider(provider)
             sessionController.completeCredentialOnboarding(mode: .apiKey)
         }

@@ -21,17 +21,6 @@
                         }
 
                         if viewModel.showsProviderConfiguration {
-                            MacSettingsValueRow(title: "Transcription provider") {
-                                Picker("", selection: $viewModel.transcriptionProvider) {
-                                    ForEach(DictationProvider.allCases) { provider in
-                                        Text(provider.displayName).tag(provider)
-                                    }
-                                }
-                                .labelsHidden()
-                                .pickerStyle(.menu)
-                                .frame(width: controlWidth, alignment: .trailing)
-                            }
-
                             MacSettingsValueRow(title: "Rewrite provider") {
                                 Picker("", selection: $viewModel.rewriteProvider) {
                                     ForEach(DictationProvider.allCases) { provider in
@@ -56,6 +45,37 @@
                     } header: {
                         Text("Requirements")
                     }
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
+                        if viewModel.localWhisperCustomPath.isEmpty {
+                            Text(viewModel.localWhisperStatusMessage)
+                                .font(.system(size: 12))
+                                .foregroundStyle(viewModel.localWhisperNeedsAttention ? .orange : .secondary)
+                        } else {
+                            Text(URL(fileURLWithPath: viewModel.localWhisperCustomPath).lastPathComponent)
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .help(viewModel.localWhisperCustomPath)
+                        }
+
+                        HStack(spacing: 12) {
+                            Button("Choose model…") {
+                                viewModel.selectLocalWhisperModel()
+                            }
+
+                            if !viewModel.localWhisperCustomPath.isEmpty {
+                                Button("Clear", role: .destructive) {
+                                    viewModel.clearLocalWhisperModel()
+                                }
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Local Whisper")
                 }
 
                 ForEach(viewModel.visibleCredentialProviders) { provider in

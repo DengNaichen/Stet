@@ -1,6 +1,8 @@
 #if os(macOS)
+    import AppKit
     import Combine
     import Foundation
+    import UniformTypeIdentifiers
 
     @MainActor
     final class MacOpenAISettingsViewModel: ObservableObject {
@@ -8,13 +10,6 @@
             didSet {
                 guard hasLoadedState else { return }
                 settingsStore.saveExecutionMode(executionMode)
-            }
-        }
-        @Published var transcriptionProvider: DictationProvider = .openAI {
-            didSet {
-                guard hasLoadedState else { return }
-                settingsStore.saveTranscriptionProvider(transcriptionProvider)
-                rewriteProvider = settingsStore.loadRewriteProvider(defaultingTo: transcriptionProvider)
             }
         }
         @Published var rewriteProvider: DictationProvider = .openAI {
@@ -31,39 +26,61 @@
                 settingsStore.saveDictationLanguageMode(dictationLanguageMode)
             }
         }
+        @Published var localWhisperCustomPath: String = ""
 
         private let settingsStore: DictationSettingsStore
-        private let relaySessionProvider: @MainActor @Sendable () -> Bool
+        private let localWhisperModelManager: LocalWhisperModelManager
         private var hasLoadedState = false
 
         init(
             settingsStore: DictationSettingsStore = DictationSettingsStore(),
-            relaySessionProvider: @escaping @MainActor @Sendable () -> Bool = {
-                SupabaseService.shared.currentSession != nil
-            }
+            localWhisperModelManager: LocalWhisperModelManager = LocalWhisperModelManager()
         ) {
             self.settingsStore = settingsStore
-            self.relaySessionProvider = relaySessionProvider
+            self.localWhisperModelManager = localWhisperModelManager
         }
 
         var connectionNeedsAttention: Bool {
             switch executionMode {
             case .managed:
-                return !hasRelaySession
+                return true
             case .byok:
-                return !unsupportedProviderPairMessage.isNilOrEmpty || !missingRequiredProviders.isEmpty
+                return localWhisperNeedsAttention || !missingRequiredProviders.isEmpty
             }
         }
 
         func load() {
             hasLoadedState = false
             executionMode = settingsStore.loadExecutionMode()
-            transcriptionProvider = settingsStore.loadTranscriptionProvider()
-            rewriteProvider = settingsStore.loadRewriteProvider(defaultingTo: transcriptionProvider)
+            rewriteProvider = settingsStore.loadRewriteProvider()
             dictationLanguageMode = settingsStore.loadDictationLanguageMode()
             openAIAPIKey = settingsStore.loadAPIKey(for: .openAI)
             groqAPIKey = settingsStore.loadAPIKey(for: .groq)
+            localWhisperCustomPath =
+                UserDefaults.standard.string(forKey: MacPreferences.localWhisperModelPath) ?? ""
             hasLoadedState = true
+        }
+
+        @MainActor
+        func selectLocalWhisperModel() {
+            let panel = NSOpenPanel()
+            panel.title = "Select Whisper Model File"
+            panel.message = "Choose a ggml .bin model file"
+            panel.allowedContentTypes = [.data]
+            panel.allowsMultipleSelection = false
+            panel.canChooseDirectories = false
+            panel.canChooseFiles = true
+
+            if panel.runModal() == .OK, let url = panel.url {
+                let path = url.path
+                LocalWhisperModelManager.saveCustomModelPath(path)
+                localWhisperCustomPath = path
+            }
+        }
+
+        func clearLocalWhisperModel() {
+            LocalWhisperModelManager.saveCustomModelPath(nil)
+            localWhisperCustomPath = ""
         }
 
         func saveCredential(for provider: DictationProvider) {
@@ -101,16 +118,19 @@
         var visibleCredentialProviders: [DictationProvider] {
             guard executionMode != .managed else { return [] }
 
-            let selectedProviders = [
-                transcriptionProvider,
-                rewriteProvider,
-            ].compactMap { $0 }
-
-            return DictationProvider.allCases.filter { selectedProviders.contains($0) }
+            return [rewriteProvider]
         }
 
         var showsProviderConfiguration: Bool {
             executionMode != .managed
+        }
+
+        var localWhisperStatusMessage: String {
+            localWhisperModelManager.statusMessage()
+        }
+
+        var localWhisperNeedsAttention: Bool {
+            localWhisperModelManager.needsAttention()
         }
 
         func credentialFieldTitle(for provider: DictationProvider) -> String {
@@ -122,39 +142,19 @@
         }
 
         var missingCredentialMessage: String? {
-            if let unsupportedProviderPairMessage {
-                return unsupportedProviderPairMessage
-            }
-
-            let providerList = missingRequiredProviders.map(\.displayName).joined(separator: " and ")
-            guard !providerList.isEmpty else { return nil }
-
             switch executionMode {
             case .managed:
-                return hasRelaySession ? nil : "Sign in with your Stet account to use cloud dictation."
+                return "Stet account dictation is temporarily unavailable in this build."
             case .byok:
+                let providerList = missingRequiredProviders.map(\.displayName).joined(separator: " and ")
+                guard !providerList.isEmpty else { return nil }
                 return
-                    "Add \(providerList) API key\(missingRequiredProviders.count == 1 ? "" : "s") before using direct transcription or transcript improvement."
+                    "Add \(providerList) API key\(missingRequiredProviders.count == 1 ? "" : "s") before using transcript improvement."
             }
         }
 
         var isCredentialEditingDisabled: Bool {
             executionMode == .managed
-        }
-
-        private var hasRelaySession: Bool {
-            relaySessionProvider()
-        }
-
-        private var selectedProviderPair: DictationProviderPair {
-            DictationProviderPair(
-                transcriptionProvider: transcriptionProvider,
-                rewriteProvider: rewriteProvider
-            )
-        }
-
-        private var unsupportedProviderPairMessage: String? {
-            return DictationProviderPairPolicy.unsupportedSettingsMessage(for: selectedProviderPair)
         }
 
         private var missingRequiredProviders: [DictationProvider] {
@@ -171,23 +171,8 @@
         }
 
         private var directProviders: [DictationProvider] {
-            let selectedProviders = [
-                transcriptionProvider,
-                rewriteProvider,
-            ].compactMap { $0 }
-
-            return DictationProvider.allCases.filter { selectedProviders.contains($0) }
+            [rewriteProvider]
         }
     }
 
-    private extension Optional where Wrapped == String {
-        var isNilOrEmpty: Bool {
-            switch self {
-            case .none:
-                return true
-            case .some(let value):
-                return value.isEmpty
-            }
-        }
-    }
 #endif

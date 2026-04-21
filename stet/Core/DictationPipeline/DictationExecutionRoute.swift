@@ -12,12 +12,15 @@ struct RelayAuthenticationContext: Sendable, Equatable {
 
 enum AIExecutionError: LocalizedError, Equatable {
     case managedRequiresAuthenticatedSession
+    case managedModeUnavailable
     case relayInvocationFailed(statusCode: Int?, message: String, requestID: String?)
 
     nonisolated var errorDescription: String? {
         switch self {
         case .managedRequiresAuthenticatedSession:
             return "Managed Relay requires a signed-in Stet account."
+        case .managedModeUnavailable:
+            return "Stet account dictation is temporarily unavailable in this build."
         case .relayInvocationFailed(let statusCode, let message, let requestID):
             let requestIDSuffix = requestID.map { " Request ID: \($0)." } ?? ""
 
@@ -64,7 +67,6 @@ enum ProviderConfigurationError: LocalizedError, Equatable {
 
 enum DictationExecutionRoute: Sendable {
     struct Direct: Sendable {
-        let transcriptionConfiguration: TranscriptionProviderConfiguration
         let rewriteConfiguration: RewriteProviderConfiguration?
         let rewriteEnabled: Bool
         let languageMode: DictationLanguageMode
@@ -86,6 +88,10 @@ enum DictationExecutionRouteResolver {
         snapshot: DictationSettingsSnapshot,
         relayAuthentication: RelayAuthenticationContext?
     ) throws -> DictationExecutionRoute {
+        if snapshot.executionMode == .managed {
+            throw AIExecutionError.managedModeUnavailable
+        }
+
         if snapshot.executionMode.requiresAuthenticatedSession, relayAuthentication == nil {
             throw AIExecutionError.managedRequiresAuthenticatedSession
         }
@@ -114,7 +120,7 @@ enum DictationExecutionRouteResolver {
         let missingRequirements = snapshot.requiredProviderRequirements().filter { requirement in
             switch requirement.step {
             case .transcription:
-                return snapshot.transcriptionProviderConfiguration == nil
+                return false
             case .rewrite:
                 return snapshot.rewriteProviderConfiguration == nil
             }
@@ -122,15 +128,6 @@ enum DictationExecutionRouteResolver {
 
         if !missingRequirements.isEmpty {
             throw ProviderConfigurationError.missingRequirements(missingRequirements)
-        }
-
-        guard let transcriptionConfiguration = snapshot.transcriptionProviderConfiguration else {
-            throw ProviderConfigurationError.missingRequirements([
-                ProviderConfigurationRequirement(
-                    step: .transcription,
-                    provider: snapshot.transcriptionProvider
-                )
-            ])
         }
 
         guard let rewriteConfiguration = snapshot.rewriteProviderConfiguration else {
@@ -143,7 +140,6 @@ enum DictationExecutionRouteResolver {
         }
 
         return .init(
-            transcriptionConfiguration: transcriptionConfiguration,
             rewriteConfiguration: rewriteConfiguration,
             rewriteEnabled: snapshot.isRewriteEnabled,
             languageMode: snapshot.dictationLanguageMode,

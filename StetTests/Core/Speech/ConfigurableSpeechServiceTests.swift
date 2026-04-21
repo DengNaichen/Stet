@@ -74,7 +74,7 @@ private func makeDictationService(
         relayAuthenticationContext: {
             relayAuthentication
         },
-        makeDirectTranscriptionService: { _, _ in
+        makeLocalTranscriptionService: {
             directTranscriptionService
         },
         makeRelayTranscriptionService: { _, _, _ in
@@ -152,7 +152,6 @@ struct ConfigurableSpeechServiceTests {
 
         await #expect(
             throws: ProviderConfigurationError.missingRequirements([
-                ProviderConfigurationRequirement(step: .transcription, provider: .openAI),
                 ProviderConfigurationRequirement(step: .rewrite, provider: .openAI),
             ])
         ) {
@@ -160,7 +159,7 @@ struct ConfigurableSpeechServiceTests {
         }
     }
 
-    @Test func managedModeRequiresAuthenticatedSession() async throws {
+    @Test func managedModeIsUnavailable() async throws {
         let (store, _, _) = try makeSettingsStore(executionMode: .managed)
 
         let service = ConfigurableSpeechService(
@@ -171,9 +170,38 @@ struct ConfigurableSpeechServiceTests {
             captureService: TestAudioCaptureService(audioFileURL: makeAudioFileURL())
         )
 
-        await #expect(throws: AIExecutionError.managedRequiresAuthenticatedSession) {
+        await #expect(throws: AIExecutionError.managedModeUnavailable) {
             try await service.startRecording()
         }
+    }
+
+    @Test func localWhisperModelMissingFailsBeforeCaptureStarts() async throws {
+        let (store, _, _) = try makeSettingsStore(
+            rewriteProvider: .openAI,
+            openAIAPIKey: "sk-test"
+        )
+        let capture = TestAudioCaptureService(audioFileURL: makeAudioFileURL())
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                relayAuthenticationContext: { nil },
+                makeLocalTranscriptionService: {
+                    throw LocalWhisperError.modelMissing(
+                        expectedURL: URL(fileURLWithPath: "/tmp/ggml-tiny-q5_1.bin")
+                    )
+                },
+                makeRelayTranscriptionService: { _, _, _ in TestTranscriptionService(result: "relay") },
+                makeRewriteService: { _, _ in RecordingRewriteService() }
+            ),
+            captureService: capture
+        )
+
+        await #expect(throws: LocalWhisperError.modelMissing(expectedURL: URL(fileURLWithPath: "/tmp/ggml-tiny-q5_1.bin"))) {
+            try await service.startRecording()
+        }
+
+        let counts = await capture.counts()
+        #expect(counts.start == 0)
     }
 
     @Test func defaultCaptureServiceFactoryIsNotInvokedUntilRecordingStarts() async throws {
@@ -190,7 +218,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -221,7 +249,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -249,7 +277,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -278,7 +306,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -306,7 +334,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -379,7 +407,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -414,7 +442,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -454,7 +482,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -488,7 +516,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -630,7 +658,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -674,7 +702,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -709,7 +737,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -751,7 +779,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -787,7 +815,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -821,7 +849,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { relayAuthentication },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -853,7 +881,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { relayAuthentication },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -891,7 +919,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { relayAuthentication },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -920,7 +948,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -948,7 +976,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -978,7 +1006,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),
@@ -1007,7 +1035,7 @@ struct ConfigurableSpeechServiceTests {
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 relayAuthenticationContext: { nil },
-                makeDirectTranscriptionService: { _, _ in direct },
+                makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
                 makeRewriteService: { _, _ in rewrite }
             ),

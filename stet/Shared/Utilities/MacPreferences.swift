@@ -25,4 +25,7 @@ enum MacPreferences {
 
     // Audio device selection
     nonisolated static let preferredAudioInputDeviceUID = "mac.preferredAudioInputDeviceUID"
+
+    // Local Whisper model override
+    nonisolated static let localWhisperModelPath = "mac.localWhisperModelPath"
 }

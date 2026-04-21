@@ -34,49 +34,26 @@
             )
 
             let viewModel = MacOpenAISettingsViewModel(
-                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: secretStore),
-                relaySessionProvider: { true }
+                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: secretStore)
             )
 
             viewModel.load()
 
             #expect(viewModel.executionMode == .managed)
-            #expect(viewModel.transcriptionProvider == .groq)
             #expect(viewModel.rewriteProvider == .openAI)
             #expect(viewModel.dictationLanguageMode == .mixedChineseEnglish)
             #expect(viewModel.groqAPIKey == "gsk-live")
             #expect(viewModel.openAIAPIKey == "sk-openai")
         }
 
-        @Test func changingTranscriptionProviderDefaultsRewriteProviderUntilExplicitlyChanged() throws {
-            let defaults = TestSupport.makeUserDefaults()
-            let secretStore = TestSecretStore()
-
-            let viewModel = MacOpenAISettingsViewModel(
-                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: secretStore),
-                relaySessionProvider: { false }
-            )
-            viewModel.load()
-
-            viewModel.transcriptionProvider = .groq
-
-            #expect(defaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.groq.rawValue)
-            #expect(defaults.string(forKey: MacPreferences.rewriteProvider) == DictationProvider.groq.rawValue)
-            #expect(viewModel.rewriteProvider == .groq)
-        }
-
         @Test func explicitRewriteProviderSelectionPersistsIndependently() throws {
             let defaults = TestSupport.makeUserDefaults()
             let viewModel = MacOpenAISettingsViewModel(
-                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
-                relaySessionProvider: { false }
+                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
             )
-
             viewModel.load()
-            viewModel.transcriptionProvider = .groq
             viewModel.rewriteProvider = .openAI
 
-            #expect(defaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.groq.rawValue)
             #expect(defaults.string(forKey: MacPreferences.rewriteProvider) == DictationProvider.openAI.rawValue)
         }
 
@@ -84,7 +61,7 @@
             let defaults = TestSupport.makeUserDefaults()
             let secretStore = TestSecretStore()
             let store = DictationSettingsStore(defaults: defaults, secretStore: secretStore)
-            let viewModel = MacOpenAISettingsViewModel(settingsStore: store, relaySessionProvider: { false })
+            let viewModel = MacOpenAISettingsViewModel(settingsStore: store)
 
             viewModel.load()
             viewModel.setAPIKey("  sk-live  ", for: .openAI)
@@ -102,8 +79,7 @@
         @Test func changingExecutionModePersistsSelection() {
             let defaults = TestSupport.makeUserDefaults()
             let viewModel = MacOpenAISettingsViewModel(
-                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
-                relaySessionProvider: { false }
+                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
             )
 
             viewModel.load()
@@ -112,24 +88,23 @@
             #expect(defaults.string(forKey: MacPreferences.aiExecutionMode) == AIExecutionMode.byok.rawValue)
         }
 
-        @Test func managedModeWithoutRelaySessionHidesDirectConfiguration() {
+        @Test func managedModeShowsUnavailableMessageAndHidesDirectConfiguration() {
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(AIExecutionMode.managed.rawValue, forKey: MacPreferences.aiExecutionMode)
 
             let viewModel = MacOpenAISettingsViewModel(
-                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
-                relaySessionProvider: { false }
+                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
             )
 
             viewModel.load()
 
             #expect(viewModel.connectionNeedsAttention)
-            #expect(viewModel.missingCredentialMessage == nil)
+            #expect(viewModel.missingCredentialMessage == "Stet account dictation is temporarily unavailable in this build.")
             #expect(!viewModel.showsProviderConfiguration)
             #expect(viewModel.visibleCredentialProviders.isEmpty)
         }
 
-        @Test func byokMixedProvidersRequireBothKeys() {
+        @Test func byokRequiresOnlyRewriteProviderKey() {
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(AIExecutionMode.byok.rawValue, forKey: MacPreferences.aiExecutionMode)
             defaults.set(DictationProvider.groq.rawValue, forKey: MacPreferences.transcriptionProvider)
@@ -138,54 +113,58 @@
 
             let viewModel = MacOpenAISettingsViewModel(
                 settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
-                relaySessionProvider: { false }
+                localWhisperModelManager: LocalWhisperModelManager(
+                    modelsDirectoryProvider: { TestSupport.temporaryDirectoryURL("local-whisper-settings") },
+                    runtimeAvailableProvider: { true }
+                )
             )
 
             viewModel.load()
 
             #expect(viewModel.connectionNeedsAttention)
-            #expect(viewModel.visibleCredentialProviders == [.openAI, .groq])
+            #expect(viewModel.visibleCredentialProviders == [.openAI])
             #expect(
                 viewModel.missingCredentialMessage
-                    == "Add OpenAI and Groq API keys before using direct transcription or transcript improvement.")
+                    == "Add OpenAI API key before using transcript improvement.")
         }
 
-        @Test func unsupportedProviderPairShowsConfigurationWarningWithoutStatusSurface() {
+        @Test func localWhisperStatusShowsExpectedModelPathWhenRuntimeAvailableButModelMissing() {
             let defaults = TestSupport.makeUserDefaults()
-            defaults.set(AIExecutionMode.byok.rawValue, forKey: MacPreferences.aiExecutionMode)
-            defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
-            defaults.set(DictationProvider.groq.rawValue, forKey: MacPreferences.rewriteProvider)
-            defaults.set(true, forKey: MacPreferences.rewriteEnabled)
+            let modelsDirectory = TestSupport.temporaryDirectoryURL("local-whisper-settings-path")
+            let expectedModelPath = modelsDirectory.appendingPathComponent("ggml-tiny-q5_1.bin").path
 
             let viewModel = MacOpenAISettingsViewModel(
                 settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
-                relaySessionProvider: { false }
+                localWhisperModelManager: LocalWhisperModelManager(
+                    modelsDirectoryProvider: { modelsDirectory },
+                    runtimeAvailableProvider: { true }
+                )
             )
 
             viewModel.load()
 
             #expect(viewModel.connectionNeedsAttention)
             #expect(
-                viewModel.missingCredentialMessage
-                    == "OpenAI transcription with Groq rewrite is not supported as a default BYOK pair on Mac.")
+                viewModel.localWhisperStatusMessage
+                    == "Place ggml-tiny-q5_1.bin at \(expectedModelPath).")
         }
 
-        @Test func managedModeWithRelaySessionHidesDirectConfigurationUI() throws {
+        @Test func localWhisperStatusShowsRuntimeUnavailableWhenEngineMissing() {
             let defaults = TestSupport.makeUserDefaults()
-            defaults.set(AIExecutionMode.managed.rawValue, forKey: MacPreferences.aiExecutionMode)
-            defaults.set(DictationProvider.groq.rawValue, forKey: MacPreferences.transcriptionProvider)
-            defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.rewriteProvider)
-            defaults.set(true, forKey: MacPreferences.rewriteEnabled)
+            let modelsDirectory = TestSupport.temporaryDirectoryURL("local-whisper-settings-runtime")
 
             let viewModel = MacOpenAISettingsViewModel(
                 settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
-                relaySessionProvider: { true }
+                localWhisperModelManager: LocalWhisperModelManager(
+                    modelsDirectoryProvider: { modelsDirectory },
+                    runtimeAvailableProvider: { false }
+                )
             )
 
             viewModel.load()
 
-            #expect(!viewModel.showsProviderConfiguration)
-            #expect(viewModel.visibleCredentialProviders.isEmpty)
+            #expect(viewModel.localWhisperNeedsAttention)
+            #expect(viewModel.localWhisperStatusMessage.contains("Local Whisper runtime is not linked") == true)
         }
 
         @Test func loadTreatsStoredRewriteDisabledValueAsEnabledForRuntime() {

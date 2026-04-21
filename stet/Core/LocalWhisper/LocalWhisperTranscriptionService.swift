@@ -1,0 +1,291 @@
+@preconcurrency import AVFoundation
+import Foundation
+import os
+
+protocol LocalWhisperEngine: Sendable {
+    func transcribe(
+        samples: [Float],
+        languageCode: String?,
+        prompt: String?
+    ) async throws -> String
+}
+
+enum LocalWhisperEngineFactory {
+    nonisolated static var isRuntimeAvailable: Bool {
+        #if canImport(whisper)
+            true
+        #else
+            false
+        #endif
+    }
+
+    nonisolated static func makeEngine(modelURL: URL) throws -> any LocalWhisperEngine {
+        #if canImport(whisper)
+            return WhisperCppLocalWhisperEngine(modelURL: modelURL)
+        #else
+            throw LocalWhisperError.runtimeUnavailable
+        #endif
+    }
+}
+
+struct LocalWhisperTranscriptionService: AudioFileTranscriptionService {
+    private let engine: any LocalWhisperEngine
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "LocalWhisper")
+
+    init(
+        modelManager: LocalWhisperModelManager,
+        engineFactory: @Sendable (URL) throws -> any LocalWhisperEngine = {
+            try LocalWhisperEngineFactory.makeEngine(modelURL: $0)
+        }
+    ) throws {
+        let modelURL = try modelManager.resolvedModelURL()
+        self.engine = try engineFactory(modelURL)
+    }
+
+    func transcribe(
+        audioFileAt fileURL: URL,
+        languageCode: String?,
+        prompt: String?,
+        audioDurationSeconds _: TimeInterval?
+    ) async throws -> String {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            throw OpenAIError.fileNotFound(fileURL)
+        }
+
+        let samples: [Float]
+        do {
+            samples = try Self.readSamples(from: fileURL)
+        } catch {
+            logger.error("Failed to prepare audio for Local Whisper: \(error.localizedDescription, privacy: .public)")
+            throw LocalWhisperError.audioPreparationFailed
+        }
+
+        let transcript = try await engine.transcribe(
+            samples: samples,
+            languageCode: languageCode,
+            prompt: prompt
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !transcript.isEmpty else {
+            throw SpeechServiceError.emptyTranscription
+        }
+
+        return transcript
+    }
+
+    private static func readSamples(from fileURL: URL) throws -> [Float] {
+        let inputFile = try AVAudioFile(forReading: fileURL)
+        let inputFormat = inputFile.processingFormat
+        let inputFrameCount = AVAudioFrameCount(inputFile.length)
+
+        guard
+            let inputBuffer = AVAudioPCMBuffer(
+                pcmFormat: inputFormat,
+                frameCapacity: inputFrameCount
+            )
+        else {
+            throw LocalWhisperError.audioPreparationFailed
+        }
+
+        try inputFile.read(into: inputBuffer)
+
+        let outputFormat = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: 16000,
+            channels: 1,
+            interleaved: false
+        )
+
+        guard let outputFormat else {
+            throw LocalWhisperError.audioPreparationFailed
+        }
+
+        if inputFormat.channelCount == 1,
+            inputFormat.commonFormat == .pcmFormatFloat32,
+            let channelData = inputBuffer.floatChannelData
+        {
+            let frames = Int(inputBuffer.frameLength)
+            return Array(UnsafeBufferPointer(start: channelData[0], count: frames))
+        }
+
+        guard let converter = AVAudioConverter(from: inputFormat, to: outputFormat) else {
+            throw LocalWhisperError.audioPreparationFailed
+        }
+
+        guard
+            let outputBuffer = AVAudioPCMBuffer(
+                pcmFormat: outputFormat,
+                frameCapacity: inputBuffer.frameLength
+            )
+        else {
+            throw LocalWhisperError.audioPreparationFailed
+        }
+
+        var error: NSError?
+        var didProvideInput = false
+        let status = converter.convert(to: outputBuffer, error: &error) { _, outStatus in
+            guard !didProvideInput else {
+                outStatus.pointee = .noDataNow
+                return nil
+            }
+            didProvideInput = true
+            outStatus.pointee = .haveData
+            return inputBuffer
+        }
+
+        guard status != .error, error == nil, let channelData = outputBuffer.floatChannelData else {
+            throw LocalWhisperError.audioPreparationFailed
+        }
+
+        let frames = Int(outputBuffer.frameLength)
+        return Array(UnsafeBufferPointer(start: channelData[0], count: frames))
+    }
+}
+
+#if canImport(whisper)
+    import whisper
+
+    private actor WhisperCppContext {
+        private var context: OpaquePointer?
+        private var languageCString: [CChar]?
+        private var promptCString: [CChar]?
+
+        deinit {
+            if let context {
+                whisper_free(context)
+            }
+        }
+
+        func initializeModel(path: String) throws {
+            guard context == nil else { return }
+
+            var params = whisper_context_default_params()
+            #if !targetEnvironment(simulator)
+                params.flash_attn = true
+            #else
+                params.use_gpu = false
+            #endif
+
+            guard let loadedContext = whisper_init_from_file_with_params(path, params) else {
+                throw LocalWhisperError.runtimeUnavailable
+            }
+
+            context = loadedContext
+        }
+
+        func transcribe(
+            samples: [Float],
+            languageCode: String?,
+            prompt: String?
+        ) -> Bool {
+            guard let context else { return false }
+
+            if let normalizedLanguageCode = Self.normalizedLanguageCode(languageCode) {
+                languageCString = Array(normalizedLanguageCode.utf8CString)
+            } else {
+                languageCString = nil
+            }
+
+            if let prompt, !prompt.isEmpty {
+                promptCString = Array(prompt.utf8CString)
+            } else {
+                promptCString = nil
+            }
+
+            var success = true
+
+            // Correctly nest pointers to ensure they remain valid during whisper_full call
+            func performTranscription(langPtr: UnsafePointer<CChar>?, promptPtr: UnsafePointer<CChar>?) {
+                var params = whisper_full_default_params(WHISPER_SAMPLING_BEAM_SEARCH)
+                params.print_realtime = false
+                params.print_progress = false
+                params.print_timestamps = false
+                params.print_special = false
+                params.translate = false
+                params.no_context = true
+                params.temperature = 0
+                params.n_threads = Int32(max(1, min(8, ProcessInfo.processInfo.processorCount - 2)))
+                params.beam_search.beam_size = 2
+                params.language = langPtr
+                params.initial_prompt = promptPtr
+
+                whisper_reset_timings(context)
+
+                samples.withUnsafeBufferPointer { buffer in
+                    if whisper_full(context, params, buffer.baseAddress, Int32(buffer.count)) != 0 {
+                        success = false
+                    }
+                }
+            }
+
+            if let languageCString = languageCString {
+                languageCString.withUnsafeBufferPointer { langBuf in
+                    if let promptCString = promptCString {
+                        promptCString.withUnsafeBufferPointer { promptBuf in
+                            performTranscription(langPtr: langBuf.baseAddress, promptPtr: promptBuf.baseAddress)
+                        }
+                    } else {
+                        performTranscription(langPtr: langBuf.baseAddress, promptPtr: nil)
+                    }
+                }
+            } else {
+                if let promptCString = promptCString {
+                    promptCString.withUnsafeBufferPointer { promptBuf in
+                        performTranscription(langPtr: nil, promptPtr: promptBuf.baseAddress)
+                    }
+                } else {
+                    performTranscription(langPtr: nil, promptPtr: nil)
+                }
+            }
+
+            languageCString = nil
+            promptCString = nil
+            return success
+        }
+
+        func transcriptionText() -> String {
+            guard let context else { return "" }
+
+            var text = ""
+            for index in 0..<whisper_full_n_segments(context) {
+                text += String(cString: whisper_full_get_segment_text(context, index))
+            }
+            return text
+        }
+
+        private static func normalizedLanguageCode(_ languageCode: String?) -> String? {
+            guard let languageCode else { return nil }
+            let normalized = languageCode.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard !normalized.isEmpty else { return nil }
+
+            if normalized == "zh-hans" || normalized == "zh-hant" {
+                return "zh"
+            }
+
+            return normalized
+        }
+    }
+
+    private actor WhisperCppLocalWhisperEngine: LocalWhisperEngine {
+        private let modelURL: URL
+        private let context = WhisperCppContext()
+
+        init(modelURL: URL) {
+            self.modelURL = modelURL
+        }
+
+        func transcribe(
+            samples: [Float],
+            languageCode: String?,
+            prompt: String?
+        ) async throws -> String {
+            try await context.initializeModel(path: modelURL.path)
+
+            guard await context.transcribe(samples: samples, languageCode: languageCode, prompt: prompt) else {
+                throw LocalWhisperError.transcriptionFailed
+            }
+
+            return await context.transcriptionText()
+        }
+    }
+#endif

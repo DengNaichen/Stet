@@ -4,6 +4,8 @@
 
     @MainActor
     final class MacDictationCaptureCoordinator {
+        private nonisolated static let likelyTextInputRecoveryWindow: Duration = .seconds(2)
+
         private enum TargetAppOutputProfile: Equatable {
             case optimisticVerificationBlind(recoveryWindow: Duration)
         }
@@ -160,13 +162,17 @@
                         "outcome=\(textInjectionOutcomeLabel(pasteOutcome)) profile=\(targetAppProfileLabel(targetAppProfile))"
                 )
 
-                if case let .optimisticVerificationBlind(recoveryWindow)? = targetAppProfile,
-                    shouldTreatAsOptimisticCompletion(pasteOutcome)
-                {
+                let optimisticRecoveryWindow =
+                    recoveryWindow(
+                        for: pasteOutcome,
+                        targetAppProfile: targetAppProfile
+                    )
+
+                if let optimisticRecoveryWindow {
                     if shouldRestoreClipboardAfterSuccessfulPaste {
                         pasteboardRestoreCoordinator.scheduleRestoreIfNeeded(
                             on: pasteboard,
-                            delayOverride: recoveryWindow
+                            delayOverride: optimisticRecoveryWindow
                         )
                     }
 
@@ -354,6 +360,7 @@
             switch bundleIdentifier?.lowercased() {
             case "com.microsoft.vscode",
                 "com.microsoft.vscodeinsiders",
+                "com.hnc.discord",
                 "com.openai.codex",
                 "com.google.antigravity",
                 "dev.zed.app",
@@ -374,6 +381,23 @@
                 .eventPostFailed:
                 return false
             }
+        }
+
+        private func recoveryWindow(
+            for outcome: TextInjectionOutcome,
+            targetAppProfile: TargetAppOutputProfile?
+        ) -> Duration? {
+            if case .eventPostedVerificationUnavailableInTextInput = outcome {
+                return Self.likelyTextInputRecoveryWindow
+            }
+
+            guard case let .optimisticVerificationBlind(recoveryWindow)? = targetAppProfile,
+                shouldTreatAsOptimisticCompletion(outcome)
+            else {
+                return nil
+            }
+
+            return recoveryWindow
         }
 
         private func targetAppProfileLabel(_ profile: TargetAppOutputProfile?) -> String {

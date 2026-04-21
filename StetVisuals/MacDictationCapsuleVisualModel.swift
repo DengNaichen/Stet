@@ -80,14 +80,6 @@
                 return false
             }
         }
-
-        var overlayMessage: String? {
-            guard case .error(let message) = state else {
-                return nil
-            }
-
-            return message
-        }
     }
 
     public struct MacDictationCapsuleVisualActions {

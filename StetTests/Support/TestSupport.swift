@@ -18,6 +18,10 @@ enum TestSupport {
             .appendingPathExtension(ext)
     }
 
+    static func temporaryDirectoryURL(_ name: String = UUID().uuidString) -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent(name, isDirectory: true)
+    }
+
     static func requestBodyData(from request: URLRequest) throws -> Data {
         if let httpBody = request.httpBody {
             return httpBody

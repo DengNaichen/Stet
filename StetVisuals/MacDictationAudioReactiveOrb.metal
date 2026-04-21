@@ -313,35 +313,34 @@ fragment float4 audioReactiveOrbFragment(
     float noisyEdge = progressEdge + edgeNoise;
     float fillAmount = smoothstep(noisyEdge + 0.14, noisyEdge - 0.14, p.x) * processingGate;
 
-    float waveField = fbmValue(
-        float2(
-            p.x * 0.72 - uniforms.time * 0.05 + flow.x * 1.2,
-            p.y * 1.25 + uniforms.time * 0.035 + flow.y * 1.4
-        )
-    ) + p.x * 0.12 + p.y * 0.08;
-    float waveCycle = fract(waveField * 1.18) * 3.0;
-    float bandA = max(0.0, cos((waveCycle - 0.0) * 2.094) * 0.5 + 0.5);
-    float bandB = max(0.0, cos((waveCycle - 1.0) * 2.094) * 0.5 + 0.5);
-    float bandC = max(0.0, cos((waveCycle - 2.0) * 2.094) * 0.5 + 0.5);
-    float bandSum = bandA + bandB + bandC + 1e-6;
-    float3 processingWave = (
-        bandA * colDeepSea
-        + bandB * colCottonFoam
-        + bandC * colWaveTop
-    ) / bandSum;
+    float3 mistGray = mix(colCottonFoam, float3(0.70, 0.74, 0.78), 0.60);
+    float3 steelBlue = mix(colDeepSea, float3(0.43, 0.54, 0.66), 0.74);
+    float3 frostBlue = mix(colWaveTop, float3(0.74, 0.86, 0.95), 0.68);
+    float3 frontFoam = mix(colCottonFoam, float3(0.96, 0.98, 1.0), 0.42);
 
-    float foamField = fbmValue(
+    float fillSpan = max(noisyEdge + 1.0, 0.001);
+    float pushCoord = clamp((p.x + 1.0) / fillSpan, 0.0, 1.0);
+    float frontPressure = smoothstep(0.50, 1.0, pushCoord);
+    float rearSettle = 1.0 - smoothstep(0.18, 0.72, pushCoord);
+
+    float pushField = fbmValue(
         float2(
-            p.x * 1.45 + uniforms.time * 0.03,
-            p.y * 2.10 - uniforms.time * 0.05
+            p.x * 1.55 - uniforms.time * 0.12 + flow.x * 1.1 + pushCoord * 1.8,
+            p.y * 1.10 + uniforms.time * 0.03 + bodyField * 0.55
         )
     );
-    float foamAmount = smoothstep(0.56, 0.84, foamField + bodyField * 0.18);
-    float3 filledWash = mix(colWaveTop, colCottonFoam, 0.58);
-    float3 processingColor = mix(color, processingWave, 0.68);
-    processingColor = mix(processingColor, filledWash, 0.22);
-    processingColor += colCottonFoam * foamAmount * 0.14;
-    processingColor = mix(processingColor, processingWave, 0.12);
+    float pushFoam = smoothstep(0.50, 0.84, pushField + frontPressure * 0.28 + foamMix * 0.12);
+
+    float3 processingBase = mix(steelBlue, mistGray, rearSettle * 0.55 + 0.12);
+    processingBase = mix(processingBase, frostBlue, frontPressure * 0.30);
+
+    float3 processingBody = mix(steelBlue, frostBlue, bodyFade * 0.58 + frontPressure * 0.26);
+    processingBody = mix(mistGray, processingBody, surfaceFade);
+    processingBody = mix(processingBody, frontFoam, pushFoam * (0.16 + frontPressure * 0.22));
+    processingBody = mix(processingBody, frostBlue, frontPressure * 0.18);
+
+    float3 processingColor = mix(processingBase, processingBody, cottonMask);
+    processingColor += float3(0.03, 0.04, 0.05) * smoothstep(0.32, -0.08, distortedDepth);
 
     float edgeHighlight = smoothstep(0.16, 0.02, abs(p.x - noisyEdge)) * processingGate;
     float edgeGlow = smoothstep(0.26, 0.0, abs(p.x - noisyEdge)) * processingGate;
