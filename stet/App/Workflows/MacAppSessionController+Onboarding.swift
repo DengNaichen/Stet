@@ -36,6 +36,8 @@
             }
 
             switch onboardingStepState {
+            case .download:
+                onboardingStepState = .login
             case .permissions:
                 guard hasRequiredPermissions else { return }
                 onboardingStepState = .shortcut
@@ -60,14 +62,17 @@
             }
 
             switch onboardingStepState {
+            case .download:
+                break
             case .apiKey, .login:
-                if onboardingStepState == .apiKey {
-                    onboardingStepState = .login
-                }
+                onboardingStepState = .download
             case .permissions:
-                if requiresOnboarding {
-                    onboardingStepState = onboardingModeState == .managed ? .login : .apiKey
-                }
+                onboardingStepState =
+                    switch onboardingModeState {
+                    case .managed: .login
+                    case .apiKey: .apiKey
+                    case nil: .download
+                    }
             case .shortcut:
                 onboardingStepState = .permissions
             case .firstSuccess:
@@ -200,7 +205,7 @@
                 return
             }
 
-            onboardingStepState = .login
+            onboardingStepState = .download
         }
     }
 #endif

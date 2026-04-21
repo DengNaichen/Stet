@@ -7,7 +7,8 @@
     }
 
     enum MacOnboardingStep: Int, CaseIterable, Sendable {
-        case apiKey = 1
+        case download = 1
+        case apiKey
         case login
         case permissions
         case shortcut
@@ -17,16 +18,18 @@
 
         var progressIndex: Int {
             switch self {
-            case .apiKey, .login:
+            case .download:
                 return 1
-            case .permissions:
+            case .apiKey, .login:
                 return 2
-            case .shortcut:
+            case .permissions:
                 return 3
-            case .firstSuccess:
+            case .shortcut:
                 return 4
-            case .appearance, .done:
+            case .firstSuccess:
                 return 5
+            case .appearance, .done:
+                return 6
             }
         }
 
@@ -34,7 +37,7 @@
             switch self {
             case .shortcut, .firstSuccess:
                 return true
-            case .apiKey, .login, .permissions, .appearance, .done:
+            case .download, .apiKey, .login, .permissions, .appearance, .done:
                 return false
             }
         }

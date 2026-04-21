@@ -9,13 +9,13 @@
                 VStack(spacing: 8) {
                     OnboardingActionButton(
                         title: "Sign In",
-                        background: viewModel.onboardingStep == .login
+                        background: viewModel.onboardingMode == .managed
                             ? Color.accentColor
                             : Color.primary.opacity(0.06),
-                        foreground: viewModel.onboardingStep == .login
+                        foreground: viewModel.onboardingMode == .managed
                             ? .white
                             : .primary,
-                        strokeColor: viewModel.onboardingStep == .login
+                        strokeColor: viewModel.onboardingMode == .managed
                             ? .clear
                             : Color.primary.opacity(0.12),
                         minHeight: 48
@@ -27,13 +27,13 @@
 
                     OnboardingActionButton(
                         title: "Use API Key",
-                        background: viewModel.onboardingStep == .apiKey
+                        background: viewModel.onboardingMode == .apiKey
                             ? Color.accentColor
                             : Color.primary.opacity(0.06),
-                        foreground: viewModel.onboardingStep == .apiKey
+                        foreground: viewModel.onboardingMode == .apiKey
                             ? .white
                             : .primary,
-                        strokeColor: viewModel.onboardingStep == .apiKey
+                        strokeColor: viewModel.onboardingMode == .apiKey
                             ? .clear
                             : Color.primary.opacity(0.12),
                         minHeight: 48

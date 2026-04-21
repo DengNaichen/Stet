@@ -86,7 +86,7 @@
         var onboardingStep: MacOnboardingStep { mockStep }
         var onboardingMode: MacOnboardingMode? { mockMode }
 
-        init(step: MacOnboardingStep = .login, mode: MacOnboardingMode? = nil) {
+        init(step: MacOnboardingStep = .download, mode: MacOnboardingMode? = nil) {
             self.mockStep = step
             self.mockMode = mode
             self.autoPasteStatusText = "Granted"
@@ -133,6 +133,8 @@
 
         func advanceOnboarding() {
             switch mockStep {
+            case .download:
+                mockStep = .login
             case .apiKey:
                 mockStep = .permissions
             case .login:
@@ -152,12 +154,17 @@
 
         func retreatOnboarding() {
             switch mockStep {
+            case .download:
+                break
             case .apiKey, .login:
-                if mockStep == .apiKey {
-                    mockStep = .login
-                }
+                mockStep = .download
             case .permissions:
-                mockStep = mockMode == .managed ? .login : .apiKey
+                mockStep =
+                    switch mockMode {
+                    case .managed: .login
+                    case .apiKey: .apiKey
+                    case nil: .download
+                    }
             case .shortcut:
                 mockStep = .permissions
             case .firstSuccess:
@@ -186,6 +193,8 @@
 
         private func configurePreviewState(for step: MacOnboardingStep) {
             switch step {
+            case .download:
+                break
             case .apiKey:
                 mockMode = .apiKey
             case .login:

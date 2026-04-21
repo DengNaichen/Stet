@@ -99,7 +99,9 @@
             viewModel.load()
 
             #expect(viewModel.connectionNeedsAttention)
-            #expect(viewModel.missingCredentialMessage == "Stet account dictation is temporarily unavailable in this build.")
+            #expect(
+                viewModel.missingCredentialMessage == "Stet account dictation is temporarily unavailable in this build."
+            )
             #expect(!viewModel.showsProviderConfiguration)
             #expect(viewModel.visibleCredentialProviders.isEmpty)
         }
@@ -131,7 +133,7 @@
         @Test func localWhisperStatusShowsExpectedModelPathWhenRuntimeAvailableButModelMissing() {
             let defaults = TestSupport.makeUserDefaults()
             let modelsDirectory = TestSupport.temporaryDirectoryURL("local-whisper-settings-path")
-            let expectedModelPath = modelsDirectory.appendingPathComponent("ggml-tiny-q5_1.bin").path
+            let expectedModelPath = modelsDirectory.appendingPathComponent("ggml-large-v3-turbo-q5_0.bin").path
 
             let viewModel = MacOpenAISettingsViewModel(
                 settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
@@ -146,7 +148,7 @@
             #expect(viewModel.connectionNeedsAttention)
             #expect(
                 viewModel.localWhisperStatusMessage
-                    == "Place ggml-tiny-q5_1.bin at \(expectedModelPath).")
+                    == "Place ggml-large-v3-turbo-q5_0.bin at \(expectedModelPath).")
         }
 
         @Test func localWhisperStatusShowsRuntimeUnavailableWhenEngineMissing() {

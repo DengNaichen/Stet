@@ -12,6 +12,13 @@
             case signUp
         }
 
+        enum LocalWhisperDownloadState: Equatable {
+            case idle
+            case running(LocalWhisperDownloadStage)
+            case ready(modelPath: String)
+            case failed(String)
+        }
+
         private enum LoginValidationError: LocalizedError {
             case missingEmail
             case invalidEmail
@@ -59,11 +66,13 @@
         @Published private(set) var authStatusMessage: String?
         @Published private(set) var shortcutSummaryText = "Shortcut configured"
         @Published private(set) var onboardingPreviewTheme: MacDictationVisualTheme = .egg
+        @Published private(set) var localWhisperDownloadState: LocalWhisperDownloadState = .idle
 
         private let coordinator: any MacPermissionsCoordinating
         private let settingsStore: DictationSettingsStore
         private let supabase: any OnboardingSupabaseAuthenticating
         private let credentialValidationService: any ProviderCredentialValidating
+        private let localWhisperModelManager: LocalWhisperModelManager
         private var cancellables = Set<AnyCancellable>()
         private var lastValidatedKey: String?
         private var lastValidatedProvider: DictationProvider?
@@ -72,12 +81,14 @@
             coordinator: any MacPermissionsCoordinating,
             settingsStore: DictationSettingsStore = DictationSettingsStore(),
             supabase: (any OnboardingSupabaseAuthenticating)? = nil,
-            credentialValidationService: (any ProviderCredentialValidating)? = nil
+            credentialValidationService: (any ProviderCredentialValidating)? = nil,
+            localWhisperModelManager: LocalWhisperModelManager = LocalWhisperModelManager()
         ) {
             self.coordinator = coordinator
             self.settingsStore = settingsStore
             self.supabase = supabase ?? SupabaseService.shared
             self.credentialValidationService = credentialValidationService ?? ProviderCredentialValidationService()
+            self.localWhisperModelManager = localWhisperModelManager
             self.apiKeyProvider = settingsStore.loadProvider()
             coordinator.updates
                 .receive(on: DispatchQueue.main)
@@ -159,6 +170,72 @@
             coordinator.canFinishAppearanceOnboarding
         }
 
+        var localWhisperDownloadPrimaryButtonTitle: String {
+            switch localWhisperDownloadState {
+            case .idle:
+                return "Download model"
+            case .running(let stage):
+                switch stage {
+                case .checkingExistingAssets:
+                    return "Checking..."
+                case .downloadingModel:
+                    return "Downloading model..."
+                case .downloadingEncoder:
+                    return "Downloading encoder..."
+                case .extractingEncoder:
+                    return "Extracting encoder..."
+                case .ready:
+                    return "Continue"
+                }
+            case .ready:
+                return "Continue"
+            case .failed:
+                return "Retry download"
+            }
+        }
+
+        var localWhisperDownloadDetailText: String {
+            switch localWhisperDownloadState {
+            case .idle:
+                return "Stet will download the default Whisper model into Application Support before continuing."
+            case .running(let stage):
+                switch stage {
+                case .checkingExistingAssets:
+                    return "Checking whether the default Local Whisper model is already installed."
+                case .downloadingModel:
+                    return "Downloading ggml-large-v3-turbo-q5_0.bin to the default model directory."
+                case .downloadingEncoder:
+                    return "Preparing Local Whisper in the background."
+                case .extractingEncoder:
+                    return "Preparing Local Whisper in the background."
+                case .ready:
+                    return "Local Whisper is ready."
+                }
+            case .ready(let modelPath):
+                return "Local Whisper is ready at \(modelPath)."
+            case .failed(let message):
+                return message
+            }
+        }
+
+        var localWhisperExpectedModelPath: String {
+            (try? localWhisperModelManager.defaultModelURL().path)
+                ?? "Unable to resolve Local Whisper model path."
+        }
+
+        var localWhisperExpectedEncoderPath: String {
+            (try? localWhisperModelManager.defaultEncoderDirectoryURL().path)
+                ?? "Unable to resolve Local Whisper encoder path."
+        }
+
+        var canContinueLocalWhisperDownload: Bool {
+            if case .ready = localWhisperDownloadState {
+                return true
+            }
+
+            return false
+        }
+
         var apiKeyPrimaryButtonTitle: String {
             if isAPIKeyValidated {
                 return "Continue"
@@ -205,6 +282,48 @@
         func chooseOnboardingMode(_ mode: MacOnboardingMode) {
             clearFlowMessages()
             coordinator.chooseOnboardingMode(mode)
+        }
+
+        func prepareLocalWhisperModelIfNeeded() async {
+            if case .ready = localWhisperDownloadState {
+                return
+            }
+
+            if case .running = localWhisperDownloadState {
+                return
+            }
+
+            do {
+                if try localWhisperModelManager.defaultModelReady() {
+                    LocalWhisperModelManager.saveCustomModelPath(nil)
+                    localWhisperDownloadState = .ready(modelPath: try localWhisperModelManager.defaultModelURL().path)
+                    localWhisperModelManager.installDefaultEncoderInBackground()
+                    return
+                }
+
+                localWhisperDownloadState = .running(.checkingExistingAssets)
+                try await localWhisperModelManager.installDefaultModel { [weak self] stage in
+                    Task { @MainActor [weak self] in
+                        self?.localWhisperDownloadState = .running(stage)
+                    }
+                }
+                LocalWhisperModelManager.saveCustomModelPath(nil)
+                localWhisperDownloadState = .ready(modelPath: try localWhisperModelManager.defaultModelURL().path)
+                localWhisperModelManager.installDefaultEncoderInBackground()
+            } catch {
+                localWhisperDownloadState = .failed(error.localizedDescription)
+            }
+        }
+
+        func handleLocalWhisperDownloadPrimaryAction() async {
+            switch localWhisperDownloadState {
+            case .ready:
+                continueOnboarding()
+            case .idle, .failed:
+                await prepareLocalWhisperModelIfNeeded()
+            case .running:
+                break
+            }
         }
 
         func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme) {

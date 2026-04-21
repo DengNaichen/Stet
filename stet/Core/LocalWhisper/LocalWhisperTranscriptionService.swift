@@ -30,9 +30,10 @@ enum LocalWhisperEngineFactory {
 
 struct LocalWhisperTranscriptionService: AudioFileTranscriptionService {
     private let engine: any LocalWhisperEngine
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "LocalWhisper")
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "LocalWhisper")
 
-    init(
+    nonisolated init(
         modelManager: LocalWhisperModelManager,
         engineFactory: @Sendable (URL) throws -> any LocalWhisperEngine = {
             try LocalWhisperEngineFactory.makeEngine(modelURL: $0)

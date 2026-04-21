@@ -64,7 +64,7 @@
         @ViewBuilder
         private var onboardingBackground: some View {
             switch viewModel.onboardingStep {
-            case .apiKey, .login:
+            case .download, .apiKey, .login:
                 Image("onboardingEggBackground")
                     .resizable()
                     .scaledToFill()
@@ -134,7 +134,7 @@
 
         private var progressStrip: some View {
             HStack(spacing: 6) {
-                ForEach(1...5, id: \.self) { index in
+                ForEach(1...6, id: \.self) { index in
                     Capsule(style: .continuous)
                         .fill(
                             index <= viewModel.onboardingStep.progressIndex
@@ -161,6 +161,8 @@
         @ViewBuilder
         private var stepContent: some View {
             switch viewModel.onboardingStep {
+            case .download:
+                OnboardingModelDownloadStep(viewModel: viewModel)
             case .apiKey, .login:
                 OnboardingModeStep(viewModel: viewModel)
             case .permissions:
@@ -182,6 +184,12 @@
         @ViewBuilder
         private var rightPanel: some View {
             switch viewModel.onboardingStep {
+            case .download:
+                OnboardingVisualPanel(
+                    step: viewModel.onboardingStep,
+                    viewModel: viewModel,
+                    appearanceViewModel: appearanceViewModel
+                )
             case .apiKey:
                 OnboardingAPIKeyStep(viewModel: viewModel)
                     .padding(40)
@@ -206,6 +214,8 @@
 
         private var titleText: String {
             switch viewModel.onboardingStep {
+            case .download:
+                return "Download Local Whisper"
             case .apiKey:
                 return "Use API Key"
             case .login:
@@ -225,6 +235,8 @@
 
         private var subtitleText: String {
             switch viewModel.onboardingStep {
+            case .download:
+                return "Download the local model first."
             case .apiKey:
                 return "Select a provider and enter your API Key to proceed."
             case .login:
@@ -271,7 +283,11 @@
         }
 
         #Preview("Interactive Flow") {
-            makeOnboardingPreview(step: .login)
+            makeOnboardingPreview(step: .download)
+        }
+
+        #Preview("Download") {
+            makeOnboardingPreview(step: .download)
         }
 
         #Preview("Login") {

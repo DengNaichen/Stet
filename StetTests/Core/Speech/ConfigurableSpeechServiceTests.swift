@@ -152,7 +152,7 @@ struct ConfigurableSpeechServiceTests {
 
         await #expect(
             throws: ProviderConfigurationError.missingRequirements([
-                ProviderConfigurationRequirement(step: .rewrite, provider: .openAI),
+                ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
             ])
         ) {
             try await service.startRecording()
@@ -187,7 +187,7 @@ struct ConfigurableSpeechServiceTests {
                 relayAuthenticationContext: { nil },
                 makeLocalTranscriptionService: {
                     throw LocalWhisperError.modelMissing(
-                        expectedURL: URL(fileURLWithPath: "/tmp/ggml-tiny-q5_1.bin")
+                        expectedURL: URL(fileURLWithPath: "/tmp/ggml-large-v3-turbo-q5_0.bin")
                     )
                 },
                 makeRelayTranscriptionService: { _, _, _ in TestTranscriptionService(result: "relay") },
@@ -196,7 +196,10 @@ struct ConfigurableSpeechServiceTests {
             captureService: capture
         )
 
-        await #expect(throws: LocalWhisperError.modelMissing(expectedURL: URL(fileURLWithPath: "/tmp/ggml-tiny-q5_1.bin"))) {
+        await #expect(
+            throws: LocalWhisperError.modelMissing(
+                expectedURL: URL(fileURLWithPath: "/tmp/ggml-large-v3-turbo-q5_0.bin"))
+        ) {
             try await service.startRecording()
         }
 
