@@ -35,6 +35,26 @@
             }
         }
 
+        func warmup() async throws {
+            guard
+                let sampleURL = Bundle.main.url(
+                    forResource: "DictationStartSoft",
+                    withExtension: "wav"
+                )
+            else {
+                return
+            }
+
+            let service = try LocalWhisperTranscriptionService(modelManager: modelManager)
+            _ = try await service.transcribe(
+                audioFileAt: sampleURL,
+                languageCode: nil,
+                prompt: nil,
+                audioDurationSeconds: nil
+            )
+            logger.debug("Explicit Local Whisper warmup finished.")
+        }
+
         private func scheduleWarmup(after seconds: TimeInterval) {
             Task.detached(priority: .utility) { [modelManager, logger] in
                 let delayNanoseconds = UInt64(seconds * 1_000_000_000)

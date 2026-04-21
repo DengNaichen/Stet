@@ -61,36 +61,28 @@
 		6D29DC7D2F5FA23000267DEA /* Stet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = Stet.app; path = "Stet Debug.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		6D29DC8C2F5FA23100267DEA /* StetTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StetTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6D29DC962F5FA23100267DEA /* StetUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StetUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		C2A0BFBB79EE545CDABAF5B1 /* whisper.xcframework */ = {isa = PBXFileReference; includeInIndex = 1; name = whisper.xcframework; path = ".deps/whisper.cpp/build-apple/whisper.xcframework"; sourceTree = "<group>"; };
+		C2A0BFBB79EE545CDABAF5B1 /* whisper.xcframework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.xcframework; name = whisper.xcframework; path = ".deps/whisper.cpp/build-apple/whisper.xcframework"; sourceTree = "<group>"; };
 		F1A0B0010000000000000003 /* StetVisuals.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = StetVisuals.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6D29DC7F2F5FA23000267DEA /* Stet */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = Stet;
 			sourceTree = "<group>";
 		};
 		6D29DC8F2F5FA23100267DEA /* StetTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = StetTests;
 			sourceTree = "<group>";
 		};
 		6D29DC992F5FA23100267DEA /* StetUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = StetUITests;
 			sourceTree = "<group>";
 		};
 		F1A0B0010000000000000004 /* StetVisuals */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = StetVisuals;
 			sourceTree = "<group>";
 		};

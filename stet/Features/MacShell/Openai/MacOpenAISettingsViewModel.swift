@@ -12,6 +12,12 @@
                 settingsStore.saveExecutionMode(executionMode)
             }
         }
+        @Published var isRewriteEnabled = true {
+            didSet {
+                guard hasLoadedState else { return }
+                settingsStore.saveRewriteEnabled(isRewriteEnabled)
+            }
+        }
         @Published var rewriteProvider: DictationProvider = .openAI {
             didSet {
                 guard hasLoadedState else { return }
@@ -45,13 +51,14 @@
             case .managed:
                 return true
             case .byok:
-                return localWhisperNeedsAttention || !missingRequiredProviders.isEmpty
+                return localWhisperNeedsAttention || (isRewriteEnabled && !missingRequiredProviders.isEmpty)
             }
         }
 
         func load() {
             hasLoadedState = false
             executionMode = settingsStore.loadExecutionMode()
+            isRewriteEnabled = settingsStore.loadRewriteEnabled()
             rewriteProvider = settingsStore.loadRewriteProvider()
             dictationLanguageMode = settingsStore.loadDictationLanguageMode()
             openAIAPIKey = settingsStore.loadAPIKey(for: .openAI)
@@ -80,7 +87,16 @@
 
         func clearLocalWhisperModel() {
             LocalWhisperModelManager.saveCustomModelPath(nil)
-            localWhisperCustomPath = ""
+            objectWillChange.send()
+        }
+
+        func openLocalWhisperFolder() {
+            do {
+                let url = try localWhisperModelManager.defaultModelURL().deletingLastPathComponent()
+                NSWorkspace.shared.open(url)
+            } catch {
+                // Silently fail if unable to resolve path
+            }
         }
 
         func saveCredential(for provider: DictationProvider) {
@@ -116,13 +132,13 @@
         }
 
         var visibleCredentialProviders: [DictationProvider] {
-            guard executionMode != .managed else { return [] }
+            guard executionMode != .managed, isRewriteEnabled else { return [] }
 
             return [rewriteProvider]
         }
 
         var showsProviderConfiguration: Bool {
-            executionMode != .managed
+            executionMode != .managed && isRewriteEnabled
         }
 
         var localWhisperStatusMessage: String {
@@ -146,6 +162,7 @@
             case .managed:
                 return "Stet account dictation is temporarily unavailable in this build."
             case .byok:
+                guard isRewriteEnabled else { return nil }
                 let providerList = missingRequiredProviders.map(\.displayName).joined(separator: " and ")
                 guard !providerList.isEmpty else { return nil }
                 return

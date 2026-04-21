@@ -67,6 +67,9 @@
         @Published private(set) var shortcutSummaryText = "Shortcut configured"
         @Published private(set) var onboardingPreviewTheme: MacDictationVisualTheme = .egg
         @Published private(set) var localWhisperDownloadState: LocalWhisperDownloadState = .idle
+        @Published private(set) var localWhisperDownloadFraction: Double = 0
+        @Published private(set) var localWhisperBytesCompleted: Int64 = 0
+        @Published private(set) var localWhisperBytesTotal: Int64 = 0
 
         private let coordinator: any MacPermissionsCoordinating
         private let settingsStore: DictationSettingsStore
@@ -173,48 +176,146 @@
         var localWhisperDownloadPrimaryButtonTitle: String {
             switch localWhisperDownloadState {
             case .idle:
-                return "Download model"
+                return "Download"
             case .running(let stage):
                 switch stage {
                 case .checkingExistingAssets:
                     return "Checking..."
                 case .downloadingModel:
-                    return "Downloading model..."
+                    return "Downloading..."
                 case .downloadingEncoder:
-                    return "Downloading encoder..."
-                case .extractingEncoder:
-                    return "Extracting encoder..."
+                    return "Finishing up..."
+                case .extractingEncoder, .warmingUp:
+                    return "Finishing up..."
                 case .ready:
                     return "Continue"
                 }
-            case .ready:
+            case .ready(_):
                 return "Continue"
-            case .failed:
-                return "Retry download"
+            case .failed(_):
+                return "Try again"
             }
+        }
+
+        var isLocalWhisperDownloadRunning: Bool {
+            if case .running(let stage) = localWhisperDownloadState {
+                return stage != .ready
+            }
+            return false
+        }
+
+        var isLocalWhisperDownloadFailed: Bool {
+            if case .failed = localWhisperDownloadState {
+                return true
+            }
+            return false
         }
 
         var localWhisperDownloadDetailText: String {
             switch localWhisperDownloadState {
             case .idle:
-                return "Stet will download the default Whisper model into Application Support before continuing."
+                return "One click gets you ready."
             case .running(let stage):
                 switch stage {
                 case .checkingExistingAssets:
-                    return "Checking whether the default Local Whisper model is already installed."
+                    return "Working..."
                 case .downloadingModel:
-                    return "Downloading ggml-large-v3-turbo-q5_0.bin to the default model directory."
+                    return "Downloading..."
                 case .downloadingEncoder:
-                    return "Preparing Local Whisper in the background."
-                case .extractingEncoder:
-                    return "Preparing Local Whisper in the background."
+                    return "Almost there."
+                case .extractingEncoder, .warmingUp:
+                    return "Almost there."
                 case .ready:
-                    return "Local Whisper is ready."
+                    return "You're set."
                 }
-            case .ready(let modelPath):
-                return "Local Whisper is ready at \(modelPath)."
+            case .ready(_):
+                return "You're set."
             case .failed(let message):
                 return message
+            }
+        }
+
+        var localWhisperDownloadProgress: Double {
+            switch localWhisperDownloadState {
+            case .idle:
+                return 0.0
+            case .running(let stage):
+                switch stage {
+                case .checkingExistingAssets:
+                    return 0.04
+                case .downloadingModel:
+                    return localWhisperDownloadFraction
+                case .downloadingEncoder:
+                    return 0.90
+                case .extractingEncoder:
+                    return 0.96
+                case .warmingUp:
+                    return 0.99
+                case .ready:
+                    return 1.0
+                }
+            case .ready(_):
+                return 1.0
+            case .failed(_):
+                return 0.0
+            }
+        }
+
+        var localWhisperDownloadProgressLabel: String {
+            switch localWhisperDownloadState {
+            case .idle:
+                return "Ready to download"
+            case .running(let stage):
+                switch stage {
+                case .checkingExistingAssets:
+                    return "Preparing"
+                case .downloadingModel:
+                    let percentage = Int((localWhisperDownloadFraction * 100).rounded())
+                    let completedMB = Double(localWhisperBytesCompleted) / 1_048_576.0
+                    let totalMB = Double(localWhisperBytesTotal) / 1_048_576.0
+
+                    if localWhisperBytesTotal > 0 {
+                        return String(format: "Downloading %d%% (%.1f MB / %.1f MB)", percentage, completedMB, totalMB)
+                    } else if localWhisperBytesCompleted > 0 {
+                        return String(format: "Downloading (%.1f MB)", completedMB)
+                    } else {
+                        return percentage > 0 ? "Downloading \(percentage)%" : "Downloading"
+                    }
+                case .downloadingEncoder:
+                    return "Finishing up"
+                case .extractingEncoder:
+                    return "Finishing up"
+                case .warmingUp:
+                    return "Optimizing"
+                case .ready:
+                    return "Done"
+                }
+            case .ready(_):
+                return "Done"
+            case .failed(_):
+                return "Try again"
+            }
+        }
+
+        var localWhisperDownloadStatusTitle: String {
+            switch localWhisperDownloadState {
+            case .idle:
+                return "Get ready"
+            case .running(let stage):
+                switch stage {
+                case .checkingExistingAssets:
+                    return "Preparing"
+                case .ready:
+                    return "Ready"
+                case .warmingUp:
+                    return "Optimizing"
+                default:
+                    return "Downloading"
+                }
+            case .ready(_):
+                return "Ready"
+            case .failed(_):
+                return "Failed"
             }
         }
 
@@ -229,11 +330,14 @@
         }
 
         var canContinueLocalWhisperDownload: Bool {
-            if case .ready = localWhisperDownloadState {
+            switch localWhisperDownloadState {
+            case .ready:
                 return true
+            case .running(let stage):
+                return stage == .ready
+            default:
+                return false
             }
-
-            return false
         }
 
         var apiKeyPrimaryButtonTitle: String {
@@ -294,34 +398,57 @@
             }
 
             do {
+                localWhisperDownloadFraction = 0
                 if try localWhisperModelManager.defaultModelReady() {
                     LocalWhisperModelManager.saveCustomModelPath(nil)
+                    localWhisperDownloadFraction = 1
                     localWhisperDownloadState = .ready(modelPath: try localWhisperModelManager.defaultModelURL().path)
                     localWhisperModelManager.installDefaultEncoderInBackground()
                     return
                 }
 
                 localWhisperDownloadState = .running(.checkingExistingAssets)
-                try await localWhisperModelManager.installDefaultModel { [weak self] stage in
-                    Task { @MainActor [weak self] in
-                        self?.localWhisperDownloadState = .running(stage)
+                try await localWhisperModelManager.installDefaultModel(
+                    progress: { [weak self] stage in
+                        Task { @MainActor [weak self, stage] in
+                            self?.localWhisperDownloadState = .running(stage)
+                        }
+                    },
+                    downloadProgress: { [weak self] fraction, completed, total in
+                        Task { @MainActor [weak self, fraction, completed, total] in
+                            self?.localWhisperDownloadFraction = fraction
+                            self?.localWhisperBytesCompleted = completed
+                            self?.localWhisperBytesTotal = total
+                        }
                     }
-                }
+                )
+
                 LocalWhisperModelManager.saveCustomModelPath(nil)
+                localWhisperDownloadFraction = 1
                 localWhisperDownloadState = .ready(modelPath: try localWhisperModelManager.defaultModelURL().path)
-                localWhisperModelManager.installDefaultEncoderInBackground()
+
+                // Trigger proactive high-priority background warm-up & encoder install
+                // This shouldn't block the user from moving to the next onboarding steps.
+                Task.detached(priority: .userInitiated) { [localWhisperModelManager] in
+                    try? await localWhisperModelManager.installDefaultAssets()
+                    try? await LocalWhisperWarmupCoordinator.shared.warmup()
+                }
             } catch {
+                localWhisperDownloadFraction = 0
                 localWhisperDownloadState = .failed(error.localizedDescription)
             }
         }
 
         func handleLocalWhisperDownloadPrimaryAction() async {
-            switch localWhisperDownloadState {
-            case .ready:
+            if canContinueLocalWhisperDownload {
                 continueOnboarding()
+                return
+            }
+
+            switch localWhisperDownloadState {
             case .idle, .failed:
                 await prepareLocalWhisperModelIfNeeded()
-            case .running:
+            default:
                 break
             }
         }

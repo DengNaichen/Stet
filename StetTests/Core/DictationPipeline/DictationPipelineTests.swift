@@ -75,12 +75,13 @@ struct LogicPrimitiveTests {
         let snapshot = makeSnapshot(
             mode: .byok,
             transcriptionProviderConfiguration: nil,
-            rewriteProviderConfiguration: nil
+            rewriteProviderConfiguration: nil,
+            rewriteEnabled: true
         )
 
         await #expect(
             throws: ProviderConfigurationError.missingRequirements([
-                ProviderConfigurationRequirement(step: .rewrite, provider: .openAI),
+                ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
             ])
         ) {
             try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
@@ -127,7 +128,8 @@ struct LogicPrimitiveTests {
                     rewriteProvider: .openAI
                 )
             ),
-            rewriteProviderConfiguration: nil
+            rewriteProviderConfiguration: nil,
+            rewriteEnabled: true
         )
 
         await #expect(

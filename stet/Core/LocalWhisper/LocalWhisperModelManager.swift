@@ -18,11 +18,12 @@ struct LocalWhisperModelDescriptor: Sendable, Equatable {
     }
 }
 
-enum LocalWhisperDownloadStage: Sendable, Equatable {
+enum LocalWhisperDownloadStage: String, Sendable {
     case checkingExistingAssets
     case downloadingModel
     case downloadingEncoder
     case extractingEncoder
+    case warmingUp
     case ready
 }
 
@@ -82,7 +83,7 @@ struct LocalWhisperModelManager: Sendable {
     private let runtimeAvailableProvider: @Sendable () -> Bool
     /// Optional absolute path override stored in UserDefaults.
     private let customPathProvider: @Sendable () -> String?
-    private let downloadProvider: @Sendable (URL) async throws -> URL
+    private let downloadProvider: @Sendable (URL, LocalWhisperDownloadProgressSink) async throws -> URL
     private let archiveExtractor: @Sendable (URL, URL) throws -> Void
 
     nonisolated init(
@@ -90,7 +91,7 @@ struct LocalWhisperModelManager: Sendable {
         modelsDirectoryProvider: (@Sendable () throws -> URL)? = nil,
         runtimeAvailableProvider: (@Sendable () -> Bool)? = nil,
         customPathProvider: (@Sendable () -> String?)? = nil,
-        downloadProvider: (@Sendable (URL) async throws -> URL)? = nil,
+        downloadProvider: (@Sendable (URL, LocalWhisperDownloadProgressSink) async throws -> URL)? = nil,
         archiveExtractor: (@Sendable (URL, URL) throws -> Void)? = nil
     ) {
         self.model = model
@@ -115,17 +116,7 @@ struct LocalWhisperModelManager: Sendable {
         self.customPathProvider =
             customPathProvider
             ?? { UserDefaults.standard.string(forKey: MacPreferences.localWhisperModelPath) }
-        self.downloadProvider =
-            downloadProvider ?? { url in
-                let (temporaryURL, response) = try await URLSession.shared.download(from: url)
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    throw LocalWhisperError.invalidDownloadResponse(url, statusCode: nil)
-                }
-                guard (200..<300).contains(httpResponse.statusCode) else {
-                    throw LocalWhisperError.invalidDownloadResponse(url, statusCode: httpResponse.statusCode)
-                }
-                return temporaryURL
-            }
+        self.downloadProvider = downloadProvider ?? Self.defaultDownloadProvider
         self.archiveExtractor =
             archiveExtractor ?? { archiveURL, destinationDirectoryURL in
                 let process = Process()
@@ -232,23 +223,26 @@ struct LocalWhisperModelManager: Sendable {
     }
 
     nonisolated func installDefaultModel(
-        progress: @Sendable (LocalWhisperDownloadStage) -> Void = { _ in }
+        progress: @Sendable (LocalWhisperDownloadStage) -> Void = { _ in },
+        downloadProgress: @escaping @Sendable (Double, Int64, Int64) -> Void = { _, _, _ in }
     ) async throws {
         progress(.checkingExistingAssets)
 
         if try defaultModelReady() {
+            downloadProgress(1.0, 0, 0)
             progress(.ready)
             return
         }
 
-        let modelURL = try defaultModelURL()
         progress(.downloadingModel)
-        let downloadedModelURL = try await downloadProvider(Self.defaultModelDownloadURL)
-        try installDownloadedItem(at: downloadedModelURL, to: modelURL)
-
-        guard try defaultModelReady() else {
-            throw LocalWhisperError.downloadFailed(Self.defaultModelDownloadURL)
+        let progressSink = LocalWhisperDownloadProgressSink(handler: downloadProgress)
+        let downloadedModelURL = try await downloadProvider(Self.defaultModelDownloadURL, progressSink)
+        let destinationURL = try defaultModelURL()
+        let fileManager = FileManager.default
+        if fileManager.fileExists(atPath: destinationURL.path) {
+            try fileManager.removeItem(at: destinationURL)
         }
+        try fileManager.moveItem(at: downloadedModelURL, to: destinationURL)
 
         progress(.ready)
     }
@@ -271,7 +265,10 @@ struct LocalWhisperModelManager: Sendable {
         )
 
         progress(.downloadingEncoder)
-        let downloadedArchiveURL = try await downloadProvider(Self.defaultEncoderArchiveDownloadURL)
+        let downloadedArchiveURL = try await downloadProvider(
+            Self.defaultEncoderArchiveDownloadURL,
+            LocalWhisperDownloadProgressSink(handler: { _, _, _ in })
+        )
         try installDownloadedItem(at: downloadedArchiveURL, to: encoderArchiveURL)
 
         defer {
@@ -299,10 +296,18 @@ struct LocalWhisperModelManager: Sendable {
     }
 
     nonisolated func installDefaultAssets(
-        progress: @Sendable (LocalWhisperDownloadStage) -> Void = { _ in }
+        progress: @Sendable (LocalWhisperDownloadStage) -> Void = { _ in },
+        downloadProgress: @escaping @Sendable (Double, Int64, Int64) -> Void = { _, _, _ in }
     ) async throws {
-        try await installDefaultModel(progress: progress)
-        try await installDefaultEncoder(progress: progress)
+        if try !defaultModelReady() {
+            try await installDefaultModel(progress: progress, downloadProgress: downloadProgress)
+        }
+
+        if try !defaultAssetsReady() {
+            try await installDefaultEncoder(progress: progress)
+        }
+
+        progress(.ready)
     }
 
     nonisolated func statusMessage() -> String {
@@ -371,6 +376,127 @@ struct LocalWhisperModelManager: Sendable {
 
     nonisolated private func modelsDirectory() throws -> URL {
         try modelsDirectoryProvider()
+    }
+
+    nonisolated private static func downloadFile(
+        from url: URL,
+        progressSink: LocalWhisperDownloadProgressSink
+    ) async throws -> URL {
+        let downloader = ProgressReportingDownloadCoordinator(
+            requestURL: url,
+            progressSink: progressSink
+        )
+        return try await downloader.download()
+    }
+
+    nonisolated private static func defaultDownloadProvider(
+        _ url: URL,
+        progressSink: LocalWhisperDownloadProgressSink
+    ) async throws -> URL {
+        try await downloadFile(from: url, progressSink: progressSink)
+    }
+}
+
+final class LocalWhisperDownloadProgressSink: @unchecked Sendable {
+    private let handler: @Sendable (Double, Int64, Int64) -> Void
+
+    init(handler: @escaping @Sendable (Double, Int64, Int64) -> Void) {
+        self.handler = handler
+    }
+
+    func update(fraction: Double, completed: Int64, total: Int64) {
+        handler(fraction, completed, total)
+    }
+}
+
+private final class ProgressReportingDownloadCoordinator: NSObject, URLSessionDownloadDelegate {
+    private let requestURL: URL
+    private let progressSink: LocalWhisperDownloadProgressSink
+    private let stagedDownloadURL: URL
+    private var continuation: CheckedContinuation<URL, Error>?
+    private var session: URLSession?
+
+    init(requestURL: URL, progressSink: LocalWhisperDownloadProgressSink) {
+        self.requestURL = requestURL
+        self.progressSink = progressSink
+        self.stagedDownloadURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Stet-LocalWhisper-\(UUID().uuidString)-\(requestURL.lastPathComponent)", isDirectory: false)
+    }
+
+    func download() async throws -> URL {
+        return try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+
+            let configuration = URLSessionConfiguration.default
+            let session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+            self.session = session
+
+            let task = session.downloadTask(with: requestURL)
+            task.resume()
+        }
+    }
+
+    // MARK: - URLSessionDownloadDelegate
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        let fraction = totalBytesExpectedToWrite > 0
+            ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+            : 0
+        progressSink.update(
+            fraction: max(0, min(1, fraction)),
+            completed: totalBytesWritten,
+            total: totalBytesExpectedToWrite
+        )
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+        do {
+            let fileManager = FileManager.default
+            if fileManager.fileExists(atPath: stagedDownloadURL.path) {
+                try fileManager.removeItem(at: stagedDownloadURL)
+            }
+            try fileManager.moveItem(at: location, to: stagedDownloadURL)
+            progressSink.update(fraction: 1.0, completed: 0, total: 0)
+            resumeIfNeeded(returning: stagedDownloadURL)
+        } catch {
+            resumeIfNeeded(with: error)
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didCompleteWithError error: Error?
+    ) {
+        if let error {
+            resumeIfNeeded(with: error)
+        } else {
+            // Success is handled in didFinishDownloadingTo
+        }
+    }
+
+    private func resumeIfNeeded(returning url: URL) {
+        guard let continuation else { return }
+        self.continuation = nil
+        self.session = nil
+        continuation.resume(returning: url)
+    }
+
+    private func resumeIfNeeded(with error: Error) {
+        guard let continuation else { return }
+        self.continuation = nil
+        self.session = nil
+        continuation.resume(throwing: error)
     }
 }
 

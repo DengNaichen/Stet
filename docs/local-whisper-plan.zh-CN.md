@@ -93,19 +93,21 @@
 
 建议直接固定为：
 
-- **最小的可用多语言量化 Whisper 模型**
+- `ggml-large-v3-turbo-q5_0.bin`
+- 配套 `ggml-large-v3-turbo-encoder.mlmodelc`
 
 约束：
 
 - 不要用 English-only 变体
 - 不对用户暴露模型选择
-- 首版优先选择下载体积最小、能覆盖中文和中英混输的量化版本
+- 不做自动升级到其他模型版本
+- 不做模型导入、删除、切换
 
-产品原则是：
+这版的原则是：
 
 - 先把本地优先形态跑通
 - 先把首次下载成本和冷启动成本压低
-- 如果后续质量不足，再升级固定模型
+- 先把模型管理复杂度压到最低
 
 也就是说，首版默认不是追求“最强模型”，而是追求：
 
@@ -113,6 +115,62 @@
 - 最低磁盘占用
 - 最低启动负担
 - 足够可用的多语言能力
+
+### 模型路径
+
+建议把模型固定落在应用自己的支持目录中，而不是 Documents 或 Caches：
+
+```text
+~/Library/Application Support/Stet/Models/ggml-large-v3-turbo-q5_0.bin
+~/Library/Application Support/Stet/Models/ggml-large-v3-turbo-encoder.mlmodelc/
+```
+
+理由：
+
+- 这是应用运行必须依赖的本地资产，不适合放进用户可见的 Documents
+- 这不是可随手丢弃的缓存，不适合放进 Caches
+- 这个路径便于后续做版本迁移、完整性检查和 warmup
+- 模型文件应设置为不参与备份，避免把可重新下载的大文件写进 iCloud backup
+
+如果后续需要升级模型，只改文件名常量，不改目录结构和宿主路径。
+
+### 下载地址
+
+建议把下载地址固定为 Hugging Face 上 `ggerganov/whisper.cpp` 里的两份固定资产：
+
+```text
+https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin
+https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-encoder.mlmodelc.zip
+```
+
+如果后续升级模型，仍然保持：
+
+- 同一个宿主仓库
+- 同一个固定路径模板
+- 仅替换文件名和配套 encoder 名称
+
+不要把下载地址做成用户可配置项，也不要在首版引入多镜像、多源回退。
+
+### 下载时机
+
+建议采用“按需预取 + 首次使用兜底”的组合策略：
+
+1. App 启动后，如果模型缺失，就在后台延迟一小段时间后启动下载
+2. App 从睡眠唤醒后，如果模型仍缺失，就复用同一套后台下载逻辑
+3. 用户第一次真正触发 dictation 时，如果模型还没准备好，就直接进入同一个下载流程，不再要求用户额外操作
+4. 两份资产都就绪后立即做 warmup
+
+这套策略的目标不是“等用户点了 dictation 才开始想办法”，而是：
+
+- 平时尽量把下载挪到后台
+- 第一次真正使用时不至于完全从零开始
+- 不重复打断用户
+
+如果模型已经存在，后续启动不应再次下载，只做状态检查和必要的 warmup。
+这里的“模型已存在”应定义为：
+
+- 主 `.bin` 文件存在
+- 配套 `encoder.mlmodelc` 目录存在
 
 ## 推荐架构
 

@@ -17,7 +17,7 @@
                 modelsDirectoryProvider: { modelsDirectoryURL },
                 runtimeAvailableProvider: { true },
                 customPathProvider: { nil },
-                downloadProvider: { url in
+                downloadProvider: { url, _ in
                     try await downloadQueue.next(requestedURL: url)
                 },
                 archiveExtractor: { _, _ in
@@ -47,7 +47,7 @@
                 modelsDirectoryProvider: { modelsDirectoryURL },
                 runtimeAvailableProvider: { true },
                 customPathProvider: { nil },
-                downloadProvider: { url in
+                downloadProvider: { url, _ in
                     try await downloadQueue.next(requestedURL: url)
                 },
                 archiveExtractor: { _, destinationDirectoryURL in
@@ -84,7 +84,7 @@
                 modelsDirectoryProvider: { modelsDirectoryURL },
                 runtimeAvailableProvider: { true },
                 customPathProvider: { nil },
-                downloadProvider: { url in
+                downloadProvider: { url, _ in
                     try await downloadQueue.next(requestedURL: url)
                 },
                 archiveExtractor: { _, destinationDirectoryURL in
@@ -99,7 +99,7 @@
                 }
             )
 
-            try await manager.installDefaultAssets()
+            try await manager.installDefaultAssets(progress: { _ in }, downloadProgress: { _, _, _ in })
 
             #expect(FileManager.default.fileExists(atPath: try manager.defaultModelURL().path))
             #expect(try manager.defaultAssetsReady())
@@ -125,7 +125,7 @@
                 modelsDirectoryProvider: { modelsDirectoryURL },
                 runtimeAvailableProvider: { true },
                 customPathProvider: { nil },
-                downloadProvider: { url in
+                downloadProvider: { url, _ in
                     try await downloadQueue.next(requestedURL: url)
                 },
                 archiveExtractor: { _, _ in
@@ -133,10 +133,40 @@
                 }
             )
 
-            try await manager.installDefaultAssets()
+            try await manager.installDefaultAssets(progress: { _ in }, downloadProgress: { _, _, _ in })
 
             #expect(await downloadQueue.requestedURLs.isEmpty)
             #expect(try manager.defaultAssetsReady())
+        }
+
+        @Test func installDefaultModelForwardsDownloadProgress() async throws {
+            let modelsDirectoryURL = TestSupport.temporaryDirectoryURL()
+            try FileManager.default.createDirectory(at: modelsDirectoryURL, withIntermediateDirectories: true)
+
+            let downloadedModelURL = modelsDirectoryURL.appendingPathComponent("downloaded-model.bin")
+            try Data("model".utf8).write(to: downloadedModelURL)
+
+            let downloadQueue = DownloadQueue(urls: [downloadedModelURL])
+            let manager = LocalWhisperModelManager(
+                modelsDirectoryProvider: { modelsDirectoryURL },
+                runtimeAvailableProvider: { true },
+                customPathProvider: { nil },
+                downloadProvider: { url, progressSink in
+                    progressSink.update(fraction: 0.15, completed: 15, total: 100)
+                    progressSink.update(fraction: 0.72, completed: 72, total: 100)
+                    return try await downloadQueue.next(requestedURL: url)
+                },
+                archiveExtractor: { _, _ in
+                    Issue.record("archiveExtractor should not run while downloading only the model")
+                }
+            )
+
+            var reportedProgress: [Double] = []
+            try await manager.installDefaultModel(downloadProgress: { fraction, _, _ in reportedProgress.append(fraction) })
+
+            #expect(try manager.defaultModelReady())
+            #expect(reportedProgress.contains(0.15))
+            #expect(reportedProgress.contains(0.72))
         }
     }
 

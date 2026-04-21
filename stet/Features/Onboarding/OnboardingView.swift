@@ -215,7 +215,7 @@
         private var titleText: String {
             switch viewModel.onboardingStep {
             case .download:
-                return "Download Local Whisper"
+                return "Get started"
             case .apiKey:
                 return "Use API Key"
             case .login:
@@ -236,7 +236,7 @@
         private var subtitleText: String {
             switch viewModel.onboardingStep {
             case .download:
-                return "Download the local model first."
+                return "One click gets you into the app."
             case .apiKey:
                 return "Select a provider and enter your API Key to proceed."
             case .login:

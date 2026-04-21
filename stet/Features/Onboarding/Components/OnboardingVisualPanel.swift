@@ -3,7 +3,7 @@
 
     struct OnboardingVisualPanel: View {
         let step: MacOnboardingStep
-        let viewModel: OnboardingViewModel
+        @ObservedObject var viewModel: OnboardingViewModel
         @ObservedObject var appearanceViewModel: MacAppearanceSettingsViewModel
         let onAppearanceThemeChange: ((MacDictationVisualTheme) -> Void)?
         let onAppearanceThemeApply: ((MacDictationVisualTheme) -> Void)?
@@ -34,25 +34,7 @@
                 }
 
                 if step == .download {
-                    VStack(spacing: 24) {
-                        Spacer()
-
-                        Image(systemName: "waveform.badge.magnifyingglass")
-                            .font(.system(size: 58, weight: .semibold))
-                            .foregroundStyle(presentation.accentColor)
-
-                        VStack(spacing: 8) {
-                            Text("Large v3 turbo")
-                                .font(.system(size: 24, weight: .semibold, design: .rounded))
-
-                            Text("One click. Then continue.")
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer()
-                    }
-                    .padding(32)
+                    downloadProgressPanel
                 } else if step == .shortcut {
                     OnboardingKeyboardView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -264,6 +246,31 @@
             }
         }
 
+        @ViewBuilder
+        private var downloadProgressPanel: some View {
+            VStack(spacing: 18) {
+                Spacer()
+
+                VStack(spacing: 8) {
+                    Text(viewModel.localWhisperDownloadStatusTitle)
+                        .font(.system(size: 28, weight: .semibold, design: .rounded))
+
+                    Text(viewModel.localWhisperDownloadProgressLabel)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
+                ProgressView(value: viewModel.localWhisperDownloadProgress)
+                    .progressViewStyle(.linear)
+                    .tint(presentation.accentColor)
+                    .frame(maxWidth: 280)
+
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(32)
+        }
+
         private var isAPIKeyValidated: Bool {
             viewModel.isAPIKeyValidated
         }
@@ -272,15 +279,12 @@
             switch step {
             case .download:
                 return StepPresentation(
-                    panelTitle: "Prepare Local Whisper",
-                    panelSubtitle:
-                        "Download the default transcription model and encoder bundle into Stet's managed model directory.",
-                    heroTitle: "ggml-large-v3-turbo-q5_0",
-                    heroSubtitle:
-                        "This first screen prepares the default local transcription assets before the rest of onboarding.",
-                    footerTitle: "Default path only",
-                    footerSubtitle:
-                        "The assets land in Application Support so the app can find them without a manual file picker.",
+                    panelTitle: "Getting ready",
+                    panelSubtitle: "The app is getting ready.",
+                    heroTitle: "Download in progress",
+                    heroSubtitle: "Keep this window open while setup finishes.",
+                    footerTitle: "Almost there",
+                    footerSubtitle: "The setup will finish automatically.",
                     accentColor: .blue,
                     systemImage: "square.and.arrow.down.fill",
                     metrics: []

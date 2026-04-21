@@ -49,28 +49,9 @@
 
                 Section {
                     VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
-                        if viewModel.localWhisperCustomPath.isEmpty {
-                            Text(viewModel.localWhisperStatusMessage)
-                                .font(.system(size: 12))
-                                .foregroundStyle(viewModel.localWhisperNeedsAttention ? .orange : .secondary)
-                        } else {
-                            Text(URL(fileURLWithPath: viewModel.localWhisperCustomPath).lastPathComponent)
-                                .font(.system(size: 12, design: .monospaced))
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .help(viewModel.localWhisperCustomPath)
-                        }
-
                         HStack(spacing: 12) {
-                            Button("Choose model…") {
-                                viewModel.selectLocalWhisperModel()
-                            }
-
-                            if !viewModel.localWhisperCustomPath.isEmpty {
-                                Button("Clear", role: .destructive) {
-                                    viewModel.clearLocalWhisperModel()
-                                }
+                            Button("Reveal in folder") {
+                                viewModel.openLocalWhisperFolder()
                             }
                         }
                     }

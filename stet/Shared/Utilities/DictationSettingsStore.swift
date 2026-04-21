@@ -60,10 +60,17 @@ struct DictationSettingsSnapshot: Sendable {
     }
 
     nonisolated func requiredProviderRequirements() -> [ProviderConfigurationRequirement] {
-        [
-            ProviderConfigurationRequirement(step: .transcription, provider: transcriptionProvider),
-            ProviderConfigurationRequirement(step: .rewrite, provider: rewriteProvider),
+        var requirements = [
+            ProviderConfigurationRequirement(step: .transcription, provider: transcriptionProvider)
         ]
+
+        if isRewriteEnabled {
+            requirements.append(
+                ProviderConfigurationRequirement(step: .rewrite, provider: rewriteProvider)
+            )
+        }
+
+        return requirements
     }
 }
 
@@ -219,7 +226,7 @@ struct DictationSettingsStore: Sendable {
     }
 
     nonisolated func loadRewriteEnabled() -> Bool {
-        true
+        defaultsStore.object(forKey: MacPreferences.rewriteEnabled) as? Bool ?? true
     }
 
     nonisolated func saveRewriteEnabled(_ enabled: Bool) {

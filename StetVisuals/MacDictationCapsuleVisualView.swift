@@ -134,8 +134,6 @@
             }
         }
 
-
-
         private func syncVisualState(animated: Bool) {
             orbRevealTask?.cancel()
             orbRevealTask = nil

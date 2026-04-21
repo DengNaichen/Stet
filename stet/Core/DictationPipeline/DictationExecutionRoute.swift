@@ -130,6 +130,15 @@ enum DictationExecutionRouteResolver {
             throw ProviderConfigurationError.missingRequirements(missingRequirements)
         }
 
+        if !snapshot.isRewriteEnabled {
+            return .init(
+                rewriteConfiguration: nil,
+                rewriteEnabled: false,
+                languageMode: snapshot.dictationLanguageMode,
+                preferredSpellings: snapshot.personalDictionary
+            )
+        }
+
         guard let rewriteConfiguration = snapshot.rewriteProviderConfiguration else {
             throw ProviderConfigurationError.missingRequirements([
                 ProviderConfigurationRequirement(
