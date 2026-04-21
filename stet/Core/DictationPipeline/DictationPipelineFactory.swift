@@ -120,10 +120,14 @@ struct DictationPipelineFactory: Sendable {
             transcriptionService = try makeLocalTranscriptionService()
             transcriptionLanguageCode = snapshot.dictationLanguageMode.transcriptionLanguageCode
             promptProvider = nil
-            rewriteService = makeRelayRewriteService(
-                relay.authentication,
-                networkSession
-            )
+            if relay.rewriteEnabled {
+                rewriteService = makeRelayRewriteService(
+                    relay.authentication,
+                    networkSession
+                )
+            } else {
+                rewriteService = nil
+            }
             rewriteAdditionalContext = snapshot.dictationLanguageMode.rewriteAdditionalContext
             preferredSpellings = relay.preferredSpellings
             usesAudienceAwareLocalPrompts = true

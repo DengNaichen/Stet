@@ -75,6 +75,7 @@ enum DictationExecutionRoute: Sendable {
 
     struct Relay: Sendable {
         let authentication: RelayAuthenticationContext
+        let rewriteEnabled: Bool
         let languageMode: DictationLanguageMode
         let preferredSpellings: [String]
     }
@@ -101,6 +102,7 @@ enum DictationExecutionRouteResolver {
             return .relay(
                 .init(
                     authentication: relayAuthentication,
+                    rewriteEnabled: snapshot.isRewriteEnabled,
                     languageMode: snapshot.dictationLanguageMode,
                     preferredSpellings: snapshot.personalDictionary
                 )
@@ -113,19 +115,6 @@ enum DictationExecutionRouteResolver {
     nonisolated private static func resolveDirectRoute(
         snapshot: DictationSettingsSnapshot
     ) throws -> DictationExecutionRoute.Direct {
-        let missingRequirements = snapshot.requiredProviderRequirements().filter { requirement in
-            switch requirement.step {
-            case .transcription:
-                return false
-            case .rewrite:
-                return snapshot.rewriteProviderConfiguration == nil
-            }
-        }
-
-        if !missingRequirements.isEmpty {
-            throw ProviderConfigurationError.missingRequirements(missingRequirements)
-        }
-
         if !snapshot.isRewriteEnabled {
             return .init(
                 rewriteConfiguration: nil,
@@ -135,13 +124,24 @@ enum DictationExecutionRouteResolver {
             )
         }
 
-        guard let rewriteConfiguration = snapshot.rewriteProviderConfiguration else {
-            throw ProviderConfigurationError.missingRequirements([
-                ProviderConfigurationRequirement(
-                    step: .rewrite,
-                    provider: snapshot.rewriteProvider
-                )
-            ])
+        let missingRequirements = snapshot.requiredProviderRequirements().filter { requirement in
+            switch requirement.step {
+            case .transcription:
+                return false
+            case .rewrite:
+                return snapshot.rewriteProviderConfiguration == nil
+            }
+        }
+
+        guard missingRequirements.isEmpty, let rewriteConfiguration = snapshot.rewriteProviderConfiguration else {
+            // If rewrite is enabled but config is missing, fallback to direct route WITHOUT rewrite
+            // instead of throwing a blocking configuration error.
+            return .init(
+                rewriteConfiguration: nil,
+                rewriteEnabled: false,
+                languageMode: snapshot.dictationLanguageMode,
+                preferredSpellings: snapshot.personalDictionary
+            )
         }
 
         return .init(

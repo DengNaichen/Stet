@@ -54,6 +54,7 @@ struct LogicPrimitiveTests {
 
         switch route {
         case .relay(let relay):
+            #expect(relay.rewriteEnabled == false)
             #expect(relay.preferredSpellings.isEmpty)
         default:
             Issue.record("Expected relay route for managed mode.")
@@ -77,7 +78,7 @@ struct LogicPrimitiveTests {
         }
     }
 
-    @Test func dictationExecutionRouteResolverRejectsByokWithoutRequiredProviderKeys() async {
+    @Test func dictationExecutionRouteResolverAllowsByokWithoutRequiredProviderKeysByFallingBack() async throws {
         let snapshot = makeSnapshot(
             mode: .byok,
             transcriptionProviderConfiguration: nil,
@@ -85,12 +86,14 @@ struct LogicPrimitiveTests {
             rewriteEnabled: true
         )
 
-        await #expect(
-            throws: ProviderConfigurationError.missingRequirements([
-                ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
-            ])
-        ) {
-            try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
+        let route = try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
+        
+        switch route {
+        case .direct(let direct):
+            #expect(direct.rewriteEnabled == false)
+            #expect(direct.rewriteConfiguration == nil)
+        default:
+            Issue.record("Expected direct route fallback.")
         }
     }
 
@@ -123,7 +126,7 @@ struct LogicPrimitiveTests {
         }
     }
 
-    @Test func dictationExecutionRouteResolverRejectsByokWhenOnlyRewriteKeyIsMissing() async {
+    @Test func dictationExecutionRouteResolverAllowsByokWhenOnlyRewriteKeyIsMissingByFallingBack() async throws {
         let snapshot = makeSnapshot(
             mode: .byok,
             transcriptionProvider: .groq,
@@ -139,12 +142,14 @@ struct LogicPrimitiveTests {
             rewriteEnabled: true
         )
 
-        await #expect(
-            throws: ProviderConfigurationError.missingRequirements([
-                ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
-            ])
-        ) {
-            try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
+        let route = try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
+
+        switch route {
+        case .direct(let direct):
+            #expect(direct.rewriteEnabled == false)
+            #expect(direct.rewriteConfiguration == nil)
+        default:
+            Issue.record("Expected direct route fallback.")
         }
     }
 

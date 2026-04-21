@@ -10,15 +10,25 @@
             AppForm {
                 Section {
                     VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
-                        MacSettingsValueRow(title: "How to use AI") {
-                            Picker("", selection: $viewModel.unifiedProvider) {
-                                ForEach(MacOpenAISettingsViewModel.UnifiedAIProvider.allCases) { provider in
-                                    Text(provider.displayName).tag(provider)
+                        Toggle("Transcript improvement", isOn: $viewModel.isRewriteEnabled)
+
+                        Text("Stet can refine and improve the precision of your transcriptions using AI.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+
+                        if viewModel.isRewriteEnabled {
+                            Divider().padding(.vertical, 4)
+
+                            MacSettingsValueRow(title: "How to use AI") {
+                                Picker("", selection: $viewModel.unifiedProvider) {
+                                    ForEach(MacOpenAISettingsViewModel.UnifiedAIProvider.allCases) { provider in
+                                        Text(provider.displayName).tag(provider)
+                                    }
                                 }
+                                .labelsHidden()
+                                .pickerStyle(.menu)
+                                .frame(width: controlWidth, alignment: .trailing)
                             }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .frame(width: controlWidth, alignment: .trailing)
                         }
                     }
                 } header: {
@@ -88,6 +98,9 @@
                 } header: {
                     Text("Local Whisper")
                 }
+            }
+            .onAppear {
+                viewModel.load()
             }
         }
     }

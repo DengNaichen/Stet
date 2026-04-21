@@ -99,10 +99,7 @@
             viewModel.load()
 
             #expect(viewModel.connectionNeedsAttention)
-            #expect(
-                viewModel.missingCredentialMessage == "Sign in to use Stet account dictation."
-            )
-            #expect(!viewModel.showsProviderConfiguration)
+            #expect(viewModel.missingCredentialMessage == "Sign in to use Stet account dictation.")
             #expect(viewModel.visibleCredentialProviders.isEmpty)
         }
 
@@ -169,13 +166,13 @@
             #expect(viewModel.localWhisperStatusMessage.contains("Local Whisper runtime is not linked") == true)
         }
 
-        @Test func loadTreatsStoredRewriteDisabledValueAsEnabledForRuntime() {
+        @Test func loadRespectsStoredRewriteDisabledValue() {
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(false, forKey: MacPreferences.rewriteEnabled)
 
             let store = DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
 
-            #expect(store.loadRewriteEnabled())
+            #expect(!store.loadRewriteEnabled())
         }
     }
 #endif
