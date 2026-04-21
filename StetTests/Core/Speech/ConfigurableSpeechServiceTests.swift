@@ -68,8 +68,10 @@ private func makeDictationService(
     directTranscriptionService: TestTranscriptionService,
     relayTranscriptionService: TestTranscriptionService,
     rewriteService: RecordingRewriteService,
+    relayRewriteService: RecordingRewriteService? = nil,
     audienceProvider: @escaping @Sendable () -> AppAudience = { .ai }
 ) -> ConfigurableSpeechService {
+    let relayRewriteService = relayRewriteService ?? rewriteService
     let factory = DictationPipelineFactory(
         relayAuthenticationContext: {
             relayAuthentication
@@ -79,6 +81,9 @@ private func makeDictationService(
         },
         makeRelayTranscriptionService: { _, _, _ in
             relayTranscriptionService
+        },
+        makeRelayRewriteService: { _, _ in
+            relayRewriteService
         },
         makeRewriteService: { _, _ in
             rewriteService
@@ -159,7 +164,7 @@ struct ConfigurableSpeechServiceTests {
         }
     }
 
-    @Test func managedModeIsUnavailable() async throws {
+    @Test func managedModeRequiresAuthenticatedSession() async throws {
         let (store, _, _) = try makeSettingsStore(executionMode: .managed)
 
         let service = ConfigurableSpeechService(
@@ -170,7 +175,7 @@ struct ConfigurableSpeechServiceTests {
             captureService: TestAudioCaptureService(audioFileURL: makeAudioFileURL())
         )
 
-        await #expect(throws: AIExecutionError.managedModeUnavailable) {
+        await #expect(throws: AIExecutionError.managedRequiresAuthenticatedSession) {
             try await service.startRecording()
         }
     }
@@ -191,6 +196,7 @@ struct ConfigurableSpeechServiceTests {
                     )
                 },
                 makeRelayTranscriptionService: { _, _, _ in TestTranscriptionService(result: "relay") },
+                makeRelayRewriteService: { _, _ in RecordingRewriteService() },
                 makeRewriteService: { _, _ in RecordingRewriteService() }
             ),
             captureService: capture
@@ -464,7 +470,7 @@ struct ConfigurableSpeechServiceTests {
         #expect(await relay.callCount() == 0)
         #expect(await capture.counts().stop == 1)
         #expect(rewriteRequests.count == 1)
-        #expect(rewriteRequests.first?.sourceText == "source transcript")
+        #expect(rewriteRequests.first?.text == "source transcript")
     }
 
     @Test func byokHumanAudienceUsesHumanLocalCleanupPrompt() async throws {
@@ -497,9 +503,8 @@ struct ConfigurableSpeechServiceTests {
         _ = try await service.stopRecording()
 
         let request = try #require(await rewrite.recordedRequests().first)
-        #expect(request.systemPrompt?.contains("IMPORTANT: You are a text cleanup tool.") == true)
-        #expect(request.systemPrompt?.contains("Add appropriate punctuation and capitalization") == true)
-        #expect(request.systemPrompt?.contains("Cursor") == true)
+        #expect(request.audience == .human)
+        #expect(request.preferredSpellings == ["Cursor"])
     }
 
     @Test func byokUsesAIAudiencePromptWhenTargetAppIsUnknown() async throws {
@@ -531,10 +536,8 @@ struct ConfigurableSpeechServiceTests {
         _ = try await service.stopRecording()
 
         let request = try #require(await rewrite.recordedRequests().first)
-        #expect(request.systemPrompt?.contains("AI or coding tools") == true)
-        #expect(request.systemPrompt?.contains("Do not add a title or wrap the result") == true)
-        #expect(request.systemPrompt?.contains("Preserve the original language of the transcript.") == true)
-        #expect(request.systemPrompt?.contains("Do not guess a different language") == true)
+        #expect(request.audience == .ai)
+        #expect(request.preferredSpellings == ["Cursor"])
     }
 
     @Test func byokOpenAIToOpenAIReturnsOnlyRewrittenText() async throws {
@@ -597,7 +600,7 @@ struct ConfigurableSpeechServiceTests {
         let request = try #require(await rewrite.recordedRequests().first)
 
         #expect(result == "groq rewrite")
-        #expect(request.sourceText == "groq transcript")
+        #expect(request.text == "groq transcript")
         #expect(await direct.callCount() == 1)
         #expect(await relay.callCount() == 0)
     }
@@ -631,9 +634,8 @@ struct ConfigurableSpeechServiceTests {
         let request = try #require(await rewrite.recordedRequests().first)
 
         #expect(result == "mixed provider rewrite")
-        #expect(request.sourceText == "mixed provider transcript")
-        #expect(request.systemPrompt?.contains("AI or coding tools") == true)
-        #expect(request.systemPrompt?.contains("Preserve the original language of the transcript.") == true)
+        #expect(request.text == "mixed provider transcript")
+        #expect(request.audience == .ai)
         #expect(await direct.callCount() == 1)
         #expect(await relay.callCount() == 0)
     }
@@ -832,16 +834,18 @@ struct ConfigurableSpeechServiceTests {
         let rewriteRequests = await rewrite.recordedRequests()
 
         #expect(directInvocation?.languageCode == "zh")
-        #expect(rewriteRequests.first?.additionalUserContext?.contains("mainly dictates in Chinese") == true)
+        #expect(rewriteRequests.first?.additionalContext?.contains("mainly dictates in Chinese") == true)
     }
 
     @Test func managedWithSessionUsesRelayEvenWhenLocalKeyExists() async throws {
         let audioFileURL = makeAudioFileURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
 
-        let direct = TestTranscriptionService(result: "source")
-        let relay = TestTranscriptionService(result: "relay transcript")
-        let rewrite = RecordingRewriteService()
+        let direct = TestTranscriptionService(result: "source transcript")
+        let relay = TestTranscriptionService(result: "unused relay transcript")
+        let byokRewrite = RecordingRewriteService()
+        let relayRewrite = RecordingRewriteService()
+        await relayRewrite.setResult("relay rewrite")
         let (store, _, _) = try makeSettingsStore(
             executionMode: .managed,
             preferredSpellings: ["OpenAI", "Groq"]
@@ -854,19 +858,23 @@ struct ConfigurableSpeechServiceTests {
                 relayAuthenticationContext: { relayAuthentication },
                 makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
-                makeRewriteService: { _, _ in rewrite }
+                makeRelayRewriteService: { _, _ in relayRewrite },
+                makeRewriteService: { _, _ in byokRewrite }
             ),
             captureService: capture
         )
 
         try await service.startRecording()
-        _ = try await service.stopRecording()
-        let relayInvocation = await relay.lastInvocation()
+        let result = try await service.stopRecording()
+        let rewriteRequest = try #require(await relayRewrite.recordedRequests().first)
 
-        #expect(await direct.callCount() == 0)
-        #expect(await relay.callCount() == 1)
-        #expect(await rewrite.recordedRequests().isEmpty)
-        #expect(relayInvocation?.prompt == nil)
+        #expect(result == "relay rewrite")
+        #expect(await direct.callCount() == 1)
+        #expect(await relay.callCount() == 0)
+        #expect(await byokRewrite.recordedRequests().isEmpty)
+        #expect(rewriteRequest.text == "source transcript")
+        #expect(rewriteRequest.audience == .ai)
+        #expect(rewriteRequest.preferredSpellings == ["OpenAI", "Groq"])
         #expect(await capture.counts().stop == 1)
     }
 
@@ -875,8 +883,10 @@ struct ConfigurableSpeechServiceTests {
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
 
         let direct = TestTranscriptionService(result: "source")
-        let relay = TestTranscriptionService(outcome: .failure(TestError.expected))
-        let rewrite = RecordingRewriteService()
+        let relay = TestTranscriptionService(result: "unused relay transcript")
+        let byokRewrite = RecordingRewriteService()
+        let relayRewrite = RecordingRewriteService()
+        await relayRewrite.setError(TestError.expected)
         let (store, _, _) = try makeSettingsStore(executionMode: .managed)
         let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
 
@@ -886,7 +896,8 @@ struct ConfigurableSpeechServiceTests {
                 relayAuthenticationContext: { relayAuthentication },
                 makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
-                makeRewriteService: { _, _ in rewrite }
+                makeRelayRewriteService: { _, _ in relayRewrite },
+                makeRewriteService: { _, _ in byokRewrite }
             ),
             captureService: capture
         )
@@ -896,11 +907,13 @@ struct ConfigurableSpeechServiceTests {
             try await service.stopRecording()
         }
 
-        #expect(await direct.callCount() == 0)
-        #expect(await relay.callCount() == 1)
+        #expect(await direct.callCount() == 1)
+        #expect(await relay.callCount() == 0)
+        #expect(await byokRewrite.recordedRequests().isEmpty)
+        #expect(await relayRewrite.recordedRequests().count == 1)
     }
 
-    @Test func relayPathBuildsPromptAndSkipsLocalRewrite() async throws {
+    @Test func managedPathUsesLocalTranscriptionAndRelayRewrite() async throws {
         let audioFileURL = makeAudioFileURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
         var defaults = try TestSupport.makeUserDefaults()
@@ -913,9 +926,11 @@ struct ConfigurableSpeechServiceTests {
         )
         store.savePersonalDictionary(["OpenAI", "Groq"])
 
-        let direct = TestTranscriptionService(result: "source")
-        let relay = TestTranscriptionService(result: "relay transcript")
-        let rewrite = RecordingRewriteService()
+        let direct = TestTranscriptionService(result: "source transcript")
+        let relay = TestTranscriptionService(result: "unused relay transcript")
+        let byokRewrite = RecordingRewriteService()
+        let relayRewrite = RecordingRewriteService()
+        await relayRewrite.setResult("relay rewrite")
         let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
 
         let service = ConfigurableSpeechService(
@@ -924,20 +939,25 @@ struct ConfigurableSpeechServiceTests {
                 relayAuthenticationContext: { relayAuthentication },
                 makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
-                makeRewriteService: { _, _ in rewrite }
+                makeRelayRewriteService: { _, _ in relayRewrite },
+                makeRewriteService: { _, _ in byokRewrite }
             ),
             captureService: capture
         )
 
         try await service.startRecording()
         let result = try await service.stopRecording()
-        let relayInvocation = await relay.lastInvocation()
+        let directInvocation = await direct.lastInvocation()
+        let rewriteRequest = try #require(await relayRewrite.recordedRequests().first)
 
-        #expect(result == "relay transcript")
-        #expect(await relay.callCount() == 1)
-        #expect(await direct.callCount() == 0)
-        #expect(await rewrite.recordedRequests().isEmpty)
-        #expect(relayInvocation?.prompt == nil)
+        #expect(result == "relay rewrite")
+        #expect(await direct.callCount() == 1)
+        #expect(await relay.callCount() == 0)
+        #expect(await byokRewrite.recordedRequests().isEmpty)
+        #expect(directInvocation?.prompt == nil)
+        #expect(rewriteRequest.text == "source transcript")
+        #expect(rewriteRequest.audience == .ai)
+        #expect(rewriteRequest.preferredSpellings == ["OpenAI", "Groq"])
     }
 
     @Test func emptyTranscriptThrowsEmptyTranscription() async throws {

@@ -40,18 +40,23 @@ private func makeSnapshot(
 
 @Suite("Dictation Pipeline Logic")
 struct LogicPrimitiveTests {
-    @Test func dictationExecutionRouteResolverRejectsManagedMode() async {
+    @Test func dictationExecutionRouteResolverUsesManagedRelayWhenAuthenticated() async throws {
         let snapshot = makeSnapshot(mode: .managed)
 
-        await #expect(throws: AIExecutionError.managedModeUnavailable) {
-            try await DictationExecutionRouteResolver.resolve(
-                snapshot: snapshot,
-                relayAuthentication: RelayAuthenticationContext(
-                    functionsBaseURL: URL(string: "https://example.supabase.co/functions/v1")!,
-                    publishableKey: "anon-key",
-                    accessToken: "access-token"
-                )
+        let route = try await DictationExecutionRouteResolver.resolve(
+            snapshot: snapshot,
+            relayAuthentication: RelayAuthenticationContext(
+                functionsBaseURL: URL(string: "https://example.supabase.co/functions/v1")!,
+                publishableKey: "anon-key",
+                accessToken: "access-token"
             )
+        )
+
+        switch route {
+        case .relay(let relay):
+            #expect(relay.preferredSpellings.isEmpty)
+        default:
+            Issue.record("Expected relay route for managed mode.")
         }
     }
 
@@ -65,7 +70,8 @@ struct LogicPrimitiveTests {
 
         switch route {
         case .direct(let direct):
-            #expect(direct.rewriteConfiguration?.provider == .openAI)
+            #expect(direct.rewriteEnabled == false)
+            #expect(direct.rewriteConfiguration == nil)
         default:
             Issue.record("Expected direct route for BYOK.")
         }
@@ -110,7 +116,8 @@ struct LogicPrimitiveTests {
 
         switch route {
         case .direct(let direct):
-            #expect(direct.rewriteConfiguration?.provider == .openAI)
+            #expect(direct.rewriteEnabled == false)
+            #expect(direct.rewriteConfiguration == nil)
         default:
             Issue.record("Expected direct route.")
         }
@@ -214,7 +221,11 @@ struct LogicPrimitiveTests {
         #expect(capturedRewriteConfiguration?.provider == .openAI)
     }
 
-    @Test func makePipelineRejectsManagedMode() async {
+    @Test func makePipelineUsesLocalTranscriptionAndRelayRewriteForManagedMode() async throws {
+        let local = RecordingTranscriptionService(result: "local")
+        let relay = RecordingTranscriptionService(result: "unused relay")
+        let relayRewrite = RecordingRewriteService()
+        await relayRewrite.setResult("relay rewrite")
         let factory = DictationPipelineFactory(
             relayAuthenticationContext: {
                 RelayAuthenticationContext(
@@ -224,10 +235,13 @@ struct LogicPrimitiveTests {
                 )
             },
             makeLocalTranscriptionService: {
-                RecordingTranscriptionService(result: "local")
+                local
             },
             makeRelayTranscriptionService: { _, _, _ in
-                RecordingTranscriptionService(result: "relay")
+                relay
+            },
+            makeRelayRewriteService: { _, _ in
+                relayRewrite
             },
             makeRewriteService: { _, _ in
                 RecordingRewriteService()
@@ -235,9 +249,30 @@ struct LogicPrimitiveTests {
         )
         let snapshot = makeSnapshot(mode: .managed)
 
-        await #expect(throws: AIExecutionError.managedModeUnavailable) {
-            try await factory.makePipeline(from: snapshot)
-        }
+        let pipeline = try await factory.makePipeline(from: snapshot)
+        let audioFileURL = try makeTemporaryWavURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+        let transcript = try await pipeline.transcriptionService.transcribe(
+            audioFileAt: audioFileURL,
+            languageCode: pipeline.transcriptionLanguageCode,
+            prompt: nil,
+            audioDurationSeconds: 1.2
+        )
+        let rewriteResult = try await pipeline.rewriteService?.rewrite(
+            .cleanup(
+                transcript,
+                audience: .ai,
+                preferredSpellings: pipeline.preferredSpellings,
+                additionalContext: pipeline.rewriteAdditionalContext
+            )
+        )
+
+        #expect(transcript == "local")
+        #expect(rewriteResult == "relay rewrite")
+        #expect(await local.callCount == 1)
+        #expect(await relay.callCount == 0)
+        #expect(await relayRewrite.recordedRequests().count == 1)
+        #expect(pipeline.usesAudienceAwareLocalPrompts == true)
     }
 
     @Test func makePipelineUsesConfiguredLanguageModeForTranscriptionAndCleanup() async throws {
@@ -292,7 +327,7 @@ struct LogicPrimitiveTests {
                 .cleanup(
                     transcript,
                     preferredSpellings: pipeline.preferredSpellings,
-                    additionalUserContext: pipeline.rewriteAdditionalContext
+                    additionalContext: pipeline.rewriteAdditionalContext
                 )
             )
         }
@@ -340,12 +375,13 @@ struct LogicPrimitiveTests {
             "raw transcript",
             audience: .human,
             preferredSpellings: ["Groq"],
-            additionalUserContext: "Preserve mixed Chinese and English."
+            additionalContext: "Preserve mixed Chinese and English."
         )
 
-        #expect(request.systemPrompt?.contains("IMPORTANT: You are a text cleanup tool.") == true)
-        #expect(request.systemPrompt?.contains("Groq") == true)
-        #expect(request.additionalUserContext == "Preserve mixed Chinese and English.")
+        #expect(request.text == "raw transcript")
+        #expect(request.audience == .human)
+        #expect(request.preferredSpellings == ["Groq"])
+        #expect(request.additionalContext == "Preserve mixed Chinese and English.")
     }
 
     @Test func textRewriteRequestCleanupDefaultsNilAudienceToHumanPrompt() {
@@ -354,8 +390,9 @@ struct LogicPrimitiveTests {
             preferredSpellings: ["Groq"]
         )
 
-        #expect(request.systemPrompt?.contains("IMPORTANT: You are a text cleanup tool.") == true)
-        #expect(request.systemPrompt?.contains("Groq") == true)
+        #expect(request.text == "raw transcript")
+        #expect(request.audience == nil)
+        #expect(request.preferredSpellings == ["Groq"])
     }
 
     @Test func makeTranscriptionPromptIncludesPreferredSpellings() throws {

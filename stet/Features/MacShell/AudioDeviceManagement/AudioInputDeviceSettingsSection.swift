@@ -17,14 +17,6 @@
                     }
                 }
 
-                if let selected = deviceManager.selectedDevice {
-                    HStack {
-                        Text("Current Device:")
-                        Spacer()
-                        Text(selected.name)
-                            .foregroundStyle(.secondary)
-                    }
-                }
 
                 MicrophoneTestView(viewModel: microphoneTestViewModel)
             }

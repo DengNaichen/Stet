@@ -74,34 +74,23 @@ enum LocalRewritePromptBuilder {
 }
 
 struct TextRewriteRequest: Sendable, Equatable {
-    private enum Configuration {
-        // Keep dictation cleanup request shaping provider-neutral. The selected
-        // provider/model pair is resolved before runtime in pipeline assembly.
-        static let cleanupInstruction = "Clean the following raw transcription according to your instructions."
-    }
-
-    var sourceText: String
-    var instruction: String
-    var systemPrompt: String?
-    var additionalUserContext: String?
+    var text: String
+    var audience: AppAudience?
+    var preferredSpellings: [String]
+    var additionalContext: String?
     var model: String?
 
     nonisolated static func cleanup(
-        _ sourceText: String,
+        _ text: String,
         audience: AppAudience? = nil,
         preferredSpellings: [String] = [],
-        additionalUserContext: String? = nil
+        additionalContext: String? = nil
     ) -> Self {
-        let systemPrompt = LocalRewritePromptBuilder.systemPrompt(
-            audience: audience ?? .human,
-            preferredSpellings: preferredSpellings
-        )
-
         return Self(
-            sourceText: sourceText,
-            instruction: Configuration.cleanupInstruction,
-            systemPrompt: systemPrompt,
-            additionalUserContext: additionalUserContext,
+            text: text,
+            audience: audience,
+            preferredSpellings: preferredSpellings,
+            additionalContext: additionalContext,
             model: nil
         )
     }

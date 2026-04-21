@@ -47,12 +47,14 @@ struct LocalWhisperTranscriptionService: AudioFileTranscriptionService {
         audioFileAt fileURL: URL,
         languageCode: String?,
         prompt: String?,
-        audioDurationSeconds _: TimeInterval?
+        audioDurationSeconds: TimeInterval?
     ) async throws -> String {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             throw OpenAIError.fileNotFound(fileURL)
         }
 
+        let startedAt = ProcessInfo.processInfo.systemUptime
+        let samplePreparationStartedAt = startedAt
         let samples: [Float]
         do {
             samples = try Self.readSamples(from: fileURL)
@@ -60,18 +62,52 @@ struct LocalWhisperTranscriptionService: AudioFileTranscriptionService {
             logger.error("Failed to prepare audio for Local Whisper: \(error.localizedDescription, privacy: .public)")
             throw LocalWhisperError.audioPreparationFailed
         }
+        let samplePreparationMs = Self.elapsedMilliseconds(since: samplePreparationStartedAt)
 
-        let transcript = try await engine.transcribe(
-            samples: samples,
-            languageCode: languageCode,
-            prompt: prompt
-        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        let inferenceStartedAt = ProcessInfo.processInfo.systemUptime
+        let transcript: String
+        do {
+            transcript = try await engine.transcribe(
+                samples: samples,
+                languageCode: languageCode,
+                prompt: prompt
+            ).trimmingCharacters(in: .whitespacesAndNewlines)
+        } catch {
+            AppLogger.error(
+                "LocalWhisper failed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(Self.elapsedMilliseconds(since: inferenceStartedAt))) languageCode=\(languageCode ?? "auto") promptChars=\(prompt?.count ?? 0) error=\(error.localizedDescription)",
+                category: .perfTrace
+            )
+            throw error
+        }
+        let inferenceMs = Self.elapsedMilliseconds(since: inferenceStartedAt)
+        let totalMs = Self.elapsedMilliseconds(since: startedAt)
 
         guard !transcript.isEmpty else {
             throw SpeechServiceError.emptyTranscription
         }
 
+        AppLogger.info(
+            "LocalWhisper completed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) sampleCount=\(samples.count) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(inferenceMs)) totalMs=\(Self.formatMilliseconds(totalMs)) textChars=\(transcript.count) languageCode=\(languageCode ?? "auto") promptChars=\(prompt?.count ?? 0)",
+            category: .perfTrace
+        )
+
         return transcript
+    }
+
+    private nonisolated static func elapsedMilliseconds(since start: TimeInterval) -> Double {
+        (ProcessInfo.processInfo.systemUptime - start) * 1_000
+    }
+
+    private nonisolated static func formatMilliseconds(_ duration: Double) -> String {
+        String(format: "%.1f", duration)
+    }
+
+    private nonisolated static func formatOptionalDurationSeconds(_ duration: TimeInterval?) -> String {
+        guard let duration, duration.isFinite, duration >= 0 else {
+            return "unknown"
+        }
+
+        return String(format: "%.3f", duration)
     }
 
     private static func readSamples(from fileURL: URL) throws -> [Float] {

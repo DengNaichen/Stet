@@ -19,7 +19,40 @@ struct DictationPipelineFactory: Sendable {
             URLSession,
             [String]
         ) -> any AudioFileTranscriptionService
+    var makeRelayRewriteService:
+        @Sendable (
+            RelayAuthenticationContext,
+            URLSession
+        ) -> any TextRewriteService
     var makeRewriteService: @Sendable (RewriteProviderConfiguration, URLSession) -> any TextRewriteService
+
+    init(
+        relayAuthenticationContext: @escaping @Sendable () async -> RelayAuthenticationContext?,
+        makeLocalTranscriptionService: @escaping @Sendable () throws -> any AudioFileTranscriptionService,
+        makeRelayTranscriptionService: @escaping @Sendable (
+            RelayAuthenticationContext,
+            URLSession,
+            [String]
+        ) -> any AudioFileTranscriptionService = { _, _, _ in
+            preconditionFailure("Managed relay transcription is no longer used.")
+        },
+        makeRelayRewriteService: @escaping @Sendable (
+            RelayAuthenticationContext,
+            URLSession
+        ) -> any TextRewriteService = { authentication, session in
+            RelayTextRewriteService(authentication: authentication, session: session)
+        },
+        makeRewriteService: @escaping @Sendable (
+            RewriteProviderConfiguration,
+            URLSession
+        ) -> any TextRewriteService
+    ) {
+        self.relayAuthenticationContext = relayAuthenticationContext
+        self.makeLocalTranscriptionService = makeLocalTranscriptionService
+        self.makeRelayTranscriptionService = makeRelayTranscriptionService
+        self.makeRelayRewriteService = makeRelayRewriteService
+        self.makeRewriteService = makeRewriteService
+    }
 
     static func live(
         relayAuthenticationContext: @escaping @Sendable () async -> RelayAuthenticationContext?
@@ -41,6 +74,9 @@ struct DictationPipelineFactory: Sendable {
                     preferredSpellings: preferredSpellings,
                     audienceProvider: { AppBranchMonitor.shared.currentApp?.audience ?? .ai }
                 )
+            },
+            makeRelayRewriteService: { authentication, session in
+                RelayTextRewriteService(authentication: authentication, session: session)
             },
             makeRewriteService: { configuration, session in
                 OpenAIRewriteService(configuration: configuration, session: session)
@@ -81,17 +117,16 @@ struct DictationPipelineFactory: Sendable {
                 rewriteService = nil
             }
         case .relay(let relay):
-            transcriptionService = makeRelayTranscriptionService(
-                relay.authentication,
-                networkSession,
-                relay.preferredSpellings
-            )
+            transcriptionService = try makeLocalTranscriptionService()
             transcriptionLanguageCode = snapshot.dictationLanguageMode.transcriptionLanguageCode
             promptProvider = nil
-            rewriteService = nil
+            rewriteService = makeRelayRewriteService(
+                relay.authentication,
+                networkSession
+            )
             rewriteAdditionalContext = snapshot.dictationLanguageMode.rewriteAdditionalContext
             preferredSpellings = relay.preferredSpellings
-            usesAudienceAwareLocalPrompts = false
+            usesAudienceAwareLocalPrompts = true
         }
 
         return DictationPipeline(

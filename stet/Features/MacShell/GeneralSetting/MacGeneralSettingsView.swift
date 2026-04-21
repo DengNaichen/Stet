@@ -9,13 +9,12 @@
 
         var body: some View {
             Form {
-                captureSection
-                interactionSoundsSection
                 appBehaviorSection
+                dictationSection
+                updatesSection
                 #if DEBUG
                     debugSection
                 #endif
-                updatesSection
                 feedbackSection
             }
             .formStyle(.grouped)
@@ -27,41 +26,25 @@
             }
         }
 
-        private var captureSection: some View {
-            Section {
-                Toggle(
-                    "Mute other audio during dictation and restore afterward",
-                    isOn: $viewModel.pauseMediaDuringDictation
-                )
-            } header: {
-                Text("Capture")
-            }
-        }
-
-        private var interactionSoundsSection: some View {
-            Section {
-                Toggle("Enable interaction sounds", isOn: $viewModel.interactionSoundsEnabled)
-
-                if viewModel.interactionSoundsEnabled {
-                    Button("Preview Sound") {
-                        viewModel.previewSound()
-                    }
-                }
-            } header: {
-                Text("Interaction Sounds")
-            } footer: {
-                if viewModel.interactionSoundsEnabled {
-                    Text("Stet uses the default sound pair for recording start and finish.")
-                }
-            }
-        }
-
         private var appBehaviorSection: some View {
             Section {
                 Toggle("Launch at Login", isOn: $viewModel.managedSettings.launchAtLogin)
                 Toggle("Show in Dock", isOn: $viewModel.managedSettings.showInDock)
             } header: {
-                Text("App Behavior")
+                Text("Application")
+            } footer: {
+                Text("Stet stays in the menu bar for quick access even when the dock icon is hidden.")
+            }
+        }
+
+        private var dictationSection: some View {
+            Section {
+                Toggle("Interaction sounds", isOn: $viewModel.interactionSoundsEnabled)
+                Toggle("Mute background audio", isOn: $viewModel.pauseMediaDuringDictation)
+            } header: {
+                Text("Dictation")
+            } footer: {
+                Text("Stet can provide feedback and limit distractions while you are speaking.")
             }
         }
 

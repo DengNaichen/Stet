@@ -12,6 +12,8 @@
             )
         ]
 
+        @State private var isShowingClearConfirmation = false
+
         private var isEnabledBinding: Binding<Bool> {
             Binding(
                 get: { viewModel.isEnabled },
@@ -24,29 +26,31 @@
                 Section {
                     Toggle("Enable Personal Dictionary", isOn: isEnabledBinding)
 
-                    LabeledContent("Entries") {
-                        MacSettingsStatusBadge(
-                            text: "\(viewModel.entries.count)",
-                            tint: viewModel.isEnabled && !viewModel.entries.isEmpty
-                                ? .accentColor : .gray
-                        )
-                    }
 
-                    HStack(alignment: .firstTextBaseline, spacing: MacUI.DictionaryViewMetrics.entryInputSpacing) {
-                        TextField(
-                            "Add names, brands, jargon, or phrases",
-                            text: $viewModel.draft
-                        )
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit {
-                            viewModel.addDraftEntries()
-                        }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Add names, brands, jargon, or phrases")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
 
-                        Button("Add") {
-                            viewModel.addDraftEntries()
+                        HStack(spacing: MacUI.DictionaryViewMetrics.entryInputSpacing) {
+                            TextField(
+                                "",
+                                text: $viewModel.draft
+                            )
+                            .textFieldStyle(.roundedBorder)
+                            .multilineTextAlignment(.leading)
+                            .labelsHidden()
+                            .onSubmit {
+                                viewModel.addDraftEntries()
+                            }
+
+                            Button("Add") {
+                                viewModel.addDraftEntries()
+                            }
+                            .disabled(!viewModel.canAddDraftEntries)
                         }
-                        .disabled(!viewModel.canAddDraftEntries)
                     }
+                    .padding(.vertical, 4)
                 } header: {
                     Text("Personal Dictionary")
                 }
@@ -66,8 +70,9 @@
                         }
 
                         Button("Clear Dictionary", role: .destructive) {
-                            viewModel.clearEntries()
+                            isShowingClearConfirmation = true
                         }
+                        .foregroundStyle(.red)
                     }
                 } header: {
                     Text("Current Entries")
@@ -76,6 +81,18 @@
             .formStyle(.grouped)
             .padding(.leading, MacUI.SettingsViewMetrics.formHorizontalPadding)
             .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
+            .confirmationDialog(
+                "Are you sure you want to clear your personal dictionary?",
+                isPresented: $isShowingClearConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Clear All", role: .destructive) {
+                    viewModel.clearEntries()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This action cannot be undone.")
+            }
         }
 
         private func dictionaryChip(for entry: String) -> some View {

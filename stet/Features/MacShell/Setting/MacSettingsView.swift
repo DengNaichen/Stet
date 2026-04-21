@@ -26,7 +26,7 @@
             case .hotkey:
                 return "Hotkey"
             case .openAI:
-                return "AI"
+                return "Refine"
             case .dictionary:
                 return "Dictionary"
             #if DEBUG
@@ -60,20 +60,41 @@
         var iconName: String {
             switch self {
             case .general:
-                return "slider.horizontal.3"
+                return "gearshape.fill"
             case .audio:
-                return "mic"
+                return "speaker.wave.3.fill"
             case .appearance:
-                return "paintbrush"
+                return "circle.lefthalf.filled"
             case .hotkey:
-                return "keyboard"
+                return "command"
             case .openAI:
-                return "key.horizontal"
+                return "pencil"
             case .dictionary:
-                return "text.book.closed"
+                return "text.book.closed.fill"
             #if DEBUG
                 case .shaderDebug:
-                    return "hammer"
+                    return "hammer.fill"
+            #endif
+            }
+        }
+
+        var iconColor: Color {
+            switch self {
+            case .general:
+                return Color(nsColor: .systemGray)
+            case .audio:
+                return Color(nsColor: .systemRed)
+            case .appearance:
+                return Color(nsColor: .systemBlue)
+            case .hotkey:
+                return Color(nsColor: .systemGray)
+            case .openAI:
+                return Color(nsColor: .systemGreen)
+            case .dictionary:
+                return Color(nsColor: .systemGray)
+            #if DEBUG
+                case .shaderDebug:
+                    return Color(nsColor: .systemBrown)
             #endif
             }
         }
@@ -199,7 +220,35 @@
 
         @ViewBuilder
         private func sidebarRow(for tab: MacSettingsTab) -> some View {
-            Label(tab.title, systemImage: tab.iconName)
+            HStack(spacing: 8) {
+                ZStack {
+                    // 1. Shadow anchoring
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(Color.black.opacity(0.1))
+                        .offset(y: 0.5)
+                        .blur(radius: 0.5)
+
+                    // 2. Main color tile
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(tab.iconColor.gradient)
+                    
+                    // 3. Highlight border
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
+
+                    // 4. Smaller symbol for a more delicate look
+                    Image(systemName: tab.iconName)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.white)
+                        .shadow(color: Color.black.opacity(0.05), radius: 0, x: 0, y: 0.5)
+                }
+                .frame(width: 20, height: 20)
+                
+                Text(tab.title)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary)
+            }
+            .padding(.vertical, 3)
         }
 
         private var sidebarAccountRow: some View {
@@ -286,7 +335,9 @@
             case .hotkey:
                 MacHotkeySettingsView()
             case .openAI:
-                MacOpenAISettingsView(viewModel: openAISettingsViewModel)
+                MacOpenAISettingsView(viewModel: openAISettingsViewModel) {
+                    isShowingAccountSheet = true
+                }
             case .dictionary:
                 DictionaryView(viewModel: dictionaryViewModel)
             #if DEBUG

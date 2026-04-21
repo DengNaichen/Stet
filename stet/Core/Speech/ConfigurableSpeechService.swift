@@ -187,6 +187,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         }
 
         await DictationLatencyProbe.shared.beginSession(audioDurationSeconds: processedCaptureResult.duration)
+        let processingStartedAt = ProcessInfo.processInfo.systemUptime
 
         var transcriptionPrompt: String? = nil
         if let provider = pipeline.promptProvider {
@@ -196,6 +197,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         AppLogger.info("Submitting transcription request.", category: .dictation)
 
         let intermediateTranscript: String
+        let transcriptionStartedAt = ProcessInfo.processInfo.systemUptime
         do {
             let transcript = try await pipeline.transcriptionService.transcribe(
                 audioFileAt: processedCaptureResult.url,
@@ -208,6 +210,11 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 throw SpeechServiceError.emptyTranscription
             }
             intermediateTranscript = trimmedTranscript
+            let transcriptionStageMs = Self.elapsedMilliseconds(since: transcriptionStartedAt)
+            AppLogger.info(
+                "DictationStage transcriptionMs=\(Self.formatMilliseconds(transcriptionStageMs)) audioDurationSeconds=\(Self.formatDurationSeconds(processedCaptureResult.duration)) transcriptChars=\(trimmedTranscript.count) rewriteEnabled=\(pipeline.rewriteService != nil)",
+                category: .perfTrace
+            )
         } catch {
             await DictationLatencyProbe.shared.record(.transcriptionFailed, note: error.localizedDescription)
             AppLogger.error("Transcription failed: \(error.localizedDescription)", category: .dictation)
@@ -216,6 +223,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
         do {
             let finalTranscript: String
+            let rewriteStartedAt = ProcessInfo.processInfo.systemUptime
             if let rewriteService = pipeline.rewriteService {
                 let rewriteAudience = pipeline.usesAudienceAwareLocalPrompts ? audienceProvider() : nil
                 finalTranscript = try await rewriteService.rewrite(
@@ -223,11 +231,20 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                         intermediateTranscript,
                         audience: rewriteAudience,
                         preferredSpellings: pipeline.preferredSpellings,
-                        additionalUserContext: pipeline.rewriteAdditionalContext
+                        additionalContext: pipeline.rewriteAdditionalContext
                     )
+                )
+                let rewriteStageMs = Self.elapsedMilliseconds(since: rewriteStartedAt)
+                AppLogger.info(
+                    "DictationStage rewriteMs=\(Self.formatMilliseconds(rewriteStageMs)) inputChars=\(intermediateTranscript.count) audience=\(rewriteAudience?.rawValue ?? "none") preferredSpellingsCount=\(pipeline.preferredSpellings.count) additionalContextChars=\(pipeline.rewriteAdditionalContext?.count ?? 0)",
+                    category: .perfTrace
                 )
             } else {
                 finalTranscript = intermediateTranscript
+                AppLogger.info(
+                    "DictationStage rewriteSkipped inputChars=\(intermediateTranscript.count)",
+                    category: .perfTrace
+                )
             }
 
             let trimmedTranscript = Self.stripTrailingPeriod(
@@ -236,6 +253,12 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             guard !trimmedTranscript.isEmpty else {
                 throw SpeechServiceError.emptyTranscription
             }
+
+            let totalProcessingMs = Self.elapsedMilliseconds(since: processingStartedAt)
+            AppLogger.info(
+                "DictationSummary totalProcessingMs=\(Self.formatMilliseconds(totalProcessingMs)) audioDurationSeconds=\(Self.formatDurationSeconds(processedCaptureResult.duration)) finalTextChars=\(trimmedTranscript.count) rewriteEnabled=\(pipeline.rewriteService != nil)",
+                category: .perfTrace
+            )
 
             return trimmedTranscript
         } catch {
@@ -341,6 +364,14 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
     private nonisolated static func formatMilliseconds(_ duration: Double) -> String {
         String(format: "%.1f", duration)
+    }
+
+    private nonisolated static func formatDurationSeconds(_ duration: TimeInterval?) -> String {
+        guard let duration, duration.isFinite, duration >= 0 else {
+            return "unknown"
+        }
+
+        return String(format: "%.3f", duration)
     }
 
     /// Strips a single trailing period (ASCII or CJK full stop) from the final

@@ -17,7 +17,7 @@
 
         @Published private(set) var state: State
         @Published private(set) var canCheckForUpdates = false
-        @Published private(set) var automaticallyChecksForUpdates = false
+        @Published private(set) var automaticallyChecksForUpdates = true
 
         private lazy var updaterController: SPUStandardUpdaterController? = {
             guard configurationIssue == nil else {
@@ -132,6 +132,7 @@
         private func configureUpdaterDefaults() {
             guard let updater = updaterController?.updater else { return }
             updater.automaticallyDownloadsUpdates = false
+            updater.automaticallyChecksForUpdates = true
         }
 
         private func syncFromUpdater() {

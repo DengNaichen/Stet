@@ -23,7 +23,7 @@
             var isConfigured = false
             var canCheckForUpdates = false
             var isCheckingForUpdates = false
-            var automaticallyChecksForUpdates = false
+            var automaticallyChecksForUpdates = true
         }
 
         struct Feedback {

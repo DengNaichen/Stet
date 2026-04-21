@@ -2,6 +2,10 @@ import Foundation
 import OpenAI
 
 struct OpenAIRewriteService: TextRewriteService {
+    private enum Configuration {
+        static let cleanupInstruction = "Clean the following raw transcription according to your instructions."
+    }
+
     private let clientFactory: OpenAISDKClientFactory
     private let defaultModel: String
     private let supportsResponsesStore: Bool
@@ -16,16 +20,17 @@ struct OpenAIRewriteService: TextRewriteService {
     }
 
     func rewrite(_ request: TextRewriteRequest) async throws -> String {
-        let instruction = request.instruction.trimmingCharacters(in: .whitespacesAndNewlines)
-        let sourceText = request.sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let systemPrompt = request.systemPrompt?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let additionalUserContext = request.additionalUserContext?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = request.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let systemPrompt = LocalRewritePromptBuilder.systemPrompt(
+            audience: request.audience ?? .human,
+            preferredSpellings: request.preferredSpellings
+        )
+        let additionalContext = request.additionalContext?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let messages = makeMessages(
             systemPrompt: systemPrompt,
-            additionalUserContext: additionalUserContext,
-            instruction: instruction,
-            sourceText: sourceText
+            additionalContext: additionalContext,
+            text: text
         )
         let requestContext = try clientFactory.makeRequestContext()
 
@@ -63,9 +68,8 @@ struct OpenAIRewriteService: TextRewriteService {
 
     private func makeMessages(
         systemPrompt: String?,
-        additionalUserContext: String?,
-        instruction: String,
-        sourceText: String
+        additionalContext: String?,
+        text: String
     ) -> [InputItem] {
         var messages: [InputItem] = []
 
@@ -79,16 +83,16 @@ struct OpenAIRewriteService: TextRewriteService {
 
         var userPrompt = """
             Instruction:
-            \(instruction)
+            \(Configuration.cleanupInstruction)
 
             Text:
-            \(sourceText)
+            \(text)
             """
 
-        if let additionalUserContext, !additionalUserContext.isEmpty {
+        if let additionalContext, !additionalContext.isEmpty {
             userPrompt = """
                 Context:
-                \(additionalUserContext)
+                \(additionalContext)
 
                 \(userPrompt)
                 """

@@ -88,10 +88,6 @@ enum DictationExecutionRouteResolver {
         snapshot: DictationSettingsSnapshot,
         relayAuthentication: RelayAuthenticationContext?
     ) throws -> DictationExecutionRoute {
-        if snapshot.executionMode == .managed {
-            throw AIExecutionError.managedModeUnavailable
-        }
-
         if snapshot.executionMode.requiresAuthenticatedSession, relayAuthentication == nil {
             throw AIExecutionError.managedRequiresAuthenticatedSession
         }

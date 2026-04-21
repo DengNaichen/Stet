@@ -88,7 +88,7 @@
             #expect(defaults.string(forKey: MacPreferences.aiExecutionMode) == AIExecutionMode.byok.rawValue)
         }
 
-        @Test func managedModeShowsUnavailableMessageAndHidesDirectConfiguration() {
+        @Test func managedModeShowsSignInMessageAndHidesDirectConfiguration() {
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(AIExecutionMode.managed.rawValue, forKey: MacPreferences.aiExecutionMode)
 
@@ -100,7 +100,7 @@
 
             #expect(viewModel.connectionNeedsAttention)
             #expect(
-                viewModel.missingCredentialMessage == "Stet account dictation is temporarily unavailable in this build."
+                viewModel.missingCredentialMessage == "Sign in to use Stet account dictation."
             )
             #expect(!viewModel.showsProviderConfiguration)
             #expect(viewModel.visibleCredentialProviders.isEmpty)

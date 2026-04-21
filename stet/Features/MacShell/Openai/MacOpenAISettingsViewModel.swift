@@ -131,14 +131,46 @@
             }
         }
 
-        var visibleCredentialProviders: [DictationProvider] {
-            guard executionMode != .managed, isRewriteEnabled else { return [] }
-
-            return [rewriteProvider]
+        enum UnifiedAIProvider: String, CaseIterable, Identifiable {
+            case stet
+            case openAI
+            case groq
+            
+            var id: String { rawValue }
+            var displayName: String {
+                switch self {
+                case .stet: return "Stet (Managed)"
+                case .openAI: return "OpenAI"
+                case .groq: return "Groq"
+                }
+            }
         }
 
-        var showsProviderConfiguration: Bool {
-            executionMode != .managed && isRewriteEnabled
+        var unifiedProvider: UnifiedAIProvider {
+            get {
+                if executionMode == .managed { return .stet }
+                switch rewriteProvider {
+                case .openAI: return .openAI
+                case .groq: return .groq
+                }
+            }
+            set {
+                switch newValue {
+                case .stet:
+                    executionMode = .managed
+                case .openAI:
+                    executionMode = .byok
+                    rewriteProvider = .openAI
+                case .groq:
+                    executionMode = .byok
+                    rewriteProvider = .groq
+                }
+            }
+        }
+
+        var visibleCredentialProviders: [DictationProvider] {
+            guard executionMode != .managed, isRewriteEnabled else { return [] }
+            return [rewriteProvider]
         }
 
         var localWhisperStatusMessage: String {
@@ -160,7 +192,7 @@
         var missingCredentialMessage: String? {
             switch executionMode {
             case .managed:
-                return "Stet account dictation is temporarily unavailable in this build."
+                return "Sign in to use Stet account dictation."
             case .byok:
                 guard isRewriteEnabled else { return nil }
                 let providerList = missingRequiredProviders.map(\.displayName).joined(separator: " and ")

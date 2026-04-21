@@ -78,7 +78,10 @@
             }
 
             if defaults.object(forKey: MacPreferences.launchAtLogin) == nil {
-                defaults.set(launchAtLoginStatusProvider(), forKey: MacPreferences.launchAtLogin)
+                defaults.set(true, forKey: MacPreferences.launchAtLogin)
+                Task { @MainActor in
+                    try? MacAppBehaviorController.setLaunchAtLogin(true)
+                }
             }
         }
     }
