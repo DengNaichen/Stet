@@ -29,6 +29,10 @@ enum LocalWhisperEngineFactory {
         try sharedCache.acquireLease(for: modelURL, createEngine: createEngine)
     }
 
+    nonisolated static func invalidateSharedEngines() {
+        sharedCache.invalidateAll()
+    }
+
     nonisolated static func makeEngineLease(modelURL: URL) throws -> LocalWhisperEngineLease {
         #if canImport(whisper)
             return try acquireEngine(modelURL: modelURL) {
@@ -41,13 +45,8 @@ enum LocalWhisperEngineFactory {
 }
 
 private final class SharedLocalWhisperEngineCache: @unchecked Sendable {
-    private struct Entry {
-        var engine: any LocalWhisperEngine
-        var retainCount: Int
-    }
-
     private let lock = NSLock()
-    private var entriesByModelPath: [String: Entry] = [:]
+    private var entriesByModelPath: [String: any LocalWhisperEngine] = [:]
 
     func acquireLease(
         for modelURL: URL,
@@ -58,33 +57,29 @@ private final class SharedLocalWhisperEngineCache: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        if var cachedEntry = entriesByModelPath[modelPath] {
-            cachedEntry.retainCount += 1
-            entriesByModelPath[modelPath] = cachedEntry
+        if let cachedEngine = entriesByModelPath[modelPath] {
             return LocalWhisperEngineLease(
                 modelPath: modelPath,
-                engine: cachedEntry.engine,
+                engine: cachedEngine,
                 cache: self
             )
         }
 
         let engine = try createEngine()
-        entriesByModelPath[modelPath] = Entry(engine: engine, retainCount: 1)
+        entriesByModelPath[modelPath] = engine
         return LocalWhisperEngineLease(modelPath: modelPath, engine: engine, cache: self)
     }
 
     func releaseLease(for modelPath: String) {
+        // Intentionally keep the shared engine alive after transient services
+        // release their leases. This matches the long-lived shared-context model
+        // used by VoiceInk and avoids repeated cold starts.
+    }
+
+    func invalidateAll() {
         lock.lock()
         defer { lock.unlock() }
-
-        guard var entry = entriesByModelPath[modelPath] else { return }
-        entry.retainCount -= 1
-
-        if entry.retainCount <= 0 {
-            entriesByModelPath.removeValue(forKey: modelPath)
-        } else {
-            entriesByModelPath[modelPath] = entry
-        }
+        entriesByModelPath.removeAll()
     }
 }
 

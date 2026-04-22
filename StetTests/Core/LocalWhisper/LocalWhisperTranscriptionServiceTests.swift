@@ -7,6 +7,7 @@
     @Suite("Local Whisper Transcription Service")
     struct LocalWhisperTranscriptionServiceTests {
         @Test func acquiredEngineReusesSingleInstancePerModelPath() throws {
+            LocalWhisperEngineFactory.invalidateSharedEngines()
             let modelURL = TestSupport.temporaryFileURL("local-whisper-model", ext: "bin")
             let createdEngines = CreatedEngines()
 
@@ -30,6 +31,7 @@
         }
 
         @Test func acquiredEngineSeparatesDifferentModelPaths() throws {
+            LocalWhisperEngineFactory.invalidateSharedEngines()
             let firstModelURL = TestSupport.temporaryFileURL("local-whisper-model-a", ext: "bin")
             let secondModelURL = TestSupport.temporaryFileURL("local-whisper-model-b", ext: "bin")
             let createdEngines = CreatedEngines()
@@ -54,7 +56,8 @@
             #expect(firstEngine !== secondEngine)
         }
 
-        @Test func releasedLeaseAllowsEngineToBeRecreated() throws {
+        @Test func releasedLeaseStillReusesSharedEngine() throws {
+            LocalWhisperEngineFactory.invalidateSharedEngines()
             let modelURL = TestSupport.temporaryFileURL("local-whisper-model-release", ext: "bin")
             let createdEngines = CreatedEngines()
 
@@ -66,6 +69,32 @@
                 }
                 _ = lease
             }
+
+            let recreatedLease = try LocalWhisperEngineFactory.acquireEngine(modelURL: modelURL) {
+                let engine = StubLocalWhisperEngine()
+                createdEngines.append(engine)
+                return engine
+            }
+
+            let created = createdEngines.snapshot()
+            let recreatedEngine = try #require(recreatedLease.engine as? StubLocalWhisperEngine)
+            #expect(created.count == 1)
+            #expect(recreatedEngine === created[0])
+        }
+
+        @Test func invalidatingSharedEnginesAllowsRecreation() throws {
+            LocalWhisperEngineFactory.invalidateSharedEngines()
+            let modelURL = TestSupport.temporaryFileURL("local-whisper-model-invalidate", ext: "bin")
+            let createdEngines = CreatedEngines()
+
+            let firstLease = try LocalWhisperEngineFactory.acquireEngine(modelURL: modelURL) {
+                let engine = StubLocalWhisperEngine()
+                createdEngines.append(engine)
+                return engine
+            }
+            _ = firstLease
+
+            LocalWhisperEngineFactory.invalidateSharedEngines()
 
             let recreatedLease = try LocalWhisperEngineFactory.acquireEngine(modelURL: modelURL) {
                 let engine = StubLocalWhisperEngine()

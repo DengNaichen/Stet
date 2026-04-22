@@ -132,6 +132,7 @@ struct LocalWhisperModelManager: Sendable {
 
     /// Saves a custom model path to UserDefaults.
     nonisolated static func saveCustomModelPath(_ path: String?) {
+        LocalWhisperEngineFactory.invalidateSharedEngines()
         if let path {
             UserDefaults.standard.set(path, forKey: MacPreferences.localWhisperModelPath)
         } else {

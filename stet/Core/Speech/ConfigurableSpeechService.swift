@@ -312,7 +312,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
     private func startTranscriptionPrewarm(using pipeline: DictationPipeline) {
         transcriptionPrewarmTask?.cancel()
-        transcriptionPrewarmTask = Task(priority: .utility) {
+        transcriptionPrewarmTask = Task(priority: .userInitiated) {
             do {
                 try await pipeline.transcriptionService.prewarm()
             } catch is CancellationError {
