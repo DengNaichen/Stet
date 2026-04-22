@@ -82,7 +82,7 @@
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
 
-                            Text("Hello, this is a test")
+                            Text("I am now using this app to dictate this sentence")
                                 .font(.system(size: 18, weight: .medium))
                                 .foregroundStyle(.primary)
                         }

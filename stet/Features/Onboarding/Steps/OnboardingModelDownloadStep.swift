@@ -7,6 +7,14 @@
         var body: some View {
             VStack(spacing: 24) {
                 Spacer()
+
+                Text("Download the model to process your voice locally")
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+
+                Spacer()
                 
                 OnboardingActionButton(
                     title: viewModel.localWhisperDownloadPrimaryButtonTitle,
@@ -19,7 +27,7 @@
                     }
                 }
             }
-            .padding(.bottom, 40)
+            .padding(.bottom, 20)
         }
 
 

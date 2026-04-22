@@ -81,7 +81,6 @@
                 }
                 .store(in: &cancellables)
             sessionController.activate(presentationModel: self, showInDock: launchConfiguration.showInDock)
-            LocalWhisperWarmupCoordinator.shared.activateIfNeeded()
         }
 
         var updates: AnyPublisher<Void, Never> {
@@ -266,7 +265,7 @@
             sessionController.performPrimaryAction()
         }
 
-        func topUp() {
+        func upgrade() {
             Task {
                 do {
                     let url = try await SupabaseService.shared.createCheckoutSession(

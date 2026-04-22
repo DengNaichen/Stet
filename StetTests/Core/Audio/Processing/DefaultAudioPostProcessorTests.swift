@@ -159,6 +159,9 @@ struct DefaultAudioPostProcessorTests {
 
         #expect(!result.shouldDiscardAsNoSpeech)
         #expect(outputURL != fileURL)
+        #if os(macOS)
+            #expect(outputURL.pathExtension.lowercased() == "wav")
+        #endif
 
         let inputSummary = try Self.audioSummary(at: fileURL)
         let outputSummary = try Self.audioSummary(at: outputURL)

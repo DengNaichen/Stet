@@ -128,8 +128,8 @@
             appModel.performPrimaryAction()
         }
 
-        func topUp() {
-            appModel.topUp()
+        func upgrade() {
+            appModel.upgrade()
         }
     }
 #endif

@@ -30,21 +30,25 @@ struct RelayTextRewriteService: TextRewriteService {
     }
 
     private let authentication: RelayAuthenticationContext
+    private let authenticationProvider: @Sendable () async -> RelayAuthenticationContext?
     private let session: URLSession
 
     nonisolated init(
         authentication: RelayAuthenticationContext,
+        authenticationProvider: @escaping @Sendable () async -> RelayAuthenticationContext? = { nil },
         session: URLSession = .shared
     ) {
         self.authentication = authentication
+        self.authenticationProvider = authenticationProvider
         self.session = session
     }
 
     func rewrite(_ request: TextRewriteRequest) async throws -> String {
         let trimmedText = request.text.trimmingCharacters(in: .whitespacesAndNewlines)
         let clientRequestID = UUID().uuidString
+        let resolvedAuthentication = await authenticationProvider() ?? authentication
         let urlRequest = try Self.makeRequest(
-            authentication: authentication,
+            authentication: resolvedAuthentication,
             payload: RequestBody(
                 text: trimmedText,
                 audience: request.audience,

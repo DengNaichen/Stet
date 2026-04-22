@@ -44,6 +44,13 @@
                     }
                 }
 
+                if viewModel.onboardingStep == .login {
+                    Text("New users will be assigned 10K words for a free trial.")
+                        .font(.system(size: 13, weight: .regular, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 4)
+                }
+
                 Spacer()
             }
         }

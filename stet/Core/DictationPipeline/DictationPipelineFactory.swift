@@ -22,6 +22,7 @@ struct DictationPipelineFactory: Sendable {
     var makeRelayRewriteService:
         @Sendable (
             RelayAuthenticationContext,
+            @escaping @Sendable () async -> RelayAuthenticationContext?,
             URLSession
         ) -> any TextRewriteService
     var makeRewriteService: @Sendable (RewriteProviderConfiguration, URLSession) -> any TextRewriteService
@@ -38,9 +39,14 @@ struct DictationPipelineFactory: Sendable {
         },
         makeRelayRewriteService: @escaping @Sendable (
             RelayAuthenticationContext,
+            @escaping @Sendable () async -> RelayAuthenticationContext?,
             URLSession
-        ) -> any TextRewriteService = { authentication, session in
-            RelayTextRewriteService(authentication: authentication, session: session)
+        ) -> any TextRewriteService = { authentication, authenticationProvider, session in
+            RelayTextRewriteService(
+                authentication: authentication,
+                authenticationProvider: authenticationProvider,
+                session: session
+            )
         },
         makeRewriteService: @escaping @Sendable (
             RewriteProviderConfiguration,
@@ -75,8 +81,12 @@ struct DictationPipelineFactory: Sendable {
                     audienceProvider: { AppBranchMonitor.shared.currentApp?.audience ?? .ai }
                 )
             },
-            makeRelayRewriteService: { authentication, session in
-                RelayTextRewriteService(authentication: authentication, session: session)
+            makeRelayRewriteService: { authentication, authenticationProvider, session in
+                RelayTextRewriteService(
+                    authentication: authentication,
+                    authenticationProvider: authenticationProvider,
+                    session: session
+                )
             },
             makeRewriteService: { configuration, session in
                 OpenAIRewriteService(configuration: configuration, session: session)
@@ -123,6 +133,7 @@ struct DictationPipelineFactory: Sendable {
             if relay.rewriteEnabled {
                 rewriteService = makeRelayRewriteService(
                     relay.authentication,
+                    relayAuthenticationContext,
                     networkSession
                 )
             } else {

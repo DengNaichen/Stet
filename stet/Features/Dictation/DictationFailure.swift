@@ -113,7 +113,7 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
         case .managedUnavailable:
             return "Stet account unavailable"
         case .relayInvocation:
-            return "Managed Relay request failed"
+            return "Usage limit reached"
         case .localWhisperModelMissing:
             return "Local Whisper model required"
         case .localWhisperRuntimeUnavailable:
@@ -212,7 +212,7 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
 
     var surfaceErrorMessage: String {
         if isInsufficientFunds {
-            return "Not enough credit."
+            return "Monthly quota reached."
         }
         return "Something went wrong."
     }

@@ -82,7 +82,7 @@ private func makeDictationService(
         makeRelayTranscriptionService: { _, _, _ in
             relayTranscriptionService
         },
-        makeRelayRewriteService: { _, _ in
+        makeRelayRewriteService: { _, _, _ in
             relayRewriteService
         },
         makeRewriteService: { _, _ in
@@ -196,7 +196,7 @@ struct ConfigurableSpeechServiceTests {
                     )
                 },
                 makeRelayTranscriptionService: { _, _, _ in TestTranscriptionService(result: "relay") },
-                makeRelayRewriteService: { _, _ in RecordingRewriteService() },
+                makeRelayRewriteService: { _, _, _ in RecordingRewriteService() },
                 makeRewriteService: { _, _ in RecordingRewriteService() }
             ),
             captureService: capture
@@ -858,7 +858,7 @@ struct ConfigurableSpeechServiceTests {
                 relayAuthenticationContext: { relayAuthentication },
                 makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
-                makeRelayRewriteService: { _, _ in relayRewrite },
+                makeRelayRewriteService: { _, _, _ in relayRewrite },
                 makeRewriteService: { _, _ in byokRewrite }
             ),
             captureService: capture
@@ -896,7 +896,7 @@ struct ConfigurableSpeechServiceTests {
                 relayAuthenticationContext: { relayAuthentication },
                 makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
-                makeRelayRewriteService: { _, _ in relayRewrite },
+                makeRelayRewriteService: { _, _, _ in relayRewrite },
                 makeRewriteService: { _, _ in byokRewrite }
             ),
             captureService: capture
@@ -939,7 +939,7 @@ struct ConfigurableSpeechServiceTests {
                 relayAuthenticationContext: { relayAuthentication },
                 makeLocalTranscriptionService: { direct },
                 makeRelayTranscriptionService: { _, _, _ in relay },
-                makeRelayRewriteService: { _, _ in relayRewrite },
+                makeRelayRewriteService: { _, _, _ in relayRewrite },
                 makeRewriteService: { _, _ in byokRewrite }
             ),
             captureService: capture

@@ -141,6 +141,8 @@
 
     struct OnboardingKeyboardView: View {
         @StateObject private var keyboardMonitor = OnboardingKeyboardMonitor()
+        @State private var hintStep = 0
+        private let timer = Timer.publish(every: 0.6, on: .main, in: .common).autoconnect()
 
         var body: some View {
             VStack(spacing: 30) {
@@ -157,7 +159,9 @@
                             isPressed: keyboardMonitor.pressedKeys.contains(43))
                         KeyCap(
                             text: ".", subtext: nil, icon: nil, width: 50,
-                            isPressed: keyboardMonitor.pressedKeys.contains(47))
+                            isPressed: keyboardMonitor.pressedKeys.contains(47),
+                            isHinted: hintStep == 2 || hintStep == 3
+                        )
                         KeyCap(
                             text: "/", subtext: "?", icon: nil, width: 50,
                             isPressed: keyboardMonitor.pressedKeys.contains(44))
@@ -172,7 +176,9 @@
                             isPressed: keyboardMonitor.pressedKeys.contains(49))
                         KeyCap(
                             text: "command", subtext: "⌘", icon: nil, width: 70,
-                            isPressed: keyboardMonitor.modifierFlags.contains(.maskCommand))
+                            isPressed: keyboardMonitor.modifierFlags.contains(.maskCommand),
+                            isHinted: hintStep == 1 || hintStep == 2 || hintStep == 3
+                        )
                         KeyCap(
                             text: "option", subtext: "⌥", icon: nil, width: 60,
                             isPressed: keyboardMonitor.modifierFlags.contains(.maskAlternate))
@@ -204,6 +210,17 @@
                     .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(.primary.opacity(0.8))
             }
+            .onReceive(timer) { _ in
+                // Animation sequence: 
+                // 0: All up
+                // 1: Command down
+                // 2: Command + Dot down
+                // 3: Command + Dot down (staying)
+                // 4: All up
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    hintStep = (hintStep + 1) % 5
+                }
+            }
             .onAppear {
                 keyboardMonitor.start()
             }
@@ -220,6 +237,7 @@
         let width: CGFloat
         var height: CGFloat = 50
         let isPressed: Bool
+        var isHinted: Bool = false
 
         var body: some View {
             VStack(spacing: 2) {
@@ -254,15 +272,15 @@
             .frame(width: width, height: height)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(isPressed ? Color.black : Color.white)
+                    .fill(isPressed || isHinted ? Color.black : Color.white)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(isPressed ? Color.clear : Color.black.opacity(0.1), lineWidth: 1)
+                    .stroke(isPressed || isHinted ? Color.clear : Color.black.opacity(0.1), lineWidth: 1)
             )
-            .foregroundStyle(isPressed ? Color.white : Color.black.opacity(0.6))
-            .shadow(color: Color.black.opacity(isPressed ? 0 : 0.05), radius: 2, x: 0, y: 1)
-            .animation(.easeInOut(duration: 0.1), value: isPressed)
+            .foregroundStyle(isPressed || isHinted ? Color.white : Color.black.opacity(0.6))
+            .shadow(color: Color.black.opacity(isPressed || isHinted ? 0 : 0.05), radius: 2, x: 0, y: 1)
+            .animation(.easeInOut(duration: 0.2), value: isPressed || isHinted)
         }
     }
 

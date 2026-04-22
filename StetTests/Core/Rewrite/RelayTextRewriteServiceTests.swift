@@ -58,6 +58,38 @@ struct RelayTextRewriteServiceTests {
         #expect((payload["preferredSpellings"] as? [String]) == ["Stet", "Whisper"])
     }
 
+    @Test func rewriteUsesFreshAuthenticationWhenProviderReturnsUpdatedSession() async throws {
+        var capturedRequest: URLRequest?
+        let refreshedAuthentication = RelayAuthenticationContext(
+            functionsBaseURL: URL(string: "https://example.supabase.co/functions/v1")!,
+            publishableKey: "anon-key",
+            accessToken: "refreshed-access-token"
+        )
+        let session = TestURLSessionFactory.makeSession { request in
+            capturedRequest = request
+            return (
+                HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: [:]
+                )!,
+                Data(#"{"text":"Rewritten relay transcript"}"#.utf8)
+            )
+        }
+
+        let service = RelayTextRewriteService(
+            authentication: authentication,
+            authenticationProvider: { refreshedAuthentication },
+            session: session
+        )
+
+        _ = try await service.rewrite(.cleanup("raw transcript"))
+
+        let request = try #require(capturedRequest)
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer refreshed-access-token")
+    }
+
     @Test func rewriteMapsRelayErrors() async {
         let session = TestURLSessionFactory.makeSession { request in
             (

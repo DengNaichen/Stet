@@ -83,7 +83,10 @@ final class AuthViewModel {
     var isLoading = false
     var errorMessage: String? = nil
     var statusMessage: String? = nil
-    var balanceCredits: Int? = nil
+    var subscriptionTier: String? = nil
+    var currentUsage: Int? = nil
+    var currentLimit: Int? = nil
+    var quotaWindow: String? = nil
 
     private let supabase: SupabaseService
 
@@ -164,14 +167,20 @@ final class AuthViewModel {
         guard let (data, _) = try? await URLSession.shared.data(for: request) else { return }
 
         struct Response: Decodable {
-            struct BillingAccount: Decodable {
-                let balance_credits: Int
+            struct Usage: Decodable {
+                let current_usage: Int
+                let current_limit: Int
+                let quota_window: String
             }
-            let billing_account: BillingAccount
+            let tier: String
+            let usage: Usage
         }
 
         if let decoded = try? JSONDecoder().decode(Response.self, from: data) {
-            balanceCredits = decoded.billing_account.balance_credits
+            subscriptionTier = decoded.tier
+            currentUsage = decoded.usage.current_usage
+            currentLimit = decoded.usage.current_limit
+            quotaWindow = decoded.usage.quota_window
         }
     }
 
@@ -187,7 +196,7 @@ final class AuthViewModel {
         clearFeedback()
     }
 
-    func topUp() async {
+    func upgrade() async {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }

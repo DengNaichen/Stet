@@ -3,6 +3,7 @@ import Foundation
 import os
 
 protocol LocalWhisperEngine: Sendable {
+    func prewarm() async throws
     func transcribe(
         samples: [Float],
         languageCode: String?,
@@ -11,6 +12,8 @@ protocol LocalWhisperEngine: Sendable {
 }
 
 enum LocalWhisperEngineFactory {
+    private static let sharedCache = SharedLocalWhisperEngineCache()
+
     nonisolated static var isRuntimeAvailable: Bool {
         #if canImport(whisper)
             true
@@ -19,28 +22,110 @@ enum LocalWhisperEngineFactory {
         #endif
     }
 
-    nonisolated static func makeEngine(modelURL: URL) throws -> any LocalWhisperEngine {
+    nonisolated static func acquireEngine(
+        modelURL: URL,
+        createEngine: () throws -> any LocalWhisperEngine
+    ) rethrows -> LocalWhisperEngineLease {
+        try sharedCache.acquireLease(for: modelURL, createEngine: createEngine)
+    }
+
+    nonisolated static func makeEngineLease(modelURL: URL) throws -> LocalWhisperEngineLease {
         #if canImport(whisper)
-            return WhisperCppLocalWhisperEngine(modelURL: modelURL)
+            return try acquireEngine(modelURL: modelURL) {
+                WhisperCppLocalWhisperEngine(modelURL: modelURL)
+            }
         #else
             throw LocalWhisperError.runtimeUnavailable
         #endif
     }
 }
 
-struct LocalWhisperTranscriptionService: AudioFileTranscriptionService {
-    private let engine: any LocalWhisperEngine
+private final class SharedLocalWhisperEngineCache: @unchecked Sendable {
+    private struct Entry {
+        var engine: any LocalWhisperEngine
+        var retainCount: Int
+    }
+
+    private let lock = NSLock()
+    private var entriesByModelPath: [String: Entry] = [:]
+
+    func acquireLease(
+        for modelURL: URL,
+        createEngine: () throws -> any LocalWhisperEngine
+    ) rethrows -> LocalWhisperEngineLease {
+        let modelPath = modelURL.standardizedFileURL.path
+
+        lock.lock()
+        defer { lock.unlock() }
+
+        if var cachedEntry = entriesByModelPath[modelPath] {
+            cachedEntry.retainCount += 1
+            entriesByModelPath[modelPath] = cachedEntry
+            return LocalWhisperEngineLease(
+                modelPath: modelPath,
+                engine: cachedEntry.engine,
+                cache: self
+            )
+        }
+
+        let engine = try createEngine()
+        entriesByModelPath[modelPath] = Entry(engine: engine, retainCount: 1)
+        return LocalWhisperEngineLease(modelPath: modelPath, engine: engine, cache: self)
+    }
+
+    func releaseLease(for modelPath: String) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard var entry = entriesByModelPath[modelPath] else { return }
+        entry.retainCount -= 1
+
+        if entry.retainCount <= 0 {
+            entriesByModelPath.removeValue(forKey: modelPath)
+        } else {
+            entriesByModelPath[modelPath] = entry
+        }
+    }
+}
+
+final class LocalWhisperEngineLease: @unchecked Sendable {
+    let engine: any LocalWhisperEngine
+
+    private let modelPath: String
+    private let cache: SharedLocalWhisperEngineCache
+
+    fileprivate init(
+        modelPath: String,
+        engine: any LocalWhisperEngine,
+        cache: SharedLocalWhisperEngineCache
+    ) {
+        self.modelPath = modelPath
+        self.engine = engine
+        self.cache = cache
+    }
+
+    deinit {
+        cache.releaseLease(for: modelPath)
+    }
+}
+
+final class LocalWhisperTranscriptionService: AudioFileTranscriptionService, @unchecked Sendable {
+    private let engineLease: LocalWhisperEngineLease
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "LocalWhisper")
 
-    nonisolated init(
+    init(
         modelManager: LocalWhisperModelManager,
-        engineFactory: @Sendable (URL) throws -> any LocalWhisperEngine = {
-            try LocalWhisperEngineFactory.makeEngine(modelURL: $0)
+        engineFactory: @Sendable (URL) throws -> LocalWhisperEngineLease = {
+            try LocalWhisperEngineFactory.makeEngineLease(modelURL: $0)
         }
     ) throws {
         let modelURL = try modelManager.resolvedModelURL()
-        self.engine = try engineFactory(modelURL)
+        self.engineLease = try engineFactory(modelURL)
+    }
+
+    func prewarm() async throws {
+        try await engineLease.engine.prewarm()
     }
 
     func transcribe(
@@ -67,7 +152,8 @@ struct LocalWhisperTranscriptionService: AudioFileTranscriptionService {
         let inferenceStartedAt = ProcessInfo.processInfo.systemUptime
         let transcript: String
         do {
-            transcript = try await engine.transcribe(
+            try await engineLease.engine.prewarm()
+            transcript = try await engineLease.engine.transcribe(
                 samples: samples,
                 languageCode: languageCode,
                 prompt: prompt
@@ -311,12 +397,16 @@ struct LocalWhisperTranscriptionService: AudioFileTranscriptionService {
             self.modelURL = modelURL
         }
 
+        func prewarm() async throws {
+            try await context.initializeModel(path: modelURL.path)
+        }
+
         func transcribe(
             samples: [Float],
             languageCode: String?,
             prompt: String?
         ) async throws -> String {
-            try await context.initializeModel(path: modelURL.path)
+            try await prewarm()
 
             guard await context.transcribe(samples: samples, languageCode: languageCode, prompt: prompt) else {
                 throw LocalWhisperError.transcriptionFailed

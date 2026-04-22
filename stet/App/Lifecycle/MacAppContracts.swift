@@ -28,7 +28,7 @@
         func dismissPendingCopy()
         func cancelActiveCapture()
         func performPrimaryAction()
-        func topUp()
+        func upgrade()
     }
 
     @MainActor

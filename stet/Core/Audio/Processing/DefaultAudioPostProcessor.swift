@@ -101,26 +101,35 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
             )
 
             if trimResult.didTrim {
-                do {
-                    let trimmedURL = try AudioM4AWriter.writeAACM4A(
-                        samples: trimResult.samples,
-                        sampleRate: trimmingSampleRate,
-                        filePrefix: "speech-trimmed"
-                    )
-                    currentURL = trimmedURL
-                    cleanupURLs.append(trimmedURL)
-                } catch {
-                    AppLogger.warning(
-                        "Falling back to wav because trimmed m4a output could not be written. error=\(error.localizedDescription)",
-                        category: .dictation
-                    )
+                #if os(macOS)
                     let trimmedURL = try AudioWavWriter.writePCM16MonoWav(
                         samples: trimResult.samples,
                         filePrefix: "speech-trimmed"
                     )
                     currentURL = trimmedURL
                     cleanupURLs.append(trimmedURL)
-                }
+                #else
+                    do {
+                        let trimmedURL = try AudioM4AWriter.writeAACM4A(
+                            samples: trimResult.samples,
+                            sampleRate: trimmingSampleRate,
+                            filePrefix: "speech-trimmed"
+                        )
+                        currentURL = trimmedURL
+                        cleanupURLs.append(trimmedURL)
+                    } catch {
+                        AppLogger.warning(
+                            "Falling back to wav because trimmed m4a output could not be written. error=\(error.localizedDescription)",
+                            category: .dictation
+                        )
+                        let trimmedURL = try AudioWavWriter.writePCM16MonoWav(
+                            samples: trimResult.samples,
+                            filePrefix: "speech-trimmed"
+                        )
+                        currentURL = trimmedURL
+                        cleanupURLs.append(trimmedURL)
+                    }
+                #endif
                 currentDuration = trimResult.duration
                 AppLogger.info(
                     "Audio post-processing trimmed silence. removedSeconds=\(String(format: "%.2f", trimResult.removedSeconds))",

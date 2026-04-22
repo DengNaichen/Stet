@@ -245,14 +245,14 @@ struct LogicPrimitiveTests {
             makeRelayTranscriptionService: { _, _, _ in
                 relay
             },
-            makeRelayRewriteService: { _, _ in
+            makeRelayRewriteService: { _, _, _ in
                 relayRewrite
             },
             makeRewriteService: { _, _ in
                 RecordingRewriteService()
             }
         )
-        let snapshot = makeSnapshot(mode: .managed)
+        let snapshot = makeSnapshot(mode: .managed, rewriteEnabled: true)
 
         let pipeline = try await factory.makePipeline(from: snapshot)
         let audioFileURL = try makeTemporaryWavURL()
@@ -278,6 +278,49 @@ struct LogicPrimitiveTests {
         #expect(await relay.callCount == 0)
         #expect(await relayRewrite.recordedRequests().count == 1)
         #expect(pipeline.usesAudienceAwareLocalPrompts == true)
+    }
+
+    @Test func makePipelinePassesFreshRelayAuthenticationProviderToRewriteService() async throws {
+        let local = RecordingTranscriptionService(result: "local")
+        let relay = RecordingTranscriptionService(result: "unused relay")
+        var authRequestCount = 0
+        var capturedAuthentication: RelayAuthenticationContext?
+        var capturedAuthenticationProvider: (@Sendable () async -> RelayAuthenticationContext?)?
+
+        let factory = DictationPipelineFactory(
+            relayAuthenticationContext: {
+                authRequestCount += 1
+                return RelayAuthenticationContext(
+                    functionsBaseURL: URL(string: "https://example.supabase.co/functions/v1")!,
+                    publishableKey: "anon-key",
+                    accessToken: authRequestCount == 1 ? "stale-access-token" : "fresh-access-token"
+                )
+            },
+            makeLocalTranscriptionService: {
+                local
+            },
+            makeRelayTranscriptionService: { _, _, _ in
+                relay
+            },
+            makeRelayRewriteService: { authentication, authenticationProvider, _ in
+                capturedAuthentication = authentication
+                capturedAuthenticationProvider = authenticationProvider
+                return RecordingRewriteService()
+            },
+            makeRewriteService: { _, _ in
+                RecordingRewriteService()
+            }
+        )
+
+        let pipeline = try await factory.makePipeline(
+            from: makeSnapshot(mode: .managed, rewriteEnabled: true)
+        )
+        _ = pipeline
+
+        let refreshedAuthentication = await capturedAuthenticationProvider?()
+
+        #expect(capturedAuthentication?.accessToken == "stale-access-token")
+        #expect(refreshedAuthentication?.accessToken == "fresh-access-token")
     }
 
     @Test func makePipelineUsesConfiguredLanguageModeForTranscriptionAndCleanup() async throws {

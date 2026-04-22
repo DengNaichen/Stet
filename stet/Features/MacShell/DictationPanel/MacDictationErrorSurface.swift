@@ -31,9 +31,9 @@
                             onFinish()
                         }) {
                             HStack(spacing: 6) {
-                                Image(systemName: "creditcard.fill")
+                                Image(systemName: "crown.fill")
                                     .font(.system(size: 11, weight: .bold))
-                                Text("Top Up")
+                                Text("Upgrade")
                                     .font(.system(size: 11, weight: .heavy, design: .rounded))
                             }
                             .foregroundStyle(.white)

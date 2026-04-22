@@ -67,26 +67,37 @@ struct AuthView: View {
                         .font(.system(.body, design: .monospaced))
                 }
 
-                MacSettingsValueRow(title: "Status") {
-                    MacSettingsStatusBadge(text: "Active", tint: .green)
+                MacSettingsValueRow(title: "Plan") {
+                    HStack(spacing: 8) {
+                        if let tier = viewModel.subscriptionTier {
+                            MacSettingsStatusBadge(
+                                text: tier.uppercased(),
+                                tint: tier.lowercased() == "pro" ? .purple : .secondary
+                            )
+                        } else {
+                            ProgressView().controlSize(.mini)
+                        }
+
+                        if viewModel.subscriptionTier?.lowercased() == "free" {
+                            Button("Upgrade") {
+                                Task { await viewModel.upgrade() }
+                            }
+                            .controlSize(.small)
+                            .disabled(viewModel.isLoading)
+                        }
+                    }
                 }
 
-                MacSettingsValueRow(title: "Balance") {
-                    HStack(spacing: 8) {
-                        if let credits = viewModel.balanceCredits {
-                            Text("~\(formattedHourMin(creditsToSeconds(credits))) remaining")
-                                .font(.system(.body))
-                                .foregroundStyle(credits > 0 ? Color.primary : Color.red)
-                        } else {
-                            ProgressView()
-                                .controlSize(.mini)
-                        }
-
-                        Button("Top Up") {
-                            Task { await viewModel.topUp() }
-                        }
-                        .controlSize(.small)
-                        .disabled(viewModel.isLoading)
+                MacSettingsValueRow(title: "Usage") {
+                    if viewModel.subscriptionTier?.lowercased() == "pro" {
+                        Text("Unlimited")
+                            .font(.system(.body))
+                    } else if let usage = viewModel.currentUsage, let limit = viewModel.currentLimit {
+                        Text("\(formattedWordCount(usage)) / \(formattedWordCount(limit)) words used")
+                            .font(.system(.body))
+                    } else {
+                        Text("---")
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -96,7 +107,7 @@ struct AuthView: View {
 
                 feedbackView
 
-                communityRow
+                 communityRow
 
                 HStack {
                     Button("Done") {
@@ -219,12 +230,6 @@ struct AuthView: View {
     }
 
     // MARK: - Formatters
-
-    private func creditsToSeconds(_ credits: Int) -> TimeInterval {
-        // Rate: ($0.20 USD/hr ÷ 3600) × 1,000,000 credits/USD ≈ 55.56 credits/sec
-        let creditsPerSecond = (0.20 / 3600.0) * 1_000_000.0
-        return max(0, Double(credits) / creditsPerSecond)
-    }
 
     private func formattedHourMin(_ seconds: TimeInterval) -> String {
         let totalMinutes = Int(seconds) / 60

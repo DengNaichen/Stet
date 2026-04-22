@@ -8,7 +8,7 @@ enum StetLinks {
     // static let topUp = URL(string: "https://buy.stripe.com/test_bJebJ0crTf7c1pMaUH9oc00")!
 
     /// Default Stripe Price ID for top-ups
-    static let defaultPriceID = "price_1TO8GCBs8GxbN43XxLy3dGOL"
+    static let defaultPriceID = "price_1TOqXYBs8GxbN43Xx4mhBvhP"
 
     /// Community and social links
     static let discord = URL(string: "https://discord.gg/BKcYVAEK")!

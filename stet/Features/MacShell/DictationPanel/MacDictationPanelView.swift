@@ -28,7 +28,7 @@
                         text: failure.surfaceErrorMessage,
                         isInsufficientFunds: failure.isInsufficientFunds,
                         layout: layout,
-                        onTopUp: { viewModel.topUp() },
+                        onTopUp: { viewModel.upgrade() },
                         onFinish: { viewModel.hidePanel() }
                     )
                 } else {
