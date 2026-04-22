@@ -71,7 +71,7 @@
                 defaults.string(forKey: MacPreferences.dictationLanguageMode)
                     == DictationLanguageMode.automatic.rawValue)
             #expect(defaults.object(forKey: MacPreferences.hotkeyDistinguishModifierSides) as? Bool == false)
-            #expect(defaults.bool(forKey: MacPreferences.launchAtLogin) == false)
+            #expect(defaults.bool(forKey: MacPreferences.launchAtLogin))
         }
 
         @Test func prepareForLaunchResetsLegacyInteractionSoundPresetToDefault() {

@@ -5,6 +5,7 @@ DerivedData/
 .derivedData/
 build/
 .build/
+.deps/
 dist/
 Packages/
 *.swiftpm/

@@ -30,28 +30,31 @@ struct DictationPipelineFactory: Sendable {
     init(
         relayAuthenticationContext: @escaping @Sendable () async -> RelayAuthenticationContext?,
         makeLocalTranscriptionService: @escaping @Sendable () throws -> any AudioFileTranscriptionService,
-        makeRelayTranscriptionService: @escaping @Sendable (
-            RelayAuthenticationContext,
-            URLSession,
-            [String]
-        ) -> any AudioFileTranscriptionService = { _, _, _ in
-            preconditionFailure("Managed relay transcription is no longer used.")
-        },
-        makeRelayRewriteService: @escaping @Sendable (
-            RelayAuthenticationContext,
-            @escaping @Sendable () async -> RelayAuthenticationContext?,
-            URLSession
-        ) -> any TextRewriteService = { authentication, authenticationProvider, session in
-            RelayTextRewriteService(
-                authentication: authentication,
-                authenticationProvider: authenticationProvider,
-                session: session
-            )
-        },
-        makeRewriteService: @escaping @Sendable (
-            RewriteProviderConfiguration,
-            URLSession
-        ) -> any TextRewriteService
+        makeRelayTranscriptionService:
+            @escaping @Sendable (
+                RelayAuthenticationContext,
+                URLSession,
+                [String]
+            ) -> any AudioFileTranscriptionService = { _, _, _ in
+                preconditionFailure("Managed relay transcription is no longer used.")
+            },
+        makeRelayRewriteService:
+            @escaping @Sendable (
+                RelayAuthenticationContext,
+                @escaping @Sendable () async -> RelayAuthenticationContext?,
+                URLSession
+            ) -> any TextRewriteService = { authentication, authenticationProvider, session in
+                RelayTextRewriteService(
+                    authentication: authentication,
+                    authenticationProvider: authenticationProvider,
+                    session: session
+                )
+            },
+        makeRewriteService:
+            @escaping @Sendable (
+                RewriteProviderConfiguration,
+                URLSession
+            ) -> any TextRewriteService
     ) {
         self.relayAuthenticationContext = relayAuthenticationContext
         self.makeLocalTranscriptionService = makeLocalTranscriptionService

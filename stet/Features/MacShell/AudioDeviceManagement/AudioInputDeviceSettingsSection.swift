@@ -17,7 +17,6 @@
                     }
                 }
 
-
                 MicrophoneTestView(viewModel: microphoneTestViewModel)
             }
             .onAppear {

@@ -26,7 +26,6 @@
                 Section {
                     Toggle("Enable Personal Dictionary", isOn: isEnabledBinding)
 
-
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Add names, brands, jargon, or phrases")
                             .font(.subheadline)

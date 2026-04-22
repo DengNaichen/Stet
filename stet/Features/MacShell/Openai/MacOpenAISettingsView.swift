@@ -40,7 +40,7 @@
                         Text("Stet account provides high-quality AI features without needing your own API keys.")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
-                        
+
                         Button("Manage Account") {
                             onManageAccount?()
                         }
@@ -88,7 +88,7 @@
                         Text("Use a local Whisper model for offline transcription.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
-                            
+
                         HStack(spacing: 12) {
                             Button("Reveal in Finder") {
                                 viewModel.openLocalWhisperFolder()

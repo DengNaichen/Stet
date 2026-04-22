@@ -420,7 +420,8 @@ private final class ProgressReportingDownloadCoordinator: NSObject, URLSessionDo
         self.requestURL = requestURL
         self.progressSink = progressSink
         self.stagedDownloadURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("Stet-LocalWhisper-\(UUID().uuidString)-\(requestURL.lastPathComponent)", isDirectory: false)
+            .appendingPathComponent(
+                "Stet-LocalWhisper-\(UUID().uuidString)-\(requestURL.lastPathComponent)", isDirectory: false)
     }
 
     func download() async throws -> URL {
@@ -445,7 +446,8 @@ private final class ProgressReportingDownloadCoordinator: NSObject, URLSessionDo
         totalBytesWritten: Int64,
         totalBytesExpectedToWrite: Int64
     ) {
-        let fraction = totalBytesExpectedToWrite > 0
+        let fraction =
+            totalBytesExpectedToWrite > 0
             ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
             : 0
         progressSink.update(

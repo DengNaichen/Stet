@@ -87,7 +87,7 @@ struct LogicPrimitiveTests {
         )
 
         let route = try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
-        
+
         switch route {
         case .direct(let direct):
             #expect(direct.rewriteEnabled == false)

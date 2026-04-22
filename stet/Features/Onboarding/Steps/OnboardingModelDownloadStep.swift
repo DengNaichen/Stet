@@ -15,10 +15,11 @@
                     .frame(maxWidth: .infinity)
 
                 Spacer()
-                
+
                 OnboardingActionButton(
                     title: viewModel.localWhisperDownloadPrimaryButtonTitle,
-                    isEnabled: viewModel.canContinueLocalWhisperDownload || viewModel.localWhisperDownloadState == .idle || viewModel.isLocalWhisperDownloadFailed, 
+                    isEnabled: viewModel.canContinueLocalWhisperDownload || viewModel.localWhisperDownloadState == .idle
+                        || viewModel.isLocalWhisperDownloadFailed,
                     minHeight: 52,
                     isCentered: true
                 ) {
@@ -29,8 +30,6 @@
             }
             .padding(.bottom, 20)
         }
-
-
 
     }
 

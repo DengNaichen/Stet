@@ -107,7 +107,7 @@ struct AuthView: View {
 
                 feedbackView
 
-                 communityRow
+                communityRow
 
                 HStack {
                     Button("Done") {

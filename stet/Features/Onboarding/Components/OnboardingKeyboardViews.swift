@@ -211,7 +211,7 @@
                     .foregroundStyle(.primary.opacity(0.8))
             }
             .onReceive(timer) { _ in
-                // Animation sequence: 
+                // Animation sequence:
                 // 0: All up
                 // 1: Command down
                 // 2: Command + Dot down

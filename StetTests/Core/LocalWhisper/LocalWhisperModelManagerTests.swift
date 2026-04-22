@@ -162,7 +162,9 @@
             )
 
             var reportedProgress: [Double] = []
-            try await manager.installDefaultModel(downloadProgress: { fraction, _, _ in reportedProgress.append(fraction) })
+            try await manager.installDefaultModel(downloadProgress: { fraction, _, _ in
+                reportedProgress.append(fraction)
+            })
 
             #expect(try manager.defaultModelReady())
             #expect(reportedProgress.contains(0.15))

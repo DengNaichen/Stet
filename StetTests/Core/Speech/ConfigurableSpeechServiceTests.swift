@@ -138,7 +138,7 @@ struct ConfigurableSpeechServiceTests {
         }
     }
 
-    @Test func byokWithoutSessionRequiresOpenAIAPIKey() async {
+    @Test func byokWithoutSessionAllowsLocalTranscriptionWhenRewriteIsDisabled() async throws {
         let defaults = TestSupport.makeUserDefaults()
         defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.transcriptionProvider)
 
@@ -155,13 +155,8 @@ struct ConfigurableSpeechServiceTests {
             captureService: TestAudioCaptureService(audioFileURL: makeAudioFileURL())
         )
 
-        await #expect(
-            throws: ProviderConfigurationError.missingRequirements([
-                ProviderConfigurationRequirement(step: .rewrite, provider: .openAI)
-            ])
-        ) {
-            try await service.startRecording()
-        }
+        try await service.startRecording()
+        await service.cancelRecording()
     }
 
     @Test func managedModeRequiresAuthenticatedSession() async throws {
@@ -794,10 +789,9 @@ struct ConfigurableSpeechServiceTests {
 
         try await service.startRecording()
 
-        await #expect(throws: TestError.expected) {
-            try await service.stopRecording()
-        }
+        let result = try await service.stopRecording()
 
+        #expect(result == "processed transcript")
         #expect(!FileManager.default.fileExists(atPath: processedAudioURL.path))
         #expect(await direct.callCount() == 1)
         #expect(await rewrite.recordedRequests().count == 1)
@@ -848,6 +842,7 @@ struct ConfigurableSpeechServiceTests {
         await relayRewrite.setResult("relay rewrite")
         let (store, _, _) = try makeSettingsStore(
             executionMode: .managed,
+            rewriteEnabled: true,
             preferredSpellings: ["OpenAI", "Groq"]
         )
         let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
@@ -861,6 +856,7 @@ struct ConfigurableSpeechServiceTests {
                 makeRelayRewriteService: { _, _, _ in relayRewrite },
                 makeRewriteService: { _, _ in byokRewrite }
             ),
+            audienceProvider: { .ai },
             captureService: capture
         )
 
@@ -887,7 +883,10 @@ struct ConfigurableSpeechServiceTests {
         let byokRewrite = RecordingRewriteService()
         let relayRewrite = RecordingRewriteService()
         await relayRewrite.setError(TestError.expected)
-        let (store, _, _) = try makeSettingsStore(executionMode: .managed)
+        let (store, _, _) = try makeSettingsStore(
+            executionMode: .managed,
+            rewriteEnabled: true
+        )
         let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
 
         let service = ConfigurableSpeechService(
@@ -899,14 +898,14 @@ struct ConfigurableSpeechServiceTests {
                 makeRelayRewriteService: { _, _, _ in relayRewrite },
                 makeRewriteService: { _, _ in byokRewrite }
             ),
+            audienceProvider: { .ai },
             captureService: capture
         )
 
         try await service.startRecording()
-        await #expect(throws: TestError.expected) {
-            try await service.stopRecording()
-        }
+        let result = try await service.stopRecording()
 
+        #expect(result == "source")
         #expect(await direct.callCount() == 1)
         #expect(await relay.callCount() == 0)
         #expect(await byokRewrite.recordedRequests().isEmpty)
@@ -942,6 +941,7 @@ struct ConfigurableSpeechServiceTests {
                 makeRelayRewriteService: { _, _, _ in relayRewrite },
                 makeRewriteService: { _, _ in byokRewrite }
             ),
+            audienceProvider: { .ai },
             captureService: capture
         )
 
@@ -1039,10 +1039,9 @@ struct ConfigurableSpeechServiceTests {
         try await service.startRecording()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
 
-        await #expect(throws: TestError.expected) {
-            try await service.stopRecording()
-        }
+        let result = try await service.stopRecording()
 
+        #expect(result == "source")
         #expect(await direct.callCount() == 1)
         #expect(await rewrite.recordedRequests().count == 1)
     }

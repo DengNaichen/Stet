@@ -243,8 +243,9 @@ struct RelayTextRewriteService: TextRewriteService {
     }
 
     private static func responsePreview(from data: Data) -> String {
-        guard let text = String(data: data, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
+        guard
+            let text = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
             !text.isEmpty
         else {
             return "The relay returned an empty error response."

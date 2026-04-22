@@ -231,7 +231,7 @@
                     // 2. Main color tile
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
                         .fill(tab.iconColor.gradient)
-                    
+
                     // 3. Highlight border
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
                         .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
@@ -243,7 +243,7 @@
                         .shadow(color: Color.black.opacity(0.05), radius: 0, x: 0, y: 0.5)
                 }
                 .frame(width: 20, height: 20)
-                
+
                 Text(tab.title)
                     .font(.system(size: 13))
                     .foregroundStyle(.primary)

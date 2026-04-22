@@ -255,7 +255,9 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                     )
                 }
             } catch {
-                AppLogger.error("Rewrite failed: \(error.localizedDescription). Falling back to raw transcript.", category: .dictation)
+                AppLogger.error(
+                    "Rewrite failed: \(error.localizedDescription). Falling back to raw transcript.",
+                    category: .dictation)
                 finalTranscript = intermediateTranscript
             }
 

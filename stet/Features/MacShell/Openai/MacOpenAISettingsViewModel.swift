@@ -135,7 +135,7 @@
             case stet
             case openAI
             case groq
-            
+
             var id: String { rawValue }
             var displayName: String {
                 switch self {
