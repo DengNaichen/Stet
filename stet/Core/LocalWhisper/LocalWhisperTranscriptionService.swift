@@ -44,9 +44,18 @@ enum LocalWhisperEngineFactory {
     }
 }
 
-private final class SharedLocalWhisperEngineCache: @unchecked Sendable {
+final class SharedLocalWhisperEngineCache: @unchecked Sendable {
+    private struct Entry {
+        let engine: any LocalWhisperEngine
+        var activeLeaseCount: Int
+    }
+
     private let lock = NSLock()
-    private var entriesByModelPath: [String: any LocalWhisperEngine] = [:]
+    private var entriesByModelPath: [String: Entry] = [:]
+
+    deinit {
+        invalidateAll()
+    }
 
     func acquireLease(
         for modelURL: URL,
@@ -57,29 +66,47 @@ private final class SharedLocalWhisperEngineCache: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        if let cachedEngine = entriesByModelPath[modelPath] {
+        if var entry = entriesByModelPath[modelPath] {
+            entry.activeLeaseCount += 1
+            entriesByModelPath[modelPath] = entry
             return LocalWhisperEngineLease(
                 modelPath: modelPath,
-                engine: cachedEngine,
+                engine: entry.engine,
                 cache: self
             )
         }
 
         let engine = try createEngine()
-        entriesByModelPath[modelPath] = engine
+        entriesByModelPath[modelPath] = Entry(
+            engine: engine,
+            activeLeaseCount: 1
+        )
         return LocalWhisperEngineLease(modelPath: modelPath, engine: engine, cache: self)
     }
 
     func releaseLease(for modelPath: String) {
-        // Intentionally keep the shared engine alive after transient services
-        // release their leases. This matches the long-lived shared-context model
-        // used by VoiceInk and avoids repeated cold starts.
+        lock.lock()
+        guard var entry = entriesByModelPath[modelPath] else {
+            lock.unlock()
+            return
+        }
+
+        if entry.activeLeaseCount > 0 {
+            entry.activeLeaseCount -= 1
+        }
+
+        if entry.activeLeaseCount == 0 {
+            entriesByModelPath.removeValue(forKey: modelPath)
+        } else {
+            entriesByModelPath[modelPath] = entry
+        }
+        lock.unlock()
     }
 
     func invalidateAll() {
         lock.lock()
-        defer { lock.unlock() }
         entriesByModelPath.removeAll()
+        lock.unlock()
     }
 }
 
@@ -105,21 +132,25 @@ final class LocalWhisperEngineLease: @unchecked Sendable {
 }
 
 final class LocalWhisperTranscriptionService: AudioFileTranscriptionService, @unchecked Sendable {
-    private let engineLease: LocalWhisperEngineLease
+    private let engineLeaseSource: LocalWhisperEngineLeaseSource
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "LocalWhisper")
 
     init(
         modelManager: LocalWhisperModelManager,
-        engineFactory: @Sendable (URL) throws -> LocalWhisperEngineLease = {
+        engineFactory: @escaping @Sendable (URL) throws -> LocalWhisperEngineLease = {
             try LocalWhisperEngineFactory.makeEngineLease(modelURL: $0)
         }
     ) throws {
         let modelURL = try modelManager.resolvedModelURL()
-        self.engineLease = try engineFactory(modelURL)
+        self.engineLeaseSource = LocalWhisperEngineLeaseSource(
+            modelURL: modelURL,
+            engineFactory: engineFactory
+        )
     }
 
     func prewarm() async throws {
+        let engineLease = try await engineLeaseSource.engineLease()
         try await engineLease.engine.prewarm()
     }
 
@@ -147,6 +178,7 @@ final class LocalWhisperTranscriptionService: AudioFileTranscriptionService, @un
         let inferenceStartedAt = ProcessInfo.processInfo.systemUptime
         let transcript: String
         do {
+            let engineLease = try await engineLeaseSource.engineLease()
             try await engineLease.engine.prewarm()
             transcript = try await engineLease.engine.transcribe(
                 samples: samples,
@@ -257,6 +289,30 @@ final class LocalWhisperTranscriptionService: AudioFileTranscriptionService, @un
 
         let frames = Int(outputBuffer.frameLength)
         return Array(UnsafeBufferPointer(start: channelData[0], count: frames))
+    }
+}
+
+private actor LocalWhisperEngineLeaseSource {
+    private let modelURL: URL
+    private let engineFactory: @Sendable (URL) throws -> LocalWhisperEngineLease
+    private var cachedLease: LocalWhisperEngineLease?
+
+    init(
+        modelURL: URL,
+        engineFactory: @escaping @Sendable (URL) throws -> LocalWhisperEngineLease
+    ) {
+        self.modelURL = modelURL
+        self.engineFactory = engineFactory
+    }
+
+    func engineLease() throws -> LocalWhisperEngineLease {
+        if let cachedLease {
+            return cachedLease
+        }
+
+        let newLease = try engineFactory(modelURL)
+        cachedLease = newLease
+        return newLease
     }
 }
 

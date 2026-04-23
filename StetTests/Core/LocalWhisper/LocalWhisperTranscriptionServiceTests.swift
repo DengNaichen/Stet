@@ -4,7 +4,7 @@
 
     @testable import Stet
 
-    @Suite("Local Whisper Transcription Service")
+    @Suite("Local Whisper Transcription Service", .serialized)
     struct LocalWhisperTranscriptionServiceTests {
         @Test func acquiredEngineReusesSingleInstancePerModelPath() throws {
             LocalWhisperEngineFactory.invalidateSharedEngines()
@@ -56,7 +56,7 @@
             #expect(firstEngine !== secondEngine)
         }
 
-        @Test func releasedLeaseStillReusesSharedEngine() throws {
+        @Test func releasedLeaseRemovesSharedEngineWhenSessionEnds() throws {
             LocalWhisperEngineFactory.invalidateSharedEngines()
             let modelURL = TestSupport.temporaryFileURL("local-whisper-model-release", ext: "bin")
             let createdEngines = CreatedEngines()
@@ -78,8 +78,8 @@
 
             let created = createdEngines.snapshot()
             let recreatedEngine = try #require(recreatedLease.engine as? StubLocalWhisperEngine)
-            #expect(created.count == 1)
-            #expect(recreatedEngine === created[0])
+            #expect(created.count == 2)
+            #expect(recreatedEngine === created[1])
         }
 
         @Test func invalidatingSharedEnginesAllowsRecreation() throws {
@@ -106,6 +106,71 @@
             let recreatedEngine = try #require(recreatedLease.engine as? StubLocalWhisperEngine)
             #expect(created.count == 2)
             #expect(recreatedEngine === created[1])
+        }
+
+        @Test func serviceInitializationDefersEngineCreationUntilFirstUse() async throws {
+            LocalWhisperEngineFactory.invalidateSharedEngines()
+            let modelsDirectoryURL = TestSupport.temporaryDirectoryURL()
+            try FileManager.default.createDirectory(at: modelsDirectoryURL, withIntermediateDirectories: true)
+            let modelURL = modelsDirectoryURL.appendingPathComponent(LocalWhisperModelDescriptor.default.fileName)
+            try Data("model".utf8).write(to: modelURL)
+            let createdEngines = CreatedEngines()
+
+            let service = try LocalWhisperTranscriptionService(
+                modelManager: LocalWhisperModelManager(
+                    modelsDirectoryProvider: { modelsDirectoryURL },
+                    runtimeAvailableProvider: { true },
+                    customPathProvider: { nil }
+                ),
+                engineFactory: { url in
+                    try LocalWhisperEngineFactory.acquireEngine(modelURL: url) {
+                        let engine = StubLocalWhisperEngine()
+                        createdEngines.append(engine)
+                        return engine
+                    }
+                }
+            )
+
+            #expect(createdEngines.snapshot().isEmpty)
+
+            try await service.prewarm()
+
+            let created = createdEngines.snapshot()
+            #expect(created.count == 1)
+        }
+
+        @Test func activeLeaseKeepsSharedEngineAliveUntilLastRelease() throws {
+            LocalWhisperEngineFactory.invalidateSharedEngines()
+            let modelURL = TestSupport.temporaryFileURL("local-whisper-model-active-lease", ext: "bin")
+            let createdEngines = CreatedEngines()
+
+            let firstLease = try LocalWhisperEngineFactory.acquireEngine(modelURL: modelURL) {
+                let engine = StubLocalWhisperEngine()
+                createdEngines.append(engine)
+                return engine
+            }
+
+            do {
+                let secondLease = try LocalWhisperEngineFactory.acquireEngine(modelURL: modelURL) {
+                    let engine = StubLocalWhisperEngine()
+                    createdEngines.append(engine)
+                    return engine
+                }
+                _ = secondLease
+            }
+
+            let reusedLease = try LocalWhisperEngineFactory.acquireEngine(modelURL: modelURL) {
+                let engine = StubLocalWhisperEngine()
+                createdEngines.append(engine)
+                return engine
+            }
+
+            let created = createdEngines.snapshot()
+            let firstEngine = try #require(firstLease.engine as? StubLocalWhisperEngine)
+            let reusedEngine = try #require(reusedLease.engine as? StubLocalWhisperEngine)
+            #expect(created.count == 1)
+            #expect(firstEngine === created[0])
+            #expect(reusedEngine === created[0])
         }
     }
 
