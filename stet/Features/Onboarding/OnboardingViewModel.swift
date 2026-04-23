@@ -183,10 +183,6 @@
                     return "Checking..."
                 case .downloadingModel:
                     return "Downloading..."
-                case .downloadingEncoder:
-                    return "Finishing up..."
-                case .extractingEncoder, .warmingUp:
-                    return "Finishing up..."
                 case .ready:
                     return "Continue"
                 }
@@ -221,10 +217,6 @@
                     return "Working..."
                 case .downloadingModel:
                     return "Downloading..."
-                case .downloadingEncoder:
-                    return "Almost there."
-                case .extractingEncoder, .warmingUp:
-                    return "Almost there."
                 case .ready:
                     return "You're set."
                 }
@@ -245,12 +237,6 @@
                     return 0.04
                 case .downloadingModel:
                     return localWhisperDownloadFraction
-                case .downloadingEncoder:
-                    return 0.90
-                case .extractingEncoder:
-                    return 0.96
-                case .warmingUp:
-                    return 0.99
                 case .ready:
                     return 1.0
                 }
@@ -281,12 +267,6 @@
                     } else {
                         return percentage > 0 ? "Downloading \(percentage)%" : "Downloading"
                     }
-                case .downloadingEncoder:
-                    return "Finishing up"
-                case .extractingEncoder:
-                    return "Finishing up"
-                case .warmingUp:
-                    return "Optimizing"
                 case .ready:
                     return "Done"
                 }
@@ -307,8 +287,6 @@
                     return "Preparing"
                 case .ready:
                     return "Ready"
-                case .warmingUp:
-                    return "Optimizing"
                 default:
                     return "Downloading"
                 }
@@ -322,11 +300,6 @@
         var localWhisperExpectedModelPath: String {
             (try? localWhisperModelManager.defaultModelURL().path)
                 ?? "Unable to resolve Local Whisper model path."
-        }
-
-        var localWhisperExpectedEncoderPath: String {
-            (try? localWhisperModelManager.defaultEncoderDirectoryURL().path)
-                ?? "Unable to resolve Local Whisper encoder path."
         }
 
         var canContinueLocalWhisperDownload: Bool {
@@ -400,10 +373,10 @@
             do {
                 localWhisperDownloadFraction = 0
                 if try localWhisperModelManager.defaultModelReady() {
+                    try localWhisperModelManager.removeDefaultEncoderIfPresent()
                     LocalWhisperModelManager.saveCustomModelPath(nil)
                     localWhisperDownloadFraction = 1
                     localWhisperDownloadState = .ready(modelPath: try localWhisperModelManager.defaultModelURL().path)
-                    localWhisperModelManager.installDefaultEncoderInBackground()
                     return
                 }
 
@@ -427,7 +400,7 @@
                 localWhisperDownloadFraction = 1
                 localWhisperDownloadState = .ready(modelPath: try localWhisperModelManager.defaultModelURL().path)
 
-                // Trigger proactive high-priority background warm-up & encoder install
+                // Trigger proactive high-priority background warm-up.
                 // This shouldn't block the user from moving to the next onboarding steps.
                 Task.detached(priority: .userInitiated) { [localWhisperModelManager] in
                     try? await localWhisperModelManager.installDefaultAssets()

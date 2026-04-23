@@ -286,8 +286,7 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
                 return .localWhisperRuntimeUnavailable
             case .modelMissing(let expectedURL):
                 return .localWhisperModelMissing(expectedPath: expectedURL.path)
-            case .audioPreparationFailed, .transcriptionFailed, .downloadFailed, .invalidDownloadResponse,
-                .archiveExtractionFailed:
+            case .audioPreparationFailed, .transcriptionFailed, .downloadFailed, .invalidDownloadResponse:
                 return .unknown(message: localWhisperError.localizedDescription)
             }
         }

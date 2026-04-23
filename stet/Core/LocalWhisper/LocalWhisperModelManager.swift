@@ -21,9 +21,6 @@ struct LocalWhisperModelDescriptor: Sendable, Equatable {
 enum LocalWhisperDownloadStage: String, Sendable {
     case checkingExistingAssets
     case downloadingModel
-    case downloadingEncoder
-    case extractingEncoder
-    case warmingUp
     case ready
 }
 
@@ -41,7 +38,6 @@ enum LocalWhisperError: LocalizedError, Equatable, Sendable {
     case transcriptionFailed
     case downloadFailed(URL)
     case invalidDownloadResponse(URL, statusCode: Int?)
-    case archiveExtractionFailed
 
     nonisolated var errorDescription: String? {
         switch self {
@@ -63,8 +59,6 @@ enum LocalWhisperError: LocalizedError, Equatable, Sendable {
                 return "Local Whisper asset download failed with status \(statusCode) for \(url.absoluteString)."
             }
             return "Local Whisper asset download returned an invalid response for \(url.absoluteString)."
-        case .archiveExtractionFailed:
-            return "Stet could not extract the Local Whisper encoder archive."
         }
     }
 }
@@ -72,9 +66,6 @@ enum LocalWhisperError: LocalizedError, Equatable, Sendable {
 struct LocalWhisperModelManager: Sendable {
     nonisolated static let defaultModelDownloadURL = URL(
         string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin"
-    )!
-    nonisolated static let defaultEncoderArchiveDownloadURL = URL(
-        string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-encoder.mlmodelc.zip"
     )!
     nonisolated static let defaultEncoderDirectoryName = "ggml-large-v3-turbo-encoder.mlmodelc"
 
@@ -84,15 +75,13 @@ struct LocalWhisperModelManager: Sendable {
     /// Optional absolute path override stored in UserDefaults.
     private let customPathProvider: @Sendable () -> String?
     private let downloadProvider: @Sendable (URL, LocalWhisperDownloadProgressSink) async throws -> URL
-    private let archiveExtractor: @Sendable (URL, URL) throws -> Void
 
     nonisolated init(
         model: LocalWhisperModelDescriptor = .default,
         modelsDirectoryProvider: (@Sendable () throws -> URL)? = nil,
         runtimeAvailableProvider: (@Sendable () -> Bool)? = nil,
         customPathProvider: (@Sendable () -> String?)? = nil,
-        downloadProvider: (@Sendable (URL, LocalWhisperDownloadProgressSink) async throws -> URL)? = nil,
-        archiveExtractor: (@Sendable (URL, URL) throws -> Void)? = nil
+        downloadProvider: (@Sendable (URL, LocalWhisperDownloadProgressSink) async throws -> URL)? = nil
     ) {
         self.model = model
         self.modelsDirectoryProvider =
@@ -117,17 +106,6 @@ struct LocalWhisperModelManager: Sendable {
             customPathProvider
             ?? { UserDefaults.standard.string(forKey: MacPreferences.localWhisperModelPath) }
         self.downloadProvider = downloadProvider ?? Self.defaultDownloadProvider
-        self.archiveExtractor =
-            archiveExtractor ?? { archiveURL, destinationDirectoryURL in
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-                process.arguments = ["-x", "-k", archiveURL.path, destinationDirectoryURL.path]
-                try process.run()
-                process.waitUntilExit()
-                guard process.terminationStatus == 0 else {
-                    throw LocalWhisperError.archiveExtractionFailed
-                }
-            }
     }
 
     /// Saves a custom model path to UserDefaults.
@@ -180,6 +158,7 @@ struct LocalWhisperModelManager: Sendable {
     nonisolated func resolvedModelURL() throws -> URL {
         switch try status() {
         case .ready(let localURL):
+            try removeDefaultEncoderIfNeeded(for: localURL)
             return localURL
         case .missing(let expectedURL):
             throw LocalWhisperError.modelMissing(expectedURL: expectedURL)
@@ -220,7 +199,7 @@ struct LocalWhisperModelManager: Sendable {
     }
 
     nonisolated func defaultAssetsReady() throws -> Bool {
-        try defaultModelReady() && defaultEncoderReady()
+        try defaultModelReady() && !defaultEncoderReady()
     }
 
     nonisolated func installDefaultModel(
@@ -230,6 +209,7 @@ struct LocalWhisperModelManager: Sendable {
         progress(.checkingExistingAssets)
 
         if try defaultModelReady() {
+            try removeDefaultEncoderIfPresent()
             downloadProgress(1.0, 0, 0)
             progress(.ready)
             return
@@ -244,56 +224,9 @@ struct LocalWhisperModelManager: Sendable {
             try fileManager.removeItem(at: destinationURL)
         }
         try fileManager.moveItem(at: downloadedModelURL, to: destinationURL)
+        try removeDefaultEncoderIfPresent()
 
         progress(.ready)
-    }
-
-    nonisolated func installDefaultEncoder(
-        progress: @Sendable (LocalWhisperDownloadStage) -> Void = { _ in }
-    ) async throws {
-        progress(.checkingExistingAssets)
-
-        if try defaultEncoderReady() {
-            progress(.ready)
-            return
-        }
-
-        let modelsDirectoryURL = try ensureModelsDirectoryExists()
-        let encoderDirectoryURL = try defaultEncoderDirectoryURL()
-        let encoderArchiveURL = modelsDirectoryURL.appendingPathComponent(
-            Self.defaultEncoderArchiveDownloadURL.lastPathComponent,
-            isDirectory: false
-        )
-
-        progress(.downloadingEncoder)
-        let downloadedArchiveURL = try await downloadProvider(
-            Self.defaultEncoderArchiveDownloadURL,
-            LocalWhisperDownloadProgressSink(handler: { _, _, _ in })
-        )
-        try installDownloadedItem(at: downloadedArchiveURL, to: encoderArchiveURL)
-
-        defer {
-            try? FileManager.default.removeItem(at: encoderArchiveURL)
-        }
-
-        if FileManager.default.fileExists(atPath: encoderDirectoryURL.path) {
-            try FileManager.default.removeItem(at: encoderDirectoryURL)
-        }
-
-        progress(.extractingEncoder)
-        try archiveExtractor(encoderArchiveURL, modelsDirectoryURL)
-
-        guard try defaultEncoderReady() else {
-            throw LocalWhisperError.archiveExtractionFailed
-        }
-
-        progress(.ready)
-    }
-
-    nonisolated func installDefaultEncoderInBackground() {
-        Task.detached(priority: .utility) {
-            await LocalWhisperEncoderInstaller.shared.installIfNeeded(manager: self)
-        }
     }
 
     nonisolated func installDefaultAssets(
@@ -304,11 +237,22 @@ struct LocalWhisperModelManager: Sendable {
             try await installDefaultModel(progress: progress, downloadProgress: downloadProgress)
         }
 
-        if try !defaultAssetsReady() {
-            try await installDefaultEncoder(progress: progress)
-        }
+        try removeDefaultEncoderIfPresent()
 
         progress(.ready)
+    }
+
+    nonisolated func removeDefaultEncoderIfPresent() throws {
+        let encoderDirectoryURL = try defaultEncoderDirectoryURL()
+        guard FileManager.default.fileExists(atPath: encoderDirectoryURL.path) else { return }
+        try FileManager.default.removeItem(at: encoderDirectoryURL)
+        LocalWhisperEngineFactory.invalidateSharedEngines()
+    }
+
+    private nonisolated func removeDefaultEncoderIfNeeded(for modelURL: URL) throws {
+        let defaultModelURL = try defaultModelURL()
+        guard modelURL.standardizedFileURL.path == defaultModelURL.standardizedFileURL.path else { return }
+        try removeDefaultEncoderIfPresent()
     }
 
     nonisolated func statusMessage() -> String {
@@ -352,27 +296,6 @@ struct LocalWhisperModelManager: Sendable {
         let url = try modelsDirectory()
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
-    }
-
-    nonisolated private func installDownloadedItem(at sourceURL: URL, to destinationURL: URL) throws {
-        let fileManager = FileManager.default
-        let parentDirectoryURL = destinationURL.deletingLastPathComponent()
-        try fileManager.createDirectory(at: parentDirectoryURL, withIntermediateDirectories: true)
-
-        if fileManager.fileExists(atPath: destinationURL.path) {
-            try fileManager.removeItem(at: destinationURL)
-        }
-
-        do {
-            try fileManager.moveItem(at: sourceURL, to: destinationURL)
-        } catch {
-            do {
-                try fileManager.copyItem(at: sourceURL, to: destinationURL)
-                try? fileManager.removeItem(at: sourceURL)
-            } catch {
-                throw LocalWhisperError.downloadFailed(destinationURL)
-            }
-        }
     }
 
     nonisolated private func modelsDirectory() throws -> URL {
@@ -500,28 +423,5 @@ private final class ProgressReportingDownloadCoordinator: NSObject, URLSessionDo
         self.continuation = nil
         self.session = nil
         continuation.resume(throwing: error)
-    }
-}
-
-private actor LocalWhisperEncoderInstaller {
-    static let shared = LocalWhisperEncoderInstaller()
-
-    private var isInstalling = false
-
-    func installIfNeeded(manager: LocalWhisperModelManager) async {
-        guard !isInstalling else { return }
-
-        do {
-            guard try !manager.defaultEncoderReady() else { return }
-        } catch {
-            return
-        }
-
-        isInstalling = true
-        defer { isInstalling = false }
-
-        do {
-            try await manager.installDefaultEncoder()
-        } catch {}
     }
 }

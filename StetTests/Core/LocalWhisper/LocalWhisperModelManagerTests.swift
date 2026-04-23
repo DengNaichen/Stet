@@ -19,9 +19,6 @@
                 customPathProvider: { nil },
                 downloadProvider: { url, _ in
                     try await downloadQueue.next(requestedURL: url)
-                },
-                archiveExtractor: { _, _ in
-                    Issue.record("archiveExtractor should not run while downloading only the model")
                 }
             )
 
@@ -32,81 +29,64 @@
             #expect(await downloadQueue.requestedURLs == [LocalWhisperModelManager.defaultModelDownloadURL])
         }
 
-        @Test func installDefaultEncoderDownloadsAndExtractsEncoder() async throws {
-            let modelsDirectoryURL = TestSupport.temporaryDirectoryURL()
-            try FileManager.default.createDirectory(at: modelsDirectoryURL, withIntermediateDirectories: true)
-
-            let modelURL = modelsDirectoryURL.appendingPathComponent(LocalWhisperModelDescriptor.default.fileName)
-            try Data("model".utf8).write(to: modelURL)
-
-            let downloadedArchiveURL = modelsDirectoryURL.appendingPathComponent("downloaded-encoder.zip")
-            try Data("archive".utf8).write(to: downloadedArchiveURL)
-
-            let downloadQueue = DownloadQueue(urls: [downloadedArchiveURL])
-            let manager = LocalWhisperModelManager(
-                modelsDirectoryProvider: { modelsDirectoryURL },
-                runtimeAvailableProvider: { true },
-                customPathProvider: { nil },
-                downloadProvider: { url, _ in
-                    try await downloadQueue.next(requestedURL: url)
-                },
-                archiveExtractor: { _, destinationDirectoryURL in
-                    let encoderDirectoryURL = destinationDirectoryURL.appendingPathComponent(
-                        LocalWhisperModelManager.defaultEncoderDirectoryName,
-                        isDirectory: true
-                    )
-                    try FileManager.default.createDirectory(at: encoderDirectoryURL, withIntermediateDirectories: true)
-                    try Data("encoder".utf8).write(
-                        to: encoderDirectoryURL.appendingPathComponent("coremldata.bin", isDirectory: false)
-                    )
-                }
-            )
-
-            try await manager.installDefaultEncoder()
-
-            #expect(try manager.defaultModelReady())
-            #expect(try manager.defaultEncoderReady())
-            #expect(await downloadQueue.requestedURLs == [LocalWhisperModelManager.defaultEncoderArchiveDownloadURL])
-        }
-
-        @Test func installDefaultAssetsDownloadsModelAndExtractsEncoder() async throws {
+        @Test func installDefaultAssetsDownloadsOnlyModel() async throws {
             let modelsDirectoryURL = TestSupport.temporaryDirectoryURL()
             try FileManager.default.createDirectory(at: modelsDirectoryURL, withIntermediateDirectories: true)
 
             let downloadedModelURL = modelsDirectoryURL.appendingPathComponent("downloaded-model.bin")
             try Data("model".utf8).write(to: downloadedModelURL)
 
-            let downloadedArchiveURL = modelsDirectoryURL.appendingPathComponent("downloaded-encoder.zip")
-            try Data("archive".utf8).write(to: downloadedArchiveURL)
-
-            let downloadQueue = DownloadQueue(urls: [downloadedModelURL, downloadedArchiveURL])
+            let downloadQueue = DownloadQueue(urls: [downloadedModelURL])
             let manager = LocalWhisperModelManager(
                 modelsDirectoryProvider: { modelsDirectoryURL },
                 runtimeAvailableProvider: { true },
                 customPathProvider: { nil },
                 downloadProvider: { url, _ in
                     try await downloadQueue.next(requestedURL: url)
-                },
-                archiveExtractor: { _, destinationDirectoryURL in
-                    let encoderDirectoryURL = destinationDirectoryURL.appendingPathComponent(
-                        LocalWhisperModelManager.defaultEncoderDirectoryName,
-                        isDirectory: true
-                    )
-                    try FileManager.default.createDirectory(at: encoderDirectoryURL, withIntermediateDirectories: true)
-                    try Data("encoder".utf8).write(
-                        to: encoderDirectoryURL.appendingPathComponent("coremldata.bin", isDirectory: false)
-                    )
+                }
+            )
+
+            try await manager.installDefaultAssets(progress: { _ in }, downloadProgress: { _, _, _ in })
+
+            #expect(try manager.defaultModelReady())
+            #expect(!(try manager.defaultEncoderReady()))
+            #expect(try manager.defaultAssetsReady())
+            #expect(await downloadQueue.requestedURLs == [LocalWhisperModelManager.defaultModelDownloadURL])
+        }
+
+        @Test func installDefaultAssetsRemovesExistingEncoder() async throws {
+            let modelsDirectoryURL = TestSupport.temporaryDirectoryURL()
+            let encoderDirectoryURL = modelsDirectoryURL.appendingPathComponent(
+                LocalWhisperModelManager.defaultEncoderDirectoryName,
+                isDirectory: true
+            )
+            try FileManager.default.createDirectory(at: encoderDirectoryURL, withIntermediateDirectories: true)
+
+            let downloadedModelURL = modelsDirectoryURL.appendingPathComponent("downloaded-model.bin")
+            try Data("model".utf8).write(to: downloadedModelURL)
+            try Data("encoder".utf8).write(
+                to: encoderDirectoryURL.appendingPathComponent("coremldata.bin", isDirectory: false)
+            )
+
+            let downloadQueue = DownloadQueue(urls: [downloadedModelURL])
+            let manager = LocalWhisperModelManager(
+                modelsDirectoryProvider: { modelsDirectoryURL },
+                runtimeAvailableProvider: { true },
+                customPathProvider: { nil },
+                downloadProvider: { url, _ in
+                    try await downloadQueue.next(requestedURL: url)
                 }
             )
 
             try await manager.installDefaultAssets(progress: { _ in }, downloadProgress: { _, _, _ in })
 
             #expect(FileManager.default.fileExists(atPath: try manager.defaultModelURL().path))
+            #expect(!(try manager.defaultEncoderReady()))
             #expect(try manager.defaultAssetsReady())
-            #expect(await downloadQueue.requestedURLs.count == 2)
+            #expect(await downloadQueue.requestedURLs == [LocalWhisperModelManager.defaultModelDownloadURL])
         }
 
-        @Test func installDefaultAssetsSkipsDownloadWhenAssetsAlreadyExist() async throws {
+        @Test func installDefaultAssetsSkipsDownloadWhenModelExistsAndRemovesExistingEncoder() async throws {
             let modelsDirectoryURL = TestSupport.temporaryDirectoryURL()
             let encoderDirectoryURL = modelsDirectoryURL.appendingPathComponent(
                 LocalWhisperModelManager.defaultEncoderDirectoryName,
@@ -127,16 +107,40 @@
                 customPathProvider: { nil },
                 downloadProvider: { url, _ in
                     try await downloadQueue.next(requestedURL: url)
-                },
-                archiveExtractor: { _, _ in
-                    Issue.record("archiveExtractor should not run when assets already exist")
                 }
             )
 
             try await manager.installDefaultAssets(progress: { _ in }, downloadProgress: { _, _, _ in })
 
             #expect(await downloadQueue.requestedURLs.isEmpty)
+            #expect(!(try manager.defaultEncoderReady()))
             #expect(try manager.defaultAssetsReady())
+        }
+
+        @Test func resolvingDefaultModelRemovesExistingEncoder() throws {
+            let modelsDirectoryURL = TestSupport.temporaryDirectoryURL()
+            let encoderDirectoryURL = modelsDirectoryURL.appendingPathComponent(
+                LocalWhisperModelManager.defaultEncoderDirectoryName,
+                isDirectory: true
+            )
+            try FileManager.default.createDirectory(at: encoderDirectoryURL, withIntermediateDirectories: true)
+
+            let modelURL = modelsDirectoryURL.appendingPathComponent(LocalWhisperModelDescriptor.default.fileName)
+            try Data("model".utf8).write(to: modelURL)
+            try Data("encoder".utf8).write(
+                to: encoderDirectoryURL.appendingPathComponent("coremldata.bin", isDirectory: false)
+            )
+
+            let manager = LocalWhisperModelManager(
+                modelsDirectoryProvider: { modelsDirectoryURL },
+                runtimeAvailableProvider: { true },
+                customPathProvider: { nil }
+            )
+
+            let resolvedURL = try manager.resolvedModelURL()
+
+            #expect(resolvedURL == modelURL)
+            #expect(!(try manager.defaultEncoderReady()))
         }
 
         @Test func installDefaultModelForwardsDownloadProgress() async throws {
@@ -155,9 +159,6 @@
                     progressSink.update(fraction: 0.15, completed: 15, total: 100)
                     progressSink.update(fraction: 0.72, completed: 72, total: 100)
                     return try await downloadQueue.next(requestedURL: url)
-                },
-                archiveExtractor: { _, _ in
-                    Issue.record("archiveExtractor should not run while downloading only the model")
                 }
             )
 
