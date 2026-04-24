@@ -92,7 +92,8 @@
             self.supabase = supabase ?? SupabaseService.shared
             self.credentialValidationService = credentialValidationService ?? ProviderCredentialValidationService()
             self.localWhisperModelManager = localWhisperModelManager
-            self.apiKeyProvider = settingsStore.loadProvider()
+            let storedAPIKeyProvider = settingsStore.loadProvider()
+            self.apiKeyProvider = storedAPIKeyProvider.requiresAPIKey ? storedAPIKeyProvider : .openAI
             coordinator.updates
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in

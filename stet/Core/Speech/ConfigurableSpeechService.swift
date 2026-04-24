@@ -19,6 +19,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     private var activeCaptureService: (any AudioCaptureService)?
     private var audioLevelTask: Task<Void, Never>?
     private var transcriptionPrewarmTask: Task<Void, Never>?
+    private var rewritePrewarmTask: Task<Void, Never>?
     #if os(macOS)
         private var audioFeatureTask: Task<Void, Never>?
     #endif
@@ -121,10 +122,12 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 await startAudioFeatureForwarding(using: captureService)
             #endif
             startTranscriptionPrewarm(using: pipeline)
+            startRewritePrewarm(using: pipeline)
         } catch is CancellationError {
             activePipeline = nil
             activeCaptureService = nil
             stopTranscriptionPrewarm()
+            stopRewritePrewarm()
             stopAudioLevelForwarding()
             #if os(macOS)
                 stopAudioFeatureForwarding()
@@ -135,6 +138,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             activePipeline = nil
             activeCaptureService = nil
             stopTranscriptionPrewarm()
+            stopRewritePrewarm()
             stopAudioLevelForwarding()
             #if os(macOS)
                 stopAudioFeatureForwarding()
@@ -165,9 +169,19 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             self.activePipeline = nil
             self.activeCaptureService = nil
             stopTranscriptionPrewarm()
+            stopRewritePrewarm()
             stopAudioLevelForwarding()
             #if os(macOS)
                 stopAudioFeatureForwarding()
+            #endif
+        }
+
+        // Mirrors VoiceInkEngine.cleanupResources(): release the loaded whisper
+        // context after every recording cycle so memory drops back to baseline.
+        // Awaited (not deferred) so the next startRecording can't race a teardown.
+        let releaseContextOnExit: @Sendable () async -> Void = {
+            #if os(macOS)
+                await LocalWhisperContextManager.shared.cleanupResources()
             #endif
         }
 
@@ -189,6 +203,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
         guard !processedCaptureResult.shouldDiscardAsNoSpeech else {
             AppLogger.info("Discarding dictation capture because no speech was detected locally.", category: .dictation)
+            await releaseContextOnExit()
             throw SpeechServiceError.emptyTranscription
         }
 
@@ -204,27 +219,29 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
         let intermediateTranscript: String
         let transcriptionStartedAt = ProcessInfo.processInfo.systemUptime
+        let transcriptionResult: TranscriptionResult
         do {
             await waitForTranscriptionPrewarm()
-            let transcript = try await pipeline.transcriptionService.transcribe(
+            transcriptionResult = try await pipeline.transcriptionService.transcribe(
                 audioFileAt: processedCaptureResult.url,
                 languageCode: pipeline.transcriptionLanguageCode,
                 prompt: transcriptionPrompt,
                 audioDurationSeconds: processedCaptureResult.duration
             )
-            let trimmedTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedTranscript = transcriptionResult.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmedTranscript.isEmpty else {
                 throw SpeechServiceError.emptyTranscription
             }
             intermediateTranscript = trimmedTranscript
             let transcriptionStageMs = Self.elapsedMilliseconds(since: transcriptionStartedAt)
             AppLogger.info(
-                "DictationStage transcriptionMs=\(Self.formatMilliseconds(transcriptionStageMs)) audioDurationSeconds=\(Self.formatDurationSeconds(processedCaptureResult.duration)) transcriptChars=\(trimmedTranscript.count) rewriteEnabled=\(pipeline.rewriteService != nil)",
+                "DictationStage transcriptionMs=\(Self.formatMilliseconds(transcriptionStageMs)) audioDurationSeconds=\(Self.formatDurationSeconds(processedCaptureResult.duration)) transcriptChars=\(trimmedTranscript.count) rewriteEnabled=\(pipeline.rewriteService != nil) detectedLanguage=\(transcriptionResult.languageCode ?? "unknown")",
                 category: .perfTrace
             )
         } catch {
             await DictationLatencyProbe.shared.record(.transcriptionFailed, note: error.localizedDescription)
             AppLogger.error("Transcription failed: \(error.localizedDescription)", category: .dictation)
+            await releaseContextOnExit()
             throw error
         }
 
@@ -234,17 +251,17 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             do {
                 if let rewriteService = pipeline.rewriteService {
                     let rewriteAudience = pipeline.usesAudienceAwareLocalPrompts ? audienceProvider() : nil
-                    finalTranscript = try await rewriteService.rewrite(
-                        .cleanup(
-                            intermediateTranscript,
-                            audience: rewriteAudience,
-                            preferredSpellings: pipeline.preferredSpellings,
-                            additionalContext: pipeline.rewriteAdditionalContext
-                        )
+                    let request = TextRewriteRequest.cleanup(
+                        intermediateTranscript,
+                        audience: rewriteAudience,
+                        preferredSpellings: pipeline.preferredSpellings,
+                        additionalContext: pipeline.rewriteAdditionalContext,
+                        languageCode: transcriptionResult.languageCode ?? pipeline.transcriptionLanguageCode
                     )
+                    finalTranscript = try await rewriteService.rewrite(request)
                     let rewriteStageMs = Self.elapsedMilliseconds(since: rewriteStartedAt)
                     AppLogger.info(
-                        "DictationStage rewriteMs=\(Self.formatMilliseconds(rewriteStageMs)) inputChars=\(intermediateTranscript.count) audience=\(rewriteAudience?.rawValue ?? "none") preferredSpellingsCount=\(pipeline.preferredSpellings.count) additionalContextChars=\(pipeline.rewriteAdditionalContext?.count ?? 0)",
+                        "DictationStage rewriteMs=\(Self.formatMilliseconds(rewriteStageMs)) inputChars=\(intermediateTranscript.count) audience=\(rewriteAudience?.rawValue ?? "none") preferredSpellingsCount=\(pipeline.preferredSpellings.count) additionalContextChars=\(pipeline.rewriteAdditionalContext?.count ?? 0) lang=\(request.languageCode ?? "unknown")",
                         category: .perfTrace
                     )
                 } else {
@@ -265,6 +282,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 finalTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
             )
             guard !trimmedTranscript.isEmpty else {
+                await releaseContextOnExit()
                 throw SpeechServiceError.emptyTranscription
             }
 
@@ -274,10 +292,12 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 category: .perfTrace
             )
 
+            await releaseContextOnExit()
             return trimmedTranscript
         } catch {
             await DictationLatencyProbe.shared.record(.transcriptionFailed, note: error.localizedDescription)
             AppLogger.error("Post-transcription processing failed: \(error.localizedDescription)", category: .dictation)
+            await releaseContextOnExit()
             throw error
         }
     }
@@ -286,6 +306,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         guard activePipeline != nil else { return }
         self.activePipeline = nil
         stopTranscriptionPrewarm()
+        stopRewritePrewarm()
         let captureService = activeCaptureService
         activeCaptureService = nil
         stopAudioLevelForwarding()
@@ -295,6 +316,11 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         if let captureService {
             await captureService.cancelRecording()
         }
+        // Match VoiceInk's cleanupResources() in the cancel branch of toggleRecord:
+        // a prewarm task may have loaded the model already, so release it here too.
+        #if os(macOS)
+            await LocalWhisperContextManager.shared.cleanupResources()
+        #endif
     }
 
     func prewarm() async {
@@ -313,8 +339,14 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     private func startTranscriptionPrewarm(using pipeline: DictationPipeline) {
         transcriptionPrewarmTask?.cancel()
         transcriptionPrewarmTask = Task(priority: .userInitiated) {
+            let prewarmStartedAt = ProcessInfo.processInfo.systemUptime
             do {
                 try await pipeline.transcriptionService.prewarm()
+                let prewarmMs = Self.elapsedMilliseconds(since: prewarmStartedAt)
+                AppLogger.info(
+                    "DictationStage transcriptionPrewarmMs=\(Self.formatMilliseconds(prewarmMs))",
+                    category: .perfTrace
+                )
             } catch is CancellationError {
             } catch {
                 AppLogger.warning(
@@ -325,9 +357,35 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         }
     }
 
+    private func startRewritePrewarm(using pipeline: DictationPipeline) {
+        rewritePrewarmTask?.cancel()
+        guard let rewriteService = pipeline.rewriteService else {
+            rewritePrewarmTask = nil
+            return
+        }
+
+        let rewriteAudience = pipeline.usesAudienceAwareLocalPrompts ? audienceProvider() : nil
+        rewritePrewarmTask = Task(priority: .utility) {
+            await rewriteService.prewarm(
+                .cleanup(
+                    "",
+                    audience: rewriteAudience,
+                    preferredSpellings: pipeline.preferredSpellings,
+                    additionalContext: pipeline.rewriteAdditionalContext
+                )
+            )
+        }
+    }
+
     private func waitForTranscriptionPrewarm() async {
         guard let transcriptionPrewarmTask else { return }
+        let waitStartedAt = ProcessInfo.processInfo.systemUptime
         _ = await transcriptionPrewarmTask.result
+        let waitMs = Self.elapsedMilliseconds(since: waitStartedAt)
+        AppLogger.info(
+            "DictationStage transcriptionPrewarmWaitMs=\(Self.formatMilliseconds(waitMs))",
+            category: .perfTrace
+        )
         if self.transcriptionPrewarmTask == transcriptionPrewarmTask {
             self.transcriptionPrewarmTask = nil
         }
@@ -336,6 +394,11 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     private func stopTranscriptionPrewarm() {
         transcriptionPrewarmTask?.cancel()
         transcriptionPrewarmTask = nil
+    }
+
+    private func stopRewritePrewarm() {
+        rewritePrewarmTask?.cancel()
+        rewritePrewarmTask = nil
     }
 
     private func startAudioLevelForwarding(using captureService: any AudioCaptureService) async {

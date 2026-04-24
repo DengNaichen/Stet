@@ -3,6 +3,11 @@
     import Foundation
     import os
 
+    /// Schedules a one-shot Local Whisper warmup on app launch and on wake from
+    /// sleep, mirroring VoiceInk's `ModelPrewarmService`. Each warmup creates a
+    /// transient transcription service, runs it once against a short bundled
+    /// sample, and lets it deinit — the engine is released after the run, so
+    /// nothing stays resident between recordings.
     @MainActor
     final class LocalWhisperWarmupCoordinator {
         static let shared = LocalWhisperWarmupCoordinator()
@@ -40,6 +45,13 @@
                 ?? { manager in
                     try LocalWhisperTranscriptionService(modelManager: manager)
                 }
+        }
+
+        deinit {
+            scheduledWarmupTask?.cancel()
+            if let wakeObserver {
+                NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+            }
         }
 
         func activateIfNeeded() {

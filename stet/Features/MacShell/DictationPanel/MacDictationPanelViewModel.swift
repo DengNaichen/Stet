@@ -28,6 +28,10 @@
             Self.capsuleScale(for: state, recordingLevel: recordingLevel)
         }
 
+        var displayState: DictationState {
+            Self.displayState(for: state, recordingLevel: recordingLevel)
+        }
+
         init(appModel: any MacDictationPanelCoordinating) {
             self.appModel = appModel
             self.state = appModel.dictationState
@@ -110,6 +114,19 @@
             case .processing, .idle, .clipboardPending, .result, .error:
                 return 1
             }
+        }
+
+        private static func displayState(
+            for state: DictationState,
+            recordingLevel: Double
+        ) -> DictationState {
+            if case .starting = state,
+                recordingLevel > 0
+            {
+                return .listening
+            }
+
+            return state
         }
 
         func hidePanel() {

@@ -110,12 +110,20 @@ struct LocalWhisperModelManager: Sendable {
 
     /// Saves a custom model path to UserDefaults.
     nonisolated static func saveCustomModelPath(_ path: String?) {
-        LocalWhisperEngineFactory.invalidateSharedEngines()
+        Self.scheduleContextCleanup()
         if let path {
             UserDefaults.standard.set(path, forKey: MacPreferences.localWhisperModelPath)
         } else {
             UserDefaults.standard.removeObject(forKey: MacPreferences.localWhisperModelPath)
         }
+    }
+
+    nonisolated private static func scheduleContextCleanup() {
+        #if os(macOS)
+            Task { @MainActor in
+                await LocalWhisperContextManager.shared.cleanupResources()
+            }
+        #endif
     }
 
     /// Returns the custom path URL when it is set and the file exists.
@@ -246,7 +254,7 @@ struct LocalWhisperModelManager: Sendable {
         let encoderDirectoryURL = try defaultEncoderDirectoryURL()
         guard FileManager.default.fileExists(atPath: encoderDirectoryURL.path) else { return }
         try FileManager.default.removeItem(at: encoderDirectoryURL)
-        LocalWhisperEngineFactory.invalidateSharedEngines()
+        Self.scheduleContextCleanup()
     }
 
     private nonisolated func removeDefaultEncoderIfNeeded(for modelURL: URL) throws {

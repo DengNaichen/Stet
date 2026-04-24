@@ -1,5 +1,10 @@
 import Foundation
 
+struct TranscriptionResult: Sendable, Equatable {
+    let text: String
+    let languageCode: String?
+}
+
 protocol AudioFileTranscriptionService: Sendable {
     func prewarm() async throws
     func transcribe(
@@ -7,7 +12,7 @@ protocol AudioFileTranscriptionService: Sendable {
         languageCode: String?,
         prompt: String?,
         audioDurationSeconds: TimeInterval?
-    ) async throws -> String
+    ) async throws -> TranscriptionResult
 }
 
 extension AudioFileTranscriptionService {

@@ -167,6 +167,25 @@ struct MacDictationPanelViewModelTests {
             })
     }
 
+    @Test func displayStateShowsListeningWhenStartingCaptureIsAlreadyLive() async {
+        let appModel = StubPanelModel(
+            dictationState: .starting,
+            statusText: "Starting microphone...",
+            recordingLevel: 0.0
+        )
+        let viewModel = MacDictationPanelViewModel(appModel: appModel)
+
+        #expect(viewModel.displayState == .starting)
+
+        appModel.recordingLevel = 0.08
+        appModel.emitUpdate()
+
+        #expect(
+            await TestSupport.eventually {
+                viewModel.state == .starting && viewModel.displayState == .listening
+            })
+    }
+
     @Test func configurationFailuresAreSurfacedThroughPanelStatus() async {
         let requirements = [
             ProviderConfigurationRequirement(step: .transcription, provider: .groq),

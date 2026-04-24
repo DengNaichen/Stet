@@ -510,6 +510,7 @@
                 await TestSupport.eventually(timeout: .seconds(3)) {
                     subject.viewModel.state == .starting && subject.viewModel.recordingLevel > 0
                 })
+            #expect(subject.controller.statusText == "Listening...")
             #expect(await speechService.counts().activate == 0)
 
             interactionSoundPlayer.finishPrompt()

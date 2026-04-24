@@ -105,6 +105,9 @@
             case .idle:
                 return "Start Dictation"
             case .starting:
+                if recordingLevel > 0 {
+                    return "Stop Recording"
+                }
                 return "Starting..."
             case .listening:
                 return "Stop Recording"

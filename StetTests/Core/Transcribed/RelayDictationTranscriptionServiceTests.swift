@@ -47,7 +47,7 @@ struct RelayDictationTranscriptionServiceTests {
         let requestBody = try TestSupport.requestBodyData(from: request)
         let requestBodyText = try #require(String(data: requestBody, encoding: .utf8))
 
-        #expect(result == "Relay transcript")
+        #expect(result.text == "Relay transcript")
         #expect(request.url?.absoluteString == "https://example.supabase.co/functions/v1/relay/v1/audio/transcriptions")
         #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer access-token")
         #expect(request.value(forHTTPHeaderField: "Apikey") == "anon-key")

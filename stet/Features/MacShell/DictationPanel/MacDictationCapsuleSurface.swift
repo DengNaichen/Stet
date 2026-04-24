@@ -12,7 +12,7 @@
 
         var body: some View {
             MacDictationCapsuleVisualRenderer(
-                state: viewModel.state,
+                state: viewModel.displayState,
                 panelSize: panelSize,
                 signals: viewModel.visualSignals,
                 theme: shaderTheme,

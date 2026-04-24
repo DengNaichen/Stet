@@ -42,7 +42,7 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
         languageCode: String?,
         prompt: String?,
         audioDurationSeconds: TimeInterval?
-    ) async throws -> String {
+    ) async throws -> TranscriptionResult {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             throw OpenAIError.fileNotFound(fileURL)
         }
@@ -142,7 +142,7 @@ struct RelayDictationTranscriptionService: AudioFileTranscriptionService {
                 category: .dictation
             )
 
-            return trimmedText
+            return TranscriptionResult(text: trimmedText, languageCode: languageCode)
         } catch let error as AIExecutionError {
             AppLogger.error(
                 "Relay transcription failed with managed relay error. requestID=\(clientRequestID) error=\(error.localizedDescription)",

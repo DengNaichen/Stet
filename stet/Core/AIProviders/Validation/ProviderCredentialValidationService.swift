@@ -35,6 +35,8 @@ struct ProviderCredentialValidationService: ProviderCredentialValidating, Sendab
             try await validateOpenAICredential(endpoint: endpoint)
         case .groq:
             try await validateGroqCredential(endpoint: endpoint)
+        case .appleIntelligence:
+            return
         }
     }
 

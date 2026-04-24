@@ -78,6 +78,8 @@ struct OpenAICompatibleProviderEndpointConfiguration: Sendable, Equatable {
             return URL(string: "https://api.openai.com/v1")!
         case .groq:
             return URL(string: "https://api.groq.com/openai/v1")!
+        case .appleIntelligence:
+            return URL(string: "apple-intelligence://local")!
         }
     }
 
@@ -150,6 +152,8 @@ enum DictationProviderDefaults {
             return "gpt-4o-mini-transcribe"
         case .groq:
             return "whisper-large-v3-turbo"
+        case .appleIntelligence:
+            return "apple-intelligence"
         }
     }
 
@@ -159,6 +163,8 @@ enum DictationProviderDefaults {
             return "gpt-5.4-nano-2026-03-17"
         case .groq:
             return "openai/gpt-oss-20b"
+        case .appleIntelligence:
+            return "apple-intelligence-refine"
         }
     }
 }

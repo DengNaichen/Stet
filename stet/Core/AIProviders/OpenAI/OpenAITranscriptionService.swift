@@ -38,7 +38,7 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
         languageCode: String? = nil,
         prompt: String? = nil,
         audioDurationSeconds: TimeInterval? = nil
-    ) async throws -> String {
+    ) async throws -> TranscriptionResult {
         await DictationLatencyProbe.shared.record(.uploadStarted)
 
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
@@ -103,7 +103,7 @@ struct OpenAITranscriptionService: AudioFileTranscriptionService {
                     }
 
                     await DictationLatencyProbe.shared.record(.transcriptionCompleted)
-                    return text
+                    return TranscriptionResult(text: text, languageCode: languageCode)
                 }
 
                 guard (200...299).contains(httpResponse.statusCode) else {

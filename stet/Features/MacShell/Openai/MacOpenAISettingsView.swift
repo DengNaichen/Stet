@@ -49,6 +49,18 @@
                     }
                 }
 
+                if viewModel.unifiedProvider == .appleIntelligence {
+                    Section {
+                        Text(
+                            "Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac."
+                        )
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                    } header: {
+                        Text("Apple Intelligence")
+                    }
+                }
+
                 ForEach(viewModel.visibleCredentialProviders) { provider in
                     Section {
                         VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {

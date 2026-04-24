@@ -118,7 +118,7 @@ struct OpenAITests {
             prompt: "Use OpenAI",
             audioDurationSeconds: 2.4
         )
-        #expect(text == "hello")
+        #expect(text.text == "hello")
     }
 
     @Test func openAITranscriptionServiceMapsAPIErrorBody() async throws {
@@ -207,7 +207,7 @@ struct OpenAITests {
             audioDurationSeconds: nil
         )
 
-        #expect(text == "recovered via fallback")
+        #expect(text.text == "recovered via fallback")
     }
 
     @Test func openAITranscriptionServiceRetriesTransientFailures() async throws {
@@ -254,7 +254,7 @@ struct OpenAITests {
             audioDurationSeconds: 12
         )
 
-        #expect(text == "retried successfully")
+        #expect(text.text == "retried successfully")
         #expect(attempts.value() == 2)
     }
 

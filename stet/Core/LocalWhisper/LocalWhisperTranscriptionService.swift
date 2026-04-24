@@ -8,12 +8,11 @@ protocol LocalWhisperEngine: Sendable {
         samples: [Float],
         languageCode: String?,
         prompt: String?
-    ) async throws -> String
+    ) async throws -> TranscriptionResult
+    func releaseResources() async
 }
 
 enum LocalWhisperEngineFactory {
-    private static let sharedCache = SharedLocalWhisperEngineCache()
-
     nonisolated static var isRuntimeAvailable: Bool {
         #if canImport(whisper)
             true
@@ -22,136 +21,44 @@ enum LocalWhisperEngineFactory {
         #endif
     }
 
-    nonisolated static func acquireEngine(
-        modelURL: URL,
-        createEngine: () throws -> any LocalWhisperEngine
-    ) rethrows -> LocalWhisperEngineLease {
-        try sharedCache.acquireLease(for: modelURL, createEngine: createEngine)
-    }
-
-    nonisolated static func invalidateSharedEngines() {
-        sharedCache.invalidateAll()
-    }
-
-    nonisolated static func makeEngineLease(modelURL: URL) throws -> LocalWhisperEngineLease {
+    nonisolated static func makeEngine(modelURL: URL) throws -> any LocalWhisperEngine {
         #if canImport(whisper)
-            return try acquireEngine(modelURL: modelURL) {
-                WhisperCppLocalWhisperEngine(modelURL: modelURL)
-            }
+            return WhisperCppLocalWhisperEngine(modelURL: modelURL)
         #else
             throw LocalWhisperError.runtimeUnavailable
         #endif
     }
 }
 
-final class SharedLocalWhisperEngineCache: @unchecked Sendable {
-    private struct Entry {
-        let engine: any LocalWhisperEngine
-        var activeLeaseCount: Int
-    }
-
-    private let lock = NSLock()
-    private var entriesByModelPath: [String: Entry] = [:]
-
-    deinit {
-        invalidateAll()
-    }
-
-    func acquireLease(
-        for modelURL: URL,
-        createEngine: () throws -> any LocalWhisperEngine
-    ) rethrows -> LocalWhisperEngineLease {
-        let modelPath = modelURL.standardizedFileURL.path
-
-        lock.lock()
-        defer { lock.unlock() }
-
-        if var entry = entriesByModelPath[modelPath] {
-            entry.activeLeaseCount += 1
-            entriesByModelPath[modelPath] = entry
-            return LocalWhisperEngineLease(
-                modelPath: modelPath,
-                engine: entry.engine,
-                cache: self
-            )
-        }
-
-        let engine = try createEngine()
-        entriesByModelPath[modelPath] = Entry(
-            engine: engine,
-            activeLeaseCount: 1
-        )
-        return LocalWhisperEngineLease(modelPath: modelPath, engine: engine, cache: self)
-    }
-
-    func releaseLease(for modelPath: String) {
-        lock.lock()
-        guard var entry = entriesByModelPath[modelPath] else {
-            lock.unlock()
-            return
-        }
-
-        if entry.activeLeaseCount > 0 {
-            entry.activeLeaseCount -= 1
-        }
-
-        if entry.activeLeaseCount == 0 {
-            entriesByModelPath.removeValue(forKey: modelPath)
-        } else {
-            entriesByModelPath[modelPath] = entry
-        }
-        lock.unlock()
-    }
-
-    func invalidateAll() {
-        lock.lock()
-        entriesByModelPath.removeAll()
-        lock.unlock()
-    }
-}
-
-final class LocalWhisperEngineLease: @unchecked Sendable {
-    let engine: any LocalWhisperEngine
-
-    private let modelPath: String
-    private let cache: SharedLocalWhisperEngineCache
-
-    fileprivate init(
-        modelPath: String,
-        engine: any LocalWhisperEngine,
-        cache: SharedLocalWhisperEngineCache
-    ) {
-        self.modelPath = modelPath
-        self.engine = engine
-        self.cache = cache
-    }
-
-    deinit {
-        cache.releaseLease(for: modelPath)
-    }
-}
-
 final class LocalWhisperTranscriptionService: AudioFileTranscriptionService, @unchecked Sendable {
-    private let engineLeaseSource: LocalWhisperEngineLeaseSource
+    private let modelURL: URL
+    private let engineFactory: @Sendable (URL) throws -> any LocalWhisperEngine
+    private let contextManagerProvider: @MainActor @Sendable () -> LocalWhisperContextManager
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "LocalWhisper")
 
     init(
         modelManager: LocalWhisperModelManager,
-        engineFactory: @escaping @Sendable (URL) throws -> LocalWhisperEngineLease = {
-            try LocalWhisperEngineFactory.makeEngineLease(modelURL: $0)
-        }
+        engineFactory: @escaping @Sendable (URL) throws -> any LocalWhisperEngine = {
+            try LocalWhisperEngineFactory.makeEngine(modelURL: $0)
+        },
+        contextManagerProvider: (@MainActor @Sendable () -> LocalWhisperContextManager)? = nil
     ) throws {
-        let modelURL = try modelManager.resolvedModelURL()
-        self.engineLeaseSource = LocalWhisperEngineLeaseSource(
-            modelURL: modelURL,
-            engineFactory: engineFactory
-        )
+        self.modelURL = try modelManager.resolvedModelURL()
+        self.engineFactory = engineFactory
+        self.contextManagerProvider = contextManagerProvider ?? { LocalWhisperContextManager.shared }
     }
 
+    /// Loads the model into the shared `LocalWhisperContextManager` if nothing
+    /// is loaded. Mirrors `VoiceInkEngine` kicking `whisperModelManager.loadModel`
+    /// when a recording starts so the model is hot by the time `transcribe` runs.
     func prewarm() async throws {
-        let engineLease = try await engineLeaseSource.engineLease()
-        try await engineLease.engine.prewarm()
+        let manager = await contextManagerProvider()
+        let factory = engineFactory
+        let modelURL = self.modelURL
+        try await manager.loadModel(modelURL: modelURL) { url in
+            try factory(url)
+        }
     }
 
     func transcribe(
@@ -159,7 +66,7 @@ final class LocalWhisperTranscriptionService: AudioFileTranscriptionService, @un
         languageCode: String?,
         prompt: String?,
         audioDurationSeconds: TimeInterval?
-    ) async throws -> String {
+    ) async throws -> TranscriptionResult {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             throw OpenAIError.fileNotFound(fileURL)
         }
@@ -175,17 +82,33 @@ final class LocalWhisperTranscriptionService: AudioFileTranscriptionService, @un
         }
         let samplePreparationMs = Self.elapsedMilliseconds(since: samplePreparationStartedAt)
 
+        let manager = await contextManagerProvider()
+        let reusedEngine = await manager.engineIfLoaded(matching: modelURL)
+
+        let engine: any LocalWhisperEngine
+        let isTransient: Bool
+        if let reusedEngine {
+            engine = reusedEngine
+            isTransient = false
+        } else {
+            let newEngine = try engineFactory(modelURL)
+            try await newEngine.prewarm()
+            engine = newEngine
+            isTransient = true
+        }
+
         let inferenceStartedAt = ProcessInfo.processInfo.systemUptime
-        let transcript: String
+        let result: TranscriptionResult
         do {
-            let engineLease = try await engineLeaseSource.engineLease()
-            try await engineLease.engine.prewarm()
-            transcript = try await engineLease.engine.transcribe(
+            result = try await engine.transcribe(
                 samples: samples,
                 languageCode: languageCode,
                 prompt: prompt
-            ).trimmingCharacters(in: .whitespacesAndNewlines)
+            )
         } catch {
+            if isTransient {
+                await engine.releaseResources()
+            }
             AppLogger.error(
                 "LocalWhisper failed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(Self.elapsedMilliseconds(since: inferenceStartedAt))) languageCode=\(languageCode ?? "auto") promptChars=\(prompt?.count ?? 0) error=\(error.localizedDescription)",
                 category: .perfTrace
@@ -195,16 +118,21 @@ final class LocalWhisperTranscriptionService: AudioFileTranscriptionService, @un
         let inferenceMs = Self.elapsedMilliseconds(since: inferenceStartedAt)
         let totalMs = Self.elapsedMilliseconds(since: startedAt)
 
+        if isTransient {
+            await engine.releaseResources()
+        }
+
+        let transcript = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !transcript.isEmpty else {
             throw SpeechServiceError.emptyTranscription
         }
 
         AppLogger.info(
-            "LocalWhisper completed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) sampleCount=\(samples.count) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(inferenceMs)) totalMs=\(Self.formatMilliseconds(totalMs)) textChars=\(transcript.count) languageCode=\(languageCode ?? "auto") promptChars=\(prompt?.count ?? 0)",
+            "LocalWhisper completed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) sampleCount=\(samples.count) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(inferenceMs)) totalMs=\(Self.formatMilliseconds(totalMs)) textChars=\(transcript.count) languageCode=\(result.languageCode ?? languageCode ?? "auto") promptChars=\(prompt?.count ?? 0) reusedLoadedContext=\(!isTransient)",
             category: .perfTrace
         )
 
-        return transcript
+        return .init(text: transcript, languageCode: result.languageCode)
     }
 
     private nonisolated static func elapsedMilliseconds(since start: TimeInterval) -> Double {
@@ -292,30 +220,6 @@ final class LocalWhisperTranscriptionService: AudioFileTranscriptionService, @un
     }
 }
 
-private actor LocalWhisperEngineLeaseSource {
-    private let modelURL: URL
-    private let engineFactory: @Sendable (URL) throws -> LocalWhisperEngineLease
-    private var cachedLease: LocalWhisperEngineLease?
-
-    init(
-        modelURL: URL,
-        engineFactory: @escaping @Sendable (URL) throws -> LocalWhisperEngineLease
-    ) {
-        self.modelURL = modelURL
-        self.engineFactory = engineFactory
-    }
-
-    func engineLease() throws -> LocalWhisperEngineLease {
-        if let cachedLease {
-            return cachedLease
-        }
-
-        let newLease = try engineFactory(modelURL)
-        cachedLease = newLease
-        return newLease
-    }
-}
-
 #if canImport(whisper)
     import whisper
 
@@ -345,6 +249,15 @@ private actor LocalWhisperEngineLeaseSource {
             }
 
             context = loadedContext
+        }
+
+        func releaseResources() {
+            if let context {
+                whisper_free(context)
+                self.context = nil
+            }
+            languageCString = nil
+            promptCString = nil
         }
 
         func transcribe(
@@ -427,6 +340,15 @@ private actor LocalWhisperEngineLeaseSource {
             return text
         }
 
+        func detectedLanguageCode() -> String? {
+            guard let context else { return nil }
+            let langID = whisper_full_lang_id(context)
+            guard langID != -1, let langStr = whisper_lang_str(langID) else {
+                return nil
+            }
+            return String(cString: langStr)
+        }
+
         private static func normalizedLanguageCode(_ languageCode: String?) -> String? {
             guard let languageCode else { return nil }
             let normalized = languageCode.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -456,14 +378,20 @@ private actor LocalWhisperEngineLeaseSource {
             samples: [Float],
             languageCode: String?,
             prompt: String?
-        ) async throws -> String {
+        ) async throws -> TranscriptionResult {
             try await prewarm()
 
             guard await context.transcribe(samples: samples, languageCode: languageCode, prompt: prompt) else {
                 throw LocalWhisperError.transcriptionFailed
             }
 
-            return await context.transcriptionText()
+            let text = await context.transcriptionText()
+            let detectedLanguage = await context.detectedLanguageCode()
+            return TranscriptionResult(text: text, languageCode: detectedLanguage)
+        }
+
+        func releaseResources() async {
+            await context.releaseResources()
         }
     }
 #endif

@@ -347,6 +347,7 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
 
 actor RecordingRewriteService: TextRewriteService {
     private(set) var requests: [TextRewriteRequest] = []
+    private(set) var prewarmRequests: [TextRewriteRequest] = []
     private var result = "rewritten"
     private var error: (any Error & Sendable)?
 
@@ -360,6 +361,14 @@ actor RecordingRewriteService: TextRewriteService {
 
     func recordedRequests() -> [TextRewriteRequest] {
         requests
+    }
+
+    func recordedPrewarmRequests() -> [TextRewriteRequest] {
+        prewarmRequests
+    }
+
+    func prewarm(_ request: TextRewriteRequest) async {
+        prewarmRequests.append(request)
     }
 
     func rewrite(_ request: TextRewriteRequest) async throws -> String {

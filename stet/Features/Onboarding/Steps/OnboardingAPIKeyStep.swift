@@ -12,7 +12,7 @@
                         .foregroundStyle(.secondary)
 
                     OnboardingProviderPicker(
-                        items: Array(DictationProvider.allCases),
+                        items: DictationProvider.allCases.filter(\.requiresAPIKey),
                         displayName: { $0.displayName },
                         selection: $viewModel.apiKeyProvider
                     )

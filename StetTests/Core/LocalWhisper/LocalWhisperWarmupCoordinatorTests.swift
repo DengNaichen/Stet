@@ -7,7 +7,7 @@
     @MainActor
     @Suite("Local Whisper Warmup Coordinator")
     struct LocalWhisperWarmupCoordinatorTests {
-        @Test func warmupDoesNotRetainServiceBetweenRuns() async throws {
+        @Test func warmupCreatesFreshServiceEachTime() async throws {
             let modelsDirectoryURL = TestSupport.temporaryDirectoryURL()
             try FileManager.default.createDirectory(at: modelsDirectoryURL, withIntermediateDirectories: true)
 
@@ -100,11 +100,11 @@
             languageCode _: String?,
             prompt _: String?,
             audioDurationSeconds _: TimeInterval?
-        ) async throws -> String {
+        ) async throws -> TranscriptionResult {
             lock.lock()
             defer { lock.unlock() }
             transcribeCallCount += 1
-            return "warm"
+            return TranscriptionResult(text: "warm", languageCode: nil)
         }
     }
 #endif

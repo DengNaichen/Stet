@@ -92,7 +92,10 @@ struct DictationPipelineFactory: Sendable {
                 )
             },
             makeRewriteService: { configuration, session in
-                OpenAIRewriteService(configuration: configuration, session: session)
+                if configuration.provider == .appleIntelligence {
+                    return AppleIntelligenceRewriteService()
+                }
+                return OpenAIRewriteService(configuration: configuration, session: session)
             }
         )
     }
@@ -119,8 +122,8 @@ struct DictationPipelineFactory: Sendable {
         case .direct(let direct):
             transcriptionService = try makeLocalTranscriptionService()
             transcriptionLanguageCode = snapshot.dictationLanguageMode.transcriptionLanguageCode
-            promptProvider = nil
             preferredSpellings = direct.preferredSpellings
+            promptProvider = Self.makePromptProvider(preferredSpellings: preferredSpellings)
             rewriteAdditionalContext = snapshot.dictationLanguageMode.rewriteAdditionalContext
             usesAudienceAwareLocalPrompts = snapshot.executionMode == .byok
 
@@ -132,7 +135,6 @@ struct DictationPipelineFactory: Sendable {
         case .relay(let relay):
             transcriptionService = try makeLocalTranscriptionService()
             transcriptionLanguageCode = snapshot.dictationLanguageMode.transcriptionLanguageCode
-            promptProvider = nil
             if relay.rewriteEnabled {
                 rewriteService = makeRelayRewriteService(
                     relay.authentication,
@@ -144,6 +146,7 @@ struct DictationPipelineFactory: Sendable {
             }
             rewriteAdditionalContext = snapshot.dictationLanguageMode.rewriteAdditionalContext
             preferredSpellings = relay.preferredSpellings
+            promptProvider = Self.makePromptProvider(preferredSpellings: preferredSpellings)
             usesAudienceAwareLocalPrompts = true
         }
 
@@ -165,11 +168,21 @@ struct DictationPipelineFactory: Sendable {
 
         if !preferredSpellings.isEmpty {
             sections.append(
-                "Use these exact spellings for names, brands, jargon, and technical terms when they are spoken or clearly intended: \(preferredSpellings.joined(separator: ", "))."
+                preferredSpellings.joined(separator: ", ")
             )
         }
 
         guard !sections.isEmpty else { return nil }
         return sections.joined(separator: "\n\n")
+    }
+
+    private nonisolated static func makePromptProvider(
+        preferredSpellings: [String]
+    ) -> (@Sendable () async -> String?)? {
+        guard let prompt = makeTranscriptionPrompt(preferredSpellings: preferredSpellings) else {
+            return nil
+        }
+
+        return { prompt }
     }
 }

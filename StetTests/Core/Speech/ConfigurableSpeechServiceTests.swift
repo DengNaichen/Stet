@@ -459,13 +459,41 @@ struct ConfigurableSpeechServiceTests {
         let directInvocation = await direct.lastInvocation()
 
         #expect(transcript == "rewritten transcript")
-        #expect(directInvocation?.prompt == nil)
+        #expect(directInvocation?.prompt?.contains("OpenAI, Groq") == true)
         #expect(directInvocation?.languageCode == nil)
         #expect(await direct.callCount() == 1)
         #expect(await relay.callCount() == 0)
         #expect(await capture.counts().stop == 1)
         #expect(rewriteRequests.count == 1)
         #expect(rewriteRequests.first?.text == "source transcript")
+    }
+
+    @Test func startRecordingPrewarmsRewriteService() async throws {
+        let (store, _, _) = try makeSettingsStore(
+            rewriteProvider: .appleIntelligence,
+            rewriteEnabled: true,
+            apiKey: nil,
+            preferredSpellings: ["Stet", "CoreML"]
+        )
+        let direct = TestTranscriptionService(result: "source transcript")
+        let relay = TestTranscriptionService(result: "unused relay")
+        let rewrite = RecordingRewriteService()
+        let service = makeDictationService(
+            settingsStore: store,
+            directTranscriptionService: direct,
+            relayTranscriptionService: relay,
+            rewriteService: rewrite
+        )
+
+        try await service.startRecording()
+        try await Task.sleep(for: .milliseconds(50))
+
+        let prewarmRequest = try #require(await rewrite.recordedPrewarmRequests().first)
+        #expect(prewarmRequest.text.isEmpty)
+        #expect(prewarmRequest.audience == .ai)
+        #expect(prewarmRequest.preferredSpellings == ["Stet", "CoreML"])
+
+        await service.cancelRecording()
     }
 
     @Test func byokHumanAudienceUsesHumanLocalCleanupPrompt() async throws {
@@ -954,7 +982,7 @@ struct ConfigurableSpeechServiceTests {
         #expect(await direct.callCount() == 1)
         #expect(await relay.callCount() == 0)
         #expect(await byokRewrite.recordedRequests().isEmpty)
-        #expect(directInvocation?.prompt == nil)
+        #expect(directInvocation?.prompt?.contains("OpenAI, Groq") == true)
         #expect(rewriteRequest.text == "source transcript")
         #expect(rewriteRequest.audience == .ai)
         #expect(rewriteRequest.preferredSpellings == ["OpenAI", "Groq"])
@@ -1263,7 +1291,7 @@ private actor TestTranscriptionService: AudioFileTranscriptionService {
         languageCode: String?,
         prompt: String?,
         audioDurationSeconds: TimeInterval?
-    ) async throws -> String {
+    ) async throws -> TranscriptionResult {
         callCountValue += 1
         lastInvocationValue = (
             fileURL: fileURL, languageCode: languageCode, prompt: prompt, duration: audioDurationSeconds
@@ -1272,7 +1300,7 @@ private actor TestTranscriptionService: AudioFileTranscriptionService {
 
         switch outcome {
         case .success(let value):
-            return value
+            return TranscriptionResult(text: value, languageCode: languageCode)
         case .failure(let error):
             throw error
         }

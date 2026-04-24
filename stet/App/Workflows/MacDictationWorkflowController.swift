@@ -66,6 +66,9 @@
             case .idle:
                 return "Ready"
             case .starting:
+                if dictationViewModel.recordingLevel > 0 {
+                    return "Listening..."
+                }
                 return "Starting microphone..."
             case .listening:
                 return "Listening..."

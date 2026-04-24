@@ -119,6 +119,8 @@
                 return openAIAPIKey
             case .groq:
                 return groqAPIKey
+            case .appleIntelligence:
+                return ""
             }
         }
 
@@ -128,6 +130,8 @@
                 openAIAPIKey = apiKey
             case .groq:
                 groqAPIKey = apiKey
+            case .appleIntelligence:
+                break
             }
         }
 
@@ -135,6 +139,7 @@
             case stet
             case openAI
             case groq
+            case appleIntelligence
 
             var id: String { rawValue }
             var displayName: String {
@@ -142,6 +147,7 @@
                 case .stet: return "Stet (Managed)"
                 case .openAI: return "OpenAI"
                 case .groq: return "Groq"
+                case .appleIntelligence: return "Apple Intelligence"
                 }
             }
         }
@@ -152,6 +158,7 @@
                 switch rewriteProvider {
                 case .openAI: return .openAI
                 case .groq: return .groq
+                case .appleIntelligence: return .appleIntelligence
                 }
             }
             set {
@@ -164,12 +171,16 @@
                 case .groq:
                     executionMode = .byok
                     rewriteProvider = .groq
+                case .appleIntelligence:
+                    executionMode = .byok
+                    rewriteProvider = .appleIntelligence
                 }
             }
         }
 
         var visibleCredentialProviders: [DictationProvider] {
             guard executionMode != .managed, isRewriteEnabled else { return [] }
+            guard rewriteProvider.requiresAPIKey else { return [] }
             return [rewriteProvider]
         }
 
@@ -220,7 +231,7 @@
         }
 
         private var directProviders: [DictationProvider] {
-            [rewriteProvider]
+            rewriteProvider.requiresAPIKey ? [rewriteProvider] : []
         }
     }
 

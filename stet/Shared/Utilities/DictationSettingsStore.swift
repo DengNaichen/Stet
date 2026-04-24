@@ -65,9 +65,11 @@ struct DictationSettingsSnapshot: Sendable {
         ]
 
         if isRewriteEnabled {
-            requirements.append(
-                ProviderConfigurationRequirement(step: .rewrite, provider: rewriteProvider)
-            )
+            if rewriteProvider.requiresAPIKey {
+                requirements.append(
+                    ProviderConfigurationRequirement(step: .rewrite, provider: rewriteProvider)
+                )
+            }
         }
 
         return requirements
@@ -82,6 +84,8 @@ struct DictationSettingsStore: Sendable {
                 return "openai.api_key"
             case .groq:
                 return "groq.api_key"
+            case .appleIntelligence:
+                return "apple_intelligence.local"
             }
         }
     }
@@ -136,13 +140,21 @@ struct DictationSettingsStore: Sendable {
                 apiKey: transcriptionAPIKey,
                 providerPair: providerPair
             )
-        let rewriteConfiguration: RewriteProviderConfiguration? =
-            rewriteAPIKey.isEmpty
-            ? nil
-            : DictationProviderConfigurationResolver.rewriteConfiguration(
-                apiKey: rewriteAPIKey,
+        let rewriteConfiguration: RewriteProviderConfiguration?
+        if rewriteProvider == .appleIntelligence {
+            rewriteConfiguration = DictationProviderConfigurationResolver.rewriteConfiguration(
+                apiKey: "",
                 providerPair: providerPair
             )
+        } else {
+            rewriteConfiguration =
+                rewriteAPIKey.isEmpty
+                ? nil
+                : DictationProviderConfigurationResolver.rewriteConfiguration(
+                    apiKey: rewriteAPIKey,
+                    providerPair: providerPair
+                )
+        }
 
         return DictationSettingsSnapshot(
             transcriptionProvider: transcriptionProvider,

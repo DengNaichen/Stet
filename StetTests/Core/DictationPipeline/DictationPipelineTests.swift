@@ -185,6 +185,32 @@ struct LogicPrimitiveTests {
         }
     }
 
+    @Test func dictationExecutionRouteResolverAllowsAppleIntelligenceRewriteWithoutAPIKey() async throws {
+        let providerPair = DictationProviderPair(
+            transcriptionProvider: .openAI,
+            rewriteProvider: .appleIntelligence
+        )
+        let snapshot = makeSnapshot(
+            mode: .byok,
+            rewriteProvider: .appleIntelligence,
+            rewriteProviderConfiguration: DictationProviderConfigurationResolver.rewriteConfiguration(
+                apiKey: "",
+                providerPair: providerPair
+            ),
+            rewriteEnabled: true
+        )
+
+        let route = try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
+
+        switch route {
+        case .direct(let direct):
+            #expect(direct.rewriteEnabled)
+            #expect(direct.rewriteConfiguration?.provider == .appleIntelligence)
+        default:
+            Issue.record("Expected direct route.")
+        }
+    }
+
     @Test func makePipelineSelectsDirectServiceForByokWithoutRelay() async throws {
         let local = RecordingTranscriptionService(result: "direct")
         let relay = RecordingTranscriptionService(result: "relay")
@@ -212,17 +238,21 @@ struct LogicPrimitiveTests {
         let transcript = try await pipeline.transcriptionService.transcribe(
             audioFileAt: audioFileURL,
             languageCode: "en",
-            prompt: pipeline.promptProvider == nil ? nil : "should-not-be-used",
+            prompt: await pipeline.promptProvider?(),
             audioDurationSeconds: 1.2
         )
 
-        #expect(transcript == "direct")
-        #expect(pipeline.promptProvider == nil)
+        #expect(transcript.text == "direct")
+        #expect(
+            await pipeline.promptProvider?()
+                == DictationPipelineFactory.makeTranscriptionPrompt(
+                    preferredSpellings: ["OpenAI", "Groq"]
+                ))
         #expect(pipeline.transcriptionLanguageCode == nil)
         #expect(pipeline.usesAudienceAwareLocalPrompts == true)
         #expect(await local.callCount == 1)
         #expect(await relay.callCount == 0)
-        #expect(await local.capturedPrompt == nil)
+        #expect(await local.capturedPrompt?.contains("OpenAI, Groq") == true)
         #expect(capturedRewriteConfiguration?.provider == .openAI)
     }
 
@@ -265,14 +295,14 @@ struct LogicPrimitiveTests {
         )
         let rewriteResult = try await pipeline.rewriteService?.rewrite(
             .cleanup(
-                transcript,
+                transcript.text,
                 audience: .ai,
                 preferredSpellings: pipeline.preferredSpellings,
                 additionalContext: pipeline.rewriteAdditionalContext
             )
         )
 
-        #expect(transcript == "local")
+        #expect(transcript.text == "local")
         #expect(rewriteResult == "relay rewrite")
         #expect(await local.callCount == 1)
         #expect(await relay.callCount == 0)
@@ -373,14 +403,14 @@ struct LogicPrimitiveTests {
         if let rewriteService = pipeline.rewriteService {
             _ = try await rewriteService.rewrite(
                 .cleanup(
-                    transcript,
+                    transcript.text,
                     preferredSpellings: pipeline.preferredSpellings,
                     additionalContext: pipeline.rewriteAdditionalContext
                 )
             )
         }
 
-        #expect(transcript == "mixed transcript")
+        #expect(transcript.text == "mixed transcript")
         #expect(pipeline.transcriptionLanguageCode == nil)
         #expect(pipeline.usesAudienceAwareLocalPrompts == true)
         #expect(pipeline.rewriteAdditionalContext?.contains("mix Chinese and English") == true)
@@ -483,13 +513,13 @@ private actor RecordingTranscriptionService: AudioFileTranscriptionService {
         languageCode: String?,
         prompt: String?,
         audioDurationSeconds: TimeInterval?
-    ) async throws -> String {
+    ) async throws -> TranscriptionResult {
         callCount += 1
         capturedPrompt = prompt
         capturedLanguageCode = languageCode
         switch outcome {
         case .success(let value):
-            return value
+            return TranscriptionResult(text: value, languageCode: languageCode)
         case .failure(let error):
             throw error
         }

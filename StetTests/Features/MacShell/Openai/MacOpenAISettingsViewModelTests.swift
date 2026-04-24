@@ -127,6 +127,27 @@
                     == "Add OpenAI API key before using transcript improvement.")
         }
 
+        @Test func appleIntelligenceRewriteDoesNotRequireCredential() {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(AIExecutionMode.byok.rawValue, forKey: MacPreferences.aiExecutionMode)
+            defaults.set(DictationProvider.appleIntelligence.rawValue, forKey: MacPreferences.rewriteProvider)
+            defaults.set(true, forKey: MacPreferences.rewriteEnabled)
+
+            let viewModel = MacOpenAISettingsViewModel(
+                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
+                localWhisperModelManager: LocalWhisperModelManager(
+                    modelsDirectoryProvider: { TestSupport.temporaryDirectoryURL("local-whisper-settings") },
+                    runtimeAvailableProvider: { true }
+                )
+            )
+
+            viewModel.load()
+
+            #expect(viewModel.unifiedProvider == .appleIntelligence)
+            #expect(viewModel.visibleCredentialProviders.isEmpty)
+            #expect(viewModel.missingCredentialMessage == nil)
+        }
+
         @Test func localWhisperStatusShowsExpectedModelPathWhenRuntimeAvailableButModelMissing() {
             let defaults = TestSupport.makeUserDefaults()
             let modelsDirectory = TestSupport.temporaryDirectoryURL("local-whisper-settings-path")
