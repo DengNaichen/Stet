@@ -75,7 +75,9 @@ struct StetApp: App {
                     .keyboardShortcut("d", modifiers: [.command, .shift])
                 }
 
-                MacUpdatesCommand(appUpdateManager: appUpdateManager)
+                #if !APP_STORE
+                    MacUpdatesCommand(appUpdateManager: appUpdateManager)
+                #endif
 
                 MacPreferencesCommand(settingsShellViewModel: settingsShellViewModel)
             }
@@ -104,29 +106,31 @@ struct StetApp: App {
         }
     }
 
-    private struct MacUpdatesCommand: Commands {
-        @ObservedObject var appUpdateManager: AppUpdateManager
+    #if !APP_STORE
+        private struct MacUpdatesCommand: Commands {
+            @ObservedObject var appUpdateManager: AppUpdateManager
 
-        var body: some Commands {
-            CommandGroup(after: .appSettings) {
-                Button(updateMenuTitle) {
-                    appUpdateManager.checkForUpdates()
+            var body: some Commands {
+                CommandGroup(after: .appSettings) {
+                    Button(updateMenuTitle) {
+                        appUpdateManager.checkForUpdates()
+                    }
+                    .disabled(appUpdateManager.isChecking || !appUpdateManager.canCheckForUpdates)
                 }
-                .disabled(appUpdateManager.isChecking || !appUpdateManager.canCheckForUpdates)
             }
-        }
 
-        private var updateMenuTitle: String {
-            switch appUpdateManager.state {
-            case .updateAvailable(_, let latestVersion):
-                return "Update Available (\(latestVersion))"
-            case .checking:
-                return "Checking for Updates…"
-            case .unavailable:
-                return "Updates Unavailable"
-            default:
-                return "Check for Updates…"
+            private var updateMenuTitle: String {
+                switch appUpdateManager.state {
+                case .updateAvailable(_, let latestVersion):
+                    return "Update Available (\(latestVersion))"
+                case .checking:
+                    return "Checking for Updates…"
+                case .unavailable:
+                    return "Updates Unavailable"
+                default:
+                    return "Check for Updates…"
+                }
             }
         }
-    }
+    #endif
 #endif
