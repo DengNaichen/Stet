@@ -1,5 +1,5 @@
 #if os(macOS)
-    internal import Auth
+
     import Foundation
     import Testing
 
@@ -17,7 +17,6 @@
             let viewModel = OnboardingViewModel(
                 coordinator: coordinator,
                 settingsStore: settingsStore,
-                supabase: TestOnboardingSupabaseAuthenticator(),
                 credentialValidationService: validator
             )
 
@@ -46,7 +45,6 @@
             let viewModel = OnboardingViewModel(
                 coordinator: MockOnboardingCoordinator(step: .apiKey),
                 settingsStore: settingsStore,
-                supabase: TestOnboardingSupabaseAuthenticator(),
                 credentialValidationService: validator
             )
 
@@ -78,14 +76,4 @@
         }
     }
 
-    @MainActor
-    final class TestOnboardingSupabaseAuthenticator: OnboardingSupabaseAuthenticating {
-        var hasCurrentSession: Bool = false
-
-        func signIn(email _: String, password _: String) async throws {}
-
-        func signIn(provider _: Provider) async throws {}
-
-        func signUp(email _: String, password _: String) async throws {}
-    }
 #endif

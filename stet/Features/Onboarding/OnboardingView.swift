@@ -64,7 +64,7 @@
         @ViewBuilder
         private var onboardingBackground: some View {
             switch viewModel.onboardingStep {
-            case .download, .apiKey, .login:
+            case .download, .apiKey:
                 Image("onboardingEggBackground")
                     .resizable()
                     .scaledToFill()
@@ -163,8 +163,8 @@
             switch viewModel.onboardingStep {
             case .download:
                 OnboardingModelDownloadStep(viewModel: viewModel)
-            case .apiKey, .login:
-                OnboardingModeStep(viewModel: viewModel)
+            case .apiKey:
+                EmptyView()
             case .permissions:
                 OnboardingPermissionsStep(viewModel: viewModel)
             case .shortcut:
@@ -193,9 +193,6 @@
             case .apiKey:
                 OnboardingAPIKeyStep(viewModel: viewModel)
                     .padding(40)
-            case .login:
-                OnboardingLoginStep(viewModel: viewModel)
-                    .padding(40)
             case .permissions, .shortcut, .firstSuccess, .appearance, .done:
                 OnboardingVisualPanel(
                     step: viewModel.onboardingStep,
@@ -217,9 +214,7 @@
             case .download:
                 return "Get started"
             case .apiKey:
-                return "Use API Key"
-            case .login:
-                return "Login to continue"
+                return "AI Configuration"
             case .permissions:
                 return "One more step to get started"
             case .shortcut:
@@ -238,9 +233,7 @@
             case .download:
                 return "One click gets you into the app."
             case .apiKey:
-                return "Select a provider and enter your API Key to proceed."
-            case .login:
-                return "Login is only used to enable managed services and sync settings."
+                return "Select your preferred AI provider to handle transcription and cleanup."
             case .permissions:
                 return
                     "Grant microphone and input control permissions so Stet can record and type text back into your apps."
@@ -266,17 +259,11 @@
             let coordinator = MockOnboardingCoordinator(step: step, mode: mode)
             let viewModel = OnboardingViewModel(
                 coordinator: coordinator,
-                supabase: PreviewOnboardingSupabaseService(),
                 credentialValidationService: PreviewOnboardingAPIKeyValidationService()
             )
 
             if step == .apiKey {
                 viewModel.apiKey = "sk-preview"
-            }
-
-            if step == .login {
-                viewModel.email = "preview@stet.app"
-                viewModel.password = "password"
             }
 
             return OnboardingView(viewModel: viewModel)
@@ -290,28 +277,24 @@
             makeOnboardingPreview(step: .download)
         }
 
-        #Preview("Login") {
-            makeOnboardingPreview(step: .login, mode: .managed)
-        }
-
         #Preview("API Key") {
             makeOnboardingPreview(step: .apiKey, mode: .apiKey)
         }
 
         #Preview("Permissions") {
-            makeOnboardingPreview(step: .permissions, mode: .managed)
+            makeOnboardingPreview(step: .permissions, mode: .apiKey)
         }
 
         #Preview("Shortcut") {
-            makeOnboardingPreview(step: .shortcut, mode: .managed)
+            makeOnboardingPreview(step: .shortcut, mode: .apiKey)
         }
 
         #Preview("First Success") {
-            makeOnboardingPreview(step: .firstSuccess, mode: .managed)
+            makeOnboardingPreview(step: .firstSuccess, mode: .apiKey)
         }
 
         #Preview("Done") {
-            makeOnboardingPreview(step: .done, mode: .managed)
+            makeOnboardingPreview(step: .done, mode: .apiKey)
         }
     #endif
 

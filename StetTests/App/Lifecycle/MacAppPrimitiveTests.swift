@@ -11,7 +11,6 @@
         @Test(arguments: [
             (MacOnboardingStep.download, 1, false),
             (MacOnboardingStep.apiKey, 2, false),
-            (MacOnboardingStep.login, 2, false),
             (MacOnboardingStep.permissions, 3, false),
             (MacOnboardingStep.shortcut, 4, true),
             (MacOnboardingStep.firstSuccess, 5, true),

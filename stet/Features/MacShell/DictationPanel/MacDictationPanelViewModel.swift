@@ -144,9 +144,5 @@
         func performPrimaryAction() {
             appModel.performPrimaryAction()
         }
-
-        func upgrade() {
-            appModel.upgrade()
-        }
     }
 #endif

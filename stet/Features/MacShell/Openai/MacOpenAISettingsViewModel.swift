@@ -6,12 +6,6 @@
 
     @MainActor
     final class MacOpenAISettingsViewModel: ObservableObject {
-        @Published var executionMode: AIExecutionMode = .byok {
-            didSet {
-                guard hasLoadedState else { return }
-                settingsStore.saveExecutionMode(executionMode)
-            }
-        }
         @Published var isRewriteEnabled = true {
             didSet {
                 guard hasLoadedState else { return }
@@ -64,17 +58,11 @@
         }
 
         var connectionNeedsAttention: Bool {
-            switch executionMode {
-            case .managed:
-                return true
-            case .byok:
-                return localWhisperNeedsAttention || (isRewriteEnabled && !missingRequiredProviders.isEmpty)
-            }
+            localWhisperNeedsAttention || (isRewriteEnabled && !missingRequiredProviders.isEmpty)
         }
 
         func load() {
             hasLoadedState = false
-            executionMode = settingsStore.loadExecutionMode()
             isRewriteEnabled = settingsStore.loadRewriteEnabled()
             rewriteProvider = settingsStore.loadRewriteProvider()
             dictationLanguageMode = settingsStore.loadDictationLanguageMode()
@@ -91,8 +79,6 @@
             LocalTranscriptionEngine.allCases
         }
 
-        /// Picker is enabled when the underlying model is actually present so the
-        /// user can't switch to Parakeet then immediately fail their next dictation.
         func isEngineSelectable(_ engine: LocalTranscriptionEngine) -> Bool {
             switch engine {
             case .whisper:
@@ -196,7 +182,6 @@
         }
 
         enum UnifiedAIProvider: String, CaseIterable, Identifiable {
-            case stet
             case openAI
             case groq
             case appleIntelligence
@@ -204,7 +189,6 @@
             var id: String { rawValue }
             var displayName: String {
                 switch self {
-                case .stet: return "Stet (Managed)"
                 case .openAI: return "OpenAI"
                 case .groq: return "Groq"
                 case .appleIntelligence: return "Apple Intelligence"
@@ -214,7 +198,6 @@
 
         var unifiedProvider: UnifiedAIProvider {
             get {
-                if executionMode == .managed { return .stet }
                 switch rewriteProvider {
                 case .openAI: return .openAI
                 case .groq: return .groq
@@ -223,23 +206,18 @@
             }
             set {
                 switch newValue {
-                case .stet:
-                    executionMode = .managed
                 case .openAI:
-                    executionMode = .byok
                     rewriteProvider = .openAI
                 case .groq:
-                    executionMode = .byok
                     rewriteProvider = .groq
                 case .appleIntelligence:
-                    executionMode = .byok
                     rewriteProvider = .appleIntelligence
                 }
             }
         }
 
         var visibleCredentialProviders: [DictationProvider] {
-            guard executionMode != .managed, isRewriteEnabled else { return [] }
+            guard isRewriteEnabled else { return [] }
             guard rewriteProvider.requiresAPIKey else { return [] }
             return [rewriteProvider]
         }
@@ -261,20 +239,11 @@
         }
 
         var missingCredentialMessage: String? {
-            switch executionMode {
-            case .managed:
-                return "Sign in to use Stet account dictation."
-            case .byok:
-                guard isRewriteEnabled else { return nil }
-                let providerList = missingRequiredProviders.map(\.displayName).joined(separator: " and ")
-                guard !providerList.isEmpty else { return nil }
-                return
-                    "Add \(providerList) API key\(missingRequiredProviders.count == 1 ? "" : "s") before using transcript improvement."
-            }
-        }
-
-        var isCredentialEditingDisabled: Bool {
-            executionMode == .managed
+            guard isRewriteEnabled else { return nil }
+            let providerList = missingRequiredProviders.map(\.displayName).joined(separator: " and ")
+            guard !providerList.isEmpty else { return nil }
+            return
+                "Add \(providerList) API key\(missingRequiredProviders.count == 1 ? "" : "s") before using transcript improvement."
         }
 
         private var missingRequiredProviders: [DictationProvider] {
@@ -282,12 +251,7 @@
         }
 
         private var requiredProviders: [DictationProvider] {
-            switch executionMode {
-            case .managed:
-                return []
-            case .byok:
-                return directProviders
-            }
+            rewriteProvider.requiresAPIKey ? [rewriteProvider] : []
         }
 
         private var directProviders: [DictationProvider] {

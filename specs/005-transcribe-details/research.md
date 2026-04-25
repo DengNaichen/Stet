@@ -12,7 +12,6 @@ Rationale: Existing experiments already validate that the two-stage pipeline is 
 Alternatives considered:
 
 - Single-step remote flow where the final text comes back from one provider: rejected because it removes the ability to optimize ASR and cleanup independently.
-- Managed/relay-specific behavior in this feature: rejected because this spec is intentionally scoped to Mac-side BYOK behavior only.
 
 ## Decision 2: Support independent provider selection for transcription and rewrite
 

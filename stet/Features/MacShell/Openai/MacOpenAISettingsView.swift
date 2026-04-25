@@ -35,20 +35,6 @@
                     Text("Refine")
                 }
 
-                if viewModel.executionMode == .managed {
-                    Section {
-                        Text("Stet account provides high-quality AI features without needing your own API keys.")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-
-                        Button("Manage Account") {
-                            onManageAccount?()
-                        }
-                    } header: {
-                        Text("Stet Account")
-                    }
-                }
-
                 if viewModel.unifiedProvider == .appleIntelligence {
                     Section {
                         Text(

@@ -10,7 +10,6 @@ private func makeTemporaryWavURL() throws -> URL {
 }
 
 private func makeSnapshot(
-    mode: AIExecutionMode,
     transcriptionProvider: DictationProvider = .openAI,
     rewriteProvider: DictationProvider = .openAI,
     transcriptionProviderConfiguration: TranscriptionProviderConfiguration? = nil,
@@ -26,7 +25,6 @@ private func makeSnapshot(
     DictationSettingsSnapshot(
         transcriptionProvider: transcriptionProvider,
         rewriteProvider: rewriteProvider,
-        executionMode: mode,
         isRewriteEnabled: rewriteEnabled,
         dictationLanguageMode: dictationLanguageMode,
         shouldPauseMediaDuringDictation: false,
@@ -40,66 +38,38 @@ private func makeSnapshot(
 
 @Suite("Dictation Pipeline Logic")
 struct LogicPrimitiveTests {
-    @Test func dictationExecutionRouteResolverUsesManagedRelayWhenAuthenticated() async throws {
-        let snapshot = makeSnapshot(mode: .managed)
-
-        let route = try await DictationExecutionRouteResolver.resolve(
-            snapshot: snapshot,
-            relayAuthentication: RelayAuthenticationContext(
-                functionsBaseURL: URL(string: "https://example.supabase.co/functions/v1")!,
-                publishableKey: "anon-key",
-                accessToken: "access-token"
-            )
-        )
-
-        switch route {
-        case .relay(let relay):
-            #expect(relay.rewriteEnabled == false)
-            #expect(relay.preferredSpellings.isEmpty)
-        default:
-            Issue.record("Expected relay route for managed mode.")
-        }
-    }
-
     @Test func dictationExecutionRouteResolverUsesByokWithLocalAPIKey() async throws {
-        let snapshot = makeSnapshot(mode: .byok)
+        let snapshot = makeSnapshot()
 
         let route = try await DictationExecutionRouteResolver.resolve(
-            snapshot: snapshot,
-            relayAuthentication: nil
+            snapshot: snapshot
         )
 
         switch route {
         case .direct(let direct):
             #expect(direct.rewriteEnabled == false)
             #expect(direct.rewriteConfiguration == nil)
-        default:
-            Issue.record("Expected direct route for BYOK.")
         }
     }
 
     @Test func dictationExecutionRouteResolverAllowsByokWithoutRequiredProviderKeysByFallingBack() async throws {
         let snapshot = makeSnapshot(
-            mode: .byok,
             transcriptionProviderConfiguration: nil,
             rewriteProviderConfiguration: nil,
             rewriteEnabled: true
         )
 
-        let route = try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
+        let route = try await DictationExecutionRouteResolver.resolve(snapshot: snapshot)
 
         switch route {
         case .direct(let direct):
             #expect(direct.rewriteEnabled == false)
             #expect(direct.rewriteConfiguration == nil)
-        default:
-            Issue.record("Expected direct route fallback.")
         }
     }
 
     @Test func dictationExecutionRouteResolverAllowsByokWhenOnlyTranscriptionKeyIsMissing() async throws {
         let snapshot = makeSnapshot(
-            mode: .byok,
             transcriptionProvider: .groq,
             rewriteProvider: .openAI,
             transcriptionProviderConfiguration: nil,
@@ -113,22 +83,18 @@ struct LogicPrimitiveTests {
         )
 
         let route = try await DictationExecutionRouteResolver.resolve(
-            snapshot: snapshot,
-            relayAuthentication: nil
+            snapshot: snapshot
         )
 
         switch route {
         case .direct(let direct):
             #expect(direct.rewriteEnabled == false)
             #expect(direct.rewriteConfiguration == nil)
-        default:
-            Issue.record("Expected direct route.")
         }
     }
 
     @Test func dictationExecutionRouteResolverAllowsByokWhenOnlyRewriteKeyIsMissingByFallingBack() async throws {
         let snapshot = makeSnapshot(
-            mode: .byok,
             transcriptionProvider: .groq,
             rewriteProvider: .openAI,
             transcriptionProviderConfiguration: DictationProviderConfigurationResolver.transcriptionConfiguration(
@@ -142,20 +108,17 @@ struct LogicPrimitiveTests {
             rewriteEnabled: true
         )
 
-        let route = try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
+        let route = try await DictationExecutionRouteResolver.resolve(snapshot: snapshot)
 
         switch route {
         case .direct(let direct):
             #expect(direct.rewriteEnabled == false)
             #expect(direct.rewriteConfiguration == nil)
-        default:
-            Issue.record("Expected direct route fallback.")
         }
     }
 
     @Test func dictationExecutionRouteResolverAllowsPreviouslyUnsupportedProviderPair() async throws {
         let snapshot = makeSnapshot(
-            mode: .byok,
             transcriptionProvider: .openAI,
             rewriteProvider: .groq,
             transcriptionProviderConfiguration: DictationProviderConfigurationResolver.transcriptionConfiguration(
@@ -175,13 +138,11 @@ struct LogicPrimitiveTests {
             rewriteEnabled: true
         )
 
-        let route = try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
+        let route = try await DictationExecutionRouteResolver.resolve(snapshot: snapshot)
 
         switch route {
         case .direct(let direct):
             #expect(direct.rewriteConfiguration?.provider == .groq)
-        default:
-            Issue.record("Expected direct route.")
         }
     }
 
@@ -191,7 +152,6 @@ struct LogicPrimitiveTests {
             rewriteProvider: .appleIntelligence
         )
         let snapshot = makeSnapshot(
-            mode: .byok,
             rewriteProvider: .appleIntelligence,
             rewriteProviderConfiguration: DictationProviderConfigurationResolver.rewriteConfiguration(
                 apiKey: "",
@@ -200,36 +160,30 @@ struct LogicPrimitiveTests {
             rewriteEnabled: true
         )
 
-        let route = try await DictationExecutionRouteResolver.resolve(snapshot: snapshot, relayAuthentication: nil)
+        let route = try await DictationExecutionRouteResolver.resolve(snapshot: snapshot)
 
         switch route {
         case .direct(let direct):
             #expect(direct.rewriteEnabled)
             #expect(direct.rewriteConfiguration?.provider == .appleIntelligence)
-        default:
-            Issue.record("Expected direct route.")
         }
     }
 
-    @Test func makePipelineSelectsDirectServiceForByokWithoutRelay() async throws {
+    @Test func makePipelineSelectsDirectService() async throws {
         let local = RecordingTranscriptionService(result: "direct")
-        let relay = RecordingTranscriptionService(result: "relay")
         var capturedRewriteConfiguration: RewriteProviderConfiguration?
         let audioFileURL = try makeTemporaryWavURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
         let factory = DictationPipelineFactory(
-            relayAuthenticationContext: { nil },
             makeLocalTranscriptionService: {
                 local
             },
-            makeRelayTranscriptionService: { _, _, _ in relay },
             makeRewriteService: { configuration, _ in
                 capturedRewriteConfiguration = configuration
                 return RecordingRewriteService()
             }
         )
         let snapshot = makeSnapshot(
-            mode: .byok,
             rewriteEnabled: true,
             personalDictionary: ["OpenAI", "Groq"]
         )
@@ -251,126 +205,24 @@ struct LogicPrimitiveTests {
         #expect(pipeline.transcriptionLanguageCode == nil)
         #expect(pipeline.usesAudienceAwareLocalPrompts == true)
         #expect(await local.callCount == 1)
-        #expect(await relay.callCount == 0)
         #expect(await local.capturedPrompt?.contains("OpenAI, Groq") == true)
         #expect(capturedRewriteConfiguration?.provider == .openAI)
     }
 
-    @Test func makePipelineUsesLocalTranscriptionAndRelayRewriteForManagedMode() async throws {
-        let local = RecordingTranscriptionService(result: "local")
-        let relay = RecordingTranscriptionService(result: "unused relay")
-        let relayRewrite = RecordingRewriteService()
-        await relayRewrite.setResult("relay rewrite")
-        let factory = DictationPipelineFactory(
-            relayAuthenticationContext: {
-                RelayAuthenticationContext(
-                    functionsBaseURL: URL(string: "https://example.supabase.co/functions/v1")!,
-                    publishableKey: "anon-key",
-                    accessToken: "access-token"
-                )
-            },
-            makeLocalTranscriptionService: {
-                local
-            },
-            makeRelayTranscriptionService: { _, _, _ in
-                relay
-            },
-            makeRelayRewriteService: { _, _, _ in
-                relayRewrite
-            },
-            makeRewriteService: { _, _ in
-                RecordingRewriteService()
-            }
-        )
-        let snapshot = makeSnapshot(mode: .managed, rewriteEnabled: true)
-
-        let pipeline = try await factory.makePipeline(from: snapshot)
-        let audioFileURL = try makeTemporaryWavURL()
-        defer { try? FileManager.default.removeItem(at: audioFileURL) }
-        let transcript = try await pipeline.transcriptionService.transcribe(
-            audioFileAt: audioFileURL,
-            languageCode: pipeline.transcriptionLanguageCode,
-            prompt: nil,
-            audioDurationSeconds: 1.2
-        )
-        let rewriteResult = try await pipeline.rewriteService?.rewrite(
-            .cleanup(
-                transcript.text,
-                audience: .ai,
-                preferredSpellings: pipeline.preferredSpellings,
-                additionalContext: pipeline.rewriteAdditionalContext
-            )
-        )
-
-        #expect(transcript.text == "local")
-        #expect(rewriteResult == "relay rewrite")
-        #expect(await local.callCount == 1)
-        #expect(await relay.callCount == 0)
-        #expect(await relayRewrite.recordedRequests().count == 1)
-        #expect(pipeline.usesAudienceAwareLocalPrompts == true)
-    }
-
-    @Test func makePipelinePassesFreshRelayAuthenticationProviderToRewriteService() async throws {
-        let local = RecordingTranscriptionService(result: "local")
-        let relay = RecordingTranscriptionService(result: "unused relay")
-        var authRequestCount = 0
-        var capturedAuthentication: RelayAuthenticationContext?
-        var capturedAuthenticationProvider: (@Sendable () async -> RelayAuthenticationContext?)?
-
-        let factory = DictationPipelineFactory(
-            relayAuthenticationContext: {
-                authRequestCount += 1
-                return RelayAuthenticationContext(
-                    functionsBaseURL: URL(string: "https://example.supabase.co/functions/v1")!,
-                    publishableKey: "anon-key",
-                    accessToken: authRequestCount == 1 ? "stale-access-token" : "fresh-access-token"
-                )
-            },
-            makeLocalTranscriptionService: {
-                local
-            },
-            makeRelayTranscriptionService: { _, _, _ in
-                relay
-            },
-            makeRelayRewriteService: { authentication, authenticationProvider, _ in
-                capturedAuthentication = authentication
-                capturedAuthenticationProvider = authenticationProvider
-                return RecordingRewriteService()
-            },
-            makeRewriteService: { _, _ in
-                RecordingRewriteService()
-            }
-        )
-
-        let pipeline = try await factory.makePipeline(
-            from: makeSnapshot(mode: .managed, rewriteEnabled: true)
-        )
-        _ = pipeline
-
-        let refreshedAuthentication = await capturedAuthenticationProvider?()
-
-        #expect(capturedAuthentication?.accessToken == "stale-access-token")
-        #expect(refreshedAuthentication?.accessToken == "fresh-access-token")
-    }
-
     @Test func makePipelineUsesConfiguredLanguageModeForTranscriptionAndCleanup() async throws {
         let local = RecordingTranscriptionService(result: "mixed transcript")
-        let relay = RecordingTranscriptionService(result: "relay")
         let rewrite = RecordingRewriteService()
         var capturedRewriteConfiguration: RewriteProviderConfiguration?
         let factory = DictationPipelineFactory(
-            relayAuthenticationContext: { nil },
             makeLocalTranscriptionService: {
                 local
             },
-            makeRelayTranscriptionService: { _, _, _ in relay },
             makeRewriteService: { configuration, _ in
                 capturedRewriteConfiguration = configuration
                 return rewrite
             }
         )
         let snapshot = makeSnapshot(
-            mode: .byok,
             transcriptionProvider: .groq,
             rewriteProvider: .openAI,
             transcriptionProviderConfiguration: DictationProviderConfigurationResolver.transcriptionConfiguration(
@@ -435,16 +287,11 @@ struct LogicPrimitiveTests {
             audience: .ai
         )
 
-        #expect(prompt.contains("AI or coding tools") == true)
-        #expect(prompt.contains("cleaning up a speech-to-text transcript") == true)
-        #expect(prompt.contains("Fix obvious speech-to-text errors") == true)
-        #expect(prompt.contains("Normalize fragmented spoken phrasing") == true)
-        #expect(prompt.contains("Preserve the original language of the transcript") == true)
-        #expect(prompt.contains("For very short transcripts or ambiguous fragments") == true)
-        #expect(prompt.contains("direct and natural command or request style") == true)
-        #expect(prompt.contains("simple numbering") == true)
-        #expect(prompt.contains("Do not use bullets, headings, code fences, backticks") == true)
-        #expect(prompt.contains("Do not add a title or wrap the result") == true)
+        #expect(prompt.contains("Only rewrite it into clean written text.") == true)
+        #expect(prompt.contains("Preserve the original language span by span.") == true)
+        #expect(prompt.contains("remove filler words, false starts, repetitions") == true)
+        #expect(prompt.contains("when the speaker immediately corrects themselves") == true)
+        #expect(prompt.contains("Return only the rewritten transcript as plain text.") == true)
         #expect(prompt.contains("agent") == false)
     }
 

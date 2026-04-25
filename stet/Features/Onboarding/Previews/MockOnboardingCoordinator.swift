@@ -1,6 +1,5 @@
 #if os(macOS)
     import Combine
-    internal import Auth
     import SwiftUI
 
     @MainActor
@@ -36,10 +35,6 @@
         }
 
         var autoPasteAccessNeedsAttention: Bool {
-            didSet { notifyChange() }
-        }
-
-        var relaySessionEmail: String? {
             didSet { notifyChange() }
         }
 
@@ -94,7 +89,7 @@
             self.microphoneAccessNeedsAttention = false
             self.microphonePermissionActionTitle = "Grant"
             self.autoPasteAccessNeedsAttention = false
-            self.relaySessionEmail = "preview@stet.app"
+            self.autoPasteAccessNeedsAttention = false
             self.shortcutTestDetectedPress = true
             self.shortcutTestCompletedRoundTrip = true
             self.shortcutTestPreviewText = "Preview transcription looks good."
@@ -119,7 +114,7 @@
 
         func chooseOnboardingMode(_ mode: MacOnboardingMode) {
             mockMode = mode
-            mockStep = mode == .apiKey ? .apiKey : .login
+            mockStep = .apiKey
         }
 
         func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme) {
@@ -134,10 +129,8 @@
         func advanceOnboarding() {
             switch mockStep {
             case .download:
-                mockStep = .login
+                mockStep = .apiKey
             case .apiKey:
-                mockStep = .permissions
-            case .login:
                 mockStep = .permissions
             case .permissions:
                 mockStep = .shortcut
@@ -156,12 +149,11 @@
             switch mockStep {
             case .download:
                 break
-            case .apiKey, .login:
+            case .apiKey:
                 mockStep = .download
             case .permissions:
                 mockStep =
                     switch mockMode {
-                    case .managed: .login
                     case .apiKey: .apiKey
                     case nil: .download
                     }
@@ -182,11 +174,6 @@
             shortcutSummaryText = "\(provider.displayName) preview key"
         }
 
-        func completeManagedOnboarding() {
-            mockMode = .managed
-            mockStep = .permissions
-        }
-
         func finishOnboarding() {
             mockStep = .done
         }
@@ -197,8 +184,6 @@
                 break
             case .apiKey:
                 mockMode = .apiKey
-            case .login:
-                mockMode = .managed
             case .permissions:
                 break
             case .shortcut:
@@ -214,23 +199,6 @@
 
         private func notifyChange() {
             updatesSubject.send(())
-        }
-    }
-
-    @MainActor
-    final class PreviewOnboardingSupabaseService: OnboardingSupabaseAuthenticating {
-        var hasCurrentSession = false
-
-        func signIn(email _: String, password _: String) async throws {
-            hasCurrentSession = true
-        }
-
-        func signIn(provider _: Provider) async throws {
-            hasCurrentSession = true
-        }
-
-        func signUp(email _: String, password _: String) async throws {
-            hasCurrentSession = true
         }
     }
 

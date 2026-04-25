@@ -28,7 +28,6 @@
         func dismissPendingCopy()
         func cancelActiveCapture()
         func performPrimaryAction()
-        func upgrade()
     }
 
     @MainActor
@@ -40,7 +39,6 @@
         var autoPasteAccessNeedsAttention: Bool { get }
         var onboardingStep: MacOnboardingStep { get }
         var onboardingMode: MacOnboardingMode? { get }
-        var relaySessionEmail: String? { get }
         var shortcutTestDetectedPress: Bool { get }
         var shortcutTestCompletedRoundTrip: Bool { get }
         var shortcutTestPreviewText: String? { get }
@@ -59,14 +57,12 @@
         func advanceOnboarding()
         func retreatOnboarding()
         func completeAPIKeyOnboarding(provider: DictationProvider)
-        func completeManagedOnboarding()
         func finishOnboarding()
     }
 
     extension MacPermissionsCoordinating {
         var onboardingStep: MacOnboardingStep { .done }
         var onboardingMode: MacOnboardingMode? { nil }
-        var relaySessionEmail: String? { nil }
         var shortcutTestDetectedPress: Bool { false }
         var shortcutTestCompletedRoundTrip: Bool { false }
         var shortcutTestPreviewText: String? { nil }
@@ -83,7 +79,6 @@
         func advanceOnboarding() {}
         func retreatOnboarding() {}
         func completeAPIKeyOnboarding(provider: DictationProvider) {}
-        func completeManagedOnboarding() {}
         func finishOnboarding() {}
     }
 

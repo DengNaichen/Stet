@@ -3,7 +3,6 @@
     import Combine
     import Foundation
     import StetVisuals
-    internal import Auth
 
     @MainActor
     final class MacAppSessionController {
@@ -16,6 +15,7 @@
         let permissionGateController: any MacPermissionGatePresenting
         let onboardingWindowController: MacOnboardingWindowController
         let permissionManager: MacPermissionManager
+        let pipelineFactory: DictationPipelineFactory
         let appBranchMonitor: AppBranchMonitor
         let defaults: UserDefaults
         let notificationCenter: NotificationCenter
@@ -45,6 +45,7 @@
             permissionGateController: any MacPermissionGatePresenting,
             onboardingWindowController: MacOnboardingWindowController,
             permissionManager: MacPermissionManager,
+            pipelineFactory: DictationPipelineFactory,
             appBranchMonitor: AppBranchMonitor = .shared,
             defaults: UserDefaults = .standard,
             notificationCenter: NotificationCenter = .default,
@@ -55,6 +56,7 @@
             self.permissionGateController = permissionGateController
             self.onboardingWindowController = onboardingWindowController
             self.permissionManager = permissionManager
+            self.pipelineFactory = pipelineFactory
             self.appBranchMonitor = appBranchMonitor
             self.defaults = defaults
             self.notificationCenter = notificationCenter
@@ -75,6 +77,7 @@
         convenience init(
             workflowController: MacDictationWorkflowController,
             permissionManager: MacPermissionManager,
+            pipelineFactory: DictationPipelineFactory,
             appBranchMonitor: AppBranchMonitor = .shared,
             defaults: UserDefaults = .standard,
             notificationCenter: NotificationCenter = .default
@@ -85,6 +88,7 @@
                 permissionGateController: MacPermissionGateController(),
                 onboardingWindowController: MacOnboardingWindowController(),
                 permissionManager: permissionManager,
+                pipelineFactory: pipelineFactory,
                 appBranchMonitor: appBranchMonitor,
                 defaults: defaults,
                 notificationCenter: notificationCenter,
@@ -103,6 +107,7 @@
             permissionGateController: (any MacPermissionGatePresenting)? = nil,
             onboardingWindowController: MacOnboardingWindowController? = nil,
             permissionManager: MacPermissionManager,
+            pipelineFactory: DictationPipelineFactory,
             appBranchMonitor: AppBranchMonitor = .shared,
             defaults: UserDefaults = .standard,
             notificationCenter: NotificationCenter = .default,
@@ -114,6 +119,7 @@
                 permissionGateController: permissionGateController ?? MacPermissionGateController(),
                 onboardingWindowController: onboardingWindowController ?? MacOnboardingWindowController(),
                 permissionManager: permissionManager,
+                pipelineFactory: pipelineFactory,
                 appBranchMonitor: appBranchMonitor,
                 defaults: defaults,
                 notificationCenter: notificationCenter,
@@ -201,10 +207,6 @@
 
         var onboardingMode: MacOnboardingMode? {
             onboardingModeState
-        }
-
-        var relaySessionEmail: String? {
-            SupabaseService.shared.currentSession?.user.email
         }
 
         var shortcutTestDetectedPress: Bool {

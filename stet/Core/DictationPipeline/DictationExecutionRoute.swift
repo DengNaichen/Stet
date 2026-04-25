@@ -1,38 +1,5 @@
 import Foundation
 
-struct RelayAuthenticationContext: Sendable, Equatable {
-    let functionsBaseURL: URL
-    let publishableKey: String
-    let accessToken: String
-
-    nonisolated var relayBaseURL: URL {
-        functionsBaseURL.appendingPathComponent("relay/v1")
-    }
-}
-
-enum AIExecutionError: LocalizedError, Equatable {
-    case managedRequiresAuthenticatedSession
-    case managedModeUnavailable
-    case relayInvocationFailed(statusCode: Int?, message: String, requestID: String?)
-
-    nonisolated var errorDescription: String? {
-        switch self {
-        case .managedRequiresAuthenticatedSession:
-            return "Managed Relay requires a signed-in Stet account."
-        case .managedModeUnavailable:
-            return "Stet account dictation is temporarily unavailable in this build."
-        case .relayInvocationFailed(let statusCode, let message, let requestID):
-            let requestIDSuffix = requestID.map { " Request ID: \($0)." } ?? ""
-
-            if let statusCode {
-                return "Managed Relay error (\(statusCode)): \(message).\(requestIDSuffix)"
-            }
-
-            return "Managed Relay error: \(message).\(requestIDSuffix)"
-        }
-    }
-}
-
 enum ProviderConfigurationError: LocalizedError, Equatable {
     case missingRequirements([ProviderConfigurationRequirement])
 
@@ -73,43 +40,14 @@ enum DictationExecutionRoute: Sendable {
         let preferredSpellings: [String]
     }
 
-    struct Relay: Sendable {
-        let authentication: RelayAuthenticationContext
-        let rewriteEnabled: Bool
-        let languageMode: DictationLanguageMode
-        let preferredSpellings: [String]
-    }
-
     case direct(Direct)
-    case relay(Relay)
 }
 
 enum DictationExecutionRouteResolver {
     nonisolated static func resolve(
-        snapshot: DictationSettingsSnapshot,
-        relayAuthentication: RelayAuthenticationContext?
+        snapshot: DictationSettingsSnapshot
     ) throws -> DictationExecutionRoute {
-        if snapshot.executionMode.requiresAuthenticatedSession, relayAuthentication == nil {
-            throw AIExecutionError.managedRequiresAuthenticatedSession
-        }
-
-        switch snapshot.executionMode {
-        case .managed:
-            guard let relayAuthentication else {
-                throw AIExecutionError.managedRequiresAuthenticatedSession
-            }
-
-            return .relay(
-                .init(
-                    authentication: relayAuthentication,
-                    rewriteEnabled: snapshot.isRewriteEnabled,
-                    languageMode: snapshot.dictationLanguageMode,
-                    preferredSpellings: snapshot.personalDictionary
-                )
-            )
-        case .byok:
-            return .direct(try resolveDirectRoute(snapshot: snapshot))
-        }
+        return .direct(try resolveDirectRoute(snapshot: snapshot))
     }
 
     nonisolated private static func resolveDirectRoute(

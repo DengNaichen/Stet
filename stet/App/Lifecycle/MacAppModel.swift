@@ -65,7 +65,8 @@
             )
             let sessionController = MacAppSessionController(
                 workflowController: workflowController,
-                permissionManager: MacPermissionManager(textInjectionService: textInjectionService)
+                permissionManager: MacPermissionManager(textInjectionService: textInjectionService),
+                pipelineFactory: .live()
             )
             self.settingsStore = settingsStore
             self.sessionController = sessionController
@@ -184,10 +185,6 @@
             sessionController.onboardingMode
         }
 
-        var relaySessionEmail: String? {
-            sessionController.relaySessionEmail
-        }
-
         var shortcutTestDetectedPress: Bool {
             sessionController.shortcutTestDetectedPress
         }
@@ -271,19 +268,6 @@
             sessionController.performPrimaryAction()
         }
 
-        func upgrade() {
-            Task {
-                do {
-                    let url = try await SupabaseService.shared.createCheckoutSession(
-                        priceID: StetLinks.defaultPriceID
-                    )
-                    NSWorkspace.shared.open(url)
-                } catch {
-                    AppLogger.error("Failed to start checkout: \(error.localizedDescription)", category: .dictation)
-                }
-            }
-        }
-
         func cancelActiveCapture() {
             sessionController.cancelActiveCapture()
         }
@@ -321,14 +305,8 @@
         }
 
         func completeAPIKeyOnboarding(provider: DictationProvider) {
-            settingsStore.saveExecutionMode(.byok)
             settingsStore.saveRewriteProvider(provider)
             sessionController.completeCredentialOnboarding(mode: .apiKey)
-        }
-
-        func completeManagedOnboarding() {
-            settingsStore.saveExecutionMode(.managed)
-            sessionController.completeCredentialOnboarding(mode: .managed)
         }
 
         func finishOnboarding() {
@@ -397,17 +375,6 @@
 
         func handleDeepLink(_ url: URL) {
             AppLogger.info("Received deep link: \(url.absoluteString)", category: .dictation)
-
-            // Expected: naichengdeng.stet://billing/success
-            guard url.scheme == "naichengdeng.stet",
-                url.host == "billing",
-                url.path == "/success"
-            else {
-                return
-            }
-
-            AppLogger.info("Billing success detected, triggering refresh", category: .dictation)
-            NotificationCenter.default.post(name: .stetBillingCompleted, object: nil)
         }
 
         private var settingsSnapshot: DictationSettingsSnapshot {

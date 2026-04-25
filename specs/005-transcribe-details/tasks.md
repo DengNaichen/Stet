@@ -90,7 +90,7 @@
 
 - [X] T020 Apply any remaining file/folder renames and configuration-facing naming cleanup needed to make the capability boundary obvious in the source tree
 - [X] T021 Run the affected macOS test suites covering `StetTests/Core/DictationPipeline/`, `StetTests/Core/AIProviders/OpenAICompatible/`, `StetTests/Core/Speech/`, and `StetTests/Features/Dictation/`
-- [X] T022 Verify relay/managed regression behavior remains unchanged in `StetTests/Core/DictationPipeline/DictationPipelineTests.swift` and `StetTests/Core/Speech/ConfigurableSpeechServiceTests.swift`
+- [X] T021 Run the affected macOS test suites covering `StetTests/Core/DictationPipeline/`, `StetTests/Core/AIProviders/OpenAICompatible/`, `StetTests/Core/Speech/`, and `StetTests/Features/Dictation/`
 - [X] T023 [P] Refresh `specs/005-transcribe-details/plan.md` and `specs/005-transcribe-details/tasks.md` so they match the final capability-split architecture
 - [ ] T024 [P] Refresh `specs/005-transcribe-details/quickstart.md` with the final implementation entry points, validation matrix, and supported provider combinations
 
@@ -156,4 +156,3 @@ The smallest useful increment is the combination of Foundational + Capability Wi
 
 - `contracts/` is intentionally deferred for this feature and does not block implementation
 - This task list covers remaining implementation work only; already-completed design docs are not repeated as checklist items
-- Relay/managed behavior is a regression-sensitive area and must remain unchanged unless explicitly revisited in a future spec

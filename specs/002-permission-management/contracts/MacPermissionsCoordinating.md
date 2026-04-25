@@ -33,7 +33,6 @@ protocol MacPermissionsCoordinating: MacAppStatusObserving {
     func advanceOnboarding()
     func retreatOnboarding()
     func completeAPIKeyOnboarding(provider: DictationProvider)
-    func completeManagedOnboarding()
     func finishOnboarding()
 }
 ```

@@ -130,7 +130,6 @@
         func dismissPendingCopy() {}
         func cancelActiveCapture() {}
         func performPrimaryAction() {}
-        func upgrade() {}
         func requestAutoPasteAccess() {}
         func resolveMicrophoneAccess() {}
         func openAccessibilitySettings() {}
@@ -209,7 +208,9 @@
                 workflowController: workflow,
                 shellPresentationController: shell,
                 permissionGateController: permissionGate,
+                onboardingWindowController: MacOnboardingWindowController(),
                 permissionManager: permissionManager,
+                pipelineFactory: .live(),
                 appBranchMonitor: appBranchMonitor,
                 hotkeyRegistrar: hotkeyRegistrar
             )
@@ -359,7 +360,9 @@
                 workflowController: workflow,
                 shellPresentationController: shell,
                 permissionGateController: permissionGate,
+                onboardingWindowController: MacOnboardingWindowController(),
                 permissionManager: permissionManager,
+                pipelineFactory: .live(),
                 appBranchMonitor: appBranchMonitor,
                 hotkeyRegistrar: hotkeyRegistrar
             )
@@ -419,7 +422,9 @@
                 workflowController: workflow,
                 shellPresentationController: shell,
                 permissionGateController: permissionGate,
+                onboardingWindowController: MacOnboardingWindowController(),
                 permissionManager: permissionManager,
+                pipelineFactory: .live(),
                 appBranchMonitor: appBranchMonitor,
                 hotkeyRegistrar: hotkeyRegistrar
             )
@@ -479,7 +484,9 @@
                 workflowController: workflow,
                 shellPresentationController: shell,
                 permissionGateController: permissionGate,
+                onboardingWindowController: MacOnboardingWindowController(),
                 permissionManager: permissionManager,
+                pipelineFactory: .live(),
                 appBranchMonitor: appBranchMonitor,
                 hotkeyRegistrar: hotkeyRegistrar
             )
@@ -538,7 +545,9 @@
                 workflowController: workflow,
                 shellPresentationController: shell,
                 permissionGateController: permissionGate,
+                onboardingWindowController: MacOnboardingWindowController(),
                 permissionManager: permissionManager,
+                pipelineFactory: .live(),
                 appBranchMonitor: appBranchMonitor,
                 hotkeyRegistrar: hotkeyRegistrar
             )

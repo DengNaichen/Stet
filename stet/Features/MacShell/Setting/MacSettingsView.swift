@@ -1,6 +1,5 @@
 #if os(macOS)
     import SwiftUI
-    internal import Auth
 
     private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
         case general
@@ -137,9 +136,7 @@
 
         @StateObject private var dictionaryViewModel = DictionaryViewModel()
         @StateObject private var openAISettingsViewModel = MacOpenAISettingsViewModel()
-        private let supabase = SupabaseService.shared
         @State private var selectedTab: MacSettingsTab? = .general
-        @State private var isShowingAccountSheet = false
         @State private var searchText = ""
         @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
@@ -155,10 +152,7 @@
                 reloadStateFromPreferences()
                 synchronizeSelectionWithFilter()
             }
-            .sheet(isPresented: $isShowingAccountSheet) {
-                AuthView()
-                    .frame(minWidth: 520, minHeight: 480)
-            }
+
             .onChange(of: searchText) { _, _ in
                 synchronizeSelectionWithFilter()
             }
@@ -193,15 +187,6 @@
                 .environment(\.sidebarRowSize, .large)
                 .listStyle(.sidebar)
 
-                Button {
-                    isShowingAccountSheet = true
-                } label: {
-                    sidebarAccountRow
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, MacUI.SettingsViewMetrics.sidebarAccountRowHorizontalPadding)
-                        .padding(.vertical, MacUI.SettingsViewMetrics.sidebarAccountRowVerticalPadding)
-                }
-                .buttonStyle(.plain)
             }
             .navigationSplitViewColumnWidth(min: 144, ideal: 176, max: 240)
         }
@@ -254,78 +239,6 @@
             .padding(.vertical, 3)
         }
 
-        private var sidebarAccountRow: some View {
-            HStack(spacing: 12) {
-                accountAvatar
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(accountTitle)
-                        .font(.headline)
-                        .lineLimit(1)
-
-                    Text(accountSubtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-
-                Spacer(minLength: 0)
-            }
-            .padding(.vertical, 4)
-            .contentShape(Rectangle())
-        }
-
-        private var accountAvatarURL: URL? {
-            guard let urlString = supabase.currentSession?.user.userMetadata["avatar_url"]?.stringValue else {
-                return nil
-            }
-            return URL(string: urlString)
-        }
-
-        private var accountAvatar: some View {
-            ZStack(alignment: .bottomTrailing) {
-                Group {
-                    if let url = accountAvatarURL {
-                        AsyncImage(url: url) { image in
-                            image.resizable().scaledToFill()
-                        } placeholder: {
-                            initialsAvatar
-                        }
-                        .frame(width: 30, height: 30)
-                        .clipShape(Circle())
-                    } else {
-                        initialsAvatar
-                    }
-                }
-
-                Circle()
-                    .fill(supabase.currentSession == nil ? Color.secondary.opacity(0.6) : Color.green)
-                    .frame(width: 8, height: 8)
-                    .overlay {
-                        Circle()
-                            .stroke(Color(nsColor: .controlBackgroundColor), lineWidth: 1.5)
-                    }
-            }
-            .accessibilityHidden(true)
-        }
-
-        private var initialsAvatar: some View {
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: accountAvatarGradient,
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 30, height: 30)
-                .overlay {
-                    Text(accountInitials)
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
-                }
-        }
-
         @ViewBuilder
         private func selectedContent(for tab: MacSettingsTab) -> some View {
             switch tab {
@@ -338,9 +251,7 @@
             case .hotkey:
                 MacHotkeySettingsView()
             case .openAI:
-                MacOpenAISettingsView(viewModel: openAISettingsViewModel) {
-                    isShowingAccountSheet = true
-                }
+                MacOpenAISettingsView(viewModel: openAISettingsViewModel)
             case .dictionary:
                 DictionaryView(viewModel: dictionaryViewModel)
             #if DEBUG
@@ -376,45 +287,5 @@
             selectedTab = filteredTabs.first
         }
 
-        private var accountTitle: String {
-            if let email = supabase.currentSession?.user.email, !email.isEmpty {
-                return email
-            }
-
-            return "Stet Account"
-        }
-
-        private var accountSubtitle: String {
-            if supabase.currentSession == nil {
-                return supabase.isConfigured ? "Sign in for relay-backed features" : "Supabase setup required"
-            }
-
-            return "Signed in"
-        }
-
-        private var accountInitials: String {
-            let source = supabase.currentSession?.user.email ?? "Stet"
-            let components =
-                source
-                .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
-                .map(String.init)
-                .filter { !$0.isEmpty }
-
-            let letters =
-                components
-                .prefix(2)
-                .compactMap { $0.first.map { String($0).uppercased() } }
-                .joined()
-
-            return letters.isEmpty ? "S" : letters
-        }
-
-        private var accountAvatarGradient: [Color] {
-            if supabase.currentSession == nil {
-                return [Color.secondary.opacity(0.75), Color.secondary.opacity(0.45)]
-            }
-
-            return [Color.accentColor.opacity(0.95), Color.accentColor.opacity(0.65)]
-        }
     }
 #endif

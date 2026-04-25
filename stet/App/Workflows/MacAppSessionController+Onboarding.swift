@@ -12,7 +12,7 @@
             }
 
             onboardingModeState = mode
-            onboardingStepState = mode == .apiKey ? .apiKey : .login
+            onboardingStepState = .apiKey
             notifyChange()
         }
 
@@ -37,7 +37,7 @@
 
             switch onboardingStepState {
             case .download:
-                onboardingStepState = .login
+                onboardingStepState = .apiKey
             case .permissions:
                 guard hasRequiredPermissions else { return }
                 onboardingStepState = .shortcut
@@ -47,7 +47,7 @@
             case .firstSuccess:
                 guard canContinueFirstSuccessOnboarding || canSkipFirstSuccessOnboarding else { return }
                 onboardingStepState = .appearance
-            case .apiKey, .login, .appearance, .done:
+            case .apiKey, .appearance, .done:
                 break
             }
 
@@ -64,15 +64,10 @@
             switch onboardingStepState {
             case .download:
                 break
-            case .apiKey, .login:
+            case .apiKey:
                 onboardingStepState = .download
             case .permissions:
-                onboardingStepState =
-                    switch onboardingModeState {
-                    case .managed: .login
-                    case .apiKey: .apiKey
-                    case nil: .download
-                    }
+                onboardingStepState = .apiKey
             case .shortcut:
                 onboardingStepState = .permissions
             case .firstSuccess:

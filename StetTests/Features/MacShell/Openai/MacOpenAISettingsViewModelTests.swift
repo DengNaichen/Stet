@@ -7,24 +7,12 @@
     @MainActor
     @Suite("Mac OpenAI Settings View Model", .serialized)
     struct MacOpenAISettingsViewModelTests {
-        @Test func executionModesExposeOnlyManagedAndByok() {
-            #expect(AIExecutionMode.allCases == [.managed, .byok])
-        }
-
-        @Test func loadExecutionModeFallsBackToByokForUnknownValue() {
-            let defaults = TestSupport.makeUserDefaults()
-            defaults.set("automatic", forKey: MacPreferences.aiExecutionMode)
-            let store = DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
-
-            #expect(store.loadExecutionMode() == .byok)
-        }
 
         @Test func loadReadsStoredValues() throws {
             let defaults = TestSupport.makeUserDefaults()
             let secretStore = TestSecretStore()
             try secretStore.saveString("sk-openai", forAccount: "openai.api_key")
             try secretStore.saveString("gsk-live", forAccount: "groq.api_key")
-            defaults.set(AIExecutionMode.managed.rawValue, forKey: MacPreferences.aiExecutionMode)
             defaults.set(DictationProvider.groq.rawValue, forKey: MacPreferences.transcriptionProvider)
             defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.rewriteProvider)
             defaults.set(true, forKey: MacPreferences.rewriteEnabled)
@@ -39,7 +27,6 @@
 
             viewModel.load()
 
-            #expect(viewModel.executionMode == .managed)
             #expect(viewModel.rewriteProvider == .openAI)
             #expect(viewModel.dictationLanguageMode == .mixedChineseEnglish)
             #expect(viewModel.groqAPIKey == "gsk-live")
@@ -76,36 +63,8 @@
             #expect(viewModel.openAIAPIKey.isEmpty)
         }
 
-        @Test func changingExecutionModePersistsSelection() {
-            let defaults = TestSupport.makeUserDefaults()
-            let viewModel = MacOpenAISettingsViewModel(
-                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
-            )
-
-            viewModel.load()
-            viewModel.executionMode = .byok
-
-            #expect(defaults.string(forKey: MacPreferences.aiExecutionMode) == AIExecutionMode.byok.rawValue)
-        }
-
-        @Test func managedModeShowsSignInMessageAndHidesDirectConfiguration() {
-            let defaults = TestSupport.makeUserDefaults()
-            defaults.set(AIExecutionMode.managed.rawValue, forKey: MacPreferences.aiExecutionMode)
-
-            let viewModel = MacOpenAISettingsViewModel(
-                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
-            )
-
-            viewModel.load()
-
-            #expect(viewModel.connectionNeedsAttention)
-            #expect(viewModel.missingCredentialMessage == "Sign in to use Stet account dictation.")
-            #expect(viewModel.visibleCredentialProviders.isEmpty)
-        }
-
         @Test func byokRequiresOnlyRewriteProviderKey() {
             let defaults = TestSupport.makeUserDefaults()
-            defaults.set(AIExecutionMode.byok.rawValue, forKey: MacPreferences.aiExecutionMode)
             defaults.set(DictationProvider.groq.rawValue, forKey: MacPreferences.transcriptionProvider)
             defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.rewriteProvider)
             defaults.set(true, forKey: MacPreferences.rewriteEnabled)
@@ -129,7 +88,6 @@
 
         @Test func appleIntelligenceRewriteDoesNotRequireCredential() {
             let defaults = TestSupport.makeUserDefaults()
-            defaults.set(AIExecutionMode.byok.rawValue, forKey: MacPreferences.aiExecutionMode)
             defaults.set(DictationProvider.appleIntelligence.rawValue, forKey: MacPreferences.rewriteProvider)
             defaults.set(true, forKey: MacPreferences.rewriteEnabled)
 

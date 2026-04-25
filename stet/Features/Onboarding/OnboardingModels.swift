@@ -3,13 +3,11 @@
 
     enum MacOnboardingMode: String, Sendable {
         case apiKey
-        case managed
     }
 
     enum MacOnboardingStep: Int, CaseIterable, Sendable {
         case download = 1
         case apiKey
-        case login
         case permissions
         case shortcut
         case firstSuccess
@@ -20,7 +18,7 @@
             switch self {
             case .download:
                 return 1
-            case .apiKey, .login:
+            case .apiKey:
                 return 2
             case .permissions:
                 return 3
@@ -37,7 +35,7 @@
             switch self {
             case .shortcut, .firstSuccess:
                 return true
-            case .download, .apiKey, .login, .permissions, .appearance, .done:
+            case .download, .apiKey, .permissions, .appearance, .done:
                 return false
             }
         }

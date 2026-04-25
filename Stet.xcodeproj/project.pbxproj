@@ -10,7 +10,6 @@
 		0B4E0F6F7A5B4D88A1C9E113 /* whisper in Frameworks */ = {isa = PBXBuildFile; productRef = 0B4E0F6F7A5B4D88A1C9E112 /* whisper */; };
 		6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 6D3A1A982F675F44005DA839 /* KeyboardShortcuts */; };
 		6D483F322F9C186400BF3105 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */; };
-		6D8230732F69F4A00096571A /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 6D8230722F69F4A00096571A /* Supabase */; };
 		6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 6DCB53142F6DB36500358FE5 /* FluidAudio */; };
 		6DDEB3D82F9C2EB100F49F0F /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6DDEB3D72F9C2EB100F49F0F /* WhisperKit */; };
 		C80A4F64301851B7005C2101 /* OpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = C80A4F66301851B7005C2101 /* OpenAI */; };
@@ -93,7 +92,6 @@
 			files = (
 				6D483F322F9C186400BF3105 /* Sparkle in Frameworks */,
 				F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */,
-				6D8230732F69F4A00096571A /* Supabase in Frameworks */,
 				6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */,
 				6DDEB3D82F9C2EB100F49F0F /* WhisperKit in Frameworks */,
 				C80A4F64301851B7005C2101 /* OpenAI in Frameworks */,
@@ -183,7 +181,6 @@
 				C80A4F66301851B7005C2101 /* OpenAI */,
 				A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */,
 				6D3A1A982F675F44005DA839 /* KeyboardShortcuts */,
-				6D8230722F69F4A00096571A /* Supabase */,
 				6DCB53142F6DB36500358FE5 /* FluidAudio */,
 				0B4E0F6F7A5B4D88A1C9E112 /* whisper */,
 				6DDEB3D72F9C2EB100F49F0F /* WhisperKit */,
@@ -294,7 +291,6 @@
 				C80A4F65301851B7005C2101 /* XCRemoteSwiftPackageReference "OpenAI" */,
 				A7D90C1E4B4D4E5F8A1B2C32 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
-				6D82306D2F69F4A00096571A /* XCRemoteSwiftPackageReference "supabase-swift" */,
 				6DCB53132F6DB36500358FE5 /* XCRemoteSwiftPackageReference "FluidAudio" */,
 				0B4E0F6F7A5B4D88A1C9E111 /* XCLocalSwiftPackageReference "Vendor/WhisperPackage" */,
 				6DDEB3D62F9C2EB100F49F0F /* XCRemoteSwiftPackageReference "WhisperKit" */,
@@ -564,9 +560,6 @@
 				SPARKLE_FEED_URL = "";
 				SPARKLE_PUBLIC_ED_KEY = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPABASE_OAUTH_REDIRECT_URL = "naichengdeng.stet.debug://auth-callback";
-				SUPABASE_PUBLISHABLE_KEY = sb_publishable_DiDRWukKUQrcdBDUjYmJGw_5N51MiHP;
-				SUPABASE_URL = "https://qtffabmkvbkzarwevfrk.supabase.co";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -618,9 +611,6 @@
 				SPARKLE_FEED_URL = "";
 				SPARKLE_PUBLIC_ED_KEY = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPABASE_OAUTH_REDIRECT_URL = "naichengdeng.stet://auth-callback";
-				SUPABASE_PUBLISHABLE_KEY = sb_publishable_DiDRWukKUQrcdBDUjYmJGw_5N51MiHP;
-				SUPABASE_URL = "https://qtffabmkvbkzarwevfrk.supabase.co";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -824,9 +814,6 @@
 				SPARKLE_FEED_URL = "";
 				SPARKLE_PUBLIC_ED_KEY = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPABASE_OAUTH_REDIRECT_URL = "naichengdeng.stet://auth-callback";
-				SUPABASE_PUBLISHABLE_KEY = sb_publishable_DiDRWukKUQrcdBDUjYmJGw_5N51MiHP;
-				SUPABASE_URL = "https://qtffabmkvbkzarwevfrk.supabase.co";
 				SUPPORTED_PLATFORMS = macosx;
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "APP_STORE $(inherited)";
@@ -1042,14 +1029,6 @@
 				minimumVersion = 2.4.0;
 			};
 		};
-		6D82306D2F69F4A00096571A /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/supabase-community/supabase-swift.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.5.1;
-			};
-		};
 		6DCB53132F6DB36500358FE5 /* XCRemoteSwiftPackageReference "FluidAudio" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/FluidInference/FluidAudio.git";
@@ -1094,11 +1073,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
 			productName = KeyboardShortcuts;
-		};
-		6D8230722F69F4A00096571A /* Supabase */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 6D82306D2F69F4A00096571A /* XCRemoteSwiftPackageReference "supabase-swift" */;
-			productName = Supabase;
 		};
 		6DCB53142F6DB36500358FE5 /* FluidAudio */ = {
 			isa = XCSwiftPackageProductDependency;

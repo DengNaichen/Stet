@@ -8,10 +8,10 @@
 - Concurrency and state: Swift Concurrency, Combine, and some Observation usage
 - Audio and system frameworks: AVFoundation, CoreAudio, ApplicationServices, Metal, MetalKit, OSLog
 - Persistence and local state: `UserDefaults`, Keychain-backed secret storage, some SwiftData models
-- Networking and provider integrations: URLSession-based services plus OpenAI-compatible and Supabase-backed integrations
+- Networking and provider integrations: URLSession-based services plus OpenAI-compatible integrations
 - Testing: Swift Testing, plus manual validation for platform-heavy flows
 - Package management: Swift Package Manager via Xcode
-- Common external packages used across the app include `KeyboardShortcuts`, `Sparkle`, `supabase-swift`, and `OpenAI`; feature-specific dependencies should be confirmed in the relevant source and `plan.md`
+- Common external packages used across the app include `KeyboardShortcuts`, `Sparkle`, and `OpenAI`; feature-specific dependencies should be confirmed in the relevant source and `plan.md`
 
 ## Where To Start
 
@@ -79,7 +79,6 @@
 │   │   ├── Rewrite/
 │   │   ├── Security/
 │   │   ├── Speech/
-│   │   ├── Supabase/
 │   │   ├── TextInput/
 │   │   └── Transcribed/
 │   ├── Features/          # Feature UI, shells, onboarding flows, view models

@@ -22,7 +22,6 @@
             #expect(!defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation))
             #expect(defaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.openAI.rawValue)
             #expect(defaults.string(forKey: MacPreferences.rewriteProvider) == DictationProvider.openAI.rawValue)
-            #expect(defaults.string(forKey: MacPreferences.aiExecutionMode) == AIExecutionMode.byok.rawValue)
             #expect(
                 defaults.string(forKey: MacPreferences.dictationLanguageMode)
                     == DictationLanguageMode.automatic.rawValue)
@@ -48,7 +47,6 @@
             defaults.set(true, forKey: "mac.revealPanelOnCapture")
             defaults.set("https://api.groq.com/openai/v1", forKey: "mac.openAIBaseURL")
             defaults.set(true, forKey: MacPreferences.showInDock)
-            defaults.set(AIExecutionMode.managed.rawValue, forKey: MacPreferences.aiExecutionMode)
 
             let bootstrapper = MacAppBootstrapper(
                 defaults: defaults,
@@ -59,7 +57,6 @@
             let launchConfiguration = bootstrapper.prepareForLaunch()
 
             #expect(launchConfiguration == .init(showInDock: true))
-            #expect(defaults.string(forKey: MacPreferences.aiExecutionMode) == AIExecutionMode.managed.rawValue)
             #expect(defaults.object(forKey: "mac.copyLatestCaptureHotkeyShortcut") as? String == "legacy")
             #expect(defaults.object(forKey: "mac.historyRetentionPeriod") as? String == "forever")
             #expect(defaults.object(forKey: "mac.showPanelOnLaunch") as? Bool == true)

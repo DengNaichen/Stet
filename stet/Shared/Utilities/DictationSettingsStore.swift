@@ -30,7 +30,6 @@ struct ProviderConfigurationRequirement: Sendable, Equatable, Hashable {
 struct DictationSettingsSnapshot: Sendable {
     let transcriptionProvider: DictationProvider
     let rewriteProvider: DictationProvider
-    let executionMode: AIExecutionMode
     let isRewriteEnabled: Bool
     let dictationLanguageMode: DictationLanguageMode
     let shouldPauseMediaDuringDictation: Bool
@@ -115,7 +114,6 @@ struct DictationSettingsStore: Sendable {
     nonisolated func loadSnapshot() -> DictationSettingsSnapshot {
         let transcriptionProvider = loadTranscriptionProvider()
         let rewriteProvider = loadRewriteProvider(defaultingTo: transcriptionProvider)
-        let executionMode = loadExecutionMode()
         let isRewriteEnabled = loadRewriteEnabled()
         let dictationLanguageMode = loadDictationLanguageMode()
         let shouldPauseMediaDuringDictation =
@@ -159,7 +157,6 @@ struct DictationSettingsStore: Sendable {
         return DictationSettingsSnapshot(
             transcriptionProvider: transcriptionProvider,
             rewriteProvider: rewriteProvider,
-            executionMode: executionMode,
             isRewriteEnabled: isRewriteEnabled,
             dictationLanguageMode: dictationLanguageMode,
             shouldPauseMediaDuringDictation: shouldPauseMediaDuringDictation,
@@ -208,11 +205,6 @@ struct DictationSettingsStore: Sendable {
         loadRewriteProvider(defaultingTo: loadTranscriptionProvider())
     }
 
-    nonisolated func loadExecutionMode() -> AIExecutionMode {
-        let rawValue = defaultsStore.string(forKey: MacPreferences.aiExecutionMode) ?? ""
-        return AIExecutionMode(rawValue: rawValue) ?? .byok
-    }
-
     nonisolated func saveTranscriptionProvider(_ provider: DictationProvider) {
         let previousTranscriptionProvider = loadTranscriptionProvider()
         let currentRewriteProvider = loadRewriteProvider(defaultingTo: previousTranscriptionProvider)
@@ -231,10 +223,6 @@ struct DictationSettingsStore: Sendable {
 
     nonisolated func saveProvider(_ provider: DictationProvider) {
         saveRewriteProvider(provider)
-    }
-
-    nonisolated func saveExecutionMode(_ mode: AIExecutionMode) {
-        defaultsStore.set(mode.rawValue, forKey: MacPreferences.aiExecutionMode)
     }
 
     nonisolated func loadRewriteEnabled() -> Bool {

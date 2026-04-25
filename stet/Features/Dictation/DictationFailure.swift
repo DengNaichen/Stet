@@ -26,9 +26,6 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
     case invalidResponse(provider: DictationProvider)
     case providerAPI(provider: DictationProvider, statusCode: Int?, message: String)
     case unsupportedProviderCombination(transcriptionProvider: DictationProvider, rewriteProvider: DictationProvider)
-    case relayAuthenticationRequired
-    case managedUnavailable
-    case relayInvocation(statusCode: Int?, message: String, requestID: String?)
     case localWhisperModelMissing(expectedPath: String)
     case localWhisperRuntimeUnavailable
     case network(code: URLError.Code, message: String)
@@ -46,7 +43,6 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
             .unsupportedAudioFormat,
             .failedToStart,
             .invalidResponse,
-            .relayInvocation,
             .localWhisperRuntimeUnavailable:
             return .service
         case .emptyTranscription:
@@ -61,7 +57,6 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
             .missingAPIKey,
             .invalidBaseURL,
             .unsupportedProviderCombination,
-            .managedUnavailable,
             .localWhisperModelMissing:
             return .configuration
         case .providerAPI(_, let statusCode, _):
@@ -73,8 +68,7 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
             default:
                 return .service
             }
-        case .relayAuthenticationRequired:
-            return .authentication
+
         case .network:
             return .network
         case .unknown:
@@ -108,12 +102,7 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
             return "\(provider.displayName) request failed"
         case .unsupportedProviderCombination:
             return "Unsupported provider pair"
-        case .relayAuthenticationRequired:
-            return "Sign-in required"
-        case .managedUnavailable:
-            return "Stet account unavailable"
-        case .relayInvocation:
-            return "Usage limit reached"
+
         case .localWhisperModelMissing:
             return "Local Whisper model required"
         case .localWhisperRuntimeUnavailable:
@@ -160,16 +149,7 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
         case .unsupportedProviderCombination(let transcriptionProvider, let rewriteProvider):
             return
                 "\(transcriptionProvider.displayName) transcription with \(rewriteProvider.displayName) rewrite is unsupported."
-        case .relayAuthenticationRequired:
-            return AIExecutionError.managedRequiresAuthenticatedSession.localizedDescription
-        case .managedUnavailable:
-            return AIExecutionError.managedModeUnavailable.localizedDescription
-        case .relayInvocation(let statusCode, let message, let requestID):
-            return AIExecutionError.relayInvocationFailed(
-                statusCode: statusCode,
-                message: message,
-                requestID: requestID
-            ).localizedDescription
+
         case .localWhisperModelMissing(let expectedPath):
             return "Local Whisper model not found. Place the model at \(expectedPath)."
         case .localWhisperRuntimeUnavailable:
@@ -201,9 +181,7 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
     }
 
     var isInsufficientFunds: Bool {
-        if case .relayInvocation(let statusCode, _, _) = self, statusCode == 402 {
-            return true
-        }
+
         if case .providerAPI(_, let statusCode, _) = self, statusCode == 402 {
             return true
         }
@@ -266,17 +244,6 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
             switch configurationError {
             case .missingRequirements(let requirements):
                 return .missingProviderConfiguration(requirements: requirements)
-            }
-        }
-
-        if let executionError = error as? AIExecutionError {
-            switch executionError {
-            case .managedRequiresAuthenticatedSession:
-                return .relayAuthenticationRequired
-            case .managedModeUnavailable:
-                return .managedUnavailable
-            case .relayInvocationFailed(let statusCode, let message, let requestID):
-                return .relayInvocation(statusCode: statusCode, message: message, requestID: requestID)
             }
         }
 

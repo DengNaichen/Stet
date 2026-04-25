@@ -2,7 +2,7 @@
 
 ## Goal
 
-Validate BYOK dictation provider splitting on macOS without regressing relay or dictation cleanup behavior.
+Validate BYOK dictation provider splitting on macOS without regressing dictation cleanup behavior.
 
 ## Entry Points
 
@@ -32,7 +32,7 @@ Unsupported default pair:
 1. Settings: transcription provider and rewrite provider persist independently.
 2. BYOK preflight: missing transcription key, missing rewrite key, and missing both keys fail before remote work starts.
 3. Runtime: supported provider pairs still execute as a two-step flow where transcription feeds rewrite and only rewritten text is returned.
-4. Relay/managed: relay paths still skip local rewrite and keep managed auth requirements unchanged.
+
 
 ## Commands
 
@@ -51,7 +51,6 @@ Known-stable focused retry for the two historically flaky selections:
 
 ```bash
 xcodebuild test -project Stet.xcodeproj -scheme Stet -destination 'platform=macOS,arch=arm64' \
-  -only-testing:StetTests/MacOpenAISettingsViewModelTests/managedModeWithoutRelaySessionShowsSignInRequired \
   -only-testing:StetTests/ConfigurableSpeechServiceTests/byokUsesAIAudiencePromptWhenTargetAppIsUnknown
 ```
 
@@ -69,12 +68,10 @@ xcodebuild test -project Stet.xcodeproj -scheme Stet -destination 'platform=macO
   -only-testing:StetTests/ConfigurableSpeechServiceTests/byokGroqToOpenAIUsesIntermediateTranscriptOnlyForRewrite \
   -only-testing:StetTests/ConfigurableSpeechServiceTests/transcriptionFailurePreventsRewriteStepFromStarting \
   -only-testing:StetTests/ConfigurableSpeechServiceTests/rewriteFailureThrows \
-  -only-testing:StetTests/ConfigurableSpeechServiceTests/automaticWithSessionPrefersRelayEvenWhenLocalKeyExists \
-  -only-testing:StetTests/ConfigurableSpeechServiceTests/relayPathBuildsPromptAndSkipsLocalRewrite \
+
   -only-testing:StetTests/DictationViewModelTests/stopFailurePreservesStepAwareProviderConfigurationFailure \
   -only-testing:StetTests/DictationViewModelTests/stopFailurePreservesUnsupportedProviderPairFailure \
   -only-testing:StetTests/MacDictationPanelViewModelTests/configurationFailuresAreSurfacedThroughPanelStatus \
-  -only-testing:StetTests/MacOpenAISettingsViewModelTests/managedModeWithoutRelaySessionShowsSignInRequired \
   -only-testing:StetTests/ConfigurableSpeechServiceTests/byokUsesAIAudiencePromptWhenTargetAppIsUnknown
 ```
 

@@ -38,7 +38,7 @@ The goal of this document is not to propose a new refactor. It is to explain how
 **Constraints**:
 - Documentation must reflect the current implementation exactly
 - No code changes are part of this pass
-- Managed relay behavior remains out of scope for this feature
+- No code changes are part of this pass
 - `contracts/` stays empty unless there is a real external interface to document
 
 ## Constitution Check
@@ -164,14 +164,6 @@ The missing-requirements error is step-aware, so the UI can identify whether tra
 - a requirement message when selected providers are not fully configured
 
 The current settings UI also shows a warning for the `OpenAI -> Groq` provider pair.
-
-### 5. Managed Relay Boundary
-
-This feature only describes the direct BYOK path. Managed relay remains in the same runtime surfaces, but:
-
-- relay route resolution is documented elsewhere
-- relay still skips local rewrite on Mac
-- relay behavior is intentionally outside the scope of this feature spec
 
 ## Complexity Tracking
 

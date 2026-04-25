@@ -498,6 +498,15 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     }
 }
 
+extension ConfigurableSpeechService {
+    static func live(settingsStore: DictationSettingsStore = DictationSettingsStore()) -> ConfigurableSpeechService {
+        ConfigurableSpeechService(
+            settingsStore: settingsStore,
+            pipelineFactory: .live()
+        )
+    }
+}
+
 #if os(macOS)
     extension ConfigurableSpeechService: AudioFeatureSource {}
 #endif

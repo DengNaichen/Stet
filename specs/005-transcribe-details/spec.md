@@ -109,7 +109,6 @@ As a BYOK user, I get clear, user-directed configuration errors before dictation
 - **FR-017**: If transcription fails, the Mac app MUST stop the flow and MUST NOT attempt rewrite.
 - **FR-018**: If rewrite fails, the Mac app MUST report rewrite failure and MUST NOT present a successful dictation result.
 - **FR-019**: This feature spec MUST remain limited to Mac-side behavior and MUST NOT define backend implementation details.
-- **FR-020**: This feature spec MUST remain limited to BYOK dictation cleanup and MUST NOT define managed/relay behavior.
 - **FR-021**: This feature spec MUST NOT include selection rewrite.
 
 ### Key Entities *(include if feature involves data)*
@@ -132,11 +131,9 @@ As a BYOK user, I get clear, user-directed configuration errors before dictation
 - **SC-005**: Mac-side automated tests verify that rewrite failure is surfaced as a failed dictation result after successful transcription.
 - **SC-006**: The Mac settings surface warns when the current provider pair is `OpenAI` transcription with `Groq` rewrite.
 - **SC-007**: A developer can read this spec and identify a clear boundary between Mac responsibilities and backend responsibilities.
-- **SC-008**: Existing managed/relay behavior remains outside the scope of this spec and is not implicitly changed by this feature definition.
 
 ## Assumptions
 
 - This specification is limited to the macOS direct BYOK dictation-cleanup flow.
-- Managed relay behavior remains outside the scope of this feature even though it shares some runtime surfaces.
 - Provider API keys are stored per provider and reused by whichever pipeline step selects that provider.
 - The settings UI may warn about some provider pairs while the lower execution layers still model direct-mode configuration by step.
