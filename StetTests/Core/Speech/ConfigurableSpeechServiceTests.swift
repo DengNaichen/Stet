@@ -128,7 +128,10 @@ struct ConfigurableSpeechServiceTests {
 
         let service = ConfigurableSpeechService(
             settingsStore: store,
-            pipelineFactory: .live(),
+            pipelineFactory: DictationPipelineFactory(
+                makeLocalTranscriptionService: { TestTranscriptionService(result: "test") },
+                makeRewriteService: { _, _ in RecordingRewriteService() }
+            ),
             captureService: TestAudioCaptureService(audioFileURL: makeAudioFileURL())
         )
 
