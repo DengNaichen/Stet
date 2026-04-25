@@ -65,7 +65,8 @@
                     Button("Check for Updates") {
                         viewModel.checkForUpdates()
                     }
-                    .disabled(viewModel.updateSettings.isCheckingForUpdates || !viewModel.updateSettings.canCheckForUpdates)
+                    .disabled(
+                        viewModel.updateSettings.isCheckingForUpdates || !viewModel.updateSettings.canCheckForUpdates)
                 } header: {
                     Text("Updates")
                 }

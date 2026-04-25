@@ -225,8 +225,13 @@ final class LocalWhisperTranscriptionService: AudioFileTranscriptionService, @un
 
     private actor WhisperCppContext {
         private var context: OpaquePointer?
-        private var languageCString: [CChar]?
-        private var promptCString: [CChar]?
+
+        // Dedicated queue at .utility QoS so the OS preempts whisper threads
+        // for UI work (.userInteractive) automatically — fixes processing-stage lag.
+        nonisolated private static let inferenceQueue = DispatchQueue(
+            label: "com.stet.whisper.inference",
+            qos: .utility
+        )
 
         deinit {
             if let context {
@@ -256,78 +261,68 @@ final class LocalWhisperTranscriptionService: AudioFileTranscriptionService, @un
                 whisper_free(context)
                 self.context = nil
             }
-            languageCString = nil
-            promptCString = nil
         }
 
         func transcribe(
             samples: [Float],
             languageCode: String?,
             prompt: String?
-        ) -> Bool {
-            guard let context else { return false }
+        ) async -> Bool {
+            guard let ctx = context else { return false }
 
-            if let normalizedLanguageCode = Self.normalizedLanguageCode(languageCode) {
-                languageCString = Array(normalizedLanguageCode.utf8CString)
-            } else {
-                languageCString = nil
-            }
+            let langCStr: [CChar]? = Self.normalizedLanguageCode(languageCode).map { Array($0.utf8CString) }
+            let promptCStr: [CChar]? = prompt.flatMap { p in p.isEmpty ? nil : Array(p.utf8CString) }
+            // Half of physical cores, capped at 4 — leaves enough headroom for UI rendering
+            let nThreads = Int32(max(1, min(4, ProcessInfo.processInfo.processorCount / 2)))
 
-            if let prompt, !prompt.isEmpty {
-                promptCString = Array(prompt.utf8CString)
-            } else {
-                promptCString = nil
-            }
+            return await withCheckedContinuation { continuation in
+                Self.inferenceQueue.async {
+                    var success = true
 
-            var success = true
+                    func perform(langPtr: UnsafePointer<CChar>?, promptPtr: UnsafePointer<CChar>?) {
+                        var params = whisper_full_default_params(WHISPER_SAMPLING_BEAM_SEARCH)
+                        params.print_realtime = false
+                        params.print_progress = false
+                        params.print_timestamps = false
+                        params.print_special = false
+                        params.translate = false
+                        params.no_context = true
+                        params.temperature = 0
+                        params.n_threads = nThreads
+                        params.beam_search.beam_size = 2
+                        params.language = langPtr
+                        params.initial_prompt = promptPtr
 
-            // Correctly nest pointers to ensure they remain valid during whisper_full call
-            func performTranscription(langPtr: UnsafePointer<CChar>?, promptPtr: UnsafePointer<CChar>?) {
-                var params = whisper_full_default_params(WHISPER_SAMPLING_BEAM_SEARCH)
-                params.print_realtime = false
-                params.print_progress = false
-                params.print_timestamps = false
-                params.print_special = false
-                params.translate = false
-                params.no_context = true
-                params.temperature = 0
-                params.n_threads = Int32(max(1, min(8, ProcessInfo.processInfo.processorCount - 2)))
-                params.beam_search.beam_size = 2
-                params.language = langPtr
-                params.initial_prompt = promptPtr
+                        whisper_reset_timings(ctx)
 
-                whisper_reset_timings(context)
-
-                samples.withUnsafeBufferPointer { buffer in
-                    if whisper_full(context, params, buffer.baseAddress, Int32(buffer.count)) != 0 {
-                        success = false
+                        samples.withUnsafeBufferPointer { buffer in
+                            if whisper_full(ctx, params, buffer.baseAddress, Int32(buffer.count)) != 0 {
+                                success = false
+                            }
+                        }
                     }
-                }
-            }
 
-            if let languageCString = languageCString {
-                languageCString.withUnsafeBufferPointer { langBuf in
-                    if let promptCString = promptCString {
-                        promptCString.withUnsafeBufferPointer { promptBuf in
-                            performTranscription(langPtr: langBuf.baseAddress, promptPtr: promptBuf.baseAddress)
+                    if let lang = langCStr {
+                        lang.withUnsafeBufferPointer { langBuf in
+                            if let p = promptCStr {
+                                p.withUnsafeBufferPointer { promptBuf in
+                                    perform(langPtr: langBuf.baseAddress, promptPtr: promptBuf.baseAddress)
+                                }
+                            } else {
+                                perform(langPtr: langBuf.baseAddress, promptPtr: nil)
+                            }
+                        }
+                    } else if let p = promptCStr {
+                        p.withUnsafeBufferPointer { promptBuf in
+                            perform(langPtr: nil, promptPtr: promptBuf.baseAddress)
                         }
                     } else {
-                        performTranscription(langPtr: langBuf.baseAddress, promptPtr: nil)
+                        perform(langPtr: nil, promptPtr: nil)
                     }
-                }
-            } else {
-                if let promptCString = promptCString {
-                    promptCString.withUnsafeBufferPointer { promptBuf in
-                        performTranscription(langPtr: nil, promptPtr: promptBuf.baseAddress)
-                    }
-                } else {
-                    performTranscription(langPtr: nil, promptPtr: nil)
+
+                    continuation.resume(returning: success)
                 }
             }
-
-            languageCString = nil
-            promptCString = nil
-            return success
         }
 
         func transcriptionText() -> String {

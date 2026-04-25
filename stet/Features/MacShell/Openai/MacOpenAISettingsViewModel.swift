@@ -34,16 +34,33 @@
         }
         @Published var localWhisperCustomPath: String = ""
 
+        @Published private(set) var isParakeetDownloaded = false
+        @Published private(set) var isParakeetDownloading = false
+        @Published private(set) var parakeetErrorMessage: String?
+
+        @Published var localTranscriptionEngine: LocalTranscriptionEngine = .default {
+            didSet {
+                guard hasLoadedState, oldValue != localTranscriptionEngine else { return }
+                UserDefaults.standard.set(
+                    localTranscriptionEngine.rawValue,
+                    forKey: MacPreferences.localTranscriptionEngine
+                )
+            }
+        }
+
         private let settingsStore: DictationSettingsStore
         private let localWhisperModelManager: LocalWhisperModelManager
+        private let fluidAudioModelManager: FluidAudioModelManager
         private var hasLoadedState = false
 
         init(
             settingsStore: DictationSettingsStore = DictationSettingsStore(),
-            localWhisperModelManager: LocalWhisperModelManager = LocalWhisperModelManager()
+            localWhisperModelManager: LocalWhisperModelManager = LocalWhisperModelManager(),
+            fluidAudioModelManager: FluidAudioModelManager = FluidAudioModelManager()
         ) {
             self.settingsStore = settingsStore
             self.localWhisperModelManager = localWhisperModelManager
+            self.fluidAudioModelManager = fluidAudioModelManager
         }
 
         var connectionNeedsAttention: Bool {
@@ -65,7 +82,50 @@
             groqAPIKey = settingsStore.loadAPIKey(for: .groq)
             localWhisperCustomPath =
                 UserDefaults.standard.string(forKey: MacPreferences.localWhisperModelPath) ?? ""
+            isParakeetDownloaded = fluidAudioModelManager.isModelDownloaded()
+            localTranscriptionEngine = LocalTranscriptionEngine.current()
             hasLoadedState = true
+        }
+
+        var localTranscriptionEngineOptions: [LocalTranscriptionEngine] {
+            LocalTranscriptionEngine.allCases
+        }
+
+        /// Picker is enabled when the underlying model is actually present so the
+        /// user can't switch to Parakeet then immediately fail their next dictation.
+        func isEngineSelectable(_ engine: LocalTranscriptionEngine) -> Bool {
+            switch engine {
+            case .whisper:
+                return true
+            case .parakeet:
+                return isParakeetDownloaded
+            }
+        }
+
+        var parakeetDisplayName: String {
+            FluidAudioModelManager.displayName
+        }
+
+        func downloadParakeetModel() {
+            guard !isParakeetDownloading, !isParakeetDownloaded else { return }
+            isParakeetDownloading = true
+            parakeetErrorMessage = nil
+
+            Task { [fluidAudioModelManager] in
+                do {
+                    try await fluidAudioModelManager.downloadModel()
+                    await MainActor.run {
+                        self.isParakeetDownloaded = fluidAudioModelManager.isModelDownloaded()
+                        self.isParakeetDownloading = false
+                    }
+                } catch {
+                    await MainActor.run {
+                        self.parakeetErrorMessage = error.localizedDescription
+                        self.isParakeetDownloading = false
+                        self.isParakeetDownloaded = fluidAudioModelManager.isModelDownloaded()
+                    }
+                }
+            }
         }
 
         @MainActor

@@ -28,4 +28,30 @@ enum MacPreferences {
 
     // Local Whisper model override
     nonisolated static let localWhisperModelPath = "mac.localWhisperModelPath"
+
+    /// Which on-device transcription engine the dictation pipeline uses.
+    /// Values are `LocalTranscriptionEngine.rawValue` ("whisper" or "parakeet").
+    /// Missing/unknown defaults to whisper.
+    nonisolated static let localTranscriptionEngine = "mac.localTranscriptionEngine"
+}
+
+enum LocalTranscriptionEngine: String, CaseIterable, Sendable {
+    case whisper
+    case parakeet
+
+    nonisolated static let `default`: LocalTranscriptionEngine = .whisper
+
+    nonisolated static func current(defaults: UserDefaults = .standard) -> LocalTranscriptionEngine {
+        guard let raw = defaults.string(forKey: MacPreferences.localTranscriptionEngine) else {
+            return .default
+        }
+        return LocalTranscriptionEngine(rawValue: raw) ?? .default
+    }
+
+    nonisolated var displayName: String {
+        switch self {
+        case .whisper: return "Whisper (large-v3-turbo q5_0)"
+        case .parakeet: return "Parakeet V3 (Multilingual)"
+        }
+    }
 }

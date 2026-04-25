@@ -69,9 +69,7 @@ struct DictationPipelineFactory: Sendable {
         DictationPipelineFactory(
             relayAuthenticationContext: relayAuthenticationContext,
             makeLocalTranscriptionService: {
-                try LocalWhisperTranscriptionService(
-                    modelManager: LocalWhisperModelManager()
-                )
+                try Self.makeLiveLocalTranscriptionService()
             },
             makeRelayTranscriptionService: {
                 authentication,
@@ -159,6 +157,38 @@ struct DictationPipelineFactory: Sendable {
             preferredSpellings: preferredSpellings,
             usesAudienceAwareLocalPrompts: usesAudienceAwareLocalPrompts
         )
+    }
+
+    /// Picks which local-engine implementation to instantiate based on the
+    /// user's `localTranscriptionEngine` preference. Whisper is the default and
+    /// kept for the case where the Parakeet model isn't downloaded yet — we
+    /// fall back to whisper rather than throwing so dictation never hard-fails
+    /// because of a misconfigured picker.
+    nonisolated static func makeLiveLocalTranscriptionService() throws -> any AudioFileTranscriptionService {
+        #if os(macOS)
+            let engine = LocalTranscriptionEngine.current()
+            AppLogger.info(
+                "DictationPipelineFactory selected local engine=\(engine.rawValue)",
+                category: .dictation
+            )
+
+            switch engine {
+            case .parakeet:
+                do {
+                    return try FluidAudioTranscriptionService()
+                } catch {
+                    AppLogger.warning(
+                        "Parakeet engine unavailable (\(error.localizedDescription)); falling back to local whisper.",
+                        category: .dictation
+                    )
+                    return try LocalWhisperTranscriptionService(modelManager: LocalWhisperModelManager())
+                }
+            case .whisper:
+                return try LocalWhisperTranscriptionService(modelManager: LocalWhisperModelManager())
+            }
+        #else
+            return try LocalWhisperTranscriptionService(modelManager: LocalWhisperModelManager())
+        #endif
     }
 
     nonisolated static func makeTranscriptionPrompt(

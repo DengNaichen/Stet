@@ -176,12 +176,15 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             #endif
         }
 
-        // Mirrors VoiceInkEngine.cleanupResources(): release the loaded whisper
-        // context after every recording cycle so memory drops back to baseline.
-        // Awaited (not deferred) so the next startRecording can't race a teardown.
+        // Mirrors VoiceInkEngine.cleanupResources(): release the loaded local
+        // engine context after every recording cycle so memory drops back to
+        // baseline. Awaited (not deferred) so the next startRecording can't race
+        // a teardown. Both whisper and parakeet are always cleaned — only one
+        // is loaded at a time and the other call is a cheap no-op.
         let releaseContextOnExit: @Sendable () async -> Void = {
             #if os(macOS)
                 await LocalWhisperContextManager.shared.cleanupResources()
+                await LocalParakeetContextManager.shared.cleanupResources()
             #endif
         }
 
@@ -320,6 +323,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         // a prewarm task may have loaded the model already, so release it here too.
         #if os(macOS)
             await LocalWhisperContextManager.shared.cleanupResources()
+            await LocalParakeetContextManager.shared.cleanupResources()
         #endif
     }
 

@@ -58,6 +58,10 @@
             guard !hasActivated else { return }
             hasActivated = true
 
+            guard LocalTranscriptionEngine.current() == .whisper else {
+                return
+            }
+
             scheduleWarmup(after: startupWarmupDelay)
             wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
                 forName: NSWorkspace.didWakeNotification,
@@ -94,6 +98,10 @@
         }
 
         private func performWarmupIfPossible(logMessage: StaticString) async throws {
+            guard LocalTranscriptionEngine.current() == .whisper else {
+                return
+            }
+
             guard let sampleURL = sampleURLProvider() else {
                 return
             }

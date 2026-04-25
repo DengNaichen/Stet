@@ -81,7 +81,9 @@
                 }
                 .store(in: &cancellables)
             sessionController.activate(presentationModel: self, showInDock: launchConfiguration.showInDock)
-            LocalWhisperWarmupCoordinator.shared.activateIfNeeded()
+            if !ProcessInfo.processInfo.isRunningTests {
+                LocalWhisperWarmupCoordinator.shared.activateIfNeeded()
+            }
         }
 
         var updates: AnyPublisher<Void, Never> {

@@ -138,7 +138,9 @@
                 )
             }
 
-            func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: (any Error)?) {
+            func updater(
+                _ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: (any Error)?
+            ) {
                 syncFromUpdater()
 
                 guard let error else {
@@ -194,7 +196,8 @@
                 }
 
                 if feedURLString == nil {
-                    return "Sparkle is disabled because SUFeedURL is missing. Set SPARKLE_FEED_URL in the build settings."
+                    return
+                        "Sparkle is disabled because SUFeedURL is missing. Set SPARKLE_FEED_URL in the build settings."
                 }
 
                 if publicKey == nil {
