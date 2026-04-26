@@ -12,11 +12,10 @@ private func makeTemporaryWavURL() throws -> URL {
 private func makeSnapshot(
     transcriptionProvider: DictationProvider = .openAI,
     rewriteProvider: DictationProvider = .openAI,
-    transcriptionProviderConfiguration: TranscriptionProviderConfiguration? = nil,
     rewriteProviderConfiguration: RewriteProviderConfiguration? =
         DictationProviderConfigurationResolver.rewriteConfiguration(
+            provider: .openAI,
             apiKey: "sk-test",
-            providerPair: DictationProviderPair(transcriptionProvider: .openAI, rewriteProvider: .openAI)
         ),
     rewriteEnabled: Bool = false,
     dictationLanguageMode: DictationLanguageMode = .automatic,
@@ -28,7 +27,6 @@ private func makeSnapshot(
         isRewriteEnabled: rewriteEnabled,
         dictationLanguageMode: dictationLanguageMode,
         shouldPauseMediaDuringDictation: false,
-        transcriptionProviderConfiguration: transcriptionProviderConfiguration,
         rewriteProviderConfiguration: rewriteProviderConfiguration,
         personalDictionary: personalDictionary,
         interactionSoundsEnabled: true,
@@ -54,7 +52,6 @@ struct LogicPrimitiveTests {
 
     @Test func dictationExecutionRouteResolverAllowsByokWithoutRequiredProviderKeysByFallingBack() async throws {
         let snapshot = makeSnapshot(
-            transcriptionProviderConfiguration: nil,
             rewriteProviderConfiguration: nil,
             rewriteEnabled: true
         )
@@ -68,18 +65,15 @@ struct LogicPrimitiveTests {
         }
     }
 
-    @Test func dictationExecutionRouteResolverAllowsByokWhenOnlyTranscriptionKeyIsMissing() async throws {
+    @Test func dictationExecutionRouteResolverIgnoresLegacyTranscriptionProviderWhenRewriteIsConfigured() async throws {
         let snapshot = makeSnapshot(
             transcriptionProvider: .groq,
             rewriteProvider: .openAI,
-            transcriptionProviderConfiguration: nil,
             rewriteProviderConfiguration: DictationProviderConfigurationResolver.rewriteConfiguration(
+                provider: .openAI,
                 apiKey: "sk-test",
-                providerPair: DictationProviderPair(
-                    transcriptionProvider: .groq,
-                    rewriteProvider: .openAI
-                )
-            )
+            ),
+            rewriteEnabled: true
         )
 
         let route = try await DictationExecutionRouteResolver.resolve(
@@ -88,8 +82,8 @@ struct LogicPrimitiveTests {
 
         switch route {
         case .direct(let direct):
-            #expect(direct.rewriteEnabled == false)
-            #expect(direct.rewriteConfiguration == nil)
+            #expect(direct.rewriteEnabled)
+            #expect(direct.rewriteConfiguration?.provider == .openAI)
         }
     }
 
@@ -97,13 +91,6 @@ struct LogicPrimitiveTests {
         let snapshot = makeSnapshot(
             transcriptionProvider: .groq,
             rewriteProvider: .openAI,
-            transcriptionProviderConfiguration: DictationProviderConfigurationResolver.transcriptionConfiguration(
-                apiKey: "gsk-test",
-                providerPair: DictationProviderPair(
-                    transcriptionProvider: .groq,
-                    rewriteProvider: .openAI
-                )
-            ),
             rewriteProviderConfiguration: nil,
             rewriteEnabled: true
         )
@@ -121,19 +108,9 @@ struct LogicPrimitiveTests {
         let snapshot = makeSnapshot(
             transcriptionProvider: .openAI,
             rewriteProvider: .groq,
-            transcriptionProviderConfiguration: DictationProviderConfigurationResolver.transcriptionConfiguration(
-                apiKey: "sk-test",
-                providerPair: DictationProviderPair(
-                    transcriptionProvider: .openAI,
-                    rewriteProvider: .groq
-                )
-            ),
             rewriteProviderConfiguration: DictationProviderConfigurationResolver.rewriteConfiguration(
+                provider: .groq,
                 apiKey: "gsk-test",
-                providerPair: DictationProviderPair(
-                    transcriptionProvider: .openAI,
-                    rewriteProvider: .groq
-                )
             ),
             rewriteEnabled: true
         )
@@ -147,15 +124,11 @@ struct LogicPrimitiveTests {
     }
 
     @Test func dictationExecutionRouteResolverAllowsAppleIntelligenceRewriteWithoutAPIKey() async throws {
-        let providerPair = DictationProviderPair(
-            transcriptionProvider: .openAI,
-            rewriteProvider: .appleIntelligence
-        )
         let snapshot = makeSnapshot(
             rewriteProvider: .appleIntelligence,
             rewriteProviderConfiguration: DictationProviderConfigurationResolver.rewriteConfiguration(
+                provider: .appleIntelligence,
                 apiKey: "",
-                providerPair: providerPair
             ),
             rewriteEnabled: true
         )
@@ -225,19 +198,9 @@ struct LogicPrimitiveTests {
         let snapshot = makeSnapshot(
             transcriptionProvider: .groq,
             rewriteProvider: .openAI,
-            transcriptionProviderConfiguration: DictationProviderConfigurationResolver.transcriptionConfiguration(
-                apiKey: "gsk-test",
-                providerPair: DictationProviderPair(
-                    transcriptionProvider: .groq,
-                    rewriteProvider: .openAI
-                )
-            ),
             rewriteProviderConfiguration: DictationProviderConfigurationResolver.rewriteConfiguration(
+                provider: .openAI,
                 apiKey: "sk-test",
-                providerPair: DictationProviderPair(
-                    transcriptionProvider: .groq,
-                    rewriteProvider: .openAI
-                )
             ),
             rewriteEnabled: true,
             dictationLanguageMode: .mixedChineseEnglish
@@ -289,6 +252,11 @@ struct LogicPrimitiveTests {
 
         #expect(prompt.contains("Only rewrite it into clean written text.") == true)
         #expect(prompt.contains("Preserve the original language span by span.") == true)
+        #expect(prompt.contains("Never normalize the transcript into a single language.") == true)
+        #expect(
+            prompt.contains(
+                "Never replace Chinese with English, English with Chinese, or any language with another language.")
+                == true)
         #expect(prompt.contains("remove filler words, false starts, repetitions") == true)
         #expect(prompt.contains("when the speaker immediately corrects themselves") == true)
         #expect(prompt.contains("Return only the rewritten transcript as plain text.") == true)
@@ -309,15 +277,40 @@ struct LogicPrimitiveTests {
         #expect(request.additionalContext == "Preserve mixed Chinese and English.")
     }
 
-    @Test func textRewriteRequestCleanupDefaultsNilAudienceToHumanPrompt() {
-        let request = TextRewriteRequest.cleanup(
-            "raw transcript",
-            preferredSpellings: ["Groq"]
-        )
+    @Test func preparedTextRewritePayloadDefaultsNilAudienceToHumanPrompt() {
+        let payload = PreparedTextRewritePayload(
+            request: .cleanup(
+                "raw transcript",
+                preferredSpellings: ["Groq"]
+            ))
 
-        #expect(request.text == "raw transcript")
-        #expect(request.audience == nil)
-        #expect(request.preferredSpellings == ["Groq"])
+        #expect(payload.audience == .human)
+        #expect(payload.text == "raw transcript")
+        #expect(payload.systemPrompt.contains("IMPORTANT: You are a text cleanup tool.") == true)
+    }
+
+    @Test func preparedTextRewritePayloadBuildsSharedPromptWithContextAndLanguage() {
+        let payload = PreparedTextRewritePayload(
+            request: .cleanup(
+                "raw transcript",
+                audience: .human,
+                preferredSpellings: ["Groq"],
+                additionalContext: "Preserve mixed Chinese and English.",
+                languageCode: "zh"
+            ))
+
+        #expect(payload.additionalContext == "Preserve mixed Chinese and English.")
+        #expect(payload.languageCode == "zh")
+        #expect(
+            payload.systemPrompt.contains("Language lock: preserve the detected transcript language (zh) exactly.")
+                == true)
+        #expect(
+            payload.systemPrompt.contains(
+                "Do not translate, paraphrase into another language, or normalize mixed-language text into a single language."
+            ) == true)
+        #expect(payload.userPrompt.contains("Context:") == true)
+        #expect(payload.userPrompt.contains("Instruction:") == true)
+        #expect(payload.userPrompt.contains("Text:\nraw transcript") == true)
     }
 
     @Test func makeTranscriptionPromptIncludesPreferredSpellings() throws {

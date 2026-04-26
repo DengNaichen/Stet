@@ -5,6 +5,7 @@ struct DictationPipeline: Sendable {
     let transcriptionLanguageCode: String?
     let promptProvider: (@Sendable () async -> String?)?
     let rewriteService: (any TextRewriteService)?
+    let rewriteProvider: DictationProvider?
     let rewriteAdditionalContext: String?
     let preferredSpellings: [String]
     let usesAudienceAwareLocalPrompts: Bool
@@ -32,7 +33,7 @@ struct DictationPipelineFactory: Sendable {
                 try Self.makeLiveLocalTranscriptionService()
             },
             makeRewriteService: { configuration, session in
-                if configuration.provider == .appleIntelligence {
+                if case .appleIntelligence = configuration.backend {
                     return AppleIntelligenceRewriteService()
                 }
                 return OpenAIRewriteService(configuration: configuration, session: session)
@@ -50,6 +51,7 @@ struct DictationPipelineFactory: Sendable {
         let transcriptionLanguageCode: String?
         let promptProvider: (@Sendable () async -> String?)?
         let rewriteService: (any TextRewriteService)?
+        let rewriteProvider: DictationProvider?
         let rewriteAdditionalContext: String?
         let preferredSpellings: [String]
         let usesAudienceAwareLocalPrompts: Bool
@@ -67,8 +69,10 @@ struct DictationPipelineFactory: Sendable {
 
             if direct.rewriteEnabled, let rewriteConfiguration = direct.rewriteConfiguration {
                 rewriteService = makeRewriteService(rewriteConfiguration, networkSession)
+                rewriteProvider = rewriteConfiguration.provider
             } else {
                 rewriteService = nil
+                rewriteProvider = nil
             }
         }
 
@@ -77,6 +81,7 @@ struct DictationPipelineFactory: Sendable {
             transcriptionLanguageCode: transcriptionLanguageCode,
             promptProvider: promptProvider,
             rewriteService: rewriteService,
+            rewriteProvider: rewriteProvider,
             rewriteAdditionalContext: rewriteAdditionalContext,
             preferredSpellings: preferredSpellings,
             usesAudienceAwareLocalPrompts: usesAudienceAwareLocalPrompts

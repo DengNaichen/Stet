@@ -225,6 +225,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         let transcriptionResult: TranscriptionResult
         do {
             await waitForTranscriptionPrewarm()
+            await DictationLatencyProbe.shared.record(.transcriptionStarted)
             transcriptionResult = try await pipeline.transcriptionService.transcribe(
                 audioFileAt: processedCaptureResult.url,
                 languageCode: pipeline.transcriptionLanguageCode,
@@ -261,7 +262,18 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                         additionalContext: pipeline.rewriteAdditionalContext,
                         languageCode: transcriptionResult.languageCode ?? pipeline.transcriptionLanguageCode
                     )
-                    finalTranscript = try await rewriteService.rewrite(request)
+                    let rewrittenTranscript = try await rewriteService.rewrite(request)
+
+                    finalTranscript = rewrittenTranscript
+                    if let rewriteProvider = pipeline.rewriteProvider {
+                        await DictationTranscriptTrace.shared.record(
+                            provider: rewriteProvider,
+                            outcome: .rewritten,
+                            rawTranscript: intermediateTranscript,
+                            finalTranscript: finalTranscript,
+                            languageCode: request.languageCode
+                        )
+                    }
                     let rewriteStageMs = Self.elapsedMilliseconds(since: rewriteStartedAt)
                     AppLogger.info(
                         "DictationStage rewriteMs=\(Self.formatMilliseconds(rewriteStageMs)) inputChars=\(intermediateTranscript.count) audience=\(rewriteAudience?.rawValue ?? "none") preferredSpellingsCount=\(pipeline.preferredSpellings.count) additionalContextChars=\(pipeline.rewriteAdditionalContext?.count ?? 0) lang=\(request.languageCode ?? "unknown")",
@@ -278,6 +290,16 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 AppLogger.error(
                     "Rewrite failed: \(error.localizedDescription). Falling back to raw transcript.",
                     category: .dictation)
+                if let rewriteProvider = pipeline.rewriteProvider {
+                    await DictationTranscriptTrace.shared.record(
+                        provider: rewriteProvider,
+                        outcome: .fallbackAfterRewriteFailure,
+                        rawTranscript: intermediateTranscript,
+                        finalTranscript: intermediateTranscript,
+                        languageCode: transcriptionResult.languageCode ?? pipeline.transcriptionLanguageCode,
+                        errorDescription: error.localizedDescription
+                    )
+                }
                 finalTranscript = intermediateTranscript
             }
 
@@ -496,6 +518,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         }
         return text
     }
+
 }
 
 extension ConfigurableSpeechService {

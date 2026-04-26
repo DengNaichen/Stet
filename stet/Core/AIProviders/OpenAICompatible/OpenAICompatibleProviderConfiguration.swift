@@ -79,7 +79,7 @@ struct OpenAICompatibleProviderEndpointConfiguration: Sendable, Equatable {
         case .groq:
             return URL(string: "https://api.groq.com/openai/v1")!
         case .appleIntelligence:
-            return URL(string: "apple-intelligence://local")!
+            preconditionFailure("Apple Intelligence is not an OpenAI-compatible endpoint.")
         }
     }
 
@@ -115,48 +115,27 @@ struct OpenAICompatibleProviderEndpointConfiguration: Sendable, Equatable {
     }
 }
 
-struct TranscriptionProviderConfiguration: Sendable, Equatable {
-    let endpoint: OpenAICompatibleProviderEndpointConfiguration
-    let model: String
-
-    nonisolated var provider: DictationProvider {
-        endpoint.provider
-    }
-
-    nonisolated var apiKey: String {
-        endpoint.apiKey
-    }
+enum RewriteExecutionBackend: Sendable, Equatable {
+    case remote(OpenAICompatibleProviderEndpointConfiguration)
+    case appleIntelligence
 }
 
 struct RewriteProviderConfiguration: Sendable, Equatable {
-    let endpoint: OpenAICompatibleProviderEndpointConfiguration
+    let provider: DictationProvider
     let model: String
-
-    nonisolated var provider: DictationProvider {
-        endpoint.provider
-    }
-
-    nonisolated var apiKey: String {
-        endpoint.apiKey
-    }
+    let backend: RewriteExecutionBackend
 
     nonisolated var supportsResponsesStore: Bool {
-        endpoint.supportsResponsesStore
+        switch backend {
+        case .remote(let endpoint):
+            return endpoint.supportsResponsesStore
+        case .appleIntelligence:
+            return false
+        }
     }
 }
 
 enum DictationProviderDefaults {
-    nonisolated static func transcriptionModel(for provider: DictationProvider) -> String {
-        switch provider {
-        case .openAI:
-            return "gpt-4o-mini-transcribe"
-        case .groq:
-            return "whisper-large-v3-turbo"
-        case .appleIntelligence:
-            return "apple-intelligence"
-        }
-    }
-
     nonisolated static func rewriteModel(for provider: DictationProvider) -> String {
         switch provider {
         case .openAI:
@@ -170,39 +149,32 @@ enum DictationProviderDefaults {
 }
 
 enum DictationProviderConfigurationResolver {
-    nonisolated static func transcriptionConfiguration(
-        apiKey: String,
-        providerPair: DictationProviderPair,
-        organizationID: String? = nil,
-        projectID: String? = nil
-    ) -> TranscriptionProviderConfiguration {
-        let provider = providerPair.transcriptionProvider
-        return TranscriptionProviderConfiguration(
-            endpoint: OpenAICompatibleProviderEndpointConfiguration(
-                provider: provider,
-                apiKey: apiKey,
-                organizationID: organizationID,
-                projectID: projectID
-            ),
-            model: DictationProviderDefaults.transcriptionModel(for: provider)
-        )
-    }
-
     nonisolated static func rewriteConfiguration(
+        provider: DictationProvider,
         apiKey: String,
-        providerPair: DictationProviderPair,
         organizationID: String? = nil,
         projectID: String? = nil
     ) -> RewriteProviderConfiguration {
-        let provider = providerPair.rewriteProvider
-        return RewriteProviderConfiguration(
-            endpoint: OpenAICompatibleProviderEndpointConfiguration(
+        switch provider {
+        case .openAI, .groq:
+            return RewriteProviderConfiguration(
                 provider: provider,
-                apiKey: apiKey,
-                organizationID: organizationID,
-                projectID: projectID
-            ),
-            model: DictationProviderDefaults.rewriteModel(for: provider)
-        )
+                model: DictationProviderDefaults.rewriteModel(for: provider),
+                backend: .remote(
+                    OpenAICompatibleProviderEndpointConfiguration(
+                        provider: provider,
+                        apiKey: apiKey,
+                        organizationID: organizationID,
+                        projectID: projectID
+                    )
+                )
+            )
+        case .appleIntelligence:
+            return RewriteProviderConfiguration(
+                provider: provider,
+                model: DictationProviderDefaults.rewriteModel(for: provider),
+                backend: .appleIntelligence
+            )
+        }
     }
 }

@@ -4,24 +4,6 @@ import Testing
 
 @testable import Stet
 
-private final class RequestAttemptCounter: @unchecked Sendable {
-    private let lock = NSLock()
-    private var count = 0
-
-    func increment() -> Int {
-        lock.lock()
-        defer { lock.unlock() }
-        count += 1
-        return count
-    }
-
-    func value() -> Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return count
-    }
-}
-
 @MainActor
 @Suite("OpenAI Adapters", .serialized)
 struct OpenAITests {
@@ -41,25 +23,15 @@ struct OpenAITests {
         )
     }
 
-    private func makeTranscriptionConfiguration(
-        provider: DictationProvider = .openAI,
-        apiKey: String = "sk-test",
-        baseURL: URL = URL(string: "https://api.example.com/v1")!
-    ) -> TranscriptionProviderConfiguration {
-        TranscriptionProviderConfiguration(
-            endpoint: makeEndpoint(provider: provider, apiKey: apiKey, baseURL: baseURL),
-            model: DictationProviderDefaults.transcriptionModel(for: provider)
-        )
-    }
-
     private func makeRewriteConfiguration(
         provider: DictationProvider = .openAI,
         apiKey: String = "sk-test",
         baseURL: URL = URL(string: "https://api.example.com/v1")!
     ) -> RewriteProviderConfiguration {
         RewriteProviderConfiguration(
-            endpoint: makeEndpoint(provider: provider, apiKey: apiKey, baseURL: baseURL),
-            model: DictationProviderDefaults.rewriteModel(for: provider)
+            provider: provider,
+            model: DictationProviderDefaults.rewriteModel(for: provider),
+            backend: .remote(makeEndpoint(provider: provider, apiKey: apiKey, baseURL: baseURL))
         )
     }
 
@@ -76,186 +48,6 @@ struct OpenAITests {
         #expect(sdkConfiguration.basePath == "/v1/")
         #expect(sdkConfiguration.customHeaders["OpenAI-Project"] == "proj_123")
         #expect(sdkConfiguration.customHeaders["X-Test"] == "1")
-    }
-
-    @Test func openAITranscriptionServiceSendsMultipartFields() async throws {
-        let fileURL = TestSupport.temporaryFileURL(ext: "m4a")
-        try Data("audio-bytes".utf8).write(to: fileURL)
-        let session = TestURLSessionFactory.makeSession { request in
-            let body = String(data: try TestSupport.requestBodyData(from: request), encoding: .utf8) ?? ""
-            let requestURL = try #require(request.url)
-            let requestComponents = try #require(URLComponents(url: requestURL, resolvingAgainstBaseURL: false))
-            #expect(requestComponents.scheme == "https")
-            #expect(requestComponents.host == "api.example.com")
-            #expect(requestComponents.port == 443)
-            #expect(requestComponents.path == "/v1/audio/transcriptions")
-            #expect((request.value(forHTTPHeaderField: "Content-Type") ?? "").contains("multipart/form-data"))
-            #expect(body.contains("name=\"model\""))
-            #expect(body.contains("gpt-4o-mini-transcribe"))
-            #expect(request.value(forHTTPHeaderField: "X-Stet-Audio-Duration-Seconds") == "3")
-            #expect(body.contains("name=\"language\""))
-            #expect(body.contains("de"))
-            #expect(body.contains("name=\"prompt\""))
-            #expect(body.contains("Use OpenAI"))
-            #expect(body.contains("filename=\"speech.m4a\""))
-            #expect(!body.contains("name=\"stream\""))
-
-            let response = HTTPURLResponse(url: requestURL, statusCode: 200, httpVersion: nil, headerFields: nil)!
-            return (response, Data(#"{"text":"hello"}"#.utf8))
-        }
-        let service = OpenAITranscriptionService(
-            configuration: makeTranscriptionConfiguration(),
-            session: session
-        )
-
-        defer {
-            try? FileManager.default.removeItem(at: fileURL)
-        }
-
-        let text = try await service.transcribe(
-            audioFileAt: fileURL,
-            languageCode: "de",
-            prompt: "Use OpenAI",
-            audioDurationSeconds: 2.4
-        )
-        #expect(text.text == "hello")
-    }
-
-    @Test func openAITranscriptionServiceMapsAPIErrorBody() async throws {
-        let fileURL = TestSupport.temporaryFileURL(ext: "wav")
-        try Data("audio-bytes".utf8).write(to: fileURL)
-        let session = TestURLSessionFactory.makeSession { request in
-            let response = HTTPURLResponse(
-                url: try #require(request.url),
-                statusCode: 400,
-                httpVersion: nil,
-                headerFields: ["Content-Type": "application/json"]
-            )!
-            return (response, Data(#"{"error":{"message":"unknown param `stream`"}}"#.utf8))
-        }
-        let service = OpenAITranscriptionService(
-            configuration: makeTranscriptionConfiguration(),
-            session: session
-        )
-
-        defer {
-            try? FileManager.default.removeItem(at: fileURL)
-        }
-
-        await #expect(throws: OpenAIError.api(provider: .openAI, statusCode: 400, message: "unknown param `stream`")) {
-            try await service.transcribe(
-                audioFileAt: fileURL,
-                languageCode: nil,
-                prompt: nil,
-                audioDurationSeconds: 1.2
-            )
-        }
-    }
-
-    @Test func openAITranscriptionServiceThrowsWhenTextIsMissing() async throws {
-        let fileURL = TestSupport.temporaryFileURL(ext: "wav")
-        try Data("audio-bytes".utf8).write(to: fileURL)
-        let session = TestURLSessionFactory.makeSession { request in
-            let response = HTTPURLResponse(
-                url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
-            return (response, Data(#"{"text":"   "}"#.utf8))
-        }
-        let service = OpenAITranscriptionService(
-            configuration: makeTranscriptionConfiguration(),
-            session: session
-        )
-
-        defer {
-            try? FileManager.default.removeItem(at: fileURL)
-        }
-
-        await #expect(throws: OpenAIError.missingTranscriptionText) {
-            try await service.transcribe(
-                audioFileAt: fileURL,
-                languageCode: nil,
-                prompt: nil,
-                audioDurationSeconds: nil
-            )
-        }
-    }
-
-    @Test func openAITranscriptionServiceFallsBackToPlainTextBodyWhenSDKDecodingFails() async throws {
-        let fileURL = TestSupport.temporaryFileURL(ext: "wav")
-        try Data("audio-bytes".utf8).write(to: fileURL)
-        let session = TestURLSessionFactory.makeSession { request in
-            let response = HTTPURLResponse(
-                url: try #require(request.url),
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: ["Content-Type": "text/plain"]
-            )!
-            return (response, Data("  recovered via fallback  ".utf8))
-        }
-        let service = OpenAITranscriptionService(
-            configuration: makeTranscriptionConfiguration(),
-            session: session
-        )
-
-        defer {
-            try? FileManager.default.removeItem(at: fileURL)
-        }
-
-        let text = try await service.transcribe(
-            audioFileAt: fileURL,
-            languageCode: nil,
-            prompt: nil,
-            audioDurationSeconds: nil
-        )
-
-        #expect(text.text == "recovered via fallback")
-    }
-
-    @Test func openAITranscriptionServiceRetriesTransientFailures() async throws {
-        let fileURL = TestSupport.temporaryFileURL(ext: "wav")
-        try Data("audio-bytes".utf8).write(to: fileURL)
-        let attempts = RequestAttemptCounter()
-        let session = TestURLSessionFactory.makeSession { request in
-            let attempt = attempts.increment()
-
-            if attempt == 1 {
-                let response = HTTPURLResponse(
-                    url: try #require(request.url),
-                    statusCode: 503,
-                    httpVersion: nil,
-                    headerFields: ["Content-Type": "application/json"]
-                )!
-                return (
-                    response,
-                    Data(
-                        #"{"error":{"message":"try again later","type":"server_error","param":null,"code":null}}"#.utf8)
-                )
-            }
-
-            let response = HTTPURLResponse(
-                url: try #require(request.url),
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: ["Content-Type": "application/json"]
-            )!
-            return (response, Data(#"{"text":"retried successfully"}"#.utf8))
-        }
-        let service = OpenAITranscriptionService(
-            configuration: makeTranscriptionConfiguration(),
-            session: session
-        )
-        defer {
-            try? FileManager.default.removeItem(at: fileURL)
-        }
-
-        let text = try await service.transcribe(
-            audioFileAt: fileURL,
-            languageCode: nil,
-            prompt: nil,
-            audioDurationSeconds: 12
-        )
-
-        #expect(text.text == "retried successfully")
-        #expect(attempts.value() == 2)
     }
 
     @Test func openAIRewriteServiceUsesFallbackOutputParsing() async throws {

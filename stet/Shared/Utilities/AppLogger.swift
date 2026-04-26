@@ -9,6 +9,7 @@ enum AppLoggerCategory {
     case permissions
     case dictation
     case perfTrace
+    case transcriptTrace
 
     nonisolated var label: String {
         switch self {
@@ -26,6 +27,8 @@ enum AppLoggerCategory {
             return "dictation"
         case .perfTrace:
             return "perftrace"
+        case .transcriptTrace:
+            return "transcript-trace"
         }
     }
 
@@ -39,6 +42,8 @@ enum AppLoggerCategory {
             return nil
         case .perfTrace:
             return MacPreferences.dictationPerfTracingEnabled
+        case .transcriptTrace:
+            return MacPreferences.dictationTranscriptTracingEnabled
         }
     }
 }
@@ -107,11 +112,165 @@ enum AppLogger {
     }
 }
 
+struct DictationTranscriptComparison: Codable, Sendable {
+    enum Outcome: String, Codable, Sendable {
+        case rewritten
+        case fallbackAfterRewriteFailure = "fallback_after_rewrite_failure"
+    }
+
+    let timestamp: Date
+    let provider: String
+    let outcome: Outcome
+    let changed: Bool
+    let inputCharacterCount: Int
+    let outputCharacterCount: Int
+    let commonPrefixCharacterCount: Int
+    let commonSuffixCharacterCount: Int
+    let removedSegment: String
+    let addedSegment: String
+    let rawTranscript: String
+    let finalTranscript: String
+    let languageCode: String?
+    let errorDescription: String?
+
+    init(
+        provider: DictationProvider,
+        outcome: Outcome,
+        rawTranscript: String,
+        finalTranscript: String,
+        languageCode: String? = nil,
+        errorDescription: String? = nil,
+        timestamp: Date = Date()
+    ) {
+        let inputCharacters = Array(rawTranscript)
+        let outputCharacters = Array(finalTranscript)
+        let sharedPrefix = Self.sharedPrefixLength(lhs: inputCharacters, rhs: outputCharacters)
+        let sharedSuffix = Self.sharedSuffixLength(
+            lhs: inputCharacters,
+            rhs: outputCharacters,
+            excludingSharedPrefix: sharedPrefix
+        )
+
+        self.timestamp = timestamp
+        self.provider = provider.rawValue
+        self.outcome = outcome
+        self.changed = rawTranscript != finalTranscript
+        self.inputCharacterCount = inputCharacters.count
+        self.outputCharacterCount = outputCharacters.count
+        self.commonPrefixCharacterCount = sharedPrefix
+        self.commonSuffixCharacterCount = sharedSuffix
+        self.removedSegment = Self.middleSegment(
+            in: inputCharacters,
+            sharedPrefix: sharedPrefix,
+            sharedSuffix: sharedSuffix
+        )
+        self.addedSegment = Self.middleSegment(
+            in: outputCharacters,
+            sharedPrefix: sharedPrefix,
+            sharedSuffix: sharedSuffix
+        )
+        self.rawTranscript = rawTranscript
+        self.finalTranscript = finalTranscript
+        self.languageCode = languageCode
+        self.errorDescription = errorDescription
+    }
+
+    private static func sharedPrefixLength(lhs: [Character], rhs: [Character]) -> Int {
+        let sharedLength = min(lhs.count, rhs.count)
+        var index = 0
+        while index < sharedLength, lhs[index] == rhs[index] {
+            index += 1
+        }
+        return index
+    }
+
+    private static func sharedSuffixLength(
+        lhs: [Character],
+        rhs: [Character],
+        excludingSharedPrefix sharedPrefix: Int
+    ) -> Int {
+        let remainingSharedLength = min(lhs.count, rhs.count) - sharedPrefix
+        guard remainingSharedLength > 0 else { return 0 }
+
+        var index = 0
+        while index < remainingSharedLength,
+            lhs[lhs.count - 1 - index] == rhs[rhs.count - 1 - index]
+        {
+            index += 1
+        }
+        return index
+    }
+
+    private static func middleSegment(
+        in characters: [Character],
+        sharedPrefix: Int,
+        sharedSuffix: Int
+    ) -> String {
+        let startIndex = sharedPrefix
+        let endIndex = characters.count - sharedSuffix
+        guard startIndex < endIndex else { return "" }
+        return String(characters[startIndex..<endIndex])
+    }
+}
+
+actor DictationTranscriptTrace {
+    static let shared = DictationTranscriptTrace()
+
+    func record(
+        provider: DictationProvider,
+        outcome: DictationTranscriptComparison.Outcome,
+        rawTranscript: String,
+        finalTranscript: String,
+        languageCode: String? = nil,
+        errorDescription: String? = nil
+    ) {
+        let comparison = DictationTranscriptComparison(
+            provider: provider,
+            outcome: outcome,
+            rawTranscript: rawTranscript,
+            finalTranscript: finalTranscript,
+            languageCode: languageCode,
+            errorDescription: errorDescription
+        )
+        print(formattedLine(for: comparison))
+    }
+
+    func resetTraceFile() {}
+
+    func traceFilePath() -> String {
+        "stdout"
+    }
+
+    private func formattedLine(for comparison: DictationTranscriptComparison) -> String {
+        let emoji: String =
+            switch comparison.outcome {
+            case .rewritten:
+                comparison.changed ? "🟢 ✨" : "⚪️ 🟰"
+            case .fallbackAfterRewriteFailure:
+                "🔴 🚨"
+            }
+
+        var parts = [
+            "\(emoji) TranscriptTrace",
+            "provider=\(comparison.provider)",
+            "outcome=\(comparison.outcome.rawValue)",
+            "changed=\(comparison.changed)",
+            "lang=\(comparison.languageCode ?? "unknown")",
+            "raw=\(String(reflecting: comparison.rawTranscript))",
+            "final=\(String(reflecting: comparison.finalTranscript))",
+        ]
+
+        if let errorDescription = comparison.errorDescription, !errorDescription.isEmpty {
+            parts.append("error=\(String(reflecting: errorDescription))")
+        }
+
+        return parts.joined(separator: " ")
+    }
+}
+
 actor DictationLatencyProbe {
     enum Stage: String, Hashable {
         case recordingFinished = "recording_finished"
-        case uploadStarted = "upload_started"
-        case uploadCompleted = "upload_completed"
         case transcriptionStarted = "transcription_started"
         case transcriptionCompleted = "transcription_completed"
         case transcriptionFailed = "transcription_failed"
@@ -178,11 +337,6 @@ actor DictationLatencyProbe {
         if Self.terminalStages.contains(stage) {
             activeSession = nil
         }
-    }
-
-    func ensureUploadCompleted(note: String? = nil) {
-        record(.uploadCompleted, note: note)
-        record(.transcriptionStarted, note: "inferred_after_upload_completion")
     }
 
     private static let terminalStages: Set<Stage> = [

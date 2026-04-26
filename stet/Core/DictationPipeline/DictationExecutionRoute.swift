@@ -62,18 +62,7 @@ enum DictationExecutionRouteResolver {
             )
         }
 
-        let missingRequirements = snapshot.requiredProviderRequirements().filter { requirement in
-            switch requirement.step {
-            case .transcription:
-                return false
-            case .rewrite:
-                return snapshot.rewriteProviderConfiguration == nil
-            }
-        }
-
-        guard missingRequirements.isEmpty, let rewriteConfiguration = snapshot.rewriteProviderConfiguration else {
-            // If rewrite is enabled but config is missing, fallback to direct route WITHOUT rewrite
-            // instead of throwing a blocking configuration error.
+        guard let rewriteConfiguration = snapshot.rewriteProviderConfiguration else {
             return .init(
                 rewriteConfiguration: nil,
                 rewriteEnabled: false,

@@ -25,15 +25,18 @@ struct ProviderCredentialValidationService: ProviderCredentialValidating, Sendab
     }
 
     func validateCredential(apiKey: String, provider: DictationProvider) async throws {
-        let endpoint = OpenAICompatibleProviderEndpointConfiguration(
-            provider: provider,
-            apiKey: apiKey
-        )
-
         switch provider {
         case .openAI:
+            let endpoint = OpenAICompatibleProviderEndpointConfiguration(
+                provider: provider,
+                apiKey: apiKey
+            )
             try await validateOpenAICredential(endpoint: endpoint)
         case .groq:
+            let endpoint = OpenAICompatibleProviderEndpointConfiguration(
+                provider: provider,
+                apiKey: apiKey
+            )
             try await validateGroqCredential(endpoint: endpoint)
         case .appleIntelligence:
             return

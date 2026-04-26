@@ -886,6 +886,56 @@ struct ConfigurableSpeechServiceTests {
 
         #expect(await rewrite.recordedRequests().isEmpty)
     }
+
+    @Test func dictationTranscriptComparisonKeepsRawAndRewrittenTextTogether() {
+        let comparison = DictationTranscriptComparison(
+            provider: .appleIntelligence,
+            outcome: .rewritten,
+            rawTranscript: "hello wrld",
+            finalTranscript: "hello world",
+            languageCode: "en"
+        )
+
+        #expect(comparison.provider == DictationProvider.appleIntelligence.rawValue)
+        #expect(comparison.rawTranscript == "hello wrld")
+        #expect(comparison.finalTranscript == "hello world")
+        #expect(comparison.languageCode == "en")
+        #expect(comparison.changed)
+    }
+
+    @Test func dictationTranscriptComparisonMarksUnchangedFallback() {
+        let comparison = DictationTranscriptComparison(
+            provider: .appleIntelligence,
+            outcome: .fallbackAfterRewriteFailure,
+            rawTranscript: "already clean",
+            finalTranscript: "already clean",
+            languageCode: "zh",
+            errorDescription: "rewrite failed"
+        )
+
+        #expect(comparison.changed == false)
+        #expect(comparison.languageCode == "zh")
+        #expect(comparison.errorDescription == "rewrite failed")
+        #expect(comparison.rawTranscript == comparison.finalTranscript)
+    }
+
+    @Test func appleIntelligenceTranslationGuardDetectsMixedEnglishTranslatedIntoChinese() {
+        #expect(
+            ConfigurableSpeechService.hasTranslationDrift(
+                originalTranscript: "这个 Apple Intelligence 会不会 suddenly translate 我说的话",
+                rewrittenTranscript: "这个 Apple Intelligence 会不会突然翻译我说的话"
+            )
+        )
+    }
+
+    @Test func appleIntelligenceTranslationGuardAllowsMixedLanguageCleanupWithoutTranslation() {
+        #expect(
+            !ConfigurableSpeechService.hasTranslationDrift(
+                originalTranscript: "这个 Apple Intelligence 会不会 suddenly translate 我说的话",
+                rewrittenTranscript: "这个 Apple Intelligence 会不会 suddenly translate 我说的话"
+            )
+        )
+    }
 }
 
 extension ConfigurableSpeechServiceTests {

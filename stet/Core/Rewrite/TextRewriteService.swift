@@ -31,6 +31,7 @@ enum LocalRewritePromptBuilder {
                 7. Preserve technical terms, proper nouns, names, brands, and jargon exactly when spoken or clearly intended.
                 8. If an edit is uncertain, keep the original wording.
                 9. If the transcript ends with a period, do not add any additional terminal punctuation.
+                10. Never rewrite the transcript into a different language. Keep every span in the same language it was spoken.
 
                 Output only the cleaned transcript.
                 """
@@ -48,6 +49,9 @@ enum LocalRewritePromptBuilder {
                 Preserve the original language span by span.
                 If the speaker mixed languages, preserve each span in its original language.
                 If a word could plausibly belong to either language, keep it unchanged.
+                Never normalize the transcript into a single language.
+                Never replace Chinese with English, English with Chinese, or any language with another language.
+                If the transcript is already understandable, prefer keeping the original wording over changing languages.
 
                 Only make these edits:
                 - remove filler words, false starts, repetitions, and verbal scaffolding that add no meaning
@@ -64,6 +68,10 @@ enum LocalRewritePromptBuilder {
             return prompt
         }
     }
+}
+
+private enum TextRewritePromptConfiguration {
+    nonisolated static let cleanupInstruction = "Clean the following raw transcription according to your instructions."
 }
 
 struct TextRewriteRequest: Sendable, Equatable {
@@ -89,6 +97,69 @@ struct TextRewriteRequest: Sendable, Equatable {
             languageCode: languageCode,
             model: nil
         )
+    }
+}
+
+struct PreparedTextRewritePayload: Sendable, Equatable {
+    let audience: AppAudience
+    let systemPrompt: String
+    let text: String
+    let additionalContext: String?
+    let languageCode: String?
+
+    init(request: TextRewriteRequest) {
+        let audience = request.audience ?? .human
+        let text = request.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let additionalContext = Self.trimmed(request.additionalContext)
+        let languageCode = Self.trimmed(request.languageCode)
+
+        var systemPrompt = LocalRewritePromptBuilder.systemPrompt(
+            audience: audience,
+            preferredSpellings: request.preferredSpellings
+        )
+        if let languageCode {
+            systemPrompt +=
+                "\n\nLanguage lock: preserve the detected transcript language (\(languageCode)) exactly. Do not translate, paraphrase into another language, or normalize mixed-language text into a single language."
+        }
+
+        self.audience = audience
+        self.systemPrompt = systemPrompt
+        self.text = text
+        self.additionalContext = additionalContext
+        self.languageCode = languageCode
+    }
+
+    var promptPrefix: String {
+        var prompt = """
+            Instruction:
+            \(TextRewritePromptConfiguration.cleanupInstruction)
+
+            """
+
+        if let additionalContext {
+            prompt = """
+                Context:
+                \(additionalContext)
+
+                \(prompt)
+                """
+        }
+
+        return prompt + "Text:\n"
+    }
+
+    var userPrompt: String {
+        promptPrefix + text
+    }
+
+    private static func trimmed(_ text: String?) -> String? {
+        guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines),
+            !text.isEmpty
+        else {
+            return nil
+        }
+
+        return text
     }
 }
 

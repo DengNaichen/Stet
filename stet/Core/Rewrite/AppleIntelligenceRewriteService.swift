@@ -70,6 +70,11 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
             [CRITICAL] Preserve the transcript language. Never translate Chinese to English or English to Chinese.
             If the input contains Chinese characters, the output must keep Chinese characters and clean the Chinese text directly.
             If the input mixes Chinese and English, preserve the same language mix span by span.
+            Absolutely NEVER translate any terminology or specific word spans.
+
+            [ASR FIX] fix obvious speech-to-text typos and homophone errors.
+
+            [FORMAT] Output plain text only. Do NOT use Markdown, asterisks, bolding, lists, or any other formatting.
             """
         if let languageCode = request.languageCode {
             languageLaw += " (Input Language: \(languageCode))"
@@ -80,13 +85,6 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
 
             \(base)
 
-            ### Example 1:
-            Input: "那个，我今天觉得天气，嗯，挺好的，我们出去走走吧。"
-            Output: "我今天觉得天气挺好的，我们出去走走吧。"
-
-            ### Example 2:
-            Input: "这个 CoreML model 的 performance 还可以。"
-            Output: "这个 CoreML model 的 performance 还可以。"
             """
     }
 
@@ -135,7 +133,8 @@ private actor AppleIntelligenceRewriteSessionStore {
             return session
         }
 
-        let session = LanguageModelSession(instructions: instructions)
+        let model = SystemLanguageModel(guardrails: .permissiveContentTransformations)
+        let session = LanguageModelSession(model: model, instructions: instructions)
         self.session = session
         self.cachedInstructions = instructions
         return session

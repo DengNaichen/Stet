@@ -33,7 +33,6 @@ struct DictationSettingsSnapshot: Sendable {
     let isRewriteEnabled: Bool
     let dictationLanguageMode: DictationLanguageMode
     let shouldPauseMediaDuringDictation: Bool
-    let transcriptionProviderConfiguration: TranscriptionProviderConfiguration?
     let rewriteProviderConfiguration: RewriteProviderConfiguration?
     let personalDictionary: [String]
     let interactionSoundsEnabled: Bool
@@ -43,35 +42,12 @@ struct DictationSettingsSnapshot: Sendable {
         transcriptionProvider
     }
 
-    nonisolated var providerConfiguration: TranscriptionProviderConfiguration? {
-        transcriptionProviderConfiguration
-    }
-
-    nonisolated var providerPair: DictationProviderPair {
-        DictationProviderPair(
-            transcriptionProvider: transcriptionProvider,
-            rewriteProvider: rewriteProvider
-        )
-    }
-
-    nonisolated var hasLocalProviderConfiguration: Bool {
-        transcriptionProviderConfiguration != nil
-    }
-
     nonisolated func requiredProviderRequirements() -> [ProviderConfigurationRequirement] {
-        var requirements = [
-            ProviderConfigurationRequirement(step: .transcription, provider: transcriptionProvider)
-        ]
-
-        if isRewriteEnabled {
-            if rewriteProvider.requiresAPIKey {
-                requirements.append(
-                    ProviderConfigurationRequirement(step: .rewrite, provider: rewriteProvider)
-                )
-            }
+        guard isRewriteEnabled, rewriteProvider.requiresAPIKey else {
+            return []
         }
 
-        return requirements
+        return [ProviderConfigurationRequirement(step: .rewrite, provider: rewriteProvider)]
     }
 }
 
@@ -118,12 +94,6 @@ struct DictationSettingsStore: Sendable {
         let dictationLanguageMode = loadDictationLanguageMode()
         let shouldPauseMediaDuringDictation =
             defaultsStore.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
-        let providerPair = DictationProviderPair(
-            transcriptionProvider: transcriptionProvider,
-            rewriteProvider: rewriteProvider
-        )
-        let transcriptionAPIKey = loadAPIKey(for: transcriptionProvider)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
         let rewriteAPIKey = loadAPIKey(for: rewriteProvider)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let personalDictionary = loadPersonalDictionaryEnabled() ? loadPersonalDictionary() : []
@@ -131,26 +101,19 @@ struct DictationSettingsStore: Sendable {
             defaultsStore.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
         let interactionSoundPreset = loadInteractionSoundPreset()
 
-        let transcriptionConfiguration: TranscriptionProviderConfiguration? =
-            transcriptionAPIKey.isEmpty
-            ? nil
-            : DictationProviderConfigurationResolver.transcriptionConfiguration(
-                apiKey: transcriptionAPIKey,
-                providerPair: providerPair
-            )
         let rewriteConfiguration: RewriteProviderConfiguration?
         if rewriteProvider == .appleIntelligence {
             rewriteConfiguration = DictationProviderConfigurationResolver.rewriteConfiguration(
+                provider: rewriteProvider,
                 apiKey: "",
-                providerPair: providerPair
             )
         } else {
             rewriteConfiguration =
                 rewriteAPIKey.isEmpty
                 ? nil
                 : DictationProviderConfigurationResolver.rewriteConfiguration(
+                    provider: rewriteProvider,
                     apiKey: rewriteAPIKey,
-                    providerPair: providerPair
                 )
         }
 
@@ -160,7 +123,6 @@ struct DictationSettingsStore: Sendable {
             isRewriteEnabled: isRewriteEnabled,
             dictationLanguageMode: dictationLanguageMode,
             shouldPauseMediaDuringDictation: shouldPauseMediaDuringDictation,
-            transcriptionProviderConfiguration: transcriptionConfiguration,
             rewriteProviderConfiguration: rewriteConfiguration,
             personalDictionary: personalDictionary,
             interactionSoundsEnabled: interactionSoundsEnabled,
