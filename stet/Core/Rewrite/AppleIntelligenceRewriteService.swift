@@ -67,9 +67,9 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
         )
 
         var languageLaw = """
-            [CRITICAL] Preserve the transcript language. Never translate Chinese to English or English to Chinese.
-            If the input contains Chinese characters, the output must keep Chinese characters and clean the Chinese text directly.
-            If the input mixes Chinese and English, preserve the same language mix span by span.
+            [CRITICAL] You are an ASR post-processor. You must output in the exact same language the user spoke. DO NOT translate to English under any circumstances.
+            Preserve the transcript language perfectly. Only correct typos in the original language.
+            If the input mixes multiple languages, preserve the same language mix span by span.
             Absolutely NEVER translate any terminology or specific word spans.
 
             [ASR FIX] fix obvious speech-to-text typos and homophone errors.

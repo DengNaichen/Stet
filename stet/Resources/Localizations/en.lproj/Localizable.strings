@@ -1,0 +1,192 @@
+/* App/Navigation */
+"%@ Settings" = "%@ Settings";
+"Settings…" = "Settings…";
+"Select Microphone" = "Select Microphone";
+"Quit" = "Quit";
+"OK" = "OK";
+"Dismiss" = "Dismiss";
+"Cancel" = "Cancel";
+"Add" = "Add";
+"Continue" = "Continue";
+"Reset" = "Reset";
+"Allow" = "Allow";
+"Open Settings" = "Open Settings";
+
+/* Updates */
+"Check for Updates" = "Check for Updates";
+"Check for Updates…" = "Check for Updates…";
+"Checking for Updates…" = "Checking for Updates…";
+"Updates Unavailable" = "Updates Unavailable";
+"Update Available (%@)" = "Update Available (%@)";
+"Updates" = "Updates";
+
+/* Settings tabs */
+"General" = "General";
+"Audio" = "Audio";
+"Theme" = "Theme";
+"Hotkey" = "Hotkey";
+"Refine" = "Refine";
+"Dictionary" = "Dictionary";
+"Debug" = "Debug";
+
+/* Settings tab subtitles */
+"Behavior, updates, and shell preferences." = "Behavior, updates, and shell preferences.";
+"Microphone selection and recording test." = "Microphone selection and recording test.";
+"Dictation capsule theme and color palette." = "Dictation capsule theme and color palette.";
+"Global keyboard shortcuts for starting dictation." = "Global keyboard shortcuts for starting dictation.";
+"AI service, transcript improvement, and account access." = "AI service, transcript improvement, and account access.";
+"Personal dictionary entries used during transcription and transcript cleanup." = "Personal dictionary entries used during transcription and transcript cleanup.";
+"Large shader preview and color input controls." = "Large shader preview and color input controls.";
+
+/* Settings search */
+"Search settings" = "Search settings";
+"No Results" = "No Results";
+"Try a different keyword." = "Try a different keyword.";
+"Select a Section" = "Select a Section";
+"Choose a destination from the sidebar." = "Choose a destination from the sidebar.";
+
+/* General settings */
+"Application" = "Application";
+"Dictation" = "Dictation";
+"Launch at Login" = "Launch at Login";
+"Show in Dock" = "Show in Dock";
+"Interaction sounds" = "Interaction sounds";
+"Mute background audio" = "Mute background audio";
+"Stet can provide feedback and limit distractions while you are speaking." = "Stet can provide feedback and limit distractions while you are speaking.";
+"Always show onboarding while debugging" = "Always show onboarding while debugging";
+"Restart Onboarding Now" = "Restart Onboarding Now";
+"You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`.";
+
+/* Audio settings */
+"Audio Input Device" = "Audio Input Device";
+"Microphone" = "Microphone";
+"Default (Built-in Microphone)" = "Default (Built-in Microphone)";
+"Start Recording" = "Start Recording";
+"Stop Recording" = "Stop Recording";
+"Play Recording" = "Play Recording";
+"Stop Playback" = "Stop Playback";
+"Recording..." = "Recording...";
+"Recording saved - click Play to hear it" = "Recording saved - click Play to hear it";
+"Microphone input level" = "Microphone input level";
+
+/* Theme settings */
+"Choose the color palette used by the dictation capsule." = "Choose the color palette used by the dictation capsule.";
+
+/* Hotkey settings */
+"Shortcut Engine" = "Shortcut Engine";
+"Shortcut configured" = "Shortcut configured";
+
+/* Refine / AI settings */
+"Transcript improvement" = "Transcript improvement";
+"Stet can refine and improve the precision of your transcriptions using AI." = "Stet can refine and improve the precision of your transcriptions using AI.";
+"Refine Model" = "Refine Model";
+"Refine" = "Refine";
+"Apple Intelligence" = "Apple Intelligence";
+"Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac." = "Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac.";
+"Provide your API key to use %@ directly." = "Provide your API key to use %@ directly.";
+"Save Key" = "Save Key";
+"Remove Key" = "Remove Key";
+"Choose which on-device model handles transcription." = "Choose which on-device model handles transcription.";
+"Engine" = "Engine";
+"Parakeet model isn't downloaded yet. Stet will fall back to Whisper until you download it below." = "Parakeet model isn't downloaded yet. Stet will fall back to Whisper until you download it below.";
+"Reveal Whisper Folder in Finder" = "Reveal Whisper Folder in Finder";
+"Downloaded" = "Downloaded";
+"Not downloaded" = "Not downloaded";
+"Download" = "Download";
+"On-device Transcription" = "On-device Transcription";
+
+/* Dictionary settings */
+"Enable Personal Dictionary" = "Enable Personal Dictionary";
+"Add names, brands, jargon, or phrases" = "Add names, brands, jargon, or phrases";
+"Personal Dictionary" = "Personal Dictionary";
+"Once you add words here, Stet will reuse them in transcription and rewrite." = "Once you add words here, Stet will reuse them in transcription and rewrite.";
+"Current Entries" = "Current Entries";
+"Clear Dictionary" = "Clear Dictionary";
+"Clear All" = "Clear All";
+"This action cannot be undone." = "This action cannot be undone.";
+
+/* Debug settings */
+"Shader Debug Window" = "Shader Debug Window";
+"Open Shader Debug Window" = "Open Shader Debug Window";
+
+/* Permissions */
+"Permissions Required" = "Permissions Required";
+"Stet can't start this action because microphone and input control permissions are required." = "Stet can't start this action because microphone and input control permissions are required.";
+"Grant Input Control" = "Grant Input Control";
+
+/* Dictation view */
+"Tap Start to begin dictation." = "Tap Start to begin dictation.";
+"Speak naturally, then tap Stop when you are ready to finalize the transcript." = "Speak naturally, then tap Stop when you are ready to finalize the transcript.";
+
+/* Model download */
+"Downloading" = "Downloading";
+"Downloading..." = "Downloading...";
+"Downloading %d%%" = "Downloading %d%%";
+"Downloading %d%% (%.1f MB / %.1f MB)" = "Downloading %d%% (%.1f MB / %.1f MB)";
+"Downloading (%.1f MB)" = "Downloading (%.1f MB)";
+"Checking..." = "Checking...";
+"Working..." = "Working...";
+"Preparing" = "Preparing";
+"Ready to download" = "Ready to download";
+"Ready" = "Ready";
+"Done" = "Done";
+"Failed" = "Failed";
+"Get ready" = "Get ready";
+"One click gets you ready." = "One click gets you ready.";
+"You're set." = "You're set.";
+"Unable to resolve Local Whisper model path." = "Unable to resolve Local Whisper model path.";
+
+/* API key */
+"Verify Key" = "Verify Key";
+"Validating..." = "Validating...";
+"Please enter API Key." = "Please enter API Key.";
+"API Key verified." = "API Key verified.";
+"Invalid Key format." = "Invalid Key format.";
+"Verification failed, please check if it was copied completely." = "Verification failed, please check if it was copied completely.";
+"Provider is temporarily unavailable." = "Provider is temporarily unavailable.";
+"Network connection error." = "Network connection error.";
+
+/* Onboarding step titles */
+"Get started" = "Get started";
+"AI Configuration" = "AI Configuration";
+"One more step to get started" = "One more step to get started";
+"Set your speaking shortcut" = "Set your speaking shortcut";
+"Try saying something" = "Try saying something";
+"Choose your theme" = "Choose your theme";
+"You're all set" = "You're all set";
+
+/* Onboarding step subtitles */
+"One click gets you into the app." = "One click gets you into the app.";
+"Select your preferred AI provider to handle transcription and cleanup." = "Select your preferred AI provider to handle transcription and cleanup.";
+"Grant microphone and input control permissions so Stet can record and type text back into your apps." = "Grant microphone and input control permissions so Stet can record and type text back into your apps.";
+"Choose the shortcut you want to use for dictation." = "Choose the shortcut you want to use for dictation.";
+"Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup.";
+"Browse themes on the right, then apply and finish." = "Browse themes on the right, then apply and finish.";
+"Hold your shortcut and start speaking anywhere you can type text." = "Hold your shortcut and start speaking anywhere you can type text.";
+
+/* Onboarding steps */
+"Download the model to process your voice locally" = "Download the model to process your voice locally";
+"Provider" = "Provider";
+"Microphone" = "Microphone";
+"Used to receive voice input" = "Used to receive voice input";
+"Accessibility / Input Control" = "Accessibility / Input Control";
+"Used to insert text into active apps" = "Used to insert text into active apps";
+"Permissions not yet detected. Please authorize in System Settings and return." = "Permissions not yet detected. Please authorize in System Settings and return.";
+"We've set Command + . as your default shortcut. Try pressing it now to see it in action." = "We've set Command + . as your default shortcut. Try pressing it now to see it in action.";
+"Click into the text box on the right, then use your hotkey to test voice input." = "Click into the text box on the right, then use your hotkey to test voice input.";
+"Browse themes on the right. The capsule shows a live preview." = "Browse themes on the right. The capsule shows a live preview.";
+"Apply & Finish" = "Apply & Finish";
+"Choose your preferred theme" = "Choose your preferred theme";
+"Appearance" = "Appearance";
+"When pressed, do you see the button turn black?" = "When pressed, do you see the button turn black?";
+"Press your hotkey" = "Press your hotkey";
+"Try saying:" = "Try saying:";
+"I am now using this app to dictate this sentence" = "I am now using this app to dictate this sentence";
+
+/* Hotkey Settings Extension */
+"Start Dictation" = "Start Dictation";
+"Use a modifier-plus-key shortcut, for example Control + Space or Command + K. Two plain character keys will not register here." = "Use a modifier-plus-key shortcut, for example Control + Space or Command + K. Two plain character keys will not register here.";
+
+/* General Settings Extension */
+"Check for updates automatically" = "Check for updates automatically";
+"Stet stays in the menu bar for quick access even when the dock icon is hidden." = "Stet stays in the menu bar for quick access even when the dock icon is hidden.";

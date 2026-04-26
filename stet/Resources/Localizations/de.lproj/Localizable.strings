@@ -1,0 +1,192 @@
+/* App/Navigation */
+"%@ Settings" = "%@ Einstellungen";
+"Settings…" = "Einstellungen…";
+"Select Microphone" = "Mikrofon auswählen";
+"Quit" = "Beenden";
+"OK" = "OK";
+"Dismiss" = "Schließen";
+"Cancel" = "Abbrechen";
+"Add" = "Hinzufügen";
+"Continue" = "Weiter";
+"Reset" = "Zurücksetzen";
+"Allow" = "Zulassen";
+"Open Settings" = "Einstellungen öffnen";
+
+/* Updates */
+"Check for Updates" = "Nach Updates suchen";
+"Check for Updates…" = "Nach Updates suchen…";
+"Checking for Updates…" = "Suche nach Updates…";
+"Updates Unavailable" = "Keine Updates verfügbar";
+"Update Available (%@)" = "Update verfügbar (%@)";
+"Updates" = "Updates";
+
+/* Settings tabs */
+"General" = "Allgemein";
+"Audio" = "Audio";
+"Theme" = "Design";
+"Hotkey" = "Kurzbefehl";
+"Refine" = "Optimieren";
+"Dictionary" = "Wörterbuch";
+"Debug" = "Debug";
+
+/* Settings tab subtitles */
+"Behavior, updates, and shell preferences." = "Verhalten, Updates und Systemeinstellungen.";
+"Microphone selection and recording test." = "Mikrofonauswahl und Aufnahmetest.";
+"Dictation capsule theme and color palette." = "Design der Diktierkapsel und Farbpalette.";
+"Global keyboard shortcuts for starting dictation." = "Globale Tastenkombinationen zum Starten des Diktats.";
+"AI service, transcript improvement, and account access." = "KI-Dienst, Transkriptverbesserung und Kontozugriff.";
+"Personal dictionary entries used during transcription and transcript cleanup." = "Persönliche Wörterbucheinträge, die bei der Transkription und Textbereinigung verwendet werden.";
+"Large shader preview and color input controls." = "Große Shader-Vorschau und Farbeingabesteuerung.";
+
+/* Settings search */
+"Search settings" = "Einstellungen durchsuchen";
+"No Results" = "Keine Ergebnisse";
+"Try a different keyword." = "Versuchen Sie ein anderes Schlüsselwort.";
+"Select a Section" = "Wählen Sie einen Bereich";
+"Choose a destination from the sidebar." = "Wählen Sie ein Ziel in der Seitenleiste.";
+
+/* General settings */
+"Application" = "Anwendung";
+"Dictation" = "Diktat";
+"Launch at Login" = "Bei Anmeldung öffnen";
+"Show in Dock" = "Im Dock anzeigen";
+"Interaction sounds" = "Interaktionstöne";
+"Mute background audio" = "Hintergrundaudio stummgeschaltet";
+"Stet can provide feedback and limit distractions while you are speaking." = "Stet kann Feedback geben und Ablenkungen während des Sprechens begrenzen.";
+"Always show onboarding while debugging" = "Onboarding beim Debuggen immer anzeigen";
+"Restart Onboarding Now" = "Onboarding jetzt neu starten";
+"You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "Sie können auch mit `--force-onboarding` oder `STET_FORCE_ONBOARDING=1` starten.";
+
+/* Audio settings */
+"Audio Input Device" = "Audio-Eingabegerät";
+"Microphone" = "Mikrofon";
+"Default (Built-in Microphone)" = "Standard (Integriertes Mikrofon)";
+"Start Recording" = "Aufnahme starten";
+"Stop Recording" = "Aufnahme stoppen";
+"Play Recording" = "Aufnahme abspielen";
+"Stop Playback" = "Wiedergabe stoppen";
+"Recording..." = "Aufnahme läuft...";
+"Recording saved - click Play to hear it" = "Aufnahme gespeichert - Klicken Sie auf Abspielen, um sie zu hören";
+"Microphone input level" = "Mikrofon-Eingangspegel";
+
+/* Theme settings */
+"Choose the color palette used by the dictation capsule." = "Wählen Sie die Farbpalette für die Diktierkapsel.";
+
+/* Hotkey settings */
+"Shortcut Engine" = "Kurzbefehl-Engine";
+"Shortcut configured" = "Kurzbefehl konfiguriert";
+
+/* Refine / AI settings */
+"Transcript improvement" = "Transkriptverbesserung";
+"Stet can refine and improve the precision of your transcriptions using AI." = "Stet kann Ihre Transkriptionen mithilfe von KI verfeinern und deren Präzision verbessern.";
+"Refine Model" = "Optimierungsmodell";
+"Refine" = "Optimieren";
+"Apple Intelligence" = "Apple Intelligence";
+"Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac." = "Verwendet das lokale Apple Intelligence-Modell, um Transkripte auf dem Gerät zu optimieren. Die Verfügbarkeit hängt davon ab, ob Apple Intelligence auf diesem Mac aktiviert und bereit ist.";
+"Provide your API key to use %@ directly." = "Geben Sie Ihren API-Schlüssel ein, um %@ direkt zu verwenden.";
+"Save Key" = "Schlüssel speichern";
+"Remove Key" = "Schlüssel entfernen";
+"Choose which on-device model handles transcription." = "Wählen Sie, welches lokale Modell die Transkription übernimmt.";
+"Engine" = "Engine";
+"Parakeet model isn't downloaded yet. Stet will fall back to Whisper until you download it below." = "Das Parakeet-Modell ist noch nicht heruntergeladen. Stet wird auf Whisper zurückgreifen, bis Sie es unten herunterladen.";
+"Reveal Whisper Folder in Finder" = "Whisper-Ordner im Finder anzeigen";
+"Downloaded" = "Heruntergeladen";
+"Not downloaded" = "Nicht heruntergeladen";
+"Download" = "Herunterladen";
+"On-device Transcription" = "Lokale Transkription";
+
+/* Dictionary settings */
+"Enable Personal Dictionary" = "Persönliches Wörterbuch aktivieren";
+"Add names, brands, jargon, or phrases" = "Namen, Marken, Fachjargon oder Phrasen hinzufügen";
+"Personal Dictionary" = "Persönliches Wörterbuch";
+"Once you add words here, Stet will reuse them in transcription and rewrite." = "Sobald Sie hier Wörter hinzufügen, verwendet Stet diese bei der Transkription und Umschreibung wieder.";
+"Current Entries" = "Aktuelle Einträge";
+"Clear Dictionary" = "Wörterbuch leeren";
+"Clear All" = "Alles löschen";
+"This action cannot be undone." = "Diese Aktion kann nicht rückgängig gemacht werden.";
+
+/* Debug settings */
+"Shader Debug Window" = "Shader-Debug-Fenster";
+"Open Shader Debug Window" = "Shader-Debug-Fenster öffnen";
+
+/* Permissions */
+"Permissions Required" = "Berechtigungen erforderlich";
+"Stet can't start this action because microphone and input control permissions are required." = "Stet kann diese Aktion nicht starten, da Mikrofon- und Eingabesteuerungsberechtigungen erforderlich sind.";
+"Grant Input Control" = "Eingabesteuerung gewähren";
+
+/* Dictation view */
+"Tap Start to begin dictation." = "Tippen Sie auf Start, um mit dem Diktat zu beginnen.";
+"Speak naturally, then tap Stop when you are ready to finalize the transcript." = "Sprechen Sie natürlich und tippen Sie auf Stopp, wenn Sie das Transkript abschließen möchten.";
+
+/* Model download */
+"Downloading" = "Wird heruntergeladen";
+"Downloading..." = "Wird heruntergeladen...";
+"Downloading %d%%" = "Wird heruntergeladen %d%%";
+"Downloading %d%% (%.1f MB / %.1f MB)" = "Wird heruntergeladen %d%% (%.1f MB / %.1f MB)";
+"Downloading (%.1f MB)" = "Wird heruntergeladen (%.1f MB)";
+"Checking..." = "Wird überprüft...";
+"Working..." = "In Bearbeitung...";
+"Preparing" = "Wird vorbereitet";
+"Ready to download" = "Bereit zum Herunterladen";
+"Ready" = "Bereit";
+"Done" = "Fertig";
+"Failed" = "Fehlgeschlagen";
+"Get ready" = "Machen Sie sich bereit";
+"One click gets you ready." = "Mit einem Klick sind Sie bereit.";
+"You're set." = "Alles eingerichtet.";
+"Unable to resolve Local Whisper model path." = "Der Pfad zum lokalen Whisper-Modell konnte nicht aufgelöst werden.";
+
+/* API key */
+"Verify Key" = "Schlüssel überprüfen";
+"Validating..." = "Wird validiert...";
+"Please enter API Key." = "Bitte geben Sie den API-Schlüssel ein.";
+"API Key verified." = "API-Schlüssel verifiziert.";
+"Invalid Key format." = "Ungültiges Schlüsselformat.";
+"Verification failed, please check if it was copied completely." = "Überprüfung fehlgeschlagen. Bitte stellen Sie sicher, dass er vollständig kopiert wurde.";
+"Provider is temporarily unavailable." = "Der Anbieter ist vorübergehend nicht verfügbar.";
+"Network connection error." = "Netzwerkverbindungsfehler.";
+
+/* Onboarding step titles */
+"Get started" = "Loslegen";
+"AI Configuration" = "KI-Konfiguration";
+"One more step to get started" = "Noch ein Schritt zum Start";
+"Set your speaking shortcut" = "Legen Sie Ihren Sprech-Kurzbefehl fest";
+"Try saying something" = "Versuchen Sie, etwas zu sagen";
+"Choose your theme" = "Wählen Sie Ihr Design";
+"You're all set" = "Alles ist bereit";
+
+/* Onboarding step subtitles */
+"One click gets you into the app." = "Ein Klick bringt Sie in die App.";
+"Select your preferred AI provider to handle transcription and cleanup." = "Wählen Sie Ihren bevorzugten KI-Anbieter für die Transkription und Bereinigung.";
+"Grant microphone and input control permissions so Stet can record and type text back into your apps." = "Gewähren Sie Mikrofon- und Eingabesteuerungsberechtigungen, damit Stet Text aufzeichnen und in Ihre Apps eingeben kann.";
+"Choose the shortcut you want to use for dictation." = "Wählen Sie den Kurzbefehl, den Sie für das Diktat verwenden möchten.";
+"Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "Halten Sie den Kurzbefehl gedrückt und sprechen Sie natürlich. Wir bewahren Ihre Absicht bei und führen die notwendige Bereinigung durch.";
+"Browse themes on the right, then apply and finish." = "Durchsuchen Sie die Designs auf der rechten Seite, wenden Sie sie an und schließen Sie ab.";
+"Hold your shortcut and start speaking anywhere you can type text." = "Halten Sie Ihren Kurzbefehl gedrückt und beginnen Sie überall dort zu sprechen, wo Sie Text eingeben können.";
+
+/* Onboarding steps */
+"Download the model to process your voice locally" = "Laden Sie das Modell herunter, um Ihre Stimme lokal zu verarbeiten";
+"Provider" = "Anbieter";
+"Microphone" = "Mikrofon";
+"Used to receive voice input" = "Wird für die Spracheingabe verwendet";
+"Accessibility / Input Control" = "Bedienungshilfen / Eingabesteuerung";
+"Used to insert text into active apps" = "Wird verwendet, um Text in aktive Apps einzufügen";
+"Permissions not yet detected. Please authorize in System Settings and return." = "Berechtigungen noch nicht erkannt. Bitte in den Systemeinstellungen autorisieren und zurückkehren.";
+"We've set Command + . as your default shortcut. Try pressing it now to see it in action." = "Wir haben Befehl + . als Standard-Kurzbefehl festgelegt. Drücken Sie ihn jetzt, um die Funktion zu testen.";
+"Click into the text box on the right, then use your hotkey to test voice input." = "Klicken Sie in das Textfeld auf der rechten Seite und verwenden Sie Ihren Kurzbefehl, um die Spracheingabe zu testen.";
+"Browse themes on the right. The capsule shows a live preview." = "Durchsuchen Sie die Designs auf der rechten Seite. Die Kapsel zeigt eine Live-Vorschau.";
+"Apply & Finish" = "Anwenden & Beenden";
+"Choose your preferred theme" = "Wählen Sie Ihr bevorzugtes Design";
+"Appearance" = "Erscheinungsbild";
+"When pressed, do you see the button turn black?" = "Wird die Schaltfläche beim Drücken schwarz?";
+"Press your hotkey" = "Drücken Sie Ihren Kurzbefehl";
+"Try saying:" = "Versuchen Sie zu sagen:";
+"I am now using this app to dictate this sentence" = "Ich verwende jetzt diese App, um diesen Satz zu diktieren";
+
+/* Hotkey Settings Extension */
+"Start Dictation" = "Diktat starten";
+"Use a modifier-plus-key shortcut, for example Control + Space or Command + K. Two plain character keys will not register here." = "Verwenden Sie einen Kurzbefehl mit Modifikatortaste, z. B. Control + Leertaste oder Befehl + K. Zwei einfache Zeichentasten werden hier nicht registriert.";
+
+/* General Settings Extension */
+"Check for updates automatically" = "Automatisch nach Updates suchen";
+"Stet stays in the menu bar for quick access even when the dock icon is hidden." = "Stet bleibt in der Menüleiste für den schnellen Zugriff, auch wenn das Dock-Symbol ausgeblendet ist.";
