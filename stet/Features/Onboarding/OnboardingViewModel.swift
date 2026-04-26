@@ -374,6 +374,17 @@
         }
 
         func continueOnboarding() {
+            let stepString: String
+            switch coordinator.onboardingStep {
+            case .download: stepString = "model_download"
+            case .apiKey: stepString = "api_key"
+            case .permissions: stepString = "permissions"
+            case .shortcut: stepString = "shortcut"
+            case .firstSuccess: stepString = "first_success"
+            case .appearance: stepString = "appearance"
+            case .done: stepString = "done"
+            }
+            AnalyticsService.track("onboarding_step_completed", parameters: ["step": stepString])
             coordinator.advanceOnboarding()
         }
 
@@ -418,6 +429,7 @@
         }
 
         func finishOnboarding() {
+            AnalyticsService.track("onboarding_step_completed", parameters: ["step": "done"])
             coordinator.finishOnboarding()
         }
 

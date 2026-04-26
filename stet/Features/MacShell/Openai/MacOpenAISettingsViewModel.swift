@@ -10,12 +10,19 @@
             didSet {
                 guard hasLoadedState else { return }
                 settingsStore.saveRewriteEnabled(isRewriteEnabled)
+                AnalyticsService.track("rewrite_toggled", parameters: ["enabled": isRewriteEnabled ? "true" : "false"])
             }
         }
         @Published var rewriteProvider: DictationProvider = .openAI {
             didSet {
                 guard hasLoadedState else { return }
                 settingsStore.saveRewriteProvider(rewriteProvider)
+                AnalyticsService.track(
+                    "provider_changed",
+                    parameters: [
+                        "transcription_provider": settingsStore.loadTranscriptionProvider().rawValue,
+                        "rewrite_provider": rewriteProvider.rawValue,
+                    ])
             }
         }
         @Published var openAIAPIKey = ""

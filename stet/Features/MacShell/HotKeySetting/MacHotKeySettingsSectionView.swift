@@ -18,7 +18,10 @@ struct MacHotKeySettingsSectionView: View {
             LabeledContent(LocalizedStringKey(hotkey.title)) {
                 KeyboardShortcuts.Recorder(
                     for: hotkey.name,
-                    onChange: onChange
+                    onChange: { shortcut in
+                        AnalyticsService.track("hotkey_changed")
+                        onChange?(shortcut)
+                    }
                 )
                 .frame(width: 240, alignment: .trailing)
             }

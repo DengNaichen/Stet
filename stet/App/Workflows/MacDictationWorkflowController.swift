@@ -96,6 +96,8 @@
             Task {
                 await DictationRuntimeProbe.shared.markAction("startDictationCapture")
             }
+            AnalyticsService.track(
+                "dictation_started", parameters: ["source": source == .hotkey ? "hotkey" : "interface"])
             refreshTargetApplication(allowingCurrentAppTarget: allowCurrentAppTarget)
             activeRecordingSource = source
             sessionStartDate = Date()
@@ -129,6 +131,7 @@
         }
 
         func stopActiveCapture() {
+            AnalyticsService.track("dictation_capture_ended")
             if let start = sessionStartDate {
                 let duration = Date().timeIntervalSince(start)
                 pendingSessionDuration = duration >= 1 ? duration : nil
@@ -149,6 +152,7 @@
         }
 
         func cancelActiveCapture() {
+            AnalyticsService.track("dictation_cancelled")
             sessionStartDate = nil
             pendingSessionDuration = nil
             activeRecordingSource = nil
@@ -198,6 +202,15 @@
                 let wordCount = Self.countWords(in: text)
                 statsModel?.record(
                     startedAt: Date().addingTimeInterval(-duration), durationSeconds: duration, wordCount: wordCount)
+
+                AnalyticsService.track(
+                    "dictation_completed",
+                    parameters: [
+                        "word_count": String(wordCount),
+                        "duration_seconds": String(format: "%.1f", duration),
+                        "provider": settingsSnapshot.transcriptionProvider.rawValue,
+                        "rewrite_enabled": settingsSnapshot.isRewriteEnabled ? "true" : "false",
+                    ])
                 pendingSessionDuration = nil
             }
 

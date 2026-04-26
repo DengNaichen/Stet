@@ -18,6 +18,7 @@ struct StetApp: App {
         @StateObject private var appUpdateManager = AppUpdateManager()
 
         init() {
+            AnalyticsService.initialize()
             let appModel = MacAppModel()
             _appModel = StateObject(wrappedValue: appModel)
             _dictationCommandsViewModel = StateObject(

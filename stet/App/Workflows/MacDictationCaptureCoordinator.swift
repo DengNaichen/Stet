@@ -101,6 +101,9 @@
                     )
                     await DictationLatencyProbe.shared.record(
                         .systemWriteFailed, note: "clipboard_write_failed")
+                    AnalyticsService.track(
+                        "output_failed",
+                        parameters: ["failure": "\(DictationFailure.clipboardWriteFailed.classification)"])
                     return .failed(.clipboardWriteFailed)
                 }
             }
@@ -134,6 +137,9 @@
                             )
                             await DictationLatencyProbe.shared.record(
                                 .systemWriteFailed, note: "clipboard_fallback_failed")
+                            AnalyticsService.track(
+                                "output_failed",
+                                parameters: ["failure": "\(DictationFailure.clipboardWriteFailed.classification)"])
                             return .failed(.clipboardWriteFailed)
                         }
                     }
@@ -150,6 +156,9 @@
                         stage: "completion",
                         details: "outcome=failed failure=autoPastePermissionMissing"
                     )
+                    AnalyticsService.track(
+                        "output_failed",
+                        parameters: ["failure": "\(DictationFailure.autoPastePermissionMissing.classification)"])
                     return .failed(.autoPastePermissionMissing)
                 }
 
@@ -186,6 +195,7 @@
                         details:
                             "outcome=completed reason=optimistic_verification_blind profile=\(targetAppProfileLabel(targetAppProfile))"
                     )
+                    AnalyticsService.track("output_success", parameters: ["method": "auto_paste"])
                     return .completed
                 }
 
@@ -196,6 +206,7 @@
                     }
                     await DictationLatencyProbe.shared.record(.systemWriteCompleted)
                     emitOutputTrace(traceID, stage: "completion", details: "outcome=completed")
+                    AnalyticsService.track("output_success", parameters: ["method": "auto_paste"])
                     return .completed
 
                 case .eventPostedVerificationUnavailableInTextInput,
@@ -222,6 +233,9 @@
                             )
                             await DictationLatencyProbe.shared.record(
                                 .systemWriteFailed, note: "clipboard_fallback_failed")
+                            AnalyticsService.track(
+                                "output_failed",
+                                parameters: ["failure": "\(DictationFailure.clipboardWriteFailed.classification)"])
                             return .failed(.clipboardWriteFailed)
                         }
                     }
@@ -260,6 +274,7 @@
                         stage: "completion",
                         details: "outcome=failed failure=\(failureLabel(failure))"
                     )
+                    AnalyticsService.track("output_failed", parameters: ["failure": "\(failure.classification)"])
                     return .failed(failure)
                 }
             } else if settings.shouldRevealPanelOnCapture {
@@ -277,6 +292,11 @@
                 stage: "completion",
                 details: "outcome=\(completionOutcomeLabel(outcome))"
             )
+            if outcome == .completed {
+                AnalyticsService.track("output_success", parameters: ["method": "clipboard"])
+            } else {
+                AnalyticsService.track("output_clipboard_pending")
+            }
             return outcome
         }
 
