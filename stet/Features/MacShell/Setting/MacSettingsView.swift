@@ -195,7 +195,7 @@
         private var detail: some View {
             if let activeTab {
                 selectedContent(for: activeTab)
-                    .navigationTitle(activeTab.title)
+                    .navigationTitle(LocalizedStringKey(activeTab.title))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else {
                 ContentUnavailableView(
@@ -232,7 +232,7 @@
                 }
                 .frame(width: 20, height: 20)
 
-                Text(tab.title)
+                Text(LocalizedStringKey(tab.title))
                     .font(.system(size: 13))
                     .foregroundStyle(.primary)
             }

@@ -44,7 +44,7 @@
         }
 
         #if !APP_STORE
-            private var appUpdateMenuTitle: String {
+            private var appUpdateMenuTitle: LocalizedStringKey {
                 switch appUpdateManager.state {
                 case .updateAvailable(_, let latestVersion):
                     return "Update Available (\(latestVersion))"

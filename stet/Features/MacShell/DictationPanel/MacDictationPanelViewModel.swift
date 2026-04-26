@@ -6,23 +6,19 @@
     @MainActor
     final class MacDictationPanelViewModel: ObservableObject {
         private enum CapsuleScaleTuning {
-            static let minimumListeningScale: CGFloat = 0.98
-            static let maximumListeningScale: CGFloat = 1.08
-            static let easingPower = 0.6
-            static let breathingAmplitude: CGFloat = 0.025
-            static let breathingPeriod: Double = 2.0
+            static let minimumListeningScale: CGFloat = 0.97
+            static let maximumListeningScale: CGFloat = 1.15
+            static let easingPower = 0.4
         }
 
         private let appModel: any MacDictationPanelCoordinating
         private var cancellables = Set<AnyCancellable>()
-        private var breathingTask: Task<Void, Never>?
 
         @Published private(set) var state: DictationState
         @Published private(set) var statusText: String
         @Published private(set) var recordingLevel: Double
         @Published private(set) var visualSignals: MacDictationPanelVisualSignals
         @Published private(set) var detectedTargetApplication: AppInfo?
-        @Published private(set) var breathingScale: CGFloat = 1.0
 
         var capsuleScale: CGFloat {
             Self.capsuleScale(for: state, recordingLevel: recordingLevel)
@@ -46,43 +42,14 @@
                     self?.syncFromAppModel()
                 }
                 .store(in: &cancellables)
-
-            updateBreathing(for: state)
         }
 
         private func syncFromAppModel() {
-            let previousState = state
             state = appModel.dictationState
             statusText = appModel.statusText
             recordingLevel = appModel.recordingLevel
             visualSignals = Self.visualSignals(for: appModel.dictationState, appModel: appModel)
             detectedTargetApplication = appModel.detectedTargetApplication
-
-            if state != previousState {
-                updateBreathing(for: state)
-            }
-        }
-
-        private func updateBreathing(for state: DictationState) {
-            switch state {
-            case .starting, .listening:
-                guard breathingTask == nil else { return }
-                breathingTask = Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    let fps: Double = 60
-                    let increment = (2 * Double.pi) / (CapsuleScaleTuning.breathingPeriod * fps)
-                    var phase: Double = 0
-                    while !Task.isCancelled {
-                        breathingScale = 1.0 + CapsuleScaleTuning.breathingAmplitude * CGFloat(sin(phase))
-                        phase += increment
-                        try? await Task.sleep(nanoseconds: UInt64(1_000_000_000 / fps))
-                    }
-                }
-            default:
-                breathingTask?.cancel()
-                breathingTask = nil
-                breathingScale = 1.0
-            }
         }
 
         private static func visualSignals(

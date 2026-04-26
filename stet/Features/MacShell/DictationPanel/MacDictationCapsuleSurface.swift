@@ -2,8 +2,7 @@
     import SwiftUI
 
     struct MacDictationCapsuleSurface: View {
-        private static let breathingAnimation = Animation.spring(response: 0.18, dampingFraction: 0.82)
-        private static let breathingFadeOut = Animation.easeOut(duration: 0.4)
+        private static let voiceScaleAnimation = Animation.spring(response: 0.18, dampingFraction: 0.82)
 
         @ObservedObject var viewModel: MacDictationPanelViewModel
         let panelSize: CGSize
@@ -19,10 +18,8 @@
                 onDismiss: dismissAction,
                 onConfirm: viewModel.performPrimaryAction
             )
-            .scaleEffect(viewModel.breathingScale)
-            .animation(Self.breathingFadeOut, value: viewModel.breathingScale)
             .scaleEffect(viewModel.capsuleScale)
-            .animation(Self.breathingAnimation, value: viewModel.capsuleScale)
+            .animation(Self.voiceScaleAnimation, value: viewModel.capsuleScale)
         }
 
         private func dismissAction() {

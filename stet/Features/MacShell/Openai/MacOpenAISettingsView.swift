@@ -19,7 +19,7 @@
                         if viewModel.isRewriteEnabled {
                             Divider().padding(.vertical, 4)
 
-                            MacSettingsValueRow(title: "How to use AI") {
+                            MacSettingsValueRow(title: "Refine Model") {
                                 Picker("", selection: $viewModel.unifiedProvider) {
                                     ForEach(MacOpenAISettingsViewModel.UnifiedAIProvider.allCases) { provider in
                                         Text(provider.displayName).tag(provider)

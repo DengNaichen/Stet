@@ -20,11 +20,11 @@
         var body: some View {
             GroupBox {
                 VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
-                    Text(title)
+                    Text(LocalizedStringKey(title))
                         .font(.headline)
 
                     if let description {
-                        Text(description)
+                        Text(LocalizedStringKey(description))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -52,7 +52,7 @@
 
         var body: some View {
             HStack(alignment: .firstTextBaseline, spacing: MacUI.SettingsViewMetrics.valueRowSpacing) {
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .foregroundStyle(.secondary)
 
                 Spacer()

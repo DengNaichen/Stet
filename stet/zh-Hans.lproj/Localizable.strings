@@ -79,7 +79,7 @@
 /* Refine / AI settings */
 "Transcript improvement" = "转录改进";
 "Stet can refine and improve the precision of your transcriptions using AI." = "Stet 可以使用 AI 优化并提高转录精度。";
-"How to use AI" = "如何使用 AI";
+"Refine Model" = "优化模型";
 "Refine" = "优化";
 "Apple Intelligence" = "Apple Intelligence";
 "Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac." = "使用设备端 Apple Intelligence 模型本地优化转录。可用性取决于此 Mac 上的 Apple Intelligence 是否已启用并就绪。";
@@ -182,3 +182,11 @@
 "Press your hotkey" = "按下您的快捷键";
 "Try saying:" = "试着说：";
 "I am now using this app to dictate this sentence" = "我现在正在使用这个应用程序来听写这句话";
+
+/* Hotkey Settings Extension */
+"Start Dictation" = "开始听写";
+"Use a modifier-plus-key shortcut, for example Control + Space or Command + K. Two plain character keys will not register here." = "请使用修饰键组合快捷键，例如 Control + Space 或 Command + K。无法在此处注册两个普通的字符键。";
+
+/* General Settings Extension */
+"Check for updates automatically" = "自动检查更新";
+"Stet stays in the menu bar for quick access even when the dock icon is hidden." = "即使隐藏了程序坞图标，Stet 也会保留在菜单栏以便快速访问。";
