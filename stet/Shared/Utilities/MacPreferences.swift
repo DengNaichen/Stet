@@ -26,32 +26,34 @@ enum MacPreferences {
     // Audio device selection
     nonisolated static let preferredAudioInputDeviceUID = "mac.preferredAudioInputDeviceUID"
 
-    // Local Whisper model override
     nonisolated static let localWhisperModelPath = "mac.localWhisperModelPath"
 
+    /// BCP-47 code for the primary dictation language.
+    nonisolated static let transcriptionPrimaryLanguage = "mac.transcriptionPrimaryLanguage"
+
+    /// BCP-47 code for the secondary dictation language, if any.
+    nonisolated static let transcriptionSecondaryLanguage = "mac.transcriptionSecondaryLanguage"
+
     /// Which on-device transcription engine the dictation pipeline uses.
-    /// Values are `LocalTranscriptionEngine.rawValue` ("whisper" or "parakeet").
-    /// Missing/unknown defaults to whisper.
-    nonisolated static let localTranscriptionEngine = "mac.localTranscriptionEngine"
+    /// Values are `StoredTranscriptionEngine.rawValue` ("fluidAudio" or "localWhisper").
+    nonisolated static let transcriptionEngine = "mac.transcriptionEngine"
 }
 
-enum LocalTranscriptionEngine: String, CaseIterable, Sendable {
-    case whisper
-    case parakeet
+enum StoredTranscriptionEngine: String, CaseIterable, Sendable {
+    case fluidAudio
+    case localWhisper
 
-    nonisolated static let `default`: LocalTranscriptionEngine = .whisper
+    nonisolated static let `default`: StoredTranscriptionEngine = .localWhisper
 
-    nonisolated static func current(defaults: UserDefaults = .standard) -> LocalTranscriptionEngine {
-        guard let raw = defaults.string(forKey: MacPreferences.localTranscriptionEngine) else {
+    nonisolated static func current(defaults: UserDefaults = .standard) -> StoredTranscriptionEngine {
+        guard let raw = defaults.string(forKey: MacPreferences.transcriptionEngine) else {
             return .default
         }
-        return LocalTranscriptionEngine(rawValue: raw) ?? .default
+        return StoredTranscriptionEngine(rawValue: raw) ?? .default
     }
+}
 
-    nonisolated var displayName: String {
-        switch self {
-        case .whisper: return "Whisper (large-v3-turbo q5_0)"
-        case .parakeet: return "Parakeet V3 (Multilingual)"
-        }
-    }
+enum TranscriptionEngine: Equatable, Sendable {
+    case fluidAudio
+    case localWhisper(languageHint: String?)
 }

@@ -304,11 +304,6 @@
             sessionController.retreatOnboarding()
         }
 
-        func completeAPIKeyOnboarding(provider: DictationProvider) {
-            settingsStore.saveRewriteProvider(provider)
-            sessionController.completeCredentialOnboarding(mode: .apiKey)
-        }
-
         func finishOnboarding() {
             sessionController.finishOnboarding()
         }

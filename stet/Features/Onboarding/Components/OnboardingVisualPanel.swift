@@ -33,8 +33,8 @@
                     backgroundGradient
                 }
 
-                if step == .download {
-                    downloadProgressPanel
+                if step == .language {
+                    engineDownloadProgressPanel
                 } else if step == .shortcut {
                     OnboardingKeyboardView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -247,20 +247,20 @@
         }
 
         @ViewBuilder
-        private var downloadProgressPanel: some View {
+        private var engineDownloadProgressPanel: some View {
             VStack(spacing: 18) {
                 Spacer()
 
                 VStack(spacing: 8) {
-                    Text(viewModel.localWhisperDownloadStatusTitle)
+                    Text(viewModel.engineDownloadStatusTitle)
                         .font(.system(size: 28, weight: .semibold, design: .rounded))
 
-                    Text(viewModel.localWhisperDownloadProgressLabel)
+                    Text(viewModel.engineDownloadProgressLabel)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
 
-                ProgressView(value: viewModel.localWhisperDownloadProgress)
+                ProgressView(value: viewModel.engineDownloadProgress)
                     .progressViewStyle(.linear)
                     .tint(presentation.accentColor)
                     .frame(maxWidth: 280)
@@ -271,44 +271,26 @@
             .padding(32)
         }
 
-        private var isAPIKeyValidated: Bool {
-            viewModel.isAPIKeyValidated
-        }
-
         private var presentation: StepPresentation {
             switch step {
-            case .download:
+            case .language:
                 return StepPresentation(
                     panelTitle: "Getting ready",
                     panelSubtitle: "The app is getting ready.",
-                    heroTitle: "Download in progress",
+                    heroTitle: "Engine Preparation",
                     heroSubtitle: "Keep this window open while setup finishes.",
                     footerTitle: "Almost there",
                     footerSubtitle: "The setup will finish automatically.",
                     accentColor: .blue,
                     systemImage: "square.and.arrow.down.fill",
-                    metrics: []
-                )
-            case .apiKey:
-                return StepPresentation(
-                    panelTitle: "Verify access",
-                    panelSubtitle: "Choose a provider, enter a key, and continue once it validates.",
-                    heroTitle: "\(viewModel.apiKeyProvider.displayName) key",
-                    heroSubtitle: isAPIKeyValidated
-                        ? "The current key is verified and ready for use."
-                        : "Enter a key from your provider and verify it before proceeding.",
-                    footerTitle: "Provider-aware",
-                    footerSubtitle: "This path still saves and validates the provider key before advancing.",
-                    accentColor: .orange,
-                    systemImage: "key.fill",
                     metrics: [
                         .init(
-                            title: "Provider", value: viewModel.apiKeyProvider.displayName, systemImage: "server.rack",
-                            tint: .orange),
+                            title: "Primary", value: viewModel.transcriptionPrimaryLanguage.uppercased(),
+                            systemImage: "character.bubble.fill", tint: .blue),
                         .init(
-                            title: "Status", value: isAPIKeyValidated ? "Verified" : "Awaiting key",
-                            systemImage: "checkmark.shield", tint: .green),
-                        .init(title: "Storage", value: "Saved in Keychain", systemImage: "lock.shield", tint: .blue),
+                            title: "Engine",
+                            value: viewModel.transcriptionEngine == .fluidAudio ? "Parakeet" : "Whisper",
+                            systemImage: "cpu", tint: .green),
                     ]
                 )
             case .permissions:
@@ -396,8 +378,9 @@
                             title: "Shortcut", value: viewModel.shortcutSummaryText, systemImage: "keyboard",
                             tint: .purple),
                         .init(
-                            title: "Mode", value: viewModel.onboardingMode == .apiKey ? "API Key" : "Logged In",
-                            systemImage: "arrow.triangle.branch", tint: .blue),
+                            title: "Engine",
+                            value: viewModel.transcriptionEngine == .fluidAudio ? "Parakeet" : "Whisper",
+                            systemImage: "cpu", tint: .blue),
                         .init(
                             title: "Permissions",
                             value: viewModel.hasRequiredPermissions ? "Enabled" : "Check required",

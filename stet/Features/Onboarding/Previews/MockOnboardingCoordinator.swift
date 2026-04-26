@@ -81,7 +81,7 @@
         var onboardingStep: MacOnboardingStep { mockStep }
         var onboardingMode: MacOnboardingMode? { mockMode }
 
-        init(step: MacOnboardingStep = .download, mode: MacOnboardingMode? = nil) {
+        init(step: MacOnboardingStep = .language, mode: MacOnboardingMode? = nil) {
             self.mockStep = step
             self.mockMode = mode
             self.autoPasteStatusText = "Granted"
@@ -114,7 +114,7 @@
 
         func chooseOnboardingMode(_ mode: MacOnboardingMode) {
             mockMode = mode
-            mockStep = .apiKey
+            mockStep = .permissions
         }
 
         func selectOnboardingAppearanceTheme(_ theme: MacDictationVisualTheme) {
@@ -128,9 +128,7 @@
 
         func advanceOnboarding() {
             switch mockStep {
-            case .download:
-                mockStep = .apiKey
-            case .apiKey:
+            case .language:
                 mockStep = .permissions
             case .permissions:
                 mockStep = .shortcut
@@ -147,16 +145,10 @@
 
         func retreatOnboarding() {
             switch mockStep {
-            case .download:
+            case .language:
                 break
-            case .apiKey:
-                mockStep = .download
             case .permissions:
-                mockStep =
-                    switch mockMode {
-                    case .apiKey: .apiKey
-                    case nil: .download
-                    }
+                mockStep = .language
             case .shortcut:
                 mockStep = .permissions
             case .firstSuccess:
@@ -168,22 +160,14 @@
             }
         }
 
-        func completeAPIKeyOnboarding(provider: DictationProvider) {
-            mockMode = .apiKey
-            mockStep = .permissions
-            shortcutSummaryText = "\(provider.displayName) preview key"
-        }
-
         func finishOnboarding() {
             mockStep = .done
         }
 
         private func configurePreviewState(for step: MacOnboardingStep) {
             switch step {
-            case .download:
+            case .language:
                 break
-            case .apiKey:
-                mockMode = .apiKey
             case .permissions:
                 break
             case .shortcut:

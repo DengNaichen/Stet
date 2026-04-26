@@ -6,58 +6,62 @@
 
     @MainActor
     final class OnboardingViewModel: ObservableObject {
-        enum LocalWhisperDownloadState: Equatable {
+        enum EngineDownloadState: Equatable {
             case idle
-            case running(LocalWhisperDownloadStage)
-            case ready(modelPath: String)
+            case running(stageText: String)
+            case ready
             case failed(String)
         }
 
-        @Published var apiKeyProvider: DictationProvider {
+        @Published var transcriptionPrimaryLanguage: String = "en" {
             didSet {
-                if apiKeyProvider != lastValidatedProvider {
-                    resetAPIKeyValidationState()
-                }
+                settingsStore.saveTranscriptionPrimaryLanguage(transcriptionPrimaryLanguage)
+                updateEngineRouting()
             }
         }
-        @Published var apiKey = "" {
+
+        @Published var transcriptionSecondaryLanguage: String? = nil {
             didSet {
-                if apiKey != lastValidatedKey {
-                    resetAPIKeyValidationState()
-                }
+                settingsStore.saveTranscriptionSecondaryLanguage(transcriptionSecondaryLanguage)
+                updateEngineRouting()
             }
         }
-        @Published private(set) var isValidatingAPIKey = false
-        @Published private(set) var isAPIKeyValidated = false
-        @Published private(set) var apiKeyStatusMessage: String?
-        @Published private(set) var apiKeyErrorMessage: String?
+
+        @Published private(set) var transcriptionEngine: TranscriptionEngine = .localWhisper(languageHint: nil)
+
         @Published private(set) var shortcutSummaryText = "Shortcut configured"
         @Published private(set) var onboardingPreviewTheme: MacDictationVisualTheme = .egg
-        @Published private(set) var localWhisperDownloadState: LocalWhisperDownloadState = .idle
-        @Published private(set) var localWhisperDownloadFraction: Double = 0
-        @Published private(set) var localWhisperBytesCompleted: Int64 = 0
-        @Published private(set) var localWhisperBytesTotal: Int64 = 0
+        @Published private(set) var engineDownloadState: EngineDownloadState = .idle
+        @Published private(set) var engineDownloadFraction: Double = 0
+        @Published private(set) var engineBytesCompleted: Int64 = 0
+        @Published private(set) var engineBytesTotal: Int64 = 0
 
         private let coordinator: any MacPermissionsCoordinating
         private let settingsStore: DictationSettingsStore
         private let credentialValidationService: any ProviderCredentialValidating
         private let localWhisperModelManager: LocalWhisperModelManager
+        private let fluidAudioModelManager: FluidAudioModelManager
         private var cancellables = Set<AnyCancellable>()
-        private var lastValidatedKey: String?
-        private var lastValidatedProvider: DictationProvider?
 
         init(
             coordinator: any MacPermissionsCoordinating,
             settingsStore: DictationSettingsStore = DictationSettingsStore(),
             credentialValidationService: (any ProviderCredentialValidating)? = nil,
-            localWhisperModelManager: LocalWhisperModelManager = LocalWhisperModelManager()
+            localWhisperModelManager: LocalWhisperModelManager = LocalWhisperModelManager(),
+            fluidAudioModelManager: FluidAudioModelManager = FluidAudioModelManager()
         ) {
             self.coordinator = coordinator
             self.settingsStore = settingsStore
             self.credentialValidationService = credentialValidationService ?? ProviderCredentialValidationService()
             self.localWhisperModelManager = localWhisperModelManager
-            let storedAPIKeyProvider = settingsStore.loadProvider()
-            self.apiKeyProvider = storedAPIKeyProvider.requiresAPIKey ? storedAPIKeyProvider : .openAI
+            self.fluidAudioModelManager = fluidAudioModelManager
+
+            self.transcriptionPrimaryLanguage = settingsStore.loadTranscriptionPrimaryLanguage()
+            self.transcriptionSecondaryLanguage = settingsStore.loadTranscriptionSecondaryLanguage()
+            self.transcriptionEngine = TranscriptionLanguageRouting.resolveEngine(
+                primary: transcriptionPrimaryLanguage,
+                secondary: transcriptionSecondaryLanguage
+            )
             coordinator.updates
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
@@ -134,152 +138,113 @@
             coordinator.canFinishAppearanceOnboarding
         }
 
-        var localWhisperDownloadPrimaryButtonTitle: String {
-            switch localWhisperDownloadState {
+        var engineDownloadPrimaryButtonTitle: String {
+            switch engineDownloadState {
             case .idle:
                 return "Download"
             case .running(let stage):
-                switch stage {
-                case .checkingExistingAssets:
-                    return "Checking..."
-                case .downloadingModel:
-                    return "Downloading..."
-                case .ready:
+                if stage == "Ready" {
                     return "Continue"
                 }
-            case .ready(_):
+                return "Downloading..."
+            case .ready:
                 return "Continue"
             case .failed(_):
                 return "Try again"
             }
         }
 
-        var isLocalWhisperDownloadRunning: Bool {
-            if case .running(let stage) = localWhisperDownloadState {
-                return stage != .ready
+        var isEngineDownloadRunning: Bool {
+            if case .running(let stage) = engineDownloadState {
+                return stage != "Ready"
             }
             return false
         }
 
-        var isLocalWhisperDownloadFailed: Bool {
-            if case .failed = localWhisperDownloadState {
+        var isEngineDownloadFailed: Bool {
+            if case .failed = engineDownloadState {
                 return true
             }
             return false
         }
 
-        var localWhisperDownloadDetailText: String {
-            switch localWhisperDownloadState {
+        var engineDownloadDetailText: String {
+            switch engineDownloadState {
             case .idle:
                 return "One click gets you ready."
             case .running(let stage):
-                switch stage {
-                case .checkingExistingAssets:
-                    return "Working..."
-                case .downloadingModel:
-                    return "Downloading..."
-                case .ready:
-                    return "You're set."
-                }
-            case .ready(_):
+                return stage
+            case .ready:
                 return "You're set."
             case .failed(let message):
                 return message
             }
         }
 
-        var localWhisperDownloadProgress: Double {
-            switch localWhisperDownloadState {
+        var engineDownloadProgress: Double {
+            switch engineDownloadState {
             case .idle:
                 return 0.0
-            case .running(let stage):
-                switch stage {
-                case .checkingExistingAssets:
-                    return 0.04
-                case .downloadingModel:
-                    return localWhisperDownloadFraction
-                case .ready:
-                    return 1.0
-                }
-            case .ready(_):
+            case .running(_):
+                return engineDownloadFraction
+            case .ready:
                 return 1.0
             case .failed(_):
                 return 0.0
             }
         }
 
-        var localWhisperDownloadProgressLabel: String {
-            switch localWhisperDownloadState {
+        var engineDownloadProgressLabel: String {
+            switch engineDownloadState {
             case .idle:
                 return "Ready to download"
             case .running(let stage):
-                switch stage {
-                case .checkingExistingAssets:
-                    return "Preparing"
-                case .downloadingModel:
-                    let percentage = Int((localWhisperDownloadFraction * 100).rounded())
-                    let completedMB = Double(localWhisperBytesCompleted) / 1_048_576.0
-                    let totalMB = Double(localWhisperBytesTotal) / 1_048_576.0
-
-                    if localWhisperBytesTotal > 0 {
-                        return String(format: "Downloading %d%% (%.1f MB / %.1f MB)", percentage, completedMB, totalMB)
-                    } else if localWhisperBytesCompleted > 0 {
-                        return String(format: "Downloading (%.1f MB)", completedMB)
-                    } else {
-                        return percentage > 0 ? "Downloading \(percentage)%" : "Downloading"
-                    }
-                case .ready:
+                if stage == "Ready" {
                     return "Done"
                 }
-            case .ready(_):
+                let percentage = Int((engineDownloadFraction * 100).rounded())
+                let completedMB = Double(engineBytesCompleted) / 1_048_576.0
+                let totalMB = Double(engineBytesTotal) / 1_048_576.0
+
+                if engineBytesTotal > 0 {
+                    return String(format: "Downloading %d%% (%.1f MB / %.1f MB)", percentage, completedMB, totalMB)
+                } else if engineBytesCompleted > 0 {
+                    return String(format: "Downloading (%.1f MB)", completedMB)
+                } else {
+                    return percentage > 0 ? "Downloading \(percentage)%" : "Downloading"
+                }
+            case .ready:
                 return "Done"
             case .failed(_):
                 return "Try again"
             }
         }
 
-        var localWhisperDownloadStatusTitle: String {
-            switch localWhisperDownloadState {
+        var engineDownloadStatusTitle: String {
+            switch engineDownloadState {
             case .idle:
                 return "Get ready"
             case .running(let stage):
-                switch stage {
-                case .checkingExistingAssets:
-                    return "Preparing"
-                case .ready:
+                if stage == "Ready" {
                     return "Ready"
-                default:
-                    return "Downloading"
                 }
-            case .ready(_):
+                return "Downloading"
+            case .ready:
                 return "Ready"
             case .failed(_):
                 return "Failed"
             }
         }
 
-        var localWhisperExpectedModelPath: String {
-            (try? localWhisperModelManager.defaultModelURL().path)
-                ?? "Unable to resolve Local Whisper model path."
-        }
-
-        var canContinueLocalWhisperDownload: Bool {
-            switch localWhisperDownloadState {
+        var canContinueEngineDownload: Bool {
+            switch engineDownloadState {
             case .ready:
                 return true
             case .running(let stage):
-                return stage == .ready
+                return stage == "Ready"
             default:
                 return false
             }
-        }
-
-        var apiKeyPrimaryButtonTitle: String {
-            if isAPIKeyValidated || !apiKeyProvider.requiresAPIKey {
-                return "Continue"
-            }
-
-            return isValidatingAPIKey ? "Validating..." : "Verify Key"
         }
 
         func requestAutoPasteAccess() {
@@ -299,66 +264,115 @@
             coordinator.chooseOnboardingMode(mode)
         }
 
-        func prepareLocalWhisperModelIfNeeded() async {
-            if case .ready = localWhisperDownloadState {
+        private func updateEngineRouting() {
+            transcriptionEngine = TranscriptionLanguageRouting.resolveEngine(
+                primary: transcriptionPrimaryLanguage,
+                secondary: transcriptionSecondaryLanguage
+            )
+            // Reset download state when routing changes if we are still on the language step
+            if coordinator.onboardingStep == .language {
+                engineDownloadState = .idle
+                engineDownloadFraction = 0
+            }
+        }
+
+        func prepareTranscriptionEngineIfNeeded() async {
+            if case .ready = engineDownloadState {
                 return
             }
 
-            if case .running = localWhisperDownloadState {
+            if case .running = engineDownloadState {
                 return
             }
 
             do {
-                localWhisperDownloadFraction = 0
-                if try localWhisperModelManager.defaultModelReady() {
-                    try localWhisperModelManager.removeDefaultEncoderIfPresent()
-                    LocalWhisperModelManager.saveCustomModelPath(nil)
-                    localWhisperDownloadFraction = 1
-                    localWhisperDownloadState = .ready(modelPath: try localWhisperModelManager.defaultModelURL().path)
-                    return
-                }
+                engineDownloadFraction = 0
 
-                localWhisperDownloadState = .running(.checkingExistingAssets)
-                try await localWhisperModelManager.installDefaultModel(
-                    progress: { [weak self] stage in
-                        Task { @MainActor [weak self, stage] in
-                            self?.localWhisperDownloadState = .running(stage)
+                switch transcriptionEngine {
+                case .fluidAudio:
+                    if fluidAudioModelManager.isModelDownloaded() {
+                        engineDownloadFraction = 1
+                        engineDownloadState = .ready
+                        settingsStore.saveTranscriptionEngine(.fluidAudio)
+                        Task.detached(priority: .userInitiated) {
+                            try? await LocalParakeetContextManager.shared.loadModel(version: .v3) { version in
+                                try await AsrModels.loadFromCache(configuration: nil, version: version)
+                            }
                         }
-                    },
-                    downloadProgress: { [weak self] fraction, completed, total in
-                        Task { @MainActor [weak self, fraction, completed, total] in
-                            self?.localWhisperDownloadFraction = fraction
-                            self?.localWhisperBytesCompleted = completed
-                            self?.localWhisperBytesTotal = total
+                        return
+                    }
+
+                    engineDownloadState = .running(stageText: "Downloading Parakeet V3...")
+                    try await fluidAudioModelManager.downloadModel()
+
+                    engineDownloadFraction = 1
+                    engineDownloadState = .ready
+                    settingsStore.saveTranscriptionEngine(.fluidAudio)
+
+                    Task.detached(priority: .userInitiated) {
+                        try? await LocalParakeetContextManager.shared.loadModel(version: .v3) { version in
+                            try await AsrModels.loadFromCache(configuration: nil, version: version)
                         }
                     }
-                )
 
-                LocalWhisperModelManager.saveCustomModelPath(nil)
-                localWhisperDownloadFraction = 1
-                localWhisperDownloadState = .ready(modelPath: try localWhisperModelManager.defaultModelURL().path)
+                case .localWhisper:
+                    if try localWhisperModelManager.defaultModelReady() {
+                        try localWhisperModelManager.removeDefaultEncoderIfPresent()
+                        LocalWhisperModelManager.saveCustomModelPath(nil)
+                        engineDownloadFraction = 1
+                        engineDownloadState = .ready
+                        settingsStore.saveTranscriptionEngine(.localWhisper)
+                        return
+                    }
 
-                // Trigger proactive high-priority background warm-up.
-                // This shouldn't block the user from moving to the next onboarding steps.
-                Task.detached(priority: .userInitiated) { [localWhisperModelManager] in
-                    try? await localWhisperModelManager.installDefaultAssets()
-                    try? await LocalWhisperWarmupCoordinator.shared.warmup()
+                    engineDownloadState = .running(stageText: "Checking existing assets...")
+                    try await localWhisperModelManager.installDefaultModel(
+                        progress: { [weak self] stage in
+                            Task { @MainActor [weak self, stage] in
+                                let stageText =
+                                    switch stage {
+                                    case .checkingExistingAssets: "Checking assets..."
+                                    case .downloadingModel: "Downloading Whisper..."
+                                    case .ready: "Ready"
+                                    }
+                                self?.engineDownloadState = .running(stageText: stageText)
+                            }
+                        },
+                        downloadProgress: { [weak self] fraction, completed, total in
+                            Task { @MainActor [weak self, fraction, completed, total] in
+                                self?.engineDownloadFraction = fraction
+                                self?.engineBytesCompleted = completed
+                                self?.engineBytesTotal = total
+                            }
+                        }
+                    )
+
+                    LocalWhisperModelManager.saveCustomModelPath(nil)
+                    engineDownloadFraction = 1
+                    engineDownloadState = .ready
+                    settingsStore.saveTranscriptionEngine(.localWhisper)
+
+                    // Trigger proactive high-priority background warm-up for Whisper
+                    Task.detached(priority: .userInitiated) { [localWhisperModelManager] in
+                        try? await localWhisperModelManager.installDefaultAssets()
+                        try? await LocalWhisperWarmupCoordinator.shared.warmup()
+                    }
                 }
             } catch {
-                localWhisperDownloadFraction = 0
-                localWhisperDownloadState = .failed(error.localizedDescription)
+                engineDownloadFraction = 0
+                engineDownloadState = .failed(error.localizedDescription)
             }
         }
 
-        func handleLocalWhisperDownloadPrimaryAction() async {
-            if canContinueLocalWhisperDownload {
+        func handleEngineDownloadPrimaryAction() async {
+            if canContinueEngineDownload {
                 continueOnboarding()
                 return
             }
 
-            switch localWhisperDownloadState {
+            switch engineDownloadState {
             case .idle, .failed:
-                await prepareLocalWhisperModelIfNeeded()
+                await prepareTranscriptionEngineIfNeeded()
             default:
                 break
             }
@@ -376,8 +390,7 @@
         func continueOnboarding() {
             let stepString: String
             switch coordinator.onboardingStep {
-            case .download: stepString = "model_download"
-            case .apiKey: stepString = "api_key"
+            case .language: stepString = "language"
             case .permissions: stepString = "permissions"
             case .shortcut: stepString = "shortcut"
             case .firstSuccess: stepString = "first_success"
@@ -393,41 +406,6 @@
             coordinator.retreatOnboarding()
         }
 
-        func completeAPIKeyFlow() async {
-            if isAPIKeyValidated || !apiKeyProvider.requiresAPIKey {
-                coordinator.completeAPIKeyOnboarding(provider: apiKeyProvider)
-                return
-            }
-
-            let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmedKey.isEmpty else {
-                apiKeyErrorMessage = "Please enter API Key."
-                apiKeyStatusMessage = nil
-                return
-            }
-
-            isValidatingAPIKey = true
-            apiKeyErrorMessage = nil
-            apiKeyStatusMessage = nil
-
-            do {
-                try await credentialValidationService.validateCredential(
-                    apiKey: trimmedKey,
-                    provider: apiKeyProvider
-                )
-                try settingsStore.saveAPIKey(trimmedKey, for: apiKeyProvider)
-                apiKey = trimmedKey
-                lastValidatedKey = trimmedKey
-                lastValidatedProvider = apiKeyProvider
-                isAPIKeyValidated = true
-                apiKeyStatusMessage = "API Key verified."
-            } catch {
-                apiKeyErrorMessage = mapAPIKeyError(error)
-            }
-
-            isValidatingAPIKey = false
-        }
-
         func finishOnboarding() {
             AnalyticsService.track("onboarding_step_completed", parameters: ["step": "done"])
             coordinator.finishOnboarding()
@@ -437,50 +415,7 @@
             shortcutSummaryText = shortcut.map { "\($0)" } ?? "Shortcut configured"
         }
 
-        private func clearFlowMessages() {
-            apiKeyStatusMessage = nil
-            apiKeyErrorMessage = nil
-        }
+        private func clearFlowMessages() {}
 
-        private func resetAPIKeyValidationState() {
-            isAPIKeyValidated = false
-            apiKeyStatusMessage = nil
-            apiKeyErrorMessage = nil
-            lastValidatedKey = nil
-            lastValidatedProvider = nil
-        }
-
-        private func mapAPIKeyError(_ error: Error) -> String {
-            if let openAIError = error as? OpenAIError {
-                switch openAIError {
-                case .missingAPIKey:
-                    return "Invalid Key format."
-                case .api(_, let statusCode, _):
-                    switch statusCode {
-                    case 401, 403:
-                        return "Verification failed, please check if it was copied completely."
-                    case 429, 500, 502, 503, 504:
-                        return "Provider is temporarily unavailable."
-                    default:
-                        return openAIError.localizedDescription
-                    }
-                case .invalidBaseURL, .invalidResponse:
-                    return "Provider is temporarily unavailable."
-                case .fileNotFound, .missingTranscriptionText, .missingRewriteText:
-                    return openAIError.localizedDescription
-                }
-            }
-
-            if let urlError = error as? URLError {
-                switch urlError.code {
-                case .notConnectedToInternet, .timedOut, .cannotConnectToHost, .cannotFindHost, .networkConnectionLost:
-                    return "Network connection error."
-                default:
-                    return urlError.localizedDescription
-                }
-            }
-
-            return error.localizedDescription
-        }
     }
 #endif

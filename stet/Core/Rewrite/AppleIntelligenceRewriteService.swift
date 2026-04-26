@@ -44,14 +44,14 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
         return trimmedOutput
     }
 
-    private nonisolated static var isAvailable: Bool {
+    public static var isAvailable: Bool {
         if case .available = SystemLanguageModel.default.availability {
             return true
         }
         return false
     }
 
-    private nonisolated static var availabilityDescription: String {
+    public static var availabilityDescription: String {
         switch SystemLanguageModel.default.availability {
         case .available:
             return "available"

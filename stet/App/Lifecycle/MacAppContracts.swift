@@ -56,7 +56,6 @@
         func applyOnboardingAppearanceTheme()
         func advanceOnboarding()
         func retreatOnboarding()
-        func completeAPIKeyOnboarding(provider: DictationProvider)
         func finishOnboarding()
     }
 
@@ -78,7 +77,6 @@
         func applyOnboardingAppearanceTheme() {}
         func advanceOnboarding() {}
         func retreatOnboarding() {}
-        func completeAPIKeyOnboarding(provider: DictationProvider) {}
         func finishOnboarding() {}
     }
 

@@ -37,6 +37,9 @@ struct DictationSettingsSnapshot: Sendable {
     let personalDictionary: [String]
     let interactionSoundsEnabled: Bool
     let interactionSoundPreset: InteractionSoundPreset
+    let transcriptionPrimaryLanguage: String
+    let transcriptionSecondaryLanguage: String?
+    let transcriptionEngine: StoredTranscriptionEngine
 
     nonisolated var provider: DictationProvider {
         transcriptionProvider
@@ -117,6 +120,11 @@ struct DictationSettingsStore: Sendable {
                 )
         }
 
+        let transcriptionPrimaryLanguage =
+            defaultsStore.string(forKey: MacPreferences.transcriptionPrimaryLanguage) ?? "en"
+        let transcriptionSecondaryLanguage = defaultsStore.string(forKey: MacPreferences.transcriptionSecondaryLanguage)
+        let transcriptionEngine = StoredTranscriptionEngine.current()
+
         return DictationSettingsSnapshot(
             transcriptionProvider: transcriptionProvider,
             rewriteProvider: rewriteProvider,
@@ -126,7 +134,10 @@ struct DictationSettingsStore: Sendable {
             rewriteProviderConfiguration: rewriteConfiguration,
             personalDictionary: personalDictionary,
             interactionSoundsEnabled: interactionSoundsEnabled,
-            interactionSoundPreset: interactionSoundPreset
+            interactionSoundPreset: interactionSoundPreset,
+            transcriptionPrimaryLanguage: transcriptionPrimaryLanguage,
+            transcriptionSecondaryLanguage: transcriptionSecondaryLanguage,
+            transcriptionEngine: transcriptionEngine
         )
     }
 
@@ -147,7 +158,7 @@ struct DictationSettingsStore: Sendable {
     }
 
     nonisolated func loadInteractionSoundPreset() -> InteractionSoundPreset {
-        InteractionSoundPreset.defaultPreset
+        .soft
     }
 
     nonisolated func loadTranscriptionProvider() -> DictationProvider {
@@ -230,5 +241,33 @@ struct DictationSettingsStore: Sendable {
 
     nonisolated func saveOpenAIAPIKey(_ apiKey: String) throws {
         try saveAPIKey(apiKey, for: .openAI)
+    }
+
+    nonisolated func loadTranscriptionPrimaryLanguage() -> String {
+        defaultsStore.string(forKey: MacPreferences.transcriptionPrimaryLanguage) ?? "en"
+    }
+
+    nonisolated func saveTranscriptionPrimaryLanguage(_ code: String) {
+        defaultsStore.set(code, forKey: MacPreferences.transcriptionPrimaryLanguage)
+    }
+
+    nonisolated func loadTranscriptionSecondaryLanguage() -> String? {
+        defaultsStore.string(forKey: MacPreferences.transcriptionSecondaryLanguage)
+    }
+
+    nonisolated func saveTranscriptionSecondaryLanguage(_ code: String?) {
+        if let code {
+            defaultsStore.set(code, forKey: MacPreferences.transcriptionSecondaryLanguage)
+        } else {
+            defaultsStore.removeObject(forKey: MacPreferences.transcriptionSecondaryLanguage)
+        }
+    }
+
+    nonisolated func loadTranscriptionEngine() -> StoredTranscriptionEngine {
+        StoredTranscriptionEngine.current()
+    }
+
+    nonisolated func saveTranscriptionEngine(_ engine: StoredTranscriptionEngine) {
+        defaultsStore.set(engine.rawValue, forKey: MacPreferences.transcriptionEngine)
     }
 }

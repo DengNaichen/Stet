@@ -53,6 +53,46 @@
                         }
                     }
 
+                    VStack(alignment: .leading, spacing: 14) {
+                        Divider()
+                            .opacity(0.1)
+
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "sparkles")
+                                .font(.title2)
+                                .foregroundStyle(
+                                    AppleIntelligenceRewriteService.isAvailable ? .purple : .secondary
+                                )
+                                .frame(width: 32)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Apple Intelligence")
+                                    .font(.headline)
+
+                                if AppleIntelligenceRewriteService.isAvailable {
+                                    Text("Ready to refine your transcriptions.")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                } else {
+                                    Text("Unavailable: \(AppleIntelligenceRewriteService.availabilityDescription)")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+
+                                    Button("Open Settings") {
+                                        if let url = URL(
+                                            string: "x-apple.systempreferences:com.apple.AppleIntelligenceSettings")
+                                        {
+                                            NSWorkspace.shared.open(url)
+                                        }
+                                    }
+                                    .buttonStyle(.link)
+                                    .font(.subheadline)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.top, 4)
+
                     if viewModel.microphoneAccessNeedsAttention || viewModel.autoPasteAccessNeedsAttention {
                         MessageBanner(
                             text: "Permissions not yet detected. Please authorize in System Settings and return.",

@@ -12,7 +12,7 @@
             }
 
             onboardingModeState = mode
-            onboardingStepState = .apiKey
+            onboardingStepState = .permissions
             notifyChange()
         }
 
@@ -36,8 +36,8 @@
             }
 
             switch onboardingStepState {
-            case .download:
-                onboardingStepState = .apiKey
+            case .language:
+                onboardingStepState = .permissions
             case .permissions:
                 guard hasRequiredPermissions else { return }
                 onboardingStepState = .shortcut
@@ -47,7 +47,7 @@
             case .firstSuccess:
                 guard canContinueFirstSuccessOnboarding || canSkipFirstSuccessOnboarding else { return }
                 onboardingStepState = .appearance
-            case .apiKey, .appearance, .done:
+            case .appearance, .done:
                 break
             }
 
@@ -62,12 +62,10 @@
             }
 
             switch onboardingStepState {
-            case .download:
+            case .language:
                 break
-            case .apiKey:
-                onboardingStepState = .download
             case .permissions:
-                onboardingStepState = .apiKey
+                onboardingStepState = .language
             case .shortcut:
                 onboardingStepState = .permissions
             case .firstSuccess:
@@ -81,8 +79,7 @@
             notifyChange()
         }
 
-        func completeCredentialOnboarding(mode: MacOnboardingMode) {
-            onboardingModeState = mode
+        func completeLanguageOnboarding() {
             guard requiresOnboarding else {
                 onboardingStepState = .done
                 notifyChange()
@@ -170,9 +167,6 @@
             case .authentication:
                 return "Connection unavailable, please re-verify your login status."
             case .configuration:
-                if onboardingModeState == .apiKey {
-                    return "Connection unavailable, please re-verify your API Key."
-                }
                 return "Model configuration unavailable, please check provider settings."
             case .network:
                 return "Processing failed, please check your network or model configuration."
@@ -200,7 +194,7 @@
                 return
             }
 
-            onboardingStepState = .download
+            onboardingStepState = .language
         }
     }
 #endif

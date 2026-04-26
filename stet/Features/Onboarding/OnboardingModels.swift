@@ -2,12 +2,12 @@
     import Foundation
 
     enum MacOnboardingMode: String, Sendable {
-        case apiKey
+        case fluidAudio
+        case localWhisper
     }
 
     enum MacOnboardingStep: Int, CaseIterable, Sendable {
-        case download = 1
-        case apiKey
+        case language = 1
         case permissions
         case shortcut
         case firstSuccess
@@ -16,18 +16,16 @@
 
         var progressIndex: Int {
             switch self {
-            case .download:
+            case .language:
                 return 1
-            case .apiKey:
-                return 2
             case .permissions:
-                return 3
+                return 2
             case .shortcut:
-                return 4
+                return 3
             case .firstSuccess:
-                return 5
+                return 4
             case .appearance, .done:
-                return 6
+                return 5
             }
         }
 
@@ -35,7 +33,7 @@
             switch self {
             case .shortcut, .firstSuccess:
                 return true
-            case .download, .apiKey, .permissions, .appearance, .done:
+            case .language, .permissions, .appearance, .done:
                 return false
             }
         }

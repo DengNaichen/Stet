@@ -519,6 +519,28 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         return text
     }
 
+    /// Detects if the rewritten transcript has "drifted" from the original by
+    /// translating mixed-language content instead of just cleaning it up.
+    /// Used as a guardrail for Apple Intelligence rewrite.
+    static func hasTranslationDrift(originalTranscript: String, rewrittenTranscript: String) -> Bool {
+        let originalEnglishWords = extractEnglishWords(originalTranscript)
+        let rewrittenEnglishWords = extractEnglishWords(rewrittenTranscript)
+
+        let droppedWords = originalEnglishWords.subtracting(rewrittenEnglishWords)
+
+        // If we dropped English words, it might be a translation.
+        // We ignore very short words or common fillers if we wanted to be fancy,
+        // but for a guardrail, any dropped English word in a mixed transcript is suspicious.
+        return !droppedWords.isEmpty
+    }
+
+    private static func extractEnglishWords(_ text: String) -> Set<String> {
+        let regex = try? NSRegularExpression(pattern: "[a-zA-Z]{2,}")
+        let nsString = text as NSString
+        let matches = regex?.matches(in: text, range: NSRange(location: 0, length: nsString.length)) ?? []
+        return Set(matches.map { nsString.substring(with: $0.range).lowercased() })
+    }
+
 }
 
 extension ConfigurableSpeechService {

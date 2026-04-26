@@ -61,7 +61,15 @@ struct DictationPipelineFactory: Sendable {
         switch route {
         case .direct(let direct):
             transcriptionService = try makeLocalTranscriptionService()
-            transcriptionLanguageCode = snapshot.dictationLanguageMode.transcriptionLanguageCode
+
+            let primary = snapshot.transcriptionPrimaryLanguage
+            let secondary = snapshot.transcriptionSecondaryLanguage
+            let engine = TranscriptionLanguageRouting.resolveEngine(primary: primary, secondary: secondary)
+            if case let .localWhisper(hint) = engine {
+                transcriptionLanguageCode = hint
+            } else {
+                transcriptionLanguageCode = snapshot.dictationLanguageMode.transcriptionLanguageCode
+            }
             preferredSpellings = direct.preferredSpellings
             promptProvider = Self.makePromptProvider(preferredSpellings: preferredSpellings)
             rewriteAdditionalContext = snapshot.dictationLanguageMode.rewriteAdditionalContext
@@ -95,14 +103,18 @@ struct DictationPipelineFactory: Sendable {
     /// because of a misconfigured picker.
     nonisolated static func makeLiveLocalTranscriptionService() throws -> any AudioFileTranscriptionService {
         #if os(macOS)
-            let engine = LocalTranscriptionEngine.current()
+            let stored = StoredTranscriptionEngine.current()
+            let primary = UserDefaults.standard.string(forKey: MacPreferences.transcriptionPrimaryLanguage) ?? "en"
+            let secondary = UserDefaults.standard.string(forKey: MacPreferences.transcriptionSecondaryLanguage)
+            let engine = TranscriptionLanguageRouting.resolveEngine(primary: primary, secondary: secondary)
+
             AppLogger.info(
-                "DictationPipelineFactory selected local engine=\(engine.rawValue)",
+                "DictationPipelineFactory selected local engine=\(stored.rawValue)",
                 category: .dictation
             )
 
             switch engine {
-            case .parakeet:
+            case .fluidAudio:
                 do {
                     return try FluidAudioTranscriptionService()
                 } catch {
@@ -112,7 +124,7 @@ struct DictationPipelineFactory: Sendable {
                     )
                     return try LocalWhisperTranscriptionService(modelManager: LocalWhisperModelManager())
                 }
-            case .whisper:
+            case .localWhisper:
                 return try LocalWhisperTranscriptionService(modelManager: LocalWhisperModelManager())
             }
         #else

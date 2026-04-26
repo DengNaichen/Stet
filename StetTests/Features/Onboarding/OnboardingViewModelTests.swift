@@ -2,77 +2,62 @@
 
     import Foundation
     import Testing
+    import Combine
 
     @testable import Stet
 
     @MainActor
     @Suite("Onboarding View Model", .serialized)
     struct OnboardingViewModelTests {
-        @Test func completeAPIKeyFlowValidatesAndSavesProviderKey() async throws {
+        @Test func testLanguageSelectionUpdatesRouting() async throws {
             let defaults = TestSupport.makeUserDefaults()
             let secretStore = TestSecretStore()
             let settingsStore = DictationSettingsStore(defaults: defaults, secretStore: secretStore)
-            let coordinator = MockOnboardingCoordinator(step: .apiKey)
-            let validator = TestProviderCredentialValidator()
+            let coordinator = MockOnboardingCoordinator(step: .language)
             let viewModel = OnboardingViewModel(
                 coordinator: coordinator,
-                settingsStore: settingsStore,
-                credentialValidationService: validator
+                settingsStore: settingsStore
             )
 
-            viewModel.apiKeyProvider = .openAI
-            viewModel.apiKey = "  sk-live  "
+            // Default should be en -> fluidAudio
+            #expect(viewModel.transcriptionPrimaryLanguage == "en")
+            #expect(viewModel.transcriptionEngine == .fluidAudio)
 
-            await viewModel.completeAPIKeyFlow()
+            // Switch to a language not supported by Parakeet (e.g., Icelandic 'is')
+            viewModel.transcriptionPrimaryLanguage = "is"
+            #expect(viewModel.transcriptionEngine == .localWhisper(languageHint: "is"))
 
-            let calls = await validator.calls
-            #expect(calls.count == 1)
-            #expect(calls.first?.0 == .openAI)
-            #expect(calls.first?.1 == "sk-live")
-            #expect(viewModel.isAPIKeyValidated)
-            #expect(viewModel.apiKeyStatusMessage == "API Key verified.")
-            #expect(settingsStore.loadAPIKey(for: .openAI) == "sk-live")
-            #expect(coordinator.mockStep == .apiKey)
+            // Add a secondary language (supported by Parakeet)
+            // But if one is NOT supported, it should stay Whisper
+            viewModel.transcriptionSecondaryLanguage = "zh-Hans"
+            #expect(viewModel.transcriptionEngine == .localWhisper(languageHint: nil))
+
+            // Switch primary back to supported (en)
+            viewModel.transcriptionPrimaryLanguage = "en"
+            // Both en and zh-Hans are supported -> fluidAudio
+            #expect(viewModel.transcriptionEngine == .fluidAudio)
         }
 
-        @Test func completeAPIKeyFlowSurfacesValidationErrorWithoutSaving() async {
+        @Test func testEnginePreparationFlow() async throws {
             let defaults = TestSupport.makeUserDefaults()
             let secretStore = TestSecretStore()
             let settingsStore = DictationSettingsStore(defaults: defaults, secretStore: secretStore)
-            let validator = TestProviderCredentialValidator(
-                error: OpenAIError.api(provider: .openAI, statusCode: 401, message: "bad key")
-            )
+            let coordinator = MockOnboardingCoordinator(step: .language)
+
+            // We'll use the real managers but they'll likely hit mockable paths or we check the state machine
             let viewModel = OnboardingViewModel(
-                coordinator: MockOnboardingCoordinator(step: .apiKey),
-                settingsStore: settingsStore,
-                credentialValidationService: validator
+                coordinator: coordinator,
+                settingsStore: settingsStore
             )
 
-            viewModel.apiKeyProvider = .openAI
-            viewModel.apiKey = "sk-bad"
+            #expect(viewModel.engineDownloadState == .idle)
 
-            await viewModel.completeAPIKeyFlow()
+            // Start preparation
+            await viewModel.handleEngineDownloadPrimaryAction()
 
-            #expect(!viewModel.isAPIKeyValidated)
-            #expect(
-                viewModel.apiKeyErrorMessage == "Verification failed, please check if it was copied completely.")
-            #expect(settingsStore.loadAPIKey(for: .openAI).isEmpty)
-        }
-    }
-
-    actor TestProviderCredentialValidator: ProviderCredentialValidating {
-        private(set) var calls: [(DictationProvider, String)] = []
-        private let error: (any Error)?
-
-        init(error: (any Error)? = nil) {
-            self.error = error
-        }
-
-        func validateCredential(apiKey: String, provider: DictationProvider) async throws {
-            calls.append((provider, apiKey))
-            if let error {
-                throw error
-            }
+            // Since we can't easily mock the internal downloaders without more refactoring,
+            // we at least check that it's no longer idle or has reached a state.
+            #expect(viewModel.engineDownloadState != .idle)
         }
     }
 

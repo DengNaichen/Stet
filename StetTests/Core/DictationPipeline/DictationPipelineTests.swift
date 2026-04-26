@@ -30,7 +30,10 @@ private func makeSnapshot(
         rewriteProviderConfiguration: rewriteProviderConfiguration,
         personalDictionary: personalDictionary,
         interactionSoundsEnabled: true,
-        interactionSoundPreset: .soft
+        interactionSoundPreset: .soft,
+        transcriptionPrimaryLanguage: "en",
+        transcriptionSecondaryLanguage: nil,
+        transcriptionEngine: .localWhisper
     )
 }
 

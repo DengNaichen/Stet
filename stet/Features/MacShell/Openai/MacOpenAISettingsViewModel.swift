@@ -39,13 +39,10 @@
         @Published private(set) var isParakeetDownloading = false
         @Published private(set) var parakeetErrorMessage: String?
 
-        @Published var localTranscriptionEngine: LocalTranscriptionEngine = .default {
+        @Published var localTranscriptionEngine: StoredTranscriptionEngine = .default {
             didSet {
                 guard hasLoadedState, oldValue != localTranscriptionEngine else { return }
-                UserDefaults.standard.set(
-                    localTranscriptionEngine.rawValue,
-                    forKey: MacPreferences.localTranscriptionEngine
-                )
+                settingsStore.saveTranscriptionEngine(localTranscriptionEngine)
             }
         }
 
@@ -78,19 +75,19 @@
             localWhisperCustomPath =
                 UserDefaults.standard.string(forKey: MacPreferences.localWhisperModelPath) ?? ""
             isParakeetDownloaded = fluidAudioModelManager.isModelDownloaded()
-            localTranscriptionEngine = LocalTranscriptionEngine.current()
+            localTranscriptionEngine = settingsStore.loadTranscriptionEngine()
             hasLoadedState = true
         }
 
-        var localTranscriptionEngineOptions: [LocalTranscriptionEngine] {
-            LocalTranscriptionEngine.allCases
+        var localTranscriptionEngineOptions: [StoredTranscriptionEngine] {
+            StoredTranscriptionEngine.allCases
         }
 
-        func isEngineSelectable(_ engine: LocalTranscriptionEngine) -> Bool {
+        func isEngineSelectable(_ engine: StoredTranscriptionEngine) -> Bool {
             switch engine {
-            case .whisper:
+            case .localWhisper:
                 return true
-            case .parakeet:
+            case .fluidAudio:
                 return isParakeetDownloaded
             }
         }

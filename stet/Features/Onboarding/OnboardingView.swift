@@ -64,7 +64,7 @@
         @ViewBuilder
         private var onboardingBackground: some View {
             switch viewModel.onboardingStep {
-            case .download, .apiKey:
+            case .language:
                 Image("onboardingEggBackground")
                     .resizable()
                     .scaledToFill()
@@ -134,7 +134,7 @@
 
         private var progressStrip: some View {
             HStack(spacing: 6) {
-                ForEach(1...6, id: \.self) { index in
+                ForEach(1...5, id: \.self) { index in
                     Capsule(style: .continuous)
                         .fill(
                             index <= viewModel.onboardingStep.progressIndex
@@ -161,10 +161,8 @@
         @ViewBuilder
         private var stepContent: some View {
             switch viewModel.onboardingStep {
-            case .download:
-                OnboardingModelDownloadStep(viewModel: viewModel)
-            case .apiKey:
-                EmptyView()
+            case .language:
+                OnboardingLanguageStep(viewModel: viewModel)
             case .permissions:
                 OnboardingPermissionsStep(viewModel: viewModel)
             case .shortcut:
@@ -184,15 +182,12 @@
         @ViewBuilder
         private var rightPanel: some View {
             switch viewModel.onboardingStep {
-            case .download:
+            case .language:
                 OnboardingVisualPanel(
                     step: viewModel.onboardingStep,
                     viewModel: viewModel,
                     appearanceViewModel: appearanceViewModel
                 )
-            case .apiKey:
-                OnboardingAPIKeyStep(viewModel: viewModel)
-                    .padding(40)
             case .permissions, .shortcut, .firstSuccess, .appearance, .done:
                 OnboardingVisualPanel(
                     step: viewModel.onboardingStep,
@@ -211,10 +206,8 @@
 
         private var titleText: String {
             switch viewModel.onboardingStep {
-            case .download:
+            case .language:
                 return "Get started"
-            case .apiKey:
-                return "AI Configuration"
             case .permissions:
                 return "One more step to get started"
             case .shortcut:
@@ -230,10 +223,8 @@
 
         private var subtitleText: String {
             switch viewModel.onboardingStep {
-            case .download:
-                return "One click gets you into the app."
-            case .apiKey:
-                return "Select your preferred AI provider to handle transcription and cleanup."
+            case .language:
+                return "Choose your languages to get started."
             case .permissions:
                 return
                     "Grant microphone and input control permissions so Stet can record and type text back into your apps."
@@ -262,39 +253,31 @@
                 credentialValidationService: PreviewOnboardingAPIKeyValidationService()
             )
 
-            if step == .apiKey {
-                viewModel.apiKey = "sk-preview"
-            }
-
             return OnboardingView(viewModel: viewModel)
         }
 
         #Preview("Interactive Flow") {
-            makeOnboardingPreview(step: .download)
+            makeOnboardingPreview(step: .language)
         }
 
-        #Preview("Download") {
-            makeOnboardingPreview(step: .download)
-        }
-
-        #Preview("API Key") {
-            makeOnboardingPreview(step: .apiKey, mode: .apiKey)
+        #Preview("Language") {
+            makeOnboardingPreview(step: .language)
         }
 
         #Preview("Permissions") {
-            makeOnboardingPreview(step: .permissions, mode: .apiKey)
+            makeOnboardingPreview(step: .permissions)
         }
 
         #Preview("Shortcut") {
-            makeOnboardingPreview(step: .shortcut, mode: .apiKey)
+            makeOnboardingPreview(step: .shortcut)
         }
 
         #Preview("First Success") {
-            makeOnboardingPreview(step: .firstSuccess, mode: .apiKey)
+            makeOnboardingPreview(step: .firstSuccess)
         }
 
         #Preview("Done") {
-            makeOnboardingPreview(step: .done, mode: .apiKey)
+            makeOnboardingPreview(step: .done)
         }
     #endif
 

@@ -58,7 +58,7 @@
             guard !hasActivated else { return }
             hasActivated = true
 
-            guard LocalTranscriptionEngine.current() == .whisper else {
+            guard StoredTranscriptionEngine.current() == .localWhisper else {
                 return
             }
 
@@ -98,7 +98,7 @@
         }
 
         private func performWarmupIfPossible(logMessage: StaticString) async throws {
-            guard LocalTranscriptionEngine.current() == .whisper else {
+            guard StoredTranscriptionEngine.current() == .localWhisper else {
                 return
             }
 

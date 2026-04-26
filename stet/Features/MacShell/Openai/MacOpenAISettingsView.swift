@@ -90,8 +90,11 @@
                         MacSettingsValueRow(title: "Engine") {
                             Picker("", selection: $viewModel.localTranscriptionEngine) {
                                 ForEach(viewModel.localTranscriptionEngineOptions, id: \.self) { engine in
-                                    Text(engine.displayName)
-                                        .tag(engine)
+                                    Text(
+                                        engine == .fluidAudio
+                                            ? "Parakeet V3 (Multilingual)" : "Whisper (large-v3-turbo q5_0)"
+                                    )
+                                    .tag(engine)
                                 }
                             }
                             .labelsHidden()
@@ -99,7 +102,7 @@
                             .frame(width: controlWidth, alignment: .trailing)
                         }
 
-                        if viewModel.localTranscriptionEngine == .parakeet, !viewModel.isParakeetDownloaded {
+                        if viewModel.localTranscriptionEngine == .fluidAudio, !viewModel.isParakeetDownloaded {
                             Text(
                                 "Parakeet model isn't downloaded yet. Stet will fall back to Whisper until you download it below."
                             )

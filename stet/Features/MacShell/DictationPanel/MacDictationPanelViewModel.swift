@@ -6,8 +6,8 @@
     @MainActor
     final class MacDictationPanelViewModel: ObservableObject {
         private enum CapsuleScaleTuning {
-            static let minimumListeningScale: CGFloat = 0.97
-            static let maximumListeningScale: CGFloat = 1.15
+            static let minimumListeningScale: CGFloat = 0.98
+            static let maximumListeningScale: CGFloat = 1.08
             static let easingPower = 0.4
         }
 
