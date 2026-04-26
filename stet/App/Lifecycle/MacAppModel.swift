@@ -12,6 +12,7 @@
         private let sessionController: MacAppSessionController
         private let interactionSoundPlayer: InteractionSoundPlayer
         private let appearanceSettingsViewModel: MacAppearanceSettingsViewModel
+        private let paywallWindowController = MacPaywallWindowController()
         private var cancellables = Set<AnyCancellable>()
 
         convenience init() {
@@ -75,6 +76,9 @@
             let launchConfiguration = bootstrapper.prepareForLaunch()
             sessionController.onChange = { [weak self] in
                 self?.objectWillChange.send()
+            }
+            sessionController.showPaywall = { [weak self] in
+                self?.paywallWindowController.show()
             }
             appearanceSettingsViewModel.objectWillChange
                 .sink { [weak self] _ in

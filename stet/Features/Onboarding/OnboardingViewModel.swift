@@ -1,6 +1,7 @@
 #if os(macOS)
     import AuthenticationServices
     import Combine
+    import FluidAudio
     import Foundation
     import KeyboardShortcuts
 

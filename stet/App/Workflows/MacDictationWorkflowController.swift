@@ -212,6 +212,11 @@
                         "rewrite_enabled": settingsSnapshot.isRewriteEnabled ? "true" : "false",
                     ])
                 pendingSessionDuration = nil
+                #if APP_STORE
+                    if !PurchaseStore.shared.isUnlocked {
+                        TrialStore.shared.record()
+                    }
+                #endif
             }
 
             return await captureCoordinator.handleCompletedCapture(
