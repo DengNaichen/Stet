@@ -56,9 +56,9 @@
 
         var isShaderPaused: Bool {
             switch state {
-            case .starting, .listening, .processing:
+            case .starting, .listening:
                 return false
-            case .hidden, .result, .error:
+            case .hidden, .processing, .result, .error:
                 return true
             }
         }
@@ -74,9 +74,9 @@
 
         var shouldShowOrbs: Bool {
             switch state {
-            case .starting, .listening:
+            case .starting, .listening, .processing:
                 return true
-            case .hidden, .processing, .result, .error:
+            case .hidden, .result, .error:
                 return false
             }
         }

@@ -22,8 +22,8 @@ enum TranscriptionLanguageRouting {
         if primarySupported && secondarySupported {
             return .fluidAudio
         } else {
-            // Whisper with primary language hint if no secondary, otherwise nil hint for auto-detection
-            return .localWhisper(languageHint: secondary == nil ? primary : nil)
+            // Always use nil hint so Whisper auto-detects the language every time.
+            return .localWhisper(languageHint: nil)
         }
     }
 }

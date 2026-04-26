@@ -66,24 +66,44 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
             preferredSpellings: request.preferredSpellings
         )
 
+        // Core mandate: faithful reproduction, not transformation.
+        // Keep tone neutral — aggressive DO NOT / NEVER phrasing triggers safety refusals
+        // on small on-device models even with permissive guardrails.
         var languageLaw = """
-            [CRITICAL] You are an ASR post-processor. You must output in the exact same language the user spoke. DO NOT translate to English under any circumstances.
-            Preserve the transcript language perfectly. Only correct typos in the original language.
-            If the input mixes multiple languages, preserve the same language mix span by span.
-            Absolutely NEVER translate any terminology or specific word spans.
-
-            [ASR FIX] fix obvious speech-to-text typos and homophone errors.
-
-            [FORMAT] Output plain text only. Do NOT use Markdown, asterisks, bolding, lists, or any other formatting.
+            Your only job is to clean up raw speech-to-text output into readable text.
+            Output the transcript in the exact language(s) the speaker used. Never translate.
+            If the speaker mixed languages in one sentence, preserve that exact mix.
+            Remove filler words, false starts, and repetitive reformulations — keep only the final intended meaning. Fix obvious speech-recognition errors.
+            Output plain text only — no Markdown, no lists, no commentary.
+            Reproduce any casual or informal language exactly as spoken.
             """
         if let languageCode = request.languageCode {
-            languageLaw += " (Input Language: \(languageCode))"
+            languageLaw += "\nThe speaker's primary language is \(languageCode)."
         }
 
         return """
             \(languageLaw)
 
             \(base)
+
+            ### Example 1 — remove filler words (Chinese):
+            Input: "那个，我今天觉得天气，嗯，挺好的，我们出去走走吧。"
+            Output: "我今天觉得天气挺好的，我们出去走走吧。"
+
+            Input: "就是那个那个呃就是那个,我的意思是把那个 button 改一下。"
+            Output: "我的意思是, 把那个 button 改一下。"
+
+            ### Example 2 — preserve mixed Chinese-English exactly:
+            Input: "这个coreml model的performance还可以。"
+            Output: "这个 CoreML model 的 performance 还可以。"
+
+            ### Example 3 — reproduce casual / informal language unchanged:
+            Input: "我靠这个bug也太离谱了，你他妈帮我看看这个 stack trace 是什么意思。"
+            Output: "我靠这个bug也太离谱了，你他妈帮我看看这个 stack trace 是什么意思。"
+
+            ### Example 4 — remove filler words (English):
+            Input: "um, uh, so I think we should probably, uh, refactor this whole module."
+            Output: "I think we should refactor this whole module."
 
             """
     }
@@ -116,27 +136,24 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
 }
 
 private actor AppleIntelligenceRewriteSessionStore {
-    private var cachedInstructions: String?
-    private var session: LanguageModelSession?
-
     func prewarm(instructions: String, promptPrefix: String) {
-        session(for: instructions).prewarm(promptPrefix: Prompt(promptPrefix))
+        // Prewarming with a fresh session so the model weights are hot by the time
+        // the real rewrite request arrives. We do NOT cache the session — each
+        // dictation rewrite is independent and must not inherit prior conversation history.
+        let session = Self.makeSession(instructions: instructions)
+        session.prewarm(promptPrefix: Prompt(promptPrefix))
     }
 
     func respond(instructions: String, prompt: String) async throws -> String {
-        let response = try await session(for: instructions).respond(to: Prompt(prompt))
+        // Always create a fresh session to prevent conversation history from a previous
+        // dictation round from leaking into the current rewrite (language pollution).
+        let session = Self.makeSession(instructions: instructions)
+        let response = try await session.respond(to: Prompt(prompt))
         return response.content
     }
 
-    private func session(for instructions: String) -> LanguageModelSession {
-        if let session, cachedInstructions == instructions {
-            return session
-        }
-
+    private static func makeSession(instructions: String) -> LanguageModelSession {
         let model = SystemLanguageModel(guardrails: .permissiveContentTransformations)
-        let session = LanguageModelSession(model: model, instructions: instructions)
-        self.session = session
-        self.cachedInstructions = instructions
-        return session
+        return LanguageModelSession(model: model, instructions: instructions)
     }
 }

@@ -12,7 +12,7 @@
 		6D483F322F9C186400BF3105 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */; };
 		6DC0CD032F9DD8BE00696D0F /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = 6DC0CD022F9DD8BE00696D0F /* TelemetryDeck */; };
 		6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 6DCB53142F6DB36500358FE5 /* FluidAudio */; };
-		6DDEB3D82F9C2EB100F49F0F /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6DDEB3D72F9C2EB100F49F0F /* WhisperKit */; };
+
 		C80A4F64301851B7005C2101 /* OpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = C80A4F66301851B7005C2101 /* OpenAI */; };
 		F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; };
 		F1A0B001000000000000000E /* StetVisuals.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -94,7 +94,7 @@
 				6D483F322F9C186400BF3105 /* Sparkle in Frameworks */,
 				F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */,
 				6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */,
-				6DDEB3D82F9C2EB100F49F0F /* WhisperKit in Frameworks */,
+
 				C80A4F64301851B7005C2101 /* OpenAI in Frameworks */,
 				6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */,
 				0B4E0F6F7A5B4D88A1C9E113 /* whisper in Frameworks */,
@@ -185,7 +185,7 @@
 				6D3A1A982F675F44005DA839 /* KeyboardShortcuts */,
 				6DCB53142F6DB36500358FE5 /* FluidAudio */,
 				0B4E0F6F7A5B4D88A1C9E112 /* whisper */,
-				6DDEB3D72F9C2EB100F49F0F /* WhisperKit */,
+
 				6DC0CD022F9DD8BE00696D0F /* TelemetryDeck */,
 			);
 			productName = Stet;
@@ -305,7 +305,7 @@
 				6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 				6DCB53132F6DB36500358FE5 /* XCRemoteSwiftPackageReference "FluidAudio" */,
 				0B4E0F6F7A5B4D88A1C9E111 /* XCLocalSwiftPackageReference "Vendor/WhisperPackage" */,
-				6DDEB3D62F9C2EB100F49F0F /* XCRemoteSwiftPackageReference "WhisperKit" */,
+
 				6DC0CD012F9DD8BE00696D0F /* XCRemoteSwiftPackageReference "SwiftSDK" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -1058,14 +1058,7 @@
 				kind = branch;
 			};
 		};
-		6DDEB3D62F9C2EB100F49F0F /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/argmaxinc/WhisperKit";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
-		};
+
 		A7D90C1E4B4D4E5F8A1B2C32 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle.git";
@@ -1105,11 +1098,7 @@
 			package = 6DCB53132F6DB36500358FE5 /* XCRemoteSwiftPackageReference "FluidAudio" */;
 			productName = FluidAudio;
 		};
-		6DDEB3D72F9C2EB100F49F0F /* WhisperKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 6DDEB3D62F9C2EB100F49F0F /* XCRemoteSwiftPackageReference "WhisperKit" */;
-			productName = WhisperKit;
-		};
+
 		A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A7D90C1E4B4D4E5F8A1B2C32 /* XCRemoteSwiftPackageReference "Sparkle" */;

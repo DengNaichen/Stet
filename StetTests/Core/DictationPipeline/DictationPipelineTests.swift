@@ -19,7 +19,10 @@ private func makeSnapshot(
         ),
     rewriteEnabled: Bool = false,
     dictationLanguageMode: DictationLanguageMode = .automatic,
-    personalDictionary: [String] = []
+    personalDictionary: [String] = [],
+    transcriptionPrimaryLanguage: String = "en",
+    transcriptionSecondaryLanguage: String? = nil,
+    transcriptionEngine: StoredTranscriptionEngine = .localWhisper
 ) -> DictationSettingsSnapshot {
     DictationSettingsSnapshot(
         transcriptionProvider: transcriptionProvider,
@@ -31,9 +34,9 @@ private func makeSnapshot(
         personalDictionary: personalDictionary,
         interactionSoundsEnabled: true,
         interactionSoundPreset: .soft,
-        transcriptionPrimaryLanguage: "en",
-        transcriptionSecondaryLanguage: nil,
-        transcriptionEngine: .localWhisper
+        transcriptionPrimaryLanguage: transcriptionPrimaryLanguage,
+        transcriptionSecondaryLanguage: transcriptionSecondaryLanguage,
+        transcriptionEngine: transcriptionEngine
     )
 }
 
@@ -325,6 +328,97 @@ struct LogicPrimitiveTests {
 
     @Test func makeTranscriptionPromptReturnsNilWithoutPreferredSpellings() {
         #expect(DictationPipelineFactory.makeTranscriptionPrompt(preferredSpellings: []) == nil)
+    }
+}
+
+// MARK: - Regression: Whisper language hint must always be nil
+
+/// Regression suite for the bug introduced in `feat: rewrite onboarding flow with language
+/// routing and engine selection` where `TranscriptionLanguageRouting` would pass the primary
+/// language code as a hint to Whisper when no secondary language was set, causing Whisper to
+/// sometimes auto-translate instead of transcribing.
+@Suite("TranscriptionLanguageRouting – nil hint guarantee")
+struct TranscriptionLanguageRoutingTests {
+    /// Non-Parakeet language with no secondary → routes to Whisper. Hint must be nil.
+    /// Regression: before fix, hint was set to `primary` (e.g. "vi"), which caused Whisper
+    /// to produce inconsistent results and sometimes translate output.
+    @Test func whisperPathHasNilHintForSingleNonParakeetLanguage() {
+        let engine = TranscriptionLanguageRouting.resolveEngine(primary: "vi", secondary: nil)
+        guard case .localWhisper(let hint) = engine else {
+            Issue.record("Expected .localWhisper for Vietnamese (not in Parakeet list)")
+            return
+        }
+        #expect(hint == nil, "Hint must always be nil – passing a hint caused Whisper auto-translation")
+    }
+
+    /// Non-Parakeet primary with Parakeet secondary → routes to Whisper. Hint must be nil.
+    @Test func whisperPathHasNilHintWhenSecondaryLanguageSet() {
+        let engine = TranscriptionLanguageRouting.resolveEngine(primary: "vi", secondary: "en")
+        guard case .localWhisper(let hint) = engine else {
+            Issue.record("Expected .localWhisper when primary is non-Parakeet")
+            return
+        }
+        #expect(hint == nil)
+    }
+
+    /// Both languages are Parakeet-supported → should route to FluidAudio, not Whisper.
+    @Test func parakeetSupportedLanguagesPairRoutesToFluidAudio() {
+        #expect(TranscriptionLanguageRouting.resolveEngine(primary: "en", secondary: nil) == .fluidAudio)
+        #expect(TranscriptionLanguageRouting.resolveEngine(primary: "zh", secondary: nil) == .fluidAudio)
+        #expect(TranscriptionLanguageRouting.resolveEngine(primary: "en", secondary: "zh") == .fluidAudio)
+    }
+}
+
+// MARK: - Regression: makePipeline must respect stored engine, not override via language routing
+
+/// Regression suite for the P0 bug where `makeLiveLocalTranscriptionService` read the stored
+/// engine preference (`StoredTranscriptionEngine.current()`) but then discarded it, switching
+/// on the language-routing result instead. This meant the UI engine picker had zero effect.
+@Suite("DictationPipelineFactory – engine selection respects stored preference")
+struct EngineSelectionRegressionTests {
+    /// When the snapshot targets a non-Parakeet language, the pipeline must route to Whisper
+    /// and produce a nil `transcriptionLanguageCode` (no hint → auto-detect, no translation).
+    @Test func makePipelinePassesNilLanguageCodeForNonParakeetWhisperRoute() async throws {
+        let local = RecordingTranscriptionService(result: "ok")
+        let factory = DictationPipelineFactory(
+            makeLocalTranscriptionService: { local },
+            makeRewriteService: { _, _ in RecordingRewriteService() }
+        )
+        // Vietnamese is not in Parakeet's supported list → TranscriptionLanguageRouting
+        // resolves to .localWhisper. The pipeline must pass nil as the language code.
+        let snapshot = makeSnapshot(
+            transcriptionPrimaryLanguage: "vi",
+            transcriptionSecondaryLanguage: nil,
+            transcriptionEngine: .localWhisper
+        )
+
+        let pipeline = try await factory.makePipeline(from: snapshot)
+
+        #expect(
+            pipeline.transcriptionLanguageCode == nil,
+            "Whisper must receive nil language code – a non-nil hint caused auto-translation regression"
+        )
+    }
+
+    /// For a Parakeet-supported language with localWhisper stored engine:
+    /// the pipeline language code should follow the DictationLanguageMode fallback (nil for .automatic).
+    @Test func makePipelineLanguageCodeFollowsDictationLanguageModeForFluidAudioRoute() async throws {
+        let local = RecordingTranscriptionService(result: "ok")
+        let factory = DictationPipelineFactory(
+            makeLocalTranscriptionService: { local },
+            makeRewriteService: { _, _ in RecordingRewriteService() }
+        )
+        let snapshot = makeSnapshot(
+            dictationLanguageMode: .automatic,
+            transcriptionPrimaryLanguage: "en",
+            transcriptionSecondaryLanguage: nil,
+            transcriptionEngine: .localWhisper
+        )
+
+        let pipeline = try await factory.makePipeline(from: snapshot)
+
+        // .automatic → transcriptionLanguageCode is nil
+        #expect(pipeline.transcriptionLanguageCode == nil)
     }
 }
 

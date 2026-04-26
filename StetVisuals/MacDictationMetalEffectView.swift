@@ -222,6 +222,7 @@
 
         func update(configuration: MacDictationMetalEffectConfiguration, view: MTKView) {
             self.configuration = configuration
+            view.isPaused = configuration.isPaused
             view.preferredFramesPerSecond = max(Int(round(1.0 / max(configuration.frameInterval, 1.0 / 120.0))), 1)
             view.drawableSize = CGSize(
                 width: max(configuration.size.width, 1) * (view.window?.backingScaleFactor ?? 2),

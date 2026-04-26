@@ -111,6 +111,8 @@
                         shaderTheme: model.shaderTheme,
                         isPaused: model.isShaderPaused
                     )
+
+                    processingFillOverlay
                 }
                 .opacity(isPanelShown ? 1.0 : 0)
             }
@@ -179,6 +181,29 @@
                     isPanelShown = model.shouldShowPanel
                     showOrbs = model.shouldShowOrbs
                 }
+            }
+        }
+
+        @ViewBuilder
+        private var processingFillOverlay: some View {
+            if case .processing = model.state, let start = processingStartDate {
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { ctx in
+                    let elapsed = max(0, ctx.date.timeIntervalSince(start))
+                    let progress = CGFloat(min(0.95, 1.0 - exp(-elapsed * 1.15)))
+                    ZStack(alignment: .leading) {
+                        Color.clear
+                        Color(white: 0.78).opacity(0.55)
+                            .frame(width: model.mainWidth * progress)
+                        Text("Thinking")
+                            .font(.system(size: model.controlHeight * 0.30, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .frame(maxWidth: .infinity)
+                            .allowsHitTesting(false)
+                    }
+                    .frame(width: model.mainWidth, height: model.controlHeight)
+                    .clipShape(Capsule())
+                }
+                .allowsHitTesting(false)
             }
         }
 

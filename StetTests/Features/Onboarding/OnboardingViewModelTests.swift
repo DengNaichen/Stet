@@ -25,7 +25,7 @@
 
             // Switch to a language not supported by Parakeet (e.g., Icelandic 'is')
             viewModel.transcriptionPrimaryLanguage = "is"
-            #expect(viewModel.transcriptionEngine == .localWhisper(languageHint: "is"))
+            #expect(viewModel.transcriptionEngine == .localWhisper(languageHint: nil))
 
             // Add a secondary language (supported by Parakeet)
             // But if one is NOT supported, it should stay Whisper

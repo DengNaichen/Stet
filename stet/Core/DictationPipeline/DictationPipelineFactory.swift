@@ -104,16 +104,13 @@ struct DictationPipelineFactory: Sendable {
     nonisolated static func makeLiveLocalTranscriptionService() throws -> any AudioFileTranscriptionService {
         #if os(macOS)
             let stored = StoredTranscriptionEngine.current()
-            let primary = UserDefaults.standard.string(forKey: MacPreferences.transcriptionPrimaryLanguage) ?? "en"
-            let secondary = UserDefaults.standard.string(forKey: MacPreferences.transcriptionSecondaryLanguage)
-            let engine = TranscriptionLanguageRouting.resolveEngine(primary: primary, secondary: secondary)
 
             AppLogger.info(
                 "DictationPipelineFactory selected local engine=\(stored.rawValue)",
                 category: .dictation
             )
 
-            switch engine {
+            switch stored {
             case .fluidAudio:
                 do {
                     return try FluidAudioTranscriptionService()
