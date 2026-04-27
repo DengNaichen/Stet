@@ -98,10 +98,10 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
             \(languageLaw)
 
             ### Example 1 — remove filler words (Chinese):
-            Input: "那个，我今天觉得天气，嗯，挺好的，我们出去走走吧。"
+            Input: "那个我今天觉得天气嗯挺好的我们出去走走吧。"
             Output: "我今天觉得天气挺好的，我们出去走走吧。"
 
-            Input: "就是那个那个呃就是那个,我的意思是把那个 button 改一下。"
+            Input: "就是那个那个呃就是那个我的意思是把那个 button 改一下。"
             Output: "我的意思是，把那个 button 改一下。"
 
             ### Example 2 — preserve mixed Chinese-English exactly:
@@ -109,8 +109,8 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
             Output: "这个 CoreML model 的 performance 还可以。"
 
             ### Example 3 — preserve speaker's casual register and profanity:
-            Input: "我靠这个bug也太离谱了，你他妈帮我看看这个 stack trace 是什么意思。"
-            Output: "我靠这个bug也太离谱了，你他妈帮我看看这个 stack trace 是什么意思。"
+            Input: "我靠这个 bug 也太离谱了，你他妈帮我看看这个 stack trace 是什么意思。"
+            Output: "我靠这个 bug 也太离谱了，你他妈帮我看看这个 stack trace 是什么意思。"
 
             ### Example 4 — remove filler words (English):
             Input: "um, uh, so I think we should probably, uh, refactor this whole module."
@@ -134,8 +134,22 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
             Input: "他现在加标点加的还是不是很积极啊能不能跟他说一声啊"
             Output: "他现在加标点加的还是不是很积极啊？能不能跟他说一声啊？"
 
-            Input: "我知道了原来这个prompt工程其实还挺难的"
+            Input: "我知道了，原来这个 prompt 工程其实还挺难的。"
             Output: "我知道了，原来这个 prompt 工程其实还挺难的。"
+
+            ### Example 8 — resolve self-corrections (Chinese):
+            Input: "我们明天去北京，不，我们明天去上海吧。"
+            Output: "我们明天去上海吧。"
+
+            Input: "我觉得这个颜色不太好，改成红色，哎不对不对，蓝色吧。"
+            Output: "我觉得这个颜色不太好，改成蓝色吧。"
+
+            ### Example 9 — resolve self-corrections (English):
+            Input: "I'll call you at 5, wait, no, 6 PM."
+            Output: "I'll call you at 6 PM."
+
+            Input: "The total cost is twenty, wait, no, no, thirty dollars."
+            Output: "The total cost is thirty dollars."
 
             \(reminder)
             """

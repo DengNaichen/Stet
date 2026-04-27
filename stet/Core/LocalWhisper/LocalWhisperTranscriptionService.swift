@@ -289,7 +289,7 @@ final class LocalWhisperTranscriptionService: AudioFileTranscriptionService, @un
                         params.no_context = true
                         params.temperature = 0
                         params.n_threads = nThreads
-                        params.beam_search.beam_size = 2
+                        params.beam_search.beam_size = 5
                         params.language = langPtr
                         params.initial_prompt = promptPtr
 
