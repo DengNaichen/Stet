@@ -183,18 +183,25 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
 }
 
 private actor AppleIntelligenceRewriteSessionStore {
+    private var activeSession: LanguageModelSession?
+
     func prewarm(instructions: String, promptPrefix: String) {
-        // Prewarming with a fresh session so the model weights are hot by the time
-        // the real rewrite request arrives. We do NOT cache the session — each
-        // dictation rewrite is independent and must not inherit prior conversation history.
+        // Create and store the session for reuse
         let session = Self.makeSession(instructions: instructions)
         session.prewarm(promptPrefix: Prompt(promptPrefix))
+        self.activeSession = session
     }
 
     func respond(instructions: String, prompt: String) async throws -> String {
-        // Always create a fresh session to prevent conversation history from a previous
-        // dictation round from leaking into the current rewrite (language pollution).
-        let session = Self.makeSession(instructions: instructions)
+        // Use the prewarmed session if available, otherwise fall back to a fresh one
+        let session: LanguageModelSession
+        if let active = activeSession {
+            session = active
+            activeSession = nil  // Consume the session
+        } else {
+            session = Self.makeSession(instructions: instructions)
+        }
+
         let response = try await session.respond(
             to: Prompt(prompt),
             generating: RewriteResult.self

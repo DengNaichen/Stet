@@ -130,7 +130,7 @@ struct DictationPipelineFactory: Sendable {
     }
 
     private static let cleansingPrompt =
-        "这是一段非常干净、流利、准确的中英文混合听抄记录。输出内容不包含‘那个’、‘呃’、‘就是’等口语停顿词，且当说话人出现重复或自我修正时，只保留修正后的最终意图。 This is a clean transcript where filler words and self-corrections are resolved to the final intended meaning."
+        "这是一段非常干净、流利、准确的多语言混合听抄记录。说话人可能会在中文、英文或其他语言之间自然切换，请务必保留每种语言的原始表达。输出内容不包含‘那个’、‘呃’、‘就是’等口语停顿词。 This is a clean, multi-language transcript where the speaker may naturally switch between languages. Filler words are removed."
 
     nonisolated static func makeTranscriptionPrompt(
         preferredSpellings: [String]

@@ -303,9 +303,11 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 finalTranscript = intermediateTranscript
             }
 
-            let trimmedTranscript = Self.stripTrailingPeriod(
-                finalTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+            let normalizedTranscript = PunctuationNormalizer.normalize(
+                finalTranscript.trimmingCharacters(in: .whitespacesAndNewlines),
+                languageCode: transcriptionResult.languageCode ?? pipeline.transcriptionLanguageCode
             )
+            let trimmedTranscript = Self.stripTrailingPeriod(normalizedTranscript)
             guard !trimmedTranscript.isEmpty else {
                 await releaseContextOnExit()
                 throw SpeechServiceError.emptyTranscription
