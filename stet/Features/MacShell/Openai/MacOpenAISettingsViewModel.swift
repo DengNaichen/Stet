@@ -2,7 +2,6 @@
     import AppKit
     import Combine
     import Foundation
-    import UniformTypeIdentifiers
 
     @MainActor
     final class MacOpenAISettingsViewModel: ObservableObject {
@@ -33,36 +32,17 @@
                 settingsStore.saveDictationLanguageMode(dictationLanguageMode)
             }
         }
-        @Published var localWhisperCustomPath: String = ""
-
-        @Published private(set) var isParakeetDownloaded = false
-        @Published private(set) var isParakeetDownloading = false
-        @Published private(set) var parakeetErrorMessage: String?
-
-        @Published var localTranscriptionEngine: StoredTranscriptionEngine = .default {
-            didSet {
-                guard hasLoadedState, oldValue != localTranscriptionEngine else { return }
-                settingsStore.saveTranscriptionEngine(localTranscriptionEngine)
-            }
-        }
-
         private let settingsStore: DictationSettingsStore
-        private let localWhisperModelManager: LocalWhisperModelManager
-        private let fluidAudioModelManager: FluidAudioModelManager
         private var hasLoadedState = false
 
         init(
-            settingsStore: DictationSettingsStore = DictationSettingsStore(),
-            localWhisperModelManager: LocalWhisperModelManager = LocalWhisperModelManager(),
-            fluidAudioModelManager: FluidAudioModelManager = FluidAudioModelManager()
+            settingsStore: DictationSettingsStore = DictationSettingsStore()
         ) {
             self.settingsStore = settingsStore
-            self.localWhisperModelManager = localWhisperModelManager
-            self.fluidAudioModelManager = fluidAudioModelManager
         }
 
         var connectionNeedsAttention: Bool {
-            localWhisperNeedsAttention || (isRewriteEnabled && !missingRequiredProviders.isEmpty)
+            isRewriteEnabled && !missingRequiredProviders.isEmpty
         }
 
         func load() {
@@ -72,81 +52,7 @@
             dictationLanguageMode = settingsStore.loadDictationLanguageMode()
             openAIAPIKey = settingsStore.loadAPIKey(for: .openAI)
             groqAPIKey = settingsStore.loadAPIKey(for: .groq)
-            localWhisperCustomPath =
-                UserDefaults.standard.string(forKey: MacPreferences.localWhisperModelPath) ?? ""
-            isParakeetDownloaded = fluidAudioModelManager.isModelDownloaded()
-            localTranscriptionEngine = settingsStore.loadTranscriptionEngine()
             hasLoadedState = true
-        }
-
-        var localTranscriptionEngineOptions: [StoredTranscriptionEngine] {
-            StoredTranscriptionEngine.allCases
-        }
-
-        func isEngineSelectable(_ engine: StoredTranscriptionEngine) -> Bool {
-            switch engine {
-            case .localWhisper:
-                return true
-            case .fluidAudio:
-                return isParakeetDownloaded
-            }
-        }
-
-        var parakeetDisplayName: String {
-            FluidAudioModelManager.displayName
-        }
-
-        func downloadParakeetModel() {
-            guard !isParakeetDownloading, !isParakeetDownloaded else { return }
-            isParakeetDownloading = true
-            parakeetErrorMessage = nil
-
-            Task { [fluidAudioModelManager] in
-                do {
-                    try await fluidAudioModelManager.downloadModel()
-                    await MainActor.run {
-                        self.isParakeetDownloaded = fluidAudioModelManager.isModelDownloaded()
-                        self.isParakeetDownloading = false
-                    }
-                } catch {
-                    await MainActor.run {
-                        self.parakeetErrorMessage = error.localizedDescription
-                        self.isParakeetDownloading = false
-                        self.isParakeetDownloaded = fluidAudioModelManager.isModelDownloaded()
-                    }
-                }
-            }
-        }
-
-        @MainActor
-        func selectLocalWhisperModel() {
-            let panel = NSOpenPanel()
-            panel.title = "Select Whisper Model File"
-            panel.message = "Choose a ggml .bin model file"
-            panel.allowedContentTypes = [.data]
-            panel.allowsMultipleSelection = false
-            panel.canChooseDirectories = false
-            panel.canChooseFiles = true
-
-            if panel.runModal() == .OK, let url = panel.url {
-                let path = url.path
-                LocalWhisperModelManager.saveCustomModelPath(path)
-                localWhisperCustomPath = path
-            }
-        }
-
-        func clearLocalWhisperModel() {
-            LocalWhisperModelManager.saveCustomModelPath(nil)
-            objectWillChange.send()
-        }
-
-        func openLocalWhisperFolder() {
-            do {
-                let url = try localWhisperModelManager.defaultModelURL().deletingLastPathComponent()
-                NSWorkspace.shared.open(url)
-            } catch {
-                // Silently fail if unable to resolve path
-            }
         }
 
         func saveCredential(for provider: DictationProvider) {
@@ -224,14 +130,6 @@
             guard isRewriteEnabled else { return [] }
             guard rewriteProvider.requiresAPIKey else { return [] }
             return [rewriteProvider]
-        }
-
-        var localWhisperStatusMessage: String {
-            localWhisperModelManager.statusMessage()
-        }
-
-        var localWhisperNeedsAttention: Bool {
-            localWhisperModelManager.needsAttention()
         }
 
         func credentialFieldTitle(for provider: DictationProvider) -> String {

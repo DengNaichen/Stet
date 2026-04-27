@@ -72,21 +72,18 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
             preferredSpellings: request.preferredSpellings
         )
 
-        // Order is tuned for small on-device model recency bias: generic base first,
-        // Apple-specific overrides next, examples, then the highest-priority reminder
-        // sits last so it has the strongest influence on the next generated tokens.
-        // Keep tone neutral — aggressive DO NOT / NEVER phrasing triggers safety refusals.
-        let languageLaw = """
-            Output the transcript in the exact language(s) the speaker used. Never translate.
-            Match punctuation to the language: full-width （，。？！） for Chinese, ASCII for English.
-            """
-
         var reminder = """
             Reminder:
+            Be aggressive with punctuation.
             Apply transcript cleanup when any cleanup is available.
-            If the input contains filler words, repeated words, missing punctuation, missing capitalization, or obvious STT artifacts, return the cleaned version.
-            Return the original only when it is already clean.
-            For Chinese text, use full-width punctuation （，。？！） in Chinese spans.
+            If the input contains filler words, repeated words, missing punctuation, missing capitalization, return the cleaned version.
+            Be thorough about filler removal. Remove these whenever they are used as verbal scaffolding:
+            - Chinese: 那个 这个 就是 然后 嗯 呃 啊 哎 你知道 我跟你说 怎么说 反正
+            - English: um, uh, er, ah, like, you know, I mean, basically, actually, sort of, kind of, right
+            Fix obvious ASR recognition errors when the context makes the intended word clear.
+            For example, in an App Store payment context, "寄费的逻辑" should become "计费逻辑",
+
+            Do not translate the transcript, Company name, Terminology, into another language.
             """
         if let languageCode = request.languageCode {
             reminder += "\nThe speaker's primary language is \(languageCode)."
@@ -95,61 +92,30 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
         return """
             \(base)
 
-            \(languageLaw)
+            ### Category 1 — Remove Filler Words and Noise:
 
-            ### Example 1 — remove filler words (Chinese):
-            Input: "那个我今天觉得天气嗯挺好的我们出去走走吧。"
-            Output: "我今天觉得天气挺好的，我们出去走走吧。"
-
-            Input: "就是那个那个呃就是那个我的意思是把那个 button 改一下。"
+            Input: "就是,那个,那个我的意思是把那个 button 改一下。"
             Output: "我的意思是，把那个 button 改一下。"
 
-            ### Example 2 — preserve mixed Chinese-English exactly:
-            Input: "这个coreml model的performance还可以。"
-            Output: "这个 CoreML model 的 performance 还可以。"
+            Input: "呃……就是……你……你觉得……你觉得这个模型现在是ok的吗？"
+            Output: "你觉得这个模型现在是 ok 的吗？"
 
-            ### Example 3 — preserve speaker's casual register and profanity:
-            Input: "我靠这个 bug 也太离谱了，你他妈帮我看看这个 stack trace 是什么意思。"
-            Output: "我靠这个 bug 也太离谱了，你他妈帮我看看这个 stack trace 是什么意思。"
+            Input: "我……我想……那个……看看这个……这个逻辑。"
+            Output: "我想看看这个逻辑。"
 
-            ### Example 4 — remove filler words (English):
-            Input: "um, uh, so I think we should probably, uh, refactor this whole module."
-            Output: "I think we should refactor this whole module."
+            Input: "这个小模型它都不敢动，你知道吗？它就特别特别的……嗯……怎么说……胆子特别小"
+            Output: "这个小模型它都不敢动，你知道吗？它就胆子特别小"
 
-            ### Example 5 — add punctuation generously in long passages (Chinese):
-            Input: "我今天去了一趟超市买了一些菜然后回家做饭吃完饭之后看了一会儿电视就睡觉了第二天早上起来发现外面下雨了"
-            Output: "我今天去了一趟超市，买了一些菜。然后回家做饭，吃完饭之后看了一会儿电视，就睡觉了。第二天早上起来，发现外面下雨了。"
-
-            ### Example 6 — clean short English transcripts:
-            Input: "i think this prompt engineering thing is actually pretty hard"
-            Output: "I think this prompt engineering thing is actually pretty hard."
-
-            Input: "yeah um can you maybe take a look at this stack trace"
-            Output: "Yeah, can you maybe take a look at this stack trace?"
-
-            Input: "so the model is basically not changing anything right now"
-            Output: "The model is basically not changing anything right now."
-
-            ### Example 7 — add punctuation to short Chinese:
-            Input: "他现在加标点加的还是不是很积极啊能不能跟他说一声啊"
-            Output: "他现在加标点加的还是不是很积极啊？能不能跟他说一声啊？"
-
-            Input: "我知道了，原来这个 prompt 工程其实还挺难的。"
-            Output: "我知道了，原来这个 prompt 工程其实还挺难的。"
-
-            ### Example 8 — resolve self-corrections (Chinese):
-            Input: "我们明天去北京，不，我们明天去上海吧。"
+            ### Category 2 — Self-Correction and Logic:
+            Input: "我们明天去北京，啊不对不对不对，我们明天去上海吧。"
             Output: "我们明天去上海吧。"
 
-            Input: "我觉得这个颜色不太好，改成红色，哎不对不对，蓝色吧。"
-            Output: "我觉得这个颜色不太好，改成蓝色吧。"
+            Input: "就是那个，我刚才其实是想说，呃，那个，就是那个，我们明天开会，哎呀不对，是后天，后天三点开会吧。"
+            Output: "我们后天三点开会吧。"
 
-            ### Example 9 — resolve self-corrections (English):
-            Input: "I'll call you at 5, wait, no, 6 PM."
-            Output: "I'll call you at 6 PM."
-
-            Input: "The total cost is twenty, wait, no, no, thirty dollars."
-            Output: "The total cost is thirty dollars."
+            ### Category 3 - Fix ASR error:
+            Input: "但是呢我需要在现在app store里面做一个这种寄费的逻辑, 但是我不知道怎么寄"
+            Output: "但是呢我需要在App Store里面做一个这种计费的逻辑, 但是我不知道怎么计"
 
             \(reminder)
             """

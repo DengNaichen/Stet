@@ -42,6 +42,7 @@
         private let credentialValidationService: any ProviderCredentialValidating
         private let localWhisperModelManager: LocalWhisperModelManager
         private let fluidAudioModelManager: FluidAudioModelManager
+        private let sherpaOnnxSenseVoiceModelManager: SherpaOnnxSenseVoiceModelManager
         private var cancellables = Set<AnyCancellable>()
 
         init(
@@ -49,13 +50,15 @@
             settingsStore: DictationSettingsStore = DictationSettingsStore(),
             credentialValidationService: (any ProviderCredentialValidating)? = nil,
             localWhisperModelManager: LocalWhisperModelManager = LocalWhisperModelManager(),
-            fluidAudioModelManager: FluidAudioModelManager = FluidAudioModelManager()
+            fluidAudioModelManager: FluidAudioModelManager = FluidAudioModelManager(),
+            sherpaOnnxSenseVoiceModelManager: SherpaOnnxSenseVoiceModelManager = SherpaOnnxSenseVoiceModelManager()
         ) {
             self.coordinator = coordinator
             self.settingsStore = settingsStore
             self.credentialValidationService = credentialValidationService ?? ProviderCredentialValidationService()
             self.localWhisperModelManager = localWhisperModelManager
             self.fluidAudioModelManager = fluidAudioModelManager
+            self.sherpaOnnxSenseVoiceModelManager = sherpaOnnxSenseVoiceModelManager
 
             self.transcriptionPrimaryLanguage = settingsStore.loadTranscriptionPrimaryLanguage()
             self.transcriptionSecondaryLanguage = settingsStore.loadTranscriptionSecondaryLanguage()
@@ -358,6 +361,29 @@
                         try? await localWhisperModelManager.installDefaultAssets()
                         try? await LocalWhisperWarmupCoordinator.shared.warmup()
                     }
+
+                case .sherpaOnnxSenseVoice:
+                    if sherpaOnnxSenseVoiceModelManager.isModelDownloaded() {
+                        engineDownloadFraction = 1
+                        engineDownloadState = .ready
+                        settingsStore.saveTranscriptionEngine(.sherpaOnnxSenseVoice)
+                        return
+                    }
+
+                    engineDownloadState = .running(stageText: "Downloading SenseVoice...")
+                    try await sherpaOnnxSenseVoiceModelManager.installDefaultModel(
+                        downloadProgress: { [weak self] fraction, completed, total in
+                            Task { @MainActor [weak self, fraction, completed, total] in
+                                self?.engineDownloadFraction = fraction
+                                self?.engineBytesCompleted = completed
+                                self?.engineBytesTotal = total
+                            }
+                        }
+                    )
+
+                    engineDownloadFraction = 1
+                    engineDownloadState = .ready
+                    settingsStore.saveTranscriptionEngine(.sherpaOnnxSenseVoice)
                 }
             } catch {
                 engineDownloadFraction = 0

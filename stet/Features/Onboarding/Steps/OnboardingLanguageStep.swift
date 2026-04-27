@@ -90,20 +90,26 @@
 
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(spacing: 12) {
-                        Image(systemName: viewModel.transcriptionEngine == .fluidAudio ? "bolt.fill" : "cpu")
-                            .font(.title2)
-                            .foregroundStyle(.blue)
+                        Image(
+                            systemName: viewModel.transcriptionEngine == .fluidAudio
+                                ? "bolt.fill"
+                                : (viewModel.transcriptionEngine == .sherpaOnnxSenseVoice ? "waveform" : "cpu")
+                        )
+                        .font(.title2)
+                        .foregroundStyle(.blue)
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text(
-                                "Engine: \(viewModel.transcriptionEngine == .fluidAudio ? "Parakeet V3" : "Whisper Large")"
+                                "Engine: \(viewModel.transcriptionEngine == .fluidAudio ? "Parakeet V3" : (viewModel.transcriptionEngine == .sherpaOnnxSenseVoice ? "SenseVoice" : "Whisper"))"
                             )
                             .font(.subheadline)
                             .fontWeight(.medium)
                             Text(
                                 viewModel.transcriptionEngine == .fluidAudio
                                     ? "Optimized for speed and accuracy in these languages."
-                                    : "Highly accurate multilingual engine."
+                                    : (viewModel.transcriptionEngine == .sherpaOnnxSenseVoice
+                                        ? "Chinese-optimized engine with excellent punctuation."
+                                        : "Highly accurate multilingual engine.")
                             )
                             .font(.caption)
                             .foregroundStyle(.secondary)

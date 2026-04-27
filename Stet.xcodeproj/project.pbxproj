@@ -8,10 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		0B4E0F6F7A5B4D88A1C9E113 /* whisper in Frameworks */ = {isa = PBXBuildFile; productRef = 0B4E0F6F7A5B4D88A1C9E112 /* whisper */; };
+		0B4E0F6F7A5B4D88A1C9E213 /* sensevoice in Frameworks */ = {isa = PBXBuildFile; productRef = 0B4E0F6F7A5B4D88A1C9E212 /* sensevoice */; };
 		6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 6D3A1A982F675F44005DA839 /* KeyboardShortcuts */; };
 		6D483F322F9C186400BF3105 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */; };
 		6DC0CD032F9DD8BE00696D0F /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = 6DC0CD022F9DD8BE00696D0F /* TelemetryDeck */; };
 		6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 6DCB53142F6DB36500358FE5 /* FluidAudio */; };
+		8CCC48443EE864D507095EDC /* sherpa_onnx in Frameworks */ = {isa = PBXBuildFile; productRef = 7DA5841E8ABDD1A8EF19D919 /* sherpa_onnx */; };
 		C80A4F64301851B7005C2101 /* OpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = C80A4F66301851B7005C2101 /* OpenAI */; };
 		F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; };
 		F1A0B001000000000000000E /* StetVisuals.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -90,12 +92,14 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8CCC48443EE864D507095EDC /* sherpa_onnx in Frameworks */,
 				6D483F322F9C186400BF3105 /* Sparkle in Frameworks */,
 				F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */,
 				6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */,
 				C80A4F64301851B7005C2101 /* OpenAI in Frameworks */,
 				6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */,
 				0B4E0F6F7A5B4D88A1C9E113 /* whisper in Frameworks */,
+				0B4E0F6F7A5B4D88A1C9E213 /* sensevoice in Frameworks */,
 				6DC0CD032F9DD8BE00696D0F /* TelemetryDeck in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -178,11 +182,13 @@
 			);
 			name = Stet;
 			packageProductDependencies = (
+				7DA5841E8ABDD1A8EF19D919 /* sherpa_onnx */,
 				C80A4F66301851B7005C2101 /* OpenAI */,
 				A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */,
 				6D3A1A982F675F44005DA839 /* KeyboardShortcuts */,
 				6DCB53142F6DB36500358FE5 /* FluidAudio */,
 				0B4E0F6F7A5B4D88A1C9E112 /* whisper */,
+				0B4E0F6F7A5B4D88A1C9E212 /* sensevoice */,
 				6DC0CD022F9DD8BE00696D0F /* TelemetryDeck */,
 			);
 			productName = Stet;
@@ -297,12 +303,15 @@
 			mainGroup = 6D29DC742F5FA23000267DEA;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				9F963C49B3BE9A6549CF7490 /* XCLocalSwiftPackageReference "Vendor/SherpaOnnxPackage" */,
 				C80A4F65301851B7005C2101 /* XCRemoteSwiftPackageReference "OpenAI" */,
 				A7D90C1E4B4D4E5F8A1B2C32 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 				6DCB53132F6DB36500358FE5 /* XCRemoteSwiftPackageReference "FluidAudio" */,
 				0B4E0F6F7A5B4D88A1C9E111 /* XCLocalSwiftPackageReference "Vendor/WhisperPackage" */,
+				0B4E0F6F7A5B4D88A1C9E211 /* XCLocalSwiftPackageReference "Vendor/SenseVoicePackage" */,
 				6DC0CD012F9DD8BE00696D0F /* XCRemoteSwiftPackageReference "SwiftSDK" */,
+				6D4B97452F9F6A0700738874 /* XCLocalSwiftPackageReference "Vendor/SherpaOnnxPackage" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6D29DC7E2F5FA23000267DEA /* Products */;
@@ -536,7 +545,7 @@
 				AUTOMATION_APPLE_EVENTS = NO;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2004;
+				CURRENT_PROJECT_VERSION = 2005;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -555,7 +564,7 @@
 				);
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.2.4;
+				MARKETING_VERSION = 0.2.5;
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.Stet.Debug;
 				PRODUCT_MODULE_NAME = Stet;
 				PRODUCT_NAME = "Stet Debug";
@@ -588,7 +597,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				AUTOMATION_APPLE_EVENTS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2004;
+				CURRENT_PROJECT_VERSION = 2005;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -607,7 +616,7 @@
 				);
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.2.4;
+				MARKETING_VERSION = 0.2.5;
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.Stet;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
@@ -636,12 +645,12 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2004;
+				CURRENT_PROJECT_VERSION = 2005;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 0.2.4;
+				MARKETING_VERSION = 0.2.5;
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -660,12 +669,12 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2004;
+				CURRENT_PROJECT_VERSION = 2005;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 0.2.4;
+				MARKETING_VERSION = 0.2.5;
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -683,11 +692,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2004;
+				CURRENT_PROJECT_VERSION = 2005;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 0.2.4;
+				MARKETING_VERSION = 0.2.5;
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -704,11 +713,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2004;
+				CURRENT_PROJECT_VERSION = 2005;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 0.2.4;
+				MARKETING_VERSION = 0.2.5;
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -791,7 +800,7 @@
 				AUTOMATION_APPLE_EVENTS = YES;
 				CODE_SIGN_ENTITLEMENTS = AppStore.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2004;
+				CURRENT_PROJECT_VERSION = 2005;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -810,7 +819,7 @@
 				);
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.2.4;
+				MARKETING_VERSION = 0.2.5;
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.Stet;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
@@ -855,7 +864,7 @@
 				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2004;
+				CURRENT_PROJECT_VERSION = 2005;
 				DEAD_CODE_STRIPPING = YES;
 				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
@@ -871,7 +880,7 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.2.4;
+				MARKETING_VERSION = 0.2.5;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetVisuals;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -895,7 +904,7 @@
 				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2004;
+				CURRENT_PROJECT_VERSION = 2005;
 				DEAD_CODE_STRIPPING = YES;
 				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
@@ -911,7 +920,7 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.2.4;
+				MARKETING_VERSION = 0.2.5;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetVisuals;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -933,7 +942,7 @@
 				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2004;
+				CURRENT_PROJECT_VERSION = 2005;
 				DEAD_CODE_STRIPPING = YES;
 				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
@@ -949,7 +958,7 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.2.4;
+				MARKETING_VERSION = 0.2.5;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetVisuals;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1027,6 +1036,18 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Vendor/WhisperPackage;
 		};
+		0B4E0F6F7A5B4D88A1C9E211 /* XCLocalSwiftPackageReference "Vendor/SenseVoicePackage" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Vendor/SenseVoicePackage;
+		};
+		6D4B97452F9F6A0700738874 /* XCLocalSwiftPackageReference "Vendor/SherpaOnnxPackage" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Vendor/SherpaOnnxPackage;
+		};
+		9F963C49B3BE9A6549CF7490 /* XCLocalSwiftPackageReference "Vendor/SherpaOnnxPackage" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Vendor/SherpaOnnxPackage;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -1078,6 +1099,11 @@
 			package = 0B4E0F6F7A5B4D88A1C9E111 /* XCLocalSwiftPackageReference "Vendor/WhisperPackage" */;
 			productName = whisper;
 		};
+		0B4E0F6F7A5B4D88A1C9E212 /* sensevoice */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0B4E0F6F7A5B4D88A1C9E211 /* XCLocalSwiftPackageReference "Vendor/SenseVoicePackage" */;
+			productName = sensevoice;
+		};
 		6D3A1A982F675F44005DA839 /* KeyboardShortcuts */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
@@ -1092,6 +1118,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 6DCB53132F6DB36500358FE5 /* XCRemoteSwiftPackageReference "FluidAudio" */;
 			productName = FluidAudio;
+		};
+		7DA5841E8ABDD1A8EF19D919 /* sherpa_onnx */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9F963C49B3BE9A6549CF7490 /* XCLocalSwiftPackageReference "Vendor/SherpaOnnxPackage" */;
+			productName = sherpa_onnx;
 		};
 		A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;

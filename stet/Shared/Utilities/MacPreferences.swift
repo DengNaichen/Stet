@@ -28,6 +28,10 @@ enum MacPreferences {
 
     nonisolated static let localWhisperModelPath = "mac.localWhisperModelPath"
 
+    nonisolated static let senseVoiceModelPath = "mac.senseVoiceModelPath"
+
+    nonisolated static let sherpaOnnxSenseVoiceModelPath = "mac.sherpaOnnxSenseVoiceModelPath"
+
     /// BCP-47 code for the primary dictation language.
     nonisolated static let transcriptionPrimaryLanguage = "mac.transcriptionPrimaryLanguage"
 
@@ -42,6 +46,15 @@ enum MacPreferences {
 enum StoredTranscriptionEngine: String, CaseIterable, Sendable {
     case fluidAudio
     case localWhisper
+    case sherpaOnnxSenseVoice
+
+    nonisolated var displayName: String {
+        switch self {
+        case .fluidAudio: return "Parakeet V3"
+        case .localWhisper: return "Whisper"
+        case .sherpaOnnxSenseVoice: return "SenseVoice"
+        }
+    }
 
     nonisolated static let `default`: StoredTranscriptionEngine = .localWhisper
 
@@ -56,4 +69,5 @@ enum StoredTranscriptionEngine: String, CaseIterable, Sendable {
 enum TranscriptionEngine: Equatable, Sendable {
     case fluidAudio
     case localWhisper(languageHint: String?)
+    case sherpaOnnxSenseVoice
 }

@@ -10,6 +10,16 @@ enum TranscriptionLanguageRouting {
     ]
 
     static func resolveEngine(primary: String, secondary: String?) -> TranscriptionEngine {
+        let isChinese: (String) -> Bool = { code in
+            code.hasPrefix("zh") || code.hasPrefix("yue")
+        }
+
+        // Only use SenseVoice for pure Chinese/Cantonese (no secondary language).
+        // SenseVoice is great for single-language punctuation but less ideal for code-switching.
+        if isChinese(primary) && secondary == nil {
+            return .sherpaOnnxSenseVoice
+        }
+
         let isSupported: (String) -> Bool = { code in
             if parakeetSupportedLanguages.contains(code) { return true }
             let base = String(code.prefix(2))

@@ -123,6 +123,17 @@ struct DictationPipelineFactory: Sendable {
                 }
             case .localWhisper:
                 return try LocalWhisperTranscriptionService(modelManager: LocalWhisperModelManager())
+            case .sherpaOnnxSenseVoice:
+                do {
+                    return try SherpaOnnxSenseVoiceTranscriptionService(
+                        modelManager: SherpaOnnxSenseVoiceModelManager())
+                } catch {
+                    AppLogger.warning(
+                        "Sherpa-ONNX SenseVoice engine unavailable (\(error.localizedDescription)); falling back to local whisper.",
+                        category: .dictation
+                    )
+                    return try LocalWhisperTranscriptionService(modelManager: LocalWhisperModelManager())
+                }
             }
         #else
             return try LocalWhisperTranscriptionService(modelManager: LocalWhisperModelManager())

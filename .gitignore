@@ -45,3 +45,7 @@ supabase/.branches/
 supabase/...temp/
 .supabase/
 *.p8
+
+# Vendor binaries
+**/*.xcframework/
+sherpa-onnx/
