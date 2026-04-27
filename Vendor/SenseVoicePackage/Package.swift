@@ -16,7 +16,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "sensevoice",
-            path: "sensevoice.xcframework"
+            url: "https://github.com/DengNaichen/Stet/releases/download/v0.0.0-assets/sensevoice.xcframework.zip",
+            checksum: "1baa70b7c3f52ba0074ef4f0d608917b45fd722a779c9f7a096a77c12c8b3bc1"
         ),
     ]
 )
