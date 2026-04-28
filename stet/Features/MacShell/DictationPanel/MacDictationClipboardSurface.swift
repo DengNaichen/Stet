@@ -1,5 +1,6 @@
 #if os(macOS)
     import SwiftUI
+    import StetVisuals
 
     struct MacDictationClipboardSurface: View {
         let text: String
@@ -41,7 +42,7 @@
                 .buttonStyle(.plain)
             }
             .frame(width: layout.panelSize.width, height: layout.panelSize.height, alignment: .center)
-            .glassEffect(in: surfaceShape)
+            .stetGlassEffect(in: surfaceShape)
             .opacity(contentVisible ? 1 : 0)
             .offset(y: contentVisible ? 0 : 8)
             .scaleEffect(contentVisible ? 1 : 0.985)

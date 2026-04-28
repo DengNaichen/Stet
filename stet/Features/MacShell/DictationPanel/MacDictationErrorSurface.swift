@@ -1,5 +1,6 @@
 #if os(macOS)
     import SwiftUI
+    import StetVisuals
     import AppKit
 
     struct MacDictationErrorSurface: View {
@@ -47,7 +48,7 @@
                 }
             }
             .frame(width: layout.panelSize.width, height: layout.panelSize.height, alignment: .center)
-            .glassEffect(in: surfaceShape)
+            .stetGlassEffect(in: surfaceShape)
             .opacity(contentVisible ? 1 : 0)
             .offset(y: contentVisible ? 0 : 8)
             .scaleEffect(contentVisible ? 1 : 0.985)

@@ -64,7 +64,7 @@
         public var body: some View {
             ZStack {
                 ZStack {
-                    GlassEffectContainer(spacing: MacDictationCapsuleVisualTuning.orbSpacing) {
+                    MacDictationGlassContainer(spacing: MacDictationCapsuleVisualTuning.orbSpacing) {
                         HStack(spacing: MacDictationCapsuleVisualTuning.orbSpacing) {
                             Button(action: handleDismissAction) {
                                 Image(systemName: "xmark")
@@ -73,8 +73,8 @@
                             }
                             .buttonStyle(.plain)
                             .frame(width: model.controlHeight, height: model.controlHeight)
-                            .glassEffect(.regular.tint(nil))
-                            .glassEffectID("cancel", in: glassNamespace)
+                            .stetGlassEffect()
+                            .stetGlassID("cancel", in: glassNamespace)
                             .opacity(isPanelShown && showOrbs ? 1 : 0)
                             .offset(x: isPanelShown && showOrbs ? 0 : hiddenLeftOrbOffset)
                             .scaleEffect(isPanelShown && showOrbs ? 1 : MacDictationCapsuleVisualTuning.orbHiddenScale)
@@ -82,8 +82,8 @@
 
                             Capsule()
                                 .frame(width: model.mainWidth, height: model.controlHeight)
-                                .glassEffect(.regular.tint(nil))
-                                .glassEffectID("main", in: glassNamespace)
+                                .stetGlassEffect()
+                                .stetGlassID("main", in: glassNamespace)
 
                             Button(action: actions.onConfirm) {
                                 Image(systemName: "checkmark")
@@ -92,8 +92,8 @@
                             }
                             .buttonStyle(.plain)
                             .frame(width: model.controlHeight, height: model.controlHeight)
-                            .glassEffect(.regular.tint(nil))
-                            .glassEffectID("done", in: glassNamespace)
+                            .stetGlassEffect()
+                            .stetGlassID("done", in: glassNamespace)
                             .opacity(isPanelShown && showOrbs ? 1 : 0)
                             .offset(x: isPanelShown && showOrbs ? 0 : hiddenRightOrbOffset)
                             .scaleEffect(isPanelShown && showOrbs ? 1 : MacDictationCapsuleVisualTuning.orbHiddenScale)

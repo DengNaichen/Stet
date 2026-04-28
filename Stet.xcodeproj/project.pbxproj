@@ -499,7 +499,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -561,7 +561,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = auto;
@@ -600,7 +600,7 @@
 					"@executable_path/Frameworks",
 				);
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 0.2.7;
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.Stet.Debug;
 				PRODUCT_MODULE_NAME = Stet;
@@ -653,7 +653,7 @@
 					"@executable_path/Frameworks",
 				);
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 0.2.7;
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.Stet;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -768,11 +768,6 @@
 			};
 			name = Release;
 		};
-
-
-
-
-
 		F1A0B001000000000000000B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -794,7 +789,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 0.2.7;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetVisuals;
@@ -832,7 +827,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 0.2.7;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetVisuals;
@@ -859,7 +854,6 @@
 			buildConfigurations = (
 				6D29DC9E2F5FA23100267DEA /* Debug */,
 				6D29DC9F2F5FA23100267DEA /* Release */,
-
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -869,7 +863,6 @@
 			buildConfigurations = (
 				6D29DCA12F5FA23100267DEA /* Debug */,
 				6D29DCA22F5FA23100267DEA /* Release */,
-
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -879,7 +872,6 @@
 			buildConfigurations = (
 				6D29DCA42F5FA23100267DEA /* Debug */,
 				6D29DCA52F5FA23100267DEA /* Release */,
-
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -889,7 +881,6 @@
 			buildConfigurations = (
 				6D29DCA72F5FA23100267DEA /* Debug */,
 				6D29DCA82F5FA23100267DEA /* Release */,
-
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -899,7 +890,6 @@
 			buildConfigurations = (
 				F1A0B001000000000000000B /* Debug */,
 				F1A0B001000000000000000C /* Release */,
-
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

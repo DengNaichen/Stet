@@ -60,6 +60,15 @@
             glmAPIKey = settingsStore.loadAPIKey(for: .glm)
             doubaoAPIKey = settingsStore.loadAPIKey(for: .doubao)
             selectedModel = settingsStore.loadSelectedModel(for: rewriteProvider) ?? .default(for: rewriteProvider)
+
+            // Safety check: If the loaded provider is disabled (e.g. Apple Intelligence on old macOS),
+            // fallback to OpenAI to prevent UI/pipeline issues.
+            if unifiedProvider.isDisabled {
+                rewriteProvider = .openAI
+                selectedModel = .gpt54Nano
+                settingsStore.saveRewriteProvider(.openAI)
+            }
+
             hasLoadedState = true
         }
 
@@ -152,9 +161,17 @@
 
             var isDisabled: Bool {
                 switch self {
-                case .openAI, .google, .anthropic, .appleIntelligence, .groq:
+                case .appleIntelligence:
+                    // Only enabled on macOS 26.0+
+                    if #available(macOS 26.0, *) {
+                        return false
+                    } else {
+                        return true
+                    }
+                case .openAI, .google, .anthropic, .groq:
                     return false
                 case .deepSeek, .qwen, .glm, .doubao:
+                    // These are placeholders for now
                     return true
                 }
             }

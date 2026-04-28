@@ -176,3 +176,11 @@ protocol TextRewriteService: Sendable {
 extension TextRewriteService {
     func prewarm(_ request: TextRewriteRequest) async {}
 }
+
+struct UnavailableRewriteService: TextRewriteService {
+    let message: String
+    init(message: String) { self.message = message }
+    func rewrite(_ request: TextRewriteRequest) async throws -> String {
+        throw NSError(domain: "Stet", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
+    }
+}

@@ -271,7 +271,7 @@ final class SherpaOnnxSenseVoiceTranscriptionService: AudioFileTranscriptionServ
             recognizerLock.lock()
             defer { recognizerLock.unlock() }
 
-            let normalizedLanguageCode = languageCode?.isEmpty == false ? languageCode! : "auto"
+            let normalizedLanguageCode = "auto"  // Force auto-detection for the engine internally
             if cachedRecognizer == nil || cachedLanguageCode != normalizedLanguageCode {
                 if let cachedRecognizer {
                     SherpaOnnxDestroyOfflineRecognizer(cachedRecognizer)
@@ -295,7 +295,7 @@ final class SherpaOnnxSenseVoiceTranscriptionService: AudioFileTranscriptionServ
 
             let senseVoiceConfig = sherpaOnnxOfflineSenseVoiceModelConfig(
                 model: modelURL.path,
-                language: languageCode,
+                language: Self.normalizedSenseVoiceLanguage(languageCode),
                 useInverseTextNormalization: true
             )
 
@@ -346,6 +346,19 @@ final class SherpaOnnxSenseVoiceTranscriptionService: AudioFileTranscriptionServ
         if value.hasPrefix("<|") { value.removeFirst(2) }
         if value.hasSuffix("|>") { value.removeLast(2) }
         return value.isEmpty ? nil : value
+    }
+
+    private static func normalizedSenseVoiceLanguage(_ code: String) -> String {
+        let lower = code.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        if lower == "auto" { return "auto" }
+
+        if lower.hasPrefix("zh") { return "zh" }
+        if lower.hasPrefix("en") { return "en" }
+        if lower.hasPrefix("ja") { return "ja" }
+        if lower.hasPrefix("ko") { return "ko" }
+        if lower.hasPrefix("yue") { return "yue" }
+
+        return "auto"
     }
 
     private static func readSamples(from fileURL: URL) throws -> [Float] {

@@ -42,9 +42,11 @@
             tapDescription.uuid = UUID()
             tapDescription.name = "Stet System Audio Mute"
             tapDescription.isPrivate = true
-            tapDescription.isProcessRestoreEnabled = true
-            tapDescription.bundleIDs = [bundleID]
-            tapDescription.muteBehavior = .muted
+            if #available(macOS 26.0, *) {
+                tapDescription.isProcessRestoreEnabled = true
+                tapDescription.bundleIDs = [bundleID]
+                tapDescription.muteBehavior = .muted
+            }
 
             var tapID = AudioObjectID(kAudioObjectUnknown)
             let tapCreateStatus = AudioHardwareCreateProcessTap(tapDescription, &tapID)

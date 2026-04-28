@@ -15,6 +15,7 @@ enum AppleIntelligenceRewriteError: LocalizedError, Equatable, Sendable {
     }
 }
 
+@available(macOS 26.0, *)
 @Generable
 struct RewriteResult {
     @Guide(description: "A brief explanation of why the rewrite was or was not performed")
@@ -23,6 +24,7 @@ struct RewriteResult {
     let text: String
 }
 
+@available(macOS 26.0, *)
 public struct AppleIntelligenceRewriteService: TextRewriteService {
     private let sessionStore = AppleIntelligenceRewriteSessionStore()
 
@@ -153,6 +155,7 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
     }
 }
 
+@available(macOS 26.0, *)
 private actor AppleIntelligenceRewriteSessionStore {
     private var activeSession: LanguageModelSession?
 

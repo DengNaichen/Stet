@@ -61,7 +61,14 @@
                             Image(systemName: "sparkles")
                                 .font(.title2)
                                 .foregroundStyle(
-                                    AppleIntelligenceRewriteService.isAvailable ? .purple : .secondary
+                                    {
+                                        if #available(macOS 26.0, *) {
+                                            return AppleIntelligenceRewriteService.isAvailable
+                                                ? Color.purple : Color.secondary
+                                        } else {
+                                            return Color.secondary
+                                        }
+                                    }()
                                 )
                                 .frame(width: 32)
 
@@ -69,14 +76,23 @@
                                 Text("Apple Intelligence")
                                     .font(.headline)
 
-                                if AppleIntelligenceRewriteService.isAvailable {
+                                if #available(macOS 26.0, *), AppleIntelligenceRewriteService.isAvailable {
                                     Text("Ready to refine your transcriptions.")
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
                                 } else {
-                                    Text("Unavailable: \(AppleIntelligenceRewriteService.availabilityDescription)")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
+                                    Text(
+                                        {
+                                            if #available(macOS 26.0, *) {
+                                                return
+                                                    "Unavailable: \(AppleIntelligenceRewriteService.availabilityDescription)"
+                                            } else {
+                                                return "Unavailable on this version of macOS"
+                                            }
+                                        }()
+                                    )
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
 
                                     Button("Open Settings") {
                                         if let url = URL(

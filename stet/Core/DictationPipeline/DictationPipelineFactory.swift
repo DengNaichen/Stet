@@ -34,7 +34,11 @@ struct DictationPipelineFactory: Sendable {
             makeRewriteService: { configuration, session in
                 switch configuration.backend {
                 case .appleIntelligence:
-                    return AppleIntelligenceRewriteService()
+                    if #available(macOS 26.0, *) {
+                        return AppleIntelligenceRewriteService()
+                    } else {
+                        return UnavailableRewriteService(message: "Apple Intelligence requires macOS 26.0 or newer.")
+                    }
                 case .google(let apiKey):
                     return GoogleRewriteService(apiKey: apiKey, model: configuration.model, session: session)
                 case .anthropic(let apiKey):
@@ -69,11 +73,11 @@ struct DictationPipelineFactory: Sendable {
             let primary = snapshot.transcriptionPrimaryLanguage
             let secondary = snapshot.transcriptionSecondaryLanguage
             let engine = TranscriptionLanguageRouting.resolveEngine(primary: primary, secondary: secondary)
-            if case let .localWhisper(hint) = engine {
+            switch engine {
+            case .localWhisper(let hint):
                 transcriptionLanguageCode = hint
-            } else {
-                //                transcriptionLanguageCode = snapshot.dictationLanguageMode.transcriptionLanguageCode
-                transcriptionLanguageCode = nil
+            case .sherpaOnnxSenseVoice, .fluidAudio:
+                transcriptionLanguageCode = primary
             }
             preferredSpellings = direct.preferredSpellings
             promptProvider = Self.makePromptProvider(preferredSpellings: preferredSpellings)

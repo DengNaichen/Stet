@@ -27,14 +27,10 @@
                             MacSettingsValueRow(title: NSLocalizedString("Refine Model", comment: "")) {
                                 Picker("", selection: $viewModel.unifiedProvider) {
                                     ForEach(MacOpenAISettingsViewModel.UnifiedAIProvider.allCases) { provider in
-                                        HStack {
-                                            Text(provider.displayName)
-                                            if provider.isDisabled {
-                                                Text(NSLocalizedString("(Unavailable)", comment: ""))
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
+                                        Text(
+                                            provider.isDisabled
+                                                ? "\(provider.displayName) (Unavailable)" : provider.displayName
+                                        )
                                         .tag(provider)
                                         .disabled(provider.isDisabled)
                                     }
