@@ -31,6 +31,7 @@ struct DictationSettingsSnapshot: Sendable {
     let transcriptionProvider: DictationProvider
     let rewriteProvider: DictationProvider
     let isRewriteEnabled: Bool
+    let selectedModel: RewriteModel?
     //    let dictationLanguageMode: DictationLanguageMode
     let shouldPauseMediaDuringDictation: Bool
     let rewriteProviderConfiguration: RewriteProviderConfiguration?
@@ -98,6 +99,7 @@ struct DictationSettingsStore: Sendable {
             defaultsStore.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
         let rewriteAPIKey = loadAPIKey(for: rewriteProvider)
             .trimmingCharacters(in: .whitespacesAndNewlines)
+        let selectedModel = loadSelectedModel(for: rewriteProvider)
         let personalDictionary = loadPersonalDictionaryEnabled() ? loadPersonalDictionary() : []
         let interactionSoundsEnabled =
             defaultsStore.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
@@ -108,6 +110,7 @@ struct DictationSettingsStore: Sendable {
             rewriteConfiguration = DictationProviderConfigurationResolver.rewriteConfiguration(
                 provider: rewriteProvider,
                 apiKey: "",
+                customModel: selectedModel?.rawValue
             )
         } else {
             rewriteConfiguration =
@@ -116,6 +119,7 @@ struct DictationSettingsStore: Sendable {
                 : DictationProviderConfigurationResolver.rewriteConfiguration(
                     provider: rewriteProvider,
                     apiKey: rewriteAPIKey,
+                    customModel: selectedModel?.rawValue
                 )
         }
 
@@ -128,6 +132,7 @@ struct DictationSettingsStore: Sendable {
             transcriptionProvider: transcriptionProvider,
             rewriteProvider: rewriteProvider,
             isRewriteEnabled: isRewriteEnabled,
+            selectedModel: selectedModel,
             shouldPauseMediaDuringDictation: shouldPauseMediaDuringDictation,
             rewriteProviderConfiguration: rewriteConfiguration,
             personalDictionary: personalDictionary,
@@ -210,6 +215,21 @@ struct DictationSettingsStore: Sendable {
 
     nonisolated func saveHotkeyDistinguishModifierSides(_ enabled: Bool) {
         defaultsStore.set(enabled, forKey: MacPreferences.hotkeyDistinguishModifierSides)
+    }
+
+    nonisolated func loadSelectedModel(for provider: DictationProvider) -> RewriteModel? {
+        let key = "\(MacPreferences.customRewriteModel).\(provider.rawValue)"
+        guard let rawValue = defaultsStore.string(forKey: key) else { return nil }
+        return RewriteModel(rawValue: rawValue)
+    }
+
+    nonisolated func saveSelectedModel(_ model: RewriteModel?, for provider: DictationProvider) {
+        let key = "\(MacPreferences.customRewriteModel).\(provider.rawValue)"
+        if let model {
+            defaultsStore.set(model.rawValue, forKey: key)
+        } else {
+            defaultsStore.removeObject(forKey: key)
+        }
     }
 
     nonisolated static func words(from rawInput: String) -> [String] {

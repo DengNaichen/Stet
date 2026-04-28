@@ -7,6 +7,7 @@ enum MacPreferences {
     nonisolated static let transcriptionProvider = "mac.transcriptionProvider"
     nonisolated static let rewriteProvider = "mac.rewriteProvider"
     nonisolated static let rewriteEnabled = "mac.rewriteEnabled"
+    nonisolated static let customRewriteModel = "mac.customRewriteModel"
     nonisolated static let dictationLanguageMode = "mac.dictationLanguageMode"
     nonisolated static let globalHotkeyShortcut = "mac.globalHotkeyShortcut"
     nonisolated static let togglePanelHotkeyShortcut = "mac.togglePanelHotkeyShortcut"

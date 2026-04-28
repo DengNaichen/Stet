@@ -2,7 +2,7 @@ import Foundation
 
 /// Deterministic, rule-based punctuation normalizer.
 ///
-/// After Apple Intelligence (or any LLM-based rewrite) the output may contain
+/// After Apple Intelligence rewrite or local transcription, the output may contain
 /// inconsistent punctuation widths — e.g. half-width commas inside Chinese text
 /// or full-width periods inside English text.
 ///

@@ -20,7 +20,7 @@ struct OpenAIRewriteService: TextRewriteService {
     }
 
     func rewrite(_ request: TextRewriteRequest) async throws -> String {
-        let prepared = PreparedTextRewritePayload(request: request)
+        let prepared = PreparedCloudRewritePayload(request: request)
         let messages = makeMessages(
             systemPrompt: prepared.systemPrompt,
             userPrompt: prepared.userPrompt

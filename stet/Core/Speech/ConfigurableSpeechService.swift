@@ -291,11 +291,17 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 finalTranscript = intermediateTranscript
             }
 
-            let normalizedTranscript = PunctuationNormalizer.normalize(
-                finalTranscript.trimmingCharacters(in: .whitespacesAndNewlines),
-                languageCode: transcriptionResult.languageCode ?? pipeline.transcriptionLanguageCode
-            )
-            let trimmedTranscript = Self.stripTrailingPeriod(normalizedTranscript)
+            let trimmedFinalTranscript = finalTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedTranscript: String
+            if Self.shouldApplyManualPunctuationCleanup(rewriteProvider: pipeline.rewriteProvider) {
+                let normalizedTranscript = PunctuationNormalizer.normalize(
+                    trimmedFinalTranscript,
+                    languageCode: transcriptionResult.languageCode ?? pipeline.transcriptionLanguageCode
+                )
+                trimmedTranscript = Self.stripTrailingPeriod(normalizedTranscript)
+            } else {
+                trimmedTranscript = trimmedFinalTranscript
+            }
             guard !trimmedTranscript.isEmpty else {
                 await releaseContextOnExit()
                 throw SpeechServiceError.emptyTranscription
@@ -506,6 +512,17 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             return String(text.dropLast())
         }
         return text
+    }
+
+    private nonisolated static func shouldApplyManualPunctuationCleanup(
+        rewriteProvider: DictationProvider?
+    ) -> Bool {
+        switch rewriteProvider {
+        case .openAI, .groq:
+            return false
+        case .appleIntelligence, nil:
+            return true
+        }
     }
 
     /// Detects if the rewritten transcript has "drifted" from the original by

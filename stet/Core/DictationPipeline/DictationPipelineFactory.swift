@@ -6,7 +6,6 @@ struct DictationPipeline: Sendable {
     let promptProvider: (@Sendable () async -> String?)?
     let rewriteService: (any TextRewriteService)?
     let rewriteProvider: DictationProvider?
-    //    let rewriteAdditionalContext: String?
     let preferredSpellings: [String]
     let usesAudienceAwareLocalPrompts: Bool
 }
@@ -52,7 +51,6 @@ struct DictationPipelineFactory: Sendable {
         let promptProvider: (@Sendable () async -> String?)?
         let rewriteService: (any TextRewriteService)?
         let rewriteProvider: DictationProvider?
-        //        let rewriteAdditionalContext: String?
         let preferredSpellings: [String]
         let usesAudienceAwareLocalPrompts: Bool
 
@@ -73,8 +71,6 @@ struct DictationPipelineFactory: Sendable {
             }
             preferredSpellings = direct.preferredSpellings
             promptProvider = Self.makePromptProvider(preferredSpellings: preferredSpellings)
-            //            rewriteAdditionalContext = snapshot.dictationLanguageMode.rewriteAdditionalContext
-            //            rewriteAdditionalContext = nil
             usesAudienceAwareLocalPrompts = true
 
             if direct.rewriteEnabled, let rewriteConfiguration = direct.rewriteConfiguration {
@@ -92,7 +88,6 @@ struct DictationPipelineFactory: Sendable {
             promptProvider: promptProvider,
             rewriteService: rewriteService,
             rewriteProvider: rewriteProvider,
-            //            rewriteAdditionalContext: rewriteAdditionalContext,
             preferredSpellings: preferredSpellings,
             usesAudienceAwareLocalPrompts: usesAudienceAwareLocalPrompts
         )

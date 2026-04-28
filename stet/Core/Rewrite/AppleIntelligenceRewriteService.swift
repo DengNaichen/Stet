@@ -68,15 +68,32 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
     }
 
     private nonisolated static func instructions(for request: TextRewriteRequest) -> String {
+        let isChinese = request.languageCode?.lowercased().hasPrefix("zh") == true
+
+        let cleanupPolicy: String
+        if isChinese {
+            cleanupPolicy = """
+                1. VERBAL SCAFFOLDING PURGE: Every single "那个", "这个", "就是", "然后", "嗯", "呃", "啊" and hesitation markers (like "……") MUST be deleted. Do not be "faithful" to these stumbling marks.
+                2. SELF-CORRECTION RESOLUTION: When a speaker corrects themselves (e.g., "三点，不对，四点"), you only output the final intended meaning ("四点").
+                """
+        } else {
+            cleanupPolicy = """
+                1. ENGLISH FILLER PURGE: Delete filler-only words and phrases such as "um", "uh", filler "like", "you know", "I mean", and discourse-only "so".
+                2. ENGLISH SELF-CORRECTION RESOLUTION: Treat "no", "wait no", "sorry", "actually", and "or actually" as correction markers when they replace an earlier object, name, date, number, file, target, phrase, or clause. Remove the earlier corrected span entirely and keep the later replacement span.
+                3. ENGLISH INTENT PRESERVATION: Keep the speaker's intent and sentence type. Do not turn "I want to..." into a command unless the transcript is clearly addressed as a direct command.
+                4. ENGLISH GRAMMAR PRESERVATION: Preserve surrounding action words and prepositions when applying a correction. If a correction changes "into A" to "into B", output "into B", not "into A, B".
+                5. ENGLISH CORRECTION SPAN RULE: Around a correction marker, compare the phrase immediately before the marker with the phrase immediately after it. If both phrases fill the same role, delete the earlier phrase and splice the later phrase into the sentence with one copy of the shared preposition or verb.
+                """
+        }
+
         var reminder = """
             You are a professional Transcript Purge Engine. Your mission is to transform colloquial, messy speech-to-text transcripts into clean, professional, and concise written text.
 
             CRITICAL RULES:
-            1. VERBAL SCAFFOLDING PURGE: Every single "那个", "这个", "就是", "然后", "嗯", "呃", "啊" and hesitation markers (like repetitions or ellipses "……") MUST be deleted. Do not be "faithful" to these stumbling marks.
-            2. SELF-CORRECTION RESOLUTION: When a speaker corrects themselves (e.g., "三点，不对，四点"), you only output the final intended meaning ("四点").
-            3. WRITTEN STYLE: The output must sound like it was written by a professional editor.
-            4. LANGUAGE LOCK: Keep each span in the same language the speaker used. Do not translate, do not normalize mixed-language text into one language, and do not introduce English terms into a Chinese span or Chinese terms into an English span. Only restore a cross-language technical term when the original recognition clearly intended that exact term.
-            5. PROPER PUNCTUATION: The output must be properly punctuated. Add periods, commas, and question marks as appropriate to ensure the text reads like a professional document.
+            \(cleanupPolicy)
+            6. WRITTEN STYLE: The output must sound like it was written by a professional editor.
+            7. ABSOLUTE LANGUAGE LOCK: Never translate any word, phrase, clause, sentence, or language span. Keep every span in the exact language the speaker used, in the same order. Chinese spans must remain Chinese, English spans must remain English, and mixed-language text must remain mixed-language text. Do not normalize mixed-language text into one language. Do not replace a word with its translation even if the translation sounds more natural.
+            8. PROPER PUNCTUATION: The output must be properly punctuated. Add periods, commas, and question marks as appropriate to ensure the text reads like a professional document.
             """
 
         if let languageCode = request.languageCode {
@@ -92,6 +109,8 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
                 """
         }
 
+        let examples = loadExamples(for: request.languageCode) ?? ""
+
         return """
             \(reminder)
 
@@ -99,37 +118,27 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
             1. "reason": A brief explanation of which fillers or errors you identified.
             2. "text": The final cleaned transcript.
 
-            ### Example 1 (Aggressive Cleanup):
-            Input: "那个就是，你把那个按钮，嗯，改成蓝色吧。"
-            Output: { "reason": "Removed verbal pauses '那个就是', '那个', '嗯'.", "text": "把按钮改成蓝色吧。" }
-
-            ### Example 2 (Long Opening):
-            Input: "反正就是，怎么说呢，那个，这个项目其实挺难搞的。"
-            Output: { "reason": "Purged long opening scaffolding.", "text": "这个项目其实挺难搞的。" }
-
-            ### Example 3 (Mixed Technical Terms):
-            Input: "就是那个，你把那个 JSON 传到那个 Server 端，嗯，做个 validation。"
-            Output: { "reason": "Cleaned fillers, preserved technical terms.", "text": "把 JSON 传到 Server 端做 validation。" }
-
-            ### Example 4 (Logic Resolution):
-            Input: "我们明天去北京，啊不对，我们明天去上海吧。"
-            Output: { "reason": "Resolved self-correction from Beijing to Shanghai.", "text": "我们明天去上海吧。" }
-
-            ### Example 5 (Hesitation & Ellipses Purge):
-            Input: "那个……那个……我就是想问一下，那个，工资发了吗？"
-            Output: { "reason": "Purged hesitation marks (ellipses and repetitions) to create a clean question.", "text": "我就是想问一下，工资发了吗？" }
-
-            ### Example 6 (Clean Spoken Structure):
-            Input: "嗯我觉得这个方案可以先这样定下来如果后面数据不对我们再调整"
-            Output: { "reason": "split the run-on sentence into clear written structure.", "text": "这个方案可以先这样定下来。如果后面数据不对，我们再调整。" }
+            \(examples)
 
             ### Task:
             Now, process the following input and provide the JSON output.
             """
     }
 
-    private nonisolated static func promptPrefix(additionalContext: String?) -> String {
-        var prefix = """
+    private nonisolated static func loadExamples(for languageCode: String?) -> String? {
+        let suffix = languageCode?.lowercased().hasPrefix("zh") == true ? "zh-Hans" : "en"
+        let resourceName = "Rewrite_\(suffix)"
+
+        guard let url = Bundle.main.url(forResource: resourceName, withExtension: "txt", subdirectory: "Prompts"),
+            let content = try? String(contentsOf: url, encoding: .utf8)
+        else {
+            return nil
+        }
+        return content
+    }
+
+    private nonisolated static func promptPrefix() -> String {
+        let prefix = """
             Instruction:
             Clean the following raw transcription according to your instructions.
 
@@ -139,7 +148,7 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
     }
 
     private nonisolated static func prompt(for request: TextRewriteRequest) -> String {
-        let prefix = promptPrefix(additionalContext: nil)
+        let prefix = promptPrefix()
         return prefix + request.text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

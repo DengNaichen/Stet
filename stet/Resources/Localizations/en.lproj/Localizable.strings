@@ -80,7 +80,11 @@
 "Transcript improvement" = "Transcript improvement";
 "Stet can refine and improve the precision of your transcriptions using AI." = "Stet can refine and improve the precision of your transcriptions using AI.";
 "Refine Model" = "Refine Model";
+"Preferred Model" = "Preferred Model";
 "Refine" = "Refine";
+"GPT-5.4 Nano (Default)" = "GPT-5.4 Nano (Default)";
+"GPT-5.4 Mini" = "GPT-5.4 Mini";
+"GPT-OSS 20B (Default)" = "GPT-OSS 20B (Default)";
 "Apple Intelligence" = "Apple Intelligence";
 "Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac." = "Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac.";
 "Provide your API key to use %@ directly." = "Provide your API key to use %@ directly.";

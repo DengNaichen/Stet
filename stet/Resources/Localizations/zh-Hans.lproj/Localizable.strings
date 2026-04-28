@@ -80,7 +80,11 @@
 "Transcript improvement" = "转录改进";
 "Stet can refine and improve the precision of your transcriptions using AI." = "Stet 可以使用 AI 优化并提高转录精度。";
 "Refine Model" = "优化模型";
+"Preferred Model" = "首选模型";
 "Refine" = "优化";
+"GPT-5.4 Nano (Default)" = "GPT-5.4 Nano (默认)";
+"GPT-5.4 Mini" = "GPT-5.4 Mini";
+"GPT-OSS 20B (Default)" = "GPT-OSS 20B (默认)";
 "Apple Intelligence" = "Apple Intelligence";
 "Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac." = "使用设备端 Apple Intelligence 模型本地优化转录。可用性取决于此 Mac 上的 Apple Intelligence 是否已启用并就绪。";
 "Provide your API key to use %@ directly." = "请提供 API 密钥以直接使用 %@。";

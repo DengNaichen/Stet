@@ -521,6 +521,58 @@ struct ConfigurableSpeechServiceTests {
         #expect(await rewrite.recordedRequests().count == 1)
     }
 
+    @Test func cloudRewriteSkipsManualPunctuationCleanup() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: "raw transcript")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setResult("云端模型已经处理好这个句号。")
+        let (store, _, _) = try makeSettingsStore(
+            transcriptionProvider: .openAI,
+            rewriteProvider: .openAI,
+            rewriteEnabled: true,
+            openAIAPIKey: "sk-test"
+        )
+
+        let service = makeDictationService(
+            settingsStore: store,
+            directTranscriptionService: direct,
+            rewriteService: rewrite
+        )
+
+        try await service.startRecording()
+        let result = try await service.stopRecording()
+
+        #expect(result == "云端模型已经处理好这个句号。")
+    }
+
+    @Test func appleIntelligenceRewriteKeepsManualPunctuationCleanup() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: "raw transcript")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setResult("Apple Intelligence 仍然需要这层清理。")
+        let (store, _, _) = try makeSettingsStore(
+            transcriptionProvider: .openAI,
+            rewriteProvider: .appleIntelligence,
+            rewriteEnabled: true,
+            openAIAPIKey: "sk-test"
+        )
+
+        let service = makeDictationService(
+            settingsStore: store,
+            directTranscriptionService: direct,
+            rewriteService: rewrite
+        )
+
+        try await service.startRecording()
+        let result = try await service.stopRecording()
+
+        #expect(result == "Apple Intelligence 仍然需要这层清理")
+    }
+
     @Test func byokGroqToGroqUsesSingleProviderForBothRemoteSteps() async throws {
         let audioFileURL = makeAudioFileURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
@@ -729,7 +781,7 @@ struct ConfigurableSpeechServiceTests {
         #expect(await rewrite.recordedRequests().count == 1)
     }
 
-    @Test func primaryChineseModePassesLanguageBiasAndMixedContextToRewrite() async throws {
+    @Test func primaryChineseModePassesLanguageBiasToRewrite() async throws {
         let audioFileURL = makeAudioFileURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
 
@@ -757,7 +809,7 @@ struct ConfigurableSpeechServiceTests {
         let rewriteRequests = await rewrite.recordedRequests()
 
         #expect(directInvocation?.languageCode == "zh")
-        #expect(rewriteRequests.first?.additionalContext?.contains("mainly dictates in Chinese") == true)
+        #expect(rewriteRequests.first?.languageCode == "zh")
     }
 
     @Test func emptyTranscriptThrowsEmptyTranscription() async throws {

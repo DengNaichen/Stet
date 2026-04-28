@@ -78,6 +78,14 @@ struct OpenAICompatibleProviderEndpointConfiguration: Sendable, Equatable {
             return URL(string: "https://api.openai.com/v1")!
         case .groq:
             return URL(string: "https://api.groq.com/openai/v1")!
+        case .deepSeek:
+            return URL(string: "https://api.deepseek.com/v1")!
+        case .qwen:
+            return URL(string: "https://dashscope.aliyuncs.com/compatible-mode/v1")!
+        case .glm:
+            return URL(string: "https://open.bigmodel.cn/api/paas/v4/")!
+        case .doubao:
+            return URL(string: "https://ark.cn-beijing.volces.com/api/v3")!
         case .appleIntelligence:
             preconditionFailure("Apple Intelligence is not an OpenAI-compatible endpoint.")
         }
@@ -153,13 +161,15 @@ enum DictationProviderConfigurationResolver {
         provider: DictationProvider,
         apiKey: String,
         organizationID: String? = nil,
-        projectID: String? = nil
+        projectID: String? = nil,
+        customModel: String? = nil
     ) -> RewriteProviderConfiguration {
+        let model = customModel ?? DictationProviderDefaults.rewriteModel(for: provider)
         switch provider {
-        case .openAI, .groq:
+        case .openAI, .groq, .deepSeek, .qwen, .glm, .doubao:
             return RewriteProviderConfiguration(
                 provider: provider,
-                model: DictationProviderDefaults.rewriteModel(for: provider),
+                model: model,
                 backend: .remote(
                     OpenAICompatibleProviderEndpointConfiguration(
                         provider: provider,
@@ -172,7 +182,7 @@ enum DictationProviderConfigurationResolver {
         case .appleIntelligence:
             return RewriteProviderConfiguration(
                 provider: provider,
-                model: DictationProviderDefaults.rewriteModel(for: provider),
+                model: model,
                 backend: .appleIntelligence
             )
         }

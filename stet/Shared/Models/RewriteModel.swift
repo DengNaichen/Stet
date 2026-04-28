@@ -1,0 +1,78 @@
+import Foundation
+
+enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
+    // OpenAI Models
+    case gpt54Mini = "gpt-5.4-mini-2026-04-12"
+    case gpt54Nano = "gpt-5.4-nano-2026-03-17"
+
+    // Groq Models
+    case gptOss20b = "openai/gpt-oss-20b"
+    case llama3_70b = "llama-3.3-70b-specdec"
+    case mixtral8x7b = "mixtral-8x7b-32768"
+    case gemma2_9b = "gemma2-9b-it"
+
+    // Chinese Provider Models
+    case deepseekChat = "deepseek-chat"
+    case deepseekReasoner = "deepseek-reasoner"
+    case qwenMax = "qwen-max"
+    case qwenPlus = "qwen-plus"
+    case qwenTurbo = "qwen-turbo"
+    case glm4 = "glm-4"
+    case glm4Air = "glm-4-air"
+    case glm4Flash = "glm-4-flash"
+    case doubao = "doubao-pro-32k"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .gpt54Mini: return NSLocalizedString("GPT-5.4 Mini", comment: "")
+        case .gpt54Nano: return NSLocalizedString("GPT-5.4 Nano (Default)", comment: "")
+        case .gptOss20b: return NSLocalizedString("GPT-OSS 20B (Default)", comment: "")
+        case .llama3_70b: return NSLocalizedString("Llama 3.3 70B", comment: "")
+        case .mixtral8x7b: return NSLocalizedString("Mixtral 8x7B", comment: "")
+        case .gemma2_9b: return NSLocalizedString("Gemma 2 9B", comment: "")
+        case .deepseekChat: return NSLocalizedString("DeepSeek Chat", comment: "")
+        case .deepseekReasoner: return NSLocalizedString("DeepSeek Reasoner", comment: "")
+        case .qwenMax: return NSLocalizedString("Qwen Max", comment: "")
+        case .qwenPlus: return NSLocalizedString("Qwen Plus", comment: "")
+        case .qwenTurbo: return NSLocalizedString("Qwen Turbo", comment: "")
+        case .glm4: return NSLocalizedString("GLM-4", comment: "")
+        case .glm4Air: return NSLocalizedString("GLM-4 Air", comment: "")
+        case .glm4Flash: return NSLocalizedString("GLM-4 Flash", comment: "")
+        case .doubao: return NSLocalizedString("Doubao Pro 32K", comment: "")
+        }
+    }
+
+    /// 根据 Provider 返回可用的模型列表
+    static func availableModels(for provider: DictationProvider) -> [RewriteModel] {
+        switch provider {
+        case .openAI:
+            return [.gpt54Nano, .gpt54Mini]
+        case .groq:
+            return [.gptOss20b, .llama3_70b, .mixtral8x7b, .gemma2_9b]
+        case .deepSeek:
+            return [.deepseekChat, .deepseekReasoner]
+        case .qwen:
+            return [.qwenMax, .qwenPlus, .qwenTurbo]
+        case .glm:
+            return [.glm4, .glm4Air, .glm4Flash]
+        case .doubao:
+            return [.doubao]
+        case .appleIntelligence:
+            return []
+        }
+    }
+
+    static func `default`(for provider: DictationProvider) -> RewriteModel {
+        switch provider {
+        case .openAI: return .gpt54Nano
+        case .groq: return .gptOss20b
+        case .deepSeek: return .deepseekChat
+        case .qwen: return .qwenMax
+        case .glm: return .glm4
+        case .doubao: return .doubao
+        case .appleIntelligence: return .gpt54Nano  // Fallback
+        }
+    }
+}

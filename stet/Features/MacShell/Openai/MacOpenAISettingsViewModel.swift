@@ -26,6 +26,7 @@
         }
         @Published var openAIAPIKey = ""
         @Published var groqAPIKey = ""
+        @Published var selectedModel: RewriteModel = .gpt54Nano
 
         private let settingsStore: DictationSettingsStore
         private var hasLoadedState = false
@@ -46,6 +47,7 @@
             rewriteProvider = settingsStore.loadRewriteProvider()
             openAIAPIKey = settingsStore.loadAPIKey(for: .openAI)
             groqAPIKey = settingsStore.loadAPIKey(for: .groq)
+            selectedModel = settingsStore.loadSelectedModel(for: rewriteProvider) ?? .default(for: rewriteProvider)
             hasLoadedState = true
         }
 
@@ -54,6 +56,7 @@
 
             do {
                 try settingsStore.saveAPIKey(trimmedKey, for: provider)
+                settingsStore.saveSelectedModel(selectedModel, for: provider)
                 setAPIKey(trimmedKey, for: provider)
             } catch {}
         }
@@ -89,6 +92,10 @@
             case openAI
             case groq
             case appleIntelligence
+            case deepSeek
+            case qwen
+            case glm
+            case doubao
 
             var id: String { rawValue }
             var displayName: String {
@@ -96,6 +103,19 @@
                 case .openAI: return "OpenAI"
                 case .groq: return "Groq"
                 case .appleIntelligence: return "Apple Intelligence"
+                case .deepSeek: return "DeepSeek"
+                case .qwen: return "Qwen"
+                case .glm: return "GLM"
+                case .doubao: return "Doubao"
+                }
+            }
+
+            var isDisabled: Bool {
+                switch self {
+                case .openAI, .groq, .appleIntelligence:
+                    return false
+                case .deepSeek, .qwen, .glm, .doubao:
+                    return true
                 }
             }
         }
@@ -106,6 +126,10 @@
                 case .openAI: return .openAI
                 case .groq: return .groq
                 case .appleIntelligence: return .appleIntelligence
+                case .deepSeek: return .deepSeek
+                case .qwen: return .qwen
+                case .glm: return .glm
+                case .doubao: return .doubao
                 }
             }
             set {
@@ -116,7 +140,16 @@
                     rewriteProvider = .groq
                 case .appleIntelligence:
                     rewriteProvider = .appleIntelligence
+                case .deepSeek:
+                    rewriteProvider = .deepSeek
+                case .qwen:
+                    rewriteProvider = .qwen
+                case .glm:
+                    rewriteProvider = .glm
+                case .doubao:
+                    rewriteProvider = .doubao
                 }
+                selectedModel = settingsStore.loadSelectedModel(for: rewriteProvider) ?? .default(for: rewriteProvider)
             }
         }
 
@@ -124,6 +157,10 @@
             guard isRewriteEnabled else { return [] }
             guard rewriteProvider.requiresAPIKey else { return [] }
             return [rewriteProvider]
+        }
+
+        var availableModels: [RewriteModel] {
+            RewriteModel.availableModels(for: rewriteProvider)
         }
 
         func credentialFieldTitle(for provider: DictationProvider) -> String {
