@@ -17,6 +17,8 @@ enum AppleIntelligenceRewriteError: LocalizedError, Equatable, Sendable {
 
 @Generable
 struct RewriteResult {
+    @Guide(description: "A brief explanation of why the rewrite was or was not performed")
+    let reason: String
     @Guide(description: "The cleaned, properly punctuated transcript")
     let text: String
 }
@@ -29,25 +31,24 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
     func prewarm(_ request: TextRewriteRequest) async {
         guard Self.isAvailable else { return }
         await sessionStore.prewarm(
-            instructions: Self.instructions(for: request),
-            promptPrefix: Self.promptPrefix(additionalContext: request.additionalContext)
+            instructions: Self.instructions(for: request)
         )
     }
 
     func rewrite(_ request: TextRewriteRequest) async throws -> String {
+        try await rewriteWithDiagnostic(request).text
+    }
+
+    func rewriteWithDiagnostic(_ request: TextRewriteRequest) async throws -> RewriteResult {
         guard Self.isAvailable else {
             throw AppleIntelligenceRewriteError.unavailable(Self.availabilityDescription)
         }
 
-        let output = try await sessionStore.respond(
+        let result = try await sessionStore.respondDiagnostic(
             instructions: Self.instructions(for: request),
             prompt: Self.prompt(for: request)
         )
-        let trimmedOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedOutput.isEmpty else {
-            throw AppleIntelligenceRewriteError.emptyOutput
-        }
-        return trimmedOutput
+        return result
     }
 
     public static var isAvailable: Bool {
@@ -67,57 +68,76 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
     }
 
     private nonisolated static func instructions(for request: TextRewriteRequest) -> String {
-        let base = LocalRewritePromptBuilder.systemPrompt(
-            audience: request.audience ?? .ai,
-            preferredSpellings: request.preferredSpellings
-        )
-
         var reminder = """
-            Reminder:
-            Be aggressive with punctuation.
-            Apply transcript cleanup when any cleanup is available.
-            If the input contains filler words, repeated words, missing punctuation, missing capitalization, return the cleaned version.
-            Be thorough about filler removal. Remove these whenever they are used as verbal scaffolding:
-            - Chinese: 那个 这个 就是 然后 嗯 呃 啊 哎 你知道 我跟你说 怎么说 反正
-            - English: um, uh, er, ah, like, you know, I mean, basically, actually, sort of, kind of, right
-            Fix obvious ASR recognition errors when the context makes the intended word clear.
-            For example, in an App Store payment context, "寄费的逻辑" should become "计费逻辑",
+            You are a professional Transcript Purge Engine. Your mission is to transform colloquial, messy speech-to-text transcripts into clean, professional, and concise written text.
 
-            Do not translate the transcript, Company name, Terminology, into another language.
+            CRITICAL RULES:
+            1. VERBAL SCAFFOLDING PURGE: Every single "那个", "这个", "就是", "然后", "嗯", "呃", "啊" and hesitation markers (like repetitions or ellipses "……") MUST be deleted. Do not be "faithful" to these stumbling marks.
+            2. SELF-CORRECTION RESOLUTION: When a speaker corrects themselves (e.g., "三点，不对，四点"), you MUST only output the final intended meaning ("四点").
+            3. WRITTEN STYLE: The output must sound like it was written by a professional editor.
+            4. CONTEXTUAL ASR REPAIR: Correct speech-to-text word, character, homophone, or near-sound errors when the surrounding context indicates the intended wording. This includes Chinese homophones and technical terms.
+            5. LANGUAGE LOCK: Keep each span in the same language the speaker used. Do not translate, do not normalize mixed-language text into one language, and do not introduce English terms into a Chinese span or Chinese terms into an English span. Only restore a cross-language technical term when the original recognition clearly intended that exact term.
+            6. PROPER PUNCTUATION: The output must be properly punctuated. Add periods, commas, and question marks as appropriate to ensure the text reads like a professional document.
             """
+
         if let languageCode = request.languageCode {
             reminder += "\nThe speaker's primary language is \(languageCode)."
         }
 
+        if !request.preferredSpellings.isEmpty {
+            reminder += """
+
+                Personal dictionary entries are canonical recovery targets: \(request.preferredSpellings.joined(separator: ", ")).
+                If the transcript contains a garbled, split, homophone, near-sound, differently capitalized, or partially translated version that clearly refers to a dictionary entry, replace it with the exact dictionary entry.
+                Preserve dictionary entries exactly as written, including capitalization, spacing, and punctuation. Do not add a dictionary entry when there is no nearby spoken cue for it.
+                """
+        }
+
         return """
-            \(base)
-
-            ### Category 1 — Remove Filler Words and Noise:
-
-            Input: "就是,那个,那个我的意思是把那个 button 改一下。"
-            Output: "我的意思是，把那个 button 改一下。"
-
-            Input: "呃……就是……你……你觉得……你觉得这个模型现在是ok的吗？"
-            Output: "你觉得这个模型现在是 ok 的吗？"
-
-            Input: "我……我想……那个……看看这个……这个逻辑。"
-            Output: "我想看看这个逻辑。"
-
-            Input: "这个小模型它都不敢动，你知道吗？它就特别特别的……嗯……怎么说……胆子特别小"
-            Output: "这个小模型它都不敢动，你知道吗？它就胆子特别小"
-
-            ### Category 2 — Self-Correction and Logic:
-            Input: "我们明天去北京，啊不对不对不对，我们明天去上海吧。"
-            Output: "我们明天去上海吧。"
-
-            Input: "就是那个，我刚才其实是想说，呃，那个，就是那个，我们明天开会，哎呀不对，是后天，后天三点开会吧。"
-            Output: "我们后天三点开会吧。"
-
-            ### Category 3 - Fix ASR error:
-            Input: "但是呢我需要在现在app store里面做一个这种寄费的逻辑, 但是我不知道怎么寄"
-            Output: "但是呢我需要在App Store里面做一个这种计费的逻辑, 但是我不知道怎么计"
-
             \(reminder)
+
+            Instruction: You must output a JSON object with two fields in this EXACT order:
+            1. "reason": A brief explanation of which fillers or errors you identified.
+            2. "text": The final cleaned transcript.
+
+            ### Example 1 (Aggressive Cleanup):
+            Input: "那个就是，你把那个按钮，嗯，改成蓝色吧。"
+            Output: { "reason": "Removed verbal pauses '那个就是', '那个', '嗯'.", "text": "把按钮改成蓝色吧。" }
+
+            ### Example 2 (Long Opening):
+            Input: "反正就是，怎么说呢，那个，这个项目其实挺难搞的。"
+            Output: { "reason": "Purged long opening scaffolding.", "text": "这个项目其实挺难搞的。" }
+
+            ### Example 3 (Mixed Technical Terms):
+            Input: "就是那个，你把那个 JSON 传到那个 Server 端，嗯，做个 validation。"
+            Output: { "reason": "Cleaned fillers, preserved technical terms.", "text": "把 JSON 传到 Server 端做 validation。" }
+
+            ### Example 4 (Logic Resolution):
+            Input: "我们明天去北京，啊不对，我们明天去上海吧。"
+            Output: { "reason": "Resolved self-correction from Beijing to Shanghai.", "text": "我们明天去上海吧。" }
+
+            ### Example 5 (Hesitation & Ellipses Purge):
+            Input: "那个……那个……我就是想问一下，那个，工资发了吗？"
+            Output: { "reason": "Purged hesitation marks (ellipses and repetitions) to create a clean question.", "text": "我就是想问一下，工资发了吗？" }
+
+            ### Example 6 (Clean Spoken Structure):
+            Input: "嗯我觉得这个方案可以先这样定下来如果后面数据不对我们再调整"
+            Output: { "reason": "Removed the opening hesitation and split the run-on sentence into clear written structure.", "text": "这个方案可以先这样定下来。如果后面数据不对，我们再调整。" }
+
+            ### Example 7 (Contextual ASR Repair, Everyday Context):
+            Input: "明天开会前你帮我把会议纪要整李一下。"
+            Output: { "reason": "Corrected an obvious near-sound ASR error from meeting context.", "text": "明天开会前你帮我把会议纪要整理一下。" }
+
+            ### Example 8 (Contextual ASR Repair, Meaning From Nearby Words):
+            Input: "这份合同的付宽日期写错了，需要重新确认。"
+            Output: { "reason": "Corrected an obvious homophone ASR error from contract and payment context.", "text": "这份合同的付款日期写错了，需要重新确认。" }
+
+            ### Example 9 (Contextual ASR Repair, Preserve Mixed Language):
+            Input: "这个 design 看起来有点不太一至，你把 spacing 调一下。"
+            Output: { "reason": "Corrected an obvious near-sound ASR error while preserving the English words the speaker used.", "text": "这个 design 看起来有点不太一致，你把 spacing 调一下。" }
+
+            ### Task:
+            Now, process the following input and provide the JSON output.
             """
     }
 
@@ -128,37 +148,28 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
 
             """
 
-        if let additionalContext = additionalContext?.trimmingCharacters(in: .whitespacesAndNewlines),
-            !additionalContext.isEmpty
-        {
-            prefix = """
-                Context:
-                \(additionalContext)
-
-                \(prefix)
-                """
-        }
-
         return prefix + "Text:\n"
     }
 
     private nonisolated static func prompt(for request: TextRewriteRequest) -> String {
-        promptPrefix(additionalContext: request.additionalContext)
-            + request.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let prefix = promptPrefix(additionalContext: nil)
+        return prefix + request.text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
 private actor AppleIntelligenceRewriteSessionStore {
     private var activeSession: LanguageModelSession?
 
-    func prewarm(instructions: String, promptPrefix: String) {
-        // Create and store the session for reuse
+    func prewarm(instructions: String) {
         let session = Self.makeSession(instructions: instructions)
-        session.prewarm(promptPrefix: Prompt(promptPrefix))
         self.activeSession = session
     }
 
     func respond(instructions: String, prompt: String) async throws -> String {
+        try await respondDiagnostic(instructions: instructions, prompt: prompt).text
+    }
+
+    func respondDiagnostic(instructions: String, prompt: String) async throws -> RewriteResult {
         // Use the prewarmed session if available, otherwise fall back to a fresh one
         let session: LanguageModelSession
         if let active = activeSession {
@@ -172,7 +183,9 @@ private actor AppleIntelligenceRewriteSessionStore {
             to: Prompt(prompt),
             generating: RewriteResult.self
         )
-        return response.content.text
+
+        print("  [AI Reason]: \(response.content.reason)")
+        return response.content
     }
 
     private static func makeSession(instructions: String) -> LanguageModelSession {

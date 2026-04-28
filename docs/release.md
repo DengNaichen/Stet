@@ -25,6 +25,8 @@ Stet now uses three GitHub Actions workflows:
 
 ## Daily Release Flow
 
+The standard release path is GitHub Actions only. Do not create or upload formal release artifacts from a local machine. `v0.2.4` is the last validated release before SenseVoice entered the release chain; the current standard keeps that flow and adds a pre-copy framework normalization step for SenseVoice/Sherpa-ONNX plus explicit release re-signing for the affected embedded components.
+
 Normal development:
 
 1. Open a branch and submit a PR.
@@ -150,3 +152,5 @@ The manual `workflow_dispatch` path is safe for testing because it sets:
 - `spctl` may report `source=Insufficient Context` for the DMG inside CI. The workflow treats stapler validation as the stronger signal.
 - The release workflow currently builds Sparkle's `generate_appcast` from source because Sparkle's SwiftPM package only provides the framework binary target, not the CLI tool.
 - For manual release tests, artifact upload uses the provided `release_tag`, not `github.ref_name`.
+- SenseVoice/Sherpa-ONNX XCFrameworks must not introduce a separate local release path. The release entry points remain `macOS Release Candidate` and `macOS Release`; do not add hand-built DMGs, hand-built appcasts, or flows that bypass `scripts/release-macos-github.sh`.
+- `sherpa_onnx.framework` currently comes from a SwiftPM remote binary target and wraps a static library. `scripts/normalize-binary-frameworks.sh` fixes its framework structure and signing before Xcode copies it, then `scripts/release-macos-github.sh` re-signs Sparkle, StetVisuals, sherpa_onnx, and the main app for release.

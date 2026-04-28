@@ -6,7 +6,7 @@ struct DictationPipeline: Sendable {
     let promptProvider: (@Sendable () async -> String?)?
     let rewriteService: (any TextRewriteService)?
     let rewriteProvider: DictationProvider?
-    let rewriteAdditionalContext: String?
+    //    let rewriteAdditionalContext: String?
     let preferredSpellings: [String]
     let usesAudienceAwareLocalPrompts: Bool
 }
@@ -52,7 +52,7 @@ struct DictationPipelineFactory: Sendable {
         let promptProvider: (@Sendable () async -> String?)?
         let rewriteService: (any TextRewriteService)?
         let rewriteProvider: DictationProvider?
-        let rewriteAdditionalContext: String?
+        //        let rewriteAdditionalContext: String?
         let preferredSpellings: [String]
         let usesAudienceAwareLocalPrompts: Bool
 
@@ -68,11 +68,13 @@ struct DictationPipelineFactory: Sendable {
             if case let .localWhisper(hint) = engine {
                 transcriptionLanguageCode = hint
             } else {
-                transcriptionLanguageCode = snapshot.dictationLanguageMode.transcriptionLanguageCode
+                //                transcriptionLanguageCode = snapshot.dictationLanguageMode.transcriptionLanguageCode
+                transcriptionLanguageCode = nil
             }
             preferredSpellings = direct.preferredSpellings
             promptProvider = Self.makePromptProvider(preferredSpellings: preferredSpellings)
-            rewriteAdditionalContext = snapshot.dictationLanguageMode.rewriteAdditionalContext
+            //            rewriteAdditionalContext = snapshot.dictationLanguageMode.rewriteAdditionalContext
+            //            rewriteAdditionalContext = nil
             usesAudienceAwareLocalPrompts = true
 
             if direct.rewriteEnabled, let rewriteConfiguration = direct.rewriteConfiguration {
@@ -90,7 +92,7 @@ struct DictationPipelineFactory: Sendable {
             promptProvider: promptProvider,
             rewriteService: rewriteService,
             rewriteProvider: rewriteProvider,
-            rewriteAdditionalContext: rewriteAdditionalContext,
+            //            rewriteAdditionalContext: rewriteAdditionalContext,
             preferredSpellings: preferredSpellings,
             usesAudienceAwareLocalPrompts: usesAudienceAwareLocalPrompts
         )

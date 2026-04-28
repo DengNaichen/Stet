@@ -217,23 +217,42 @@ resign_component() {
     "$target_path"
 }
 
-# Re-sign all frameworks in the bundle
-find "$APP_PATH/Contents/Frameworks" -maxdepth 1 -type d -name "*.framework" | while read -r framework_path; do
-  local fw_name=$(basename "$framework_path")
-  
-  # Sparkle needs special handling for its nested components
-  if [[ "$fw_name" == "Sparkle.framework" ]]; then
-     local sparkle_root="$framework_path/Versions/Current"
-     resign_component "$sparkle_root/Autoupdate"
-     resign_component "$sparkle_root/XPCServices/Downloader.xpc"
-     resign_component "$sparkle_root/XPCServices/Installer.xpc"
-     resign_component "$sparkle_root/Updater.app"
-  fi
-  
-  echo "Re-signing framework: $fw_name"
-  resign_component "$framework_path"
-done
+normalize_versioned_framework() {
+  local framework_path="$1"
+  local binary_name="$2"
+  local version_a="$framework_path/Versions/A"
 
+  [[ -d "$version_a" ]] || return 0
+
+  rm -rf "$framework_path/Versions/Current"
+  ln -s A "$framework_path/Versions/Current"
+
+  for item in Headers Modules Resources "$binary_name"; do
+    if [[ -e "$version_a/$item" ]]; then
+      rm -rf "$framework_path/$item"
+      ln -s "Versions/Current/$item" "$framework_path/$item"
+    fi
+  done
+
+  if [[ -f "$version_a/$binary_name" ]]; then
+    chmod +x "$version_a/$binary_name"
+  fi
+}
+
+SPARKLE_FRAMEWORK="$APP_PATH/Contents/Frameworks/Sparkle.framework"
+SPARKLE_ROOT="$SPARKLE_FRAMEWORK/Versions/Current"
+resign_component "$SPARKLE_ROOT/Autoupdate"
+resign_component "$SPARKLE_ROOT/XPCServices/Downloader.xpc"
+resign_component "$SPARKLE_ROOT/XPCServices/Installer.xpc"
+resign_component "$SPARKLE_ROOT/Updater.app"
+resign_component "$SPARKLE_FRAMEWORK"
+
+normalize_versioned_framework "$APP_PATH/Contents/Frameworks/sherpa_onnx.framework" "sherpa_onnx"
+
+resign_component "$APP_PATH/Contents/Frameworks/StetVisuals.framework"
+resign_component "$APP_PATH/Contents/Frameworks/sherpa_onnx.framework"
+
+echo "Re-signing main application bundle..."
 codesign \
   --force \
   --sign "$DEVELOPER_ID_APPLICATION" \

@@ -26,12 +26,7 @@
         }
         @Published var openAIAPIKey = ""
         @Published var groqAPIKey = ""
-        @Published var dictationLanguageMode: DictationLanguageMode = .automatic {
-            didSet {
-                guard hasLoadedState else { return }
-                settingsStore.saveDictationLanguageMode(dictationLanguageMode)
-            }
-        }
+
         private let settingsStore: DictationSettingsStore
         private var hasLoadedState = false
 
@@ -49,7 +44,6 @@
             hasLoadedState = false
             isRewriteEnabled = settingsStore.loadRewriteEnabled()
             rewriteProvider = settingsStore.loadRewriteProvider()
-            dictationLanguageMode = settingsStore.loadDictationLanguageMode()
             openAIAPIKey = settingsStore.loadAPIKey(for: .openAI)
             groqAPIKey = settingsStore.loadAPIKey(for: .groq)
             hasLoadedState = true

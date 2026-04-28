@@ -161,19 +161,36 @@ import os
 final class SherpaOnnxSenseVoiceTranscriptionService: AudioFileTranscriptionService, @unchecked Sendable {
     private let modelURL: URL
     private let tokensURL: URL
+    private let recognizerLock = NSLock()
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
         category: "SherpaOnnxSenseVoice"
     )
+
+    #if canImport(sherpa_onnx)
+        private var cachedRecognizer: OpaquePointer?
+        private var cachedLanguageCode: String?
+    #endif
 
     init(modelManager: SherpaOnnxSenseVoiceModelManager) throws {
         self.modelURL = try modelManager.resolvedModelURL()
         self.tokensURL = try modelManager.resolvedTokensURL()
     }
 
+    deinit {
+        #if canImport(sherpa_onnx)
+            if let cachedRecognizer {
+                SherpaOnnxDestroyOfflineRecognizer(cachedRecognizer)
+            }
+        #endif
+    }
+
     func prewarm() async throws {
-        // Sherpa-ONNX doesn't require explicit prewarming
-        // Model is loaded on first transcription
+        #if canImport(sherpa_onnx)
+            try withRecognizer(languageCode: nil) { _ in () }
+        #else
+            throw SenseVoiceError.runtimeUnavailable
+        #endif
     }
 
     func transcribe(
@@ -202,19 +219,83 @@ final class SherpaOnnxSenseVoiceTranscriptionService: AudioFileTranscriptionServ
             }
             let samplePreparationMs = Self.elapsedMilliseconds(since: samplePreparationStartedAt)
 
-            // Create recognizer config
             let inferenceStartedAt = ProcessInfo.processInfo.systemUptime
 
-            // Choose provider based on environment
+            let result = try withRecognizer(languageCode: languageCode) { recognizer in
+                guard let stream = SherpaOnnxCreateOfflineStream(recognizer) else {
+                    throw SenseVoiceError.transcriptionFailed
+                }
+                defer { SherpaOnnxDestroyOfflineStream(stream) }
+
+                SherpaOnnxAcceptWaveformOffline(stream, 16000, samples, Int32(samples.count))
+                SherpaOnnxDecodeOfflineStream(recognizer, stream)
+
+                guard let resultPtr = SherpaOnnxGetOfflineStreamResult(stream) else {
+                    throw SenseVoiceError.transcriptionFailed
+                }
+                defer { SherpaOnnxDestroyOfflineRecognizerResult(resultPtr) }
+
+                let result = resultPtr.pointee
+                return (
+                    text: result.text != nil ? String(cString: result.text) : "",
+                    detectedLanguage: Self.unwrapSpecialToken(cString: result.lang),
+                    emotion: Self.unwrapSpecialToken(cString: result.emotion) ?? "",
+                    event: Self.unwrapSpecialToken(cString: result.event) ?? ""
+                )
+            }
+
+            let inferenceMs = Self.elapsedMilliseconds(since: inferenceStartedAt)
+            let totalMs = Self.elapsedMilliseconds(since: startedAt)
+
+            let trimmedTranscript = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedTranscript.isEmpty else {
+                throw SpeechServiceError.emptyTranscription
+            }
+
+            AppLogger.info(
+                "SherpaOnnx SenseVoice completed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) sampleCount=\(samples.count) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(inferenceMs)) totalMs=\(Self.formatMilliseconds(totalMs)) textChars=\(trimmedTranscript.count) languageCode=\(result.detectedLanguage ?? languageCode ?? "auto") emotion=\(result.emotion) event=\(result.event)",
+                category: .perfTrace
+            )
+
+            return .init(text: trimmedTranscript, languageCode: result.detectedLanguage)
+        #else
+            throw SenseVoiceError.runtimeUnavailable
+        #endif
+    }
+
+    #if canImport(sherpa_onnx)
+        private func withRecognizer<T>(
+            languageCode: String?,
+            _ body: (OpaquePointer) throws -> T
+        ) throws -> T {
+            recognizerLock.lock()
+            defer { recognizerLock.unlock() }
+
+            let normalizedLanguageCode = languageCode?.isEmpty == false ? languageCode! : "auto"
+            if cachedRecognizer == nil || cachedLanguageCode != normalizedLanguageCode {
+                if let cachedRecognizer {
+                    SherpaOnnxDestroyOfflineRecognizer(cachedRecognizer)
+                }
+                cachedRecognizer = try makeRecognizer(languageCode: normalizedLanguageCode)
+                cachedLanguageCode = normalizedLanguageCode
+            }
+
+            guard let cachedRecognizer else {
+                throw SenseVoiceError.initializationFailed
+            }
+            return try body(cachedRecognizer)
+        }
+
+        private func makeRecognizer(languageCode: String) throws -> OpaquePointer {
             #if !targetEnvironment(simulator)
-                let provider = "coreml"  // Use CoreML for GPU acceleration on macOS (Apple Silicon)
+                let provider = "coreml"
             #else
-                let provider = "cpu"  // Use CPU in simulator
+                let provider = "cpu"
             #endif
 
             let senseVoiceConfig = sherpaOnnxOfflineSenseVoiceModelConfig(
                 model: modelURL.path,
-                language: languageCode ?? "auto",
+                language: languageCode,
                 useInverseTextNormalization: true
             )
 
@@ -231,91 +312,20 @@ final class SherpaOnnxSenseVoiceTranscriptionService: AudioFileTranscriptionServ
                 featureDim: 80
             )
 
-            // Handle hotwords/prompt
-            var hotwordsPath: String? = nil
-            if let prompt = prompt, !prompt.isEmpty {
-                let tempHotwordsURL = FileManager.default.temporaryDirectory
-                    .appendingPathComponent(UUID().uuidString)
-                    .appendingPathExtension("txt")
-
-                // Sherpa-ONNX hotwords file format: one word/phrase per line
-                let hotwordsContent =
-                    prompt
-                    .components(separatedBy: CharacterSet(charactersIn: ",，\n"))
-                    .map { $0.trimmingCharacters(in: CharacterSet.whitespaces) }
-                    .filter { !$0.isEmpty }
-                    .joined(separator: "\n")
-
-                if !hotwordsContent.isEmpty {
-                    try? hotwordsContent.write(to: tempHotwordsURL, atomically: true, encoding: String.Encoding.utf8)
-                    hotwordsPath = tempHotwordsURL.path
-                }
-            }
-            defer {
-                if let path = hotwordsPath {
-                    try? FileManager.default.removeItem(atPath: path)
-                }
-            }
-
             var recognizerConfig = sherpaOnnxOfflineRecognizerConfig(
                 featConfig: featConfig,
                 modelConfig: modelConfig,
                 decodingMethod: "greedy_search",
-                hotwordsPath: nil,  // SenseVoice doesn't support hotwords with greedy_search yet
+                hotwordsPath: nil,
                 hotwordsScore: 0
             )
 
-            // Create recognizer and perform transcription
             guard let recognizer = SherpaOnnxCreateOfflineRecognizer(&recognizerConfig) else {
                 throw SenseVoiceError.initializationFailed
             }
-            defer { SherpaOnnxDestroyOfflineRecognizer(recognizer) }
-
-            guard let stream = SherpaOnnxCreateOfflineStream(recognizer) else {
-                throw SenseVoiceError.transcriptionFailed
-            }
-            defer { SherpaOnnxDestroyOfflineStream(stream) }
-
-            // Accept waveform
-            SherpaOnnxAcceptWaveformOffline(stream, 16000, samples, Int32(samples.count))
-
-            // Decode
-            SherpaOnnxDecodeOfflineStream(recognizer, stream)
-
-            // Get result
-            guard let resultPtr = SherpaOnnxGetOfflineStreamResult(stream) else {
-                throw SenseVoiceError.transcriptionFailed
-            }
-            defer { SherpaOnnxDestroyOfflineRecognizerResult(resultPtr) }
-
-            let result = resultPtr.pointee
-
-            let inferenceMs = Self.elapsedMilliseconds(since: inferenceStartedAt)
-            let totalMs = Self.elapsedMilliseconds(since: startedAt)
-
-            let transcript = result.text != nil ? String(cString: result.text) : ""
-            let trimmedTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmedTranscript.isEmpty else {
-                throw SpeechServiceError.emptyTranscription
-            }
-
-            // sherpa-onnx returns these as raw SenseVoice special tokens (e.g. "<|zh|>",
-            // "<|NEUTRAL|>", "<|Speech|>"). Strip the "<|...|>" wrapping so the language
-            // code matches what the rest of the pipeline expects (BCP-47-ish: "zh", "en"…).
-            let detectedLanguage = Self.unwrapSpecialToken(cString: result.lang)
-            let emotion = Self.unwrapSpecialToken(cString: result.emotion) ?? ""
-            let event = Self.unwrapSpecialToken(cString: result.event) ?? ""
-
-            AppLogger.info(
-                "SherpaOnnx SenseVoice completed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) sampleCount=\(samples.count) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(inferenceMs)) totalMs=\(Self.formatMilliseconds(totalMs)) textChars=\(trimmedTranscript.count) languageCode=\(detectedLanguage ?? languageCode ?? "auto") emotion=\(emotion) event=\(event)",
-                category: .perfTrace
-            )
-
-            return .init(text: trimmedTranscript, languageCode: detectedLanguage)
-        #else
-            throw SenseVoiceError.runtimeUnavailable
-        #endif
-    }
+            return recognizer
+        }
+    #endif
 
     private nonisolated static func elapsedMilliseconds(since start: TimeInterval) -> Double {
         (ProcessInfo.processInfo.systemUptime - start) * 1_000

@@ -31,7 +31,7 @@ struct DictationSettingsSnapshot: Sendable {
     let transcriptionProvider: DictationProvider
     let rewriteProvider: DictationProvider
     let isRewriteEnabled: Bool
-    let dictationLanguageMode: DictationLanguageMode
+    //    let dictationLanguageMode: DictationLanguageMode
     let shouldPauseMediaDuringDictation: Bool
     let rewriteProviderConfiguration: RewriteProviderConfiguration?
     let personalDictionary: [String]
@@ -94,7 +94,6 @@ struct DictationSettingsStore: Sendable {
         let transcriptionProvider = loadTranscriptionProvider()
         let rewriteProvider = loadRewriteProvider(defaultingTo: transcriptionProvider)
         let isRewriteEnabled = loadRewriteEnabled()
-        let dictationLanguageMode = loadDictationLanguageMode()
         let shouldPauseMediaDuringDictation =
             defaultsStore.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
         let rewriteAPIKey = loadAPIKey(for: rewriteProvider)
@@ -129,7 +128,6 @@ struct DictationSettingsStore: Sendable {
             transcriptionProvider: transcriptionProvider,
             rewriteProvider: rewriteProvider,
             isRewriteEnabled: isRewriteEnabled,
-            dictationLanguageMode: dictationLanguageMode,
             shouldPauseMediaDuringDictation: shouldPauseMediaDuringDictation,
             rewriteProviderConfiguration: rewriteConfiguration,
             personalDictionary: personalDictionary,
@@ -204,15 +202,6 @@ struct DictationSettingsStore: Sendable {
 
     nonisolated func saveRewriteEnabled(_ enabled: Bool) {
         defaultsStore.set(enabled, forKey: MacPreferences.rewriteEnabled)
-    }
-
-    nonisolated func loadDictationLanguageMode() -> DictationLanguageMode {
-        let rawValue = defaultsStore.string(forKey: MacPreferences.dictationLanguageMode) ?? ""
-        return DictationLanguageMode(rawValue: rawValue) ?? .automatic
-    }
-
-    nonisolated func saveDictationLanguageMode(_ mode: DictationLanguageMode) {
-        defaultsStore.set(mode.rawValue, forKey: MacPreferences.dictationLanguageMode)
     }
 
     nonisolated func loadHotkeyDistinguishModifierSides() -> Bool {

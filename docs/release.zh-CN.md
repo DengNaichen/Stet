@@ -25,6 +25,8 @@ Stet 现在有三条 GitHub Actions workflow：
 
 ## 日常发布流程
 
+标准发布只走 GitHub Actions，不在本机手工生成或上传正式产物。`v0.2.4` 是 SenseVoice 介入前最后一版已验证流程；新的标准是在保留这条流程的基础上，让构建脚本在 Xcode 复制二进制 framework 前规范化 SenseVoice/Sherpa-ONNX artifact，并在 release 脚本中只重签明确列出的嵌入组件。
+
 日常开发：
 
 1. 开分支并提 PR。
@@ -152,3 +154,5 @@ generate_keys -x /tmp/private-key.txt
 - 在 CI 里，`spctl` 对 DMG 有时会返回 `source=Insufficient Context`。当前流程以 `stapler validate` 成功为更可靠的信号。
 - 现在这条正式发布 workflow 会在 CI 中编译 Sparkle 的 `generate_appcast`，因为 Sparkle 的 SwiftPM 包只提供框架二进制，不提供 CLI 工具。
 - 手动 release 测试时，artifact 上传路径使用你输入的 `release_tag`，不是 `github.ref_name`。
+- SenseVoice/Sherpa-ONNX 的 XCFramework 不能改变发布入口。标准入口仍然是 `macOS Release Candidate` 和 `macOS Release`；不要为了二进制 framework 额外引入本地发布分支、手工 DMG、手工 appcast 或绕过 `scripts/release-macos-github.sh` 的流程。
+- `sherpa_onnx.framework` 当前来自 SwiftPM remote binary target，实际内容是静态库包装的 framework。Xcode 复制前由 `scripts/normalize-binary-frameworks.sh` 修正 framework 结构和签名；最终发布包再由 `scripts/release-macos-github.sh` 统一重签 Sparkle、StetVisuals、sherpa_onnx 和主 app。

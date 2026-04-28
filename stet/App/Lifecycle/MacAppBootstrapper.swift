@@ -68,9 +68,9 @@
                 forKey: MacPreferences.interactionSoundPreset
             )
 
-            if defaults.string(forKey: MacPreferences.dictationLanguageMode) == nil {
-                settingsStore.saveDictationLanguageMode(.automatic)
-            }
+            //            if defaults.string(forKey: MacPreferences.dictationLanguageMode) == nil {
+            //                settingsStore.saveDictationLanguageMode(.automatic)
+            //            }
 
             if defaults.object(forKey: MacPreferences.hotkeyDistinguishModifierSides) == nil {
                 settingsStore.saveHotkeyDistinguishModifierSides(false)

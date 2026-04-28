@@ -27,6 +27,11 @@ struct StetApp: App {
             _settingsShellViewModel = StateObject(
                 wrappedValue: MacSettingsShellViewModel(coordinator: appModel)
             )
+            #if DEBUG
+                if ProcessInfo.processInfo.isRunningAppleIntelligenceRewriteProbe {
+                    AppleIntelligenceRewriteProbe.runAndTerminate()
+                }
+            #endif
         }
     #endif
 

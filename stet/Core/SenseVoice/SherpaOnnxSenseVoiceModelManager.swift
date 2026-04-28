@@ -3,11 +3,11 @@ import Foundation
 /// Model manager for Sherpa-ONNX based SenseVoice.
 /// Manages ONNX model files instead of GGUF files.
 struct SherpaOnnxSenseVoiceModelManager: Sendable {
-    nonisolated static let defaultModelFileName = "model.onnx"
+    nonisolated static let defaultModelFileName = "model.int8.onnx"
     nonisolated static let defaultTokensFileName = "tokens.txt"
     nonisolated static let defaultModelDownloadURL = URL(
         string:
-            "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main/model.onnx"
+            "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main/model.int8.onnx"
     )!
     nonisolated static let defaultTokensDownloadURL = URL(
         string:

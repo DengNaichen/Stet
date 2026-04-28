@@ -86,7 +86,9 @@
                 }
                 .store(in: &cancellables)
             sessionController.activate(presentationModel: self, showInDock: launchConfiguration.showInDock)
-            if !ProcessInfo.processInfo.isRunningTests {
+            if !ProcessInfo.processInfo.isRunningTests,
+                !ProcessInfo.processInfo.isRunningAppleIntelligenceRewriteProbe
+            {
                 LocalWhisperWarmupCoordinator.shared.activateIfNeeded()
             }
         }

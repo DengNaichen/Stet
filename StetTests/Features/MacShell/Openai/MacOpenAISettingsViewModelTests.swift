@@ -70,11 +70,7 @@
             defaults.set(true, forKey: MacPreferences.rewriteEnabled)
 
             let viewModel = MacOpenAISettingsViewModel(
-                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
-                localWhisperModelManager: LocalWhisperModelManager(
-                    modelsDirectoryProvider: { TestSupport.temporaryDirectoryURL("local-whisper-settings") },
-                    runtimeAvailableProvider: { true }
-                )
+                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
             )
 
             viewModel.load()
@@ -92,11 +88,7 @@
             defaults.set(true, forKey: MacPreferences.rewriteEnabled)
 
             let viewModel = MacOpenAISettingsViewModel(
-                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
-                localWhisperModelManager: LocalWhisperModelManager(
-                    modelsDirectoryProvider: { TestSupport.temporaryDirectoryURL("local-whisper-settings") },
-                    runtimeAvailableProvider: { true }
-                )
+                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
             )
 
             viewModel.load()
@@ -112,11 +104,7 @@
             let expectedModelPath = modelsDirectory.appendingPathComponent("ggml-large-v3-turbo-q5_0.bin").path
 
             let viewModel = MacOpenAISettingsViewModel(
-                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
-                localWhisperModelManager: LocalWhisperModelManager(
-                    modelsDirectoryProvider: { modelsDirectory },
-                    runtimeAvailableProvider: { true }
-                )
+                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
             )
 
             viewModel.load()
@@ -132,11 +120,7 @@
             let modelsDirectory = TestSupport.temporaryDirectoryURL("local-whisper-settings-runtime")
 
             let viewModel = MacOpenAISettingsViewModel(
-                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore()),
-                localWhisperModelManager: LocalWhisperModelManager(
-                    modelsDirectoryProvider: { modelsDirectory },
-                    runtimeAvailableProvider: { false }
-                )
+                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
             )
 
             viewModel.load()

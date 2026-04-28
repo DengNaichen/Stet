@@ -84,8 +84,6 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
         let snapshot = settingsStore.loadSnapshot()
         let pipelineStartedAt = ProcessInfo.processInfo.systemUptime
-        // Resolve the execution route and validate provider requirements before
-        // capture starts so BYOK configuration failures surface immediately.
         let pipeline = try await pipelineFactory.makePipeline(from: snapshot)
         activePipeline = pipeline
         let pipelineFactoryMs = Self.elapsedMilliseconds(since: pipelineStartedAt)
@@ -176,11 +174,6 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             #endif
         }
 
-        // Mirrors VoiceInkEngine.cleanupResources(): release the loaded local
-        // engine context after every recording cycle so memory drops back to
-        // baseline. Awaited (not deferred) so the next startRecording can't race
-        // a teardown. Both whisper and parakeet are always cleaned — only one
-        // is loaded at a time and the other call is a cheap no-op.
         let releaseContextOnExit: @Sendable () async -> Void = {
             #if os(macOS)
                 await LocalWhisperContextManager.shared.cleanupResources()
@@ -259,7 +252,6 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                         intermediateTranscript,
                         audience: rewriteAudience,
                         preferredSpellings: pipeline.preferredSpellings,
-                        additionalContext: pipeline.rewriteAdditionalContext,
                         languageCode: transcriptionResult.languageCode ?? pipeline.transcriptionLanguageCode
                     )
                     let rewrittenTranscript = try await rewriteService.rewrite(request)
@@ -275,10 +267,6 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                         )
                     }
                     let rewriteStageMs = Self.elapsedMilliseconds(since: rewriteStartedAt)
-                    AppLogger.info(
-                        "DictationStage rewriteMs=\(Self.formatMilliseconds(rewriteStageMs)) inputChars=\(intermediateTranscript.count) audience=\(rewriteAudience?.rawValue ?? "none") preferredSpellingsCount=\(pipeline.preferredSpellings.count) additionalContextChars=\(pipeline.rewriteAdditionalContext?.count ?? 0) lang=\(request.languageCode ?? "unknown")",
-                        category: .perfTrace
-                    )
                 } else {
                     finalTranscript = intermediateTranscript
                     AppLogger.info(
@@ -399,7 +387,6 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                     "",
                     audience: rewriteAudience,
                     preferredSpellings: pipeline.preferredSpellings,
-                    additionalContext: pipeline.rewriteAdditionalContext
                 )
             )
         }

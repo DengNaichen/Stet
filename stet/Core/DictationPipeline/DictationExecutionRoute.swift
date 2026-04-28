@@ -36,7 +36,7 @@ enum DictationExecutionRoute: Sendable {
     struct Direct: Sendable {
         let rewriteConfiguration: RewriteProviderConfiguration?
         let rewriteEnabled: Bool
-        let languageMode: DictationLanguageMode
+        //        let languageMode: DictationLanguageMode
         let preferredSpellings: [String]
     }
 
@@ -57,7 +57,7 @@ enum DictationExecutionRouteResolver {
             return .init(
                 rewriteConfiguration: nil,
                 rewriteEnabled: false,
-                languageMode: snapshot.dictationLanguageMode,
+                //                languageMode: snapshot.dictationLanguageMode,
                 preferredSpellings: snapshot.personalDictionary
             )
         }
@@ -66,7 +66,7 @@ enum DictationExecutionRouteResolver {
             return .init(
                 rewriteConfiguration: nil,
                 rewriteEnabled: false,
-                languageMode: snapshot.dictationLanguageMode,
+                //                languageMode: snapshot.dictationLanguageMode,
                 preferredSpellings: snapshot.personalDictionary
             )
         }
@@ -74,7 +74,7 @@ enum DictationExecutionRouteResolver {
         return .init(
             rewriteConfiguration: rewriteConfiguration,
             rewriteEnabled: snapshot.isRewriteEnabled,
-            languageMode: snapshot.dictationLanguageMode,
+            //            languageMode: snapshot.dictationLanguageMode,
             preferredSpellings: snapshot.personalDictionary
         )
     }

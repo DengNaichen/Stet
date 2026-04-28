@@ -60,7 +60,6 @@ struct TextRewriteRequest: Sendable, Equatable {
     var text: String
     var audience: AppAudience?
     var preferredSpellings: [String]
-    var additionalContext: String?
     var languageCode: String?
     var model: String?
 
@@ -68,14 +67,13 @@ struct TextRewriteRequest: Sendable, Equatable {
         _ text: String,
         audience: AppAudience? = nil,
         preferredSpellings: [String] = [],
-        additionalContext: String? = nil,
+        //        additionalContext: String? = nil,
         languageCode: String? = nil
     ) -> Self {
         return Self(
             text: text,
             audience: audience,
             preferredSpellings: preferredSpellings,
-            additionalContext: additionalContext,
             languageCode: languageCode,
             model: nil
         )
@@ -86,13 +84,11 @@ struct PreparedTextRewritePayload: Sendable, Equatable {
     let audience: AppAudience
     let systemPrompt: String
     let text: String
-    let additionalContext: String?
     let languageCode: String?
 
     init(request: TextRewriteRequest) {
         let audience = request.audience ?? .human
         let text = request.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let additionalContext = Self.trimmed(request.additionalContext)
         let languageCode = Self.trimmed(request.languageCode)
 
         var systemPrompt = LocalRewritePromptBuilder.systemPrompt(
@@ -107,7 +103,7 @@ struct PreparedTextRewritePayload: Sendable, Equatable {
         self.audience = audience
         self.systemPrompt = systemPrompt
         self.text = text
-        self.additionalContext = additionalContext
+        //        self.additionalContext = additionalContext
         self.languageCode = languageCode
     }
 
@@ -117,15 +113,6 @@ struct PreparedTextRewritePayload: Sendable, Equatable {
             \(TextRewritePromptConfiguration.cleanupInstruction)
 
             """
-
-        if let additionalContext {
-            prompt = """
-                Context:
-                \(additionalContext)
-
-                \(prompt)
-                """
-        }
 
         return prompt + "Text:\n"
     }
