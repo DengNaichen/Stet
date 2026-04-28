@@ -10,30 +10,34 @@ enum TranscriptionLanguageRouting {
     ]
 
     static func resolveEngine(primary: String, secondary: String?) -> TranscriptionEngine {
-        let isChinese: (String) -> Bool = { code in
-            code.hasPrefix("zh") || code.hasPrefix("yue")
+        let asianLanguages: Set<String> = ["zh", "yue", "ja", "ko"]
+
+        let isAsian: (String) -> Bool = { code in
+            asianLanguages.contains(where: { code.hasPrefix($0) })
         }
 
-        // Only use SenseVoice for pure Chinese/Cantonese (no secondary language).
-        // SenseVoice is great for single-language punctuation but less ideal for code-switching.
-        if isChinese(primary) && secondary == nil {
+        let isEuropean: (String) -> Bool = { code in
+            let base = String(code.prefix(2))
+            return parakeetSupportedLanguages.contains(base) || parakeetSupportedLanguages.contains(code)
+        }
+
+        // 1. Check if ALL selected languages are Asian (SenseVoice Zone: ZH, JA, KO)
+        let primaryIsAsian = isAsian(primary)
+        let secondaryIsAsian = secondary == nil || secondary == primary || isAsian(secondary!)
+
+        if primaryIsAsian && secondaryIsAsian {
             return .sherpaOnnxSenseVoice
         }
 
-        let isSupported: (String) -> Bool = { code in
-            if parakeetSupportedLanguages.contains(code) { return true }
-            let base = String(code.prefix(2))
-            return parakeetSupportedLanguages.contains(base)
-        }
+        // 2. Check if ALL selected languages are European (Parakeet Zone)
+        let primaryIsEU = isEuropean(primary)
+        let secondaryIsEU = secondary == nil || secondary == primary || isEuropean(secondary!)
 
-        let primarySupported = isSupported(primary)
-        let secondarySupported = secondary.map { isSupported($0) } ?? true
-
-        if primarySupported && secondarySupported {
+        if primaryIsEU && secondaryIsEU {
             return .fluidAudio
-        } else {
-            // Always use nil hint so Whisper auto-detects the language every time.
-            return .localWhisper(languageHint: nil)
         }
+
+        // 3. Everything else (Mixed cross-zone, e.g., Chinese+English)
+        return .localWhisper(languageHint: nil)
     }
 }

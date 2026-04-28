@@ -217,14 +217,22 @@ resign_component() {
     "$target_path"
 }
 
-SPARKLE_FRAMEWORK="$APP_PATH/Contents/Frameworks/Sparkle.framework"
-SPARKLE_ROOT="$SPARKLE_FRAMEWORK/Versions/Current"
-resign_component "$SPARKLE_ROOT/Autoupdate"
-resign_component "$SPARKLE_ROOT/XPCServices/Downloader.xpc"
-resign_component "$SPARKLE_ROOT/XPCServices/Installer.xpc"
-resign_component "$SPARKLE_ROOT/Updater.app"
-resign_component "$SPARKLE_FRAMEWORK"
-resign_component "$APP_PATH/Contents/Frameworks/StetVisuals.framework"
+# Re-sign all frameworks in the bundle
+find "$APP_PATH/Contents/Frameworks" -maxdepth 1 -type d -name "*.framework" | while read -r framework_path; do
+  local fw_name=$(basename "$framework_path")
+  
+  # Sparkle needs special handling for its nested components
+  if [[ "$fw_name" == "Sparkle.framework" ]]; then
+     local sparkle_root="$framework_path/Versions/Current"
+     resign_component "$sparkle_root/Autoupdate"
+     resign_component "$sparkle_root/XPCServices/Downloader.xpc"
+     resign_component "$sparkle_root/XPCServices/Installer.xpc"
+     resign_component "$sparkle_root/Updater.app"
+  fi
+  
+  echo "Re-signing framework: $fw_name"
+  resign_component "$framework_path"
+done
 
 codesign \
   --force \
