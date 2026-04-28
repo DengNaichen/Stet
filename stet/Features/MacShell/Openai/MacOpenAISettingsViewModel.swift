@@ -26,6 +26,10 @@
         }
         @Published var openAIAPIKey = ""
         @Published var groqAPIKey = ""
+        @Published var deepSeekAPIKey = ""
+        @Published var qwenAPIKey = ""
+        @Published var glmAPIKey = ""
+        @Published var doubaoAPIKey = ""
         @Published var selectedModel: RewriteModel = .gpt54Nano
 
         private let settingsStore: DictationSettingsStore
@@ -47,6 +51,10 @@
             rewriteProvider = settingsStore.loadRewriteProvider()
             openAIAPIKey = settingsStore.loadAPIKey(for: .openAI)
             groqAPIKey = settingsStore.loadAPIKey(for: .groq)
+            deepSeekAPIKey = settingsStore.loadAPIKey(for: .deepSeek)
+            qwenAPIKey = settingsStore.loadAPIKey(for: .qwen)
+            glmAPIKey = settingsStore.loadAPIKey(for: .glm)
+            doubaoAPIKey = settingsStore.loadAPIKey(for: .doubao)
             selectedModel = settingsStore.loadSelectedModel(for: rewriteProvider) ?? .default(for: rewriteProvider)
             hasLoadedState = true
         }
@@ -72,6 +80,14 @@
                 return openAIAPIKey
             case .groq:
                 return groqAPIKey
+            case .deepSeek:
+                return deepSeekAPIKey
+            case .qwen:
+                return qwenAPIKey
+            case .glm:
+                return glmAPIKey
+            case .doubao:
+                return doubaoAPIKey
             case .appleIntelligence:
                 return ""
             }
@@ -83,6 +99,14 @@
                 openAIAPIKey = apiKey
             case .groq:
                 groqAPIKey = apiKey
+            case .deepSeek:
+                deepSeekAPIKey = apiKey
+            case .qwen:
+                qwenAPIKey = apiKey
+            case .glm:
+                glmAPIKey = apiKey
+            case .doubao:
+                doubaoAPIKey = apiKey
             case .appleIntelligence:
                 break
             }
@@ -133,6 +157,7 @@
                 }
             }
             set {
+                guard !newValue.isDisabled else { return }
                 switch newValue {
                 case .openAI:
                     rewriteProvider = .openAI

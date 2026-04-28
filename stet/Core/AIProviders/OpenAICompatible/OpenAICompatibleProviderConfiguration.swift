@@ -152,6 +152,14 @@ enum DictationProviderDefaults {
             return "openai/gpt-oss-20b"
         case .appleIntelligence:
             return "apple-intelligence-refine"
+        case .deepSeek:
+            return "deepseek-chat"
+        case .qwen:
+            return "qwen-max"
+        case .glm:
+            return "glm-4"
+        case .doubao:
+            return "doubao-pro-32k"
         }
     }
 }

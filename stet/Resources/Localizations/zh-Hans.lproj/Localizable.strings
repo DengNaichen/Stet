@@ -84,6 +84,10 @@
 "Refine" = "优化";
 "GPT-5.4 Nano (Default)" = "GPT-5.4 Nano (默认)";
 "GPT-5.4 Mini" = "GPT-5.4 Mini";
+"DeepSeek" = "DeepSeek";
+"Qwen" = "通义千问";
+"GLM" = "智谱清言";
+"Doubao" = "豆包";
 "GPT-OSS 20B (Default)" = "GPT-OSS 20B (默认)";
 "Apple Intelligence" = "Apple Intelligence";
 "Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac." = "使用设备端 Apple Intelligence 模型本地优化转录。可用性取决于此 Mac 上的 Apple Intelligence 是否已启用并就绪。";
@@ -97,7 +101,8 @@
 "Downloaded" = "已下载";
 "Not downloaded" = "未下载";
 "Download" = "下载";
-"On-device Transcription" = "本地转录";
+"On-device Transcription" = "设备端转录";
+"(Unavailable)" = "(不可用)";
 
 /* Dictionary settings */
 "Enable Personal Dictionary" = "启用个人词典";

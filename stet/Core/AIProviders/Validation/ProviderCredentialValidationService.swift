@@ -32,12 +32,12 @@ struct ProviderCredentialValidationService: ProviderCredentialValidating, Sendab
                 apiKey: apiKey
             )
             try await validateOpenAICredential(endpoint: endpoint)
-        case .groq:
+        case .groq, .deepSeek, .qwen, .glm, .doubao:
             let endpoint = OpenAICompatibleProviderEndpointConfiguration(
                 provider: provider,
                 apiKey: apiKey
             )
-            try await validateGroqCredential(endpoint: endpoint)
+            try await performValidationRequest(try makeBaseModelsRequest(endpoint: endpoint), provider: provider)
         case .appleIntelligence:
             return
         }

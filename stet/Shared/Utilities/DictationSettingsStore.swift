@@ -63,6 +63,14 @@ struct DictationSettingsStore: Sendable {
                 return "openai.api_key"
             case .groq:
                 return "groq.api_key"
+            case .deepSeek:
+                return "deepseek.api_key"
+            case .qwen:
+                return "qwen.api_key"
+            case .glm:
+                return "glm.api_key"
+            case .doubao:
+                return "doubao.api_key"
             case .appleIntelligence:
                 return "apple_intelligence.local"
             }
