@@ -73,11 +73,10 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
 
             CRITICAL RULES:
             1. VERBAL SCAFFOLDING PURGE: Every single "那个", "这个", "就是", "然后", "嗯", "呃", "啊" and hesitation markers (like repetitions or ellipses "……") MUST be deleted. Do not be "faithful" to these stumbling marks.
-            2. SELF-CORRECTION RESOLUTION: When a speaker corrects themselves (e.g., "三点，不对，四点"), you MUST only output the final intended meaning ("四点").
+            2. SELF-CORRECTION RESOLUTION: When a speaker corrects themselves (e.g., "三点，不对，四点"), you only output the final intended meaning ("四点").
             3. WRITTEN STYLE: The output must sound like it was written by a professional editor.
-            4. CONTEXTUAL ASR REPAIR: Correct speech-to-text word, character, homophone, or near-sound errors when the surrounding context indicates the intended wording. This includes Chinese homophones and technical terms.
-            5. LANGUAGE LOCK: Keep each span in the same language the speaker used. Do not translate, do not normalize mixed-language text into one language, and do not introduce English terms into a Chinese span or Chinese terms into an English span. Only restore a cross-language technical term when the original recognition clearly intended that exact term.
-            6. PROPER PUNCTUATION: The output must be properly punctuated. Add periods, commas, and question marks as appropriate to ensure the text reads like a professional document.
+            4. LANGUAGE LOCK: Keep each span in the same language the speaker used. Do not translate, do not normalize mixed-language text into one language, and do not introduce English terms into a Chinese span or Chinese terms into an English span. Only restore a cross-language technical term when the original recognition clearly intended that exact term.
+            5. PROPER PUNCTUATION: The output must be properly punctuated. Add periods, commas, and question marks as appropriate to ensure the text reads like a professional document.
             """
 
         if let languageCode = request.languageCode {
@@ -122,19 +121,7 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
 
             ### Example 6 (Clean Spoken Structure):
             Input: "嗯我觉得这个方案可以先这样定下来如果后面数据不对我们再调整"
-            Output: { "reason": "Removed the opening hesitation and split the run-on sentence into clear written structure.", "text": "这个方案可以先这样定下来。如果后面数据不对，我们再调整。" }
-
-            ### Example 7 (Contextual ASR Repair, Everyday Context):
-            Input: "明天开会前你帮我把会议纪要整李一下。"
-            Output: { "reason": "Corrected an obvious near-sound ASR error from meeting context.", "text": "明天开会前你帮我把会议纪要整理一下。" }
-
-            ### Example 8 (Contextual ASR Repair, Meaning From Nearby Words):
-            Input: "这份合同的付宽日期写错了，需要重新确认。"
-            Output: { "reason": "Corrected an obvious homophone ASR error from contract and payment context.", "text": "这份合同的付款日期写错了，需要重新确认。" }
-
-            ### Example 9 (Contextual ASR Repair, Preserve Mixed Language):
-            Input: "这个 design 看起来有点不太一至，你把 spacing 调一下。"
-            Output: { "reason": "Corrected an obvious near-sound ASR error while preserving the English words the speaker used.", "text": "这个 design 看起来有点不太一致，你把 spacing 调一下。" }
+            Output: { "reason": "split the run-on sentence into clear written structure.", "text": "这个方案可以先这样定下来。如果后面数据不对，我们再调整。" }
 
             ### Task:
             Now, process the following input and provide the JSON output.
