@@ -216,12 +216,6 @@
         }
 
         func requestDictationCaptureStart(from source: PrimaryActionSource) {
-            #if APP_STORE
-                if TrialStore.shared.isExpired && !PurchaseStore.shared.isUnlocked {
-                    showPaywall?()
-                    return
-                }
-            #endif
 
             if requiresOnboarding && !onboardingStepState.allowsAudioCapture {
                 Task {

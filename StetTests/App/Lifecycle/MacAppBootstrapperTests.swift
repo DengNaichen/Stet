@@ -22,9 +22,7 @@
             #expect(!defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation))
             #expect(defaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.openAI.rawValue)
             #expect(defaults.string(forKey: MacPreferences.rewriteProvider) == DictationProvider.openAI.rawValue)
-            #expect(
-                defaults.string(forKey: MacPreferences.dictationLanguageMode)
-                    == DictationLanguageMode.automatic.rawValue)
+            #expect(defaults.string(forKey: MacPreferences.transcriptionPrimaryLanguage) == "en")
             #expect(!defaults.bool(forKey: MacPreferences.hotkeyDistinguishModifierSides))
             #expect(defaults.bool(forKey: MacPreferences.interactionSoundsEnabled))
             #expect(
@@ -64,9 +62,7 @@
             #expect(defaults.object(forKey: "mac.autoPasteOnCapture") as? Bool == true)
             #expect(defaults.object(forKey: "mac.revealPanelOnCapture") as? Bool == true)
             #expect(defaults.object(forKey: "mac.openAIBaseURL") as? String == "https://api.groq.com/openai/v1")
-            #expect(
-                defaults.string(forKey: MacPreferences.dictationLanguageMode)
-                    == DictationLanguageMode.automatic.rawValue)
+            #expect(defaults.string(forKey: MacPreferences.transcriptionPrimaryLanguage) == "en")
             #expect(defaults.object(forKey: MacPreferences.hotkeyDistinguishModifierSides) as? Bool == false)
             #expect(defaults.bool(forKey: MacPreferences.launchAtLogin))
         }

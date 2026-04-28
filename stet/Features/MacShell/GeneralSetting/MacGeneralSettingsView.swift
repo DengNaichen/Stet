@@ -11,9 +11,7 @@
             Form {
                 appBehaviorSection
                 dictationSection
-                #if !APP_STORE
-                    updatesSection
-                #endif
+                updatesSection
                 #if DEBUG
                     debugSection
                 #endif
@@ -50,28 +48,26 @@
             }
         }
 
-        #if !APP_STORE
-            private var updatesSection: some View {
-                Section {
-                    Toggle(
-                        "Check for updates automatically",
-                        isOn: Binding(
-                            get: { viewModel.updateSettings.automaticallyChecksForUpdates },
-                            set: { viewModel.setAutomaticallyChecksForUpdates($0) }
-                        )
+        private var updatesSection: some View {
+            Section {
+                Toggle(
+                    "Check for updates automatically",
+                    isOn: Binding(
+                        get: { viewModel.updateSettings.automaticallyChecksForUpdates },
+                        set: { viewModel.setAutomaticallyChecksForUpdates($0) }
                     )
-                    .disabled(!viewModel.updateSettings.isConfigured)
+                )
+                .disabled(!viewModel.updateSettings.isConfigured)
 
-                    Button("Check for Updates") {
-                        viewModel.checkForUpdates()
-                    }
-                    .disabled(
-                        viewModel.updateSettings.isCheckingForUpdates || !viewModel.updateSettings.canCheckForUpdates)
-                } header: {
-                    Text("Updates")
+                Button("Check for Updates") {
+                    viewModel.checkForUpdates()
                 }
+                .disabled(
+                    viewModel.updateSettings.isCheckingForUpdates || !viewModel.updateSettings.canCheckForUpdates)
+            } header: {
+                Text("Updates")
             }
-        #endif
+        }
 
         #if DEBUG
             private var debugSection: some View {

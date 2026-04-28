@@ -76,9 +76,7 @@ struct StetApp: App {
                     .keyboardShortcut("d", modifiers: [.command, .shift])
                 }
 
-                #if !APP_STORE
-                    MacUpdatesCommand(appUpdateManager: appUpdateManager)
-                #endif
+                MacUpdatesCommand(appUpdateManager: appUpdateManager)
 
                 MacPreferencesCommand(settingsShellViewModel: settingsShellViewModel)
             }
@@ -107,31 +105,29 @@ struct StetApp: App {
         }
     }
 
-    #if !APP_STORE
-        private struct MacUpdatesCommand: Commands {
-            @ObservedObject var appUpdateManager: AppUpdateManager
+    private struct MacUpdatesCommand: Commands {
+        @ObservedObject var appUpdateManager: AppUpdateManager
 
-            var body: some Commands {
-                CommandGroup(after: .appSettings) {
-                    Button(updateMenuTitle) {
-                        appUpdateManager.checkForUpdates()
-                    }
-                    .disabled(appUpdateManager.isChecking || !appUpdateManager.canCheckForUpdates)
+        var body: some Commands {
+            CommandGroup(after: .appSettings) {
+                Button(updateMenuTitle) {
+                    appUpdateManager.checkForUpdates()
                 }
-            }
-
-            private var updateMenuTitle: String {
-                switch appUpdateManager.state {
-                case .updateAvailable(_, let latestVersion):
-                    return "Update Available (\(latestVersion))"
-                case .checking:
-                    return "Checking for Updates…"
-                case .unavailable:
-                    return "Updates Unavailable"
-                default:
-                    return "Check for Updates…"
-                }
+                .disabled(appUpdateManager.isChecking || !appUpdateManager.canCheckForUpdates)
             }
         }
-    #endif
+
+        private var updateMenuTitle: String {
+            switch appUpdateManager.state {
+            case .updateAvailable(_, let latestVersion):
+                return "Update Available (\(latestVersion))"
+            case .checking:
+                return "Checking for Updates…"
+            case .unavailable:
+                return "Updates Unavailable"
+            default:
+                return "Check for Updates…"
+            }
+        }
+    }
 #endif

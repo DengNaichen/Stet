@@ -9,7 +9,6 @@
         typealias PrimaryActionSource = MacDictationWorkflowController.PrimaryActionSource
 
         var onChange: (() -> Void)?
-        var showPaywall: (() -> Void)?
 
         let workflowController: MacDictationWorkflowController
         let shellPresentationController: any MacShellPresenting

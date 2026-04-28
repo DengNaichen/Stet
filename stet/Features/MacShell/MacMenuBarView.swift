@@ -21,12 +21,10 @@
                     AudioInputDeviceMenuSection()
                 }
 
-                #if !APP_STORE
-                    Button(appUpdateMenuTitle) {
-                        appUpdateManager.checkForUpdates()
-                    }
-                    .disabled(appUpdateManager.isChecking || !appUpdateManager.canCheckForUpdates)
-                #endif
+                Button(appUpdateMenuTitle) {
+                    appUpdateManager.checkForUpdates()
+                }
+                .disabled(appUpdateManager.isChecking || !appUpdateManager.canCheckForUpdates)
 
                 Button("Quit") {
                     NSApplication.shared.terminate(nil)
@@ -43,19 +41,17 @@
             }
         }
 
-        #if !APP_STORE
-            private var appUpdateMenuTitle: LocalizedStringKey {
-                switch appUpdateManager.state {
-                case .updateAvailable(_, let latestVersion):
-                    return "Update Available (\(latestVersion))"
-                case .checking:
-                    return "Checking for Updates…"
-                case .unavailable:
-                    return "Updates Unavailable"
-                default:
-                    return "Check for Updates…"
-                }
+        private var appUpdateMenuTitle: LocalizedStringKey {
+            switch appUpdateManager.state {
+            case .updateAvailable(_, let latestVersion):
+                return "Update Available (\(latestVersion))"
+            case .checking:
+                return "Checking for Updates…"
+            case .unavailable:
+                return "Updates Unavailable"
+            default:
+                return "Check for Updates…"
             }
-        #endif
+        }
     }
 #endif

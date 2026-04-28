@@ -18,7 +18,8 @@ private func makeSettingsStore(
     apiKey: String? = "sk-test",
     openAIAPIKey: String? = nil,
     groqAPIKey: String? = nil,
-    dictationLanguageMode: DictationLanguageMode = .automatic,
+    transcriptionPrimaryLanguage: String = "en",
+    transcriptionSecondaryLanguage: String? = nil,
     preferredSpellings: [String] = []
 ) throws -> (DictationSettingsStore, TestSecretStore, UserDefaults) {
     let defaults = TestSupport.makeUserDefaults()
@@ -28,7 +29,10 @@ private func makeSettingsStore(
     defaults.set(selectedTranscriptionProvider.rawValue, forKey: MacPreferences.transcriptionProvider)
     defaults.set(selectedRewriteProvider.rawValue, forKey: MacPreferences.rewriteProvider)
     defaults.set(rewriteEnabled, forKey: MacPreferences.rewriteEnabled)
-    defaults.set(dictationLanguageMode.rawValue, forKey: MacPreferences.dictationLanguageMode)
+    defaults.set(transcriptionPrimaryLanguage, forKey: MacPreferences.transcriptionPrimaryLanguage)
+    if let transcriptionSecondaryLanguage {
+        defaults.set(transcriptionSecondaryLanguage, forKey: MacPreferences.transcriptionSecondaryLanguage)
+    }
 
     if let openAIAPIKey {
         try secretStore.saveString(openAIAPIKey, forAccount: "openai.api_key")
@@ -781,7 +785,7 @@ struct ConfigurableSpeechServiceTests {
         #expect(await rewrite.recordedRequests().count == 1)
     }
 
-    @Test func primaryChineseModePassesLanguageBiasToRewrite() async throws {
+    @Test func primaryChineseLanguagePassesLanguageBiasToRewrite() async throws {
         let audioFileURL = makeAudioFileURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
 
@@ -789,7 +793,7 @@ struct ConfigurableSpeechServiceTests {
         let rewrite = RecordingRewriteService()
         let (store, _, _) = try makeSettingsStore(
             rewriteEnabled: true,
-            dictationLanguageMode: .primarilyChinese
+            transcriptionPrimaryLanguage: "zh"
         )
         let capture = TestAudioCaptureService(audioFileURL: audioFileURL)
 

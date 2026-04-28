@@ -132,7 +132,10 @@
                     return
                 }
 
-                AppLogger.info("Pre-warming audio engine on activation", category: .dictation)
+                // Add a one-second delay to avoid blocking UI during activation
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+
+                AppLogger.info("Pre-warming audio engine on activation after delay", category: .dictation)
                 await workflowController.prewarm()
             }
         }

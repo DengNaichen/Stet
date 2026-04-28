@@ -16,10 +16,6 @@
             defaults.set(DictationProvider.groq.rawValue, forKey: MacPreferences.transcriptionProvider)
             defaults.set(DictationProvider.openAI.rawValue, forKey: MacPreferences.rewriteProvider)
             defaults.set(true, forKey: MacPreferences.rewriteEnabled)
-            defaults.set(
-                DictationLanguageMode.mixedChineseEnglish.rawValue,
-                forKey: MacPreferences.dictationLanguageMode
-            )
 
             let viewModel = MacOpenAISettingsViewModel(
                 settingsStore: DictationSettingsStore(defaults: defaults, secretStore: secretStore)
@@ -28,7 +24,6 @@
             viewModel.load()
 
             #expect(viewModel.rewriteProvider == .openAI)
-            #expect(viewModel.dictationLanguageMode == .mixedChineseEnglish)
             #expect(viewModel.groqAPIKey == "gsk-live")
             #expect(viewModel.openAIAPIKey == "sk-openai")
         }
@@ -96,37 +91,6 @@
             #expect(viewModel.unifiedProvider == .appleIntelligence)
             #expect(viewModel.visibleCredentialProviders.isEmpty)
             #expect(viewModel.missingCredentialMessage == nil)
-        }
-
-        @Test func localWhisperStatusShowsExpectedModelPathWhenRuntimeAvailableButModelMissing() {
-            let defaults = TestSupport.makeUserDefaults()
-            let modelsDirectory = TestSupport.temporaryDirectoryURL("local-whisper-settings-path")
-            let expectedModelPath = modelsDirectory.appendingPathComponent("ggml-large-v3-turbo-q5_0.bin").path
-
-            let viewModel = MacOpenAISettingsViewModel(
-                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
-            )
-
-            viewModel.load()
-
-            #expect(viewModel.connectionNeedsAttention)
-            #expect(
-                viewModel.localWhisperStatusMessage
-                    == "Place ggml-large-v3-turbo-q5_0.bin at \(expectedModelPath).")
-        }
-
-        @Test func localWhisperStatusShowsRuntimeUnavailableWhenEngineMissing() {
-            let defaults = TestSupport.makeUserDefaults()
-            let modelsDirectory = TestSupport.temporaryDirectoryURL("local-whisper-settings-runtime")
-
-            let viewModel = MacOpenAISettingsViewModel(
-                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
-            )
-
-            viewModel.load()
-
-            #expect(viewModel.localWhisperNeedsAttention)
-            #expect(viewModel.localWhisperStatusMessage.contains("Local Whisper runtime is not linked") == true)
         }
 
         @Test func loadRespectsStoredRewriteDisabledValue() {

@@ -18,7 +18,6 @@ private func makeSnapshot(
             apiKey: "sk-test",
         ),
     rewriteEnabled: Bool = false,
-    dictationLanguageMode: DictationLanguageMode = .automatic,
     personalDictionary: [String] = [],
     transcriptionPrimaryLanguage: String = "en",
     transcriptionSecondaryLanguage: String? = nil,
@@ -28,7 +27,7 @@ private func makeSnapshot(
         transcriptionProvider: transcriptionProvider,
         rewriteProvider: rewriteProvider,
         isRewriteEnabled: rewriteEnabled,
-        dictationLanguageMode: dictationLanguageMode,
+        selectedModel: nil,
         shouldPauseMediaDuringDictation: false,
         rewriteProviderConfiguration: rewriteProviderConfiguration,
         personalDictionary: personalDictionary,
@@ -208,8 +207,7 @@ struct LogicPrimitiveTests {
                 provider: .openAI,
                 apiKey: "sk-test",
             ),
-            rewriteEnabled: true,
-            dictationLanguageMode: .mixedChineseEnglish
+            rewriteEnabled: true
         )
         let audioFileURL = try makeTemporaryWavURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
@@ -431,7 +429,6 @@ struct EngineSelectionRegressionTests {
             makeRewriteService: { _, _ in RecordingRewriteService() }
         )
         let snapshot = makeSnapshot(
-            dictationLanguageMode: .automatic,
             transcriptionPrimaryLanguage: "en",
             transcriptionSecondaryLanguage: nil,
             transcriptionEngine: .localWhisper
@@ -439,7 +436,7 @@ struct EngineSelectionRegressionTests {
 
         let pipeline = try await factory.makePipeline(from: snapshot)
 
-        // .automatic → transcriptionLanguageCode is nil
+        // No hint → transcriptionLanguageCode is nil
         #expect(pipeline.transcriptionLanguageCode == nil)
     }
 }

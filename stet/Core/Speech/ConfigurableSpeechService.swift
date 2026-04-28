@@ -361,6 +361,10 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     private func startTranscriptionPrewarm(using pipeline: DictationPipeline) {
         transcriptionPrewarmTask?.cancel()
         transcriptionPrewarmTask = Task(priority: .userInitiated) {
+            // Delay pre-warm by 1s to allow UI animations to settle after button press
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+
             let prewarmStartedAt = ProcessInfo.processInfo.systemUptime
             do {
                 try await pipeline.transcriptionService.prewarm()
@@ -388,6 +392,10 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
         let rewriteAudience = pipeline.usesAudienceAwareLocalPrompts ? audienceProvider() : nil
         rewritePrewarmTask = Task(priority: .utility) {
+            // Delay pre-warm by 1s to allow UI animations to settle after button press
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+
             await rewriteService.prewarm(
                 .cleanup(
                     "",
