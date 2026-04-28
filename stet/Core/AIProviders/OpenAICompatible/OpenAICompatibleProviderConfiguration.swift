@@ -76,6 +76,8 @@ struct OpenAICompatibleProviderEndpointConfiguration: Sendable, Equatable {
         switch provider {
         case .openAI:
             return URL(string: "https://api.openai.com/v1")!
+        case .google, .anthropic, .appleIntelligence:
+            preconditionFailure("\(provider) is not an OpenAI-compatible endpoint.")
         case .groq:
             return URL(string: "https://api.groq.com/openai/v1")!
         case .deepSeek:
@@ -86,8 +88,6 @@ struct OpenAICompatibleProviderEndpointConfiguration: Sendable, Equatable {
             return URL(string: "https://open.bigmodel.cn/api/paas/v4/")!
         case .doubao:
             return URL(string: "https://ark.cn-beijing.volces.com/api/v3")!
-        case .appleIntelligence:
-            preconditionFailure("Apple Intelligence is not an OpenAI-compatible endpoint.")
         }
     }
 
@@ -126,6 +126,8 @@ struct OpenAICompatibleProviderEndpointConfiguration: Sendable, Equatable {
 enum RewriteExecutionBackend: Sendable, Equatable {
     case remote(OpenAICompatibleProviderEndpointConfiguration)
     case appleIntelligence
+    case google(apiKey: String)
+    case anthropic(apiKey: String)
 }
 
 struct RewriteProviderConfiguration: Sendable, Equatable {
@@ -137,7 +139,7 @@ struct RewriteProviderConfiguration: Sendable, Equatable {
         switch backend {
         case .remote(let endpoint):
             return endpoint.supportsResponsesStore
-        case .appleIntelligence:
+        case .google, .anthropic, .appleIntelligence:
             return false
         }
     }
@@ -148,10 +150,14 @@ enum DictationProviderDefaults {
         switch provider {
         case .openAI:
             return "gpt-5.4-nano-2026-03-17"
-        case .groq:
-            return "openai/gpt-oss-20b"
+        case .google:
+            return "gemini-3.1-flash-lite-preview"
+        case .anthropic:
+            return "claude-haiku-4-6"
         case .appleIntelligence:
             return "apple-intelligence-refine"
+        case .groq:
+            return "openai/gpt-oss-20b"
         case .deepSeek:
             return "deepseek-chat"
         case .qwen:
@@ -186,6 +192,18 @@ enum DictationProviderConfigurationResolver {
                         projectID: projectID
                     )
                 )
+            )
+        case .google:
+            return RewriteProviderConfiguration(
+                provider: provider,
+                model: model,
+                backend: .google(apiKey: apiKey)
+            )
+        case .anthropic:
+            return RewriteProviderConfiguration(
+                provider: provider,
+                model: model,
+                backend: .anthropic(apiKey: apiKey)
             )
         case .appleIntelligence:
             return RewriteProviderConfiguration(

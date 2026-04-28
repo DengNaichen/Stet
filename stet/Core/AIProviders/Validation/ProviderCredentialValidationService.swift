@@ -38,6 +38,10 @@ struct ProviderCredentialValidationService: ProviderCredentialValidating, Sendab
                 apiKey: apiKey
             )
             try await performValidationRequest(try makeBaseModelsRequest(endpoint: endpoint), provider: provider)
+        case .google:
+            try await performValidationRequest(try makeGoogleModelsRequest(apiKey: apiKey), provider: provider)
+        case .anthropic:
+            try await performValidationRequest(try makeAnthropicModelsRequest(apiKey: apiKey), provider: provider)
         case .appleIntelligence:
             return
         }
@@ -112,6 +116,32 @@ struct ProviderCredentialValidationService: ProviderCredentialValidating, Sendab
         request.timeoutInterval = timeoutInterval
         request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        return request
+    }
+
+    private func makeGoogleModelsRequest(apiKey: String) throws -> URLRequest {
+        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty else {
+            throw OpenAIError.missingAPIKey(provider: .google)
+        }
+        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models?key=\(trimmedKey)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = timeoutInterval
+        return request
+    }
+
+    private func makeAnthropicModelsRequest(apiKey: String) throws -> URLRequest {
+        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty else {
+            throw OpenAIError.missingAPIKey(provider: .anthropic)
+        }
+        let url = URL(string: "https://api.anthropic.com/v1/models")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = timeoutInterval
+        request.setValue(trimmedKey, forHTTPHeaderField: "x-api-key")
+        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         return request
     }
 

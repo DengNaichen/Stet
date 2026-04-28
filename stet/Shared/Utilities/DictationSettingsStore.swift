@@ -71,6 +71,10 @@ struct DictationSettingsStore: Sendable {
                 return "glm.api_key"
             case .doubao:
                 return "doubao.api_key"
+            case .google:
+                return "google.api_key"
+            case .anthropic:
+                return "anthropic.api_key"
             case .appleIntelligence:
                 return "apple_intelligence.local"
             }

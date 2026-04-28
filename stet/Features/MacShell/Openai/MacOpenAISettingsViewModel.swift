@@ -25,6 +25,8 @@
             }
         }
         @Published var openAIAPIKey = ""
+        @Published var googleAPIKey = ""
+        @Published var anthropicAPIKey = ""
         @Published var groqAPIKey = ""
         @Published var deepSeekAPIKey = ""
         @Published var qwenAPIKey = ""
@@ -50,6 +52,8 @@
             isRewriteEnabled = settingsStore.loadRewriteEnabled()
             rewriteProvider = settingsStore.loadRewriteProvider()
             openAIAPIKey = settingsStore.loadAPIKey(for: .openAI)
+            googleAPIKey = settingsStore.loadAPIKey(for: .google)
+            anthropicAPIKey = settingsStore.loadAPIKey(for: .anthropic)
             groqAPIKey = settingsStore.loadAPIKey(for: .groq)
             deepSeekAPIKey = settingsStore.loadAPIKey(for: .deepSeek)
             qwenAPIKey = settingsStore.loadAPIKey(for: .qwen)
@@ -78,6 +82,10 @@
             switch provider {
             case .openAI:
                 return openAIAPIKey
+            case .google:
+                return googleAPIKey
+            case .anthropic:
+                return anthropicAPIKey
             case .groq:
                 return groqAPIKey
             case .deepSeek:
@@ -97,6 +105,10 @@
             switch provider {
             case .openAI:
                 openAIAPIKey = apiKey
+            case .google:
+                googleAPIKey = apiKey
+            case .anthropic:
+                anthropicAPIKey = apiKey
             case .groq:
                 groqAPIKey = apiKey
             case .deepSeek:
@@ -114,8 +126,10 @@
 
         enum UnifiedAIProvider: String, CaseIterable, Identifiable {
             case openAI
-            case groq
+            case google
+            case anthropic
             case appleIntelligence
+            case groq
             case deepSeek
             case qwen
             case glm
@@ -125,8 +139,10 @@
             var displayName: String {
                 switch self {
                 case .openAI: return "OpenAI"
-                case .groq: return "Groq"
+                case .google: return "Google"
+                case .anthropic: return "Anthropic"
                 case .appleIntelligence: return "Apple Intelligence"
+                case .groq: return "Groq"
                 case .deepSeek: return "DeepSeek"
                 case .qwen: return "Qwen"
                 case .glm: return "GLM"
@@ -136,7 +152,7 @@
 
             var isDisabled: Bool {
                 switch self {
-                case .openAI, .groq, .appleIntelligence:
+                case .openAI, .google, .anthropic, .appleIntelligence, .groq:
                     return false
                 case .deepSeek, .qwen, .glm, .doubao:
                     return true
@@ -148,8 +164,10 @@
             get {
                 switch rewriteProvider {
                 case .openAI: return .openAI
-                case .groq: return .groq
+                case .google: return .google
+                case .anthropic: return .anthropic
                 case .appleIntelligence: return .appleIntelligence
+                case .groq: return .groq
                 case .deepSeek: return .deepSeek
                 case .qwen: return .qwen
                 case .glm: return .glm
@@ -161,10 +179,14 @@
                 switch newValue {
                 case .openAI:
                     rewriteProvider = .openAI
-                case .groq:
-                    rewriteProvider = .groq
+                case .google:
+                    rewriteProvider = .google
+                case .anthropic:
+                    rewriteProvider = .anthropic
                 case .appleIntelligence:
                     rewriteProvider = .appleIntelligence
+                case .groq:
+                    rewriteProvider = .groq
                 case .deepSeek:
                     rewriteProvider = .deepSeek
                 case .qwen:

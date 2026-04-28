@@ -88,6 +88,12 @@
 "Qwen" = "通义千问";
 "GLM" = "智谱清言";
 "Doubao" = "豆包";
+"Google" = "Google";
+"Anthropic" = "Anthropic";
+"Gemini 3.1 Flash Lite Preview" = "Gemini 3.1 Flash Lite Preview";
+"Gemini 2.5 Flash Lite" = "Gemini 2.5 Flash Lite";
+"Claude 4.6 Sonnet" = "Claude 4.6 Sonnet";
+"Claude 4.6 Haiku" = "Claude 4.6 Haiku";
 "GPT-OSS 20B (Default)" = "GPT-OSS 20B (默认)";
 "Apple Intelligence" = "Apple Intelligence";
 "Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac." = "使用设备端 Apple Intelligence 模型本地优化转录。可用性取决于此 Mac 上的 Apple Intelligence 是否已启用并就绪。";

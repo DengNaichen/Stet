@@ -2,8 +2,10 @@ import Foundation
 
 enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
     case openAI = "openai"
-    case groq = "groq"
+    case google = "google"
+    case anthropic = "anthropic"
     case appleIntelligence = "apple_intelligence"
+    case groq = "groq"
     case deepSeek = "deepseek"
     case qwen = "qwen"
     case glm = "glm"
@@ -15,10 +17,14 @@ enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .openAI:
             return NSLocalizedString("OpenAI", comment: "")
-        case .groq:
-            return NSLocalizedString("Groq", comment: "")
+        case .google:
+            return NSLocalizedString("Google", comment: "")
+        case .anthropic:
+            return NSLocalizedString("Anthropic", comment: "")
         case .appleIntelligence:
             return NSLocalizedString("Apple Intelligence", comment: "")
+        case .groq:
+            return NSLocalizedString("Groq", comment: "")
         case .deepSeek:
             return NSLocalizedString("DeepSeek", comment: "")
         case .qwen:
@@ -34,10 +40,14 @@ enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .openAI:
             return NSLocalizedString("Audio capture + OpenAI transcription", comment: "")
-        case .groq:
-            return NSLocalizedString("Audio capture + Groq transcription", comment: "")
+        case .google:
+            return NSLocalizedString("Audio capture + Google Gemini refine", comment: "")
+        case .anthropic:
+            return NSLocalizedString("Audio capture + Anthropic Claude refine", comment: "")
         case .appleIntelligence:
             return NSLocalizedString("Audio capture + Apple Intelligence refine", comment: "")
+        case .groq:
+            return NSLocalizedString("Audio capture + Groq transcription", comment: "")
         case .deepSeek:
             return NSLocalizedString("Audio capture + DeepSeek transcription", comment: "")
         case .qwen:
@@ -55,7 +65,7 @@ enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
 
     nonisolated var requiresAPIKey: Bool {
         switch self {
-        case .openAI, .groq, .deepSeek, .qwen, .glm, .doubao:
+        case .openAI, .groq, .deepSeek, .qwen, .glm, .doubao, .google, .anthropic:
             return true
         case .appleIntelligence:
             return false

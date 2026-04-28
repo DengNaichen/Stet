@@ -22,6 +22,14 @@ enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
     case glm4Flash = "glm-4-flash"
     case doubao = "doubao-pro-32k"
 
+    // Google Models
+    case gemini31FlashLitePreview = "gemini-3.1-flash-lite-preview"
+    case gemini25FlashLite = "gemini-2.5-flash-lite"
+
+    // Anthropic Models
+    case claude46Sonnet = "claude-sonnet-4-6"
+    case claude46Haiku = "claude-haiku-4-6"
+
     var id: String { rawValue }
 
     var displayName: String {
@@ -41,6 +49,10 @@ enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
         case .glm4Air: return NSLocalizedString("GLM-4 Air", comment: "")
         case .glm4Flash: return NSLocalizedString("GLM-4 Flash", comment: "")
         case .doubao: return NSLocalizedString("Doubao Pro 32K", comment: "")
+        case .gemini31FlashLitePreview: return NSLocalizedString("Gemini 3.1 Flash Lite Preview", comment: "")
+        case .gemini25FlashLite: return NSLocalizedString("Gemini 2.5 Flash Lite", comment: "")
+        case .claude46Sonnet: return NSLocalizedString("Claude 4.6 Sonnet", comment: "")
+        case .claude46Haiku: return NSLocalizedString("Claude 4.6 Haiku", comment: "")
         }
     }
 
@@ -59,6 +71,10 @@ enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
             return [.glm4, .glm4Air, .glm4Flash]
         case .doubao:
             return [.doubao]
+        case .google:
+            return [.gemini31FlashLitePreview, .gemini25FlashLite]
+        case .anthropic:
+            return [.claude46Sonnet, .claude46Haiku]
         case .appleIntelligence:
             return []
         }
@@ -72,7 +88,9 @@ enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
         case .qwen: return .qwenMax
         case .glm: return .glm4
         case .doubao: return .doubao
-        case .appleIntelligence: return .gpt54Nano  // Fallback
+        case .google: return .gemini31FlashLitePreview
+        case .anthropic: return .claude46Haiku
+        case .appleIntelligence: return .gpt54Nano
         }
     }
 }

@@ -32,10 +32,16 @@ struct DictationPipelineFactory: Sendable {
                 try Self.makeLiveLocalTranscriptionService()
             },
             makeRewriteService: { configuration, session in
-                if case .appleIntelligence = configuration.backend {
+                switch configuration.backend {
+                case .appleIntelligence:
                     return AppleIntelligenceRewriteService()
+                case .google(let apiKey):
+                    return GoogleRewriteService(apiKey: apiKey, model: configuration.model, session: session)
+                case .anthropic(let apiKey):
+                    return AnthropicRewriteService(apiKey: apiKey, model: configuration.model, session: session)
+                case .remote:
+                    return OpenAIRewriteService(configuration: configuration, session: session)
                 }
-                return OpenAIRewriteService(configuration: configuration, session: session)
             }
         )
     }
