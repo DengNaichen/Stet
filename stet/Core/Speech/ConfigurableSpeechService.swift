@@ -252,9 +252,9 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                     let request = TextRewriteRequest.cleanup(
                         intermediateTranscript,
                         audience: rewriteAudience,
-                        appName: currentApp?.localizedName,
                         preferredSpellings: pipeline.preferredSpellings,
-                        languageCode: transcriptionResult.languageCode ?? pipeline.transcriptionLanguageCode
+                        languageCode: transcriptionResult.languageCode ?? pipeline.transcriptionLanguageCode,
+                        appName: currentApp?.localizedName
                     )
                     let rewrittenTranscript = try await rewriteService.rewrite(request)
 
