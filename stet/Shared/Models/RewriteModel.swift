@@ -20,7 +20,7 @@ enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
     case glm4 = "glm-4"
     case glm4Air = "glm-4-air"
     case glm4Flash = "glm-4-flash"
-    case doubao = "doubao-pro-32k"
+    case doubao = "doubao-seed-1-6-251015"
 
     // Google Models
     case gemini31FlashLitePreview = "gemini-3.1-flash-lite-preview"
@@ -48,7 +48,7 @@ enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
         case .glm4: return NSLocalizedString("GLM-4", comment: "")
         case .glm4Air: return NSLocalizedString("GLM-4 Air", comment: "")
         case .glm4Flash: return NSLocalizedString("GLM-4 Flash", comment: "")
-        case .doubao: return NSLocalizedString("Doubao Pro 32K", comment: "")
+        case .doubao: return NSLocalizedString("Doubao Seed 1.6", comment: "")
         case .gemini31FlashLitePreview: return NSLocalizedString("Gemini 3.1 Flash Lite Preview", comment: "")
         case .gemini25FlashLite: return NSLocalizedString("Gemini 2.5 Flash Lite", comment: "")
         case .claude46Sonnet: return NSLocalizedString("Claude 4.6 Sonnet", comment: "")
@@ -85,7 +85,7 @@ enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
         case .openAI: return .gpt54Nano
         case .groq: return .gptOss20b
         case .deepSeek: return .deepseekChat
-        case .qwen: return .qwenMax
+        case .qwen: return .qwenPlus
         case .glm: return .glm4
         case .doubao: return .doubao
         case .google: return .gemini31FlashLitePreview

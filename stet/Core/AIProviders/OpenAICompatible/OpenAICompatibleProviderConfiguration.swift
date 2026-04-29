@@ -161,11 +161,11 @@ enum DictationProviderDefaults {
         case .deepSeek:
             return "deepseek-chat"
         case .qwen:
-            return "qwen-max"
+            return "qwen-plus"
         case .glm:
             return "glm-4"
         case .doubao:
-            return "doubao-pro-32k"
+            return "doubao-seed-1-6-251015"
         }
     }
 }

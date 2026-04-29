@@ -336,7 +336,11 @@ struct LogicPrimitiveTests {
         )
 
         #expect(openAIService is OpenAIRewriteService)
-        #expect(appleService is AppleIntelligenceRewriteService)
+        if #available(macOS 26.0, *) {
+            #expect(appleService is AppleIntelligenceRewriteService)
+        } else {
+            #expect(appleService is UnavailableRewriteService)
+        }
     }
 
     @Test func makeTranscriptionPromptIncludesPreferredSpellings() throws {

@@ -247,10 +247,12 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             let rewriteStartedAt = ProcessInfo.processInfo.systemUptime
             do {
                 if let rewriteService = pipeline.rewriteService {
-                    let rewriteAudience = pipeline.usesAudienceAwareLocalPrompts ? audienceProvider() : nil
+                    let currentApp = AppBranchMonitor.shared.currentApp
+                    let rewriteAudience = pipeline.usesAudienceAwareLocalPrompts ? (currentApp?.audience ?? .ai) : nil
                     let request = TextRewriteRequest.cleanup(
                         intermediateTranscript,
                         audience: rewriteAudience,
+                        appName: currentApp?.localizedName,
                         preferredSpellings: pipeline.preferredSpellings,
                         languageCode: transcriptionResult.languageCode ?? pipeline.transcriptionLanguageCode
                     )

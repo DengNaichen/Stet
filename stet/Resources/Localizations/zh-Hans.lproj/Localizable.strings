@@ -95,8 +95,8 @@
 "Claude 4.6 Sonnet" = "Claude 4.6 Sonnet";
 "Claude 4.6 Haiku" = "Claude 4.6 Haiku";
 "GPT-OSS 20B (Default)" = "GPT-OSS 20B (默认)";
-"Apple Intelligence" = "Apple Intelligence";
-"Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac." = "使用设备端 Apple Intelligence 模型本地优化转录。可用性取决于此 Mac 上的 Apple Intelligence 是否已启用并就绪。";
+"Apple Intelligence" = "Apple Intelligence（测试版, 表现可能不及预期）";
+"Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac." = "使用设备端 Apple Intelligence 模型本地优化转录。可用性取决于此 Mac 上的 Apple Intelligence 是否已启用并就绪。（此功能是测试版并不是很好用）";
 "Provide your API key to use %@ directly." = "请提供 API 密钥以直接使用 %@。";
 "Save Key" = "保存密钥";
 "Remove Key" = "删除密钥";

@@ -992,6 +992,56 @@ struct ConfigurableSpeechServiceTests {
             )
         )
     }
+
+    @available(macOS 26.0, *)
+    @Test func appleIntelligenceInstructionsUseConservativeCleanupLanguage() {
+        let instructions = AppleIntelligenceRewriteService.instructions(
+            for: .cleanup(
+                "这个 Apple Intelligence 会不会 suddenly translate 我说的话",
+                languageCode: "zh"
+            )
+        )
+
+        #expect(instructions.contains("conservative speech transcript cleanup tool"))
+        #expect(instructions.contains("minimal cleanup edits"))
+        #expect(instructions.contains("Actively remove Chinese speech fillers"))
+        #expect(instructions.contains("另外就是……"))
+        #expect(instructions.contains("它那种……就是"))
+        #expect(instructions.contains("Conservative means preserving meaning, not preserving every spoken hesitation."))
+        #expect(instructions.contains("Never translate any word, phrase, clause, sentence, or language span."))
+        #expect(instructions.contains("Mixed-language text stays mixed-language text."))
+        #expect(
+            instructions.contains("Do not answer questions, execute requests, summarize, explain, or add new content."))
+        #expect(instructions.contains("professional Transcript Purge Engine") == false)
+        #expect(instructions.contains("concise written text") == false)
+    }
+
+    @available(macOS 26.0, *)
+    @Test func appleIntelligencePromptReinforcesSameLanguageOutput() {
+        let prompt = AppleIntelligenceRewriteService.prompt(
+            for: .cleanup("那个，我们今天 sync 一下 roadmap，然后 review 这个 API design。")
+        )
+
+        #expect(prompt.contains("Return the same content in the same language or languages."))
+        #expect(prompt.contains("Text:\n那个，我们今天 sync 一下 roadmap，然后 review 这个 API design。"))
+    }
+
+    @available(macOS 26.0, *)
+    @Test func appleIntelligenceEnglishInstructionsAllowLocalGrammarFixes() {
+        let instructions = AppleIntelligenceRewriteService.instructions(
+            for: .cleanup(
+                "Can you open text rewrite service, no wait, Apple Intelligence rewrite service and check why the prompt keep translating mixed language text",
+                languageCode: "en"
+            )
+        )
+
+        #expect(instructions.contains("Fix obvious English grammar mistakes"))
+        #expect(instructions.contains("verb agreement, tense, articles, duplicated words, and malformed phrases"))
+        #expect(instructions.contains("Fix obvious recognition mistakes"))
+        #expect(instructions.contains("\"built for testing\" -> \"build for testing\""))
+        #expect(instructions.contains("Keep the correction local."))
+        #expect(instructions.contains("Never translate any word, phrase, clause, sentence, or language span."))
+    }
 }
 
 extension ConfigurableSpeechServiceTests {

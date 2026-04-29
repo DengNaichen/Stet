@@ -213,4 +213,77 @@ struct OpenAITests {
 
         #expect(text == "recovered rewrite")
     }
+
+    @Test func openAICompatibleChineseProviderUsesChatCompletionsEndpoint() async throws {
+        let session = TestURLSessionFactory.makeSession { request in
+            #expect(request.url?.absoluteString == "https://api.deepseek.com/v1/chat/completions")
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer sk-test")
+
+            let body =
+                try JSONSerialization.jsonObject(with: TestSupport.requestBodyData(from: request)) as? [String: Any]
+            #expect(body?["model"] as? String == "deepseek-chat")
+            let messages = try #require(body?["messages"] as? [[String: Any]])
+            #expect(messages.count == 2)
+            #expect(messages.first?["role"] as? String == "system")
+            #expect(messages.last?["role"] as? String == "user")
+            #expect((messages.last?["content"] as? String)?.contains("Instruction:") == true)
+
+            let response = HTTPURLResponse(
+                url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (
+                response,
+                Data(
+                    """
+                    {
+                      "id": "chatcmpl-test",
+                      "object": "chat.completion",
+                      "choices": [
+                        {
+                          "index": 0,
+                          "message": {
+                            "role": "assistant",
+                            "content": "rewritten from chat completions"
+                          },
+                          "finish_reason": "stop"
+                        }
+                      ]
+                    }
+                    """.utf8
+                )
+            )
+        }
+        let service = OpenAIRewriteService(
+            configuration: makeRewriteConfiguration(
+                provider: .deepSeek,
+                baseURL: URL(string: "https://api.deepseek.com/v1")!
+            ),
+            session: session
+        )
+
+        let text = try await service.rewrite(.cleanup("hello"))
+
+        #expect(text == "rewritten from chat completions")
+    }
+
+    @Test func openAICompatibleChineseProviderMapsChatCompletionsErrors() async {
+        let session = TestURLSessionFactory.makeSession { request in
+            let response = HTTPURLResponse(
+                url: try #require(request.url), statusCode: 401, httpVersion: nil, headerFields: nil)!
+            return (
+                response,
+                Data(#"{"error":{"message":"invalid deepseek key"}}"#.utf8)
+            )
+        }
+        let service = OpenAIRewriteService(
+            configuration: makeRewriteConfiguration(
+                provider: .deepSeek,
+                baseURL: URL(string: "https://api.deepseek.com/v1")!
+            ),
+            session: session
+        )
+
+        await #expect(throws: OpenAIError.api(provider: .deepSeek, statusCode: 401, message: "invalid deepseek key")) {
+            try await service.rewrite(.cleanup("hello"))
+        }
+    }
 }

@@ -150,7 +150,7 @@
                 case .openAI: return "OpenAI"
                 case .google: return "Google"
                 case .anthropic: return "Anthropic"
-                case .appleIntelligence: return "Apple Intelligence"
+                case .appleIntelligence: return "Apple Intelligence (Beta)"
                 case .groq: return "Groq"
                 case .deepSeek: return "DeepSeek"
                 case .qwen: return "Qwen"
