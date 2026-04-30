@@ -53,7 +53,7 @@ struct ContentView: View {
         case .idle:
             return viewModel.partialStatus
         case .loading:
-            return "Loading model..."
+            return viewModel.isRecording ? "Loading model..." : "Decoding..."
         case .recording:
             return viewModel.partialStatus
         case .failed(let message):
