@@ -14,16 +14,16 @@ final class SenseVoiceViewModel: ObservableObject {
 
     @Published private(set) var state: State = .idle
     @Published private(set) var transcript = ""
-    @Published private(set) var partialStatus = "Put SenseVoice/model.int8.onnx and SenseVoice/tokens.txt in the app bundle."
+    @Published private(set) var partialStatus = "Put SenseVoice/model.int8.onnx, SenseVoice/tokens.txt, and Vad/silero_vad.onnx in the app bundle."
     @Published private(set) var metricsText = "RTF metrics will appear after decoding."
 
     private var recognizer: SherpaOnnxOfflineRecognizer?
+    private var vad: SherpaOnnxVoiceActivityDetectorWrapper?
     private var audioEngine: AVAudioEngine?
     private var converter: AVAudioConverter?
     private let outputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)
     private let decodeQueue = DispatchQueue(label: "SenseVoiceDecodeQueue")
     
-    // Batch processing buffer
     private var accumulatedSamples: [Float] = []
 
     var isRecording: Bool {
@@ -50,7 +50,7 @@ final class SenseVoiceViewModel: ObservableObject {
             try loadModelsIfNeeded()
             try configureAudioEngine()
             try audioEngine?.start()
-            partialStatus = "Recording... Tap Stop to decode the entire audio."
+            partialStatus = "Recording... Tap Stop to decode."
             state = .recording
         } catch {
             state = .failed(error.localizedDescription)
@@ -66,11 +66,10 @@ final class SenseVoiceViewModel: ObservableObject {
         converter = nil
         
         if state == .recording {
-            state = .loading // Transition to loading while decoding
-            partialStatus = "Decoding entire audio..."
+            state = .loading
+            partialStatus = "Decoding..."
             decodeBatch()
         } else if case .failed = state {
-            // keep failed state
         } else {
             state = .idle
         }
@@ -87,31 +86,22 @@ final class SenseVoiceViewModel: ObservableObject {
         decodeQueue.async { [weak self] in
             let audioSeconds = Double(samples.count) / 16_000.0
             let decodeStart = CFAbsoluteTimeGetCurrent()
-            
-            // Decode the entire buffer
             let result = recognizer.decode(samples: samples, sampleRate: 16_000)
-            
             let decodeSeconds = CFAbsoluteTimeGetCurrent() - decodeStart
             let rtf = audioSeconds > 0 ? decodeSeconds / audioSeconds : 0
-            let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            let language = result.lang
-            
-            print(String(format: "[SenseVoiceMetrics] Batch: audio_seconds=%.3f decode_seconds=%.3f rtf=%.3f text_chars=%d", audioSeconds, decodeSeconds, rtf, text.count))
             
             Task { @MainActor in
                 guard let self else { return }
+                let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                let language = result.lang
                 if text.isEmpty {
-                    self.partialStatus = "Decoded result is empty."
+                    self.partialStatus = "Empty result."
                 } else {
                     let prefix = language.isEmpty ? "" : "[\(language)] "
                     self.transcript = "\(prefix)\(text)"
-                    self.partialStatus = "Decoding finished."
+                    self.partialStatus = "Finished."
                 }
-                
-                self.metricsText = String(
-                    format: "Batch: audio %.2fs, decode %.2fs, RTF %.2f",
-                    audioSeconds, decodeSeconds, rtf
-                )
+                self.metricsText = String(format: "Batch Result: audio %.2fs, decode %.2fs, RTF %.2f", audioSeconds, decodeSeconds, rtf)
                 self.state = .idle
             }
         }
@@ -132,29 +122,24 @@ final class SenseVoiceViewModel: ObservableObject {
     }
 
     private func loadModelsIfNeeded() throws {
-        guard recognizer == nil else { return }
-        let loadStart = CFAbsoluteTimeGetCurrent()
+        guard recognizer == nil || vad == nil else { return }
         let resources = try SenseVoiceResources.bundled()
-        let senseVoiceConfig = sherpaOnnxOfflineSenseVoiceModelConfig(
-            model: resources.modelPath,
-            language: "auto",
-            useInverseTextNormalization: true
-        )
+        let senseVoiceConfig = sherpaOnnxOfflineSenseVoiceModelConfig(model: resources.modelPath, language: "auto", useInverseTextNormalization: true)
+        
+        // Fix: numThreads must precede senseVoice per function signature
         let modelConfig = sherpaOnnxOfflineModelConfig(
             tokens: resources.tokensPath,
-            senseVoice: senseVoiceConfig,
-            numThreads: 4 // Use more threads for batch processing
+            numThreads: 4,
+            senseVoice: senseVoiceConfig
         )
+        
         let featConfig = sherpaOnnxFeatureConfig(sampleRate: 16_000, featureDim: 80)
-        var recognizerConfig = sherpaOnnxOfflineRecognizerConfig(
-            featConfig: featConfig,
-            modelConfig: modelConfig
-        )
+        var recognizerConfig = sherpaOnnxOfflineRecognizerConfig(featConfig: featConfig, modelConfig: modelConfig)
         recognizer = SherpaOnnxOfflineRecognizer(config: &recognizerConfig)
 
-        let loadSeconds = CFAbsoluteTimeGetCurrent() - loadStart
-        metricsText = String(format: "Model load: %.3fs", loadSeconds)
-        print(String(format: "[SenseVoiceMetrics] model_load_seconds=%.3f", loadSeconds))
+        let sileroConfig = sherpaOnnxSileroVadModelConfig(model: resources.vadPath, threshold: 0.5, minSilenceDuration: 0.5, minSpeechDuration: 0.25, windowSize: 512, maxSpeechDuration: 12.0)
+        var vadConfig = sherpaOnnxVadModelConfig(sileroVad: sileroConfig, sampleRate: 16_000)
+        vad = SherpaOnnxVoiceActivityDetectorWrapper(config: &vadConfig, buffer_size_in_seconds: 30)
     }
 
     private func configureAudioEngine() throws {
@@ -168,9 +153,7 @@ final class SenseVoiceViewModel: ObservableObject {
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
         guard inputFormat.channelCount > 0 else { throw SenseVoiceError.audioEngineUnavailable }
-        guard let converter = AVAudioConverter(from: inputFormat, to: outputFormat) else {
-            throw SenseVoiceError.invalidInputFormat
-        }
+        guard let converter = AVAudioConverter(from: inputFormat, to: outputFormat) else { throw SenseVoiceError.invalidInputFormat }
         self.audioEngine = engine
         self.converter = converter
 
@@ -181,32 +164,27 @@ final class SenseVoiceViewModel: ObservableObject {
     }
 
     nonisolated private func handleInputBuffer(_ buffer: AVAudioPCMBuffer) {
-        // Run conversion on a background thread to avoid blocking audio thread or main thread
-        guard let converter = self.converter, let outputFormat = self.outputFormat else { return }
-        
-        var consumed = false
-        let inputBlock: AVAudioConverterInputBlock = { _, status in
-            if consumed {
-                status.pointee = .noDataNow
-                return nil
-            }
-            consumed = true
-            status.pointee = .haveData
-            return buffer
-        }
-        
-        let frameCapacity = AVAudioFrameCount(Double(buffer.frameLength) * outputFormat.sampleRate / buffer.format.sampleRate) + 1
-        guard let converted = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: frameCapacity) else { return }
-        
-        var error: NSError?
-        converter.convert(to: converted, error: &error, withInputFrom: inputBlock)
-        
-        let samples = converted.floatArray()
-        guard !samples.isEmpty else { return }
-        
         Task { @MainActor [weak self] in
-            guard let self = self, self.isRecording else { return }
-            self.accumulatedSamples.append(contentsOf: samples)
+            guard let self = self, let converter = self.converter, let outputFormat = self.outputFormat, self.isRecording else { return }
+            
+            // Fix for Swift 6: Use a local variable to capture state if needed, 
+            // but for simple conversion it should be fine within the Actor task.
+            var consumed = false
+            let inputBlock: AVAudioConverterInputBlock = { _, status in
+                if consumed { status.pointee = .noDataNow; return nil }
+                consumed = true
+                status.pointee = .haveData
+                return buffer
+            }
+            
+            let frameCapacity = AVAudioFrameCount(Double(buffer.frameLength) * outputFormat.sampleRate / buffer.format.sampleRate) + 1
+            guard let converted = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: frameCapacity) else { return }
+            var error: NSError?
+            converter.convert(to: converted, error: &error, withInputFrom: inputBlock)
+            let samples = converted.floatArray()
+            if !samples.isEmpty {
+                self.accumulatedSamples.append(contentsOf: samples)
+            }
         }
     }
 }
