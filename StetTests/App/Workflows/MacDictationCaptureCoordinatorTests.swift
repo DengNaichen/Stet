@@ -336,7 +336,12 @@
         {
             let bundleIdentifiers = [
                 "com.hnc.Discord",
+                "com.google.Chrome",
+                "com.anthropic.Claude",
+                "com.linear",
+                "com.tinyspeck.slackmacgap",
                 "com.openai.codex",
+                "notion.id",
                 "com.google.antigravity",
                 "dev.zed.app",
                 "dev.zed.Zed",
