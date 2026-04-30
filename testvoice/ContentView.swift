@@ -1,61 +1,74 @@
-//
-//  ContentView.swift
-//  testvoice
-//
-//  Created by Naicheng Deng on 2026-04-30.
-//
-
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @StateObject private var viewModel = SenseVoiceViewModel()
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+        NavigationStack {
+            VStack(spacing: 20) {
+                VStack(spacing: 8) {
+                    Text("SenseVoice")
+                        .font(.largeTitle.bold())
+                    Text("sherpa-onnx offline ASR demo")
+                        .foregroundStyle(.secondary)
+                }
+
+                ScrollView {
+                    Text(viewModel.transcript.isEmpty ? "Transcript will appear here after VAD emits a speech segment." : viewModel.transcript)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                }
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(statusText)
+                        .foregroundStyle(statusColor)
+                    Text(viewModel.metricsText)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                .font(.footnote)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(spacing: 12) {
+                    Button(action: viewModel.toggleRecording) {
+                        Label(viewModel.isRecording ? "Stop" : "Record", systemImage: viewModel.isRecording ? "stop.fill" : "mic.fill")
+                            .frame(maxWidth: .infinity)
                     }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+
+                    Button("Clear", action: viewModel.clearTranscript)
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
                 }
             }
-        } detail: {
-            Text("Select an item")
+            .padding(24)
+            .navigationTitle("testvoice")
         }
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
+    private var statusText: String {
+        switch viewModel.state {
+        case .idle:
+            return viewModel.partialStatus
+        case .loading:
+            return "Loading model..."
+        case .recording:
+            return viewModel.partialStatus
+        case .failed(let message):
+            return message
         }
     }
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
+    private var statusColor: Color {
+        if case .failed = viewModel.state {
+            return .red
         }
+        return .secondary
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }
