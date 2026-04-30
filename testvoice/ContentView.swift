@@ -2,70 +2,34 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var viewModel = SenseVoiceViewModel()
+    @State private var selectedTab = 0
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                VStack(spacing: 8) {
-                    Text("SenseVoice")
-                        .font(.largeTitle.bold())
-                    Text("sherpa-onnx offline ASR demo")
-                        .foregroundStyle(.secondary)
+        TabView(selection: $selectedTab) {
+            HomeView()
+                .tabItem {
+                    Label("Home", systemImage: "house.fill")
                 }
+                .tag(0)
 
-                ScrollView {
-                    Text(viewModel.transcript.isEmpty ? "Transcript will appear here after VAD emits a speech segment." : viewModel.transcript)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
+            HistoryView()
+                .tabItem {
+                    Label("History", systemImage: "clock.arrow.circlepath")
                 }
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .tag(1)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(statusText)
-                        .foregroundStyle(statusColor)
-                    Text(viewModel.metricsText)
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
+            DictionaryView()
+                .tabItem {
+                    Label("Dictionary", systemImage: "book.closed.fill")
                 }
-                .font(.footnote)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .tag(2)
 
-                HStack(spacing: 12) {
-                    Button(action: viewModel.toggleRecording) {
-                        Label(viewModel.isRecording ? "Stop" : "Record", systemImage: viewModel.isRecording ? "stop.fill" : "mic.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-
-                    Button("Clear", action: viewModel.clearTranscript)
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
+            SenseVoiceView(viewModel: viewModel)
+                .tabItem {
+                    Label("Dictate", systemImage: "mic.fill")
                 }
-            }
-            .padding(24)
-            .navigationTitle("testvoice")
+                .tag(3)
         }
-    }
-
-    private var statusText: String {
-        switch viewModel.state {
-        case .idle:
-            return viewModel.partialStatus
-        case .loading:
-            return "Loading model..."
-        case .recording:
-            return viewModel.partialStatus
-        case .failed(let message):
-            return message
-        }
-    }
-
-    private var statusColor: Color {
-        if case .failed = viewModel.state {
-            return .red
-        }
-        return .secondary
     }
 }
 

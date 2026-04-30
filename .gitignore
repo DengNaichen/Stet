@@ -13,3 +13,4 @@ DerivedData/
 # Large Models (Optional - depends on if user wants them in git)
 # testvoice/SenseVoice/
 # testvoice/Vad/*.onnx
+*.onnx

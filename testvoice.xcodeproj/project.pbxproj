@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		6DD04E062FA3D494004D9143 /* StetKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6DD04DFF2FA3D494004D9143 /* StetKeyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A10000012FA4000000000001 /* sherpa-onnx.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000032FA4000000000003 /* sherpa-onnx.xcframework */; };
 		A10000022FA4000000000002 /* onnxruntime.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000042FA4000000000004 /* onnxruntime.xcframework */; };
 /* End PBXBuildFile section */
@@ -26,15 +27,47 @@
 			remoteGlobalIDString = 6DD04D4B2FA3B64B004D9143;
 			remoteInfo = testvoice;
 		};
+		6DD04E042FA3D494004D9143 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6DD04D442FA3B64B004D9143 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6DD04DFE2FA3D494004D9143;
+			remoteInfo = StetKeyboard;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		6DD04E0B2FA3D494004D9143 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				6DD04E062FA3D494004D9143 /* StetKeyboard.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		6DD04D4C2FA3B64B004D9143 /* testvoice.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = testvoice.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6DD04D5B2FA3B64D004D9143 /* testvoiceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = testvoiceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6DD04D652FA3B64D004D9143 /* testvoiceUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = testvoiceUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6DD04DFF2FA3D494004D9143 /* StetKeyboard.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StetKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000032FA4000000000003 /* sherpa-onnx.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = "sherpa-onnx.xcframework"; path = "sherpa-onnx/build-ios/sherpa-onnx.xcframework"; sourceTree = SOURCE_ROOT; };
 		A10000042FA4000000000004 /* onnxruntime.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = onnxruntime.xcframework; path = "sherpa-onnx/build-ios/ios-onnxruntime/onnxruntime.xcframework"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		6DD04E072FA3D494004D9143 /* Exceptions for "StetKeyboard" folder in "StetKeyboard" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 6DD04DFE2FA3D494004D9143 /* StetKeyboard */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6DD04D4E2FA3B64B004D9143 /* testvoice */ = {
@@ -50,6 +83,14 @@
 		6DD04D682FA3B64D004D9143 /* testvoiceUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = testvoiceUITests;
+			sourceTree = "<group>";
+		};
+		6DD04E002FA3D494004D9143 /* StetKeyboard */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				6DD04E072FA3D494004D9143 /* Exceptions for "StetKeyboard" folder in "StetKeyboard" target */,
+			);
+			path = StetKeyboard;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -78,6 +119,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6DD04DFC2FA3D494004D9143 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -87,6 +135,7 @@
 				6DD04D4E2FA3B64B004D9143 /* testvoice */,
 				6DD04D5E2FA3B64D004D9143 /* testvoiceTests */,
 				6DD04D682FA3B64D004D9143 /* testvoiceUITests */,
+				6DD04E002FA3D494004D9143 /* StetKeyboard */,
 				6DD04D4D2FA3B64B004D9143 /* Products */,
 				A10000032FA4000000000003 /* sherpa-onnx.xcframework */,
 				A10000042FA4000000000004 /* onnxruntime.xcframework */,
@@ -99,6 +148,7 @@
 				6DD04D4C2FA3B64B004D9143 /* testvoice.app */,
 				6DD04D5B2FA3B64D004D9143 /* testvoiceTests.xctest */,
 				6DD04D652FA3B64D004D9143 /* testvoiceUITests.xctest */,
+				6DD04DFF2FA3D494004D9143 /* StetKeyboard.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -113,10 +163,12 @@
 				6DD04D482FA3B64B004D9143 /* Sources */,
 				6DD04D492FA3B64B004D9143 /* Frameworks */,
 				6DD04D4A2FA3B64B004D9143 /* Resources */,
+				6DD04E0B2FA3D494004D9143 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				6DD04E052FA3D494004D9143 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				6DD04D4E2FA3B64B004D9143 /* testvoice */,
@@ -174,6 +226,28 @@
 			productReference = 6DD04D652FA3B64D004D9143 /* testvoiceUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		6DD04DFE2FA3D494004D9143 /* StetKeyboard */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6DD04E082FA3D494004D9143 /* Build configuration list for PBXNativeTarget "StetKeyboard" */;
+			buildPhases = (
+				6DD04DFB2FA3D494004D9143 /* Sources */,
+				6DD04DFC2FA3D494004D9143 /* Frameworks */,
+				6DD04DFD2FA3D494004D9143 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				6DD04E002FA3D494004D9143 /* StetKeyboard */,
+			);
+			name = StetKeyboard;
+			packageProductDependencies = (
+			);
+			productName = StetKeyboard;
+			productReference = 6DD04DFF2FA3D494004D9143 /* StetKeyboard.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -195,6 +269,9 @@
 						CreatedOnToolsVersion = 26.4.1;
 						TestTargetID = 6DD04D4B2FA3B64B004D9143;
 					};
+					6DD04DFE2FA3D494004D9143 = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
 				};
 			};
 			buildConfigurationList = 6DD04D472FA3B64B004D9143 /* Build configuration list for PBXProject "testvoice" */;
@@ -214,6 +291,7 @@
 				6DD04D4B2FA3B64B004D9143 /* testvoice */,
 				6DD04D5A2FA3B64D004D9143 /* testvoiceTests */,
 				6DD04D642FA3B64D004D9143 /* testvoiceUITests */,
+				6DD04DFE2FA3D494004D9143 /* StetKeyboard */,
 			);
 		};
 /* End PBXProject section */
@@ -234,6 +312,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		6DD04D632FA3B64D004D9143 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6DD04DFD2FA3D494004D9143 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -264,6 +349,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6DD04DFB2FA3D494004D9143 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -276,6 +368,11 @@
 			isa = PBXTargetDependency;
 			target = 6DD04D4B2FA3B64B004D9143 /* testvoice */;
 			targetProxy = 6DD04D662FA3B64D004D9143 /* PBXContainerItemProxy */;
+		};
+		6DD04E052FA3D494004D9143 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6DD04DFE2FA3D494004D9143 /* StetKeyboard */;
+			targetProxy = 6DD04E042FA3D494004D9143 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -557,6 +654,64 @@
 			};
 			name = Release;
 		};
+		6DD04E092FA3D494004D9143 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 67BL3M4FPS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StetKeyboard/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "SenseVoice键盘";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.testvoice.StetKeyboard;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		6DD04E0A2FA3D494004D9143 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 67BL3M4FPS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StetKeyboard/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "SenseVoice键盘";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.testvoice.StetKeyboard;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -592,6 +747,15 @@
 			buildConfigurations = (
 				6DD04D762FA3B64D004D9143 /* Debug */,
 				6DD04D772FA3B64D004D9143 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6DD04E082FA3D494004D9143 /* Build configuration list for PBXNativeTarget "StetKeyboard" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6DD04E092FA3D494004D9143 /* Debug */,
+				6DD04E0A2FA3D494004D9143 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
