@@ -347,7 +347,9 @@ struct LogicPrimitiveTests {
         let prompt = DictationPipelineFactory.makeTranscriptionPrompt(preferredSpellings: ["OpenAI", "Groq"])
 
         let rendered = try #require(prompt)
-        #expect(rendered.contains("OpenAI, Groq"))
+        #expect(rendered == "OpenAI, Groq")
+        #expect(rendered.contains("multi-language") == false)
+        #expect(rendered.contains("Filler words") == false)
     }
 
     @Test func makeTranscriptionPromptReturnsNilWithoutPreferredSpellings() {
@@ -424,24 +426,26 @@ struct EngineSelectionRegressionTests {
         )
     }
 
-    /// For a Parakeet-supported language with localWhisper stored engine:
-    /// the pipeline language code should follow the DictationLanguageMode fallback (nil for .automatic).
-    @Test func makePipelineLanguageCodeFollowsDictationLanguageModeForFluidAudioRoute() async throws {
+    /// For a language that would normally route elsewhere, a user-selected Whisper engine
+    /// must still receive nil so short utterances are not biased into one language.
+    @Test func makePipelinePassesNilLanguageCodeForChineseWhisperRoute() async throws {
         let local = RecordingTranscriptionService(result: "ok")
         let factory = DictationPipelineFactory(
             makeLocalTranscriptionService: { local },
             makeRewriteService: { _, _ in RecordingRewriteService() }
         )
         let snapshot = makeSnapshot(
-            transcriptionPrimaryLanguage: "en",
+            transcriptionPrimaryLanguage: "zh",
             transcriptionSecondaryLanguage: nil,
             transcriptionEngine: .localWhisper
         )
 
         let pipeline = try await factory.makePipeline(from: snapshot)
 
-        // No hint → transcriptionLanguageCode is nil
-        #expect(pipeline.transcriptionLanguageCode == nil)
+        #expect(
+            pipeline.transcriptionLanguageCode == nil,
+            "Whisper must receive nil even when the primary language is Chinese."
+        )
     }
 }
 

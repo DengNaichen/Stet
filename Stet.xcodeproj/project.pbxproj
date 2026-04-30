@@ -68,9 +68,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				App/Windowing/MacPaywallWindowController.swift,
-				Core/Purchase/PurchaseStore.swift,
-				Core/Purchase/TrialStore.swift,
-				Features/Paywall/PaywallView.swift,
 			);
 			target = 6D29DC7C2F5FA23000267DEA /* Stet */;
 		};

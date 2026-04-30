@@ -159,13 +159,13 @@ enum DictationProviderDefaults {
         case .groq:
             return "openai/gpt-oss-20b"
         case .deepSeek:
-            return "deepseek-chat"
+            return "deepseek-v4-flash"
         case .qwen:
-            return "qwen-plus"
+            return "qwen3.6-flash"
         case .glm:
-            return "glm-4"
+            return "glm-4.7-flash"
         case .doubao:
-            return "doubao-seed-1-6-251015"
+            return "doubao-seed-1-6-flash-250828"
         }
     }
 }

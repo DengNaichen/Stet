@@ -785,7 +785,7 @@ struct ConfigurableSpeechServiceTests {
         #expect(await rewrite.recordedRequests().count == 1)
     }
 
-    @Test func primaryChineseLanguagePassesLanguageBiasToRewrite() async throws {
+    @Test func primaryChineseLanguageDoesNotPassLanguageBiasToWhisper() async throws {
         let audioFileURL = makeAudioFileURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
 
@@ -812,8 +812,8 @@ struct ConfigurableSpeechServiceTests {
         let directInvocation = await direct.lastInvocation()
         let rewriteRequests = await rewrite.recordedRequests()
 
-        #expect(directInvocation?.languageCode == "zh")
-        #expect(rewriteRequests.first?.languageCode == "zh")
+        #expect(directInvocation?.languageCode == nil)
+        #expect(rewriteRequests.first?.languageCode == nil)
     }
 
     @Test func emptyTranscriptThrowsEmptyTranscription() async throws {

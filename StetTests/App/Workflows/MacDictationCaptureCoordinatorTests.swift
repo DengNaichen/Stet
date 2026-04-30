@@ -340,6 +340,7 @@
                 "com.anthropic.Claude",
                 "com.linear",
                 "com.tinyspeck.slackmacgap",
+                "md.obsidian",
                 "com.openai.codex",
                 "notion.id",
                 "com.google.antigravity",

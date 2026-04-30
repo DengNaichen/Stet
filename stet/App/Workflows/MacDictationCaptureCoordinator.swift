@@ -386,6 +386,7 @@
                 "com.anthropic.claude",
                 "com.linear",
                 "com.tinyspeck.slackmacgap",
+                "md.obsidian",
                 "com.openai.codex",
                 "com.google.antigravity",
                 "dev.zed.app",

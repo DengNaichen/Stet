@@ -73,11 +73,15 @@ struct DictationPipelineFactory: Sendable {
             let primary = snapshot.transcriptionPrimaryLanguage
             let secondary = snapshot.transcriptionSecondaryLanguage
             let engine = TranscriptionLanguageRouting.resolveEngine(primary: primary, secondary: secondary)
-            switch engine {
-            case .localWhisper(let hint):
-                transcriptionLanguageCode = hint
-            case .sherpaOnnxSenseVoice, .fluidAudio:
-                transcriptionLanguageCode = primary
+            if snapshot.transcriptionEngine == .localWhisper {
+                transcriptionLanguageCode = nil
+            } else {
+                switch engine {
+                case .localWhisper(let hint):
+                    transcriptionLanguageCode = hint
+                case .sherpaOnnxSenseVoice, .fluidAudio:
+                    transcriptionLanguageCode = primary
+                }
             }
             preferredSpellings = direct.preferredSpellings
             promptProvider = Self.makePromptProvider(preferredSpellings: preferredSpellings)
@@ -147,26 +151,11 @@ struct DictationPipelineFactory: Sendable {
         #endif
     }
 
-    private static let cleansingPrompt =
-        "这是一段非常干净、流利、准确的多语言混合听抄记录。说话人可能会在中文、英文或其他语言之间自然切换，请务必保留每种语言的原始表达。输出内容不包含‘那个’、‘呃’、‘就是’等口语停顿词。 This is a clean, multi-language transcript where the speaker may naturally switch between languages. Filler words are removed."
-
     nonisolated static func makeTranscriptionPrompt(
         preferredSpellings: [String]
     ) -> String? {
-        var sections: [String] = []
-
-        // We lead with the cleansing prompt to set the tone for the transcription,
-        // then append specific dictionary terms if available.
-        sections.append(cleansingPrompt)
-
-        if !preferredSpellings.isEmpty {
-            sections.append(
-                preferredSpellings.joined(separator: ", ")
-            )
-        }
-
-        guard !sections.isEmpty else { return nil }
-        return sections.joined(separator: "\n\n")
+        guard !preferredSpellings.isEmpty else { return nil }
+        return preferredSpellings.joined(separator: ", ")
     }
 
     private nonisolated static func makePromptProvider(

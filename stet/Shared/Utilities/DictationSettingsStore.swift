@@ -138,7 +138,7 @@ struct DictationSettingsStore: Sendable {
         let transcriptionPrimaryLanguage =
             defaultsStore.string(forKey: MacPreferences.transcriptionPrimaryLanguage) ?? "en"
         let transcriptionSecondaryLanguage = defaultsStore.string(forKey: MacPreferences.transcriptionSecondaryLanguage)
-        let transcriptionEngine = StoredTranscriptionEngine.current()
+        let transcriptionEngine = loadTranscriptionEngine()
 
         return DictationSettingsSnapshot(
             transcriptionProvider: transcriptionProvider,
@@ -285,7 +285,10 @@ struct DictationSettingsStore: Sendable {
     }
 
     nonisolated func loadTranscriptionEngine() -> StoredTranscriptionEngine {
-        StoredTranscriptionEngine.current()
+        guard let raw = defaultsStore.string(forKey: MacPreferences.transcriptionEngine) else {
+            return .default
+        }
+        return StoredTranscriptionEngine(rawValue: raw) ?? .default
     }
 
     nonisolated func saveTranscriptionEngine(_ engine: StoredTranscriptionEngine) {
