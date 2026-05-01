@@ -103,6 +103,10 @@ struct DictationSettingsStore: Sendable {
         self.defaultsStore = UserDefaultsStore(defaults)
         self.secretStore = secretStore
         self.dictionaryModel = dictionaryModel ?? DictionaryModel(defaults: defaults)
+        LegacyDictionaryMigration.migrateIfNeeded(
+            defaults: defaults,
+            dictionaryModel: self.dictionaryModel
+        )
     }
 
     nonisolated func loadSnapshot() -> DictationSettingsSnapshot {

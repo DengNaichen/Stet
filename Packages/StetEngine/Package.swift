@@ -39,5 +39,12 @@ let package = Package(
             ],
             path: "Sources/StetAI"
         ),
+        .testTarget(
+            name: "StetCoreTests",
+            dependencies: [
+                "StetCore",
+            ],
+            path: "Tests/StetCoreTests"
+        ),
     ]
 )

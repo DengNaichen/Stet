@@ -1,6 +1,7 @@
 #if os(macOS)
     import Foundation
     import Testing
+    import StetCore
 
     @testable import Stet
 
@@ -9,10 +10,13 @@
     struct DictionaryViewModelTests {
         private func makeViewModel(
             defaults: UserDefaults
-        ) throws -> (viewModel: DictionaryViewModel, model: DictionaryModel) {
+        ) -> (viewModel: DictionaryViewModel, model: DictionaryModel) {
+            let entriesKey = "dictionary.entries.\(UUID().uuidString)"
+            let enabledKey = "dictionary.enabled.\(UUID().uuidString)"
             let dictionaryModel = DictionaryModel(
-                modelContainer: try DictionaryModel.makeInMemoryModelContainer(),
-                defaults: defaults
+                defaults: defaults,
+                entriesKey: entriesKey,
+                enabledKey: enabledKey
             )
 
             return (
@@ -21,9 +25,9 @@
             )
         }
 
-        @Test func loadReflectsStoredEntriesAndEnabledState() throws {
+        @Test func loadReflectsStoredEntriesAndEnabledState() {
             let defaults = TestSupport.makeUserDefaults()
-            let subject = try makeViewModel(defaults: defaults)
+            let subject = makeViewModel(defaults: defaults)
             subject.model.saveIsEnabled(false)
             subject.model.saveEntries(["OpenAI", "Groq"])
 
@@ -33,9 +37,9 @@
             #expect(subject.viewModel.entries == ["OpenAI", "Groq"])
         }
 
-        @Test func draftParsingAndAddEntriesNormalizeAndClearInput() throws {
+        @Test func draftParsingAndAddEntriesNormalizeAndClearInput() {
             let defaults = TestSupport.makeUserDefaults()
-            let subject = try makeViewModel(defaults: defaults)
+            let subject = makeViewModel(defaults: defaults)
             subject.viewModel.load()
             subject.viewModel.draft = " OpenAI, groq,\nOpenAI  ,  Naicheng Deng "
 
@@ -49,9 +53,9 @@
             #expect(subject.viewModel.canAddDraftEntries == false)
         }
 
-        @Test func removeClearAndEnablePersistToModel() throws {
+        @Test func removeClearAndEnablePersistToModel() {
             let defaults = TestSupport.makeUserDefaults()
-            let subject = try makeViewModel(defaults: defaults)
+            let subject = makeViewModel(defaults: defaults)
             subject.model.saveEntries(["OpenAI", "Groq"])
             subject.viewModel.load()
 

@@ -61,6 +61,7 @@ struct KeychainSecretStore: Sendable {
         case errSecItemNotFound:
             var addQuery = query
             addQuery[kSecValueData as String] = data
+            addQuery[kSecAttrSynchronizable as String] = kCFBooleanTrue
             let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
 
             guard addStatus == errSecSuccess else {
@@ -84,6 +85,7 @@ struct KeychainSecretStore: Sendable {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
             kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
         ]
     }
 }
