@@ -1,12 +1,18 @@
 #if os(macOS)
     import Foundation
     import SwiftData
+    import os
+
+    nonisolated private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+        category: "general"
+    )
 
     nonisolated private let sharedDictationStatsModelContainer: ModelContainer? = {
         do {
             return try DictationStatsModel.makePersistentModelContainer()
         } catch {
-            AppLogger.error("Failed to create DictationStatsModel container. error=\(error)")
+            logger.error("Failed to create DictationStatsModel container. error=\(error)")
             return nil
         }
     }()

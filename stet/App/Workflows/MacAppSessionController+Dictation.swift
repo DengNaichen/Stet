@@ -1,6 +1,7 @@
 #if os(macOS)
     import Combine
     import Foundation
+    import os
 
     extension MacAppSessionController {
         func performPrimaryAction() {
@@ -136,23 +137,20 @@
                 }
 
                 guard !Task.isCancelled else {
-                    AppLogger.info(
-                        "OutputTrace stage=session_result_mapping_skipped reason=task_cancelled outcome=\(completionOutcomeLabel(outcome))",
-                        category: .perfTrace
+                    Self.logger.info(
+                        "OutputTrace stage=session_result_mapping_skipped reason=task_cancelled outcome=\(self.completionOutcomeLabel(outcome))"
                     )
                     return
                 }
                 guard case .result = dictationState else {
-                    AppLogger.info(
-                        "OutputTrace stage=session_result_mapping_skipped reason=state_changed currentState=\(stateLabel(dictationState)) outcome=\(completionOutcomeLabel(outcome))",
-                        category: .perfTrace
+                    Self.logger.info(
+                        "OutputTrace stage=session_result_mapping_skipped reason=state_changed currentState=\(self.stateLabel(self.dictationState)) outcome=\(self.completionOutcomeLabel(outcome))"
                     )
                     return
                 }
 
-                AppLogger.info(
-                    "OutputTrace stage=session_result_mapping_apply outcome=\(completionOutcomeLabel(outcome)) recoveredTextPreserved=\(recoveredTextPreserved) panelVisible=\(isPanelVisible)",
-                    category: .perfTrace
+                Self.logger.info(
+                    "OutputTrace stage=session_result_mapping_apply outcome=\(self.completionOutcomeLabel(outcome)) recoveredTextPreserved=\(recoveredTextPreserved) panelVisible=\(self.isPanelVisible)"
                 )
 
                 switch outcome {

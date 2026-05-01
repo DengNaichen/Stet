@@ -1,11 +1,17 @@
 import Foundation
+import os
 import SwiftData
+
+nonisolated private let logger = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+    category: "general"
+)
 
 nonisolated private let sharedDictionaryModelContainer: ModelContainer? = {
     do {
         return try DictionaryModel.makePersistentModelContainer()
     } catch {
-        AppLogger.error(
+        logger.error(
             "Failed to create DictionaryModel container. Falling back to UserDefaults-backed dictionary. error=\(error)"
         )
         return nil
@@ -16,7 +22,7 @@ nonisolated private let sharedLegacyDictionaryModelContainer: ModelContainer? = 
     do {
         return try DictionaryModel.makeLegacyPersistentModelContainerIfAvailable()
     } catch {
-        AppLogger.error(
+        logger.error(
             "Failed to create legacy DictionaryModel container for migration. error=\(error)"
         )
         return nil
@@ -82,7 +88,7 @@ struct DictionaryModel: @unchecked Sendable {
                 return storedEntries
             }
         } catch {
-            AppLogger.error(
+            logger.error(
                 "Failed to fetch dictionary entries from SwiftData store. Falling back to UserDefaults-backed dictionary. error=\(error)"
             )
         }
@@ -92,7 +98,7 @@ struct DictionaryModel: @unchecked Sendable {
                 try replaceEntries(defaultsEntries, using: context)
                 defaultsStore.removeObject(forKey: MacPreferences.personalDictionary)
             } catch {
-                AppLogger.error(
+                logger.error(
                     "Failed to migrate UserDefaults-backed dictionary entries into SwiftData store. error=\(error)"
                 )
             }
@@ -108,7 +114,7 @@ struct DictionaryModel: @unchecked Sendable {
         do {
             legacyStoreEntries = try fetchEntries(using: legacyContext)
         } catch {
-            AppLogger.error(
+            logger.error(
                 "Failed to fetch dictionary entries from legacy SwiftData store. error=\(error)"
             )
             return []
@@ -121,7 +127,7 @@ struct DictionaryModel: @unchecked Sendable {
         do {
             try replaceEntries(legacyStoreEntries, using: context)
         } catch {
-            AppLogger.error(
+            logger.error(
                 "Failed to migrate dictionary entries from legacy SwiftData store. Falling back to UserDefaults-backed dictionary. error=\(error)"
             )
             defaultsStore.set(legacyStoreEntries, forKey: MacPreferences.personalDictionary)
@@ -146,7 +152,7 @@ struct DictionaryModel: @unchecked Sendable {
             try replaceEntries(normalizedEntries, using: context)
             defaultsStore.removeObject(forKey: MacPreferences.personalDictionary)
         } catch {
-            AppLogger.error(
+            logger.error(
                 "Failed to save dictionary entries to SwiftData store. Falling back to UserDefaults-backed dictionary. error=\(error)"
             )
             defaultsStore.set(normalizedEntries, forKey: MacPreferences.personalDictionary)

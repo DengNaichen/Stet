@@ -1,9 +1,14 @@
 #if os(macOS)
     import AppKit
     import Foundation
+    import os
 
     @MainActor
     final class MacDictationCaptureCoordinator {
+        private static let logger = Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+            category: "perfTrace"
+        )
         private nonisolated static let likelyTextInputRecoveryWindow: Duration = .seconds(2)
 
         private enum TargetAppOutputProfile: Equatable {
@@ -314,9 +319,8 @@
 
         private func emitOutputTrace(_ traceID: String, stage: String, details: String? = nil) {
             let detailsSuffix = details.map { " \($0)" } ?? ""
-            AppLogger.info(
-                "OutputTrace id=\(traceID) stage=\(stage)\(detailsSuffix)",
-                category: .perfTrace
+            Self.logger.info(
+                "OutputTrace id=\(traceID) stage=\(stage)\(detailsSuffix)"
             )
         }
 

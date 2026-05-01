@@ -1,10 +1,16 @@
 #if os(macOS)
     import CoreAudio
     import Foundation
+    import os
 
     final class AudioDeviceChangeMonitor {
         static let shared = AudioDeviceChangeMonitor()
         static let devicesDidChangeNotification = Notification.Name("AudioDevicesDidChange")
+
+        private static let logger = Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+            category: "AudioDeviceMonitor"
+        )
 
         private let stateLock = NSLock()
         private var propertyListenerBlock: AudioObjectPropertyListenerBlock?
@@ -51,11 +57,11 @@
                 stateLock.lock()
                 isMonitoring = true
                 stateLock.unlock()
-                AppLogger.info("AudioDeviceChangeMonitor: Started monitoring device changes")
+                Self.logger.info("AudioDeviceChangeMonitor: Started monitoring device changes")
             } else {
                 stateLock.lock()
                 monitorClientCount = max(0, monitorClientCount - 1)
-                AppLogger.warning("AudioDeviceChangeMonitor: Failed to register property listener. status=\(status)")
+                Self.logger.warning("AudioDeviceChangeMonitor: Failed to register property listener. status=\(status)")
                 propertyListenerBlock = nil
                 stateLock.unlock()
             }
@@ -88,9 +94,10 @@
             )
 
             if status == noErr {
-                AppLogger.info("AudioDeviceChangeMonitor: Stopped monitoring device changes")
+                Self.logger.info("AudioDeviceChangeMonitor: Stopped monitoring device changes")
             } else {
-                AppLogger.warning("AudioDeviceChangeMonitor: Failed to unregister property listener. status=\(status)")
+                Self.logger.warning(
+                    "AudioDeviceChangeMonitor: Failed to unregister property listener. status=\(status)")
             }
 
             stateLock.lock()

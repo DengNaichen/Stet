@@ -1,13 +1,18 @@
 #if os(macOS)
     import AppKit
     import ServiceManagement
+    import os
 
     enum MacAppBehaviorController {
+        private static let logger = Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+            category: "general"
+        )
         @MainActor
         static func applyDockVisibility(showInDock: Bool) {
             // `NSApp` can still be nil while the SwiftUI `App` type is initializing.
             NSApplication.shared.setActivationPolicy(showInDock ? .regular : .accessory)
-            AppLogger.info("Dock visibility updated: showInDock=\(showInDock)")
+            logger.info("Dock visibility updated: showInDock=\(showInDock)")
         }
 
         @MainActor
@@ -22,7 +27,7 @@
                 try SMAppService.mainApp.unregister()
             }
 
-            AppLogger.info("Launch at login updated: enabled=\(enabled)")
+            logger.info("Launch at login updated: enabled=\(enabled)")
         }
 
         static func launchAtLoginIsEnabled() -> Bool {

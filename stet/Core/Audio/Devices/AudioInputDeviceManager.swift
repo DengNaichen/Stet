@@ -1,8 +1,13 @@
 #if os(macOS)
     import CoreAudio
     import Foundation
+    import os
 
     enum AudioInputDeviceManager {
+        private static let logger = Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+            category: "AudioDevice"
+        )
         nonisolated static func defaultInputDeviceID() -> AudioDeviceID? {
             defaultDeviceID(selector: kAudioHardwarePropertyDefaultInputDevice)
         }
@@ -49,7 +54,7 @@
                 &deviceID
             )
             guard status == noErr, deviceID != 0 else {
-                AppLogger.warning("Failed to read default audio device. status=\(status), deviceID=\(deviceID)")
+                logger.warning("Failed to read default audio device. status=\(status), deviceID=\(deviceID)")
                 return nil
             }
 
@@ -165,7 +170,7 @@
                 &dataSize
             )
             guard status == noErr else {
-                AppLogger.warning("Failed to get audio devices data size. status=\(status)")
+                logger.warning("Failed to get audio devices data size. status=\(status)")
                 return []
             }
 
@@ -181,7 +186,7 @@
                 &deviceIDs
             )
             guard status == noErr else {
-                AppLogger.warning("Failed to get audio devices. status=\(status)")
+                logger.warning("Failed to get audio devices. status=\(status)")
                 return []
             }
 

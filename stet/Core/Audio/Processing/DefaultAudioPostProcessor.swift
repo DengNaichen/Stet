@@ -1,9 +1,12 @@
 @preconcurrency import AVFoundation
 import FluidAudio
 import Foundation
+import os
 
 final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable {
     private let speechEnhancer: any SpeechEnhancing
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "AudioProcessing")
 
     init(
         settingsStore _: DictationSettingsStore = DictationSettingsStore(),
@@ -24,9 +27,8 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
             fileSampleRate = audioFile.fileFormat.sampleRate
             samples = try AudioConverter().resampleAudioFile(sourceURL)
         } catch {
-            AppLogger.warning(
-                "Skipping audio post-processing because the audio file could not be loaded. error=\(error.localizedDescription)",
-                category: .dictation
+            logger.warning(
+                "Skipping audio post-processing because the audio file could not be loaded. error=\(error.localizedDescription)"
             )
             return .passthrough(url: sourceURL, duration: duration)
         }
@@ -38,21 +40,18 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
         let analysis = analysisResult.analysis
         let vadSegmentation = analysisResult.segmentation
 
-        AppLogger.info(
-            "Audio post-processing analyzed capture. \(analysis.summaryLine)",
-            category: .dictation
+        logger.info(
+            "Audio post-processing analyzed capture. \(analysis.summaryLine)"
         )
         if UserDefaults.standard.bool(forKey: MacPreferences.dictationPerfTracingEnabled) {
-            AppLogger.warning(
-                "Audio post-processing summary. \(analysis.summaryLine)",
-                category: .dictation
+            logger.warning(
+                "Audio post-processing summary. \(analysis.summaryLine)"
             )
         }
 
         if analysis.shouldDiscardAsNoSpeech {
-            AppLogger.warning(
-                "Discarding capture as no speech was detected. \(analysis.summaryLine)",
-                category: .dictation
+            logger.warning(
+                "Discarding capture as no speech was detected. \(analysis.summaryLine)"
             )
             return .discard(url: sourceURL, duration: duration)
         }
@@ -70,15 +69,13 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
             if enhancement.didRewriteAudio {
                 currentURL = enhancement.outputURL
                 cleanupURLs.append(enhancement.outputURL)
-                AppLogger.info(
-                    "Audio post-processing rewrote capture. outputURL=\(enhancement.outputURL.lastPathComponent)",
-                    category: .dictation
+                logger.info(
+                    "Audio post-processing rewrote capture. outputURL=\(enhancement.outputURL.lastPathComponent)"
                 )
             }
         } catch {
-            AppLogger.warning(
-                "Skipping speech enhancement because the output could not be rewritten. error=\(error.localizedDescription)",
-                category: .dictation
+            logger.warning(
+                "Skipping speech enhancement because the output could not be rewritten. error=\(error.localizedDescription)"
             )
         }
 
@@ -118,9 +115,8 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
                         currentURL = trimmedURL
                         cleanupURLs.append(trimmedURL)
                     } catch {
-                        AppLogger.warning(
-                            "Falling back to wav because trimmed m4a output could not be written. error=\(error.localizedDescription)",
-                            category: .dictation
+                        logger.warning(
+                            "Falling back to wav because trimmed m4a output could not be written. error=\(error.localizedDescription)"
                         )
                         let trimmedURL = try AudioWavWriter.writePCM16MonoWav(
                             samples: trimResult.samples,
@@ -131,15 +127,13 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
                     }
                 #endif
                 currentDuration = trimResult.duration
-                AppLogger.info(
-                    "Audio post-processing trimmed silence. removedSeconds=\(String(format: "%.2f", trimResult.removedSeconds))",
-                    category: .dictation
+                logger.info(
+                    "Audio post-processing trimmed silence. removedSeconds=\(String(format: "%.2f", trimResult.removedSeconds))"
                 )
             }
         } catch {
-            AppLogger.warning(
-                "Skipping silence trimming because the output could not be rewritten. error=\(error.localizedDescription)",
-                category: .dictation
+            logger.warning(
+                "Skipping silence trimming because the output could not be rewritten. error=\(error.localizedDescription)"
             )
         }
 

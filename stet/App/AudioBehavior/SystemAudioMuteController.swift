@@ -1,6 +1,7 @@
 #if os(macOS)
     import CoreAudio
     import Foundation
+    import os
 
     @MainActor
     protocol SystemAudioMuting: AnyObject {
@@ -12,6 +13,10 @@
 
     @MainActor
     final class SystemAudioMuteController: SystemAudioMuting {
+        private static let logger = Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+            category: "dictation"
+        )
         private struct ProcessTapSession {
             let tapID: AudioObjectID
             let aggregateDeviceID: AudioObjectID
@@ -31,9 +36,8 @@
                 let outputDeviceID = defaultOutputDeviceID(),
                 let outputUID = deviceUID(for: outputDeviceID)
             else {
-                AppLogger.warning(
-                    "Skipping system audio mute because the default output device could not be resolved.",
-                    category: .dictation
+                Self.logger.warning(
+                    "Skipping system audio mute because the default output device could not be resolved."
                 )
                 return false
             }
@@ -51,9 +55,8 @@
             var tapID = AudioObjectID(kAudioObjectUnknown)
             let tapCreateStatus = AudioHardwareCreateProcessTap(tapDescription, &tapID)
             guard tapCreateStatus == noErr, tapID != AudioObjectID(kAudioObjectUnknown) else {
-                AppLogger.warning(
-                    "Failed to activate system audio mute. step=create_process_tap, status=\(tapCreateStatus)",
-                    category: .dictation
+                Self.logger.warning(
+                    "Failed to activate system audio mute. step=create_process_tap, status=\(tapCreateStatus)"
                 )
                 return false
             }
@@ -86,9 +89,8 @@
             )
             guard aggregateStatus == noErr, aggregateDeviceID != AudioObjectID(kAudioObjectUnknown) else {
                 AudioHardwareDestroyProcessTap(tapID)
-                AppLogger.warning(
-                    "Failed to activate system audio mute. step=create_aggregate_device, status=\(aggregateStatus)",
-                    category: .dictation
+                Self.logger.warning(
+                    "Failed to activate system audio mute. step=create_aggregate_device, status=\(aggregateStatus)"
                 )
                 return false
             }
@@ -105,9 +107,8 @@
             guard ioProcStatus == noErr, let ioProcID else {
                 AudioHardwareDestroyAggregateDevice(aggregateDeviceID)
                 AudioHardwareDestroyProcessTap(tapID)
-                AppLogger.warning(
-                    "Failed to activate system audio mute. step=create_io_proc, status=\(ioProcStatus)",
-                    category: .dictation
+                Self.logger.warning(
+                    "Failed to activate system audio mute. step=create_io_proc, status=\(ioProcStatus)"
                 )
                 return false
             }
@@ -117,9 +118,8 @@
                 AudioDeviceDestroyIOProcID(aggregateDeviceID, ioProcID)
                 AudioHardwareDestroyAggregateDevice(aggregateDeviceID)
                 AudioHardwareDestroyProcessTap(tapID)
-                AppLogger.warning(
-                    "Failed to activate system audio mute. step=start_device, status=\(startStatus)",
-                    category: .dictation
+                Self.logger.warning(
+                    "Failed to activate system audio mute. step=start_device, status=\(startStatus)"
                 )
                 return false
             }
@@ -129,9 +129,8 @@
                 aggregateDeviceID: aggregateDeviceID,
                 ioProcID: ioProcID
             )
-            AppLogger.info(
-                "Activated system audio mute while dictation is active. outputDeviceID=\(outputDeviceID), aggregateDeviceID=\(aggregateDeviceID)",
-                category: .dictation
+            Self.logger.info(
+                "Activated system audio mute while dictation is active. outputDeviceID=\(outputDeviceID), aggregateDeviceID=\(aggregateDeviceID)"
             )
             return true
         }
@@ -147,7 +146,7 @@
             AudioDeviceDestroyIOProcID(session.aggregateDeviceID, session.ioProcID)
             AudioHardwareDestroyAggregateDevice(session.aggregateDeviceID)
             AudioHardwareDestroyProcessTap(session.tapID)
-            AppLogger.info("Restored system audio output after dictation.", category: .dictation)
+            Self.logger.info("Restored system audio output after dictation.")
         }
 
         private func defaultOutputDeviceID() -> AudioDeviceID? {

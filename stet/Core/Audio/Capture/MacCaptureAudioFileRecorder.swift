@@ -3,6 +3,7 @@
     import CoreAudio
     import CoreMedia
     import Foundation
+    import os
     import StetVisuals
 
     nonisolated final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
@@ -25,6 +26,8 @@
         private var captureResources: CaptureResources?
         private var activeSession: MacAudioFileRecordingSession?
         private var hasWrittenFirstRecordedBuffer = false
+        private let logger = Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "AudioRecorder")
 
         nonisolated init(
             audioLevelHandler: @escaping @Sendable (Double) -> Void = { _ in },
@@ -68,9 +71,8 @@
                         """
                     )
                     if candidate.reason != .selected {
-                        AppLogger.info(
-                            "macOS capture recovered using AVCapture fallback input device strategy. reason=\(candidate.reason.rawValue), device=\(candidate.device?.name ?? "systemDefault")",
-                            category: .dictation
+                        logger.info(
+                            "macOS capture recovered using AVCapture fallback input device strategy. reason=\(candidate.reason.rawValue), device=\(candidate.device?.name ?? "systemDefault")"
                         )
                     }
                     return
@@ -85,9 +87,8 @@
                         error=\(error.localizedDescription)
                         """
                     )
-                    AppLogger.warning(
-                        "macOS AVCapture attempt failed. reason=\(candidate.reason.rawValue), device=\(candidate.device?.name ?? "systemDefault"), error=\(error.localizedDescription)",
-                        category: .dictation
+                    logger.warning(
+                        "macOS AVCapture attempt failed. reason=\(candidate.reason.rawValue), device=\(candidate.device?.name ?? "systemDefault"), error=\(error.localizedDescription)"
                     )
                     _ = finishSession()
                     Thread.sleep(forTimeInterval: 0.1)
@@ -95,9 +96,8 @@
             }
 
             if let startupError {
-                AppLogger.error(
-                    "All macOS AVCapture input device candidates failed. error=\(startupError.localizedDescription)",
-                    category: .dictation
+                logger.error(
+                    "All macOS AVCapture input device candidates failed. error=\(startupError.localizedDescription)"
                 )
             }
 
@@ -214,7 +214,7 @@
                     )
 
                     let outputDevice = AudioInputDeviceManager.defaultOutputDevice()
-                    AppLogger.info(
+                    logger.info(
                         """
                         Configured mac transcription AVCapture session. \
                         inputDevice=\(inputDevice?.name ?? "unknown"), \
@@ -226,8 +226,7 @@
                         fileSampleRate=\(Int(outputFormat.sampleRate)), \
                         fileChannels=\(outputFormat.channelCount), \
                         fileInterleaved=\(outputFormat.isInterleaved)
-                        """,
-                        category: .dictation
+                        """
                     )
                     break
                 }
@@ -235,17 +234,15 @@
                 Self.logStartupTiming(
                     "captureRecorderSessionStartFailed attempt=\(attempt) attemptMs=\(Self.formatMilliseconds(attemptMs))"
                 )
-                AppLogger.warning(
-                    "macOS AVCapture session start failed on attempt \(attempt). Retrying...",
-                    category: .dictation
+                logger.warning(
+                    "macOS AVCapture session start failed on attempt \(attempt). Retrying..."
                 )
                 Thread.sleep(forTimeInterval: Configuration.startupRetryDelaySeconds)
             }
 
             guard didStart else {
-                AppLogger.error(
-                    "Failed to start the macOS AVCapture session after retries. captureDevice=\(resources.device.localizedName)",
-                    category: .dictation
+                logger.error(
+                    "Failed to start the macOS AVCapture session after retries. captureDevice=\(resources.device.localizedName)"
                 )
                 throw CaptureError.failedToStartSession(device: resources.device.localizedName)
             }
@@ -272,15 +269,14 @@
                 }
 
                 if snapshot.didCreateConverter {
-                    AppLogger.info(
+                    logger.info(
                         """
                         Prepared mac transcription converter from AVCapture audio buffer. \
                         actualInputSampleRate=\(Int(inputBuffer.format.sampleRate)), \
                         actualInputChannels=\(inputBuffer.format.channelCount), \
                         actualInputCommonFormat=\(String(describing: inputBuffer.format.commonFormat)), \
                         actualInputInterleaved=\(inputBuffer.format.isInterleaved)
-                        """,
-                        category: .dictation
+                        """
                     )
                 }
 
@@ -303,9 +299,8 @@
                     return
                 }
 
-                AppLogger.warning(
-                    "Dropping AVCapture audio buffer before transcription write. error=\(error.localizedDescription)",
-                    category: .dictation
+                logger.warning(
+                    "Dropping AVCapture audio buffer before transcription write. error=\(error.localizedDescription)"
                 )
             }
         }
@@ -394,7 +389,8 @@
                 return
             }
 
-            AppLogger.info("AudioStartup \(payload)", category: .perfTrace)
+            Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "AudioStartup").info(
+                "AudioStartup \(payload)")
         }
 
         private nonisolated static func elapsedMilliseconds(since start: TimeInterval) -> Double {

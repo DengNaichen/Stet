@@ -1,4 +1,5 @@
 import Foundation
+import os
 #if os(macOS)
     import StetVisuals
 #endif
@@ -11,6 +12,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     private let captureServiceFactory: @Sendable () -> any AudioCaptureService
     private let audioPostProcessor: any AudioPostProcessing
     private let audioLevelBridge = AudioLevelBridge()
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "SpeechService")
     #if os(macOS)
         private let audioFeatureBridge = AudioFeatureBridge()
     #endif
@@ -198,7 +201,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         }
 
         guard !processedCaptureResult.shouldDiscardAsNoSpeech else {
-            AppLogger.info("Discarding dictation capture because no speech was detected locally.", category: .dictation)
+            logger.info("Discarding dictation capture because no speech was detected locally.")
             await releaseContextOnExit()
             throw SpeechServiceError.emptyTranscription
         }
@@ -211,7 +214,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             transcriptionPrompt = await provider()
         }
 
-        AppLogger.info("Submitting transcription request.", category: .dictation)
+        logger.info("Submitting transcription request.")
 
         let intermediateTranscript: String
         let transcriptionStartedAt = ProcessInfo.processInfo.systemUptime
@@ -231,13 +234,12 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             }
             intermediateTranscript = trimmedTranscript
             let transcriptionStageMs = Self.elapsedMilliseconds(since: transcriptionStartedAt)
-            AppLogger.info(
-                "DictationStage transcriptionMs=\(Self.formatMilliseconds(transcriptionStageMs)) audioDurationSeconds=\(Self.formatDurationSeconds(processedCaptureResult.duration)) transcriptChars=\(trimmedTranscript.count) rewriteEnabled=\(pipeline.rewriteService != nil) detectedLanguage=\(transcriptionResult.languageCode ?? "unknown")",
-                category: .perfTrace
+            logger.info(
+                "DictationStage transcriptionMs=\(Self.formatMilliseconds(transcriptionStageMs)) audioDurationSeconds=\(Self.formatDurationSeconds(processedCaptureResult.duration)) transcriptChars=\(trimmedTranscript.count) rewriteEnabled=\(pipeline.rewriteService != nil) detectedLanguage=\(transcriptionResult.languageCode ?? "unknown")"
             )
         } catch {
             await DictationLatencyProbe.shared.record(.transcriptionFailed, note: error.localizedDescription)
-            AppLogger.error("Transcription failed: \(error.localizedDescription)", category: .dictation)
+            logger.error("Transcription failed: \(error.localizedDescription)")
             await releaseContextOnExit()
             throw error
         }
@@ -271,15 +273,12 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                     let rewriteStageMs = Self.elapsedMilliseconds(since: rewriteStartedAt)
                 } else {
                     finalTranscript = intermediateTranscript
-                    AppLogger.info(
-                        "DictationStage rewriteSkipped inputChars=\(intermediateTranscript.count)",
-                        category: .perfTrace
+                    logger.info(
+                        "DictationStage rewriteSkipped inputChars=\(intermediateTranscript.count)"
                     )
                 }
             } catch {
-                AppLogger.error(
-                    "Rewrite failed: \(error.localizedDescription). Falling back to raw transcript.",
-                    category: .dictation)
+                logger.error("Rewrite failed: \(error.localizedDescription). Falling back to raw transcript.")
                 if let rewriteProvider = pipeline.rewriteProvider {
                     await DictationTranscriptTrace.shared.record(
                         provider: rewriteProvider,
@@ -310,16 +309,15 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             }
 
             let totalProcessingMs = Self.elapsedMilliseconds(since: processingStartedAt)
-            AppLogger.info(
-                "DictationSummary totalProcessingMs=\(Self.formatMilliseconds(totalProcessingMs)) audioDurationSeconds=\(Self.formatDurationSeconds(processedCaptureResult.duration)) finalTextChars=\(trimmedTranscript.count) rewriteEnabled=\(pipeline.rewriteService != nil)",
-                category: .perfTrace
+            logger.info(
+                "DictationSummary totalProcessingMs=\(Self.formatMilliseconds(totalProcessingMs)) audioDurationSeconds=\(Self.formatDurationSeconds(processedCaptureResult.duration)) finalTextChars=\(trimmedTranscript.count) rewriteEnabled=\(pipeline.rewriteService != nil)"
             )
 
             await releaseContextOnExit()
             return trimmedTranscript
         } catch {
             await DictationLatencyProbe.shared.record(.transcriptionFailed, note: error.localizedDescription)
-            AppLogger.error("Post-transcription processing failed: \(error.localizedDescription)", category: .dictation)
+            logger.error("Post-transcription processing failed: \(error.localizedDescription)")
             await releaseContextOnExit()
             throw error
         }
@@ -371,16 +369,13 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             do {
                 try await pipeline.transcriptionService.prewarm()
                 let prewarmMs = Self.elapsedMilliseconds(since: prewarmStartedAt)
-                AppLogger.info(
-                    "DictationStage transcriptionPrewarmMs=\(Self.formatMilliseconds(prewarmMs))",
-                    category: .perfTrace
+                logger.info(
+                    "DictationStage transcriptionPrewarmMs=\(Self.formatMilliseconds(prewarmMs))"
                 )
             } catch is CancellationError {
             } catch {
-                AppLogger.warning(
-                    "Local transcription prewarm failed during recording. error=\(error.localizedDescription)",
-                    category: .dictation
-                )
+                logger.warning(
+                    "Local transcription prewarm failed during recording. error=\(error.localizedDescription)")
             }
         }
     }
@@ -413,9 +408,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         let waitStartedAt = ProcessInfo.processInfo.systemUptime
         _ = await transcriptionPrewarmTask.result
         let waitMs = Self.elapsedMilliseconds(since: waitStartedAt)
-        AppLogger.info(
-            "DictationStage transcriptionPrewarmWaitMs=\(Self.formatMilliseconds(waitMs))",
-            category: .perfTrace
+        logger.info(
+            "DictationStage transcriptionPrewarmWaitMs=\(Self.formatMilliseconds(waitMs))"
         )
         if self.transcriptionPrewarmTask == transcriptionPrewarmTask {
             self.transcriptionPrewarmTask = nil
@@ -492,7 +486,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             return
         }
 
-        AppLogger.info("AudioStartup \(payload)", category: .perfTrace)
+        Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "AudioStartup").info(
+            "AudioStartup \(payload)")
     }
 
     private nonisolated static func elapsedMilliseconds(since start: TimeInterval) -> Double {

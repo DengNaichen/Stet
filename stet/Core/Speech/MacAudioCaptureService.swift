@@ -1,5 +1,6 @@
 @preconcurrency import AVFoundation
 import Foundation
+import os
 #if os(macOS)
     import StetVisuals
 #endif
@@ -12,6 +13,9 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     #if os(macOS)
         private let macAudioFileRecorder: MacCaptureAudioFileRecorder
     #endif
+
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "AudioCapture")
 
     private var recorder: AVAudioRecorder?
     private var recordingFileURL: URL?
@@ -61,7 +65,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             throw SpeechServiceError.alreadyRecording
         }
 
-        AppLogger.info("Starting audio capture", category: .dictation)
+        logger.info("Starting audio capture")
         let startRecordingStartedAt = ProcessInfo.processInfo.systemUptime
         let permissionStartedAt = ProcessInfo.processInfo.systemUptime
         let microphoneGranted = await requestMicrophonePermission()
@@ -75,7 +79,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
                 "granted=\(microphoneGranted) microphonePermissionMs=\(Self.formatMilliseconds(microphonePermissionMs))"
         )
         guard microphoneGranted else {
-            AppLogger.warning("Microphone permission denied before recording start", category: .permissions)
+            logger.warning("Microphone permission denied before recording start")
             Task {
                 await DictationRuntimeProbe.shared.markCaptureStartError("permissionDenied")
             }
@@ -111,7 +115,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             self.isRecording = true
             startMetering(with: recorder)
         #endif
-        AppLogger.info("Audio capture started successfully", category: .dictation)
+        logger.info("Audio capture started successfully")
         Task {
             await DictationRuntimeProbe.shared.markCaptureStarted()
         }
@@ -150,13 +154,12 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
 
             if let captureDiagnosticsSummary = recordingOutcome.captureDiagnosticsSummary {
                 if UserDefaults.standard.bool(forKey: MacPreferences.dictationPerfTracingEnabled) {
-                    AppLogger.warning(
+                    logger.warning(
                         """
                         Capture summary. \
                         didWriteAudio=\(recordingOutcome.didWriteAudio) \
                         \(captureDiagnosticsSummary)
-                        """,
-                        category: .dictation
+                        """
                     )
                 }
                 Task {
@@ -169,8 +172,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
 
             guard recordingOutcome.didWriteAudio else {
                 try? FileManager.default.removeItem(at: sourceRecordingFileURL)
-                AppLogger.warning(
-                    "Discarding macOS capture because no audio was recorded after activation.", category: .dictation)
+                logger.warning("Discarding macOS capture because no audio was recorded after activation.")
                 throw SpeechServiceError.emptyTranscription
             }
 
@@ -190,7 +192,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         let durationDescription = Self.durationDescription(audioDurationSeconds)
         let recordingFileSizeBytes = Self.recordingFileSizeBytes(at: finalURL)
 
-        AppLogger.info(
+        logger.info(
             """
             Stopping audio capture. \
             durationSeconds=\(durationDescription), \
@@ -202,15 +204,14 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
                 "AVAudioRecorder"
                 #endif
             }())
-            """,
-            category: .dictation
+            """
         )
         Task {
             await DictationRuntimeProbe.shared.markCaptureStopped()
         }
 
         if (audioDurationSeconds ?? 0) < 0.1 || (recordingFileSizeBytes ?? 0) <= 64 {
-            AppLogger.warning("Skipping file because audio frames were insignificant.", category: .dictation)
+            logger.warning("Skipping file because audio frames were insignificant.")
             try? FileManager.default.removeItem(at: finalURL)
             throw SpeechServiceError.emptyTranscription
         }
@@ -219,7 +220,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     }
 
     func cancelRecording() async {
-        AppLogger.info("Cancelling active audio capture", category: .dictation)
+        logger.info("Cancelling active audio capture")
         Task {
             await DictationRuntimeProbe.shared.markCaptureCancelled()
         }
@@ -246,10 +247,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
 
     private func requestMicrophonePermission() async -> Bool {
         let currentStatus = Self.microphoneAuthorizationStatusDescription
-        AppLogger.info(
-            "Checking microphone permission. status=\(currentStatus)",
-            category: .permissions
-        )
+        logger.info("Checking microphone permission. status=\(currentStatus)")
 
         let granted = await withCheckedContinuation { continuation in
             AVAudioApplication.requestRecordPermission { granted in
@@ -293,13 +291,12 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             #endif
 
             if let selectedInputDevice {
-                AppLogger.info(
+                logger.info(
                     """
                     Using macOS dictation input device. \
                     name=\(selectedInputDevice.name), \
                     transportType=\(selectedInputDevice.transportType)
-                    """,
-                    category: .dictation
+                    """
                 )
             }
 
@@ -399,7 +396,8 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             return
         }
 
-        AppLogger.info("AudioStartup \(payload)", category: .perfTrace)
+        Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "AudioStartup").info(
+            "AudioStartup \(payload)")
     }
 
     private nonisolated static func elapsedMilliseconds(since start: TimeInterval) -> Double {

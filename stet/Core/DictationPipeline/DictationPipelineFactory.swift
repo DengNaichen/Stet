@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 struct DictationPipeline: Sendable {
     let transcriptionService: any AudioFileTranscriptionService
@@ -116,9 +117,8 @@ struct DictationPipelineFactory: Sendable {
         #if os(macOS)
             let stored = StoredTranscriptionEngine.current()
 
-            AppLogger.info(
-                "DictationPipelineFactory selected local engine=\(stored.rawValue)",
-                category: .dictation
+            Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "PipelineFactory").info(
+                "DictationPipelineFactory selected local engine=\(stored.rawValue)"
             )
 
             switch stored {
@@ -126,9 +126,10 @@ struct DictationPipelineFactory: Sendable {
                 do {
                     return try FluidAudioTranscriptionService()
                 } catch {
-                    AppLogger.warning(
-                        "Parakeet engine unavailable (\(error.localizedDescription)); falling back to local whisper.",
-                        category: .dictation
+                    Logger(
+                        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "PipelineFactory"
+                    ).warning(
+                        "Parakeet engine unavailable (\(error.localizedDescription)); falling back to local whisper."
                     )
                     return try LocalWhisperTranscriptionService(modelManager: LocalWhisperModelManager())
                 }
@@ -139,9 +140,10 @@ struct DictationPipelineFactory: Sendable {
                     return try SherpaOnnxSenseVoiceTranscriptionService(
                         modelManager: SherpaOnnxSenseVoiceModelManager())
                 } catch {
-                    AppLogger.warning(
-                        "Sherpa-ONNX SenseVoice engine unavailable (\(error.localizedDescription)); falling back to local whisper.",
-                        category: .dictation
+                    Logger(
+                        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "PipelineFactory"
+                    ).warning(
+                        "Sherpa-ONNX SenseVoice engine unavailable (\(error.localizedDescription)); falling back to local whisper."
                     )
                     return try LocalWhisperTranscriptionService(modelManager: LocalWhisperModelManager())
                 }

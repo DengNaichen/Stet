@@ -109,9 +109,8 @@ final class LocalWhisperTranscriptionService: AudioFileTranscriptionService, @un
             if isTransient {
                 await engine.releaseResources()
             }
-            AppLogger.error(
-                "LocalWhisper failed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(Self.elapsedMilliseconds(since: inferenceStartedAt))) languageCode=\(languageCode ?? "auto") promptChars=\(prompt?.count ?? 0) error=\(error.localizedDescription)",
-                category: .perfTrace
+            logger.error(
+                "LocalWhisper failed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(Self.elapsedMilliseconds(since: inferenceStartedAt))) languageCode=\(languageCode ?? "auto") promptChars=\(prompt?.count ?? 0) error=\(error.localizedDescription)"
             )
             throw error
         }
@@ -127,9 +126,8 @@ final class LocalWhisperTranscriptionService: AudioFileTranscriptionService, @un
             throw SpeechServiceError.emptyTranscription
         }
 
-        AppLogger.info(
-            "LocalWhisper completed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) sampleCount=\(samples.count) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(inferenceMs)) totalMs=\(Self.formatMilliseconds(totalMs)) textChars=\(transcript.count) languageCode=\(result.languageCode ?? languageCode ?? "auto") promptChars=\(prompt?.count ?? 0) reusedLoadedContext=\(!isTransient)",
-            category: .perfTrace
+        logger.info(
+            "LocalWhisper completed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) sampleCount=\(samples.count) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(inferenceMs)) totalMs=\(Self.formatMilliseconds(totalMs)) textChars=\(transcript.count) languageCode=\(result.languageCode ?? languageCode ?? "auto") promptChars=\(prompt?.count ?? 0) reusedLoadedContext=\(!isTransient)"
         )
 
         return .init(text: transcript, languageCode: result.languageCode)

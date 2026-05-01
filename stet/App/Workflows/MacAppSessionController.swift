@@ -2,10 +2,19 @@
     import AppKit
     import Combine
     import Foundation
+    import os
     import StetVisuals
 
     @MainActor
     final class MacAppSessionController {
+        static let logger = Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+            category: "perfTrace"
+        )
+        static let permissionsLogger = Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+            category: "permissions"
+        )
         typealias PrimaryActionSource = MacDictationWorkflowController.PrimaryActionSource
 
         var onChange: (() -> Void)?

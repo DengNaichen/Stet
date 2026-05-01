@@ -1,116 +1,7 @@
 import Foundation
 import OSLog
 
-enum AppLoggerCategory {
-    case general
-    case hotkey
-    case openAI
-    case appBranch
-    case permissions
-    case dictation
-    case perfTrace
-    case transcriptTrace
-
-    nonisolated var label: String {
-        switch self {
-        case .general:
-            return "general"
-        case .hotkey:
-            return "hotkey"
-        case .openAI:
-            return "openai"
-        case .appBranch:
-            return "app-branch"
-        case .permissions:
-            return "permissions"
-        case .dictation:
-            return "dictation"
-        case .perfTrace:
-            return "perftrace"
-        case .transcriptTrace:
-            return "transcript-trace"
-        }
-    }
-
-    nonisolated var preferenceKey: String? {
-        switch self {
-        case .general:
-            return nil
-        case .hotkey, .openAI:
-            return nil
-        case .appBranch, .permissions, .dictation:
-            return nil
-        case .perfTrace:
-            return MacPreferences.dictationPerfTracingEnabled
-        case .transcriptTrace:
-            return MacPreferences.dictationTranscriptTracingEnabled
-        }
-    }
-}
-
-enum AppLogger {
-    private enum Level {
-        case info
-        case warning
-        case error
-    }
-
-    nonisolated private static let subsystem = Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet"
-
-    nonisolated static func info(
-        _ message: @autoclosure () -> String,
-        category: AppLoggerCategory = .general
-    ) {
-        log(level: .info, message(), category: category)
-    }
-
-    nonisolated static func warning(
-        _ message: @autoclosure () -> String,
-        category: AppLoggerCategory = .general
-    ) {
-        log(level: .warning, message(), category: category)
-    }
-
-    nonisolated static func error(
-        _ message: @autoclosure () -> String,
-        category: AppLoggerCategory = .general
-    ) {
-        log(level: .error, message(), category: category)
-    }
-
-    nonisolated private static func log(level: Level, _ message: String, category: AppLoggerCategory) {
-        guard shouldEmit(level: level, category: category) else { return }
-        let logger = Logger(subsystem: subsystem, category: category.label)
-
-        switch level {
-        case .info:
-            logger.info("\(message, privacy: .public)")
-        case .warning:
-            logger.warning("\(message, privacy: .public)")
-        case .error:
-            logger.error("\(message, privacy: .public)")
-        }
-    }
-
-    nonisolated private static func shouldEmit(
-        level: Level,
-        category: AppLoggerCategory,
-        defaults: UserDefaults = .standard
-    ) -> Bool {
-        switch level {
-        case .warning, .error:
-            return true
-        case .info:
-            break
-        }
-
-        guard let key = category.preferenceKey else {
-            return false
-        }
-
-        return defaults.object(forKey: key) as? Bool ?? false
-    }
-}
+private let subsystem = "com.openwhispr.Stet"
 
 struct DictationTranscriptComparison: Codable, Sendable {
     enum Outcome: String, Codable, Sendable {
@@ -215,6 +106,7 @@ struct DictationTranscriptComparison: Codable, Sendable {
 
 actor DictationTranscriptTrace {
     static let shared = DictationTranscriptTrace()
+    private let logger = Logger(subsystem: subsystem, category: "transcript-trace")
 
     func record(
         provider: DictationProvider,
@@ -232,7 +124,7 @@ actor DictationTranscriptTrace {
             languageCode: languageCode,
             errorDescription: errorDescription
         )
-        print(formattedLine(for: comparison))
+        logger.info("\(self.formattedLine(for: comparison), privacy: .public)")
     }
 
     func resetTraceFile() {}
@@ -287,6 +179,7 @@ actor DictationLatencyProbe {
     }
 
     static let shared = DictationLatencyProbe()
+    private let logger = Logger(subsystem: subsystem, category: "dictation")
 
     private var activeSession: Session?
 
@@ -307,9 +200,8 @@ actor DictationLatencyProbe {
             audioDurationDescription = "unknown"
         }
 
-        AppLogger.info(
-            "LatencyTrace id=\(id) stage=\(Stage.recordingFinished.rawValue) sinceRecordingFinishedMs=0 sincePreviousStageMs=0 audioDurationSeconds=\(audioDurationDescription)",
-            category: .dictation
+        logger.info(
+            "LatencyTrace id=\(id) stage=\(Stage.recordingFinished.rawValue) sinceRecordingFinishedMs=0 sincePreviousStageMs=0 audioDurationSeconds=\(audioDurationDescription)"
         )
     }
 
@@ -329,9 +221,8 @@ actor DictationLatencyProbe {
         let roundedSincePreviousStage = String(format: "%.1f", sincePreviousStageMs)
         let noteSuffix = note.map { " note=\($0)" } ?? ""
 
-        AppLogger.info(
-            "LatencyTrace id=\(session.id) stage=\(stage.rawValue) sinceRecordingFinishedMs=\(roundedSinceRecordingFinished) sincePreviousStageMs=\(roundedSincePreviousStage)\(noteSuffix)",
-            category: .dictation
+        logger.info(
+            "LatencyTrace id=\(session.id) stage=\(stage.rawValue) sinceRecordingFinishedMs=\(roundedSinceRecordingFinished) sincePreviousStageMs=\(roundedSincePreviousStage)\(noteSuffix)"
         )
 
         if Self.terminalStages.contains(stage) {
@@ -375,6 +266,7 @@ actor DictationStartupProbe {
     }
 
     static let shared = DictationStartupProbe()
+    private let logger = Logger(subsystem: subsystem, category: "dictation")
 
     private var activeSession: Session?
     private let traceFileURL = FileManager.default.temporaryDirectory
@@ -431,7 +323,7 @@ actor DictationStartupProbe {
     }
 
     private func emitTraceLine(_ line: String) {
-        AppLogger.info(line, category: .dictation)
+        logger.info("\(line, privacy: .public)")
         appendTraceLine(line)
     }
 
@@ -451,10 +343,7 @@ actor DictationStartupProbe {
             try handle.seekToEnd()
             try handle.write(contentsOf: data)
         } catch {
-            AppLogger.error(
-                "Failed to append startup trace file: \(error.localizedDescription)",
-                category: .dictation
-            )
+            logger.error("Failed to append startup trace file: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -509,13 +398,9 @@ actor DictationRuntimeProbe {
     private var runCounter = 0
 
     static let shared = DictationRuntimeProbe()
-
-    private var isEnabled: Bool {
-        UserDefaults.standard.bool(forKey: MacPreferences.dictationPerfTracingEnabled)
-    }
+    private let logger = Logger(subsystem: subsystem, category: "perftrace")
 
     func beginRun(trigger: String, source: String, panelVisible: Bool) {
-        guard isEnabled else { return }
         guard activeRun == nil else { return }
 
         let now = ProcessInfo.processInfo.systemUptime
@@ -539,13 +424,13 @@ actor DictationRuntimeProbe {
     }
 
     func endRun(reason: String, details: String? = nil) {
-        guard isEnabled, let run = activeRun else { return }
+        guard let run = activeRun else { return }
         let now = ProcessInfo.processInfo.systemUptime
         emit(
             runId: run.id,
             stage: .runEnded,
             at: now,
-            details: joinDetails(["reason=\(reason)", details])
+            details: self.joinDetails(["reason=\(reason)", details])
         )
         activeRun = nil
     }
@@ -579,8 +464,8 @@ actor DictationRuntimeProbe {
     }
 
     func markStateTransition(from: DictationState, to: DictationState) {
-        let fromLabel = stateLabel(from)
-        let toLabel = stateLabel(to)
+        let fromLabel = "\(from)"
+        let toLabel = "\(to)"
         Task {
             await log(.stateTransition, details: "from=\(fromLabel) to=\(toLabel)")
         }
@@ -634,7 +519,6 @@ actor DictationRuntimeProbe {
     }
 
     private func log(_ stage: Stage, details: String? = nil) async {
-        guard isEnabled else { return }
         guard var run = activeRun else { return }
 
         let now = ProcessInfo.processInfo.systemUptime
@@ -642,7 +526,7 @@ actor DictationRuntimeProbe {
             runId: run.id,
             stage: stage,
             at: now,
-            details: details.map { clamp($0) }
+            details: details.map { self.clamp($0) }
         )
         run.lastEventAt = now
         activeRun = run
@@ -654,44 +538,22 @@ actor DictationRuntimeProbe {
         at now: TimeInterval,
         details: String? = nil
     ) {
-        guard isEnabled else { return }
-
         guard let run = activeRun else {
             return
         }
 
         let sinceRunMs = (now - run.startedAt) * 1_000
         let sinceLastMs = (now - run.lastEventAt) * 1_000
-        let detailsSuffix = details.map { " \(clamp($0))" } ?? ""
+        let detailsSuffix = details.map { " \(self.clamp($0))" } ?? ""
 
-        AppLogger.info(
+        logger.info(
             """
             RuntimeTrace id=\(runId) stage=\(stage.rawValue) \
             sinceRunMs=\(String(format: "%.1f", sinceRunMs)) \
             sincePrevMs=\(String(format: "%.1f", sinceLastMs)) \
             source=\(run.source) panelAtStart=\(run.panelWasVisibleAtStart)\(detailsSuffix)
-            """,
-            category: .perfTrace
+            """
         )
-    }
-
-    private func stateLabel(_ state: DictationState) -> String {
-        switch state {
-        case .idle:
-            return "idle"
-        case .starting:
-            return "starting"
-        case .listening:
-            return "listening"
-        case .processing:
-            return "processing"
-        case .result:
-            return "result"
-        case .clipboardPending:
-            return "clipboardPending"
-        case .error:
-            return "error"
-        }
     }
 
     private func clamp(_ value: String) -> String {

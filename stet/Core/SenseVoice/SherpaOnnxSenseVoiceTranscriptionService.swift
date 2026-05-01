@@ -252,9 +252,8 @@ final class SherpaOnnxSenseVoiceTranscriptionService: AudioFileTranscriptionServ
                 throw SpeechServiceError.emptyTranscription
             }
 
-            AppLogger.info(
-                "SherpaOnnx SenseVoice completed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) sampleCount=\(samples.count) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(inferenceMs)) totalMs=\(Self.formatMilliseconds(totalMs)) textChars=\(trimmedTranscript.count) languageCode=\(result.detectedLanguage ?? languageCode ?? "auto") emotion=\(result.emotion) event=\(result.event)",
-                category: .perfTrace
+            logger.info(
+                "SherpaOnnx SenseVoice completed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) sampleCount=\(samples.count) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(inferenceMs)) totalMs=\(Self.formatMilliseconds(totalMs)) textChars=\(trimmedTranscript.count) languageCode=\(result.detectedLanguage ?? languageCode ?? "auto") emotion=\(result.emotion) event=\(result.event)"
             )
 
             return .init(text: trimmedTranscript, languageCode: result.detectedLanguage)

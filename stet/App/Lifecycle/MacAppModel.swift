@@ -1,6 +1,7 @@
 #if os(macOS)
     import Combine
     import Foundation
+    import os
     import AppKit
     import StetVisuals
 
@@ -8,6 +9,10 @@
     final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, MacSettingsShellCoordinating,
         MacAppPresentationModeling
     {
+        static let logger = Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+            category: "dictation"
+        )
         private let settingsStore: DictationSettingsStore
         private let sessionController: MacAppSessionController
         private let interactionSoundPlayer: InteractionSoundPlayer
@@ -373,7 +378,7 @@
         }
 
         func handleDeepLink(_ url: URL) {
-            AppLogger.info("Received deep link: \(url.absoluteString)", category: .dictation)
+            Self.logger.info("Received deep link: \(url.absoluteString)")
         }
 
         private var settingsSnapshot: DictationSettingsSnapshot {

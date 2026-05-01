@@ -2,6 +2,7 @@
     import AppKit
     import Combine
     import Foundation
+    import os
 
     extension MacAppSessionController {
         func activate(presentationModel: any MacAppPresentationModeling, showInDock: Bool) {
@@ -135,7 +136,7 @@
                 // Add a one-second delay to avoid blocking UI during activation
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
 
-                AppLogger.info("Pre-warming audio engine on activation after delay", category: .dictation)
+                Self.logger.info("Pre-warming audio engine on activation after delay")
                 await workflowController.prewarm()
             }
         }
@@ -190,7 +191,7 @@
             Task { @MainActor [weak self] in
                 guard let self else { return }
 
-                AppLogger.info("Requesting microphone access from permissions gate", category: .permissions)
+                Self.permissionsLogger.info("Requesting microphone access from permissions gate")
                 _ = await permissionManager.requestMicrophonePermission()
                 refreshPermissionIndicators()
             }

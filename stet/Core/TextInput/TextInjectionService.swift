@@ -2,6 +2,7 @@
     import AppKit
     import ApplicationServices
     import Foundation
+    import os
 
     @MainActor
     struct TextInjectionAccessState: Equatable {
@@ -151,6 +152,8 @@
         private let pasteboard: NSPasteboard
         private let pasteboardRestoreCoordinator: PasteboardRestoreCoordinator
         private var didPromptForMissingAccessThisSession = false
+        private let logger = Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "TextInjection")
 
         init(
             clipboardService: any ClipboardService,
@@ -711,9 +714,8 @@
 
         private func requestMissingAccesses(trigger: String) {
             let state = accessState
-            AppLogger.info(
-                "Requesting text injection permissions. trigger=\(trigger), accessibility=\(state.hasAccessibilityAccess), postEvent=\(state.hasPostEventAccess)",
-                category: .permissions
+            logger.info(
+                "Requesting text injection permissions. trigger=\(trigger), accessibility=\(state.hasAccessibilityAccess), postEvent=\(state.hasPostEventAccess)"
             )
 
             if !state.hasPostEventAccess {
@@ -736,9 +738,8 @@
         private func emitTextInjectionTrace(_ traceID: String?, stage: String, details: String? = nil) {
             guard let traceID else { return }
             let detailsSuffix = details.map { " \($0)" } ?? ""
-            AppLogger.info(
-                "TextInjectionTrace id=\(traceID) stage=\(stage)\(detailsSuffix)",
-                category: .perfTrace
+            logger.info(
+                "TextInjectionTrace id=\(traceID) stage=\(stage)\(detailsSuffix)"
             )
         }
 

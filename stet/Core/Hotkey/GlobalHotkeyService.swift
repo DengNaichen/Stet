@@ -2,6 +2,9 @@
 //import AppKit
 //import ApplicationServices
 //import Carbon
+//import os
+
+//private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "hotkey")
 
 //private let hotkeySignature = OSType(0x41525459) // ARTY
 //
@@ -117,7 +120,7 @@
 //        unregisterBackend()
 //
 //        if registerPreferredShortcut(allowFallback: false) {
-//            AppLogger.info("Updated hotkey to \(shortcut.displayString)", category: .hotkey)
+//            logger.info("Updated hotkey to \(shortcut.displayString)")
 //            return true
 //        }
 //
@@ -141,14 +144,14 @@
 //    func handleKeyDown() {
 //        guard !isPressActive else { return }
 //        isPressActive = true
-//        AppLogger.info("Hotkey key-down", category: .hotkey)
+//        logger.info("Hotkey key-down")
 //        keyDownHandler?()
 //    }
 //
 //    func handleKeyUp() {
 //        guard isPressActive else { return }
 //        isPressActive = false
-//        AppLogger.info("Hotkey key-up", category: .hotkey)
+//        logger.info("Hotkey key-up")
 //        keyUpHandler?()
 //    }
 //
@@ -224,7 +227,7 @@
 //        )
 //
 //        guard status == noErr, let newHotKeyRef else {
-//            AppLogger.warning("Failed to register Carbon hotkey \(shortcut.displayString)", category: .hotkey)
+//            logger.warning("Failed to register Carbon hotkey \(shortcut.displayString)")
 //            return false
 //        }
 //
@@ -242,9 +245,8 @@
 //        }
 //
 //        guard inputMonitoringGranted else {
-//            AppLogger.warning(
-//                "Input Monitoring is required for hotkey \(shortcut.displayString)",
-//                category: .hotkey
+//            logger.warning(
+//                "Input Monitoring is required for hotkey \(shortcut.displayString)"
 //            )
 //            return false
 //        }
@@ -267,7 +269,7 @@
 //            },
 //            userInfo: Unmanaged.passUnretained(self).toOpaque()
 //        ) else {
-//            AppLogger.error("Failed to create event tap for \(shortcut.displayString)", category: .hotkey)
+//            logger.error("Failed to create event tap for \(shortcut.displayString)")
 //            return false
 //        }
 //

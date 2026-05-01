@@ -1,5 +1,6 @@
 import Foundation
 import OpenAI
+import os
 
 // MARK: - Http Response Recorder
 
@@ -45,11 +46,11 @@ struct OpenAIResponseRecordingMiddleware: OpenAIMiddleware {
 
 struct OpenAILoggingMiddleware: OpenAIMiddleware {
     let provider: DictationProvider
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "openai")
 
     func intercept(request: URLRequest) -> URLRequest {
-        AppLogger.info(
-            "\(provider.displayName) request started. method=\(request.httpMethod ?? "GET"), url=\(request.url?.absoluteString ?? "nil")",
-            category: .openAI
+        logger.info(
+            "\(provider.displayName) request started. method=\(request.httpMethod ?? "GET"), url=\(request.url?.absoluteString ?? "nil")"
         )
 
         return request
@@ -57,9 +58,8 @@ struct OpenAILoggingMiddleware: OpenAIMiddleware {
 
     func intercept(response: URLResponse?, request: URLRequest, data: Data?) -> (response: URLResponse?, data: Data?) {
         if let httpResponse = response as? HTTPURLResponse {
-            AppLogger.info(
-                "\(provider.displayName) response received. status=\(httpResponse.statusCode), url=\(request.url?.absoluteString ?? "nil")",
-                category: .openAI
+            logger.info(
+                "\(provider.displayName) response received. status=\(httpResponse.statusCode), url=\(request.url?.absoluteString ?? "nil")"
             )
         }
 

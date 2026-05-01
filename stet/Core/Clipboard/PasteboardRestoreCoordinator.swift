@@ -1,6 +1,16 @@
 #if os(macOS)
     import AppKit
     import Foundation
+    import os
+
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+        category: "perfTrace"
+    )
+    private let dictationLogger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+        category: "dictation"
+    )
 
     @MainActor
     final class PasteboardRestoreCoordinator {
@@ -70,9 +80,8 @@
                 }
 
                 guard temporarySnapshot.matches(pasteboard) else {
-                    AppLogger.info(
-                        "Pasteboard restore skipped: temporary snapshot no longer matches current pasteboard",
-                        category: .dictation
+                    dictationLogger.info(
+                        "Pasteboard restore skipped: temporary snapshot no longer matches current pasteboard"
                     )
                     emitPasteboardTrace(
                         stage: "restore_skipped_mismatch",
@@ -117,9 +126,8 @@
             pendingRestoreTask?.cancel()
             pendingRestoreTask = nil
             pendingOriginalSnapshot = nil
-            AppLogger.info(
-                "PasteboardTrace stage=discard_pending",
-                category: .perfTrace
+            logger.info(
+                "PasteboardTrace stage=discard_pending"
             )
         }
 
@@ -129,9 +137,8 @@
             details: String? = nil
         ) {
             let detailsSuffix = details.map { " \($0)" } ?? ""
-            AppLogger.info(
-                "PasteboardTrace stage=\(stage) changeCount=\(pasteboard.changeCount) pendingOriginalSnapshot=\(pendingOriginalSnapshot != nil)\(detailsSuffix)",
-                category: .perfTrace
+            logger.info(
+                "PasteboardTrace stage=\(stage) changeCount=\(pasteboard.changeCount) pendingOriginalSnapshot=\(self.pendingOriginalSnapshot != nil)\(detailsSuffix)"
             )
         }
 
@@ -190,15 +197,13 @@
             if !restoredItems.isEmpty {
                 let success = pasteboard.writeObjects(restoredItems)
                 if !success {
-                    AppLogger.warning(
-                        "Pasteboard restore failed: unable to write restored items to pasteboard",
-                        category: .dictation
+                    dictationLogger.warning(
+                        "Pasteboard restore failed: unable to write restored items to pasteboard"
                     )
                 }
             } else if !items.isEmpty {
-                AppLogger.warning(
-                    "Pasteboard restore failed: no items could be restored from snapshot",
-                    category: .dictation
+                dictationLogger.warning(
+                    "Pasteboard restore failed: no items could be restored from snapshot"
                 )
             }
         }

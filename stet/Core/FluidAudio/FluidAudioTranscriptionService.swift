@@ -122,9 +122,8 @@
                 if isTransient {
                     await asrManager.cleanup()
                 }
-                AppLogger.error(
-                    "Parakeet failed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(Self.elapsedMilliseconds(since: inferenceStartedAt))) languageCode=\(languageCode ?? "auto") error=\(error.localizedDescription)",
-                    category: .perfTrace
+                logger.error(
+                    "Parakeet failed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(Self.elapsedMilliseconds(since: inferenceStartedAt))) languageCode=\(languageCode ?? "auto") error=\(error.localizedDescription)"
                 )
                 throw FluidAudioTranscriptionError.transcriptionFailed(error.localizedDescription)
             }
@@ -140,9 +139,8 @@
                 throw SpeechServiceError.emptyTranscription
             }
 
-            AppLogger.info(
-                "Parakeet completed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) sampleCount=\(samples.count) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(inferenceMs)) totalMs=\(Self.formatMilliseconds(totalMs)) textChars=\(transcript.count) languageCode=\(languageCode ?? "auto") reusedLoadedContext=\(!isTransient)",
-                category: .perfTrace
+            logger.info(
+                "Parakeet completed audioDurationSeconds=\(Self.formatOptionalDurationSeconds(audioDurationSeconds)) sampleCount=\(samples.count) samplePreparationMs=\(Self.formatMilliseconds(samplePreparationMs)) inferenceMs=\(Self.formatMilliseconds(inferenceMs)) totalMs=\(Self.formatMilliseconds(totalMs)) textChars=\(transcript.count) languageCode=\(languageCode ?? "auto") reusedLoadedContext=\(!isTransient)"
             )
 
             return .init(text: transcript, languageCode: languageCode)

@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 #if os(macOS)
     import AppKit
@@ -31,6 +32,15 @@ final class SystemClipboardService: ClipboardService {
         private static let concealedType = NSPasteboard.PasteboardType(
             "org.nspasteboard.ConcealedType")
 
+        private static let logger = Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+            category: "general"
+        )
+        private static let perfLogger = Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+            category: "perfTrace"
+        )
+
         init(pasteboard: NSPasteboard = .general) {
             self.pasteboard = pasteboard
         }
@@ -49,9 +59,8 @@ final class SystemClipboardService: ClipboardService {
             pasteboard.clearContents()
 
             guard pasteboard.setString(text, forType: .string) else {
-                AppLogger.error(
-                    "Failed to write text to clipboard (setString returned false)",
-                    category: .general
+                Self.logger.error(
+                    "Failed to write text to clipboard (setString returned false)"
                 )
                 emitClipboardTrace(
                     stage: "copy_end",
@@ -84,9 +93,8 @@ final class SystemClipboardService: ClipboardService {
 
     #if os(macOS)
         private func emitClipboardTrace(stage: String, details: String) {
-            AppLogger.info(
-                "ClipboardTrace stage=\(stage) \(details)",
-                category: .perfTrace
+            Self.perfLogger.info(
+                "ClipboardTrace stage=\(stage) \(details)"
             )
         }
     #endif
