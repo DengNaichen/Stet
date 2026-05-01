@@ -104,6 +104,11 @@
 			path = StetKeyboard;
 			sourceTree = "<group>";
 		};
+		A1000000SHAREDCORE000001 /* SharedCore */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = testvoice/Core/Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -253,6 +258,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				6DD04E002FA3D494004D9143 /* StetKeyboard */,
+				A1000000SHAREDCORE000001 /* SharedCore */,
 			);
 			name = StetKeyboard;
 			packageProductDependencies = (

@@ -1,0 +1,662 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild build -project testvoice.xcodeproj -scheme testvoice -destination "generic/platform=iOS Simulator"
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  KeyboardKit: https://github.com/KeyboardKit/KeyboardKit.git @ 10.4.1
+  LicenseKit: https://github.com/LicenseKit/LicenseKit.git @ 2.1.3
+
+2026-05-01 17:02:26.433 xcodebuild[14056:40315321] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (5 targets)
+    Target 'testvoice' in project 'testvoice'
+        ➜ Explicit dependency on target 'StetKeyboard' in project 'testvoice'
+        ➜ Explicit dependency on target 'KeyboardKit' in project 'KeyboardKit'
+    Target 'KeyboardKit' in project 'KeyboardKit'
+        ➜ Explicit dependency on target 'KeyboardKitDependencies' in project 'KeyboardKit'
+        ➜ Explicit dependency on target 'LicenseKit' in project 'LicenseKit'
+    Target 'KeyboardKitDependencies' in project 'KeyboardKit'
+        ➜ Explicit dependency on target 'LicenseKit' in project 'LicenseKit'
+    Target 'LicenseKit' in project 'LicenseKit' (no dependencies)
+    Target 'StetKeyboard' in project 'testvoice' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.4.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml1 /Users/nd/Developer/testvoice/testvoice/Resources/Assets.xcassets
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --version --output-format xml1
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+Build description signature: e3f2fc5201147edac750d235751dbd38
+Build description path: /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/XCBuildData/e3f2fc5201147edac750d235751dbd38.xcbuilddata
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.4.sdk /Users/nd/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.4-23E252-688ef53f1462e2c8f657fdc38a81448f686eebb5dc1d8ecb277353a59184f4aa.sdkstatcache
+    cd /Users/nd/Developer/testvoice/testvoice.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.4.sdk -o /Users/nd/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.4-23E252-688ef53f1462e2c8f657fdc38a81448f686eebb5dc1d8ecb277353a59184f4aa.sdkstatcache
+
+ProcessInfoPlistFile /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Products/Debug-iphonesimulator/StetKeyboard.appex/Info.plist /Users/nd/Developer/testvoice/StetKeyboard/Info.plist (in target 'StetKeyboard' from project 'testvoice')
+    cd /Users/nd/Developer/testvoice
+    builtin-infoPlistUtility /Users/nd/Developer/testvoice/StetKeyboard/Info.plist -producttype com.apple.product-type.app-extension -expandbuildsettings -format binary -platform iphonesimulator -o /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Products/Debug-iphonesimulator/StetKeyboard.appex/Info.plist
+
+SwiftDriver StetKeyboard normal x86_64 com.apple.xcode.tools.swift.compiler (in target 'StetKeyboard' from project 'testvoice')
+    cd /Users/nd/Developer/testvoice
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name StetKeyboard -Onone @/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/x86_64/StetKeyboard.SwiftFileList -DDEBUG -enable-bare-slash-regex -enable-upcoming-feature DisableOutwardActorInference -enable-upcoming-feature InferSendableFromCaptures -enable-upcoming-feature GlobalActorIsolatedTypesUsability -enable-upcoming-feature MemberImportVisibility -enable-upcoming-feature InferIsolatedConformances -enable-upcoming-feature NonisolatedNonsendingByDefault -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.4.sdk -target x86_64-apple-ios17.0-simulator -g -module-cache-path /Users/nd/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -application-extension -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 5 -I /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Products/Debug-iphonesimulator -F /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Products/Debug-iphonesimulator -emit-localized-strings -emit-localized-strings-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/x86_64 -c -j12 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.4-23E252-688ef53f1462e2c8f657fdc38a81448f686eebb5dc1d8ecb277353a59184f4aa.sdkstatcache -output-file-map /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/x86_64/StetKeyboard-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/nd/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -sdk-module-cache-path /Users/nd/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/x86_64/StetKeyboard.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/nd/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/x86_64/StetKeyboard_const_extract_protocols.json -Xcc -iquote -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-generated-files.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-own-target-headers.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/testvoice-3cb9744f6dede3ebfcc7ac3e4b70821b-VFS-iphonesimulator/all-product-headers.yaml -Xcc -iquote -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-project-headers.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Products/Debug-iphonesimulator/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/DerivedSources-normal/x86_64 -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/DerivedSources/x86_64 -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/x86_64/StetKeyboard-Swift.h -working-directory /Users/nd/Developer/testvoice -experimental-emit-module-separately -disable-cmo
+
+SwiftDriver StetKeyboard normal arm64 com.apple.xcode.tools.swift.compiler (in target 'StetKeyboard' from project 'testvoice')
+    cd /Users/nd/Developer/testvoice
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name StetKeyboard -Onone @/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/arm64/StetKeyboard.SwiftFileList -DDEBUG -enable-bare-slash-regex -enable-upcoming-feature DisableOutwardActorInference -enable-upcoming-feature InferSendableFromCaptures -enable-upcoming-feature GlobalActorIsolatedTypesUsability -enable-upcoming-feature MemberImportVisibility -enable-upcoming-feature InferIsolatedConformances -enable-upcoming-feature NonisolatedNonsendingByDefault -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.4.sdk -target arm64-apple-ios17.0-simulator -g -module-cache-path /Users/nd/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -application-extension -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 5 -I /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Products/Debug-iphonesimulator -F /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Products/Debug-iphonesimulator -emit-localized-strings -emit-localized-strings-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/arm64 -c -j12 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.4-23E252-688ef53f1462e2c8f657fdc38a81448f686eebb5dc1d8ecb277353a59184f4aa.sdkstatcache -output-file-map /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/arm64/StetKeyboard-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/nd/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -sdk-module-cache-path /Users/nd/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/arm64/StetKeyboard.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/nd/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/arm64/StetKeyboard_const_extract_protocols.json -Xcc -iquote -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-generated-files.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-own-target-headers.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/testvoice-3cb9744f6dede3ebfcc7ac3e4b70821b-VFS-iphonesimulator/all-product-headers.yaml -Xcc -iquote -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-project-headers.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Products/Debug-iphonesimulator/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/DerivedSources-normal/arm64 -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/DerivedSources/arm64 -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/arm64/StetKeyboard-Swift.h -working-directory /Users/nd/Developer/testvoice -experimental-emit-module-separately -disable-cmo
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/LicenseKit-6PIKI75VCPWTROQU38HRNVVJ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/KeyboardKit-2RLVP8V2XVB1LZHI2ONGTMY3S.pcm
+
+SwiftExplicitDependencyGeneratePcm x86_64 /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/KeyboardKit-6LPUOEBLATQ3VRWMT6E3PAJS5.pcm
+
+SwiftExplicitDependencyGeneratePcm x86_64 /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/LicenseKit-A56H766MN2X2BI5POZUT3OBAH.pcm
+
+SwiftExplicitDependencyCompileModuleFromInterface arm64 /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/LicenseKit-2V7ZSDAFH5KY5.swiftmodule
+
+SwiftExplicitDependencyCompileModuleFromInterface x86_64 /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/LicenseKit-2GH891EV6HADY.swiftmodule
+
+SwiftExplicitDependencyCompileModuleFromInterface x86_64 /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/KeyboardKit-3V6LIANY18D5C.swiftmodule
+
+SwiftExplicitDependencyCompileModuleFromInterface arm64 /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules/KeyboardKit-PH2JF21T158M.swiftmodule
+
+SwiftCompile normal arm64 Compiling\ KeyboardViewController.swift /Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift (in target 'StetKeyboard' from project 'testvoice')
+
+SwiftCompile normal arm64 /Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift (in target 'StetKeyboard' from project 'testvoice')
+    cd /Users/nd/Developer/testvoice
+    
+
+SwiftCompile normal arm64 Compiling\ SharedDictationManager.swift /Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift (in target 'StetKeyboard' from project 'testvoice')
+
+SwiftCompile normal arm64 /Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift (in target 'StetKeyboard' from project 'testvoice')
+    cd /Users/nd/Developer/testvoice
+    
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: error: invalid redeclaration of 'DictationState'
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: 'DictationState' previously declared here
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: 'DictationState' previously declared here
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:24:16: error: 'DictationState' is ambiguous for type lookup in this context
+    var state: DictationState
+               ^~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: error: type 'DictationSession' does not conform to protocol 'Decodable'
+struct DictationSession: Codable {
+       ^
+Swift.Decodable.init:2:1: note: protocol requires initializer 'init(from:)' with type 'Decodable'
+init(from decoder: any Decoder) throws}
+^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:24:9: note: cannot automatically synthesize 'Decodable' because 'DictationState' does not conform to 'Decodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: error: type 'DictationSession' does not conform to protocol 'Encodable'
+struct DictationSession: Codable {
+       ^
+Swift.Encodable.encode:2:6: note: protocol requires function 'encode(to:)' with type 'Encodable'
+func encode(to encoder: any Encoder) throws}
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:24:9: note: cannot automatically synthesize 'Encodable' because 'DictationState' does not conform to 'Encodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: error: invalid redeclaration of 'DictationSession'
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: 'DictationSession' previously declared here
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: 'DictationSession' previously declared here
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:32:25: error: ambiguous use of 'init()'
+    static let shared = SharedDictationManager()
+                        ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:174:7: note: found this candidate 
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:31:7: note: found this candidate 
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:50:33: error: 'DictationSession' is ambiguous for type lookup in this context
+    func saveSession(_ session: DictationSession) {
+                                ^~~~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:57:26: error: 'DictationSession' is ambiguous for type lookup in this context
+    func getSession() -> DictationSession? {
+                         ^~~~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:62:31: error: 'DictationState' is ambiguous for type lookup in this context
+    func updateState(_ state: DictationState, error: String? = nil) {
+                              ^~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:31:7: error: invalid redeclaration of 'SharedDictationManager'
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:174:7: note: 'SharedDictationManager' previously declared here
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:174:7: note: 'SharedDictationManager' previously declared here
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:167:16: error: 'DictationState' is ambiguous for type lookup in this context
+    var state: DictationState
+               ^~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: error: type 'DictationSession' does not conform to protocol 'Decodable'
+struct DictationSession: Codable {
+       ^
+Swift.Decodable.init:2:1: note: protocol requires initializer 'init(from:)' with type 'Decodable'
+init(from decoder: any Decoder) throws}
+^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:167:9: note: cannot automatically synthesize 'Decodable' because 'DictationState' does not conform to 'Decodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: error: type 'DictationSession' does not conform to protocol 'Decodable'
+struct DictationSession: Codable {
+       ^
+Swift.Decodable.init:2:1: note: protocol requires initializer 'init(from:)' with type 'Decodable'
+init(from decoder: any Decoder) throws}
+^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:167:9: note: cannot automatically synthesize 'Decodable' because 'DictationState' does not conform to 'Decodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:63:132: error: cannot infer contextual base in reference to member 'idle'
+        var session = getSession() ?? DictationSession(sessionId: UUID().uuidString, createdAt: Date(), updatedAt: Date(), state: .idle)
+                                                                                                                                  ~^~~~
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ StetKeyboard (in target 'StetKeyboard' from project 'testvoice')
+Failed frontend command:
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend -frontend -emit-module -experimental-skip-non-inlinable-function-bodies-without-types /Users/nd/Developer/testvoice/StetKeyboard/KeyboardView.swift /Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift /Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift -target arm64-apple-ios17.0-simulator -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libFoundationMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#FoundationMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libFoundationModelsMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#FoundationModelsMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libObservationMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#ObservationMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libPreviewsMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#PreviewsMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libSwiftMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#SwiftMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libSwiftUIMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#SwiftUIMacros -disable-implicit-swift-modules -Xcc -fno-implicit-modules -Xcc -fno-implicit-module-maps -explicit-swift-module-map-file /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/arm64/StetKeyboard-dependencies-2.json -Xllvm -aarch64-use-tbi -enable-objc-interop -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.4.sdk -I /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Products/Debug-iphonesimulator -F /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Products/Debug-iphonesimulator -no-color-diagnostics -Xcc -fno-color-diagnostics -application-extension -enable-testing -g -debug-info-format\=dwarf -dwarf-version\=4 -module-cache-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -profile-generate -profile-coverage-mapping -swift-version 5 -Onone -D DEBUG -serialize-debugging-options -const-gather-protocols-file /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/arm64/StetKeyboard_const_extract_protocols.json -enable-upcoming-feature DisableOutwardActorInference -enable-upcoming-feature InferSendableFromCaptures -enable-upcoming-feature GlobalActorIsolatedTypesUsability -enable-upcoming-feature MemberImportVisibility -enable-upcoming-feature InferIsolatedConformances -enable-upcoming-feature NonisolatedNonsendingByDefault -enable-experimental-feature DebugDescriptionMacro -enable-bare-slash-regex -empty-abi-descriptor -validate-clang-modules-once -clang-build-session-file /Users/nd/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/nd/Developer/testvoice -enable-anonymous-context-mangled-names -file-compilation-dir /Users/nd/Developer/testvoice -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -Xcc -ivfsstatcache -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.4-23E252-688ef53f1462e2c8f657fdc38a81448f686eebb5dc1d8ecb277353a59184f4aa.sdkstatcache -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/swift-overrides.hmap -Xcc -iquote -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-generated-files.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-own-target-headers.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/testvoice-3cb9744f6dede3ebfcc7ac3e4b70821b-VFS-iphonesimulator/all-product-headers.yaml -Xcc -iquote -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-project-headers.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Products/Debug-iphonesimulator/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/DerivedSources-normal/arm64 -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/DerivedSources/arm64 -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/DerivedSources -Xcc -DDEBUG\=1 -no-auto-bridging-header-chaining -module-name StetKeyboard -frontend-parseable-output -disable-clang-spi -clang-target arm64-apple-ios26.4-simulator -target-sdk-version 26.4 -target-sdk-name iphonesimulator26.4 -in-process-plugin-server-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -emit-module-doc-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/arm64/StetKeyboard.swiftdoc -emit-module-source-info-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/arm64/StetKeyboard.swiftsourceinfo -emit-objc-header-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/arm64/StetKeyboard-Swift.h -serialize-diagnostics-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/arm64/StetKeyboard-primary-emit-module.dia -emit-dependencies-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/arm64/StetKeyboard-primary-emit-module.d -o /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/arm64/StetKeyboard.swiftmodule -emit-abi-descriptor-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/arm64/StetKeyboard.abi.json
+
+EmitSwiftModule normal arm64 (in target 'StetKeyboard' from project 'testvoice')
+    cd /Users/nd/Developer/testvoice
+    
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: error: invalid redeclaration of 'DictationState'
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: 'DictationState' previously declared here
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: 'DictationState' previously declared here
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:167:16: error: 'DictationState' is ambiguous for type lookup in this context
+    var state: DictationState
+               ^~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: error: type 'DictationSession' does not conform to protocol 'Decodable'
+struct DictationSession: Codable {
+       ^
+Swift.Decodable.init:2:1: note: protocol requires initializer 'init(from:)' with type 'Decodable'
+init(from decoder: any Decoder) throws}
+^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:167:9: note: cannot automatically synthesize 'Decodable' because 'DictationState' does not conform to 'Decodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: error: type 'DictationSession' does not conform to protocol 'Encodable'
+struct DictationSession: Codable {
+       ^
+Swift.Encodable.encode:2:6: note: protocol requires function 'encode(to:)' with type 'Encodable'
+func encode(to encoder: any Encoder) throws}
+     ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:167:9: note: cannot automatically synthesize 'Encodable' because 'DictationState' does not conform to 'Encodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: error: invalid redeclaration of 'DictationSession'
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: 'DictationSession' previously declared here
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: 'DictationSession' previously declared here
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:175:25: error: ambiguous use of 'init()'
+    static let shared = SharedDictationManager()
+                        ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:174:7: note: found this candidate 
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:31:7: note: found this candidate 
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:193:33: error: 'DictationSession' is ambiguous for type lookup in this context
+    func saveSession(_ session: DictationSession) {
+                                ^~~~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:200:26: error: 'DictationSession' is ambiguous for type lookup in this context
+    func getSession() -> DictationSession? {
+                         ^~~~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:205:31: error: 'DictationState' is ambiguous for type lookup in this context
+    func updateState(_ state: DictationState, error: String? = nil) {
+                              ^~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:174:7: error: invalid redeclaration of 'SharedDictationManager'
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:31:7: note: 'SharedDictationManager' previously declared here
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:31:7: note: 'SharedDictationManager' previously declared here
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:24:16: error: 'DictationState' is ambiguous for type lookup in this context
+    var state: DictationState
+               ^~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: error: type 'DictationSession' does not conform to protocol 'Decodable'
+struct DictationSession: Codable {
+       ^
+Swift.Decodable.init:2:1: note: protocol requires initializer 'init(from:)' with type 'Decodable'
+init(from decoder: any Decoder) throws}
+^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:24:9: note: cannot automatically synthesize 'Decodable' because 'DictationState' does not conform to 'Decodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: error: type 'DictationSession' does not conform to protocol 'Encodable'
+struct DictationSession: Codable {
+       ^
+Swift.Encodable.encode:2:6: note: protocol requires function 'encode(to:)' with type 'Encodable'
+func encode(to encoder: any Encoder) throws}
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:24:9: note: cannot automatically synthesize 'Encodable' because 'DictationState' does not conform to 'Encodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:50:33: error: 'DictationSession' is ambiguous for type lookup in this context
+    func saveSession(_ session: DictationSession) {
+                                ^~~~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:57:26: error: 'DictationSession' is ambiguous for type lookup in this context
+    func getSession() -> DictationSession? {
+                         ^~~~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:62:31: error: 'DictationState' is ambiguous for type lookup in this context
+    func updateState(_ state: DictationState, error: String? = nil) {
+                              ^~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+
+SwiftEmitModule normal x86_64 Emitting\ module\ for\ StetKeyboard (in target 'StetKeyboard' from project 'testvoice')
+Failed frontend command:
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend -frontend -emit-module -experimental-skip-non-inlinable-function-bodies-without-types /Users/nd/Developer/testvoice/StetKeyboard/KeyboardView.swift /Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift /Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift -target x86_64-apple-ios17.0-simulator -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libFoundationMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#FoundationMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libFoundationModelsMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#FoundationModelsMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libObservationMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#ObservationMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libPreviewsMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#PreviewsMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libSwiftMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#SwiftMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libSwiftUIMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#SwiftUIMacros -disable-implicit-swift-modules -Xcc -fno-implicit-modules -Xcc -fno-implicit-module-maps -explicit-swift-module-map-file /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/x86_64/StetKeyboard-dependencies-1.json -enable-objc-interop -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.4.sdk -I /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Products/Debug-iphonesimulator -F /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Products/Debug-iphonesimulator -no-color-diagnostics -Xcc -fno-color-diagnostics -application-extension -enable-testing -g -debug-info-format\=dwarf -dwarf-version\=4 -module-cache-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -profile-generate -profile-coverage-mapping -swift-version 5 -Onone -D DEBUG -serialize-debugging-options -const-gather-protocols-file /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/x86_64/StetKeyboard_const_extract_protocols.json -enable-upcoming-feature DisableOutwardActorInference -enable-upcoming-feature InferSendableFromCaptures -enable-upcoming-feature GlobalActorIsolatedTypesUsability -enable-upcoming-feature MemberImportVisibility -enable-upcoming-feature InferIsolatedConformances -enable-upcoming-feature NonisolatedNonsendingByDefault -enable-experimental-feature DebugDescriptionMacro -enable-bare-slash-regex -empty-abi-descriptor -validate-clang-modules-once -clang-build-session-file /Users/nd/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/nd/Developer/testvoice -enable-anonymous-context-mangled-names -file-compilation-dir /Users/nd/Developer/testvoice -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -Xcc -ivfsstatcache -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.4-23E252-688ef53f1462e2c8f657fdc38a81448f686eebb5dc1d8ecb277353a59184f4aa.sdkstatcache -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/swift-overrides.hmap -Xcc -iquote -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-generated-files.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-own-target-headers.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/testvoice-3cb9744f6dede3ebfcc7ac3e4b70821b-VFS-iphonesimulator/all-product-headers.yaml -Xcc -iquote -Xcc /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/StetKeyboard-project-headers.hmap -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Products/Debug-iphonesimulator/include -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/DerivedSources-normal/x86_64 -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/DerivedSources/x86_64 -Xcc -I/Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/DerivedSources -Xcc -DDEBUG\=1 -no-auto-bridging-header-chaining -module-name StetKeyboard -frontend-parseable-output -disable-clang-spi -clang-target x86_64-apple-ios26.4-simulator -target-sdk-version 26.4 -target-sdk-name iphonesimulator26.4 -in-process-plugin-server-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -emit-module-doc-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/x86_64/StetKeyboard.swiftdoc -emit-module-source-info-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/x86_64/StetKeyboard.swiftsourceinfo -emit-objc-header-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/x86_64/StetKeyboard-Swift.h -serialize-diagnostics-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/x86_64/StetKeyboard-primary-emit-module.dia -emit-dependencies-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/x86_64/StetKeyboard-primary-emit-module.d -o /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/x86_64/StetKeyboard.swiftmodule -emit-abi-descriptor-path /Users/nd/Library/Developer/Xcode/DerivedData/testvoice-dhapfdazoiqofuedntjlkdiyizan/Build/Intermediates.noindex/testvoice.build/Debug-iphonesimulator/StetKeyboard.build/Objects-normal/x86_64/StetKeyboard.abi.json
+
+EmitSwiftModule normal x86_64 (in target 'StetKeyboard' from project 'testvoice')
+    cd /Users/nd/Developer/testvoice
+    
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: error: invalid redeclaration of 'DictationState'
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: 'DictationState' previously declared here
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: 'DictationState' previously declared here
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:167:16: error: 'DictationState' is ambiguous for type lookup in this context
+    var state: DictationState
+               ^~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: error: type 'DictationSession' does not conform to protocol 'Decodable'
+struct DictationSession: Codable {
+       ^
+Swift.Decodable.init:2:1: note: protocol requires initializer 'init(from:)' with type 'Decodable'
+init(from decoder: any Decoder) throws}
+^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:167:9: note: cannot automatically synthesize 'Decodable' because 'DictationState' does not conform to 'Decodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: error: type 'DictationSession' does not conform to protocol 'Encodable'
+struct DictationSession: Codable {
+       ^
+Swift.Encodable.encode:2:6: note: protocol requires function 'encode(to:)' with type 'Encodable'
+func encode(to encoder: any Encoder) throws}
+     ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:167:9: note: cannot automatically synthesize 'Encodable' because 'DictationState' does not conform to 'Encodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: error: invalid redeclaration of 'DictationSession'
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: 'DictationSession' previously declared here
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: 'DictationSession' previously declared here
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:175:25: error: ambiguous use of 'init()'
+    static let shared = SharedDictationManager()
+                        ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:174:7: note: found this candidate 
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:31:7: note: found this candidate 
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:193:33: error: 'DictationSession' is ambiguous for type lookup in this context
+    func saveSession(_ session: DictationSession) {
+                                ^~~~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:200:26: error: 'DictationSession' is ambiguous for type lookup in this context
+    func getSession() -> DictationSession? {
+                         ^~~~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:205:31: error: 'DictationState' is ambiguous for type lookup in this context
+    func updateState(_ state: DictationState, error: String? = nil) {
+                              ^~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:174:7: error: invalid redeclaration of 'SharedDictationManager'
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:31:7: note: 'SharedDictationManager' previously declared here
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:31:7: note: 'SharedDictationManager' previously declared here
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:24:16: error: 'DictationState' is ambiguous for type lookup in this context
+    var state: DictationState
+               ^~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: error: type 'DictationSession' does not conform to protocol 'Decodable'
+struct DictationSession: Codable {
+       ^
+Swift.Decodable.init:2:1: note: protocol requires initializer 'init(from:)' with type 'Decodable'
+init(from decoder: any Decoder) throws}
+^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:24:9: note: cannot automatically synthesize 'Decodable' because 'DictationState' does not conform to 'Decodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: error: type 'DictationSession' does not conform to protocol 'Encodable'
+struct DictationSession: Codable {
+       ^
+Swift.Encodable.encode:2:6: note: protocol requires function 'encode(to:)' with type 'Encodable'
+func encode(to encoder: any Encoder) throws}
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:24:9: note: cannot automatically synthesize 'Encodable' because 'DictationState' does not conform to 'Encodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:50:33: error: 'DictationSession' is ambiguous for type lookup in this context
+    func saveSession(_ session: DictationSession) {
+                                ^~~~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:57:26: error: 'DictationSession' is ambiguous for type lookup in this context
+    func getSession() -> DictationSession? {
+                         ^~~~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:62:31: error: 'DictationState' is ambiguous for type lookup in this context
+    func updateState(_ state: DictationState, error: String? = nil) {
+                              ^~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+
+SwiftCompile normal x86_64 Compiling\ KeyboardViewController.swift /Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift (in target 'StetKeyboard' from project 'testvoice')
+
+SwiftCompile normal x86_64 /Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift (in target 'StetKeyboard' from project 'testvoice')
+    cd /Users/nd/Developer/testvoice
+    
+
+SwiftCompile normal x86_64 Compiling\ SharedDictationManager.swift /Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift (in target 'StetKeyboard' from project 'testvoice')
+SwiftCompile normal x86_64 /Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift (in target 'StetKeyboard' from project 'testvoice')
+    cd /Users/nd/Developer/testvoice
+    
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: error: invalid redeclaration of 'DictationState'
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: 'DictationState' previously declared here
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: 'DictationState' previously declared here
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:24:16: error: 'DictationState' is ambiguous for type lookup in this context
+    var state: DictationState
+               ^~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: error: type 'DictationSession' does not conform to protocol 'Decodable'
+struct DictationSession: Codable {
+       ^
+Swift.Decodable.init:2:1: note: protocol requires initializer 'init(from:)' with type 'Decodable'
+init(from decoder: any Decoder) throws}
+^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:24:9: note: cannot automatically synthesize 'Decodable' because 'DictationState' does not conform to 'Decodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: error: type 'DictationSession' does not conform to protocol 'Encodable'
+struct DictationSession: Codable {
+       ^
+Swift.Encodable.encode:2:6: note: protocol requires function 'encode(to:)' with type 'Encodable'
+func encode(to encoder: any Encoder) throws}
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:24:9: note: cannot automatically synthesize 'Encodable' because 'DictationState' does not conform to 'Encodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: error: invalid redeclaration of 'DictationSession'
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: 'DictationSession' previously declared here
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: 'DictationSession' previously declared here
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:32:25: error: ambiguous use of 'init()'
+    static let shared = SharedDictationManager()
+                        ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:174:7: note: found this candidate 
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:31:7: note: found this candidate 
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:50:33: error: 'DictationSession' is ambiguous for type lookup in this context
+    func saveSession(_ session: DictationSession) {
+                                ^~~~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:57:26: error: 'DictationSession' is ambiguous for type lookup in this context
+    func getSession() -> DictationSession? {
+                         ^~~~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:20:8: note: found this candidate
+struct DictationSession: Codable {
+       ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:62:31: error: 'DictationState' is ambiguous for type lookup in this context
+    func updateState(_ state: DictationState, error: String? = nil) {
+                              ^~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:31:7: error: invalid redeclaration of 'SharedDictationManager'
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:174:7: note: 'SharedDictationManager' previously declared here
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:174:7: note: 'SharedDictationManager' previously declared here
+class SharedDictationManager {
+      ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:167:16: error: 'DictationState' is ambiguous for type lookup in this context
+    var state: DictationState
+               ^~~~~~~~~~~~~~
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:146:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:3:6: note: found this candidate
+enum DictationState: String, Codable {
+     ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: error: type 'DictationSession' does not conform to protocol 'Decodable'
+struct DictationSession: Codable {
+       ^
+Swift.Decodable.init:2:1: note: protocol requires initializer 'init(from:)' with type 'Decodable'
+init(from decoder: any Decoder) throws}
+^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:167:9: note: cannot automatically synthesize 'Decodable' because 'DictationState' does not conform to 'Decodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:163:8: error: type 'DictationSession' does not conform to protocol 'Decodable'
+struct DictationSession: Codable {
+       ^
+Swift.Decodable.init:2:1: note: protocol requires initializer 'init(from:)' with type 'Decodable'
+init(from decoder: any Decoder) throws}
+^
+/Users/nd/Developer/testvoice/StetKeyboard/KeyboardViewController.swift:167:9: note: cannot automatically synthesize 'Decodable' because 'DictationState' does not conform to 'Decodable'
+    var state: DictationState
+        ^
+/Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift:63:132: error: cannot infer contextual base in reference to member 'idle'
+        var session = getSession() ?? DictationSession(sessionId: UUID().uuidString, createdAt: Date(), updatedAt: Date(), state: .idle)
+                                                                                                                                  ~^~~~
+
+** BUILD FAILED **
+
+
+The following build commands failed:
+	SwiftCompile normal arm64 /Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift (in target 'StetKeyboard' from project 'testvoice')
+	SwiftEmitModule normal arm64 Emitting\ module\ for\ StetKeyboard (in target 'StetKeyboard' from project 'testvoice')
+	EmitSwiftModule normal arm64 (in target 'StetKeyboard' from project 'testvoice')
+	SwiftEmitModule normal x86_64 Emitting\ module\ for\ StetKeyboard (in target 'StetKeyboard' from project 'testvoice')
+	EmitSwiftModule normal x86_64 (in target 'StetKeyboard' from project 'testvoice')
+	SwiftCompile normal x86_64 /Users/nd/Developer/testvoice/testvoice/Core/Shared/SharedDictationManager.swift (in target 'StetKeyboard' from project 'testvoice')
+	Building project testvoice with scheme testvoice
+(7 failures)
