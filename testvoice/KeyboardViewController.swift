@@ -11,8 +11,11 @@ class KeyboardViewController: UIInputViewController {
         super.viewDidLoad()
         
         let keyboardView = KeyboardView(
-            onMicTap: { [weak self] in
+            onMicDown: { [weak self] in
                 self?.openMainApp()
+            },
+            onMicUp: {
+                // Mock behavior for the main app's internal preview
             },
             onKeyTap: { [weak self] text in
                 self?.textDocumentProxy.insertText(text)

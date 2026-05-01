@@ -2,6 +2,7 @@ import AVFoundation
 import Combine
 import CoreFoundation
 import Foundation
+import UIKit
 
 @MainActor
 final class SenseVoiceViewModel: ObservableObject {
@@ -9,6 +10,7 @@ final class SenseVoiceViewModel: ObservableObject {
         case idle
         case loading
         case recording
+        case warming
         case failed(String)
     }
 
@@ -25,16 +27,45 @@ final class SenseVoiceViewModel: ObservableObject {
     private let decodeQueue = DispatchQueue(label: "SenseVoiceDecodeQueue")
     
     private var accumulatedSamples: [Float] = []
+    private var commandPollingTimer: Timer?
+    private var activeSessionId: String?
 
     var isRecording: Bool {
         state == .recording
     }
 
+    init() {
+        Task { @MainActor in
+            await self.bootstrap()
+        }
+    }
+
+    private func bootstrap() async {
+        state = .loading
+        partialStatus = "Loading models and warming up audio engine..."
+        do {
+            try await requestMicrophonePermission()
+            try loadModelsIfNeeded()
+            try configureAudioEngine()
+            try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+            try audioEngine?.start()
+            state = .idle
+            partialStatus = "Ready. Hold mic on keyboard to dictate."
+            startCommandPolling()
+            checkKeyboardCommands()
+        } catch {
+            state = .failed(error.localizedDescription)
+            partialStatus = error.localizedDescription
+            SharedDictationManager.shared.updateState(.failed, error: error.localizedDescription)
+        }
+    }
+
     func toggleRecording() {
+        guard state != .loading, state != .warming else { return }
         if isRecording {
-            stopRecording()
+            stopAccumulatingAndDecode()
         } else {
-            Task { await startRecording() }
+            startAccumulating(sessionId: UUID().uuidString)
         }
     }
 
@@ -42,37 +73,60 @@ final class SenseVoiceViewModel: ObservableObject {
         transcript = ""
     }
 
-    private func startRecording() async {
-        state = .loading
-        accumulatedSamples.removeAll()
-        do {
-            try await requestMicrophonePermission()
-            try loadModelsIfNeeded()
-            try configureAudioEngine()
-            try audioEngine?.start()
-            partialStatus = "Recording... Tap Stop to decode."
-            state = .recording
-        } catch {
-            state = .failed(error.localizedDescription)
-            partialStatus = error.localizedDescription
-            stopRecording()
+    @discardableResult
+    func handleIncomingURL(_ url: URL) -> Bool {
+        guard url.scheme == "testvoice", url.host == "dictate" else { return false }
+        // The polling timer will pick up any pending requestStart from the keyboard.
+        checkKeyboardCommands()
+        return true
+    }
+
+    private func startCommandPolling() {
+        commandPollingTimer?.invalidate()
+        commandPollingTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.checkKeyboardCommands()
+            }
         }
     }
 
-    private func stopRecording() {
-        audioEngine?.inputNode.removeTap(onBus: 0)
-        audioEngine?.stop()
-        audioEngine = nil
-        converter = nil
-        
-        if state == .recording {
-            state = .loading
-            partialStatus = "Decoding..."
-            decodeBatch()
-        } else if case .failed = state {
-        } else {
-            state = .idle
+    private func checkKeyboardCommands() {
+        guard let session = SharedDictationManager.shared.getSession() else { return }
+        switch session.state {
+        case .requestStart:
+            if state == .idle {
+                startAccumulating(sessionId: session.sessionId)
+            }
+        case .requestStop:
+            if state == .recording {
+                stopAccumulatingAndDecode()
+            }
+        default:
+            break
         }
+    }
+
+    private func startAccumulating(sessionId: String) {
+        accumulatedSamples.removeAll()
+        activeSessionId = sessionId
+        state = .recording
+        partialStatus = "Recording... release mic to decode."
+        let session = DictationSession(
+            sessionId: sessionId,
+            createdAt: Date(),
+            updatedAt: Date(),
+            state: .recording
+        )
+        SharedDictationManager.shared.saveSession(session)
+    }
+
+    private func stopAccumulatingAndDecode() {
+        // Flip out of .recording before kicking off decode so the tap callback
+        // stops appending samples and polling won't re-fire on .requestStop.
+        state = .idle
+        partialStatus = "Decoding..."
+        SharedDictationManager.shared.updateState(.transcribing)
+        decodeBatch()
     }
 
     private func decodeBatch() {
@@ -96,10 +150,13 @@ final class SenseVoiceViewModel: ObservableObject {
                 let language = result.lang
                 if text.isEmpty {
                     self.partialStatus = "Empty result."
+                    SharedDictationManager.shared.updateState(.ready)
                 } else {
                     let prefix = language.isEmpty ? "" : "[\(language)] "
                     self.transcript = "\(prefix)\(text)"
                     self.partialStatus = "Finished."
+                    SharedDictationManager.shared.updateText(partial: text, final: text)
+                    SharedDictationManager.shared.updateState(.ready)
                 }
                 self.metricsText = String(format: "Batch Result: audio %.2fs, decode %.2fs, RTF %.2f", audioSeconds, decodeSeconds, rtf)
                 self.state = .idle
@@ -186,5 +243,85 @@ final class SenseVoiceViewModel: ObservableObject {
                 self.accumulatedSamples.append(contentsOf: samples)
             }
         }
+    }
+}
+
+// MARK: - Shared Dictation Manager
+
+enum DictationState: String, Codable {
+    case idle
+    case launching
+    case warming
+    case recording
+    case transcribing
+    case ready
+    case inserted
+    case cancelled
+    case failed
+    case timeout
+    
+    // Commands from keyboard to background app
+    case requestStart
+    case requestStop
+}
+
+struct DictationSession: Codable {
+    let sessionId: String
+    let createdAt: Date
+    var updatedAt: Date
+    var state: DictationState
+    var partialText: String = ""
+    var finalText: String = ""
+    var revision: Int = 0
+    var error: String?
+}
+
+class SharedDictationManager {
+    static let shared = SharedDictationManager()
+    private let appGroupIdentifier = "group.NaichengDeng.testvoice"
+    private let sessionKey = "dictation.session"
+    
+    private var defaults: UserDefaults? {
+        UserDefaults(suiteName: appGroupIdentifier)
+    }
+    
+    func saveSession(_ session: DictationSession) {
+        if let data = try? JSONEncoder().encode(session) {
+            defaults?.set(data, forKey: sessionKey)
+            defaults?.synchronize()
+        }
+    }
+    
+    func getSession() -> DictationSession? {
+        guard let data = defaults?.data(forKey: sessionKey) else { return nil }
+        return try? JSONDecoder().decode(DictationSession.self, from: data)
+    }
+    
+    func updateState(_ state: DictationState, error: String? = nil) {
+        var session = getSession() ?? DictationSession(sessionId: UUID().uuidString, createdAt: Date(), updatedAt: Date(), state: .idle)
+        session.state = state
+        session.updatedAt = Date()
+        session.error = error
+        saveSession(session)
+    }
+    
+    func updateError(_ error: String) {
+        guard var session = getSession() else { return }
+        session.error = error
+        saveSession(session)
+    }
+    
+    func updateText(partial: String, final: String) {
+        guard var session = getSession() else { return }
+        session.partialText = partial
+        session.finalText = final
+        session.revision += 1
+        session.updatedAt = Date()
+        saveSession(session)
+    }
+    
+    func clearSession() {
+        defaults?.removeObject(forKey: sessionKey)
+        defaults?.synchronize()
     }
 }
