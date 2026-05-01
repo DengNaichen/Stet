@@ -1,4 +1,5 @@
 import Foundation
+import StetCore
 
 enum DictationFailure: LocalizedError, Equatable, Sendable {
     enum Classification: Equatable, Sendable {

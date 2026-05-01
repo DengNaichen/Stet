@@ -1,4 +1,5 @@
 import Foundation
+import StetCore
 
 enum ProviderConfigurationError: LocalizedError, Equatable {
     case missingRequirements([ProviderConfigurationRequirement])

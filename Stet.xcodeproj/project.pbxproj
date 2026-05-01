@@ -16,6 +16,9 @@
 		C80A4F64301851B7005C2101 /* OpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = C80A4F66301851B7005C2101 /* OpenAI */; };
 		F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; };
 		F1A0B001000000000000000E /* StetVisuals.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E5E0E5E0E5E0E5E0E5E00005 /* StetCore in Frameworks */ = {isa = PBXBuildFile; productRef = E5E0E5E0E5E0E5E0E5E00002 /* StetCore */; };
+		E5E0E5E0E5E0E5E0E5E00006 /* StetAI in Frameworks */ = {isa = PBXBuildFile; productRef = E5E0E5E0E5E0E5E0E5E00003 /* StetAI */; };
+		E5E0E5E0E5E0E5E0E5E00007 /* StetRewrite in Frameworks */ = {isa = PBXBuildFile; productRef = E5E0E5E0E5E0E5E0E5E00004 /* StetRewrite */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -112,6 +115,9 @@
 				6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */,
 				0B4E0F6F7A5B4D88A1C9E113 /* whisper in Frameworks */,
 				6DC0CD032F9DD8BE00696D0F /* TelemetryDeck in Frameworks */,
+				E5E0E5E0E5E0E5E0E5E00005 /* StetCore in Frameworks */,
+				E5E0E5E0E5E0E5E0E5E00006 /* StetAI in Frameworks */,
+				E5E0E5E0E5E0E5E0E5E00007 /* StetRewrite in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -201,6 +207,9 @@
 				6DCB53142F6DB36500358FE5 /* FluidAudio */,
 				0B4E0F6F7A5B4D88A1C9E112 /* whisper */,
 				6DC0CD022F9DD8BE00696D0F /* TelemetryDeck */,
+				E5E0E5E0E5E0E5E0E5E00002 /* StetCore */,
+				E5E0E5E0E5E0E5E0E5E00003 /* StetAI */,
+				E5E0E5E0E5E0E5E0E5E00004 /* StetRewrite */,
 			);
 			productName = Stet;
 			productReference = 6D29DC7D2F5FA23000267DEA /* Stet.app */;
@@ -322,6 +331,7 @@
 				0B4E0F6F7A5B4D88A1C9E111 /* XCLocalSwiftPackageReference "Vendor/WhisperPackage" */,
 				6DC0CD012F9DD8BE00696D0F /* XCRemoteSwiftPackageReference "SwiftSDK" */,
 				6D4B97452F9F6A0700738874 /* XCLocalSwiftPackageReference "Vendor/SherpaOnnxPackage" */,
+				E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6D29DC7E2F5FA23000267DEA /* Products */;
@@ -906,6 +916,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Vendor/SherpaOnnxPackage;
 		};
+		E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/StetEngine;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -986,6 +1000,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C80A4F65301851B7005C2101 /* XCRemoteSwiftPackageReference "OpenAI" */;
 			productName = OpenAI;
+		};
+		E5E0E5E0E5E0E5E0E5E00002 /* StetCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */;
+			productName = StetCore;
+		};
+		E5E0E5E0E5E0E5E0E5E00003 /* StetAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */;
+			productName = StetAI;
+		};
+		E5E0E5E0E5E0E5E0E5E00004 /* StetRewrite */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */;
+			productName = StetRewrite;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

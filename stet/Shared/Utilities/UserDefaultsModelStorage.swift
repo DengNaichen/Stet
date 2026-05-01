@@ -1,4 +1,5 @@
 import Foundation
+import StetCore
 
 struct UserDefaultsModelStorage: ModelStorageConfiguration {
     private let defaults: UserDefaults

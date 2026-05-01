@@ -1,5 +1,6 @@
 #if os(macOS)
     import SwiftUI
+    import StetCore
 
     struct MacAudioSettingsView: View {
         @StateObject private var viewModel = MacAudioSettingsViewModel()

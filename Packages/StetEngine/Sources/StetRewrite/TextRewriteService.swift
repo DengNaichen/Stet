@@ -1,7 +1,8 @@
 import Foundation
+import StetCore
 
-enum CloudRewritePromptBuilder {
-    nonisolated static func systemPrompt(
+public enum CloudRewritePromptBuilder {
+    public nonisolated static func systemPrompt(
         audience: AppAudience,
         preferredSpellings: [String] = []
     ) -> String {
@@ -68,7 +69,7 @@ enum CloudRewritePromptBuilder {
                 Output: 可以插到一个例子后面。
 
                 Input: 我觉得这个方案可以先这样定下来如果后面数据不对我们再调整另外我想说的是明天的会议能不能提前到九点因为我下午还要出差
-                Output: 
+                Output:
                 我觉得这个方案可以先这样定下来。如果后面数据不对，我们再调整。
 
                 另外我想说的是，明天的会议能不能提前到九点？因为我下午还要出差。
@@ -128,7 +129,7 @@ enum CloudRewritePromptBuilder {
                 Output: 可以插到一个例子后面。
 
                 Input: 我觉得这个方案可以先这样定下来如果后面数据不对我们再调整另外我想说的是明天的会议能不能提前到九点因为我下午还要出差
-                Output: 
+                Output:
                 我觉得这个方案可以先这样定下来。如果后面数据不对，我们再调整。
 
                 另外我想说的是，明天的会议能不能提前到九点？因为我下午还要出差。
@@ -144,15 +145,31 @@ private enum TextRewritePromptConfiguration {
     nonisolated static let cleanupInstruction = "Clean the following raw transcription according to your instructions."
 }
 
-struct TextRewriteRequest: Sendable, Equatable {
-    var text: String
-    var audience: AppAudience?
-    var preferredSpellings: [String]
-    var languageCode: String?
-    var model: String?
-    var appName: String?
+public struct TextRewriteRequest: Sendable, Equatable {
+    public var text: String
+    public var audience: AppAudience?
+    public var preferredSpellings: [String]
+    public var languageCode: String?
+    public var model: String?
+    public var appName: String?
 
-    nonisolated static func cleanup(
+    public init(
+        text: String,
+        audience: AppAudience? = nil,
+        preferredSpellings: [String] = [],
+        languageCode: String? = nil,
+        model: String? = nil,
+        appName: String? = nil
+    ) {
+        self.text = text
+        self.audience = audience
+        self.preferredSpellings = preferredSpellings
+        self.languageCode = languageCode
+        self.model = model
+        self.appName = appName
+    }
+
+    public nonisolated static func cleanup(
         _ text: String,
         audience: AppAudience? = nil,
         preferredSpellings: [String] = [],
@@ -170,13 +187,13 @@ struct TextRewriteRequest: Sendable, Equatable {
     }
 }
 
-struct PreparedCloudRewritePayload: Sendable, Equatable {
-    let audience: AppAudience
-    let systemPrompt: String
-    let text: String
-    let languageCode: String?
+public struct PreparedCloudRewritePayload: Sendable, Equatable {
+    public let audience: AppAudience
+    public let systemPrompt: String
+    public let text: String
+    public let languageCode: String?
 
-    init(request: TextRewriteRequest) {
+    public init(request: TextRewriteRequest) {
         let audience = request.audience ?? .human
         let text = request.text.trimmingCharacters(in: .whitespacesAndNewlines)
         let languageCode = Self.trimmed(request.languageCode)
@@ -202,7 +219,7 @@ struct PreparedCloudRewritePayload: Sendable, Equatable {
         self.languageCode = languageCode
     }
 
-    var promptPrefix: String {
+    public var promptPrefix: String {
         let prompt = """
             Instruction:
             \(TextRewritePromptConfiguration.cleanupInstruction)
@@ -212,7 +229,7 @@ struct PreparedCloudRewritePayload: Sendable, Equatable {
         return prompt + "Text:\n"
     }
 
-    var userPrompt: String {
+    public var userPrompt: String {
         promptPrefix + text
     }
 
@@ -227,19 +244,19 @@ struct PreparedCloudRewritePayload: Sendable, Equatable {
     }
 }
 
-protocol TextRewriteService: Sendable {
+public protocol TextRewriteService: Sendable {
     func prewarm(_ request: TextRewriteRequest) async
     func rewrite(_ request: TextRewriteRequest) async throws -> String
 }
 
 extension TextRewriteService {
-    func prewarm(_ request: TextRewriteRequest) async {}
+    public func prewarm(_ request: TextRewriteRequest) async {}
 }
 
-struct UnavailableRewriteService: TextRewriteService {
-    let message: String
-    init(message: String) { self.message = message }
-    func rewrite(_ request: TextRewriteRequest) async throws -> String {
+public struct UnavailableRewriteService: TextRewriteService {
+    public let message: String
+    public init(message: String) { self.message = message }
+    public func rewrite(_ request: TextRewriteRequest) async throws -> String {
         throw NSError(domain: "Stet", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
     }
 }

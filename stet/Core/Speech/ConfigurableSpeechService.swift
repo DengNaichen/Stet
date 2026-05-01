@@ -1,4 +1,6 @@
 import Foundation
+import StetRewrite
+import StetCore
 import os
 #if os(macOS)
     import StetVisuals

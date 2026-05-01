@@ -1,4 +1,5 @@
 import Foundation
+import StetCore
 
 enum MacPreferences {
     nonisolated static let onboardingCompleted = "mac.onboardingCompleted"

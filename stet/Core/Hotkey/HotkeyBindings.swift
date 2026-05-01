@@ -1,4 +1,5 @@
 import Foundation
+import StetCore
 import AppKit
 import KeyboardShortcuts
 

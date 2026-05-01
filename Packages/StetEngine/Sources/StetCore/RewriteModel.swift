@@ -1,6 +1,6 @@
 import Foundation
 
-enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
+public enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
     // OpenAI Models
     case gpt54Mini = "gpt-5.4-mini-2026-04-12"
     case gpt54Nano = "gpt-5.4-nano-2026-03-17"
@@ -30,9 +30,9 @@ enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
     case claude46Sonnet = "claude-sonnet-4-6"
     case claude46Haiku = "claude-haiku-4-6"
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 
-    var displayName: String {
+    public var displayName: String {
         switch self {
         case .gpt54Mini: return NSLocalizedString("GPT-5.4 Mini", comment: "")
         case .gpt54Nano: return NSLocalizedString("GPT-5.4 Nano (Default)", comment: "")
@@ -56,8 +56,7 @@ enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// 根据 Provider 返回可用的模型列表
-    static func availableModels(for provider: DictationProvider) -> [RewriteModel] {
+    public static func availableModels(for provider: DictationProvider) -> [RewriteModel] {
         switch provider {
         case .openAI:
             return [.gpt54Nano, .gpt54Mini]
@@ -80,7 +79,7 @@ enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    static func `default`(for provider: DictationProvider) -> RewriteModel {
+    public static func `default`(for provider: DictationProvider) -> RewriteModel {
         switch provider {
         case .openAI: return .gpt54Nano
         case .groq: return .gptOss20b

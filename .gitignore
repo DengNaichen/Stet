@@ -8,7 +8,8 @@ build/
 .deps/
 dist/
 VoiceInk/
-Packages/
+# Packages/
+# Allow tracking local source packages while keeping .build/ ignored globally.
 *.swiftpm/
 *.xcuserstate
 xcuserdata/

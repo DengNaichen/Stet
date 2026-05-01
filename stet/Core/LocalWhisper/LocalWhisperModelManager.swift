@@ -1,4 +1,5 @@
 import Foundation
+import StetCore
 
 struct LocalWhisperModelDescriptor: Sendable, Equatable {
     let displayName: String

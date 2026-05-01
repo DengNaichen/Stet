@@ -1,6 +1,6 @@
 import Foundation
 
-enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
+public enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
     case openAI = "openai"
     case google = "google"
     case anthropic = "anthropic"
@@ -11,9 +11,9 @@ enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
     case glm = "glm"
     case doubao = "doubao"
 
-    nonisolated var id: Self { self }
+    public nonisolated var id: Self { self }
 
-    nonisolated var displayName: String {
+    public nonisolated var displayName: String {
         switch self {
         case .openAI:
             return NSLocalizedString("OpenAI", comment: "")
@@ -36,7 +36,7 @@ enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    nonisolated var pipelineDescription: String {
+    public nonisolated var pipelineDescription: String {
         switch self {
         case .openAI:
             return NSLocalizedString("Audio capture + OpenAI transcription", comment: "")
@@ -59,11 +59,11 @@ enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    nonisolated var apiKeyPlaceholder: String {
+    public nonisolated var apiKeyPlaceholder: String {
         NSLocalizedString("Enter your access key", comment: "")
     }
 
-    nonisolated var requiresAPIKey: Bool {
+    public nonisolated var requiresAPIKey: Bool {
         switch self {
         case .openAI, .groq, .deepSeek, .qwen, .glm, .doubao, .google, .anthropic:
             return true

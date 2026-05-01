@@ -1,5 +1,6 @@
 #if os(macOS)
     import Combine
+    import StetCore
     import Foundation
     import AppKit
 

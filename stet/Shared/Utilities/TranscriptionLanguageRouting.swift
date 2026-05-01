@@ -1,4 +1,5 @@
 import Foundation
+import StetCore
 
 enum TranscriptionLanguageRouting {
     static let parakeetSupportedLanguages: Set<String> = [

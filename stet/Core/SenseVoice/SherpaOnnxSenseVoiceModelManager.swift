@@ -1,4 +1,5 @@
 import Foundation
+import StetCore
 
 /// Model manager for Sherpa-ONNX based SenseVoice.
 /// Manages ONNX model files instead of GGUF files.

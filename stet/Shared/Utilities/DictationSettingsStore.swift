@@ -1,4 +1,5 @@
 import Foundation
+import StetCore
 
 protocol DictationSecretStore: Sendable {
     nonisolated func loadString(forAccount account: String) throws -> String?

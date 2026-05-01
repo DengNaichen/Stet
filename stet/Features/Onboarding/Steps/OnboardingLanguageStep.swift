@@ -1,5 +1,6 @@
 #if os(macOS)
     import SwiftUI
+    import StetCore
 
     struct OnboardingLanguageStep: View {
         @ObservedObject var viewModel: OnboardingViewModel

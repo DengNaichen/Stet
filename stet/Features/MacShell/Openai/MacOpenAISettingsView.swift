@@ -1,5 +1,6 @@
 #if os(macOS)
     import SwiftUI
+    import StetCore
 
     struct MacOpenAISettingsView: View {
         @ObservedObject var viewModel: MacOpenAISettingsViewModel

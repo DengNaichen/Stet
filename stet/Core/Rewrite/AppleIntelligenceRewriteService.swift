@@ -1,4 +1,5 @@
 import Foundation
+import StetRewrite
 import FoundationModels
 
 enum AppleIntelligenceRewriteError: LocalizedError, Equatable, Sendable {
@@ -33,12 +34,12 @@ public struct AppleIntelligenceRewriteService: TextRewriteService {
 
     public init() {}
 
-    func prewarm(_ request: TextRewriteRequest) async {
+    public func prewarm(_ request: TextRewriteRequest) async {
         // Apple Intelligence instructions depend on the transcription language, which is not known
         // during rewrite prewarm. Build the session only when rewriting with the final request.
     }
 
-    func rewrite(_ request: TextRewriteRequest) async throws -> String {
+    public func rewrite(_ request: TextRewriteRequest) async throws -> String {
         try await rewriteWithDiagnostic(request).text
     }
 

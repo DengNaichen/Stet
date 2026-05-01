@@ -1,4 +1,5 @@
 import AppKit
+import StetCore
 import Foundation
 
 /// A value type containing information about a foreground application.

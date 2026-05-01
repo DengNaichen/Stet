@@ -1,4 +1,5 @@
 import Foundation
+import StetCore
 import OSLog
 
 private let subsystem = "com.openwhispr.Stet"

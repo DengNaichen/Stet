@@ -1,5 +1,6 @@
 #if os(macOS)
     import SwiftUI
+    import StetCore
 
     struct OnboardingVisualPanel: View {
         let step: MacOnboardingStep

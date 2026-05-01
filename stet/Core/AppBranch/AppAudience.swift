@@ -1,14 +1,6 @@
 #if os(macOS)
     import Foundation
-
-    enum AppAudience: String, Codable, Sendable {
-        case human
-        case ai
-
-        nonisolated var isAI: Bool {
-            self == .ai
-        }
-    }
+    import StetCore
 
     enum AppAudienceResolver {
         private nonisolated static let aiNameFragments: [String] = [
