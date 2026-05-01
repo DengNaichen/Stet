@@ -447,3 +447,4 @@ class SharedDictationManager {
         defaults?.synchronize()
     }
 }
+

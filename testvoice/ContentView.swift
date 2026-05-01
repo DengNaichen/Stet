@@ -12,27 +12,21 @@ struct ContentView: View {
                 }
                 .tag(0)
             
-            HistoryView()
-                .tabItem {
-                    Label("History", systemImage: "clock.arrow.circlepath")
-                }
-                .tag(1)
-            
             DictionaryView()
                 .tabItem {
                     Label("Dictionary", systemImage: "book.closed.fill")
                 }
-                .tag(2)
+                .tag(1)
             
             SenseVoiceView(viewModel: viewModel)
                 .tabItem {
                     Label("Dictate", systemImage: "mic.fill")
                 }
-                .tag(3)
+                .tag(2)
         }
         .onOpenURL { url in
             guard viewModel.handleIncomingURL(url) else { return }
-            selectedTab = 3
+            selectedTab = 2
         }
     }
 }
