@@ -11,6 +11,6 @@ DerivedData/
 .build/
 
 # Large Models (Optional - depends on if user wants them in git)
-# testvoice/SenseVoice/
-# testvoice/Vad/*.onnx
+# StetMobile/SenseVoice/
+# StetMobile/Vad/*.onnx
 *.onnx

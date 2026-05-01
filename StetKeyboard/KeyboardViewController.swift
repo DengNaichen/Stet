@@ -18,9 +18,9 @@ class KeyboardViewController: KeyboardInputViewController {
     override func viewWillSetupKeyboardKit() {
         // Define your app configuration for KeyboardKit
         let app = KeyboardApp(
-            name: "testvoice",
-            appGroupId: "group.NaichengDeng.testvoice",
-            deepLinks: .init(app: "testvoice://")
+            name: "StetMobile",
+            appGroupId: "group.NaichengDeng.StetMobile",
+            deepLinks: .init(app: "stetmobile://")
         )
 
         // Initialize KeyboardKit with your app configuration
@@ -82,7 +82,7 @@ class KeyboardViewController: KeyboardInputViewController {
     // MARK: - Open Main App
 
     private func openMainApp(sessionId: String) {
-        let urlString = "testvoice://dictate?session_id=\(sessionId)"
+        let urlString = "stetmobile://dictate?session_id=\(sessionId)"
         guard let url = URL(string: urlString) else { return }
 
         var responder: UIResponder? = self

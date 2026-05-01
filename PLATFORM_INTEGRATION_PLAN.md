@@ -1,76 +1,278 @@
-# Stet 跨平台架构集成与迁移计划 (macOS & iOS)
+# iOS 集成计划：接入 StetEngine 共享包
 
-本文档旨在规划如何将当前的 iOS 项目 (`testvoice`) 与 macOS 端正在开发的共享核心逻辑进行对齐，实现“一套调度逻辑，多端自适应执行”。
+## 架构概览
 
----
-
-## 1. 现状：iOS 端的模块化准备 (Current State)
-
-经过最近的重构，iOS 项目已经完成了从“平铺结构”到“模块化结构”的转变，为接入共享包打下了基础：
-
-*   **Features 层**：每个功能（Dictation, Dictionary, Home）拥有独立的 View 和 ViewModel，且 ViewModel 仅负责 UI 状态。
-*   **Core 层 (待迁移)**：
-    *   `Core/Engine`：包含了目前的 ASR (SherpaOnnx) 核心。
-    *   `Core/Shared`：包含了 `SharedDictationManager`，解决了主 App 与键盘扩展之间的通信。
-*   **工程配置**：采用了 Xcode 16 的“文件系统同步组”，支持文件夹级别的自动同步，方便未来直接引入共享文件夹或 Swift Package。
-
----
-
-## 2. 目标现状：共享核心接入 (Target State)
-
-未来的目标是让 iOS 端的 `Core/Engine` 逻辑完全消失，转而调用来自 macOS 端的共享包（如 `StetKit` 或 `StetShared`）。
-
-### 核心变更点：
-*   **代码删除**：删除 iOS 本地的 `SherpaOnnx.swift`、`SenseVoiceResources.swift` 等，改由共享包提供。
-*   **统一接口**：iOS 和 macOS 共同实现一个 `TranscriptionService` 协议。
-*   **资源管理**：模型文件 (ONNX) 依然保留在各端的 `Resources` 中，但加载逻辑由共享包统一控制。
+```
+Stet/ (monorepo root)
+├── Stet.xcodeproj                    ← macOS app (不动)
+├── Packages/StetEngine/              ← 共享包 (已完成)
+│   ├── StetCore    → 模型枚举、Provider、RewriteModel
+│   ├── StetAI      → OpenAI/Anthropic/Google 服务、API Key 验证
+│   └── StetRewrite → TextRewriteService 协议、prompt 工程
+└── StetMobile/
+    ├── StetMobile.xcodeproj           ← iOS app
+    │   └── 添加 ../Packages/StetEngine 为 local package
+    └── StetMobile/
+        ├── Core/Engine/              ← SenseVoice 引擎 (保留不动)
+        ├── Core/Settings/            ← 新增：RewriteSettingsStore
+        ├── Features/Dictation/       ← 改造：接入 rewrite 管线
+        └── Features/Settings/        ← 新增：AI Provider 设置 UI
+```
 
 ---
 
-## 3. 跨平台模型调度逻辑 (Unified Dispatch Logic)
+## 现状
 
-这是本计划的核心：**你不希望管理两个包，只希望管理如何调度。**
+| 能力 | macOS ✅ | iOS ❌ |
+|---|---|---|
+| 本地转写 (SenseVoice) | ✅ | ✅ (已有) |
+| AI Rewrite (transcript cleanup) | ✅ via StetAI | ❌ 无 |
+| AI Provider 管理 (API key, model) | ✅ Keychain + UI | ❌ 无 |
+| Provider 验证 (validateCredential) | ✅ via StetAI | ❌ 无 |
 
-我们将引入一个共享的 `TranscriptionExecutionRoute`（执行路由），其内部逻辑如下：
+## 目标
+
+1. iOS 端接入 `StetEngine` 共享包
+2. 转写后自动走 AI rewrite（可选开关）
+3. iOS 端有自己的 Settings UI 管理 API key + model 选择
+4. 不涉及 iCloud 同步，两端独立存储
+
+---
+
+## Phase 1：链接 StetEngine 包 ✅ DONE
+
+**做什么**：在 `StetMobile.xcodeproj` 中添加 `../Packages/StetEngine` 作为 local Swift package dependency。
+
+**步骤**：
+1. Xcode → StetMobile.xcodeproj → Project Settings → Package Dependencies → Add Local → 选择 `Packages/StetEngine`
+2. 给 `StetMobile` target 添加 framework 依赖：`StetCore`, `StetAI`, `StetRewrite`
+3. 如果 `StetKeyboard` extension 也需要 rewrite 能力，同样添加依赖
+
+**验证**：在任意 iOS 文件中写 `import StetCore; import StetAI; import StetRewrite` 并编译通过。
+
+> StetEngine 已验证无 `#if os(macOS)` 和 UI imports，iOS 直接可用。
+
+---
+
+## Phase 2：Rewrite 管线 ✅ DONE
+
+### 2.1 新增 `RewriteSettingsStore`
+
+iOS 端的 credential 和偏好存储，独立于 macOS 的 `DictationSettingsStore`。
+
+```
+StetMobile/Core/Settings/RewriteSettingsStore.swift
+```
+
+**职责**：
+- 存取 API key（Keychain，按 provider 分 account）
+- 存取 rewrite 开关（UserDefaults）
+- 存取选中的 provider 和 model（UserDefaults）
+- 构建 `RewriteProviderConfiguration`
+
+**依赖**：`import StetCore`, `import StetAI`
+
+**关键类型复用**：
+- `DictationProvider` — 枚举已有 openAI/groq/deepSeek/google/anthropic
+- `DictationProviderConfigurationResolver.rewriteConfiguration(...)` — 直接调用
+- `ProviderCredentialValidationService` — API key 验证
+
+### 2.2 改造 `SenseVoiceViewModel` 的 finalize 流程
+
+现在的流程：
+```
+录音 → VAD 分段 → SenseVoice decode → 拼接 → 显示
+```
+
+改造后：
+```
+录音 → VAD 分段 → SenseVoice decode → 拼接 → [Rewrite] → 显示
+                                                  ↑
+                                          TextRewriteService
+                                          (来自 StetAI 包)
+```
+
+**关键**：Rewrite 失败时 **永远 fallback 到原始转写**，不丢文本。
+
+---
+
+## Phase 3：Settings UI ✅ DONE
+
+### 3.1 新增 Settings 页面
+
+```
+StetMobile/Features/Settings/
+├── Views/
+│   └── RewriteSettingsView.swift
+└── ViewModels/
+    └── RewriteSettingsViewModel.swift
+```
+
+**UI 内容**：
+
+| 控件 | 绑定 |
+|---|---|
+| Toggle: "Transcript Improvement" | rewrite 开关 |
+| Picker: Provider | openAI / google / anthropic / groq |
+| SecureField: API Key | 当前 provider 的 key |
+| Picker: Model | 当前 provider 可用模型列表 |
+| Button: "Validate" | 调用 `ProviderCredentialValidationService` |
+| 状态文本 | 验证结果 / 错误信息 |
+
+### 3.2 接入 ContentView
+
+在 TabView 中添加 Settings tab。
+
+---
+
+### Execution Notes (Phase 1-3)
+
+**Phase 1 完成项**：
+- 修改 `StetMobile.xcodeproj/project.pbxproj` 添加 `XCLocalSwiftPackageReference` 指向 `../Packages/StetEngine`
+- 添加 `StetCore`, `StetAI`, `StetRewrite` 三个 `XCSwiftPackageProductDependency` 到 StetMobile target
+- 添加三个 framework 到 Frameworks build phase
+
+**Phase 2 完成项**：
+- 新建 `StetMobile/Core/Settings/RewriteSettingsStore.swift` — Keychain API key 存取、UserDefaults 偏好、service factory
+- 修改 `SenseVoiceViewModel.swift` — 注入 `RewriteSettingsStore`，finalize 中插入 rewrite pipeline，失败时 fallback 到原始文本
+
+**Phase 3 完成项**：
+- 新建 `StetMobile/Features/Settings/ViewModels/RewriteSettingsViewModel.swift`
+- 新建 `StetMobile/Features/Settings/Views/RewriteSettingsView.swift`
+- 修改 `ContentView.swift` — 添加 Settings tab，接收共享 `RewriteSettingsStore`
+- 修改 `StetMobileApp.swift` — 在 App 根创建共享 `RewriteSettingsStore`，传入 ViewModel 和 ContentView
+
+**验收状态**：代码编写完成，待 Xcode 编译验证（需要在 Xcode 中打开 StetMobile.xcodeproj 解析包依赖后构建）。
+
+---
+
+## Phase 4：Dictionary 共享
+
+### 现状
+
+- **macOS**：`DictionaryModel` + `DictionaryViewModel` — 完整实现（UserDefaults 持久化、词条解析、增删清空）
+- **iOS**：纯 mock — 硬编码词表、`addNewWord()` 为空实现
+
+### 4.1 迁移 `DictionaryModel` 到 StetEngine
+
+把 `Stet/Shared/Models/DictionaryModel.swift` 移入 `Packages/StetEngine/Sources/StetCore/`，加 `public` 访问控制。
+
+`DictionaryModel` 是纯 Foundation 代码（UserDefaults 读写 + String 解析），无平台依赖，可以直接迁移。
+
+### 4.2 iOS 端接入
+
+替换 iOS 的 mock `DictionaryViewModel`，改为调用共享的 `DictionaryModel`：
 
 ```swift
-// 共享包中的伪代码逻辑
-public class TranscriptionExecutionRoute {
-    public static func getService() -> any TranscriptionService {
-        #if os(iOS)
-            // iOS 平台硬编码策略：极致速度，固定使用 SenseVoice
-            return SherpaOnnxSenseVoiceService()
-        #elseif os(macOS)
-            // macOS 平台自由策略：根据用户设置切换 Whisper/SenseVoice/Cloud
-            let userPreference = Settings.selectedModel
-            return TranscriptionServiceFactory.create(for: userPreference)
-        #endif
+import StetCore
+
+@MainActor
+final class DictionaryViewModel: ObservableObject {
+    private let model = DictionaryModel()
+    @Published private(set) var allWords: [String] = []
+    @Published var draft = ""
+
+    func load() { allWords = model.loadEntries() }
+    func addDraftEntries() {
+        allWords = model.addEntries(from: draft)
+        draft = ""
+    }
+    func removeWord(_ word: String) { allWords = model.removeEntry(word) }
+}
+```
+
+### 4.3 文件变更
+
+| 操作 | 文件 |
+|---|---|
+| **迁移** | `DictionaryModel.swift` → `StetEngine/Sources/StetCore/` |
+| **修改** | macOS `DictionaryViewModel.swift`（加 `import StetCore`） |
+| **重写** | iOS `DictionaryViewModel.swift`（调用共享 model） |
+| **修改** | iOS `DictionaryView.swift`（接入真实增删 UI） |
+
+---
+
+## Phase 5：iCloud 同步
+
+### 目标
+
+在两端之间同步以下数据，用户在一端修改后另一端自动更新：
+
+| 数据 | 同步方式 | 原因 |
+|---|---|---|
+| Dictionary 词条 | `NSUbiquitousKeyValueStore` | 数据量小（string array），无冲突风险 |
+| API Keys | iCloud Keychain（`kSecAttrSynchronizable`） | 系统级加密同步，不走自定义通道 |
+
+> `NSUbiquitousKeyValueStore` 限制 1MB 总量，Dictionary 词条 + 偏好远远够用。
+
+### 5.1 改造 `DictionaryModel` 的存储后端
+
+Phase 4 中 `DictionaryModel` 用的是 `UserDefaults`。Phase 5 替换为 `NSUbiquitousKeyValueStore`，同时保留 `UserDefaults` 作为本地缓存（离线时可用）。
+
+```swift
+// StetCore 包内
+public final class SyncedDictionaryStore {
+    private let cloud = NSUbiquitousKeyValueStore.default
+    private let local = UserDefaults.standard
+    private let key = "dictionary.entries"
+
+    public init() {
+        // 监听远端变更
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(cloudDidChange),
+            name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: cloud
+        )
+        cloud.synchronize()
+    }
+
+    public func load() -> [String] {
+        cloud.array(forKey: key) as? [String] ?? local.stringArray(forKey: key) ?? []
+    }
+
+    public func save(_ entries: [String]) {
+        cloud.set(entries, forKey: key)
+        local.set(entries, forKey: key)
+    }
+
+    @objc private func cloudDidChange(_ note: Notification) {
+        // 通知 ViewModel 刷新
+        let entries = cloud.array(forKey: key) as? [String] ?? []
+        local.set(entries, forKey: key)
+        NotificationCenter.default.post(name: .dictionaryDidSync, object: entries)
     }
 }
 ```
 
-### 调度原则：
-1.  **iOS 端 (性能优先)**：自动锁定在 SenseVoice 引擎上，不提供模型切换 UI，确保在移动端达到 0.2 以下的极低 RTF（实时率）。
-2.  **macOS 端 (功能优先)**：支持多引擎切换，利用 Mac 强大的性能提供更高精度的 Whisper 或云端重写功能。
-3.  **单点维护**：所有的“条件编译”逻辑 (`#if os(iOS)`) 都集中在共享包的 Factory 层面，业务层（ViewModel）只管调用 `getService().transcribe()`。
+### 5.2 API Key 同步
+
+不写自定义同步逻辑。直接在 Keychain 存储时加 `kSecAttrSynchronizable: true`：
+
+```swift
+// RewriteSettingsStore / DictationSettingsStore
+query[kSecAttrSynchronizable] = true
+```
+
+这样 API key 会通过系统 iCloud Keychain 自动同步到另一端，前提是用户登录了同一 Apple ID 并开启了 iCloud Keychain。
+
+### 5.3 前置条件
+
+- 两个 xcodeproj 都需要开启 iCloud capability（Key-value storage）
+- Entitlements 中加 `com.apple.developer.ubiquity-kvstore-identifier`
+- 两端的 identifier 需要匹配（通常设为 `$(TeamIdentifierPrefix)$(CFBundleIdentifier)`）
+
+### 5.5 文件变更
+
+| 操作 | 文件 |
+|---|---|
+| **新增** | `StetCore/SyncedDictionaryStore.swift` |
+| **修改** | `DictionaryModel.swift`（切换到 synced store） |
+| **修改** | 两端 `RewriteSettingsStore` / `DictationSettingsStore`（Keychain sync flag） |
+| **修改** | 两端 entitlements（开启 iCloud KVS） |
 
 ---
 
-## 4. 迁移实施步骤
+## 不做的事情
 
-### 第一步：建立链接 (The Bridge)
-*   将 macOS 端的 `StetShared` 以 **Local Swift Package** 的形式引入 iOS 项目。
-*   将 iOS 的 `SharedDictationManager` 迁入共享包，统一 App Group 的读写逻辑。
-
-### 第二步：替换引擎 (The Swap)
-*   在 iOS 的 `SenseVoiceViewModel` 中，将对本地 `SherpaOnnx` 的直接调用，替换为对共享包接口的调用。
-*   验证 iOS 键盘扩展是否能通过共享包获取到同样的 `DictationSession` 模型。
-
-### 第三步：清理冗余 (The Cleanup)
-*   删除 iOS 项目中 `Core/Engine` 下的所有旧代码。
-*   确保 `StetKeyboard` Target 同样引用了共享包，从而实现全链路的代码复用。
-
----
-
-## 5. 结论
-通过这种方式，你只需要在共享包中维护一份“模型调度表”，而 iOS 项目将变成一个纯粹的“外壳”，仅负责 UI 呈现和调用共享包。这达到了“只管理调度逻辑”的目标。
+- ❌ 不合并 xcodeproj（保持两个独立项目）
