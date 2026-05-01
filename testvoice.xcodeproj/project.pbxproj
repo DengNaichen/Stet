@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		6DD04E062FA3D494004D9143 /* StetKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6DD04DFF2FA3D494004D9143 /* StetKeyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		6DD057E72FA4906A004D9143 /* KeyboardKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6DD057E62FA4906A004D9143 /* KeyboardKit */; };
 		A10000012FA4000000000001 /* sherpa-onnx.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000032FA4000000000003 /* sherpa-onnx.xcframework */; };
 		A10000022FA4000000000002 /* onnxruntime.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000042FA4000000000004 /* onnxruntime.xcframework */; };
 /* End PBXBuildFile section */
@@ -60,19 +61,19 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A10000032FA4100000000003 /* Exceptions for "testvoice" folder in "testvoice" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 6DD04D4B2FA3B64B004D9143 /* testvoice */;
-		};
 		6DD04E072FA3D494004D9143 /* Exceptions for "StetKeyboard" folder in "StetKeyboard" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = 6DD04DFE2FA3D494004D9143 /* StetKeyboard */;
+		};
+		A10000032FA4100000000003 /* Exceptions for "testvoice" folder in "testvoice" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 6DD04D4B2FA3B64B004D9143 /* testvoice */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -111,6 +112,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000022FA4000000000002 /* onnxruntime.xcframework in Frameworks */,
+				6DD057E72FA4906A004D9143 /* KeyboardKit in Frameworks */,
 				A10000012FA4000000000001 /* sherpa-onnx.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -185,6 +187,7 @@
 			);
 			name = testvoice;
 			packageProductDependencies = (
+				6DD057E62FA4906A004D9143 /* KeyboardKit */,
 			);
 			productName = testvoice;
 			productReference = 6DD04D4C2FA3B64B004D9143 /* testvoice.app */;
@@ -293,6 +296,9 @@
 			);
 			mainGroup = 6DD04D432FA3B64B004D9143;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				6DD057E52FA4906A004D9143 /* XCRemoteSwiftPackageReference "KeyboardKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6DD04D4D2FA3B64B004D9143 /* Products */;
 			projectDirPath = "";
@@ -522,24 +528,11 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/sherpa-onnx";
 				INFOPLIST_FILE = testvoice/Info.plist;
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.testvoice.dictate\";\n    CFBundleURLSchemes =     (\n        testvoice\n    );\n}";
+				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record microphone audio for local SenseVoice transcription.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLSchemes = (
-							testvoice,
-						);
-						CFBundleURLName = "com.testvoice.dictate";
-					},
-				);
-				INFOPLIST_KEY_LSApplicationQueriesSchemes = (
-					weixin,
-					sms,
-					notes,
-					mobilenotes,
-					dingtalk,
-				);
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -577,24 +570,11 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/sherpa-onnx";
 				INFOPLIST_FILE = testvoice/Info.plist;
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.testvoice.dictate\";\n    CFBundleURLSchemes =     (\n        testvoice\n    );\n}";
+				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record microphone audio for local SenseVoice transcription.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLSchemes = (
-							testvoice,
-						);
-						CFBundleURLName = "com.testvoice.dictate";
-					},
-				);
-				INFOPLIST_KEY_LSApplicationQueriesSchemes = (
-					weixin,
-					sms,
-					notes,
-					mobilenotes,
-					dingtalk,
-				);
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -626,21 +606,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLSchemes = (
-							testvoice,
-						);
-						CFBundleURLName = "com.testvoice.dictate";
-					},
-				);
-				INFOPLIST_KEY_LSApplicationQueriesSchemes = (
-					weixin,
-					sms,
-					notes,
-					mobilenotes,
-					dingtalk,
-				);
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.testvoice.dictate\";\n    CFBundleURLSchemes =     (\n        testvoice\n    );\n}";
+				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
@@ -664,21 +631,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLSchemes = (
-							testvoice,
-						);
-						CFBundleURLName = "com.testvoice.dictate";
-					},
-				);
-				INFOPLIST_KEY_LSApplicationQueriesSchemes = (
-					weixin,
-					sms,
-					notes,
-					mobilenotes,
-					dingtalk,
-				);
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.testvoice.dictate\";\n    CFBundleURLSchemes =     (\n        testvoice\n    );\n}";
+				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
@@ -701,21 +655,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLSchemes = (
-							testvoice,
-						);
-						CFBundleURLName = "com.testvoice.dictate";
-					},
-				);
-				INFOPLIST_KEY_LSApplicationQueriesSchemes = (
-					weixin,
-					sms,
-					notes,
-					mobilenotes,
-					dingtalk,
-				);
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.testvoice.dictate\";\n    CFBundleURLSchemes =     (\n        testvoice\n    );\n}";
+				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.testvoiceUITests;
@@ -737,21 +678,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLSchemes = (
-							testvoice,
-						);
-						CFBundleURLName = "com.testvoice.dictate";
-					},
-				);
-				INFOPLIST_KEY_LSApplicationQueriesSchemes = (
-					weixin,
-					sms,
-					notes,
-					mobilenotes,
-					dingtalk,
-				);
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.testvoice.dictate\";\n    CFBundleURLSchemes =     (\n        testvoice\n    );\n}";
+				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.testvoiceUITests;
@@ -776,22 +704,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = StetKeyboard/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "SenseVoice键盘";
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.testvoice.dictate\";\n    CFBundleURLSchemes =     (\n        testvoice\n    );\n}";
+				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLSchemes = (
-							testvoice,
-						);
-						CFBundleURLName = "com.testvoice.dictate";
-					},
-				);
-				INFOPLIST_KEY_LSApplicationQueriesSchemes = (
-					weixin,
-					sms,
-					notes,
-					mobilenotes,
-					dingtalk,
-				);
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -803,9 +718,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.testvoice.StetKeyboard;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				CODE_SIGN_ENTITLEMENTS = StetKeyboard/StetKeyboard.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -819,28 +731,16 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = StetKeyboard/StetKeyboard.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = StetKeyboard/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "SenseVoice键盘";
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.testvoice.dictate\";\n    CFBundleURLSchemes =     (\n        testvoice\n    );\n}";
+				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLSchemes = (
-							testvoice,
-						);
-						CFBundleURLName = "com.testvoice.dictate";
-					},
-				);
-				INFOPLIST_KEY_LSApplicationQueriesSchemes = (
-					weixin,
-					sms,
-					notes,
-					mobilenotes,
-					dingtalk,
-				);
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -852,10 +752,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.testvoice.StetKeyboard;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				CODE_SIGN_ENTITLEMENTS = StetKeyboard/StetKeyboard.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -914,6 +810,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		6DD057E52FA4906A004D9143 /* XCRemoteSwiftPackageReference "KeyboardKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/KeyboardKit/KeyboardKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 10.4.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		6DD057E62FA4906A004D9143 /* KeyboardKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6DD057E52FA4906A004D9143 /* XCRemoteSwiftPackageReference "KeyboardKit" */;
+			productName = KeyboardKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 6DD04D442FA3B64B004D9143 /* Project object */;
 }

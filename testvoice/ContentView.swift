@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var viewModel = SenseVoiceViewModel()
+    @ObservedObject var viewModel: SenseVoiceViewModel
     @State private var selectedTab = 0
     
     var body: some View {
@@ -38,5 +38,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(viewModel: SenseVoiceViewModel())
 }

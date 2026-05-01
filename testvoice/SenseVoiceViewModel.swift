@@ -26,9 +26,16 @@ final class SenseVoiceViewModel: ObservableObject {
     private let outputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)
     private let decodeQueue = DispatchQueue(label: "SenseVoiceDecodeQueue")
     
-    private var accumulatedSamples: [Float] = []
     private var commandPollingTimer: Timer?
     private var activeSessionId: String?
+
+    // Per-session segment tracking (VAD-driven chunked decode)
+    private var nextSegmentOrder: Int = 0
+    private var decodedSegments: [Int: String] = [:]
+    private var expectedSegmentCount: Int?
+    private var sessionAudioSeconds: Double = 0
+    private var sessionDecodeCpuSeconds: Double = 0
+    private var sessionWallStart: CFAbsoluteTime = 0
 
     var isRecording: Bool {
         state == .recording
@@ -37,6 +44,47 @@ final class SenseVoiceViewModel: ObservableObject {
     init() {
         Task { @MainActor in
             await self.bootstrap()
+        }
+        registerAudioSessionObservers()
+    }
+
+    func ensureMicAlive() {
+        guard let engine = audioEngine else {
+            Task { @MainActor in await bootstrap() }
+            return
+        }
+        do {
+            try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+            if !engine.isRunning {
+                try engine.start()
+            }
+        } catch {
+            SharedDictationManager.shared.updateState(.failed, error: error.localizedDescription)
+        }
+    }
+
+    private func registerAudioSessionObservers() {
+        let center = NotificationCenter.default
+        center.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard
+                let info = note.userInfo,
+                let typeRaw = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+                let type = AVAudioSession.InterruptionType(rawValue: typeRaw)
+            else { return }
+            if type == .ended {
+                Task { @MainActor in self?.ensureMicAlive() }
+            }
+        }
+        center.addObserver(
+            forName: AVAudioSession.mediaServicesWereResetNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.ensureMicAlive() }
         }
     }
 
@@ -91,6 +139,7 @@ final class SenseVoiceViewModel: ObservableObject {
     }
 
     private func checkKeyboardCommands() {
+        SharedDictationManager.shared.heartbeat()
         guard let session = SharedDictationManager.shared.getSession() else { return }
         switch session.state {
         case .requestStart:
@@ -107,10 +156,18 @@ final class SenseVoiceViewModel: ObservableObject {
     }
 
     private func startAccumulating(sessionId: String) {
-        accumulatedSamples.removeAll()
+        // Discard any pre-session VAD output so this session starts clean.
+        if let vad = vad {
+            while !vad.isEmpty() { vad.pop() }
+        }
         activeSessionId = sessionId
+        nextSegmentOrder = 0
+        decodedSegments.removeAll()
+        expectedSegmentCount = nil
+        sessionAudioSeconds = 0
+        sessionDecodeCpuSeconds = 0
         state = .recording
-        partialStatus = "Recording... release mic to decode."
+        partialStatus = "Recording... tap mic again to decode."
         let session = DictationSession(
             sessionId: sessionId,
             createdAt: Date(),
@@ -121,47 +178,95 @@ final class SenseVoiceViewModel: ObservableObject {
     }
 
     private func stopAccumulatingAndDecode() {
-        // Flip out of .recording before kicking off decode so the tap callback
-        // stops appending samples and polling won't re-fire on .requestStop.
+        guard let sessionId = activeSessionId else { return }
+        // Flip out of .recording so handleInputBuffer's drainVAD won't enqueue
+        // more segments for this session via the live path.
         state = .idle
         partialStatus = "Decoding..."
         SharedDictationManager.shared.updateState(.transcribing)
-        decodeBatch()
+        sessionWallStart = CFAbsoluteTimeGetCurrent()
+
+        // Force VAD to finalize any in-progress speech, then drain remaining
+        // segments and submit them as the tail of this session.
+        vad?.flush()
+        if let vad = vad {
+            while !vad.isEmpty() {
+                let seg = vad.front()
+                let segSamples = seg.samples
+                vad.pop()
+                let order = nextSegmentOrder
+                nextSegmentOrder += 1
+                sessionAudioSeconds += Double(segSamples.count) / 16_000.0
+                enqueueSegmentDecode(samples: segSamples, sessionId: sessionId, order: order)
+            }
+        }
+
+        expectedSegmentCount = nextSegmentOrder
+        if nextSegmentOrder == 0 {
+            finalize(merged: "")
+        } else {
+            checkAllSegmentsDecoded()
+        }
     }
 
-    private func decodeBatch() {
-        guard let recognizer = recognizer, !accumulatedSamples.isEmpty else {
-            state = .idle
-            partialStatus = "No audio recorded."
-            return
-        }
-        
-        let samples = accumulatedSamples
+    private func enqueueSegmentDecode(samples: [Float], sessionId: String, order: Int) {
+        guard let recognizer = recognizer else { return }
         decodeQueue.async { [weak self] in
-            let audioSeconds = Double(samples.count) / 16_000.0
             let decodeStart = CFAbsoluteTimeGetCurrent()
             let result = recognizer.decode(samples: samples, sampleRate: 16_000)
             let decodeSeconds = CFAbsoluteTimeGetCurrent() - decodeStart
-            let rtf = audioSeconds > 0 ? decodeSeconds / audioSeconds : 0
-            
-            Task { @MainActor in
-                guard let self else { return }
-                let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                let language = result.lang
-                if text.isEmpty {
-                    self.partialStatus = "Empty result."
-                    SharedDictationManager.shared.updateState(.ready)
-                } else {
-                    let prefix = language.isEmpty ? "" : "[\(language)] "
-                    self.transcript = "\(prefix)\(text)"
-                    self.partialStatus = "Finished."
-                    SharedDictationManager.shared.updateText(partial: text, final: text)
-                    SharedDictationManager.shared.updateState(.ready)
-                }
-                self.metricsText = String(format: "Batch Result: audio %.2fs, decode %.2fs, RTF %.2f", audioSeconds, decodeSeconds, rtf)
-                self.state = .idle
+            let text = result.text
+            Task { @MainActor [weak self] in
+                self?.handleSegmentResult(
+                    sessionId: sessionId,
+                    order: order,
+                    text: text,
+                    decodeSeconds: decodeSeconds
+                )
             }
         }
+    }
+
+    private func handleSegmentResult(sessionId: String, order: Int, text: String, decodeSeconds: Double) {
+        // Discard results from stale sessions (user started a new one).
+        guard sessionId == activeSessionId else { return }
+        decodedSegments[order] = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        sessionDecodeCpuSeconds += decodeSeconds
+        checkAllSegmentsDecoded()
+    }
+
+    private func checkAllSegmentsDecoded() {
+        guard let expected = expectedSegmentCount,
+              decodedSegments.count >= expected else { return }
+        let merged = (0..<expected)
+            .compactMap { decodedSegments[$0] }
+            .filter { !$0.isEmpty }
+            .joined()
+        finalize(merged: merged)
+    }
+
+    private func finalize(merged: String) {
+        let wallSeconds = CFAbsoluteTimeGetCurrent() - sessionWallStart
+        let rtf = sessionAudioSeconds > 0 ? sessionDecodeCpuSeconds / sessionAudioSeconds : 0
+
+        if merged.isEmpty {
+            partialStatus = "Empty result."
+            SharedDictationManager.shared.updateState(.ready)
+        } else {
+            transcript = merged
+            partialStatus = "Finished."
+            SharedDictationManager.shared.updateText(partial: merged, final: merged)
+            SharedDictationManager.shared.updateState(.ready)
+        }
+        metricsText = String(
+            format: "audio %.2fs, wall-after-stop %.2fs, cpu %.2fs, RTF %.2f, segs %d",
+            sessionAudioSeconds, wallSeconds, sessionDecodeCpuSeconds, rtf, expectedSegmentCount ?? 0
+        )
+
+        activeSessionId = nil
+        decodedSegments.removeAll()
+        expectedSegmentCount = nil
+        state = .idle
     }
 
     private func requestMicrophonePermission() async throws {
@@ -280,9 +385,19 @@ class SharedDictationManager {
     static let shared = SharedDictationManager()
     private let appGroupIdentifier = "group.NaichengDeng.testvoice"
     private let sessionKey = "dictation.session"
-    
+    private let heartbeatKey = "dictation.heartbeat"
+
     private var defaults: UserDefaults? {
         UserDefaults(suiteName: appGroupIdentifier)
+    }
+
+    func heartbeat() {
+        defaults?.set(Date().timeIntervalSince1970, forKey: heartbeatKey)
+    }
+
+    func mainAppAlive(within seconds: TimeInterval) -> Bool {
+        guard let ts = defaults?.object(forKey: heartbeatKey) as? TimeInterval, ts > 0 else { return false }
+        return Date().timeIntervalSince1970 - ts < seconds
     }
     
     func saveSession(_ session: DictationSession) {

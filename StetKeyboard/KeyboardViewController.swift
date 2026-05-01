@@ -7,63 +7,37 @@
 
 import UIKit
 import SwiftUI
+import KeyboardKit
 
-class KeyboardViewController: UIInputViewController {
+class KeyboardViewController: KeyboardInputViewController {
 
     private var pollTimer: Timer?
     private var lastProcessedSessionId: String?
     private var pendingSessionId: String?
 
-    override func updateViewConstraints() {
-        super.updateViewConstraints()
+    override func viewWillSetupKeyboardKit() {
+        // Define your app configuration for KeyboardKit
+        let app = KeyboardApp(
+            name: "testvoice",
+            appGroupId: "group.NaichengDeng.testvoice",
+            deepLinks: .init(app: "testvoice://")
+        )
+
+        // Initialize KeyboardKit with your app configuration
+        setupKeyboardKit(for: app) { _ in
+            // Basic setup complete
+        }
     }
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
+    override func viewWillSetupKeyboardView() {
+        // ⚠️ Don't call `super.viewWillSetupKeyboardView()` in v10 as it might conflict with custom setup.
 
-        // Give the system an explicit input view height so it doesn't reject
-        // the keyboard for missing intrinsic size during first activation.
-        let heightConstraint = view.heightAnchor.constraint(equalToConstant: 260)
-        heightConstraint.priority = .required - 1
-        heightConstraint.isActive = true
+        // Match SwiftUI KeyboardView background so the input view chrome blends in.
+        view.backgroundColor = .systemGray5
 
-        let keyboardView = KeyboardView(
-            onMicDown: { [weak self] in
-                self?.handleMicDown()
-            },
-            onMicUp: { [weak self] in
-                self?.handleMicUp()
-            },
-            onKeyTap: { [weak self] text in
-                if text == "__DONE__" {
-                    self?.insertFinalResult()
-                } else {
-                    self?.textDocumentProxy.insertText(text)
-                }
-            },
-            onBackspace: { [weak self] in
-                self?.textDocumentProxy.deleteBackward()
-            },
-            onReturn: { [weak self] in
-                self?.textDocumentProxy.insertText("\n")
-            },
-            onNextKeyboard: { [weak self] in
-                self?.advanceToNextInputMode()
-            }
-        )
-        let hostingController = UIHostingController(rootView: keyboardView)
-        addChild(hostingController)
-        view.addSubview(hostingController.view)
-        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
-
-        NSLayoutConstraint.activate([
-            hostingController.view.leftAnchor.constraint(equalTo: view.leftAnchor),
-            hostingController.view.rightAnchor.constraint(equalTo: view.rightAnchor),
-            hostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
-            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        ])
-
-        hostingController.didMove(toParent: self)
+        setupKeyboardView { [weak self] controller in
+            StetKeyboardView(controller: controller as! KeyboardViewController)
+        }
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -78,7 +52,7 @@ class KeyboardViewController: UIInputViewController {
         stopPolling()
     }
 
-    private func handleMicDown() {
+    internal func handleMicDown() {
         let sessionId = UUID().uuidString
         pendingSessionId = sessionId
         let session = DictationSession(
@@ -89,18 +63,14 @@ class KeyboardViewController: UIInputViewController {
         )
         SharedDictationManager.shared.saveSession(session)
 
-        // Safety: if main app isn't alive in background to pick this up,
-        // fall back to launching it via URL scheme.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self = self else { return }
-            let current = SharedDictationManager.shared.getSession()
-            if current?.sessionId == sessionId, current?.state == .requestStart {
-                self.openMainApp(sessionId: sessionId)
-            }
+        // If the main app's polling heartbeat is fresh, it'll pick up the
+        // requestStart on its own; otherwise wake it via URL scheme.
+        if !SharedDictationManager.shared.mainAppAlive(within: 0.6) {
+            openMainApp(sessionId: sessionId)
         }
     }
 
-    private func handleMicUp() {
+    internal func handleMicUp() {
         guard let sessionId = pendingSessionId else { return }
         var session = SharedDictationManager.shared.getSession()
             ?? DictationSession(sessionId: sessionId, createdAt: Date(), updatedAt: Date(), state: .requestStop)
@@ -169,12 +139,6 @@ class KeyboardViewController: UIInputViewController {
             SharedDictationManager.shared.updateState(.inserted)
         }
     }
-
-    override func textWillChange(_ textInput: UITextInput?) {
-    }
-
-    override func textDidChange(_ textInput: UITextInput?) {
-    }
 }
 
 // MARK: - Shared Dictation Manager
@@ -211,9 +175,19 @@ class SharedDictationManager {
     static let shared = SharedDictationManager()
     private let appGroupIdentifier = "group.NaichengDeng.testvoice"
     private let sessionKey = "dictation.session"
-    
+    private let heartbeatKey = "dictation.heartbeat"
+
     private var defaults: UserDefaults? {
         UserDefaults(suiteName: appGroupIdentifier)
+    }
+
+    func heartbeat() {
+        defaults?.set(Date().timeIntervalSince1970, forKey: heartbeatKey)
+    }
+
+    func mainAppAlive(within seconds: TimeInterval) -> Bool {
+        guard let ts = defaults?.object(forKey: heartbeatKey) as? TimeInterval, ts > 0 else { return false }
+        return Date().timeIntervalSince1970 - ts < seconds
     }
     
     func saveSession(_ session: DictationSession) {
