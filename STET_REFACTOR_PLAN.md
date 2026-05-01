@@ -2,19 +2,7 @@
 
 为了提升 `Stet` 代码的可维护性，并为跨平台迁移（iOS 适配）做准备，我们需要对当前 `Stet` 的核心模块进行以下重构。
 
-## 1. 日志系统升级 (Logging System)
-**现状**：使用自定义的 `AppLogger`，强依赖于 `MacPreferences` 和硬编码的子系统名称。
-**目标**：切换到苹果原生的 `os.Logger`，实现轻量化和高性能。
-
-*   **任务**：
-    1.  在核心 Service 中引入 `import os`。
-    2.  删除对 `AppLogger.info/error` 的调用。
-    3.  使用 `Logger(subsystem: Bundle.main.bundleIdentifier!, category: "...")` 替代。
-*   **验收标准**：
-    *   删除 `AppLogger.swift` 后，核心逻辑层编译通过。
-    *   在 macOS 控制台 (Console.app) 中能按类别筛选日志。
-
-## 2. 消除硬编码路径与标识符 (Hardcoded Values)
+## 1. 消除硬编码路径与标识符 (Hardcoded Values)
 **现状**：`ModelManager` 中硬编码了 `"Stet"` 文件夹名；`TranscriptionService` 中硬编码了 Bundle ID。
 **目标**：实现“环境感知”的路径解析。
 
@@ -24,7 +12,7 @@
 *   **验收标准**：
     *   通过初始化参数，可以让模型存储在任意命名的文件夹下。
 
-## 3. 偏好设置解耦 (Settings Decoupling)
+## 2. 偏好设置解耦 (Settings Decoupling)
 **现状**：`ModelManager` 直接读取 `MacPreferences.sherpaOnnxSenseVoiceModelPath`。
 **目标**：通过协议（Protocol）或依赖注入传递配置，不再依赖具体的 `MacPreferences` 枚举。
 

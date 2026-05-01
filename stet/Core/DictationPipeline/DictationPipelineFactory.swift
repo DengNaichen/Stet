@@ -27,10 +27,10 @@ struct DictationPipelineFactory: Sendable {
         self.makeRewriteService = makeRewriteService
     }
 
-    static func live() -> Self {
+    static func live(configuration: any ModelStorageConfiguration = UserDefaultsModelStorage()) -> Self {
         DictationPipelineFactory(
             makeLocalTranscriptionService: {
-                try Self.makeLiveLocalTranscriptionService()
+                try Self.makeLiveLocalTranscriptionService(configuration: configuration)
             },
             makeRewriteService: { configuration, session in
                 switch configuration.backend {
@@ -113,9 +113,11 @@ struct DictationPipelineFactory: Sendable {
     /// kept for the case where the Parakeet model isn't downloaded yet — we
     /// fall back to whisper rather than throwing so dictation never hard-fails
     /// because of a misconfigured picker.
-    nonisolated static func makeLiveLocalTranscriptionService() throws -> any AudioFileTranscriptionService {
+    nonisolated static func makeLiveLocalTranscriptionService(
+        configuration: any ModelStorageConfiguration = UserDefaultsModelStorage()
+    ) throws -> any AudioFileTranscriptionService {
         #if os(macOS)
-            let stored = StoredTranscriptionEngine.current()
+            let stored = configuration.transcriptionEngine
 
             Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "PipelineFactory").info(
                 "DictationPipelineFactory selected local engine=\(stored.rawValue)"
@@ -131,25 +133,29 @@ struct DictationPipelineFactory: Sendable {
                     ).warning(
                         "Parakeet engine unavailable (\(error.localizedDescription)); falling back to local whisper."
                     )
-                    return try LocalWhisperTranscriptionService(modelManager: LocalWhisperModelManager())
+                    return try LocalWhisperTranscriptionService(
+                        modelManager: LocalWhisperModelManager(configuration: configuration))
                 }
             case .localWhisper:
-                return try LocalWhisperTranscriptionService(modelManager: LocalWhisperModelManager())
+                return try LocalWhisperTranscriptionService(
+                    modelManager: LocalWhisperModelManager(configuration: configuration))
             case .sherpaOnnxSenseVoice:
                 do {
                     return try SherpaOnnxSenseVoiceTranscriptionService(
-                        modelManager: SherpaOnnxSenseVoiceModelManager())
+                        modelManager: SherpaOnnxSenseVoiceModelManager(configuration: configuration))
                 } catch {
                     Logger(
                         subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "PipelineFactory"
                     ).warning(
                         "Sherpa-ONNX SenseVoice engine unavailable (\(error.localizedDescription)); falling back to local whisper."
                     )
-                    return try LocalWhisperTranscriptionService(modelManager: LocalWhisperModelManager())
+                    return try LocalWhisperTranscriptionService(
+                        modelManager: LocalWhisperModelManager(configuration: configuration))
                 }
             }
         #else
-            return try LocalWhisperTranscriptionService(modelManager: LocalWhisperModelManager())
+            return try LocalWhisperTranscriptionService(
+                modelManager: LocalWhisperModelManager(configuration: configuration))
         #endif
     }
 

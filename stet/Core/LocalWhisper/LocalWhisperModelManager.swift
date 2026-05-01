@@ -70,20 +70,20 @@ struct LocalWhisperModelManager: Sendable {
     nonisolated static let defaultEncoderDirectoryName = "ggml-large-v3-turbo-encoder.mlmodelc"
 
     private let model: LocalWhisperModelDescriptor
+    private let configuration: any ModelStorageConfiguration
     private let modelsDirectoryProvider: @Sendable () throws -> URL
     private let runtimeAvailableProvider: @Sendable () -> Bool
-    /// Optional absolute path override stored in UserDefaults.
-    private let customPathProvider: @Sendable () -> String?
     private let downloadProvider: @Sendable (URL, LocalWhisperDownloadProgressSink) async throws -> URL
 
     nonisolated init(
         model: LocalWhisperModelDescriptor = .default,
+        configuration: any ModelStorageConfiguration = UserDefaultsModelStorage(),
         modelsDirectoryProvider: (@Sendable () throws -> URL)? = nil,
         runtimeAvailableProvider: (@Sendable () -> Bool)? = nil,
-        customPathProvider: (@Sendable () -> String?)? = nil,
         downloadProvider: (@Sendable (URL, LocalWhisperDownloadProgressSink) async throws -> URL)? = nil
     ) {
         self.model = model
+        self.configuration = configuration
         self.modelsDirectoryProvider =
             modelsDirectoryProvider
             ?? {
@@ -102,20 +102,13 @@ struct LocalWhisperModelManager: Sendable {
                     .appendingPathComponent("Models", isDirectory: true)
             }
         self.runtimeAvailableProvider = runtimeAvailableProvider ?? { LocalWhisperEngineFactory.isRuntimeAvailable }
-        self.customPathProvider =
-            customPathProvider
-            ?? { UserDefaults.standard.string(forKey: MacPreferences.localWhisperModelPath) }
         self.downloadProvider = downloadProvider ?? Self.defaultDownloadProvider
     }
 
     /// Saves a custom model path to UserDefaults.
-    nonisolated static func saveCustomModelPath(_ path: String?) {
+    nonisolated func saveCustomModelPath(_ path: String?) {
         Self.scheduleContextCleanup()
-        if let path {
-            UserDefaults.standard.set(path, forKey: MacPreferences.localWhisperModelPath)
-        } else {
-            UserDefaults.standard.removeObject(forKey: MacPreferences.localWhisperModelPath)
-        }
+        configuration.saveLocalWhisperModelPath(path)
     }
 
     nonisolated private static func scheduleContextCleanup() {
@@ -128,7 +121,7 @@ struct LocalWhisperModelManager: Sendable {
 
     /// Returns the custom path URL when it is set and the file exists.
     nonisolated private func resolvedCustomURL() -> URL? {
-        guard let path = customPathProvider(), !path.isEmpty else { return nil }
+        guard let path = configuration.localWhisperModelPath, !path.isEmpty else { return nil }
         let url = URL(fileURLWithPath: path)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         return url

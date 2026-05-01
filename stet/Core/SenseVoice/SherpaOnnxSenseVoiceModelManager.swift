@@ -15,19 +15,18 @@ struct SherpaOnnxSenseVoiceModelManager: Sendable {
     )!
     nonisolated static let displayName = "SenseVoice (Sherpa-ONNX, Chinese-optimized)"
 
-    private let customPathProvider: @Sendable () -> String?
+    private let configuration: any ModelStorageConfiguration
     private let runtimeAvailableProvider: @Sendable () -> Bool
     private let modelsDirectoryProvider: @Sendable () throws -> URL
     private let downloadProvider: @Sendable (URL, LocalWhisperDownloadProgressSink) async throws -> URL
 
     nonisolated init(
-        customPathProvider: (@Sendable () -> String?)? = nil,
+        configuration: any ModelStorageConfiguration = UserDefaultsModelStorage(),
         runtimeAvailableProvider: (@Sendable () -> Bool)? = nil,
         modelsDirectoryProvider: (@Sendable () throws -> URL)? = nil,
         downloadProvider: (@Sendable (URL, LocalWhisperDownloadProgressSink) async throws -> URL)? = nil
     ) {
-        self.customPathProvider =
-            customPathProvider ?? { UserDefaults.standard.string(forKey: MacPreferences.sherpaOnnxSenseVoiceModelPath) }
+        self.configuration = configuration
         self.runtimeAvailableProvider =
             runtimeAvailableProvider ?? {
                 #if canImport(sherpa_onnx)
@@ -56,16 +55,12 @@ struct SherpaOnnxSenseVoiceModelManager: Sendable {
         self.downloadProvider = downloadProvider ?? Self.defaultDownloadProvider
     }
 
-    nonisolated static func saveCustomModelPath(_ path: String?) {
-        if let path {
-            UserDefaults.standard.set(path, forKey: MacPreferences.sherpaOnnxSenseVoiceModelPath)
-        } else {
-            UserDefaults.standard.removeObject(forKey: MacPreferences.sherpaOnnxSenseVoiceModelPath)
-        }
+    nonisolated func saveCustomModelPath(_ path: String?) {
+        configuration.saveSherpaOnnxSenseVoiceModelPath(path)
     }
 
     nonisolated private func resolvedCustomURL() -> URL? {
-        guard let path = customPathProvider(), !path.isEmpty else { return nil }
+        guard let path = configuration.sherpaOnnxSenseVoiceModelPath, !path.isEmpty else { return nil }
         let url = URL(fileURLWithPath: path)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         return url
@@ -131,7 +126,9 @@ struct SherpaOnnxSenseVoiceModelManager: Sendable {
             return .ready(localURL: modelURL)
         }
 
-        let candidate = customPathProvider().flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0) }
+        let candidate = configuration.sherpaOnnxSenseVoiceModelPath.flatMap {
+            $0.isEmpty ? nil : URL(fileURLWithPath: $0)
+        }
         return .missing(expectedURL: candidate)
     }
 

@@ -29,18 +29,22 @@
         private let settingsStore: DictationSettingsStore
         private var hasLoadedState = false
 
-        private let localWhisperModelManager = LocalWhisperModelManager()
-        private let fluidAudioModelManager = FluidAudioModelManager()
-        private let sherpaOnnxSenseVoiceModelManager = SherpaOnnxSenseVoiceModelManager()
+        private let localWhisperModelManager: LocalWhisperModelManager
+        private let fluidAudioModelManager: FluidAudioModelManager
+        private let sherpaOnnxSenseVoiceModelManager: SherpaOnnxSenseVoiceModelManager
 
         init(
             deviceManager: AudioDeviceSelectionManager = .shared,
             microphoneTestService: MicrophoneTestService = DefaultMicrophoneTestService.shared,
-            settingsStore: DictationSettingsStore = DictationSettingsStore()
+            settingsStore: DictationSettingsStore = DictationSettingsStore(),
+            configuration: any ModelStorageConfiguration = UserDefaultsModelStorage()
         ) {
             self.deviceManager = deviceManager
             self.microphoneTestViewModel = MicrophoneTestViewModel(microphoneTestService: microphoneTestService)
             self.settingsStore = settingsStore
+            self.localWhisperModelManager = LocalWhisperModelManager(configuration: configuration)
+            self.fluidAudioModelManager = FluidAudioModelManager()
+            self.sherpaOnnxSenseVoiceModelManager = SherpaOnnxSenseVoiceModelManager(configuration: configuration)
         }
 
         func onAppear() {

@@ -16,6 +16,7 @@
             subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
             category: "LocalWhisperWarmup"
         )
+        private let configuration: any ModelStorageConfiguration
         private let modelManager: LocalWhisperModelManager
         private let startupWarmupDelay: TimeInterval
         private let sampleURLProvider: @Sendable () -> URL?
@@ -25,12 +26,14 @@
         private var scheduledWarmupTask: Task<Void, Never>?
 
         init(
-            modelManager: LocalWhisperModelManager = LocalWhisperModelManager(),
+            configuration: any ModelStorageConfiguration = UserDefaultsModelStorage(),
+            modelManager: LocalWhisperModelManager? = nil,
             startupWarmupDelay: TimeInterval = 3,
             sampleURLProvider: (@Sendable () -> URL?)? = nil,
             serviceFactory: (@Sendable (LocalWhisperModelManager) throws -> any AudioFileTranscriptionService)? = nil
         ) {
-            self.modelManager = modelManager
+            self.configuration = configuration
+            self.modelManager = modelManager ?? LocalWhisperModelManager(configuration: configuration)
             self.startupWarmupDelay = startupWarmupDelay
             self.sampleURLProvider =
                 sampleURLProvider
@@ -58,7 +61,7 @@
             guard !hasActivated else { return }
             hasActivated = true
 
-            guard StoredTranscriptionEngine.current() == .localWhisper else {
+            guard configuration.transcriptionEngine == .localWhisper else {
                 return
             }
 
@@ -98,7 +101,7 @@
         }
 
         private func performWarmupIfPossible(logMessage: StaticString) async throws {
-            guard StoredTranscriptionEngine.current() == .localWhisper else {
+            guard configuration.transcriptionEngine == .localWhisper else {
                 return
             }
 

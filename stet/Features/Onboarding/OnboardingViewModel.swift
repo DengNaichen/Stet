@@ -322,7 +322,7 @@
                 case .localWhisper:
                     if try localWhisperModelManager.defaultModelReady() {
                         try localWhisperModelManager.removeDefaultEncoderIfPresent()
-                        LocalWhisperModelManager.saveCustomModelPath(nil)
+                        localWhisperModelManager.saveCustomModelPath(nil)
                         engineDownloadFraction = 1
                         engineDownloadState = .ready
                         settingsStore.saveTranscriptionEngine(.localWhisper)
@@ -351,7 +351,7 @@
                         }
                     )
 
-                    LocalWhisperModelManager.saveCustomModelPath(nil)
+                    localWhisperModelManager.saveCustomModelPath(nil)
                     engineDownloadFraction = 1
                     engineDownloadState = .ready
                     settingsStore.saveTranscriptionEngine(.localWhisper)

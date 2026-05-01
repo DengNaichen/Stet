@@ -43,32 +43,3 @@ enum MacPreferences {
     /// Values are `StoredTranscriptionEngine.rawValue` ("fluidAudio" or "localWhisper").
     nonisolated static let transcriptionEngine = "mac.transcriptionEngine"
 }
-
-enum StoredTranscriptionEngine: String, CaseIterable, Sendable {
-    case fluidAudio
-    case localWhisper
-    case sherpaOnnxSenseVoice
-
-    nonisolated var displayName: String {
-        switch self {
-        case .fluidAudio: return "Parakeet V3"
-        case .localWhisper: return "Whisper"
-        case .sherpaOnnxSenseVoice: return "SenseVoice"
-        }
-    }
-
-    nonisolated static let `default`: StoredTranscriptionEngine = .localWhisper
-
-    nonisolated static func current(defaults: UserDefaults = .standard) -> StoredTranscriptionEngine {
-        guard let raw = defaults.string(forKey: MacPreferences.transcriptionEngine) else {
-            return .default
-        }
-        return StoredTranscriptionEngine(rawValue: raw) ?? .default
-    }
-}
-
-enum TranscriptionEngine: Equatable, Sendable {
-    case fluidAudio
-    case localWhisper(languageHint: String?)
-    case sherpaOnnxSenseVoice
-}
