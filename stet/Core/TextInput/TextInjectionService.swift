@@ -371,11 +371,13 @@
             simulatePasteCommand: @MainActor () -> Bool,
             sleep: @escaping @Sendable (Duration) async -> Void,
             activationDelay: Duration = .milliseconds(180),
-            prePasteDelay: Duration = .milliseconds(60),
+            // Tuned for performance: 60ms -> 15ms
+            prePasteDelay: Duration = .milliseconds(15),
             verificationBaselinePollInterval: Duration = .milliseconds(60),
-            verificationBaselineAttempts: Int = 4,
-            verificationPollInterval: Duration = .milliseconds(120),
-            verificationAttempts: Int = 4
+            verificationBaselineAttempts: Int = 1,
+            // Tuned for performance: 120ms -> 30ms
+            verificationPollInterval: Duration = .milliseconds(30),
+            verificationAttempts: Int = 1
         ) async -> TextInjectionOutcome {
             let traceID = makeTextInjectionTraceID()
             emitTextInjectionTrace(
