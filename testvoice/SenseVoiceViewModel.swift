@@ -36,6 +36,7 @@ final class SenseVoiceViewModel: ObservableObject {
     private var sessionAudioSeconds: Double = 0
     private var sessionDecodeCpuSeconds: Double = 0
     private var sessionWallStart: CFAbsoluteTime = 0
+    private var accumulatedSamples: [Float] = []
 
     var isRecording: Bool {
         state == .recording
@@ -166,6 +167,7 @@ final class SenseVoiceViewModel: ObservableObject {
         expectedSegmentCount = nil
         sessionAudioSeconds = 0
         sessionDecodeCpuSeconds = 0
+        accumulatedSamples.removeAll()
         state = .recording
         partialStatus = "Recording... tap mic again to decode."
         let session = DictationSession(
@@ -189,23 +191,26 @@ final class SenseVoiceViewModel: ObservableObject {
         // Force VAD to finalize any in-progress speech, then drain remaining
         // segments and submit them as the tail of this session.
         vad?.flush()
-        if let vad = vad {
-            while !vad.isEmpty() {
-                let seg = vad.front()
-                let segSamples = seg.samples
-                vad.pop()
-                let order = nextSegmentOrder
-                nextSegmentOrder += 1
-                sessionAudioSeconds += Double(segSamples.count) / 16_000.0
-                enqueueSegmentDecode(samples: segSamples, sessionId: sessionId, order: order)
-            }
-        }
-
+        drainVAD()
         expectedSegmentCount = nextSegmentOrder
+
         if nextSegmentOrder == 0 {
             finalize(merged: "")
         } else {
             checkAllSegmentsDecoded()
+        }
+    }
+
+    private func drainVAD() {
+        guard let vad = vad, let sessionId = activeSessionId else { return }
+        while !vad.isEmpty() {
+            let seg = vad.front()
+            let segSamples = seg.samples
+            vad.pop()
+            let order = nextSegmentOrder
+            nextSegmentOrder += 1
+            sessionAudioSeconds += Double(segSamples.count) / 16_000.0
+            enqueueSegmentDecode(samples: segSamples, sessionId: sessionId, order: order)
         }
     }
 
@@ -346,6 +351,8 @@ final class SenseVoiceViewModel: ObservableObject {
             let samples = converted.floatArray()
             if !samples.isEmpty {
                 self.accumulatedSamples.append(contentsOf: samples)
+                self.vad?.acceptWaveform(samples: samples)
+                self.drainVAD()
             }
         }
     }
