@@ -12,16 +12,6 @@
 *   **验收标准**：
     *   通过初始化参数，可以让模型存储在任意命名的文件夹下。
 
-## 2. 偏好设置解耦 (Settings Decoupling)
-**现状**：`ModelManager` 直接读取 `MacPreferences.sherpaOnnxSenseVoiceModelPath`。
-**目标**：通过协议（Protocol）或依赖注入传递配置，不再依赖具体的 `MacPreferences` 枚举。
-
-*   **任务**：
-    1.  定义 `ModelStorageConfiguration` 协议。
-    2.  `ModelManager` 仅持有该协议的实例，不直接访问 `UserDefaults`。
-*   **验收标准**：
-    *   核心代码中不再出现 `import MacPreferences`。
-
 ## 4. 模型策略与平台适配 (Platform Strategy)
 **现状**：模型切换逻辑分散在 ViewModel 和 PipelineFactory 中。
 **目标**：统一模型可用性判断。

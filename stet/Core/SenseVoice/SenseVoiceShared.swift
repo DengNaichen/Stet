@@ -11,19 +11,32 @@ public enum SenseVoiceError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .modelDirectoryUnavailable:
-            return "Could not resolve the application support directory for SenseVoice models."
+            #if os(macOS)
+                return
+                    "Could not resolve the application support directory for SenseVoice models. Please check your system permissions."
+            #else
+                return "Internal storage error. Please reinstall the application."
+            #endif
         case .modelMissing(let url):
-            if let path = url?.path {
-                return "SenseVoice model files are missing at: \(path)"
-            } else {
-                return "SenseVoice model files are missing."
-            }
+            #if os(macOS)
+                if let path = url?.path {
+                    return "SenseVoice model files are missing at: \(path). Please update the path in Settings."
+                } else {
+                    return "SenseVoice model files are missing. Please download or select them in Settings."
+                }
+            #else
+                return "SenseVoice model components are missing. Please reinstall the application."
+            #endif
         case .runtimeUnavailable:
-            return "The SenseVoice runtime could not be initialized."
+            #if os(macOS)
+                return "The SenseVoice runtime could not be initialized. This might be a build configuration issue."
+            #else
+                return "This device is not compatible with SenseVoice transcription."
+            #endif
         case .initializationFailed:
-            return "Failed to initialize the SenseVoice recognizer."
+            return "Failed to initialize the SenseVoice recognizer. Please try again."
         case .audioPreparationFailed:
-            return "Failed to process audio for SenseVoice transcription."
+            return "Failed to process audio for SenseVoice transcription. Ensure microphone access is granted."
         case .transcriptionFailed:
             return "An error occurred during the SenseVoice transcription process."
         }

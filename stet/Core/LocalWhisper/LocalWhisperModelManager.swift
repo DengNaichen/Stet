@@ -42,18 +42,31 @@ enum LocalWhisperError: LocalizedError, Equatable, Sendable {
     nonisolated var errorDescription: String? {
         switch self {
         case .modelDirectoryUnavailable:
-            return "Stet could not resolve the Local Whisper models directory."
+            #if os(macOS)
+                return
+                    "Stet could not resolve the Local Whisper models directory. Please check your system permissions."
+            #else
+                return "Internal storage error. Please reinstall the application."
+            #endif
         case .modelMissing(let expectedURL):
-            return
-                "Local Whisper model not found. Place the model at \(expectedURL.path)."
+            #if os(macOS)
+                return "Local Whisper model not found. Place the model at \(expectedURL.path) or check Settings."
+            #else
+                return "Local Whisper model components are missing. Please reinstall the application."
+            #endif
         case .runtimeUnavailable:
-            return "Local Whisper runtime is not linked in this build."
+            #if os(macOS)
+                return "Local Whisper runtime is not linked in this build. This might be a configuration issue."
+            #else
+                return "This device is not compatible with Local Whisper transcription."
+            #endif
         case .audioPreparationFailed:
-            return "Stet could not prepare audio for Local Whisper transcription."
+            return "Stet could not prepare audio for Local Whisper transcription. Ensure microphone access is granted."
         case .transcriptionFailed:
-            return "Local Whisper transcription failed."
+            return "Local Whisper transcription failed. Please try again."
         case .downloadFailed(let url):
-            return "Stet could not download Local Whisper assets from \(url.absoluteString)."
+            return
+                "Stet could not download Local Whisper assets from \(url.absoluteString). Please check your internet connection."
         case .invalidDownloadResponse(let url, let statusCode):
             if let statusCode {
                 return "Local Whisper asset download failed with status \(statusCode) for \(url.absoluteString)."
