@@ -1,5 +1,6 @@
 #if os(macOS)
     import AuthenticationServices
+    import StetAI
     import StetCore
     import Combine
     import FluidAudio

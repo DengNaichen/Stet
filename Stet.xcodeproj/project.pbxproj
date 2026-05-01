@@ -14,11 +14,11 @@
 		6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 6DCB53142F6DB36500358FE5 /* FluidAudio */; };
 		8CCC48443EE864D507095EDC /* sherpa_onnx in Frameworks */ = {isa = PBXBuildFile; productRef = 7DA5841E8ABDD1A8EF19D919 /* sherpa_onnx */; };
 		C80A4F64301851B7005C2101 /* OpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = C80A4F66301851B7005C2101 /* OpenAI */; };
-		F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; };
-		F1A0B001000000000000000E /* StetVisuals.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E5E0E5E0E5E0E5E0E5E00005 /* StetCore in Frameworks */ = {isa = PBXBuildFile; productRef = E5E0E5E0E5E0E5E0E5E00002 /* StetCore */; };
 		E5E0E5E0E5E0E5E0E5E00006 /* StetAI in Frameworks */ = {isa = PBXBuildFile; productRef = E5E0E5E0E5E0E5E0E5E00003 /* StetAI */; };
 		E5E0E5E0E5E0E5E0E5E00007 /* StetRewrite in Frameworks */ = {isa = PBXBuildFile; productRef = E5E0E5E0E5E0E5E0E5E00004 /* StetRewrite */; };
+		F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; };
+		F1A0B001000000000000000E /* StetVisuals.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */

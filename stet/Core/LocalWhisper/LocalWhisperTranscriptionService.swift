@@ -1,5 +1,6 @@
 @preconcurrency import AVFoundation
 import Foundation
+import StetAI
 import os
 
 protocol LocalWhisperEngine: Sendable {

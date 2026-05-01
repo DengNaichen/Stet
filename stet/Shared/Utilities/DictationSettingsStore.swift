@@ -1,4 +1,5 @@
 import Foundation
+import StetAI
 import StetCore
 
 protocol DictationSecretStore: Sendable {

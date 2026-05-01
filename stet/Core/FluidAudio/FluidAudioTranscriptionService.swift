@@ -2,6 +2,7 @@
     @preconcurrency import AVFoundation
     import FluidAudio
     import Foundation
+    import StetAI
     import os
 
     enum FluidAudioTranscriptionError: LocalizedError, Equatable {

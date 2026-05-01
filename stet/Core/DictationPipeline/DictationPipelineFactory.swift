@@ -1,4 +1,7 @@
 import Foundation
+import StetAI
+import StetCore
+import StetRewrite
 import os
 
 struct DictationPipeline: Sendable {

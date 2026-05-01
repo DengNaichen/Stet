@@ -1,5 +1,6 @@
 #if os(macOS)
     import Combine
+    import StetAI
     import StetCore
     import SwiftUI
 
