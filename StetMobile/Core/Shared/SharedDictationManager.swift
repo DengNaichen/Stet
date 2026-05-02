@@ -82,4 +82,23 @@ class SharedDictationManager {
         defaults?.removeObject(forKey: sessionKey)
         defaults?.synchronize()
     }
+    
+    // MARK: - Pending Keyboard Session ID
+    // Used to track if a session was initiated by the keyboard, surviving extension restarts.
+    
+    private let pendingKey = "dictation.pending_keyboard_session_id"
+    
+    func savePendingKeyboardSessionId(_ sessionId: String) {
+        defaults?.set(sessionId, forKey: pendingKey)
+        defaults?.synchronize()
+    }
+    
+    func getPendingKeyboardSessionId() -> String? {
+        defaults?.string(forKey: pendingKey)
+    }
+    
+    func clearPendingKeyboardSessionId() {
+        defaults?.removeObject(forKey: pendingKey)
+        defaults?.synchronize()
+    }
 }

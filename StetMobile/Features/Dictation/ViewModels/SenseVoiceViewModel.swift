@@ -17,7 +17,7 @@ final class SenseVoiceViewModel: ObservableObject {
         case failed(String)
     }
 
-    @Published private(set) var state: State = .idle
+    @Published private(set) var state: State = .loading
     @Published private(set) var transcript = ""
     @Published private(set) var partialStatus = "Loading..."
     @Published private(set) var metricsText = "Metrics will appear after decoding."
@@ -111,7 +111,9 @@ final class SenseVoiceViewModel: ObservableObject {
             try await requestMicrophonePermission()
             partialStatus = "Loading models and warming up audio engine..."
             try await engine?.prepare()
-            state = .idle
+            if state == .loading {
+                state = .idle
+            }
             partialStatus = "Ready. Hold mic on keyboard to dictate."
         } catch {
             state = .failed(error.localizedDescription)

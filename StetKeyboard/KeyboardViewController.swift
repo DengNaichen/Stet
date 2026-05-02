@@ -47,6 +47,13 @@ class KeyboardViewController: KeyboardInputViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         isWakingMainApp = false
+        
+        // Restore pendingSessionId from shared storage in case the extension was restarted
+        // during the app-switching process.
+        if let savedId = SharedDictationManager.shared.getPendingKeyboardSessionId() {
+            pendingSessionId = savedId
+        }
+        
         // Defer polling startup until after the first render so SwiftUI hosting
         // isn't competing with timer setup during the launch window.
         startPolling()
@@ -64,6 +71,8 @@ class KeyboardViewController: KeyboardInputViewController {
             switch session.state {
             case .requestStart, .launching, .warming, .recording, .transcribing:
                 SharedDictationManager.shared.updateState(.cancelled)
+                SharedDictationManager.shared.clearPendingKeyboardSessionId()
+                pendingSessionId = nil
             default:
                 break
             }
@@ -73,6 +82,8 @@ class KeyboardViewController: KeyboardInputViewController {
     internal func handleMicDown() {
         let sessionId = UUID().uuidString
         pendingSessionId = sessionId
+        SharedDictationManager.shared.savePendingKeyboardSessionId(sessionId)
+        
         let session = DictationSession(
             sessionId: sessionId,
             createdAt: Date(),
@@ -138,7 +149,10 @@ class KeyboardViewController: KeyboardInputViewController {
 
         textDocumentProxy.insertText(session.finalText)
         lastProcessedSessionId = session.sessionId
+        pendingSessionId = nil
+        SharedDictationManager.shared.clearPendingKeyboardSessionId()
         SharedDictationManager.shared.updateState(.inserted)
+        
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
     }
