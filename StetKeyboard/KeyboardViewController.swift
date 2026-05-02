@@ -16,17 +16,12 @@ class KeyboardViewController: KeyboardInputViewController {
     private var pendingSessionId: String?
 
     override func viewWillSetupKeyboardKit() {
-        // Define your app configuration for KeyboardKit
         let app = KeyboardApp(
             name: "StetMobile",
             appGroupId: "group.NaichengDeng.StetMobile",
             deepLinks: .init(app: "stetmobile://")
         )
-
-        // Initialize KeyboardKit with your app configuration
-        setupKeyboardKit(for: app) { _ in
-            // Basic setup complete
-        }
+        setupKeyboardKit(for: app) { _ in }
     }
 
     override func viewWillSetupKeyboardView() {
@@ -98,7 +93,6 @@ class KeyboardViewController: KeyboardInputViewController {
     // MARK: - Polling for Transcription Results
 
     private func startPolling() {
-        // Poll every 0.5 seconds for results from the main app
         pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             self?.checkForNewTranscription()
         }
@@ -117,27 +111,12 @@ class KeyboardViewController: KeyboardInputViewController {
             return
         }
 
-        // Insert the text
         textDocumentProxy.insertText(session.finalText)
-        
-        // Mark as processed to prevent duplicate insertion
         lastProcessedSessionId = session.sessionId
-        
-        // Update state to inserted in shared storage
         SharedDictationManager.shared.updateState(.inserted)
-        
-        // Provide haptic feedback
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
     }
 
-    private func insertFinalResult() {
-        if let session = SharedDictationManager.shared.getSession(), 
-           !session.finalText.isEmpty,
-           session.state == .ready {
-            textDocumentProxy.insertText(session.finalText)
-            SharedDictationManager.shared.updateState(.inserted)
-        }
-    }
 }
 

@@ -4,14 +4,14 @@ import KeyboardKit
 
 struct StetKeyboardView: View {
     unowned let controller: KeyboardViewController
-    @State private var isRecording = false
     @State private var sessionState: DictationState = .idle
     @State private var pulse = false
 
     private let sessionPoll = Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()
 
+    private var isRecording: Bool { sessionState == .recording }
     private var isProcessing: Bool { sessionState == .transcribing }
-    private var isSpeaking: Bool { sessionState == .recording || isRecording }
+    private var isSpeaking: Bool { sessionState == .recording || sessionState == .transcribing }
 
     var body: some View {
         KeyboardView(
@@ -84,8 +84,6 @@ struct StetKeyboardView: View {
         } else {
             controller.handleMicDown()
         }
-        isRecording.toggle()
-
         let impact = UIImpactFeedbackGenerator(style: .medium)
         impact.impactOccurred()
     }

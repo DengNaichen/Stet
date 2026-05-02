@@ -1,6 +1,6 @@
 import Foundation
 
-enum DictationState: String, Codable {
+enum DictationState: String, Codable, Equatable {
     case idle
     case launching
     case warming
@@ -30,13 +30,9 @@ struct DictationSession: Codable {
 
 class SharedDictationManager {
     static let shared = SharedDictationManager()
-    private let appGroupIdentifier = "group.NaichengDeng.StetMobile"
     private let sessionKey = "dictation.session"
     private let heartbeatKey = "dictation.heartbeat"
-
-    private var defaults: UserDefaults? {
-        UserDefaults(suiteName: appGroupIdentifier)
-    }
+    private let defaults = UserDefaults(suiteName: "group.NaichengDeng.StetMobile")
 
     func heartbeat() {
         defaults?.set(Date().timeIntervalSince1970, forKey: heartbeatKey)

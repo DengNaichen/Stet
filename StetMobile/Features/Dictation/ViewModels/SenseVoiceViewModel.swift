@@ -197,10 +197,13 @@ final class SenseVoiceViewModel: ObservableObject {
             } catch {
                 self.state = .failed(error.localizedDescription)
                 self.partialStatus = error.localizedDescription
+                self.activeSessionId = nil
                 SharedDictationManager.shared.updateState(.failed, error: error.localizedDescription)
                 return
             }
 
+            // Guard against stop() racing ahead of start() completing
+            guard self.activeSessionId == sessionId else { return }
             SharedDictationManager.shared.saveSession(DictationSession(
                 sessionId: sessionId,
                 createdAt: Date(),
@@ -233,14 +236,12 @@ final class SenseVoiceViewModel: ObservableObject {
         } else {
             if let rewriteService = rewriteSettingsStore.makeRewriteServiceIfEnabled() {
                 partialStatus = "Rewriting..."
-                Task {
+                Task { @MainActor in
                     let cleaned = (try? await rewriteService.rewrite(.cleanup(merged, audience: .human))) ?? merged
-                    await MainActor.run {
-                        self.transcript = cleaned
-                        self.partialStatus = "Finished."
-                        SharedDictationManager.shared.updateText(partial: cleaned, final: cleaned)
-                        SharedDictationManager.shared.updateState(.ready)
-                    }
+                    self.transcript = cleaned
+                    self.partialStatus = "Finished."
+                    SharedDictationManager.shared.updateText(partial: cleaned, final: cleaned)
+                    SharedDictationManager.shared.updateState(.ready)
                 }
             } else {
                 transcript = merged
