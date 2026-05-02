@@ -14,6 +14,7 @@ class KeyboardViewController: KeyboardInputViewController {
     private var pollTimer: Timer?
     private var lastProcessedSessionId: String?
     private var pendingSessionId: String?
+    private var isWakingMainApp: Bool = false
 
     override func viewWillSetupKeyboardKit() {
         let app = KeyboardApp(
@@ -38,13 +39,14 @@ class KeyboardViewController: KeyboardInputViewController {
             state.keyboardContext.isLiquidGlassEnabled = true
         }
 
-        setupKeyboardView { controller in
+        setupKeyboardView { [weak self] controller in
             StetKeyboardView(controller: controller as! KeyboardViewController)
         }
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        isWakingMainApp = false
         // Defer polling startup until after the first render so SwiftUI hosting
         // isn't competing with timer setup during the launch window.
         startPolling()
@@ -53,17 +55,19 @@ class KeyboardViewController: KeyboardInputViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         stopPolling()
-        cancelRecordingIfActive()
-    }
-
-    private func cancelRecordingIfActive() {
-        // Only cancel when actually recording — not during .requestStart/.launching/.warming,
-        // because those states occur when the keyboard opens the main app (viewWillDisappear
-        // fires then too) and we must not interrupt that startup sequence.
-        guard let session = SharedDictationManager.shared.getSession(),
-              session.state == .recording else { return }
-        SharedDictationManager.shared.updateState(.cancelled)
-        pendingSessionId = nil
+        
+        // If the keyboard is closed mid-dictation (and we aren't just opening the main app),
+        // we should discard the recording.
+        if !isWakingMainApp,
+           let session = SharedDictationManager.shared.getSession(),
+           session.sessionId == pendingSessionId {
+            switch session.state {
+            case .requestStart, .launching, .warming, .recording, .transcribing:
+                SharedDictationManager.shared.updateState(.cancelled)
+            default:
+                break
+            }
+        }
     }
 
     internal func handleMicDown() {
@@ -80,6 +84,7 @@ class KeyboardViewController: KeyboardInputViewController {
         // If the main app's polling heartbeat is fresh, it'll pick up the
         // requestStart on its own; otherwise wake it via URL scheme.
         if !SharedDictationManager.shared.mainAppAlive(within: 0.6) {
+            isWakingMainApp = true
             openMainApp(sessionId: sessionId)
         }
     }
@@ -126,6 +131,7 @@ class KeyboardViewController: KeyboardInputViewController {
         guard let session = SharedDictationManager.shared.getSession(),
               session.state == .ready,
               !session.finalText.isEmpty,
+              session.sessionId == pendingSessionId, // ONLY paste if this keyboard instance initiated it
               session.sessionId != lastProcessedSessionId else {
             return
         }
@@ -138,4 +144,3 @@ class KeyboardViewController: KeyboardInputViewController {
     }
 
 }
-
