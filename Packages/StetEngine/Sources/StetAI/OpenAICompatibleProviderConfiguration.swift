@@ -159,25 +159,20 @@ public struct RewriteProviderConfiguration: Sendable, Equatable {
 public enum DictationProviderDefaults {
     public nonisolated static func rewriteModel(for provider: DictationProvider) -> String {
         switch provider {
-        case .openAI:
-            return "gpt-5.4-nano-2026-03-17"
-        case .google:
-            return "gemini-3.1-flash-lite-preview"
-        case .anthropic:
-            return "claude-haiku-4-6"
-        case .appleIntelligence:
-            return "apple-intelligence-refine"
-        case .groq:
-            return "openai/gpt-oss-20b"
-        case .deepSeek:
-            return "deepseek-v4-flash"
-        case .qwen:
-            return "qwen3.6-flash"
-        case .glm:
-            return "glm-4.7-flash"
-        case .doubao:
-            return "doubao-seed-1-6-flash-250828"
+        case .openAI: return "gpt-5.4-nano-2026-03-17"
+        case .google: return "gemini-3.1-flash-lite-preview"
+        case .anthropic: return "claude-haiku-4-6"
+        case .appleIntelligence: return "apple-intelligence-refine"
+        case .groq: return "openai/gpt-oss-20b"
+        case .deepSeek: return "deepseek-v4-flash"
+        case .qwen: return "qwen3.6-flash"
+        case .glm: return "glm-4.7-flash"
+        case .doubao: return "doubao-seed-1-6-flash-250828"
         }
+    }
+
+    public nonisolated static func availableRewriteModels(for provider: DictationProvider) -> [String] {
+        return [rewriteModel(for: provider)]
     }
 }
 
