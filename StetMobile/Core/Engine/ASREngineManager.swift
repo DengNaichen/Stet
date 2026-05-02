@@ -13,11 +13,8 @@ class ASREngineManager {
         if let type = type {
             selectedType = type
         } else {
-            if #available(iOS 26.0, *) {
-                selectedType = .apple
-            } else {
-                selectedType = .sherpa
-            }
+            // Apple Speech temporarily disabled; always use Sherpa-Onnx
+            selectedType = .sherpa
         }
         
         switch selectedType {

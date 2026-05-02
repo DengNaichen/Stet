@@ -32,8 +32,8 @@ class KeyboardViewController: KeyboardInputViewController {
     override func viewWillSetupKeyboardView() {
         // ⚠️ Don't call `super.viewWillSetupKeyboardView()` in v10 as it might conflict with custom setup.
 
-        // Match SwiftUI KeyboardView background so the input view chrome blends in.
-        view.backgroundColor = .systemGray5
+        // SwiftUI root paints its own glass background; let it show through.
+        view.backgroundColor = .clear
 
         setupKeyboardView { [weak self] controller in
             StetKeyboardView(controller: controller as! KeyboardViewController)
