@@ -9,8 +9,17 @@ struct SenseVoiceView: View {
                 VStack(spacing: 8) {
                     Text("SenseVoice")
                         .font(.largeTitle.bold())
-                    Text("sherpa-onnx offline ASR demo")
+                    Text(viewModel.activeEngineName.isEmpty ? "Ready to dictate" : "Powered by \(viewModel.activeEngineName)")
                         .foregroundStyle(.secondary)
+                    
+                    Picker("ASR Engine", selection: $viewModel.selectedEngineType) {
+                        ForEach(ASREngineType.allCases) { type in
+                            Text(type.rawValue).tag(type)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.top, 4)
+                    .disabled(viewModel.isRecording) // 录音时禁用切换
                 }
 
                 ScrollView {
@@ -23,6 +32,12 @@ struct SenseVoiceView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(statusText)
                         .foregroundStyle(statusColor)
+                    
+                    if !viewModel.activeEngineName.isEmpty {
+                        Text("Active Backend: \(viewModel.activeEngineName)")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
                     Text(viewModel.metricsText)
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
