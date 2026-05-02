@@ -178,6 +178,14 @@ final class SenseVoiceViewModel: ObservableObject {
             if state == .recording {
                 stopEngine()
             }
+        case .cancelled:
+            // Keyboard was dismissed mid-recording. Stop the engine immediately and
+            // reset to idle so the next .requestStart can be handled cleanly.
+            engine?.stop()
+            activeSessionId = nil
+            state = .idle
+            partialStatus = "Ready."
+            SharedDictationManager.shared.updateState(.idle)
         default:
             break
         }

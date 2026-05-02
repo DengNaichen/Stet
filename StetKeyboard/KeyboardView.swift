@@ -4,36 +4,56 @@ import KeyboardKit
 
 struct StetKeyboardView: View {
     unowned let controller: KeyboardViewController
-    @State private var isRecording = false  // optimistic local state, resets when session ends
     @State private var sessionState: DictationState = .idle
     @State private var pulse = false
 
     private let sessionPoll = Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()
 
+    private var isPending: Bool {
+        sessionState == .requestStart || sessionState == .launching || sessionState == .warming
+    }
+    private var isRecording: Bool { sessionState == .recording }
     private var isProcessing: Bool { sessionState == .transcribing }
-    private var isSpeaking: Bool { isRecording || sessionState == .recording || sessionState == .transcribing }
+    // isActive drives button color/icon; isRecording drives waveform (only when confirmed recording)
+    private var isActive: Bool { isPending || isRecording }
+    private var isSpeaking: Bool { sessionState == .recording || sessionState == .transcribing }
+
+    private var customLayout: KeyboardLayout {
+        var layout = KeyboardLayout.standard(for: controller.state.keyboardContext)
+        for i in 0..<layout.itemRows.count {
+            for j in 0..<layout.itemRows[i].count {
+                if layout.itemRows[i][j].action.isAlphabeticKeyboardTypeAction {
+                    layout.itemRows[i][j].action = .nextKeyboard
+                    layout.itemRows[i][j].size.width = .points(60)
+                } else if layout.itemRows[i][j].action == .nextKeyboard {
+                    layout.itemRows[i][j].size.width = .points(60)
+                }
+            }
+        }
+        return layout
+    }
 
     var body: some View {
         KeyboardView(
-            layout: .standard(for: controller.state.keyboardContext),
+            layout: customLayout,
             services: controller.services,
-            buttonContent: { $0.view },
+            buttonContent: { params in
+                if params.item.action == .nextKeyboard {
+                    Text("ABC")
+                        .font(.system(size: 15, weight: .medium))
+                } else {
+                    params.view
+                }
+            },
             buttonView: { $0.view },
             collapsedView: { $0.view },
             emojiKeyboard: { $0.view },
             toolbar: { _ in micToolbar }
         )
-        .stetGlassBackground()
-        .clipShape(
-            UnevenRoundedRectangle(
-                cornerRadii: .init(topLeading: 16, bottomLeading: 0, bottomTrailing: 0, topTrailing: 16)
-            )
-        )
+        .keyboardViewBackground(.hidden)
+        .keyboardViewStyle(KeyboardViewStyle(edgeInsets: EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8)))
         .onReceive(sessionPoll) { _ in
             sessionState = SharedDictationManager.shared.getSession()?.state ?? .idle
-            if sessionState == .idle || sessionState == .ready || sessionState == .inserted {
-                isRecording = false
-            }
         }
         .onChange(of: isProcessing) { _, processing in
             if processing {
@@ -50,11 +70,11 @@ struct StetKeyboardView: View {
         HStack {
             Spacer()
             Button(action: toggleRecording) {
-                Image(systemName: isRecording ? "stop.fill" : "triangle.fill")
+                Image(systemName: isActive ? "stop.fill" : "triangle.fill")
                     .font(.system(size: 16))
                     .foregroundColor(.white)
                     .frame(width: 60, height: 38)
-                    .background(isRecording ? Color.red : Color.black.opacity(0.75))
+                    .background(isActive ? Color.red.opacity(isRecording ? 1.0 : 0.65) : Color.black.opacity(0.75))
                     .clipShape(Capsule())
                     .overlay(alignment: .topLeading) {
                         if isSpeaking {
@@ -82,12 +102,10 @@ struct StetKeyboardView: View {
     }
 
     private func toggleRecording() {
-        if isRecording || sessionState == .recording {
+        if isRecording {
             controller.handleMicUp()
-            isRecording = false
         } else {
             controller.handleMicDown()
-            isRecording = true
         }
         let impact = UIImpactFeedbackGenerator(style: .medium)
         impact.impactOccurred()
@@ -116,28 +134,3 @@ private struct MicWaveform: View {
     }
 }
 
-private struct StetGlassBackground: ViewModifier {
-    @Environment(\.colorScheme) private var colorScheme
-
-    func body(content: Content) -> some View {
-        content
-            .background(tint)
-            .background(.ultraThickMaterial)
-    }
-
-    private var tint: Color {
-        // iOS 26 .glassEffect always renders a specular rim that cannot be
-        // suppressed; use .ultraThickMaterial + a tint to control depth instead.
-        switch colorScheme {
-        case .dark:  return Color.black.opacity(0.30)
-        case .light: return Color.black.opacity(0.05)
-        @unknown default: return Color.black.opacity(0.05)
-        }
-    }
-}
-
-private extension View {
-    func stetGlassBackground() -> some View {
-        modifier(StetGlassBackground())
-    }
-}

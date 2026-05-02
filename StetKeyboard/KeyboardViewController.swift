@@ -24,13 +24,21 @@ class KeyboardViewController: KeyboardInputViewController {
         setupKeyboardKit(for: app) { _ in }
     }
 
+    override func viewWillSetupInitialKeyboardType() {
+        setKeyboardType(.numeric)
+    }
+
     override func viewWillSetupKeyboardView() {
         // ⚠️ Don't call `super.viewWillSetupKeyboardView()` in v10 as it might conflict with custom setup.
 
-        // SwiftUI root paints its own glass background; let it show through.
         view.backgroundColor = .clear
 
-        setupKeyboardView { [weak self] controller in
+        // Enable KeyboardKit's built-in liquid glass button rendering on iOS 26+.
+        if KeyboardContext.isLiquidGlassAvailable {
+            state.keyboardContext.isLiquidGlassEnabled = true
+        }
+
+        setupKeyboardView { controller in
             StetKeyboardView(controller: controller as! KeyboardViewController)
         }
     }
@@ -45,6 +53,17 @@ class KeyboardViewController: KeyboardInputViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         stopPolling()
+        cancelRecordingIfActive()
+    }
+
+    private func cancelRecordingIfActive() {
+        // Only cancel when actually recording — not during .requestStart/.launching/.warming,
+        // because those states occur when the keyboard opens the main app (viewWillDisappear
+        // fires then too) and we must not interrupt that startup sequence.
+        guard let session = SharedDictationManager.shared.getSession(),
+              session.state == .recording else { return }
+        SharedDictationManager.shared.updateState(.cancelled)
+        pendingSessionId = nil
     }
 
     internal func handleMicDown() {
