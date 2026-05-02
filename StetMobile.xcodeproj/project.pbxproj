@@ -728,7 +728,7 @@
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = StetKeyboard/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "SenseVoice键盘";
+				INFOPLIST_KEY_CFBundleDisplayName = "Stet Keyboard";
 				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.stetmobile.dictate\";\n    CFBundleURLSchemes =     (\n        stetmobile\n    );\n}";
 				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -762,7 +762,7 @@
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = StetKeyboard/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "SenseVoice键盘";
+				INFOPLIST_KEY_CFBundleDisplayName = "Stet Keyboard";
 				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.stetmobile.dictate\";\n    CFBundleURLSchemes =     (\n        stetmobile\n    );\n}";
 				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
