@@ -4,14 +4,14 @@ import KeyboardKit
 
 struct StetKeyboardView: View {
     unowned let controller: KeyboardViewController
+    @State private var isRecording = false  // optimistic local state, resets when session ends
     @State private var sessionState: DictationState = .idle
     @State private var pulse = false
 
     private let sessionPoll = Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()
 
-    private var isRecording: Bool { sessionState == .recording }
     private var isProcessing: Bool { sessionState == .transcribing }
-    private var isSpeaking: Bool { sessionState == .recording || sessionState == .transcribing }
+    private var isSpeaking: Bool { isRecording || sessionState == .recording || sessionState == .transcribing }
 
     var body: some View {
         KeyboardView(
@@ -31,6 +31,9 @@ struct StetKeyboardView: View {
         )
         .onReceive(sessionPoll) { _ in
             sessionState = SharedDictationManager.shared.getSession()?.state ?? .idle
+            if sessionState == .idle || sessionState == .ready || sessionState == .inserted {
+                isRecording = false
+            }
         }
         .onChange(of: isProcessing) { _, processing in
             if processing {
@@ -79,10 +82,12 @@ struct StetKeyboardView: View {
     }
 
     private func toggleRecording() {
-        if isRecording {
+        if isRecording || sessionState == .recording {
             controller.handleMicUp()
+            isRecording = false
         } else {
             controller.handleMicDown()
+            isRecording = true
         }
         let impact = UIImpactFeedbackGenerator(style: .medium)
         impact.impactOccurred()
