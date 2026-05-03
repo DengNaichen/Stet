@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DictionaryView: View {
     @StateObject private var viewModel = DictionaryViewModel()
+    @FocusState private var isTextFieldFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -9,12 +10,14 @@ struct DictionaryView: View {
                 HStack(spacing: 12) {
                     TextField("Add words or phrases", text: $viewModel.draft, axis: .vertical)
                         .textFieldStyle(.roundedBorder)
+                        .focused($isTextFieldFocused)
                         .onSubmit {
                             viewModel.addDraftEntries()
                         }
 
                     Button("Add") {
                         viewModel.addDraftEntries()
+                        isTextFieldFocused = false
                     }
                     .disabled(!viewModel.canAddDraftEntries)
                 }
@@ -41,6 +44,7 @@ struct DictionaryView: View {
                         }
                     }
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             .navigationTitle("Dictionary")
             .padding()

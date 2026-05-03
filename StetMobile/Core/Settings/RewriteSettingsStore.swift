@@ -25,20 +25,28 @@ final class RewriteSettingsStore: ObservableObject {
         didSet { defaults.set(selectedProvider.rawValue, forKey: Keys.selectedProvider) }
     }
 
-    @Published var selectedModel: String {
-        didSet { defaults.set(selectedModel, forKey: Keys.selectedModel) }
+    @Published var selectedModel: RewriteModel {
+        didSet { defaults.set(selectedModel.rawValue, forKey: Keys.selectedModel) }
     }
 
     init() {
         self.isRewriteEnabled = defaults.bool(forKey: Keys.rewriteEnabled)
+        
+        let provider: DictationProvider
         if let raw = defaults.string(forKey: Keys.selectedProvider),
-           let provider = DictationProvider(rawValue: raw) {
-            self.selectedProvider = provider
+           let p = DictationProvider(rawValue: raw) {
+            provider = p
         } else {
-            self.selectedProvider = .openAI
+            provider = .openAI
         }
-        self.selectedModel = defaults.string(forKey: Keys.selectedModel)
-            ?? DictationProviderDefaults.rewriteModel(for: .openAI)
+        self.selectedProvider = provider
+        
+        if let raw = defaults.string(forKey: Keys.selectedModel),
+           let model = RewriteModel(rawValue: raw) {
+            self.selectedModel = model
+        } else {
+            self.selectedModel = RewriteModel.default(for: provider)
+        }
     }
 
     // MARK: - Keychain API Key Storage
@@ -92,7 +100,7 @@ final class RewriteSettingsStore: ObservableObject {
         let config = DictationProviderConfigurationResolver.rewriteConfiguration(
             provider: selectedProvider,
             apiKey: apiKey,
-            customModel: selectedModel
+            customModel: selectedModel.rawValue
         )
 
         switch config.backend {

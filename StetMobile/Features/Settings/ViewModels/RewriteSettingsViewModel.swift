@@ -30,7 +30,7 @@ final class RewriteSettingsViewModel: ObservableObject {
 
     func onProviderChanged() {
         apiKeyInput = settingsStore.loadAPIKey(for: settingsStore.selectedProvider) ?? ""
-        settingsStore.selectedModel = DictationProviderDefaults.rewriteModel(for: settingsStore.selectedProvider)
+        settingsStore.selectedModel = RewriteModel.default(for: settingsStore.selectedProvider)
         validationState = .idle
     }
 

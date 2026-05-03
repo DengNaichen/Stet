@@ -17,11 +17,12 @@ struct RewriteSettingsView: View {
 
                 // MARK: - Provider Selection
                 Section("AI Provider") {
-                    Picker("Provider", selection: $viewModel.settingsStore.selectedProvider) {
+                    Picker("", selection: $viewModel.settingsStore.selectedProvider) {
                         ForEach(viewModel.availableProviders) { provider in
                             Text(provider.displayName).tag(provider)
                         }
                     }
+                    .labelsHidden()
                     .onChange(of: viewModel.settingsStore.selectedProvider) {
                         viewModel.onProviderChanged()
                     }
@@ -65,9 +66,12 @@ struct RewriteSettingsView: View {
 
                 // MARK: - Model Selection
                 Section("Model") {
-                    TextField("Model name", text: $viewModel.settingsStore.selectedModel)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                    Picker("", selection: $viewModel.settingsStore.selectedModel) {
+                        ForEach(RewriteModel.availableModels(for: viewModel.settingsStore.selectedProvider)) { model in
+                            Text(model.displayName).tag(model)
+                        }
+                    }
+                    .labelsHidden()
                 }
             }
             .navigationTitle("AI Settings")
