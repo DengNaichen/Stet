@@ -49,6 +49,10 @@ final class SenseVoiceViewModel: ObservableObject {
         self.engine = initialEngine
         attachResultsListener(to: initialEngine)
 
+        // Start polling immediately so heartbeat and incoming requestStart can be
+        // picked up while bootstrap (model load) is still running in the background.
+        startCommandPolling()
+
         Task { @MainActor in
             await self.bootstrap()
         }
@@ -114,16 +118,19 @@ final class SenseVoiceViewModel: ObservableObject {
             try await requestMicrophonePermission()
             partialStatus = "Loading models and warming up audio engine..."
             try await engine?.prepare()
+            // Don't downgrade state if startEngine already advanced us to .recording
+            // (can happen when keyboard's requestStart fires during loading).
             if state == .loading {
                 state = .idle
+                partialStatus = "Ready. Hold mic on keyboard to dictate."
             }
-            partialStatus = "Ready. Hold mic on keyboard to dictate."
         } catch {
-            state = .failed(error.localizedDescription)
-            partialStatus = error.localizedDescription
-            SharedDictationManager.shared.updateState(.failed, error: error.localizedDescription)
+            if state != .recording {
+                state = .failed(error.localizedDescription)
+                partialStatus = error.localizedDescription
+                SharedDictationManager.shared.updateState(.failed, error: error.localizedDescription)
+            }
         }
-        startCommandPolling()
         checkKeyboardCommands()
     }
 
@@ -177,7 +184,9 @@ final class SenseVoiceViewModel: ObservableObject {
         guard let session = SharedDictationManager.shared.getSession() else { return }
         switch session.state {
         case .requestStart:
-            if state == .idle {
+            // Allow during .loading too: engine.start() lazy-prepares internally,
+            // overlapping model load with the keyboard's tap so recording starts ASAP.
+            if state == .idle || state == .loading {
                 startEngine(sessionId: session.sessionId)
             }
         case .requestStop:
