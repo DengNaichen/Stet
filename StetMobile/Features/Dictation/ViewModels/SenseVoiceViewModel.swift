@@ -39,6 +39,9 @@ final class SenseVoiceViewModel: ObservableObject {
         state == .recording
     }
 
+    private let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
+    private let notificationGenerator = UINotificationFeedbackGenerator()
+
     init(rewriteSettingsStore: RewriteSettingsStore) {
         self.rewriteSettingsStore = rewriteSettingsStore
 
@@ -140,6 +143,7 @@ final class SenseVoiceViewModel: ObservableObject {
 
     func toggleRecording() {
         guard state != .loading, state != .warming else { return }
+        impactGenerator.impactOccurred()
         if isRecording {
             stopEngine()
         } else {
@@ -250,12 +254,14 @@ final class SenseVoiceViewModel: ObservableObject {
                     let cleaned = (try? await rewriteService.rewrite(.cleanup(merged, audience: .human))) ?? merged
                     self.transcript = cleaned
                     self.partialStatus = "Finished."
+                    self.notificationGenerator.notificationOccurred(.success)
                     SharedDictationManager.shared.updateText(partial: cleaned, final: cleaned)
                     SharedDictationManager.shared.updateState(.ready)
                 }
             } else {
                 transcript = merged
                 partialStatus = "Finished."
+                notificationGenerator.notificationOccurred(.success)
                 SharedDictationManager.shared.updateText(partial: merged, final: merged)
                 SharedDictationManager.shared.updateState(.ready)
             }

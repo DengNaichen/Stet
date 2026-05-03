@@ -5,7 +5,7 @@ import KeyboardKit
 struct StetKeyboardView: View {
     unowned let controller: KeyboardViewController
     @State private var sessionState: DictationState = .idle
-    @State private var pulse = false
+    @State private var processingStartDate: Date? = nil
 
     private let sessionPoll = Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()
 
@@ -13,7 +13,9 @@ struct StetKeyboardView: View {
         sessionState == .requestStart || sessionState == .launching || sessionState == .warming
     }
     private var isRecording: Bool { sessionState == .recording }
-    private var isProcessing: Bool { sessionState == .transcribing }
+    private var isProcessing: Bool {
+        sessionState == .requestStop || sessionState == .transcribing || sessionState == .ready
+    }
     // isActive drives button color/icon; isRecording drives waveform (only when confirmed recording)
     private var isActive: Bool { isPending || isRecording }
     private var isSpeaking: Bool { sessionState == .recording || sessionState == .transcribing }
@@ -56,13 +58,7 @@ struct StetKeyboardView: View {
             sessionState = SharedDictationManager.shared.getSession()?.state ?? .idle
         }
         .onChange(of: isProcessing) { _, processing in
-            if processing {
-                withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-                    pulse = true
-                }
-            } else {
-                withAnimation(.easeInOut(duration: 0.2)) { pulse = false }
-            }
+            processingStartDate = processing ? Date() : nil
         }
     }
 
@@ -72,31 +68,46 @@ struct StetKeyboardView: View {
             Button(action: toggleRecording) {
                 Image(systemName: isActive ? "stop.fill" : "triangle.fill")
                     .font(.system(size: 16))
-                    .foregroundColor(.white)
+                    .foregroundColor(isProcessing ? .clear : .white)
                     .frame(width: 60, height: 38)
                     .background(isActive ? Color.red.opacity(isRecording ? 1.0 : 0.65) : Color.black.opacity(0.75))
                     .clipShape(Capsule())
                     .overlay(alignment: .topLeading) {
-                        if isSpeaking {
+                        if isRecording {
                             MicWaveform()
                                 .padding(.top, 4)
                                 .padding(.leading, 6)
+                        }
+                    }
+                    .overlay {
+                        if let start = processingStartDate {
+                            TimelineView(.animation(minimumInterval: 1.0 / 30)) { ctx in
+                                let elapsed = ctx.date.timeIntervalSince(start)
+                                let progress = CGFloat(min(0.95, 1.0 - exp(-elapsed * 1.15)))
+                                ZStack(alignment: .leading) {
+                                    Color.black.opacity(0.75)
+                                    Color.white.opacity(0.25)
+                                        .frame(width: 60 * progress)
+                                    Text("…")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundStyle(.white.opacity(0.8))
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .clipShape(Capsule())
+                            }
+                            .allowsHitTesting(false)
                         }
                     }
                     .overlay(
                         Capsule()
                             .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
                     )
-                    .overlay {
-                        if isProcessing {
-                            Capsule()
-                                .stroke(Color.white.opacity(0.55), lineWidth: 2)
-                                .blur(radius: 4)
-                                .scaleEffect(pulse ? 1.12 : 1.0)
-                                .opacity(pulse ? 0.0 : 0.6)
-                        }
-                    }
             }
+            .disabled(isProcessing)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in controller.prepareButtonFeedback() }
+            )
             .padding(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 10))
         }
     }
@@ -107,14 +118,13 @@ struct StetKeyboardView: View {
         } else {
             controller.handleMicDown()
         }
-        let impact = UIImpactFeedbackGenerator(style: .medium)
-        impact.impactOccurred()
+        controller.triggerButtonFeedback()
     }
 }
 
 private struct MicWaveform: View {
     var body: some View {
-        TimelineView(.animation) { context in
+        TimelineView(.periodic(from: .now, by: 1.0 / 20)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
             HStack(spacing: 1.5) {
                 ForEach(0..<3, id: \.self) { i in

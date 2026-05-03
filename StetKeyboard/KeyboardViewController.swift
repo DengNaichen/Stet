@@ -15,6 +15,16 @@ class KeyboardViewController: KeyboardInputViewController {
     private var lastProcessedSessionId: String?
     private var pendingSessionId: String?
     private var isWakingMainApp: Bool = false
+    private let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+    private let notificationFeedback = UINotificationFeedbackGenerator()
+
+    internal func prepareButtonFeedback() {
+        impactFeedback.prepare()
+    }
+
+    internal func triggerButtonFeedback() {
+        impactFeedback.impactOccurred()
+    }
 
     override func viewWillSetupKeyboardKit() {
         let app = KeyboardApp(
@@ -47,15 +57,28 @@ class KeyboardViewController: KeyboardInputViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         isWakingMainApp = false
+        impactFeedback.prepare()
+        notificationFeedback.prepare()
         
         // Restore pendingSessionId from shared storage in case the extension was restarted
         // during the app-switching process.
         if let savedId = SharedDictationManager.shared.getPendingKeyboardSessionId() {
             pendingSessionId = savedId
         }
-        
-        // Defer polling startup until after the first render so SwiftUI hosting
-        // isn't competing with timer setup during the launch window.
+
+        // Clear any stuck session on open.
+        let activeStates: [DictationState] = [.requestStart, .launching, .warming, .requestStop, .transcribing, .ready]
+        if let session = SharedDictationManager.shared.getSession(),
+           activeStates.contains(session.state) {
+            let appDead = !SharedDictationManager.shared.mainAppAlive(within: 2.0)
+            let stale = Date().timeIntervalSince(session.updatedAt) > 10.0
+            if pendingSessionId == nil || appDead || stale {
+                SharedDictationManager.shared.updateState(.cancelled)
+                SharedDictationManager.shared.clearPendingKeyboardSessionId()
+                pendingSessionId = nil
+            }
+        }
+
         startPolling()
     }
 
@@ -140,21 +163,32 @@ class KeyboardViewController: KeyboardInputViewController {
 
     private func checkForNewTranscription() {
         guard let session = SharedDictationManager.shared.getSession(),
-              session.state == .ready,
-              !session.finalText.isEmpty,
-              session.sessionId == pendingSessionId, // ONLY paste if this keyboard instance initiated it
-              session.sessionId != lastProcessedSessionId else {
-            return
-        }
+              session.sessionId == pendingSessionId else { return }
 
-        textDocumentProxy.insertText(session.finalText)
-        lastProcessedSessionId = session.sessionId
-        pendingSessionId = nil
-        SharedDictationManager.shared.clearPendingKeyboardSessionId()
-        SharedDictationManager.shared.updateState(.inserted)
-        
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
+        switch session.state {
+        case .requestStop, .transcribing:
+            let appDead = !SharedDictationManager.shared.mainAppAlive(within: 2.0)
+            let stale = Date().timeIntervalSince(session.updatedAt) > 10.0
+            if appDead || stale {
+                SharedDictationManager.shared.updateState(.cancelled)
+                SharedDictationManager.shared.clearPendingKeyboardSessionId()
+                pendingSessionId = nil
+            }
+        case .ready where session.sessionId != lastProcessedSessionId:
+            if !session.finalText.isEmpty {
+                textDocumentProxy.insertText(session.finalText)
+                notificationFeedback.notificationOccurred(.success)
+            }
+            lastProcessedSessionId = session.sessionId
+            pendingSessionId = nil
+            SharedDictationManager.shared.clearPendingKeyboardSessionId()
+            SharedDictationManager.shared.updateState(.inserted)
+        case .cancelled, .failed, .timeout:
+            pendingSessionId = nil
+            SharedDictationManager.shared.clearPendingKeyboardSessionId()
+        default:
+            break
+        }
     }
 
 }
