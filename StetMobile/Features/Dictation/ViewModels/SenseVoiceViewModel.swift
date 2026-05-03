@@ -22,6 +22,7 @@ final class SenseVoiceViewModel: ObservableObject {
     @Published private(set) var partialStatus = "Loading..."
     @Published private(set) var metricsText = "Metrics will appear after decoding."
     @Published var isExternalLaunch: Bool = false
+    @Published var isRecordingDone: Bool = false
     @Published private(set) var activeEngineName: String = ""
 
     func dismissExternalGuide() {
@@ -113,11 +114,14 @@ final class SenseVoiceViewModel: ObservableObject {
 
     private func bootstrap() async {
         state = .loading
-        partialStatus = "Requesting microphone..."
+        partialStatus = "Loading models & requesting mic..."
         do {
-            try await requestMicrophonePermission()
-            partialStatus = "Loading models and warming up audio engine..."
-            try await engine?.prepare()
+            async let permissionTask: () = requestMicrophonePermission()
+            async let prepareTask: ()? = engine?.prepare()
+            
+            _ = try await permissionTask
+            try await prepareTask
+            
             // Don't downgrade state if startEngine already advanced us to .recording
             // (can happen when keyboard's requestStart fires during loading).
             if state == .loading {
@@ -166,6 +170,7 @@ final class SenseVoiceViewModel: ObservableObject {
     func handleIncomingURL(_ url: URL) -> Bool {
         guard url.scheme == "stetmobile", url.host == "dictate" else { return false }
         isExternalLaunch = true
+        isRecordingDone = false
         checkKeyboardCommands()
         return true
     }
@@ -282,5 +287,6 @@ final class SenseVoiceViewModel: ObservableObject {
 
         activeSessionId = nil
         state = .idle
+        isRecordingDone = true
     }
 }

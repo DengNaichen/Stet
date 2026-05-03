@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct StetMobileApp: App {
-    @StateObject private var rewriteSettingsStore = RewriteSettingsStore()
+    @StateObject private var rewriteSettingsStore: RewriteSettingsStore
     @Environment(\.scenePhase) private var scenePhase
 
     // SenseVoiceViewModel is initialized lazily because it needs the shared store
