@@ -52,22 +52,25 @@ struct StetKeyboardView: View {
     }
 
     private var micToolbar: some View {
-        HStack {
-            Spacer()
-            Button(action: toggleRecording) {
-                Image(systemName: isActive ? "stop.fill" : "triangle.fill")
-                    .font(.system(size: 16))
-                    .foregroundColor(isProcessing ? .clear : .white)
+        ZStack {
+            if isRecording {
+                MicWaveform()
+            }
+            HStack {
+                Spacer()
+                Button(action: toggleRecording) {
+                    Group {
+                        if isActive {
+                            Image(systemName: "stop.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(isProcessing ? .clear : .white)
+                        } else {
+                            Color.clear
+                        }
+                    }
                     .frame(width: 60, height: 38)
                     .background(isActive ? Color.red.opacity(isRecording ? 1.0 : 0.65) : Color.black.opacity(0.75))
                     .clipShape(Capsule())
-                    .overlay(alignment: .topLeading) {
-                        if isRecording {
-                            MicWaveform()
-                                .padding(.top, 4)
-                                .padding(.leading, 6)
-                        }
-                    }
                     .overlay {
                         if let start = processingStartDate {
                             TimelineView(.animation(minimumInterval: 1.0 / 30)) { ctx in
@@ -91,13 +94,14 @@ struct StetKeyboardView: View {
                         Capsule()
                             .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
                     )
+                }
+                .disabled(isProcessing)
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in controller.prepareButtonFeedback() }
+                )
+                .padding(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 10))
             }
-            .disabled(isProcessing)
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in controller.prepareButtonFeedback() }
-            )
-            .padding(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 10))
         }
     }
 
@@ -112,23 +116,30 @@ struct StetKeyboardView: View {
 }
 
 private struct MicWaveform: View {
+    @State private var volume: Float = 0
+    private let timer = Timer.publish(every: 1.0 / 30, on: .main, in: .common).autoconnect()
+
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1.0 / 20)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            HStack(spacing: 1.5) {
-                ForEach(0..<3, id: \.self) { i in
-                    Capsule()
-                        .fill(Color.white.opacity(0.85))
-                        .frame(width: 2, height: barHeight(for: i, t: t))
-                }
+        HStack(spacing: 3) {
+            ForEach(0..<8, id: \.self) { i in
+                Capsule()
+                    .fill(Color.white.opacity(0.9))
+                    .frame(width: 4, height: barHeight(for: i, v: volume))
+                    .animation(.interactiveSpring(response: 0.15, dampingFraction: 0.6, blendDuration: 0.1), value: volume)
             }
-            .frame(width: 14, height: 10, alignment: .center)
+        }
+        .frame(height: 24)
+        .onReceive(timer) { _ in
+            let newVol = SharedDictationManager.shared.readVolume()
+            // simple exponential moving average for smooth visual decay
+            volume = volume * 0.5 + newVol * 0.5
         }
     }
 
-    private func barHeight(for i: Int, t: Double) -> CGFloat {
-        let phase = t * 6 + Double(i) * 1.2
-        let v = (sin(phase) + 1) / 2
-        return 3 + CGFloat(v) * 6
+    private func barHeight(for i: Int, v: Float) -> CGFloat {
+        let baseHeight = CGFloat(v) * 20
+        // add a bit of noise to make bars differ slightly
+        let noise = CGFloat(sin(Date().timeIntervalSince1970 * 10 + Double(i))) * 2 * CGFloat(v)
+        return max(4, baseHeight + noise)
     }
 }

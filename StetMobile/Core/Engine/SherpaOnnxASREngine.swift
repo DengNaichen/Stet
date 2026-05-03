@@ -211,6 +211,11 @@ final class SherpaOnnxASREngine: ASREngine {
         converter.convert(to: converted, error: &error, withInputFrom: inputBlock)
         let samples = converted.floatArray()
         if !samples.isEmpty {
+            let sumSq = samples.reduce(0) { $0 + $1 * $1 }
+            let rms = sqrt(sumSq / Float(samples.count))
+            let level = min(rms * 15, 1.0)
+            SharedDictationManager.shared.updateVolume(level)
+            
             lock.lock()
             defer { lock.unlock() }
             if let vad = self.vad {

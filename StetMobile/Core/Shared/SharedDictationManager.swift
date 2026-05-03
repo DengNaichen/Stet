@@ -101,4 +101,23 @@ class SharedDictationManager {
         defaults?.removeObject(forKey: pendingKey)
         defaults?.synchronize()
     }
+    
+    // MARK: - Volume Sync
+    private var volumeURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.NaichengDeng.StetMobile")?.appendingPathComponent("mic_volume.dat")
+    }
+
+    func updateVolume(_ level: Float) {
+        guard let url = volumeURL else { return }
+        var data = level
+        let dataBytes = Data(bytes: &data, count: MemoryLayout<Float>.size)
+        try? dataBytes.write(to: url)
+    }
+
+    func readVolume() -> Float {
+        guard let url = volumeURL,
+              let data = try? Data(contentsOf: url),
+              data.count == MemoryLayout<Float>.size else { return 0 }
+        return data.withUnsafeBytes { $0.load(as: Float.self) }
+    }
 }
