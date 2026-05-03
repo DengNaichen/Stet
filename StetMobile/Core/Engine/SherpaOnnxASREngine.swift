@@ -12,6 +12,8 @@ final class SherpaOnnxASREngine: ASREngine {
     private var converter: AVAudioConverter?
     private let outputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)
     private let decodeQueue = DispatchQueue(label: "com.stetmobile.SherpaOnnxASREngine.decode")
+    private let lock = NSRecursiveLock()
+    private var preLoadBuffer: [Float] = []
 
     private var activeSessionId: String?
     private var routeChangeObserver: NSObjectProtocol?
@@ -32,13 +34,16 @@ final class SherpaOnnxASREngine: ASREngine {
     }
 
     func prepare() async throws {
-        try loadModelsIfNeeded()
         try configureAudioSessionAndEngine()
+        try loadModelsIfNeeded()
         registerRouteChangeObserver()
     }
 
     func start(sessionId: String) async throws {
         if audioEngine == nil { try await prepare() }
+
+        lock.lock()
+        defer { lock.unlock() }
 
         activeSessionId = sessionId
         nextSegmentOrder = 0
@@ -59,6 +64,8 @@ final class SherpaOnnxASREngine: ASREngine {
     }
 
     func stop() {
+        lock.lock()
+        defer { lock.unlock() }
         guard activeSessionId != nil else { return }
         vad?.flush()
         drainVAD()
@@ -137,6 +144,8 @@ final class SherpaOnnxASREngine: ASREngine {
     }
 
     private func loadModelsIfNeeded() throws {
+        lock.lock()
+        defer { lock.unlock() }
         guard recognizer == nil || vad == nil else { return }
         let resources = try SenseVoiceResources.bundled()
         let senseVoiceConfig = sherpaOnnxOfflineSenseVoiceModelConfig(model: resources.modelPath, language: "auto", useInverseTextNormalization: true)
@@ -157,6 +166,8 @@ final class SherpaOnnxASREngine: ASREngine {
     }
 
     private func configureAudioSessionAndEngine() throws {
+        lock.lock()
+        defer { lock.unlock() }
         guard audioEngine == nil else { return }
         guard let outputFormat = outputFormat else { throw SenseVoiceError.invalidInputFormat }
 
@@ -200,12 +211,24 @@ final class SherpaOnnxASREngine: ASREngine {
         converter.convert(to: converted, error: &error, withInputFrom: inputBlock)
         let samples = converted.floatArray()
         if !samples.isEmpty {
-            self.vad?.acceptWaveform(samples: samples)
-            self.drainVAD()
+            lock.lock()
+            defer { lock.unlock() }
+            if let vad = self.vad {
+                if !self.preLoadBuffer.isEmpty {
+                    vad.acceptWaveform(samples: self.preLoadBuffer)
+                    self.preLoadBuffer.removeAll()
+                }
+                vad.acceptWaveform(samples: samples)
+                self.drainVAD()
+            } else {
+                self.preLoadBuffer.append(contentsOf: samples)
+            }
         }
     }
 
     private func drainVAD() {
+        lock.lock()
+        defer { lock.unlock() }
         guard let vad = vad, let sessionId = activeSessionId else { return }
         while !vad.isEmpty() {
             let seg = vad.front()
@@ -232,6 +255,8 @@ final class SherpaOnnxASREngine: ASREngine {
     }
 
     private func handleSegmentResult(sessionId: String, order: Int, text: String, decodeSeconds: Double) {
+        lock.lock()
+        defer { lock.unlock() }
         guard sessionId == activeSessionId else { return }
         decodedSegments[order] = text.trimmingCharacters(in: .whitespacesAndNewlines)
         sessionDecodeCpuSeconds += decodeSeconds
@@ -249,6 +274,8 @@ final class SherpaOnnxASREngine: ASREngine {
     }
 
     private func finalize(merged: String) {
+        lock.lock()
+        defer { lock.unlock() }
         let wallSeconds = CFAbsoluteTimeGetCurrent() - sessionWallStart
         let rtf = sessionAudioSeconds > 0 ? sessionDecodeCpuSeconds / sessionAudioSeconds : 0
 

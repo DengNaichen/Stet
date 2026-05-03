@@ -76,13 +76,15 @@ final class SenseVoiceViewModel: ObservableObject {
             Task { @MainActor in await bootstrap() }
             return
         }
-        Task { @MainActor in
+        Task {
             do {
                 try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
                 try await engine?.prepare()
             } catch {
-                state = .failed(error.localizedDescription)
-                SharedDictationManager.shared.updateState(.failed, error: error.localizedDescription)
+                await MainActor.run {
+                    self.state = .failed(error.localizedDescription)
+                    SharedDictationManager.shared.updateState(.failed, error: error.localizedDescription)
+                }
             }
         }
     }
