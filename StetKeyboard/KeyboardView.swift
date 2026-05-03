@@ -4,21 +4,14 @@ import KeyboardKit
 
 struct StetKeyboardView: View {
     unowned let controller: KeyboardViewController
-    @State private var sessionState: DictationState = .idle
+    @State private var buttonState: KeyboardButtonState = .idle
     @State private var processingStartDate: Date? = nil
 
-    private let sessionPoll = Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()
-
-    private var isPending: Bool {
-        sessionState == .requestStart || sessionState == .launching || sessionState == .warming
-    }
-    private var isRecording: Bool { sessionState == .recording }
-    private var isProcessing: Bool {
-        sessionState == .requestStop || sessionState == .transcribing || sessionState == .ready
-    }
+    private var isPending: Bool { buttonState == .pending }
+    private var isRecording: Bool { buttonState == .recording }
+    private var isProcessing: Bool { buttonState == .processing }
     // isActive drives button color/icon; isRecording drives waveform (only when confirmed recording)
     private var isActive: Bool { isPending || isRecording }
-    private var isSpeaking: Bool { sessionState == .recording || sessionState == .transcribing }
 
     private var customLayout: KeyboardLayout {
         var layout = KeyboardLayout.standard(for: controller.state.keyboardContext)
@@ -54,12 +47,8 @@ struct StetKeyboardView: View {
         )
         .keyboardViewBackground(.hidden)
         .keyboardViewStyle(KeyboardViewStyle(edgeInsets: EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8)))
-        .onReceive(sessionPoll) { _ in
-            sessionState = SharedDictationManager.shared.getSession()?.state ?? .idle
-        }
-        .onChange(of: isProcessing) { _, processing in
-            processingStartDate = processing ? Date() : nil
-        }
+        .onReceive(controller.$buttonState) { buttonState = $0 }
+        .onReceive(controller.$processingStartDate) { processingStartDate = $0 }
     }
 
     private var micToolbar: some View {
@@ -143,4 +132,3 @@ private struct MicWaveform: View {
         return 3 + CGFloat(v) * 6
     }
 }
-

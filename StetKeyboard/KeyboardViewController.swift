@@ -7,9 +7,20 @@
 
 import UIKit
 import SwiftUI
+import Combine
 import KeyboardKit
 
-class KeyboardViewController: KeyboardInputViewController {
+enum KeyboardButtonState: Equatable {
+    case idle
+    case pending      // requestStart / launching / warming
+    case recording
+    case processing   // requestStop / transcribing / ready
+}
+
+class KeyboardViewController: KeyboardInputViewController, ObservableObject {
+
+    @Published var buttonState: KeyboardButtonState = .idle
+    @Published var processingStartDate: Date? = nil
 
     private var pollTimer: Timer?
     private var lastProcessedSessionId: String?
@@ -59,25 +70,10 @@ class KeyboardViewController: KeyboardInputViewController {
         isWakingMainApp = false
         impactFeedback.prepare()
         notificationFeedback.prepare()
-        
+
         // Restore pendingSessionId from shared storage in case the extension was restarted
         // during the app-switching process.
-        if let savedId = SharedDictationManager.shared.getPendingKeyboardSessionId() {
-            pendingSessionId = savedId
-        }
-
-        // Clear any stuck session on open.
-        let activeStates: [DictationState] = [.requestStart, .launching, .warming, .requestStop, .transcribing, .ready]
-        if let session = SharedDictationManager.shared.getSession(),
-           activeStates.contains(session.state) {
-            let appDead = !SharedDictationManager.shared.mainAppAlive(within: 2.0)
-            let stale = Date().timeIntervalSince(session.updatedAt) > 10.0
-            if pendingSessionId == nil || appDead || stale {
-                SharedDictationManager.shared.updateState(.cancelled)
-                SharedDictationManager.shared.clearPendingKeyboardSessionId()
-                pendingSessionId = nil
-            }
-        }
+        pendingSessionId = SharedDictationManager.shared.getPendingKeyboardSessionId()
 
         startPolling()
     }
@@ -85,17 +81,15 @@ class KeyboardViewController: KeyboardInputViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         stopPolling()
-        
+
         // If the keyboard is closed mid-dictation (and we aren't just opening the main app),
         // we should discard the recording.
         if !isWakingMainApp,
            let session = SharedDictationManager.shared.getSession(),
            session.sessionId == pendingSessionId {
             switch session.state {
-            case .requestStart, .launching, .warming, .recording, .transcribing:
-                SharedDictationManager.shared.updateState(.cancelled)
-                SharedDictationManager.shared.clearPendingKeyboardSessionId()
-                pendingSessionId = nil
+            case .requestStart, .launching, .warming, .recording, .requestStop, .transcribing:
+                cancelOurSession()
             default:
                 break
             }
@@ -106,7 +100,7 @@ class KeyboardViewController: KeyboardInputViewController {
         let sessionId = UUID().uuidString
         pendingSessionId = sessionId
         SharedDictationManager.shared.savePendingKeyboardSessionId(sessionId)
-        
+
         let session = DictationSession(
             sessionId: sessionId,
             createdAt: Date(),
@@ -121,6 +115,9 @@ class KeyboardViewController: KeyboardInputViewController {
             isWakingMainApp = true
             openMainApp(sessionId: sessionId)
         }
+
+        // Optimistic update so the button responds before the next tick.
+        publishState(.pending)
     }
 
     internal func handleMicUp() {
@@ -130,6 +127,8 @@ class KeyboardViewController: KeyboardInputViewController {
         session.state = .requestStop
         session.updatedAt = Date()
         SharedDictationManager.shared.saveSession(session)
+
+        publishState(.processing)
     }
 
     // MARK: - Open Main App
@@ -148,11 +147,11 @@ class KeyboardViewController: KeyboardInputViewController {
         }
     }
 
-    // MARK: - Polling for Transcription Results
+    // MARK: - Polling
 
     private func startPolling() {
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            self?.checkForNewTranscription()
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+            self?.tick()
         }
     }
 
@@ -161,34 +160,96 @@ class KeyboardViewController: KeyboardInputViewController {
         pollTimer = nil
     }
 
-    private func checkForNewTranscription() {
-        guard let session = SharedDictationManager.shared.getSession(),
-              session.sessionId == pendingSessionId else { return }
+    private func tick() {
+        let session = SharedDictationManager.shared.getSession()
+
+        // Ownership check: anything that isn't ours renders as idle. If a not-ours
+        // session is stuck active and the main app is dead/silent, sweep it so it
+        // doesn't haunt subsequent keyboard instances.
+        guard let session, session.sessionId == pendingSessionId else {
+            if let session, isActiveState(session.state) {
+                let appDead = !SharedDictationManager.shared.mainAppAlive(within: 2.0)
+                let stale = Date().timeIntervalSince(session.updatedAt) > 10.0
+                if appDead || stale {
+                    SharedDictationManager.shared.updateState(.cancelled)
+                }
+            }
+            publishState(.idle)
+            return
+        }
 
         switch session.state {
+        case .idle:
+            publishState(.idle)
+
+        case .requestStart, .launching, .warming:
+            publishState(.pending)
+
+        case .recording:
+            publishState(.recording)
+
         case .requestStop, .transcribing:
             let appDead = !SharedDictationManager.shared.mainAppAlive(within: 2.0)
             let stale = Date().timeIntervalSince(session.updatedAt) > 10.0
             if appDead || stale {
-                SharedDictationManager.shared.updateState(.cancelled)
-                SharedDictationManager.shared.clearPendingKeyboardSessionId()
-                pendingSessionId = nil
+                cancelOurSession()
+                publishState(.idle)
+            } else {
+                publishState(.processing)
             }
-        case .ready where session.sessionId != lastProcessedSessionId:
-            if !session.finalText.isEmpty {
-                textDocumentProxy.insertText(session.finalText)
-                notificationFeedback.notificationOccurred(.success)
+
+        case .ready:
+            if session.sessionId != lastProcessedSessionId {
+                insertTranscription(session)
             }
-            lastProcessedSessionId = session.sessionId
-            pendingSessionId = nil
-            SharedDictationManager.shared.clearPendingKeyboardSessionId()
-            SharedDictationManager.shared.updateState(.inserted)
-        case .cancelled, .failed, .timeout:
-            pendingSessionId = nil
-            SharedDictationManager.shared.clearPendingKeyboardSessionId()
-        default:
-            break
+            publishState(.idle)
+
+        case .inserted, .cancelled, .failed, .timeout:
+            cleanupSession()
+            publishState(.idle)
         }
+    }
+
+    private func isActiveState(_ s: DictationState) -> Bool {
+        switch s {
+        case .requestStart, .launching, .warming, .recording, .requestStop, .transcribing, .ready:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func publishState(_ state: KeyboardButtonState) {
+        if state == .processing && buttonState != .processing {
+            processingStartDate = Date()
+        } else if state != .processing && processingStartDate != nil {
+            processingStartDate = nil
+        }
+        if buttonState != state {
+            buttonState = state
+        }
+    }
+
+    private func insertTranscription(_ session: DictationSession) {
+        if !session.finalText.isEmpty {
+            textDocumentProxy.insertText(session.finalText)
+            notificationFeedback.notificationOccurred(.success)
+        }
+        lastProcessedSessionId = session.sessionId
+        pendingSessionId = nil
+        SharedDictationManager.shared.clearPendingKeyboardSessionId()
+        SharedDictationManager.shared.updateState(.inserted)
+    }
+
+    private func cancelOurSession() {
+        SharedDictationManager.shared.updateState(.cancelled)
+        SharedDictationManager.shared.clearPendingKeyboardSessionId()
+        pendingSessionId = nil
+    }
+
+    private func cleanupSession() {
+        pendingSessionId = nil
+        SharedDictationManager.shared.clearPendingKeyboardSessionId()
     }
 
 }
