@@ -5,8 +5,8 @@ let package = Package(
     name: "StetEngine",
     defaultLocalization: "en",
     platforms: [
-        .macOS(.v13),
-        .iOS(.v16),
+        .macOS(.v14),
+        .iOS(.v17),
     ],
     products: [
         .library(name: "StetCore", targets: ["StetCore"]),
