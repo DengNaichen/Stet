@@ -199,3 +199,21 @@
 /* General Settings Extension */
 "Check for updates automatically" = "Check for updates automatically";
 "Stet stays in the menu bar for quick access even when the dock icon is hidden." = "Stet stays in the menu bar for quick access even when the dock icon is hidden.";
+
+/* History settings */
+"History" = "History";
+"Searchable log of every dictation session." = "Searchable log of every dictation session.";
+"Search History" = "Search History";
+"Export JSON" = "Export JSON";
+"Clear all history?" = "Clear all history?";
+"Could not load history" = "Could not load history";
+"No History" = "No History";
+"Dictation sessions will appear here." = "Dictation sessions will appear here.";
+"Try a different search term." = "Try a different search term.";
+"Sent" = "Sent";
+"Clipboard" = "Clipboard";
+"Partial" = "Transcribed";
+"Raw ASR" = "Transcript";
+"LLM Refined" = "LLM Refined";
+"Final Sent" = "Delivered";
+"Target App" = "Target App";

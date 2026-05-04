@@ -1,6 +1,7 @@
 #if os(macOS)
     import AppKit
     import Foundation
+    import StetCore
     import os
 
     @MainActor
@@ -201,6 +202,12 @@
                             "outcome=completed reason=optimistic_verification_blind profile=\(targetAppProfileLabel(targetAppProfile))"
                     )
                     AnalyticsService.track("output_success", parameters: ["method": "auto_paste"])
+                    // [History point C] Optimistic delivery confirmed.
+                    DictationHistoryService.shared.updateFinal(
+                        text,
+                        targetBundleID: targetApplication?.bundleIdentifier,
+                        targetAppName: targetApplication?.localizedName
+                    )
                     return .completed
                 }
 
@@ -212,6 +219,12 @@
                     await DictationLatencyProbe.shared.record(.systemWriteCompleted)
                     emitOutputTrace(traceID, stage: "completion", details: "outcome=completed")
                     AnalyticsService.track("output_success", parameters: ["method": "auto_paste"])
+                    // [History point C] Verified delivery.
+                    DictationHistoryService.shared.updateFinal(
+                        text,
+                        targetBundleID: targetApplication?.bundleIdentifier,
+                        targetAppName: targetApplication?.localizedName
+                    )
                     return .completed
 
                 case .eventPostedVerificationUnavailableInTextInput,
@@ -299,6 +312,12 @@
             )
             if outcome == .completed {
                 AnalyticsService.track("output_success", parameters: ["method": "clipboard"])
+                // [History point C] Copied directly to clipboard, no paste step.
+                DictationHistoryService.shared.updateFinal(
+                    text,
+                    targetBundleID: targetApplication?.bundleIdentifier,
+                    targetAppName: targetApplication?.localizedName
+                )
             } else {
                 AnalyticsService.track("output_clipboard_pending")
             }

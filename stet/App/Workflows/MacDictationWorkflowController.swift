@@ -228,7 +228,17 @@
             Task {
                 await DictationRuntimeProbe.shared.markAction("copyPendingResultToClipboard")
             }
-            return captureCoordinator.copyToClipboard(text)
+            let copied = captureCoordinator.copyToClipboard(text)
+            if copied {
+                // [History point D] User manually committed the clipboard-pending result.
+                DictationHistoryService.shared.updateFinal(
+                    text,
+                    targetBundleID: lastTargetApplication?.bundleIdentifier,
+                    targetAppName: lastTargetApplication?.localizedName,
+                    status: .clipboardPending
+                )
+            }
+            return copied
         }
 
         private func refreshTargetApplication(allowingCurrentAppTarget: Bool) {

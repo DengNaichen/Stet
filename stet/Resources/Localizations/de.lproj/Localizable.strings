@@ -190,3 +190,21 @@
 /* General Settings Extension */
 "Check for updates automatically" = "Automatisch nach Updates suchen";
 "Stet stays in the menu bar for quick access even when the dock icon is hidden." = "Stet bleibt in der Menüleiste für den schnellen Zugriff, auch wenn das Dock-Symbol ausgeblendet ist.";
+
+/* History settings */
+"History" = "Verlauf";
+"Searchable log of every dictation session." = "Durchsuchbares Protokoll jeder Diktiersitzung.";
+"Search History" = "Verlauf durchsuchen";
+"Export JSON" = "JSON exportieren";
+"Clear all history?" = "Gesamten Verlauf löschen?";
+"Could not load history" = "Verlauf konnte nicht geladen werden";
+"No History" = "Kein Verlauf";
+"Dictation sessions will appear here." = "Diktiersitzungen werden hier angezeigt.";
+"Try a different search term." = "Versuchen Sie einen anderen Suchbegriff.";
+"Sent" = "Gesendet";
+"Clipboard" = "Zwischenablage";
+"Partial" = "Transkribiert";
+"Raw ASR" = "Transkript";
+"LLM Refined" = "KI-optimiert";
+"Final Sent" = "Zugestellt";
+"Target App" = "Ziel-App";

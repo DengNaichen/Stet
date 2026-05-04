@@ -15,7 +15,6 @@ public final class DictationHistoryService {
     // MARK: - Internal session accumulator
 
     /// Ephemeral value type that accumulates data across the three pipeline stages.
-    /// Discarded without saving if the session is abandoned (cancelled / empty text).
     private struct PendingSession {
         var rawText: String
         var llmText: String?
@@ -23,6 +22,8 @@ public final class DictationHistoryService {
         var targetBundleID: String?
         var targetAppName: String?
         let timestamp: Date
+        /// Set after the entry has been persisted via commitPending().
+        var persistedEntryID: UUID?
 
         init(rawText: String) {
             self.rawText = rawText
@@ -65,22 +66,31 @@ public final class DictationHistoryService {
         pending?.llmText = text
     }
 
-    /// Called when the text has been successfully delivered to the target app.
-    /// Persists the entry and clears the pending session.
-    public func recordFinal(
+    /// Immediately persists the pending session with `.processing` status.
+    /// Call this as soon as transcription + optional LLM refinement are complete,
+    /// before waiting for any delivery confirmation.
+    /// - Returns: The persisted entry's UUID, or nil if there was nothing to save.
+    @discardableResult
+    public func commitPending() -> UUID? {
+        guard var session = pending else { return nil }
+        let id = UUID()
+        session.persistedEntryID = id
+        pending = session
+        persistEntry(from: session, id: id, status: .processing)
+        return id
+    }
+
+    /// Updates the already-persisted entry with the final delivered text and status.
+    /// Safe to call even if `commitPending()` was never called (no-op in that case).
+    public func updateFinal(
         _ text: String,
         targetBundleID: String?,
         targetAppName: String?,
         status: HistoryEntryStatus = .completed
     ) {
-        guard var session = pending else { return }
+        guard let id = pending?.persistedEntryID else { return }
         pending = nil
-
-        session.finalText = text
-        session.targetBundleID = targetBundleID
-        session.targetAppName = targetAppName
-
-        persistEntry(from: session, status: status)
+        updateEntry(id: id, finalText: text, targetBundleID: targetBundleID, targetAppName: targetAppName, status: status)
     }
 
     /// Discards the current pending session without saving.
@@ -112,29 +122,47 @@ public final class DictationHistoryService {
 
     // MARK: - Private helpers
 
-    private func persistEntry(from session: PendingSession, status: HistoryEntryStatus) {
+    private func persistEntry(from session: PendingSession, id: UUID, status: HistoryEntryStatus) {
         guard let container else { return }
 
-        // Capture plain value data so it can safely cross actor boundaries.
         let rawText = session.rawText
         let llmText = session.llmText
-        let finalText = session.finalText
-        let targetBundleID = session.targetBundleID
-        let targetAppName = session.targetAppName
         let timestamp = session.timestamp
 
         Task.detached(priority: .background) {
             let context = ModelContext(container)
             let entry = HistoryEntry(
+                id: id,
                 timestamp: timestamp,
                 rawText: rawText,
                 llmText: llmText,
-                finalText: finalText,
-                targetBundleID: targetBundleID,
-                targetAppName: targetAppName,
                 status: status
             )
             context.insert(entry)
+            try? context.save()
+        }
+    }
+
+    private func updateEntry(
+        id: UUID,
+        finalText: String,
+        targetBundleID: String?,
+        targetAppName: String?,
+        status: HistoryEntryStatus
+    ) {
+        guard let container else { return }
+
+        Task.detached(priority: .background) {
+            let context = ModelContext(container)
+            var descriptor = FetchDescriptor<HistoryEntry>(
+                predicate: #Predicate { $0.id == id }
+            )
+            descriptor.fetchLimit = 1
+            guard let entry = try? context.fetch(descriptor).first else { return }
+            entry.finalText = finalText
+            entry.targetBundleID = targetBundleID
+            entry.targetAppName = targetAppName
+            entry.status = status
             try? context.save()
         }
     }

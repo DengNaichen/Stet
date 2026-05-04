@@ -205,3 +205,21 @@
 /* General Settings Extension */
 "Check for updates automatically" = "自动检查更新";
 "Stet stays in the menu bar for quick access even when the dock icon is hidden." = "即使隐藏了程序坞图标，Stet 也会保留在菜单栏以便快速访问。";
+
+/* History settings */
+"History" = "历史记录";
+"Searchable log of every dictation session." = "每次听写会话的可搜索记录。";
+"Search History" = "搜索历史记录";
+"Export JSON" = "导出 JSON";
+"Clear all history?" = "清除所有历史记录？";
+"Could not load history" = "无法加载历史记录";
+"No History" = "暂无历史记录";
+"Dictation sessions will appear here." = "听写会话将显示在此处。";
+"Try a different search term." = "请尝试其他搜索词。";
+"Sent" = "已发送";
+"Clipboard" = "剪贴板";
+"Partial" = "已转录";
+"Raw ASR" = "转录";
+"LLM Refined" = "AI 优化";
+"Final Sent" = "已投递";
+"Target App" = "目标应用";

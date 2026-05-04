@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 #if os(macOS)
+    import StetCore
     import StetVisuals
 #endif
 
@@ -324,12 +325,19 @@ final class DictationViewModel: ObservableObject {
                     }
                 )
                 if Task.isCancelled { return }
+                // [History point A] Record raw ASR output.
+                DictationHistoryService.shared.recordRaw(text)
                 let finalText: String
                 if let resultTransformer {
                     finalText = try await resultTransformer(text)
+                    // [History point B] Record LLM-refined output.
+                    DictationHistoryService.shared.recordLLM(finalText)
                 } else {
                     finalText = text
                 }
+                // Persist immediately — every transcription is recorded whether or
+                // not the text is ultimately delivered to a target app.
+                DictationHistoryService.shared.commitPending()
                 self.resultTransformer = nil
                 send(.transcriptionSucceeded(finalText))
             } catch is CancellationError {

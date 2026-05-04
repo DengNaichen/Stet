@@ -186,7 +186,7 @@
         }
 
         private var displayText: String {
-            entry.finalText ?? entry.llmText ?? entry.rawText
+            entry.llmText ?? entry.rawText
         }
 
         @ViewBuilder
@@ -198,7 +198,7 @@
                 case .clipboardPending:
                     return (LocalizedStringKey("Clipboard"), .orange)
                 case .processing:
-                    return (LocalizedStringKey("Partial"), .secondary)
+                    return (LocalizedStringKey("Transcribed"), .secondary)
                 }
             }()
             Text(label)
@@ -214,12 +214,12 @@
         private var expandedDetail: some View {
             VStack(alignment: .leading, spacing: 8) {
                 Divider()
-                textStageRow(label: LocalizedStringKey("Raw ASR"), text: entry.rawText)
+                textStageRow(label: LocalizedStringKey("Transcript"), text: entry.rawText)
                 if let llm = entry.llmText, llm != entry.rawText {
                     textStageRow(label: LocalizedStringKey("LLM Refined"), text: llm)
                 }
                 if let final = entry.finalText {
-                    textStageRow(label: LocalizedStringKey("Final Sent"), text: final)
+                    textStageRow(label: LocalizedStringKey("Delivered"), text: final)
                 }
                 if let bundleID = entry.targetBundleID {
                     labeledRow(label: LocalizedStringKey("Target App"), value: bundleID)

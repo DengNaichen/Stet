@@ -8,6 +8,7 @@
         case hotkey
         case openAI
         case dictionary
+        case history
         #if DEBUG
             case shaderDebug
         #endif
@@ -28,6 +29,8 @@
                 return "Refine"
             case .dictionary:
                 return "Dictionary"
+            case .history:
+                return "History"
             #if DEBUG
                 case .shaderDebug:
                     return "Debug"
@@ -49,6 +52,8 @@
                 return "AI service, transcript improvement, and account access."
             case .dictionary:
                 return "Personal dictionary entries used during transcription and transcript cleanup."
+            case .history:
+                return "Searchable log of every dictation session."
             #if DEBUG
                 case .shaderDebug:
                     return "Large shader preview and color input controls."
@@ -70,6 +75,8 @@
                 return "pencil"
             case .dictionary:
                 return "text.book.closed.fill"
+            case .history:
+                return "clock.arrow.circlepath"
             #if DEBUG
                 case .shaderDebug:
                     return "hammer.fill"
@@ -91,6 +98,8 @@
                 return Color(nsColor: .systemGreen)
             case .dictionary:
                 return Color(nsColor: .systemGray)
+            case .history:
+                return Color(nsColor: .systemIndigo)
             #if DEBUG
                 case .shaderDebug:
                     return Color(nsColor: .systemBrown)
@@ -115,6 +124,8 @@
                 ]
             case .dictionary:
                 return ["entries", "personal dictionary", "names", "brands"]
+            case .history:
+                return ["log", "history", "sessions", "transcription", "export", "json", "past"]
             #if DEBUG
                 case .shaderDebug:
                     return ["shader", "preview", "debug", "window", "colors"]
@@ -254,6 +265,8 @@
                 MacOpenAISettingsView(viewModel: openAISettingsViewModel)
             case .dictionary:
                 DictionaryView(viewModel: dictionaryViewModel)
+            case .history:
+                MacHistorySettingsView()
             #if DEBUG
                 case .shaderDebug:
                     MacShaderDebugSettingsView()

@@ -190,3 +190,21 @@
 /* General Settings Extension */
 "Check for updates automatically" = "自動檢查更新";
 "Stet stays in the menu bar for quick access even when the dock icon is hidden." = "即使隱藏了 Dock 圖標，Stet 也會保留在菜單欄以便快速訪問。";
+
+/* History settings */
+"History" = "歷史記錄";
+"Searchable log of every dictation session." = "每次聽寫工作階段的可搜尋記錄。";
+"Search History" = "搜尋歷史記錄";
+"Export JSON" = "匯出 JSON";
+"Clear all history?" = "清除所有歷史記錄？";
+"Could not load history" = "無法載入歷史記錄";
+"No History" = "暫無歷史記錄";
+"Dictation sessions will appear here." = "聽寫工作階段將顯示於此。";
+"Try a different search term." = "請嘗試其他搜尋詞。";
+"Sent" = "已傳送";
+"Clipboard" = "剪貼簿";
+"Partial" = "已轉錄";
+"Raw ASR" = "轉錄";
+"LLM Refined" = "AI 優化";
+"Final Sent" = "已投遞";
+"Target App" = "目標應用程式";
