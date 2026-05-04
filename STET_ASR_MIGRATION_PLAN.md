@@ -74,8 +74,8 @@
 - [x] 更新 `StetEngine/Package.swift`，添加 `StetASR` Target，并配置对内部 Vendor 包的相对路径引用。
 
 ### 阶段二：协议与数据模型 (Contracts)
-- [ ] 将 `ASREngine` 协议、`ASRResult`、`ASRMetrics` 迁移至 `StetASR`。
-- [ ] 定义通用的 `ASRModelStatus` 及 `ASRModelManager` 接口。
+- [x] 将 `ASREngine` 协议、`ASRResult`、`ASRMetrics` 迁移至 `StetASR`。
+- [x] 定义通用的 `ASRModelStatus` 及 `ASRModelManager` 接口。
 
 ### 阶段三：引擎实现搬迁 (Engines)
 - [ ] **SenseVoice**: 迁移 `SherpaOnnxASREngine`，重构其初始化方法以接受 `ModelManager` 提供的 URL。
