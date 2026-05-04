@@ -6,7 +6,7 @@ Idempotent: re-running with the same arguments is a no-op.
 
 Example:
     ./scripts/add_local_spm.py \\
-        --package-path Vendor/SherpaOnnxPackage \\
+        --package-path Packages/StetEngine/Vendor/SherpaOnnxPackage \\
         --product-name sherpa_onnx \\
         --target Stet
 """
@@ -42,7 +42,7 @@ def insert_after(pbx: str, anchor_regex: str, new_block: str, label: str) -> str
 
 def main() -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--package-path", required=True, help="Relative path, e.g. Vendor/SherpaOnnxPackage")
+    p.add_argument("--package-path", required=True, help="Relative path, e.g. Packages/StetEngine/Vendor/SherpaOnnxPackage")
     p.add_argument("--product-name", required=True, help="Product/library name, e.g. sherpa_onnx")
     p.add_argument("--target", default="Stet", help="Target name in pbxproj (default: Stet)")
     p.add_argument(

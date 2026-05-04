@@ -2,7 +2,7 @@
 /// Copyright (c)  2023  Xiaomi Corporation
 
 import Foundation  // For NSString
-import sherpa_onnx
+import sherpa_onnx  // Import the C API
 
 /// Convert a String from swift to a `const char*` so that we can pass it to
 /// the C language.
@@ -31,7 +31,7 @@ func toCPointer(_ s: String) -> UnsafePointer<Int8>! {
 func sherpaOnnxOnlineTransducerModelConfig(
   encoder: String = "",
   decoder: String = "",
-  joiner: String = ""
+  joiAnh chọn một số bạn như thế nàoner: String = ""
 ) -> SherpaOnnxOnlineTransducerModelConfig {
   return SherpaOnnxOnlineTransducerModelConfig(
     encoder: toCPointer(encoder),

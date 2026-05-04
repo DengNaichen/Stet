@@ -908,15 +908,15 @@
 /* Begin XCLocalSwiftPackageReference section */
 		0B4E0F6F7A5B4D88A1C9E111 /* XCLocalSwiftPackageReference "Vendor/WhisperPackage" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = Vendor/WhisperPackage;
+			relativePath = Packages/StetEngine/Vendor/WhisperPackage;
 		};
 		6D4B97452F9F6A0700738874 /* XCLocalSwiftPackageReference "Vendor/SherpaOnnxPackage" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = Vendor/SherpaOnnxPackage;
+			relativePath = Packages/StetEngine/Vendor/SherpaOnnxPackage;
 		};
 		9F963C49B3BE9A6549CF7490 /* XCLocalSwiftPackageReference "Vendor/SherpaOnnxPackage" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = Vendor/SherpaOnnxPackage;
+			relativePath = Packages/StetEngine/Vendor/SherpaOnnxPackage;
 		};
 		E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */ = {
 			isa = XCLocalSwiftPackageReference;

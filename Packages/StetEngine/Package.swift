@@ -12,15 +12,27 @@ let package = Package(
         .library(name: "StetCore", targets: ["StetCore"]),
         .library(name: "StetAI", targets: ["StetAI"]),
         .library(name: "StetRewrite", targets: ["StetRewrite"]),
+        .library(name: "StetASR", targets: ["StetASR"]),
     ],
     dependencies: [
         .package(url: "https://github.com/MacPaw/OpenAI.git", exact: "0.4.7"),
         .package(url: "https://github.com/mattt/EventSource.git", exact: "1.4.1"),
+        .package(path: "Vendor/SherpaOnnxPackage"),
+        .package(path: "Vendor/WhisperPackage"),
     ],
     targets: [
         .target(
             name: "StetCore",
             path: "Sources/StetCore"
+        ),
+        .target(
+            name: "StetASR",
+            dependencies: [
+                "StetCore",
+                .product(name: "sherpa_onnx", package: "SherpaOnnxPackage"),
+                .product(name: "whisper", package: "WhisperPackage"),
+            ],
+            path: "Sources/StetASR"
         ),
         .target(
             name: "StetRewrite",
@@ -34,6 +46,7 @@ let package = Package(
             dependencies: [
                 "StetCore",
                 "StetRewrite",
+                "StetASR",
                 .product(name: "OpenAI", package: "OpenAI"),
                 .product(name: "EventSource", package: "EventSource"),
             ],

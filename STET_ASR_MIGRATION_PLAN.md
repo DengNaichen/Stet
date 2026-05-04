@@ -69,9 +69,9 @@
 ## 5. 详细迁移步骤 (Action Items)
 
 ### 阶段一：建立骨架 (Skeleton)
-- [ ] 在 `Packages/StetEngine/` 下创建 `Vendor/` 目录。
-- [ ] 将顶层的 `Vendor/` 内容移动至 `Packages/StetEngine/Vendor/`。
-- [ ] 更新 `StetEngine/Package.swift`，添加 `StetASR` Target，并配置对内部 Vendor 包的相对路径引用。
+- [x] 在 `Packages/StetEngine/` 下创建 `Vendor/` 目录。
+- [x] 将顶层的 `Vendor/` 内容移动至 `Packages/StetEngine/Vendor/`。
+- [x] 更新 `StetEngine/Package.swift`，添加 `StetASR` Target，并配置对内部 Vendor 包的相对路径引用。
 
 ### 阶段二：协议与数据模型 (Contracts)
 - [ ] 将 `ASREngine` 协议、`ASRResult`、`ASRMetrics` 迁移至 `StetASR`。

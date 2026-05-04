@@ -2,7 +2,6 @@
 /// Copyright (c)  2023  Xiaomi Corporation
 
 import Foundation  // For NSString
-import sherpa_onnx
 
 /// Convert a String from swift to a `const char*` so that we can pass it to
 /// the C language.
