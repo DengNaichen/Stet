@@ -78,8 +78,8 @@
 - [x] 定义通用的 `ASRModelStatus` 及 `ASRModelManager` 接口。
 
 ### 阶段三：引擎实现搬迁 (Engines)
-- [ ] **SenseVoice**: 迁移 `SherpaOnnxASREngine`，重构其初始化方法以接受 `ModelManager` 提供的 URL。
-- [ ] **Whisper**: 迁移 macOS 的 `LocalWhisper` 逻辑，适配新的接口规范。
+- [x] **SenseVoice**: 迁移 `SherpaOnnxASREngine`，重构其初始化方法以接受 `ModelManager` 提供的 URL。
+- [x] **Whisper**: 迁移 macOS 的 `LocalWhisper` 逻辑，适配新的接口规范。
 - [ ] 实现跨平台的 `URLSession` 下载器，用于 `ModelManager` 内部。
 
 ### 阶段四：App 端集成与资源清理 (Cleanup)
