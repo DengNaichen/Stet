@@ -9,8 +9,13 @@ public enum CloudRewritePromptBuilder {
         var prompt = baseSystemPrompt(audience: audience)
 
         if !preferredSpellings.isEmpty {
-            prompt +=
-                "\n\nPreserve the exact spelling of these names, brands, jargon, and technical terms when they appear or are clearly intended: \(preferredSpellings.joined(separator: ", "))."
+            prompt += """
+
+
+                Personal dictionary entries are canonical recovery targets: \(preferredSpellings.joined(separator: ", ")).
+                If the transcript contains a garbled, split, homophone, near-sound, differently capitalized, or partially translated version that clearly refers to a dictionary entry, replace it with the exact dictionary entry.
+                Preserve dictionary entries exactly as written, including capitalization, spacing, and punctuation. Do not add a dictionary entry when there is no nearby spoken cue for it.
+                """
         }
 
         return prompt
