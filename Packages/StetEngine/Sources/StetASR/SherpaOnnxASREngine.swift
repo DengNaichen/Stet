@@ -1,7 +1,6 @@
 import AVFoundation
 import Foundation
 import CoreFoundation
-import StetAI
 
 public final class SherpaOnnxASREngine: ASREngine {
     public let name = "Sherpa-Onnx (SenseVoice)"

@@ -43,6 +43,24 @@ struct ProviderCredentialValidationServiceTests {
         try await service.validateCredential(apiKey: "gsk-live", provider: .groq)
     }
 
+    @Test func deepSeekValidationCallsDeepSeekModelsEndpoint() async throws {
+        let session = TestURLSessionFactory.makeSession { request in
+            let requestURL = try #require(request.url)
+            let components = try #require(URLComponents(url: requestURL, resolvingAgainstBaseURL: false))
+            #expect(request.httpMethod == "GET")
+            #expect(components.scheme == "https")
+            #expect(components.host == "api.deepseek.com")
+            #expect(components.path == "/v1/models")
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer dsk-live")
+
+            let response = HTTPURLResponse(url: requestURL, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data(#"{"object":"list","data":[]}"#.utf8))
+        }
+        let service = ProviderCredentialValidationService(session: session)
+
+        try await service.validateCredential(apiKey: "dsk-live", provider: .deepSeek)
+    }
+
     @Test func validationRejectsMissingKeyBeforeMakingRequest() async {
         let service = ProviderCredentialValidationService(session: TestURLSessionFactory.makeSession())
 

@@ -1,4 +1,5 @@
 #if os(macOS)
+    import StetCore
     import Testing
 
     @testable import Stet

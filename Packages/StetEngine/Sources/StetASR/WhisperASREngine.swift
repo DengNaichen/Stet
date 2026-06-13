@@ -1,6 +1,5 @@
 import Foundation
 import AVFoundation
-import StetAI
 import whisper
 
 public final class WhisperASREngine: ASREngine {
