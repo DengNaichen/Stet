@@ -12,8 +12,8 @@ enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
     case gemma2_9b = "gemma2-9b-it"
 
     // Chinese Provider Models
-    case deepseekChat = "deepseek-chat"
-    case deepseekReasoner = "deepseek-reasoner"
+    case deepseekV4Flash = "deepseek-v4-flash"
+    case deepseekV4Pro = "deepseek-v4-pro"
     case qwenMax = "qwen-max"
     case qwenPlus = "qwen-plus"
     case qwenTurbo = "qwen-turbo"
@@ -40,8 +40,8 @@ enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
         case .llama3_70b: return NSLocalizedString("Llama 3.3 70B", comment: "")
         case .mixtral8x7b: return NSLocalizedString("Mixtral 8x7B", comment: "")
         case .gemma2_9b: return NSLocalizedString("Gemma 2 9B", comment: "")
-        case .deepseekChat: return NSLocalizedString("DeepSeek Chat", comment: "")
-        case .deepseekReasoner: return NSLocalizedString("DeepSeek Reasoner", comment: "")
+        case .deepseekV4Flash: return NSLocalizedString("DeepSeek V4 Flash (Default)", comment: "")
+        case .deepseekV4Pro: return NSLocalizedString("DeepSeek V4 Pro", comment: "")
         case .qwenMax: return NSLocalizedString("Qwen Max", comment: "")
         case .qwenPlus: return NSLocalizedString("Qwen Plus", comment: "")
         case .qwenTurbo: return NSLocalizedString("Qwen Turbo", comment: "")
@@ -64,7 +64,7 @@ enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
         case .groq:
             return [.gptOss20b, .llama3_70b, .mixtral8x7b, .gemma2_9b]
         case .deepSeek:
-            return [.deepseekChat, .deepseekReasoner]
+            return [.deepseekV4Flash, .deepseekV4Pro]
         case .qwen:
             return [.qwenMax, .qwenPlus, .qwenTurbo]
         case .glm:
@@ -84,7 +84,7 @@ enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
         switch provider {
         case .openAI: return .gpt54Nano
         case .groq: return .gptOss20b
-        case .deepSeek: return .deepseekChat
+        case .deepSeek: return .deepseekV4Flash
         case .qwen: return .qwenPlus
         case .glm: return .glm4
         case .doubao: return .doubao

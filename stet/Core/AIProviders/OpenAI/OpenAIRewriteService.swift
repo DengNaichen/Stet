@@ -10,6 +10,11 @@ struct OpenAIRewriteService: TextRewriteService {
     private struct ChatCompletionRequest: Encodable {
         let model: String
         let messages: [ChatCompletionMessage]
+        let thinking: ChatCompletionThinking?
+    }
+
+    private struct ChatCompletionThinking: Encodable {
+        let type: String
     }
 
     private struct ChatCompletionResponse: Decodable {
@@ -161,10 +166,16 @@ struct OpenAIRewriteService: TextRewriteService {
                 messages: [
                     ChatCompletionMessage(role: "system", content: prepared.systemPrompt),
                     ChatCompletionMessage(role: "user", content: prepared.userPrompt),
-                ]
+                ],
+                thinking: Self.thinkingConfiguration(for: endpoint.provider)
             )
         )
         return request
+    }
+
+    nonisolated private static func thinkingConfiguration(for provider: DictationProvider) -> ChatCompletionThinking? {
+        guard provider == .deepSeek else { return nil }
+        return ChatCompletionThinking(type: "disabled")
     }
 
     private func makeMessages(

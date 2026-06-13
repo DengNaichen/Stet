@@ -93,6 +93,23 @@
             #expect(viewModel.missingCredentialMessage == nil)
         }
 
+        @Test func deepSeekRewriteIsSelectableAndUsesV4Models() {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(true, forKey: MacPreferences.rewriteEnabled)
+
+            let viewModel = MacOpenAISettingsViewModel(
+                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
+            )
+
+            viewModel.load()
+            viewModel.unifiedProvider = .deepSeek
+
+            #expect(viewModel.rewriteProvider == .deepSeek)
+            #expect(viewModel.selectedModel == .deepseekV4Flash)
+            #expect(viewModel.availableModels == [.deepseekV4Flash, .deepseekV4Pro])
+            #expect(viewModel.visibleCredentialProviders == [.deepSeek])
+        }
+
         @Test func loadRespectsStoredRewriteDisabledValue() {
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(false, forKey: MacPreferences.rewriteEnabled)

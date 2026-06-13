@@ -168,9 +168,9 @@
                     } else {
                         return true
                     }
-                case .openAI, .google, .anthropic, .groq:
+                case .openAI, .google, .anthropic, .groq, .deepSeek:
                     return false
-                case .deepSeek, .qwen, .glm, .doubao:
+                case .qwen, .glm, .doubao:
                     // These are placeholders for now
                     return true
                 }
