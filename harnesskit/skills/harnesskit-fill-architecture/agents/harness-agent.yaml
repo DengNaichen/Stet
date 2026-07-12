@@ -1,0 +1,4 @@
+interface:
+  display_name: "生成 Architecture Claims"
+  short_description: "生成或选择架构地图的 Markdown Claims"
+  default_prompt: "使用 $harnesskit-fill-architecture 在 Bootstrap 或选择性 Adopt 中维护 root/part Architecture Claims，并通过 deterministic tooling 建立 provenance。"

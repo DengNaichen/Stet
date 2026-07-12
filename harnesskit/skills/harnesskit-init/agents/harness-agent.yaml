@@ -1,0 +1,4 @@
+interface:
+  display_name: "Harness 初始化"
+  short_description: "编排 Markdown-first Claim 与最终验证"
+  default_prompt: "使用 $harnesskit-init 编排 missing-only materialize、Facts-before-Practices 问卷、确定性 provenance 与最终 receipt。"

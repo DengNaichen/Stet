@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "checks": [
+    {
+      "name": "claims-verify",
+      "command": ["node", "scripts/claims-verify.cjs", "--json"]
+    }
+  ]
+}

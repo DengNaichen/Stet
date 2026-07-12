@@ -1,0 +1,4 @@
+interface:
+  display_name: "生成 Development Claims"
+  short_description: "生成或选择本地开发指南的 Markdown Claims"
+  default_prompt: "使用 $harnesskit-fill-development 在 Bootstrap 或选择性 Adopt 中维护 Development Claims，并通过 deterministic tooling 建立 provenance。"

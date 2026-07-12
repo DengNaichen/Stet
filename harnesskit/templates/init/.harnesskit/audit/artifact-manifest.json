@@ -1,0 +1,87 @@
+{
+  "schema_version": 3,
+  "claim_namespaces": [
+    {
+      "namespace": "AGENT",
+      "display_name": "Agent guidance",
+      "next_number": 1
+    },
+    {
+      "namespace": "ARCHITECTURE",
+      "display_name": "Architecture",
+      "next_number": 1
+    },
+    {
+      "namespace": "CODING",
+      "display_name": "Coding rules",
+      "next_number": 1
+    },
+    {
+      "namespace": "DEVELOPMENT",
+      "display_name": "Development",
+      "next_number": 1
+    },
+    {
+      "namespace": "PRODUCT",
+      "display_name": "Product sense",
+      "next_number": 1
+    },
+    {
+      "namespace": "RELIABILITY",
+      "display_name": "Reliability",
+      "next_number": 1
+    },
+    {
+      "namespace": "SECURITY",
+      "display_name": "Security",
+      "next_number": 1
+    },
+    {
+      "namespace": "VALIDATION",
+      "display_name": "Validation",
+      "next_number": 1
+    }
+  ],
+  "claim_artifacts": [
+    {
+      "path": "AGENTS.md",
+      "namespace": "AGENT",
+      "sidecar": ".harnesskit/audit/claims/AGENTS.json"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "namespace": "ARCHITECTURE",
+      "sidecar": ".harnesskit/audit/claims/ARCHITECTURE.json"
+    },
+    {
+      "path": "docs/DEVELOPMENT.md",
+      "namespace": "DEVELOPMENT",
+      "sidecar": ".harnesskit/audit/claims/docs-DEVELOPMENT.json"
+    },
+    {
+      "path": "docs/VALIDATION.md",
+      "namespace": "VALIDATION",
+      "sidecar": ".harnesskit/audit/claims/verification.json"
+    },
+    {
+      "path": "docs/rules/CODING.md",
+      "namespace": "CODING",
+      "sidecar": ".harnesskit/audit/claims/docs-rules-CODING.json"
+    },
+    {
+      "path": "docs/rules/PRODUCT_SENSE.md",
+      "namespace": "PRODUCT",
+      "sidecar": ".harnesskit/audit/claims/docs-rules-PRODUCT_SENSE.json"
+    },
+    {
+      "path": "docs/rules/RELIABILITY.md",
+      "namespace": "RELIABILITY",
+      "sidecar": ".harnesskit/audit/claims/docs-rules-RELIABILITY.json"
+    },
+    {
+      "path": "docs/rules/SECURITY.md",
+      "namespace": "SECURITY",
+      "sidecar": ".harnesskit/audit/claims/docs-rules-SECURITY.json"
+    }
+  ]
+}

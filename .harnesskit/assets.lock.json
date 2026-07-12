@@ -1,0 +1,313 @@
+{
+  "schema_version": 1,
+  "purpose": "TOK-417 minimal HarnessKit asset snapshot for TOK-413 Codex CLI dogfood",
+  "source": {
+    "repository": "https://github.com/DengNaichen/harnesskit-shared-memory",
+    "commit": "14f7f8c7ced6d64691e7395cadb0fb7eaf0e3840"
+  },
+  "target": {
+    "repository": "https://github.com/DengNaichen/Stet",
+    "baseline_commit": "905cb9a7998da301cbbfdd2574937a7a313bd69c",
+    "branch": "tok-417-harnesskit-assets"
+  },
+  "files": [
+    {
+      "source": "harnesskit/protocol/README.md",
+      "target": "harnesskit/protocol/README.md",
+      "sha256": "1e6600050356690b7b78c0c6c263aaca3d32fe65a8d9d7612d1a8ed87f3efa79",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/protocol/question-v1.json",
+      "target": "harnesskit/protocol/question-v1.json",
+      "sha256": "cec3a844ff94ea5f9907a12b91c4d90fda1f5b6ab20a7e05f78c5d100c1de5ca",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/scripts/init-materialize.mjs",
+      "target": "harnesskit/scripts/init-materialize.mjs",
+      "sha256": "736c8789b6710b27f5bc24cd52c8714e6320a3727458a3c2e5e33478edc02139",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/skills/harnesskit-fill-agents/SKILL.md",
+      "target": "harnesskit/skills/harnesskit-fill-agents/SKILL.md",
+      "sha256": "abf3e64698b5d2564eb9b2a11ef0a2fd5e45a6ec161c301c7c2317f06dc0aac3",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/skills/harnesskit-fill-agents/agents/harness-agent.yaml",
+      "target": "harnesskit/skills/harnesskit-fill-agents/agents/harness-agent.yaml",
+      "sha256": "099f8043caa1b5cd520aea4f86ffa7e53b142328f73a3aaa3307021ed9d6b368",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/skills/harnesskit-fill-architecture/SKILL.md",
+      "target": "harnesskit/skills/harnesskit-fill-architecture/SKILL.md",
+      "sha256": "bade94ee57b5ea0902342bc214782f607937bad36b0f2612da277e39443febc3",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/skills/harnesskit-fill-architecture/agents/harness-agent.yaml",
+      "target": "harnesskit/skills/harnesskit-fill-architecture/agents/harness-agent.yaml",
+      "sha256": "136080af374e3ef9b4e2efcd785f10c00578e5d40c267151ef6be2fb8148013b",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/skills/harnesskit-fill-development/SKILL.md",
+      "target": "harnesskit/skills/harnesskit-fill-development/SKILL.md",
+      "sha256": "c1fbff81a2264a74cc61208159be25851753f92d79923b05ce4ee1ca6ef5f311",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/skills/harnesskit-fill-development/agents/harness-agent.yaml",
+      "target": "harnesskit/skills/harnesskit-fill-development/agents/harness-agent.yaml",
+      "sha256": "e8d6cc5dca572920ee08aca46ac8912bd281a04fc6e87a07e4934411b2ce8932",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/skills/harnesskit-fill-rules/SKILL.md",
+      "target": "harnesskit/skills/harnesskit-fill-rules/SKILL.md",
+      "sha256": "ab86950fcdd78620fd8ff9e409826174eaa41d6c6ad0a407872ed9c7eafaee02",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/skills/harnesskit-fill-rules/agents/harness-agent.yaml",
+      "target": "harnesskit/skills/harnesskit-fill-rules/agents/harness-agent.yaml",
+      "sha256": "17d61acf2789f4ce54a13bc75aa9c4458c6062a2c251645d0e0a6961e8adac04",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/skills/harnesskit-fill-validation/SKILL.md",
+      "target": "harnesskit/skills/harnesskit-fill-validation/SKILL.md",
+      "sha256": "89b84956acd50c7a3ff9868efc2b8fc03b48e452da02f69bcd1f9d1c67436256",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/skills/harnesskit-fill-validation/agents/harness-agent.yaml",
+      "target": "harnesskit/skills/harnesskit-fill-validation/agents/harness-agent.yaml",
+      "sha256": "35f73af4da6a68bcfbe46a17856beaaef743773ac3c3a755ac6539e8e60e6614",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/skills/harnesskit-init/SKILL.md",
+      "target": "harnesskit/skills/harnesskit-init/SKILL.md",
+      "sha256": "908e05b200696729d319b3c1e0673beaee6ecd19e327acc44f2c0a150395da05",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/skills/harnesskit-init/agents/harness-agent.yaml",
+      "target": "harnesskit/skills/harnesskit-init/agents/harness-agent.yaml",
+      "sha256": "4b9b732d896af49c25846157c88bc6e1a9fd67faa167dc7a64205c8192c0429a",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/skills/harnesskit-scan-facts/SKILL.md",
+      "target": "harnesskit/skills/harnesskit-scan-facts/SKILL.md",
+      "sha256": "1fb3a42dc1fb7b5a491c2f67374aee1050dfef865a2cdde2452b5b8fe138c495",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/skills/harnesskit-scan-facts/agents/harness-agent.yaml",
+      "target": "harnesskit/skills/harnesskit-scan-facts/agents/harness-agent.yaml",
+      "sha256": "41f8926b7e7170e153ec345f39fb34ab809e148bbf27d33383deda8be1cd0a78",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/.gitignore",
+      "target": "harnesskit/templates/init/.gitignore",
+      "sha256": "9ba0e159ff3eeb2297102e451247f71e5406233dc6cd0a91fe71c6cbec80a0c8",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/.harnesskit/audit/artifact-manifest.json",
+      "target": "harnesskit/templates/init/.harnesskit/audit/artifact-manifest.json",
+      "sha256": "76941b48356d6bd9b7796e7790e8c6066f73ba87e44b5d0039c0409fbe68b149",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/.harnesskit/audit/claims/AGENTS.json",
+      "target": "harnesskit/templates/init/.harnesskit/audit/claims/AGENTS.json",
+      "sha256": "972a1babd7a10cacd6b662d0ee9c52c2e2dfaeb43ee34e9c3fe05e9bb8e9f919",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/.harnesskit/audit/claims/ARCHITECTURE.json",
+      "target": "harnesskit/templates/init/.harnesskit/audit/claims/ARCHITECTURE.json",
+      "sha256": "7f5d46596d52a61aa9e9cdb2fd7d0b26c83e85948a395129437615593483caa4",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/.harnesskit/audit/claims/docs-DEVELOPMENT.json",
+      "target": "harnesskit/templates/init/.harnesskit/audit/claims/docs-DEVELOPMENT.json",
+      "sha256": "d7ae8b163d417457de5cb3461a3f0417a5ef621d631d36088ee640de06cc46ec",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/.harnesskit/audit/claims/docs-rules-CODING.json",
+      "target": "harnesskit/templates/init/.harnesskit/audit/claims/docs-rules-CODING.json",
+      "sha256": "853b54cf18bc1053b2cb07209d9b8ccd82d6aef2ca67cbaae242210dfe80ed65",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/.harnesskit/audit/claims/docs-rules-PRODUCT_SENSE.json",
+      "target": "harnesskit/templates/init/.harnesskit/audit/claims/docs-rules-PRODUCT_SENSE.json",
+      "sha256": "c1acfb2acb15cf729b7a44fd6494d814e4fd296ff1155a0b6a6412e93465c0fa",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/.harnesskit/audit/claims/docs-rules-RELIABILITY.json",
+      "target": "harnesskit/templates/init/.harnesskit/audit/claims/docs-rules-RELIABILITY.json",
+      "sha256": "f4add316faeec424396a69f11e2b9e90b49c7982298fbb50e65c1b2edc80ec79",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/.harnesskit/audit/claims/docs-rules-SECURITY.json",
+      "target": "harnesskit/templates/init/.harnesskit/audit/claims/docs-rules-SECURITY.json",
+      "sha256": "85c67fce627ce2f87fe02fcacf9e87fe5bfb7fb86113cffe30a8ef3862c47644",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/.harnesskit/audit/claims/verification.json",
+      "target": "harnesskit/templates/init/.harnesskit/audit/claims/verification.json",
+      "sha256": "51e2d7380d45e5e2d7fde654bf8ba2dc4175d94cafb4a3afb8323720df64c447",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/.harnesskit/audit/state/run-state.json",
+      "target": "harnesskit/templates/init/.harnesskit/audit/state/run-state.json",
+      "sha256": "e1cbfd892808f82f2050d93453549caad5035d1e7bcf1d6de5520314b6666798",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/.harnesskit/audit/transcript/README.md",
+      "target": "harnesskit/templates/init/.harnesskit/audit/transcript/README.md",
+      "sha256": "aa35c90cfeeaa74e395aeb7e89005febef647f14321f673e97090e6d4e1c4fa7",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/.harnesskit/validation.json",
+      "target": "harnesskit/templates/init/.harnesskit/validation.json",
+      "sha256": "f5ef6ce2f3a6726428cda30391c14dfd22191314970311ab386e4735241f5f04",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/AGENTS.md",
+      "target": "harnesskit/templates/init/AGENTS.md",
+      "sha256": "8ff54b6090c760ec873fcd750734187b59a39703ff757a98d2bf8a675acc036c",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/docs/ARCHITECTURE.md",
+      "target": "harnesskit/templates/init/docs/ARCHITECTURE.md",
+      "sha256": "67a874d99bafe56603a385887e409ce242ef1986f4906837e4708f5f47a5d38f",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/docs/DEVELOPMENT.md",
+      "target": "harnesskit/templates/init/docs/DEVELOPMENT.md",
+      "sha256": "dcb918cede0908e02499bfebaf526fb469966992cef57bfa8a4da65c51a570e7",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/docs/VALIDATION.md",
+      "target": "harnesskit/templates/init/docs/VALIDATION.md",
+      "sha256": "dd45209c42fb9ad0c0af557e9c09b567c5cb8895350c3e76de00a088d1be46ba",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/docs/rules/CODING.md",
+      "target": "harnesskit/templates/init/docs/rules/CODING.md",
+      "sha256": "3f0f5416056feb591d64cf9e686d4f2197918eeeaa75d2e42766258a87354b4c",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/docs/rules/PRODUCT_SENSE.md",
+      "target": "harnesskit/templates/init/docs/rules/PRODUCT_SENSE.md",
+      "sha256": "184ec3665607d13351ac7b6980e0e4e373e7c30dc2eeeee82a5cb61c3d4f152a",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/docs/rules/RELIABILITY.md",
+      "target": "harnesskit/templates/init/docs/rules/RELIABILITY.md",
+      "sha256": "ee638b3ac8131257f48d7b538d8c7c55dff1334e08cb364c830355b538571ee0",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/docs/rules/SECURITY.md",
+      "target": "harnesskit/templates/init/docs/rules/SECURITY.md",
+      "sha256": "398bfaeb21a17e9ce988a0048a3fd3b836e516102afcba95a9013e1b097a51bd",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/scripts/claims-verify.cjs",
+      "target": "harnesskit/templates/init/scripts/claims-verify.cjs",
+      "sha256": "4184f16de70480ac618268b867b6db20bf5ffba3206e24051250531912b8fd2b",
+      "executable": false
+    },
+    {
+      "source": "harnesskit/templates/init/scripts/verify",
+      "target": "harnesskit/templates/init/scripts/verify",
+      "sha256": "b2f7f64b20646cb720422960f3413d42a9f009d64c0fba7767b21304bd27533a",
+      "executable": true
+    },
+    {
+      "source": "harnesskit/templates/init/scripts/verify.cjs",
+      "target": "harnesskit/templates/init/scripts/verify.cjs",
+      "sha256": "6c1ba0e591be9d133ec402441ced63e580b392244150d68f2d48d85e72a6cd20",
+      "executable": false
+    }
+  ],
+  "discovery_bridges": [
+    {
+      "link": ".agents/skills/harnesskit-init",
+      "target": "../../harnesskit/skills/harnesskit-init"
+    },
+    {
+      "link": ".agents/skills/harnesskit-scan-facts",
+      "target": "../../harnesskit/skills/harnesskit-scan-facts"
+    },
+    {
+      "link": ".agents/skills/harnesskit-fill-agents",
+      "target": "../../harnesskit/skills/harnesskit-fill-agents"
+    },
+    {
+      "link": ".agents/skills/harnesskit-fill-architecture",
+      "target": "../../harnesskit/skills/harnesskit-fill-architecture"
+    },
+    {
+      "link": ".agents/skills/harnesskit-fill-development",
+      "target": "../../harnesskit/skills/harnesskit-fill-development"
+    },
+    {
+      "link": ".agents/skills/harnesskit-fill-validation",
+      "target": "../../harnesskit/skills/harnesskit-fill-validation"
+    },
+    {
+      "link": ".agents/skills/harnesskit-fill-rules",
+      "target": "../../harnesskit/skills/harnesskit-fill-rules"
+    }
+  ],
+  "excluded_runtime_assets": [
+    {
+      "source": "harnesskit/manifests/context-artifacts.json",
+      "reason": "The selected workflow consumes the repo-local artifact manifest materialized from templates/init."
+    },
+    {
+      "source": "harnesskit/schemas/claim-v1.json",
+      "reason": "The materialized scripts/claims-verify.cjs is self-contained and does not read this schema file."
+    },
+    {
+      "source": "harnesskit/prompts/runtime-system.md",
+      "reason": "TOK-413 runs the local Codex CLI directly and does not use a backend/runtime system prompt."
+    },
+    {
+      "source": "harnesskit/protocol/prompt-envelope-v2.json",
+      "reason": "TOK-413 does not use the backend/runtime PromptEnvelope path."
+    }
+  ],
+  "target_owned_installation_files": [
+    ".harnesskit/assets.lock.json",
+    "scripts/verify-harnesskit-assets.mjs"
+  ]
+}

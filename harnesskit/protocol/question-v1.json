@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harnesskit.dev/protocol/question-v1.json",
+  "title": "HarnessKit Runtime Question Protocol v1",
+  "description": "Canonical runtime-to-backend question protocol. v1.1 requires round context, rationale, and sources for user-facing Questionnaire review.",
+  "type": "object",
+  "required": ["kind", "round", "prompt", "rationale", "sources", "options", "allow_other"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": ["single_choice"]
+    },
+    "round": {
+      "type": "object",
+      "required": ["title"],
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "summary": {
+          "type": "string",
+          "pattern": "\\S"
+        }
+      }
+    },
+    "prompt": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "claim": {
+      "type": "object",
+      "required": ["rows"],
+      "additionalProperties": false,
+      "properties": {
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["value"],
+            "additionalProperties": false,
+            "properties": {
+              "label": {
+                "type": "string",
+                "pattern": "\\S"
+              },
+              "value": {
+                "type": "string",
+                "pattern": "\\S"
+              }
+            }
+          }
+        }
+      }
+    },
+    "rationale": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["summary"],
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "\\S"
+          },
+          "summary": {
+            "type": "string",
+            "pattern": "\\S"
+          }
+        }
+      }
+    },
+    "options": {
+      "type": "array",
+      "minItems": 1,
+      "default": [
+        {
+          "id": "accept",
+          "label": "同意"
+        }
+      ],
+      "items": {
+        "type": "object",
+        "required": ["id", "label"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^\\S(?:.*\\S)?$"
+          },
+          "label": {
+            "type": "string",
+            "pattern": "\\S"
+          }
+        }
+      }
+    },
+    "allow_other": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true, the UI renders the alternate path as 要修改."
+    },
+    "timeout": {
+      "type": "string",
+      "pattern": "^\\+?(?:(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:ns|us|µs|μs|ms|s|m|h))+$",
+      "description": "Optional Go time.Duration string. Backend defaults missing timeout to 24h."
+    }
+  },
+  "$defs": {
+    "question_answer": {
+      "title": "HarnessKit Question Answer",
+      "description": "Answer payloads use explicit kind semantics. agent_decide is not represented as a normal option_id.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/single_choice_answer"
+        },
+        {
+          "$ref": "#/$defs/agent_decide_answer"
+        }
+      ]
+    },
+    "question_action": {
+      "title": "HarnessKit Question Action",
+      "description": "Action payloads share the answer semantics for accept/custom text/agent_decide processing.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/single_choice_answer"
+        },
+        {
+          "$ref": "#/$defs/agent_decide_answer"
+        }
+      ]
+    },
+    "single_choice_answer": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "single_choice"
+        },
+        "option_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "text": {
+          "type": "string",
+          "pattern": "\\S"
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["option_id"],
+          "not": {
+            "required": ["text"]
+          }
+        },
+        {
+          "required": ["text"],
+          "not": {
+            "required": ["option_id"]
+          }
+        }
+      ]
+    },
+    "agent_decide_answer": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "agent_decide"
+        }
+      }
+    }
+  }
+}
