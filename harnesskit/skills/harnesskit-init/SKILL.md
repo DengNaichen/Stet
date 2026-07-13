@@ -47,8 +47,8 @@ node /opt/harnesskit/scripts/init-materialize.mjs --target "$PWD"
 4. Facts 收敛后，按顺序调用 `$harnesskit-fill-validation`、`$harnesskit-fill-development`、`$harnesskit-fill-architecture`、`$harnesskit-fill-rules`、`$harnesskit-fill-agents`。每个 skill 生成或选择自己的 atomic Claims 并调用 tooling 分配 ID。Observed 或 scan handoff 已证明存在独立、权威 repository confirmation 的 intent 可写入 Markdown；默认 intent 进入真实用户确认，只保存 pending draft，不得先改 target Markdown。
 5. 若存在 Practices 问题，在 pause 前把每个 pending intent 的 artifact、allocated ID、完整推荐 statement、Adopt exact selected bytes 或 Bootstrap insertion anchor 保存到 run-state `open_questions`。Init 按 canonical protocol 集中组轮；问题显示具体 Claim ID 与完整 statement。输出 `needs_input` 后 target Markdown 必须仍未包含这些 pending intent。
 6. Continuation 只从保存的 pending context 恢复。先确认 target 与保存的 selected bytes/anchor 仍一致；不一致时停止并重新声明，不能模糊查找或覆盖。对用户明确同意的 IDs，用 tooling 写 immutable confirmation record，再由原 artifact owner 执行最小 Markdown 写入。每个 confirmation batch 使用新的唯一 repo-relative ref；已存在 record 不得覆盖或改写。
-7. 自定义修正交回原 artifact owner 重新核实，不把回答当 repository evidence；语义变化时退休原 ID并重新分配、重新确认。未确认或被拒绝的 pending intent 直接丢弃 draft，target Markdown 保持未改，其 allocated ID 退休且永不复用。随后每个 fill skill 把本 artifact **当前完整 tracked inventory** 交给 tooling 整份写 sidecar，不能只提交本轮新增项；空 inventory 写空 `items`。
-8. 运行 Claim verifier，按 artifact、ID、字段或 source 修正失败并重跑，直到 `valid: true` 且 `status: passed`。
+7. 自定义修正交回原 artifact owner 重新核实，不把回答当 repository evidence；语义变化时退休原 ID并重新分配、重新确认。未确认或被拒绝的 pending intent 直接丢弃 draft，target Markdown 保持未改，其 allocated ID 退休且永不复用。随后每个 fill skill 先删除本 artifact 中由精确 `harnesskit:todo-checklist:start` / `end` marker 包围的完整 authoring checklist block，再把**当前完整 tracked inventory**交给 tooling 整份写 sidecar；不得删除其他 HTML comment 或人写内容，marker 缺对时停止并报告冲突。不能只提交本轮新增项；空 inventory 写空 `items`。
+8. 运行 `node scripts/claims-verify.cjs verify --final --json`，按 artifact、ID、字段、source 或残留 authoring checklist 修正失败并重跑，直到 `valid: true` 且 `status: passed`。普通 `verify` 允许未完成轮次保留 checklist；只有 `--final` 是退出门禁。
 9. 运行项目配置的 root validation runner。只有 receipt `status: passed` 才能完成；引用 latest receipt 及 run receipt 路径。
 
 ## Questionnaire 编排
@@ -71,6 +71,7 @@ node scripts/claims-verify.cjs confirm-user --ref ".harnesskit/audit/transcript/
 mkdir -p .harnesskit/audit/evidence
 node scripts/claims-verify.cjs write-sidecar --artifact "docs/ARCHITECTURE.md" --input ".harnesskit/audit/evidence/architecture-sidecar-input.json"
 node scripts/claims-verify.cjs verify --json
+node scripts/claims-verify.cjs verify --final --json
 ```
 
 示例路径和 ID 只说明 CLI 形状；实际 artifact、ref 和 IDs 必须来自 repo-local manifest 与 allocation 输出。每批用户确认使用新的唯一 ref，`confirm-user` record 一经写入不可覆盖。`write-sidecar` 输入必须枚举当前 Markdown 的完整 tracked inventory，并只提供 tooling 已分配的 `id`、agent 判断的 `kind`、observed source path 列表或已成立的 `confirmed_by` locator；writer 会整份替换该 artifact sidecar，同时计算 hash、排序并写最终 JSON。不要手写 ID、SHA-256 或最终 sidecar。
@@ -86,6 +87,7 @@ Verifier 把 canonical Markdown 中任何 literal registered token 都计入 inv
 - 每条 Claim 是单一 owner 下的 atomic `observed` 或 `intent`；statement 只在 Markdown。
 - 每个 observed source 安全、存在且 hash fresh；每个 intent 都有可定位的真实 `confirmed_by`。
 - Adopt 中所有未选择的人写 bytes 与修改前一致；没有整份文档替换、无关重排或格式化。
+- 所有 HarnessKit authoring checklist block 已删除，且 manifest-registered artifact 中不再残留对应 start/end marker。
 - `AGENTS.md` 只做启动和路由；Architecture、Development、Validation 与 rules 各守 owner 边界。
 - Claim verifier `passed`，root validation receipt 也为 `passed`。`not_configured`、`failed`、`skipped` 或 `not_run` 都不能报告为完成门禁通过。
 

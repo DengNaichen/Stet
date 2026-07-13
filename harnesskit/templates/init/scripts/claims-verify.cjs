@@ -829,7 +829,7 @@ function validateSidecar(root, manifest, artifact, value, violations, state) {
 	state.counts.sidecar_items += value.items.length;
 }
 
-function verifyClaims(root = process.cwd()) {
+function verifyClaims(root = process.cwd(), options = {}) {
 	const violations = [];
 	const counts = {
 		namespaces: 0,
@@ -881,7 +881,7 @@ function verifyClaims(root = process.cwd()) {
 		const markdown = safeRegularFile(root, artifact.path);
 		if (!markdown.ok) {
 			addViolation(violations, "artifact_unavailable", artifact.path, markdown.reason);
-		} else if (pattern) {
+		} else {
 			let contents;
 			try {
 				contents = readFileWithoutFollowingSymlink(markdown.path).toString("utf8");
@@ -890,26 +890,39 @@ function verifyClaims(root = process.cwd()) {
 				contents = null;
 			}
 			if (contents !== null) {
-				pattern.lastIndex = 0;
-				let match;
-				while ((match = pattern.exec(contents)) !== null) {
-					const id = `${match[1]}-${match[2]}`;
-					counts.markdown_tokens += 1;
-					markdownIds.add(id);
-					const locations = state.markdownLocations.get(id) || [];
-					locations.push(`${artifact.path}:${match.index}`);
-					state.markdownLocations.set(id, locations);
-					const parsed = parseClaimIdForNamespace(id, match[1]);
-					if (parsed === null) {
-						addViolation(violations, "claim_id_invalid", artifact.path, `${id} is not canonically numbered`);
-					}
-					if (match[1] !== artifact.namespace) {
+				if (options.final === true) {
+					const marker = /<!--\s*harnesskit:todo-checklist:(?:start|end)\s*-->/.exec(contents);
+					if (marker) {
 						addViolation(
 							violations,
-							"markdown_namespace_mismatch",
+							"authoring_checklist_remaining",
 							artifact.path,
-							`${id} belongs to ${match[1]}, expected ${artifact.namespace}`,
+							`remove the HarnessKit authoring checklist marker at character offset ${marker.index}`,
 						);
+					}
+				}
+				if (pattern) {
+					pattern.lastIndex = 0;
+					let match;
+					while ((match = pattern.exec(contents)) !== null) {
+						const id = `${match[1]}-${match[2]}`;
+						counts.markdown_tokens += 1;
+						markdownIds.add(id);
+						const locations = state.markdownLocations.get(id) || [];
+						locations.push(`${artifact.path}:${match.index}`);
+						state.markdownLocations.set(id, locations);
+						const parsed = parseClaimIdForNamespace(id, match[1]);
+						if (parsed === null) {
+							addViolation(violations, "claim_id_invalid", artifact.path, `${id} is not canonically numbered`);
+						}
+						if (match[1] !== artifact.namespace) {
+							addViolation(
+								violations,
+								"markdown_namespace_mismatch",
+								artifact.path,
+								`${id} belongs to ${match[1]}, expected ${artifact.namespace}`,
+							);
+						}
 					}
 				}
 			}
@@ -979,7 +992,7 @@ function assertKnownOptions(args, options) {
 	for (let index = 0; index < args.length; index += 1) {
 		const arg = args[index];
 		if (!arg.startsWith("--") || !options.has(arg)) throw new Error(`unknown argument: ${arg}`);
-		if (arg === "--json") continue;
+		if (arg === "--json" || arg === "--final") continue;
 		index += 1;
 	}
 }
@@ -987,7 +1000,7 @@ function assertKnownOptions(args, options) {
 function usage() {
 	return [
 		"Usage:",
-		"  node scripts/claims-verify.cjs [verify] [--json] [--root <repo>]",
+		"  node scripts/claims-verify.cjs [verify] [--final] [--json] [--root <repo>]",
 		"  node scripts/claims-verify.cjs allocate --artifact <path> [--count <n>] [--root <repo>]",
 		"  node scripts/claims-verify.cjs hash --path <path> [--root <repo>]",
 		"  node scripts/claims-verify.cjs confirm-user --ref <path> --confirmed-by <name> --date <YYYY-MM-DD> --claim <id> [--claim <id> ...] [--root <repo>]",
@@ -1010,8 +1023,8 @@ function main(argv = process.argv.slice(2)) {
 	}
 	const root = resolve(optionValue(args, "--root") || process.cwd());
 	if (command === "verify") {
-		assertKnownOptions(args, new Set(["--json", "--root"]));
-		const report = verifyClaims(root);
+		assertKnownOptions(args, new Set(["--final", "--json", "--root"]));
+		const report = verifyClaims(root, { final: args.includes("--final") });
 		if (args.includes("--json")) process.stdout.write(canonicalJSONStringify(report));
 		else {
 			process.stdout.write(`Claim verification ${report.status}: ${report.violations.length} violation(s)\n`);
