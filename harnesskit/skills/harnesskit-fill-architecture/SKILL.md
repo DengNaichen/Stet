@@ -32,16 +32,28 @@ Materialize 为本次 init 创建的 `.harnesskit/**`、support scripts、Claim 
 
 Kickoff 地图是 repo shape 与 part roots 的起点，不能替代本份证据核实。Architecture 在 Validation、Development 封存后处理；读取它们的已封存 Markdown 定稿做交叉引用，使用裸 Claim ID，不复制其 command、环境步骤或验证规范。Sidecar 只提供 provenance，不能替代 Markdown statement。
 
+## Intent 问题发现
+
+完成最低扫描后、分配任何新 ID 或写入 target 前，必须执行一次本份 intent discovery pass。先从当前 evidence 提取仓库实际使用的 build unit、模块、领域对象、生命周期动作、生成源头与 contract 名称，作为 repo-native anchors；推荐 statement 中的关键名词、边界与动作必须能回指这些 anchors，任何由本 skill 带入而仓库未使用的 stack 词汇都要重写或丢弃。
+
+逐项检查：多个入口是否收敛到同一语义 owner 却没有明确长期边界；新增职责是否存在多个同样合理的放置位置或依赖方向；旁路是否绕过集中状态或副作用 owner；生成源头、运行时状态与可编辑输出是否容易混淆；public contract 的 ownership 或方向是否尚未裁决。这些只是发现模式，不是可直接写入的 statement。
+
+先用当前 evidence 形成模块、链路、依赖、生成源头与 gap 的现状地图，再建立仅存在于当前热上下文的候选池；每项至少包含 `repository signal → repo-native anchors → 未决判断 → 未来影响 → semantic owner → 完整推荐 statement`。在 allocation 前逐项过滤：可由 repository 直接裁决的当前事实转为 observed draft；已有独立权威 policy locator 的约束按既有 intent 处理；会实质改变未来依赖、放置或 public contract boundary 判断且仍未决的候选进入本份问题；通用最佳实践、低影响偏好、重复问题和其他 owner 内容丢弃或路由出去。历史状态、版本迁移与兼容保证路由 Reliability。
+
+完整推荐 statement 只能表达一个仍未裁决的未来决定；当前事实或 gap 留在 repository signal/observed draft，不能与 intent 捆绑。同一 signal 同时导出长期边界与临时补偿、迁移或验证动作时必须拆分。Evidence 只能证明风险而不能证明具体做法可行时，约束 bounded outcome，不指定未经 repository evidence 或权威 contract 核实的机制。
+
+候选必须 atomic、bounded。当前实现恰好符合某个约束，只能触发“是否应长期保持”的问题，不能自行确认该 intent。零 pending intent 合法，但只能在逐项执行上述发现模式后得出；不设置数量配额，也不持久化候选池。
+
 ## 本份轮次
 
-只为当前 architecture artifact 中 evidence 无法裁决的 intent 声明问题，例如 module/component/layer/part 边界、dependency direction、cross-part contract 与放置规则。每个问题必须展示 tooling 已分配的 Claim ID 与完整推荐 statement，并交给 `$harnesskit-init` 立即 emit 本份轮次；本 skill 不直接 pause，也不新增 Questionnaire 字段。不得把 root、part 或其他 artifact 的问题合并。
+只为本份 discovery pass 过滤后仍未决的高质量 intent 声明问题，例如 module/component/layer/part 边界、dependency direction、cross-part contract 与放置规则。每个问题必须展示 tooling 已分配的 Claim ID 与完整推荐 statement，并交给 `$harnesskit-init` 立即 emit 本份轮次；本 skill 不直接 pause，也不新增 Questionnaire 字段。不得把 root、part 或其他 artifact 的问题合并。
 
 零 intent 时不停顿，完成 draft 后直接清理并封存。用户答案能回 repository 验证时，复核为 `observed` 并记录安全 source paths；repository evidence 无法裁决时，当场按 `intent` 确认。用户自由文本只是修正或定向复核指令，不直接成为 evidence 或 durable guidance。
 
 ## Markdown-first workflow
 
 1. 从 init 计划与 repo-local artifact manifest 取得当前 root/part target，读取 materialize 结果、kickoff 地图、当前 target Markdown，以及已封存的 Validation/Development 定稿；只处理 manifest 已登记的 canonical artifact，并执行上述最低扫描面。
-2. Bootstrap 时生成最少但足够的架构地图；Adopt 时只选择本轮明确采用的既有 guidance，不把整份人工文档自动 atomize。把被选择内容拆成单一 Architecture owner 下的 atomic statement，并判断 `observed | intent`：
+2. 先执行本份 intent discovery pass，再起草或选择 tracked Claims。Bootstrap 时生成最少但足够的架构地图；Adopt 时只选择本轮明确采用的既有 guidance，不把整份人工文档自动 atomize。把被选择内容拆成单一 Architecture owner 下的 atomic statement，并判断 `observed | intent`：
    - observed 选择支持路径、模块、领域模型、生成边界、链路或依赖现状的安全 repo-relative sources；
    - intent 默认进入本份真实用户确认；只有当前 artifact owner 核实已存在、独立且权威的 repository confirmation locator 时才复用；
    - 路径现状与依赖/放置规则混在一句时拆成 observed 与 intent，不能用 catch-all statement 捆绑多个 section。

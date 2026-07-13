@@ -39,16 +39,35 @@ Materialize 为本次 init 创建的 `.harnesskit/**`、support scripts、Claim 
 
 Kickoff 地图只是 repo shape 与 part roots 的起点，不能替代本份证据核实。不要为后续 rule 预扫或保存全局候选池。
 
+## Intent 问题发现
+
+完成当前份最低扫描后、分配任何新 ID 或写入 target 前，必须执行一次仅属于当前 rule 的 intent discovery pass。先从当前 evidence 提取真实 identifier、状态、生命周期动作、数据边界、用户对象与产品反馈词汇，作为 repo-native anchors；推荐 statement 中的关键名词、边界与动作必须能回指这些 anchors，任何由本 skill 带入而仓库未使用的 stack 词汇都要重写或丢弃。不得预扫后续三份 rule。
+
+只按当前 artifact 逐项检查以下结构模式；模式用于找 signal，不是可复制规则：
+
+- **CODING**：同一职责是否反复出现多个组织、错误、并发或替身做法；常见形状是否只是局部实现却可能被外推全仓；生成输出与可编辑 source of truth 是否容易混淆。
+- **RELIABILITY**：不同 terminal path 是否留下不同 cleanup 或恢复状态；retry、replay、cancel 是否可能重复 side effect；fallback 是否属于必须保持的行为；历史状态、迁移或 release layout 是否缺少兼容决定。
+- **SECURITY**：同一敏感数据或权限边界是否存在旁路；日志、文件、网络或外部执行是否暴露仓库真实处理的数据；known gap 是否需要禁止、补偿控制或人工 review gate；外部来源是否缺少身份或完整性判断。
+- **PRODUCT_SENSE**：当前能力服务谁、核心任务与价值取舍是否仍未决；waiting、failure、empty 或 rejected 状态是否缺少一致用户保证；看似增强的行为是否会改变用户原意或产品定位。
+
+先用当前 evidence 形成行为、边界、gap 与现有 guidance 的本份地图，再建立仅存在于当前热上下文的候选池；每项至少包含 `repository signal → repo-native anchors → 未决判断 → 未来影响 → semantic owner → 完整推荐 statement`。
+
+在 allocation 前逐项过滤：当前行为或 gap 归 observed；已有独立权威 policy locator 的约束按既有 intent 处理；会实质改变未来实现、评审或风险处理且仍未决的候选进入本份问题；通用最佳实践、低影响偏好、无具体违规形态、重复问题和其他 owner 内容丢弃或路由出去。
+
+完整推荐 statement 只能表达一个仍未裁决的未来决定；当前行为或 gap 留在 repository signal/observed draft，不能与 intent 捆绑。同一 signal 同时导出长期规则与临时补偿、迁移或验证动作时必须拆分。Evidence 只能证明风险而不能证明具体做法可行时，约束 bounded outcome，不指定未经 repository evidence 或权威 contract 核实的机制。
+
+问题必须 atomic、bounded。零 pending intent 合法，但只能在逐项执行当前 artifact 的上述发现模式后得出；不设置问题配额，也不持久化候选池。
+
 ## 原子性与 section 归位
 
-- 每条 Claim 只表达一个 owner 下的一个判断。同句混合当前实现与规范要求时拆成 observed 与 intent；混合多个判断时即使同属一份也继续拆分；跨 rule 或跨 artifact 内容交给各自 owner。
+- 每条 Claim 只表达一个 owner 下的一个判断。同句混合当前实现与规范要求时拆成 observed 与 intent；混合多个判断时即使同属一份也继续拆分；跨 rule 或跨 artifact 内容交给各自 owner。共享同一 sink、文件、runner 或风险标签不代表同一判断；不同数据类别、生命周期条件、失败结果或用户承诺必须继续拆分。
 - 存在多个独立 intent 时生成多条小而完整的 proposed statements，不为减少停顿捆绑成末位 catch-all；不把固定 intent 数量当作质量要求。
 - 每条 statement 写入语义对应 section。CODING、RELIABILITY、SECURITY 的强制性 statement 必须进入本份 `硬约束` section；PRODUCT_SENSE 不新增技术硬约束 section。路径放置、验证命令或本地环境内容不能塞进 rule 的 catch-all。
 - 表格或列表只是表达形式，不决定 inventory；不得保留空模板 section 或空表，再把其判断集中放到别处。
 
 ## 本份轮次
 
-只为当前 rule artifact 中 repository evidence 无法裁决的 intent 声明问题。每个问题必须展示 tooling 已分配的 Claim ID、当前 artifact 与完整推荐 statement，并交给 `$harnesskit-init` 立即 emit 本份轮次；本 skill 不直接 pause，也不新增 Questionnaire 字段。
+只为当前 rule 的 discovery pass 过滤后仍未决的高质量 intent 声明问题。每个问题必须展示 tooling 已分配的 Claim ID、当前 artifact 与完整推荐 statement，并交给 `$harnesskit-init` 立即 emit 本份轮次；本 skill 不直接 pause，也不新增 Questionnaire 字段。
 
 用户答案能回 repository 验证时，复核为 `observed` 并记录安全 source paths；repository evidence 无法裁决时，当场按 `intent` 确认。用户自由文本只是修正或定向复核指令，不直接成为 evidence 或 durable guidance。
 
@@ -57,7 +76,7 @@ Kickoff 地图只是 repo shape 与 part roots 的起点，不能替代本份证
 对 init 计划中的每个 rule artifact 重复以下流程：
 
 1. 从 repo-local artifact manifest 取得当前 root/part target、namespace 与 sidecar mapping，读取 materialize 结果、kickoff 地图、当前 target Markdown、已封存的 Validation/Development/Architecture 定稿，以及顺序中此前已封存的 rule 定稿；只执行当前份的最低扫描面。
-2. Bootstrap 时生成最少但足够的领域 guidance；Adopt 时只选择本轮明确采用的既有 guidance，不把整份人工 policy 自动 atomize。按上述原子性与归位规则拆分 statement，并判断 `observed | intent`：
+2. 先执行当前份 intent discovery pass，再起草或选择 tracked Claims。Bootstrap 时生成最少但足够的领域 guidance；Adopt 时只选择本轮明确采用的既有 guidance，不把整份人工 policy 自动 atomize。按上述原子性与归位规则拆分 statement，并判断 `observed | intent`：
    - observed 选择能直接支持当前行为、边界或 gap 的最小安全 repo-relative sources；
    - intent 默认进入本份真实用户确认；只有当前 artifact owner 核实已存在、独立且权威的 repository confirmation locator 时才复用；
    - repository 里常见但未明文采用的做法不能自动升级为规范或硬约束。

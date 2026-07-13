@@ -35,9 +35,21 @@ AGENTS 是简洁的 agent 启动与路由入口：
 
 Materialize 为本次 init 创建的 `.harnesskit/**`、`scripts/claims-verify.cjs`、`scripts/verify`、`scripts/verify.cjs`、Claim verifier 输出、HarnessKit audit/receipt 与 completion status 只服务内部完成门禁，不生成 AGENTS Claim，也不作为目标仓库事实、validation 入口、操作策略或 observed source。相同脚本路径只有在 materialize 报告为 `skipped_existing` 且独立仓库证据证明其原本属于目标仓库时，才可按其原有语义处理。
 
+## Intent 问题发现
+
+读取全部已封存内容定稿并完成当前 AGENTS evidence scan 后、分配任何新 ID 或写入 target 前，必须执行一次本份 intent discovery pass。先从当前 evidence 提取项目形状、build unit、part、owner 与常见任务使用的真实名称和动作，作为 repo-native anchors；推荐 statement 中的关键名词、边界与动作必须能回指这些 anchors，任何由本 skill 带入而仓库未使用的 stack 词汇都要重写或丢弃。
+
+逐项检查：哪类任务不先读既有 owner 就会选错路径；哪个 repo shape 或 part 区分会立即改变搜索与修改方式；哪些高影响任务必须先核实真实 source of truth；content drift 应路由哪个 owner 而不是在 AGENTS 复制修复细节。这些只是发现模式，不是可直接写入的 statement。
+
+先形成项目形状、owner pointers、常见任务路由与 drift 的现状地图，再建立仅存在于当前热上下文的候选池；每项至少包含 `repository signal → repo-native anchors → 未决行动 gate → 未来影响 → semantic owner → 完整推荐 statement`。在 allocation 前逐项过滤：当前项目事实和 pointer 归 observed；已有独立权威 guidance 的 gate 按既有 intent 处理；会立即改变 agent 读取、核实或路由顺序且仍未决的候选进入本份问题；详细禁令、阈值、命令、通用建议和其他 owner 正文丢弃或仅保留链接。
+
+完整推荐 statement 只能表达一个仍未裁决的未来决定；当前事实或 gap 留在 repository signal/observed draft，不能与 intent 捆绑。同一 signal 同时导出长期 gate 与临时补偿、迁移或验证动作时必须拆分。Evidence 只能证明风险而不能证明具体做法可行时，约束 bounded outcome，不指定未经 repository evidence 或权威 contract 核实的机制。
+
+问题必须 atomic、bounded，压缩后仍能独立改变操作判断；不能为了“方便”复制 Architecture、Development、Validation 或 rules 内容。零 pending intent 合法，但只能在逐项执行上述发现模式后得出；不设置问题配额，也不持久化候选池。
+
 ## 本份轮次
 
-只为当前 AGENTS artifact 中 repository evidence 与已封存定稿无法裁决的路由或行动 gate intent 声明问题。每个问题必须展示 tooling 已分配的 Claim ID 与完整推荐 statement，并交给 `$harnesskit-init` 立即 emit 本份轮次；本 skill 不直接 pause，也不新增 Questionnaire 字段。不得把问题并入相邻 artifact 或 kickoff 轮次。
+只为本份 discovery pass 过滤后仍未决的高质量路由或行动 gate intent 声明问题。每个问题必须展示 tooling 已分配的 Claim ID 与完整推荐 statement，并交给 `$harnesskit-init` 立即 emit 本份轮次；本 skill 不直接 pause，也不新增 Questionnaire 字段。不得把问题并入相邻 artifact 或 kickoff 轮次。
 
 零 intent 时不停顿，完成 observed 写入、section 检查和封存后直接流过。单轮超过协议 8 题上限时按语义边界顺延本份溢出轮，不跨 artifact 合并，也不在题数边界腰斩一个领域。
 
@@ -46,7 +58,7 @@ Materialize 为本次 init 创建的 `.harnesskit/**`、`scripts/claims-verify.c
 ## Markdown-first workflow
 
 1. 从 init 计划与 repo-local artifact manifest 取得当前 root/part target、namespace 与 sidecar mapping，读取 materialize 结果、kickoff 地图、当前 target Markdown，以及当前 scope 全部已封存内容 artifact 的 Markdown 定稿；只处理 manifest 已登记的 canonical AGENTS artifact。
-2. Bootstrap 时把 skeleton 预填正文视为候选而非 evidence：heading、导航与解释性 prose 可保持无 ID；规范性路由、行动 gate 或项目 statement 只有在取证或确认后才保留为 tracked Claim，否则删除或按 section 三态明确说明。Adopt 时只选择本轮明确采用的既有 guidance，不把整份人工文档自动 atomize。把内容拆成单一 AGENTS owner 下的 atomic statement，并判断 `observed | intent`：
+2. 先执行本份 intent discovery pass，再起草或选择 tracked Claims。Bootstrap 时把 skeleton 预填正文视为候选而非 evidence：heading、导航与解释性 prose 可保持无 ID；规范性路由、行动 gate 或项目 statement 只有在取证或确认后才保留为 tracked Claim，否则删除或按 section 三态明确说明。Adopt 时只选择本轮明确采用的既有 guidance，不把整份人工文档自动 atomize。把内容拆成单一 AGENTS owner 下的 atomic statement，并判断 `observed | intent`：
    - observed 选择直接支持当前项目事实、route、pointer 或 gate 的最小安全 repo-relative sources；
    - intent 默认进入本份真实用户确认；只有当前 artifact owner 核实已存在、独立且权威的 repository confirmation locator 时才复用；
    - mixed observed/intent、mixed owner 或一句中的多个路由判断必须拆分，其他 owner 的正文只保留链接。

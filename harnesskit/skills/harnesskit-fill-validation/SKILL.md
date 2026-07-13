@@ -31,16 +31,28 @@ HarnessKit 为本次 init 创建的 `.harnesskit/**`、`scripts/claims-verify.cj
 
 Kickoff 地图中的 validation entrypoint 只是扫描起点，不能替代本份证据核实。优先读取真实 config、script、manifest、workflow、test 与仓库已采用的 guidance owner；候选命令、模板、示例、latest receipt 或单次成功结果不能单独证明已配置能力。
 
+## Intent 问题发现
+
+完成最低扫描后、分配任何新 ID 或写入 target 前，必须执行一次本份 intent discovery pass。先从当前 evidence 提取真实 check、runner、binding、风险对象、层级与结果状态的名称，作为 repo-native anchors；推荐 statement 中的关键名词、边界与动作必须能回指这些 anchors，任何由本 skill 带入而仓库未使用的 stack 词汇都要重写或丢弃。
+
+逐项检查：低成本层是否会被误当成高风险层的替代；已配置 check 是否缺少按变更风险选择的 action rule；binding 或 path filter 是否遗漏真实变更面；有副作用、外部前提或成本的检查应如何运行和报告；未运行、部分运行与完整通过的语义是否未决。不存在相应 validation layer 时跳过，不把候选命令写成现有能力。
+
+先用当前 evidence 形成 checks、binding、前提、副作用、结果语义与 gap 的现状地图，再建立仅存在于当前热上下文的候选池；每项至少包含 `repository signal → repo-native anchors → 未决判断 → 未来影响 → semantic owner → 完整推荐 statement`。在 allocation 前逐项过滤：当前 command/config/binding 归 observed；已有独立权威 policy locator 的 action/report rule 按既有 intent 处理；会改变风险覆盖、层级替代或结果报告且仍未决的候选进入本份问题；未配置命令、单次成功、全量 gate 偏好和其他 owner 内容丢弃或路由出去。
+
+完整推荐 statement 只能表达一个仍未裁决的未来决定；当前事实或 gap 留在 repository signal/observed draft，不能与 intent 捆绑。同一 signal 同时导出长期 binding 目标与临时补验或报告动作时必须拆分。Evidence 只能证明风险而不能证明具体做法可行时，约束 bounded outcome，不指定未经 repository evidence 或权威 contract 核实的机制。
+
+问题必须 atomic、bounded，并说明适用变更与真实 validation layer，不能用“所有改动跑全部检查”代替风险判断。零 pending intent 合法，但只能在逐项执行上述发现模式后得出；不设置问题配额，也不持久化候选池。
+
 ## 本份轮次
 
-只为当前 validation artifact 中 evidence 无法裁决的 intent 声明问题。每个问题必须展示 tooling 已分配的 Claim ID 与完整推荐 statement，并交给 `$harnesskit-init` 立即 emit 本份轮次；本 skill 不直接 pause，也不新增 Questionnaire 字段。不得把问题并入其他 artifact 的轮次。
+只为本份 discovery pass 过滤后仍未决的高质量 intent 声明问题。每个问题必须展示 tooling 已分配的 Claim ID 与完整推荐 statement，并交给 `$harnesskit-init` 立即 emit 本份轮次；本 skill 不直接 pause，也不新增 Questionnaire 字段。不得把问题并入其他 artifact 的轮次。
 
 零 intent 时不停顿，完成 draft 后直接清理并封存。用户答案能回 repository 验证时，复核为 `observed` 并记录安全 source paths；repository evidence 无法裁决时，当场按 `intent` 确认。用户自由文本只是修正或定向复核指令，不直接成为 evidence 或 durable guidance。
 
 ## Markdown-first workflow
 
 1. 读取 repo-local artifact manifest、materialize 结果、kickoff 地图与当前 `docs/VALIDATION.md`，执行上述最低扫描面；先排除 HarnessKit 内部完成门禁。
-2. Bootstrap 时生成最少但足够的 validation spec；Adopt 时只选择本轮明确采用的既有 guidance。把被选择内容拆成单一 Validation owner 下的 atomic statement，并判断 `observed | intent`：
+2. 先执行本份 intent discovery pass，再起草或选择 tracked Claims。Bootstrap 时生成最少但足够的 validation spec；Adopt 时只选择本轮明确采用的既有 guidance。把被选择内容拆成单一 Validation owner 下的 atomic statement，并判断 `observed | intent`：
    - observed 选择目标仓库真实 command/config/runner/hook/workflow/result 等安全 repo-relative sources；不得选择 `.harnesskit/**`、本轮 materialize 创建的 support script、Claim sidecar/transcript、Claim verifier 输出或 HarnessKit receipt；
    - intent 默认进入本份真实用户确认；只有当前 artifact owner 核实已存在、独立且权威的 repository confirmation locator 时才复用；
    - configured、manual、absent、unknown 与 not-yet-bound 必须按 evidence 准确表达，不能把候选命令写成现有 check。
