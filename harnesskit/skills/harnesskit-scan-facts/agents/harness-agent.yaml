@@ -1,4 +1,0 @@
-interface:
-  display_name: "扫描 Repository Facts"
-  short_description: "扫描证据并声明共享 Facts 问题"
-  default_prompt: "使用 $harnesskit-scan-facts 扫描 repository evidence、判断 repo shape 并声明共享 Facts 问题，不写最终 Markdown 或 sidecar。"

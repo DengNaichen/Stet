@@ -1,0 +1,4 @@
+interface:
+  display_name: "HarnessKit Kickoff"
+  short_description: "判定仓库形状并产出 Bootstrap artifact 地图"
+  default_prompt: "使用 $harnesskit-kickoff 核实 repo shape、part roots 与预热轮问题，并把 artifact 地图交给 init。"
