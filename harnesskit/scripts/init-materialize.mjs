@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { chmod, copyFile, mkdir, readdir, stat, lstat } from "node:fs/promises";
+import { chmod, copyFile, lstat, mkdir, readdir, readlink, stat, symlink } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -38,10 +38,55 @@ export async function materializeInitTemplates(options = {}) {
 		report.created.push(item.rel);
 	}
 
+	await materializeClaudeCompanion(target, report);
+
 	report.created.sort();
 	report.skipped_existing.sort();
 	report.conflicts.sort((a, b) => a.path.localeCompare(b.path));
 	return report;
+}
+
+async function materializeClaudeCompanion(target, report) {
+	const companion = "CLAUDE.md";
+	const companionTarget = "AGENTS.md";
+	const companionPath = join(target, companion);
+	const existing = await lstatMaybe(companionPath);
+
+	if (existing) {
+		if (existing.isFile()) {
+			report.skipped_existing.push(companion);
+			return;
+		}
+		if (existing.isSymbolicLink()) {
+			const actualTarget = await readlink(companionPath);
+			if (actualTarget === companionTarget) {
+				report.skipped_existing.push(companion);
+			} else {
+				report.conflicts.push({
+					path: companion,
+					reason: `target symlink must point to ${companionTarget}`,
+				});
+			}
+			return;
+		}
+		report.conflicts.push({
+			path: companion,
+			reason: "target exists and is neither a regular file nor the expected symlink",
+		});
+		return;
+	}
+
+	const aliasTarget = await lstatMaybe(join(target, companionTarget));
+	if (!aliasTarget || !aliasTarget.isFile()) {
+		report.conflicts.push({
+			path: companion,
+			reason: `cannot create alias because ${companionTarget} is not a regular file`,
+		});
+		return;
+	}
+
+	await symlink(companionTarget, companionPath);
+	report.created.push(companion);
 }
 
 async function listTemplateFiles(source) {
@@ -131,7 +176,7 @@ function usage() {
 	return [
 		"Usage: node /opt/harnesskit/scripts/init-materialize.mjs [--target <repo-root>] [--source <template-root>]",
 		"",
-		"Copies missing files from harnesskit/templates/init into the target repository.",
+		"Copies missing files from harnesskit/templates/init and creates CLAUDE.md -> AGENTS.md.",
 		"Existing files are never overwritten.",
 	].join("\n");
 }

@@ -25,7 +25,7 @@ description: 编排 Context Harness 的 missing-only Markdown materialize、Fact
 node /opt/harnesskit/scripts/init-materialize.mjs --target "$PWD"
 ```
 
-若环境没有 `/opt/harnesskit`，使用实际 HarnessKit asset root 下的 `scripts/init-materialize.mjs`。Helper 只创建 `templates/init/**` 中缺失的文件；已存在文件必须返回 `skipped_existing`，不得覆盖、删除或重新格式化。
+若环境没有 `/opt/harnesskit`，使用实际 HarnessKit asset root 下的 `scripts/init-materialize.mjs`。Helper 只创建 `templates/init/**` 中缺失的文件，并在缺失时创建精确的 `CLAUDE.md -> AGENTS.md` 相对 alias；已有普通 `CLAUDE.md` 或正确 alias 返回 `skipped_existing`，错误 alias 或其他形态返回 conflict。不得覆盖、删除或重新格式化已有文件，也不得把这一例外扩展成通用 symlink 支持。
 
 出现 `conflicts[]` 或非零退出码时立即停止并报告相对路径。不要自行复制模板或猜测覆盖策略。
 
