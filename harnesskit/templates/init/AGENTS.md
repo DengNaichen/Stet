@@ -43,10 +43,10 @@
 
 ## 验证入口
 
-当前默认配置 claim contract 验证 check；其他项目验证只在找到仓库证据后加入。配置、runner 和 receipt 细节见 [docs/VALIDATION.md](docs/VALIDATION.md)。
+目标仓库已确认的验证项、真实执行入口、自动化绑定和结果报告要求见 [docs/VALIDATION.md](docs/VALIDATION.md)。
 
 ## 漂移处理
 
 如果 [AGENTS.md](AGENTS.md)、[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)、[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)、[docs/rules/](docs/rules/)、[docs/VALIDATION.md](docs/VALIDATION.md) 或真实仓库状态互相冲突，不要静默选择一边；先核对真实文件，再同步修复漂移的 context 文件。
 
-文档职责保持分离：[AGENTS.md](AGENTS.md) 讲 agent 如何开始和路由，[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 讲仓库地图和架构约束，[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) 讲本地开发环境启动、配置和排障，[docs/rules/](docs/rules/) 讲编码、产品、安全等实践指导和硬约束，[docs/VALIDATION.md](docs/VALIDATION.md) 讲验证配置，`README.md` 和 `docs/` 讲产品与用户背景。
+文档职责保持分离：[AGENTS.md](AGENTS.md) 讲 agent 如何开始和路由，[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 讲仓库地图和架构约束，[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) 讲本地开发环境启动、配置和排障，[docs/rules/](docs/rules/) 讲编码、产品、安全等实践指导和硬约束，[docs/VALIDATION.md](docs/VALIDATION.md) 讲目标仓库验证，`README.md` 和 `docs/` 讲产品与用户背景。

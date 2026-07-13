@@ -17,6 +17,8 @@ description: 编排 Context Harness 的 missing-only Markdown materialize、Fact
 
 `.harnesskit/audit/state/run-state.json` 只保存暂停位置；evidence、transcript、sidecar 和 receipt 都不是日常 agent guidance 的替代品。
 
+Materialize 本轮创建的 `.harnesskit/**`、`scripts/claims-verify.cjs`、`scripts/verify` 与 `scripts/verify.cjs` 是 HarnessKit 内部完成门禁。它们可以用于 allocation、provenance 和完成校验，但不得成为目标 Markdown 的项目事实、Claim statement、observed source 或目标验证结果。
+
 ## Missing-only materialize
 
 从目标仓库根目录运行：
@@ -49,7 +51,7 @@ node /opt/harnesskit/scripts/init-materialize.mjs --target "$PWD"
 6. Continuation 只从保存的 pending context 恢复。先确认 target 与保存的 selected bytes/anchor 仍一致；不一致时停止并重新声明，不能模糊查找或覆盖。对用户明确同意的 IDs，用 tooling 写 immutable confirmation record，再由原 artifact owner 执行最小 Markdown 写入。每个 confirmation batch 使用新的唯一 repo-relative ref；已存在 record 不得覆盖或改写。
 7. 自定义修正交回原 artifact owner 重新核实，不把回答当 repository evidence；语义变化时退休原 ID并重新分配、重新确认。未确认或被拒绝的 pending intent 直接丢弃 draft，target Markdown 保持未改，其 allocated ID 退休且永不复用。随后每个 fill skill 先删除本 artifact 中由精确 `harnesskit:todo-checklist:start` / `end` marker 包围的完整 authoring checklist block，再把**当前完整 tracked inventory**交给 tooling 整份写 sidecar；不得删除其他 HTML comment 或人写内容，marker 缺对时停止并报告冲突。不能只提交本轮新增项；空 inventory 写空 `items`。
 8. 运行 `node scripts/claims-verify.cjs verify --final --json`，按 artifact、ID、字段、source 或残留 authoring checklist 修正失败并重跑，直到 `valid: true` 且 `status: passed`。普通 `verify` 允许未完成轮次保留 checklist；只有 `--final` 是退出门禁。
-9. 运行项目配置的 root validation runner。只有 receipt `status: passed` 才能完成；引用 latest receipt 及 run receipt 路径。
+9. 运行 HarnessKit 内部 root validation runner。只有 receipt `status: passed` 才能完成；引用 latest receipt 及 run receipt 路径，但不得把该 receipt 写成目标仓库的验证事实或结果。
 
 ## Questionnaire 编排
 

@@ -15,7 +15,7 @@ AGENTS 是简洁的 agent 启动入口：
 - part artifact 只收 part-local 入口、端内路由与行动 gate，不复制 root contracts；
 - companion guide、symlink 或 project-local procedure 只有在仓库证据存在时才记录。
 
-完整仓库地图归 Architecture；本地安装、启动、配置和排障归 Development；checks 与 receipt 归 Validation；领域判断和硬约束正文归 rules；产品背景归 README 或产品文档。
+完整仓库地图归 Architecture；本地安装、启动、配置和排障归 Development；目标仓库 checks 与执行结果归 Validation；领域判断和硬约束正文归 rules；产品背景归 README 或产品文档。HarnessKit 内部 verifier、audit 和 receipt 不属于 AGENTS 路由内容。
 
 ## Question ownership
 
@@ -28,7 +28,7 @@ AGENTS 是简洁的 agent 启动入口：
 1. 读取 repo-local artifact manifest、materialize 结果、当前 target Markdown 与 scan handoff。只处理 manifest 已登记的 canonical artifact。
 2. Bootstrap 时生成最少但足够的 AGENTS guidance；Adopt 时只选择本轮明确采用的既有 guidance。不要把整份人工文档自动转成 Claims。
 3. 把被选择内容拆成单一 AGENTS owner 下的 atomic statement，并判断 `observed | intent`：
-   - observed 选择真正支持 statement 的安全 repo-relative source paths；
+   - observed 选择真正支持 statement 的安全 repo-relative source paths；不得用 `.harnesskit/**`、本轮 materialize 创建的 support script 或其输出证明目标仓库路由；
    - intent 默认声明真实用户 confirmation question；只有 scan handoff 明确提供已存在、独立且权威的 repository confirmation locator 时才复用；
    - mixed observed/intent 或 mixed owner 必须先拆分。
 4. 对每条新 Claim 调用 tooling 分配 ID，例如：
@@ -64,4 +64,5 @@ Part artifact 使用 manifest 中的实际 path、namespace 与 sidecar mapping�
 - 不计算 ID、SHA-256、JSON ordering，不手写最终 sidecar，也不把 provenance metadata 当作正文来源。
 - 不编辑 `CLAUDE.md`、`.infcode/skills/**`、receipt 或其他 owner 文档；不得手工编辑 artifact manifest counter，只有 allocation tooling 可以更新它。
 - 不把 runtime-only built-in skill、template placeholder 或候选 procedure 写成目标仓库事实。
+- 不把 HarnessKit 内部 verifier、runner、audit、receipt 或 completion status 写成目标仓库事实、验证入口或操作策略。
 - 不为已有 tracked inventory 定义后续更新行为。

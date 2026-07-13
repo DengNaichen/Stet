@@ -9,7 +9,7 @@ description: 在 Bootstrap 或选择性 Adopt 中生成或选择 docs/VALIDATION
 
 ## Owner
 
-Validation 只收验证能力与执行证据：
+Validation 只收目标仓库自身的验证能力与执行证据：
 
 - checks 及其真实命令、状态、前提和副作用；
 - runner、config、trigger 与 binding；
@@ -17,6 +17,8 @@ Validation 只收验证能力与执行证据：
 - 何时、以何种已确认方式运行验证的 action rules。
 
 本地环境归 Development；模块地图、依赖方向和运行链路归 Architecture；编码、产品、安全和可靠性判断归 rules；AGENTS 只链接验证入口。本 skill 记录已有 runner/config，不修改 validation config、script、hook 或 CI。
+
+HarnessKit 为本次 init 创建的 `.harnesskit/**`、`scripts/claims-verify.cjs`、`scripts/verify`、`scripts/verify.cjs` 及其输出属于内部完成门禁，不进入目标 `docs/VALIDATION.md`，不生成 Validation Claim，也不作为 observed source。相同脚本路径只有在 materialize 报告为 `skipped_existing` 且独立仓库证据证明其原本属于目标仓库时，才可按目标验证入口处理。
 
 ## Question ownership
 
@@ -26,10 +28,10 @@ Validation 只收验证能力与执行证据：
 
 ## Markdown-first workflow
 
-1. 读取 repo-local artifact manifest、materialize 结果、当前 `docs/VALIDATION.md`、scan handoff，以及真实 config/runner/binding/receipt sources。
+1. 读取 repo-local artifact manifest、materialize 结果、当前 `docs/VALIDATION.md`、scan handoff，以及目标仓库真实的 config/runner/binding/result sources；先排除上述 HarnessKit 内部完成门禁。
 2. Bootstrap 时生成最少但足够的 validation spec；Adopt 时只选择本轮明确采用的既有 guidance。
 3. 把被选择内容拆成单一 Validation owner 下的 atomic statement，并判断 `observed | intent`：
-   - observed 选择真实 command/config/runner/hook/workflow/receipt 等安全 repo-relative sources；
+   - observed 选择目标仓库真实 command/config/runner/hook/workflow/result 等安全 repo-relative sources；不得选择 `.harnesskit/**`、本轮 materialize 创建的 support script、Claim sidecar/transcript 或 HarnessKit receipt；
    - intent 默认声明真实用户 confirmation question；只有 scan handoff 明确提供已存在、独立且权威的 repository confirmation locator 时才复用；
    - configured、manual、absent、unknown 与 not-yet-bound 必须按 evidence 准确表达，不能把候选命令写成现有 check。
 4. 对每条新 Claim 调用：
@@ -64,4 +66,5 @@ Validation 只收验证能力与执行证据：
 - 不修改 `.harnesskit/validation.json`、runner、hook、CI、receipt 或其他 owner 文档；不得手工编辑 artifact manifest counter，只有 allocation tooling 可以更新它。
 - 不虚构 coverage、security scan、release gate、platform setting 或 check result。
 - 不把单个 check 成功、runner 存在或 `not_configured` 描述为完整 validation 通过。
+- 不把 HarnessKit 内部 verifier、runner、audit、receipt 或 completion status 写成目标仓库验证内容或验证结果。
 - 不为已有 tracked inventory 定义后续更新行为。

@@ -18,6 +18,8 @@ description: 为 Context Harness 的 Bootstrap 或选择性 Adopt 扫描 reposit
 
 忽略 dependency、cache、build output、editor metadata、runtime secret 与临时 workspace。模板和示例只说明结构，不能单独证明目标仓库事实。对会改变 agent 行动的候选，回到权威 source、config、test 或仓库已明确采用的 guidance owner 核对。
 
+先用 materialize 结果标记 HarnessKit 内部资产：本轮 `created` 的 `.harnesskit/**`、`scripts/claims-verify.cjs`、`scripts/verify` 和 `scripts/verify.cjs` 只服务 init 完成门禁，不是 repository-owned evidence，也不能作为 validation entrypoint 候选。相同脚本路径只有在 `skipped_existing` 且独立仓库证据证明其为目标仓库原有入口时才可交给 owner；`.harnesskit/**` 始终不交给 Markdown owner。
+
 ## Artifact 路由
 
 每个候选只交给一个语义 owner：
@@ -53,7 +55,7 @@ Project-local procedures 使用独立 skill 合同，不进入 Markdown Claim in
 1. 读取 materialize 结果，区分新建 skeleton 与已有 Markdown。若已有非空 Claim inventory，报告当前 Bootstrap/Adopt 范围外并停止定义后续更新语义。
 2. 根据 workspace/manifest、独立 build/test 入口与 operation boundary 判断 single project 或 monorepo。目录名、`docs/`、`scripts/`、examples、generated/vendor/cache、单 package 内分层都不能单独证明 part。
 3. 对每个确认的 root/part 做 compressed scan：先读 manifest 与入口，再只在高影响分叉处下钻。保留会改变定位、行动、验证、安全或可靠性判断的候选，丢弃函数级琐碎。
-4. 为每个候选记录安全的 repo-relative evidence paths、简短摘要与唯一 artifact owner。不要提前组织最终 statement，不要手写 Claim ID、hash 或 sidecar item。
+4. 为每个候选记录安全的 repo-relative evidence paths、简短摘要与唯一 artifact owner。先排除 HarnessKit 内部完成门禁及其执行结果；不要提前组织最终 statement，不要手写 Claim ID、hash 或 sidecar item。
 5. 对 shared Facts 中 evidence 无法收敛的内容声明问题。用户自由文本只作为定向复核线索；必须回 repository source 验证。
 6. Facts 收敛后，把 evidence/candidate handoff 交给对应 fill skill。不要修改 final Markdown、Claim sidecar、namespace counter 或 confirmation record。
 
@@ -82,3 +84,4 @@ Project-local procedures 使用独立 skill 合同，不进入 Markdown Claim in
 - 不虚构 command、tool、URL、CI、release、branch protection、compatibility、security policy 或 runtime capability。
 - 不新增 Questionnaire 字段、固定问题数或新的运行状态。
 - 不把 source bytes 未变化误当成 statement 语义正确；evidence review 仍由 agent 负责。
+- 不把 `.harnesskit/**`、本轮 materialize 创建的 support scripts、Claim verifier 输出或 HarnessKit receipt 当作目标仓库事实、validation entrypoint 或 observed source。
