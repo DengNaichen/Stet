@@ -62,9 +62,17 @@ Materialize 后运行 `node scripts/claims-verify.cjs --help`，确认 `write-si
 8. 运行 `node scripts/claims-verify.cjs verify --final --json`，按 artifact、ID、字段、source 或残留 authoring checklist 修正失败并重跑，直到 `valid: true` 且 `status: passed`。普通 `verify` 允许未完成轮次保留 checklist；只有 `--final` 是退出门禁。
 9. 运行 HarnessKit 内部 root validation runner。只有 receipt `status: passed` 才能完成；引用 latest receipt 及 run receipt 路径，但不得把该 receipt 写成目标仓库的验证事实或结果。
 
+## 轮前预告
+
+只在以下有意义边界先发送一条简短、repo-specific、无需回复的自然语言预告，再继续工作：进入预热轮、进入每个 artifact 固定循环、发射每次确认轮（含同一 artifact 的每个溢出轮）、continuation/resume，以及开始最终验证。不要等待用户回复，也不要为这些边界之间的内部小步骤制造 progress spam。
+
+每条预告说明接下来处理什么、将查看哪 2–4 类真实来源、为什么扫描这些来源，以及过滤后预计出现什么类型和大致规模的问题。来源类别必须来自当时可用的 kickoff/artifact 地图与对应 owner 的最低扫描面；不要使用与实际扫描无关的固定模板空话，也不要暴露未过滤候选。
+
+预告只属过程 commentary，不是运行产物；不得把它写入或用作 evidence、Claim、run-state、receipt 或最终 Markdown。保持纯自然语言，不新增结构化 status、协议字段或 UI。
+
 ## Questionnaire 编排
 
-Questionnaire 只采用 [protocol/README.md](../../protocol/README.md) 定义的 UX、wrapper、字段、批量上限与 resume wire contract；其中的旧 workflow 分阶段与轮次顺序不适用于本编排，artifact 顺序与轮次由本 skill 定义。不要新增协议字段或在本 skill 复制 JSON schema。
+Questionnaire 只采用 [protocol/README.md](../../protocol/README.md) 定义的 UX、wrapper、字段、批量上限与 resume wire contract；artifact 顺序与轮次由本 skill 定义。不要新增协议字段或在本 skill 复制 JSON schema。
 
 - 只 emit kickoff 或当前 artifact 实际声明的问题；不设置固定轮数、最少问题数或额外语义门槛。
 - 每个 waiting round 最多 8 题、一轮一次 pause；超限时按语义边界拆分，整轮提交后 resume。
