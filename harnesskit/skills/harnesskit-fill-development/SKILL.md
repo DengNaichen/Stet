@@ -48,7 +48,13 @@ Kickoff 地图只提供 repo shape、part roots 与共享入口，不能替代�
 
 只为本份 discovery pass 过滤后仍未决的高质量 intent 声明问题。每个问题必须展示 tooling 已分配的 Claim ID 与完整推荐 statement，并交给 `$harnesskit-init` 立即 emit 本份轮次；本 skill 不直接 pause，也不新增 Questionnaire 字段。不得把问题并入其他 artifact 的轮次。
 
-零 intent 时不停顿，完成 draft 后直接清理并封存。用户答案能回 repository 验证时，复核为 `observed` 并记录安全 source paths；repository evidence 无法裁决时，当场按 `intent` 确认。用户自由文本只是修正或定向复核指令，不直接成为 evidence 或 durable guidance。
+零 intent 时不制造 intent 停顿；Bootstrap 是否先有扫描核对按下节判断。扫描核对和 intent 都没有时，完成 draft 后直接清理并封存。用户答案能回 repository 验证时，复核为 `observed` 并记录安全 source paths；repository evidence 无法裁决时，当场按 `intent` 确认。用户自由文本只是修正或定向复核指令，不直接成为 evidence 或 durable guidance。
+
+## Bootstrap 扫描核对
+
+仅在 Bootstrap 中，完成本 artifact 扫描并形成 observed drafts 后、发射 intent 轮次前，按需向 init 返回至多一道扫描核对声明。它沿用普通 `single_choice` question：自然语言 prompt、`accept` 与自由文本修改入口，并把多条结论放入 `claim.rows[].value`。只选择仓库已明确支持，且修正后会改变本次计划、最终 artifact 或 Agent 后续行为的结论；过滤通用常识、重复或低价值细节、HarnessKit 内部机制与所有 intent。没有合格内容时不提问；不拆成逐项问题，不在 rows 中展示 Claim ID、逐项依据、重要性分析或内部术语，也不新增协议字段。
+
+接受整组只表示核对通过，各项仍是 repository sources 支持的 `observed`，不得写 `confirm-user` 或改成用户制定的 intent。局部修正时保留未指出的 rows，只重新核实指出项及其直接影响，且不把回答当 evidence；statement 语义变化时退休旧 ID 并重新分配，未来默认、必须或禁止的做法转入既有 intent 流程。整组被否定时丢弃当前 artifact 本次尚未封存的全部 observed drafts、退休这些 IDs，并重扫整个当前 artifact；同一 artifact 不再发第二道扫描核对，重建 observed 后继续。扫描核对解决或跳过后再写入 observed 并处理 pending intent。
 
 ## Markdown-first workflow
 
@@ -63,11 +69,12 @@ Kickoff 地图只提供 repo shape、part roots 与共享入口，不能替代�
    node scripts/claims-verify.cjs allocate --artifact "docs/DEVELOPMENT.md" --count 1
    ```
 
-   只使用 allocation 输出。Observed 与已有有效 repository confirmation locator 的 intent 立即执行最小 Markdown 写入；其余 intent 只保存 pending draft，不得提前写入 target。把 pending intent 的 artifact、ID、完整 statement，以及 Adopt exact selected bytes 或 Bootstrap insertion anchor 交给 init 存入 run-state；serialization 与 resume interface 归 init，本 skill 不定义 schema 或直接写 state。不要手写、猜测或复用 ID；普通交叉引用使用裸 ID，非规范示例使用 `[DEVELOPMENT-NNNN]` 这类不匹配真实编号的占位符。
-4. 若没有 pending intent，跳过 pause 直接进入 section 完整性检查。否则把按 ID 的 question declarations 返回 init，由 init 立即 emit 仅属于本 artifact 的轮次；输出 `needs_input` 后停止 repository 读写。
-5. Continuation 只从 init 写入 run-state 的本份 pending context 恢复。先核对 target 与 exact selected bytes/anchor 仍一致；不一致时停止并重新声明。用户同意 intent 后，先由 init 以本 batch 唯一且 immutable 的 `confirm-user` ref 记录确认，再由本 owner 最小写入。自定义修正交回本 owner 复核：能由 repository evidence 支持时改为 observed；证据仍无法裁决时更新 intent draft 并重新确认。Statement 语义变化时丢弃未写入的旧 ID、不回退 manifest high-water mark 且永不复用，再调用 allocation 取得新 ID。这里的退休没有单独命令：保留已消耗编号，且永不把该 ID 写入 Markdown 或 sidecar。未确认或被拒绝时同样丢弃 draft 并退休 allocated ID，target 保持未改。
-6. 检查每个 template section 的三态：填充、删除，或明确写明无证据/待确认。不得静默留空；只有表头的空表格也属于留空。Adopt 中不得借此删除或改写未选择的人写内容。
-7. 删除当前 artifact 中由精确 `harnesskit:todo-checklist:start` / `end` marker 包围的完整 authoring checklist block；不得删除其他 HTML comment 或人写内容，marker 缺对时停止并报告冲突。准备当前 Markdown 的**完整 tracked inventory**，包括此前保留项与本轮新增项；每项只含 `id`、agent 判断的 `kind`、observed source path 列表或已成立 `confirmed_by`，然后调用：
+   只使用 allocation 输出。Bootstrap 先保留 observed 与已有有效 repository confirmation locator 的 intent drafts，其他 intent 保持 pending；扫描核对解决或跳过前不得写入 target。Adopt 保持原流程：Observed 与已有有效 locator 的 intent 立即最小写入，其余 intent 只保存 pending draft。把当前 artifact、ID、完整 statement 与 exact selected bytes 或 insertion anchor 交给 init 保存本份 context；serialization 与 resume interface 归 init，本 skill 不定义 schema 或直接写 state。不要手写、猜测或复用 ID；普通交叉引用使用裸 ID，非规范示例使用 `[DEVELOPMENT-NNNN]` 这类不匹配真实编号的占位符。
+4. 仅 Bootstrap：按上述规则返回至多一道扫描核对 declaration。若存在该问题，由 init 保存本份上下文并 emit；输出 `needs_input` 后停止 repository 读写。Continuation 由本 owner 处理整组接受、局部复核或本份重扫；同一 artifact 不发第二道扫描核对，解决前不发射 intent 问题。Adopt 跳过此步。
+5. 扫描核对解决或跳过后，对 Bootstrap observed 与已有有效 locator 的 intent 执行最小 Markdown 写入。若没有 pending intent，跳过 intent pause 直接进入 section 完整性检查；否则把按 ID 的 question declarations 返回 init，由 init 立即 emit 仅属于本 artifact 的轮次；输出 `needs_input` 后停止 repository 读写。
+6. Intent continuation 只从 init 写入 run-state 的本份 pending context 恢复。先核对 target 与 exact selected bytes/anchor 仍一致；不一致时停止并重新声明。用户同意 intent 后，先由 init 以本 batch 唯一且 immutable 的 `confirm-user` ref 记录确认，再由本 owner 最小写入。自定义修正交回本 owner 复核：能由 repository evidence 支持时改为 observed；证据仍无法裁决时更新 intent draft 并重新确认。Statement 语义变化时丢弃未写入的旧 ID、不回退 manifest high-water mark 且永不复用，再调用 allocation 取得新 ID。这里的退休没有单独命令：保留已消耗编号，且永不把该 ID 写入 Markdown 或 sidecar。未确认或被拒绝时同样丢弃 draft 并退休 allocated ID，target 保持未改。
+7. 检查每个 template section 的三态：填充、删除，或明确写明无证据/待确认。不得静默留空；只有表头的空表格也属于留空。Adopt 中不得借此删除或改写未选择的人写内容。
+8. 删除当前 artifact 中由精确 `harnesskit:todo-checklist:start` / `end` marker 包围的完整 authoring checklist block；不得删除其他 HTML comment 或人写内容，marker 缺对时停止并报告冲突。准备当前 Markdown 的**完整 tracked inventory**，包括此前保留项与本轮新增项；每项只含 `id`、agent 判断的 `kind`、observed source path 列表或已成立 `confirmed_by`，然后调用：
 
    ```sh
    node scripts/claims-verify.cjs write-sidecar --artifact "docs/DEVELOPMENT.md" --stdin <<'JSON'
@@ -78,7 +85,7 @@ Kickoff 地图只提供 repo shape、part roots 与共享入口，不能替代�
    ```
 
    示例 `items` 只表示 direct inventory 形状；仅当当前 Markdown 没有 tracked Claim 时才保持为空，否则把完整 inventory 直接放入 stdin。不要把 payload 落盘为临时 inventory 传输文件。Tooling 计算 whole-file SHA-256、canonical order，并整份替换最终 sidecar；不能只提交本轮新增项。写入成功即封存本 artifact，后续 artifact 只读取该定稿。
-8. 运行 `node scripts/claims-verify.cjs verify --json`，按本 artifact、ID 或 source 修正语义输入并重跑到 `passed`，再把已封存结果交回 init 进入下一 artifact。
+9. 运行 `node scripts/claims-verify.cjs verify --json`，按本 artifact、ID 或 source 修正语义输入并重跑到 `passed`，再把已封存结果交回 init 进入下一 artifact。
 
 ## Bootstrap / Adopt 写入纪律
 
