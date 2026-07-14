@@ -33,37 +33,36 @@ non-empty, and any `label` must be non-empty. Rendering convention:
 - any row with a label renders the whole claim as a two-column table
   (`label | value`), with unlabeled rows leaving the label cell blank.
 
-## Rounds and Phases
+## Workflow Rounds
 
-The standard workflow has two rounds:
+A run may begin with an optional warm-up round hosted by kickoff. It contains
+only repository-specific questions whose answers are shared across artifacts,
+such as repository shape, project identity, or the validation entrypoint. When
+repository evidence already resolves them, emit no warm-up round.
 
-1. `Phase 1 Facts`: confirm what the repository is.
-2. `Phase 2 Practices`: confirm how agents should judge and act in it.
+After warm-up, init expands the artifact plan from the kickoff map and the
+repository-local manifest. Each artifact then completes its own scan, draft,
+confirmation, write, and seal loop. A per-artifact round is emitted only when
+that artifact has pending intent that repository evidence cannot resolve. An
+artifact with no pending intent seals without a pause, and pending intent from
+different artifacts must never be merged into one round.
 
-This two-round order is bound at the workflow layer, not as a protocol enum.
-`Practices` depends on confirmed `Facts`; do not merge them into one round.
-There is no default Phase 3.
+Questions are not divided into global workflow categories. Answers that can be
+verified from repository evidence are recorded as observed; answers that the
+repository cannot decide proceed through intent confirmation for their owning
+artifact.
 
-`Phase 1 Facts` has five default slots, not five fixed questions:
+Question admission is evaluated per candidate. Common engineering knowledge
+that would apply to any comparable project does not become a Claim. Comparable
+projects are judged within the target project's language and ecosystem, so
+guidance universal across that ecosystem is still common engineering knowledge.
+Current repository behavior may be recorded as observed, but its normative
+shadow is neither tracked nor asked. There is no fixed question count, minimum
+quota, or confidence threshold; question count is the result of filtering
+admitted candidates, not a target.
 
-- project identity
-- purpose/users
-- tech stack/runtime
-- validation entrypoint
-- source-of-truth/boundaries
-
-Ask only the high-impact slots that cannot be determined from evidence. Clear
-high-impact facts may enter confirmation for traceability. Clear low-impact
-facts should be recorded from evidence without interrupting the user.
-
-`Phase 2 Practices` is incremental, not exhaustive. Ask only for high-impact
-practice decisions such as coding/product/security/reliability guidance, hard
-constraints, generated/template action rules, and validation action rules.
-
-Agents may append guarded rounds only when prior answers create new
-high-impact uncertainty or output-blocking questions. Appended rounds are still
-batched, admission-gated, and should stay within a soft maximum of four total
-rounds. If there are zero questions, emit zero rounds.
+When one artifact has more admitted questions than the runtime batch limit,
+continue in artifact-scoped overflow rounds split at semantic boundaries.
 
 ## Runtime Wrapper and Backend Resume
 
@@ -119,8 +118,10 @@ Implementation tickets can split along these boundaries:
 - frontend round review: render the round as one review surface, map
   `allow_other` to `要修改`, save per-question answers, submit the round
   explicitly. TOK-232 owns this frontend implementation work.
-- workflow skills/prompts: generate only content questions, use the two
-  standard rounds by default, and gate appended rounds.
+- workflow skills/prompts: generate only content questions, use an optional
+  kickoff warm-up followed by per-artifact rounds only for artifacts with
+  pending intent, and filter out common engineering knowledge so question count
+  is the result of filtering rather than a target.
 
 Future or related decisions deliberately left out of v1.1: notification, expiry
 UX details, answer mutability after submit, respondent permissions, domain
