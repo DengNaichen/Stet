@@ -331,6 +331,22 @@ function readRepoJSON(root, repoPath) {
 	}
 }
 
+function readClaimInventoryFromStdin() {
+	let contents;
+	try {
+		contents = readFileSync(0, "utf8");
+	} catch {
+		throw new Error("stdin: unreadable");
+	}
+	let draft;
+	try {
+		draft = JSON.parse(contents);
+	} catch {
+		throw new Error("stdin: invalid JSON");
+	}
+	return Array.isArray(draft) ? draft : draft && draft.items;
+}
+
 function validateArtifactManifest(value) {
 	const errors = [];
 	if (!isPlainObject(value)) return ["manifest must be an object"];
@@ -992,7 +1008,7 @@ function assertKnownOptions(args, options) {
 	for (let index = 0; index < args.length; index += 1) {
 		const arg = args[index];
 		if (!arg.startsWith("--") || !options.has(arg)) throw new Error(`unknown argument: ${arg}`);
-		if (arg === "--json" || arg === "--final") continue;
+		if (arg === "--json" || arg === "--final" || arg === "--stdin") continue;
 		index += 1;
 	}
 }
@@ -1004,7 +1020,7 @@ function usage() {
 		"  node scripts/claims-verify.cjs allocate --artifact <path> [--count <n>] [--root <repo>]",
 		"  node scripts/claims-verify.cjs hash --path <path> [--root <repo>]",
 		"  node scripts/claims-verify.cjs confirm-user --ref <path> --confirmed-by <name> --date <YYYY-MM-DD> --claim <id> [--claim <id> ...] [--root <repo>]",
-		"  node scripts/claims-verify.cjs write-sidecar --artifact <path> --input <repo-json-path> [--root <repo>]",
+		"  node scripts/claims-verify.cjs write-sidecar --artifact <path> --stdin [--root <repo>]",
 		"",
 		"Verification exits 0 only when every registered Claim contract check passes; all violations exit 1.",
 	].join("\n");
@@ -1064,12 +1080,12 @@ function main(argv = process.argv.slice(2)) {
 		return;
 	}
 	if (command === "write-sidecar") {
-		assertKnownOptions(args, new Set(["--artifact", "--input", "--root"]));
+		assertKnownOptions(args, new Set(["--artifact", "--stdin", "--root"]));
 		const artifact = optionValue(args, "--artifact");
-		const input = optionValue(args, "--input");
-		if (!artifact || !input) throw new Error("--artifact and --input are required");
-		const draft = readRepoJSON(root, input);
-		const items = Array.isArray(draft) ? draft : draft.items;
+		const stdinCount = args.filter((arg) => arg === "--stdin").length;
+		if (!artifact || stdinCount === 0) throw new Error("--artifact and --stdin are required");
+		if (stdinCount > 1) throw new Error("--stdin may be provided only once");
+		const items = readClaimInventoryFromStdin();
 		process.stdout.write(canonicalJSONStringify(writeClaimSidecar(root, artifact, items)));
 		return;
 	}

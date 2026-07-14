@@ -71,11 +71,14 @@ Kickoff 地图是 repo shape 与 part roots 的起点，不能替代本份证据
 8. 删除当前 artifact 中由精确 `harnesskit:todo-checklist:start` / `end` marker 包围的完整 authoring checklist block；不得删除其他 HTML comment 或人写内容，marker 缺对时停止并报告冲突。准备当前 Markdown 的**完整 tracked inventory**，包括此前保留项与本轮新增项；每项只含 `id`、agent 判断的 `kind`、observed source path 列表或已成立 `confirmed_by`，然后按 manifest 中当前 artifact 的实际 path 调用：
 
    ```sh
-   mkdir -p .harnesskit/audit/evidence
-   node scripts/claims-verify.cjs write-sidecar --artifact "docs/ARCHITECTURE.md" --input ".harnesskit/audit/evidence/architecture-sidecar-input.json"
+   node scripts/claims-verify.cjs write-sidecar --artifact "docs/ARCHITECTURE.md" --stdin <<'JSON'
+   {
+     "items": []
+   }
+   JSON
    ```
 
-   Tooling 计算 whole-file SHA-256、canonical order，并整份替换 sidecar；不能只提交本轮新增项。空 inventory 写空 `items`。写入成功后进入本 artifact 的封存校验；verifier 通过前不得交给后续 artifact 读取。
+   示例 `items` 只表示 direct inventory 形状；仅当当前 Markdown 没有 tracked Claim 时才保持为空，否则把完整 inventory 直接放入 stdin。不要把 payload 落盘为临时 inventory 传输文件。Tooling 计算 whole-file SHA-256、canonical order，并整份替换 sidecar；不能只提交本轮新增项。写入成功后进入本 artifact 的封存校验；verifier 通过前不得交给后续 artifact 读取。
 9. 运行 `node scripts/claims-verify.cjs verify --json`，按本 artifact、ID 或 source 修正语义输入并重跑到 `passed`。只有此时才把本 artifact 标记为已封存，并交回 init 进入下一 artifact。
 
 Part artifact 始终使用 manifest 中的实际 path、namespace 与 sidecar mapping，不套用 root 示例 path 或 ID。

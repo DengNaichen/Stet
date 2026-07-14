@@ -16,7 +16,7 @@ description: 编排 Context Harness 的 missing-only Markdown materialize、预�
 - `scripts/claims-verify.cjs` 负责 ID allocation、whole-file SHA-256、confirmation record、sidecar serialization/order、schema 与 inventory verification。
 - 人类拥有 Markdown 表达；intent 默认通过真实用户回答确认。只有 artifact owner 核实 repository evidence 已采用独立、权威的 confirmation source 时，才复用该已有确认；不得要求或创建新的决策文档。
 
-`.harnesskit/audit/state/run-state.json` 只保存预热轮或当前 artifact 的位置与本份 pending 轮次；evidence、transcript、sidecar 和 receipt 都不是日常 agent guidance 的替代品。
+`.harnesskit/audit/state/run-state.json` 只保存预热轮或当前 artifact 的位置与本份 pending 轮次；repository evidence、transcript、sidecar 和 receipt 都不是日常 agent guidance 的替代品。
 
 Materialize 本轮创建的 `.harnesskit/**`、`scripts/claims-verify.cjs`、`scripts/verify` 与 `scripts/verify.cjs` 是 HarnessKit 内部完成门禁。它们可以用于 allocation、provenance 和完成校验，但不得成为目标 Markdown 的项目事实、Claim statement、observed source 或目标验证结果。
 
@@ -31,6 +31,8 @@ node /opt/harnesskit/scripts/init-materialize.mjs --target "$PWD"
 若环境没有 `/opt/harnesskit`，使用实际 HarnessKit asset root 下的 `scripts/init-materialize.mjs`。Helper 只创建 `templates/init/**` 中缺失的文件，并在缺失时创建精确的 `CLAUDE.md -> AGENTS.md` 相对 alias；已有普通 `CLAUDE.md` 或正确 alias 返回 `skipped_existing`，错误 alias 或其他形态返回 conflict。不得覆盖、删除或重新格式化已有文件，也不得把这一例外扩展成通用 symlink 支持。
 
 出现 `conflicts[]` 或非零退出码时立即停止并报告相对路径。不要自行复制模板或猜测覆盖策略。
+
+Materialize 后运行 `node scripts/claims-verify.cjs --help`，确认 `write-sidecar` usage 明确包含 `--stdin`。若 support script 被 `skipped_existing` 且缺少该 capability，把它视为 stale/conflicting tooling，立即停止并报告；不得回退到旧 transport、覆盖或删除现有文件。只有用户确认这些文件是可清理的 HarnessKit 生成物后，才清理并重新 materialize，再从头开始本次运行。
 
 ## Bootstrap 与 Adopt
 
@@ -77,13 +79,16 @@ Questionnaire 只采用 [protocol/README.md](../../protocol/README.md) 定义的
 ```sh
 node scripts/claims-verify.cjs allocate --artifact "docs/ARCHITECTURE.md" --count 1
 node scripts/claims-verify.cjs confirm-user --ref ".harnesskit/audit/transcript/confirmations/2026-07-11-architecture-01.json" --confirmed-by "实际确认者" --date "YYYY-MM-DD" --claim "ARCHITECTURE-0001"
-mkdir -p .harnesskit/audit/evidence
-node scripts/claims-verify.cjs write-sidecar --artifact "docs/ARCHITECTURE.md" --input ".harnesskit/audit/evidence/architecture-sidecar-input.json"
+node scripts/claims-verify.cjs write-sidecar --artifact "docs/ARCHITECTURE.md" --stdin <<'JSON'
+{
+  "items": []
+}
+JSON
 node scripts/claims-verify.cjs verify --json
 node scripts/claims-verify.cjs verify --final --json
 ```
 
-示例路径和 ID 只说明 CLI 形状；实际 artifact、ref 和 IDs 必须来自 repo-local manifest 与 allocation 输出。每批用户确认使用新的唯一 ref，`confirm-user` record 一经写入不可覆盖。`write-sidecar` 输入必须枚举当前 Markdown 的完整 tracked inventory，并只提供 tooling 已分配的 `id`、agent 判断的 `kind`、observed source path 列表或已成立的 `confirmed_by` locator；writer 会整份替换该 artifact sidecar，同时计算 hash、排序并写最终 JSON。不要手写 ID、SHA-256 或最终 sidecar。
+示例路径和 ID 只说明 CLI 形状；实际 artifact、ref 和 IDs 必须来自 repo-local manifest 与 allocation 输出。每批用户确认使用新的唯一 ref，`confirm-user` record 一经写入不可覆盖。`write-sidecar` 的 stdin JSON 必须枚举当前 Markdown 的完整 tracked inventory，并只提供 tooling 已分配的 `id`、agent 判断的 `kind`、observed source path 列表或已成立的 `confirmed_by` locator；只有当前 inventory 为空时才使用示例中的空 `items`。Repository evidence 仍是语义要求；payload 只作为本次进程输入，不落盘为临时 inventory 传输文件。Writer 会整份替换该 artifact sidecar，同时计算 hash、排序并写最终 JSON。不要手写 ID、SHA-256 或最终 sidecar。
 
 Verifier 把 canonical Markdown 中任何 literal registered token 都计入 inventory，包括 HTML 和 code fence 内。普通交叉引用使用裸 ID；非规范示例使用不匹配真实编号的占位符，例如 `[CODING-NNNN]`。
 
