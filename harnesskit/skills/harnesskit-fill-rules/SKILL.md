@@ -52,7 +52,7 @@ Kickoff 地图只是 repo shape 与 part roots 的起点，不能替代本份证
 
 先用当前 evidence 形成行为、边界、gap 与现有 guidance 的本份地图，再建立仅存在于当前热上下文的候选池；每项至少包含 `repository signal → repo-native anchors → 未决判断 → 未来影响 → semantic owner → 完整推荐 statement`。
 
-在 allocation 前逐项过滤：当前行为或 gap 归 observed；已有独立权威 policy locator 的约束按既有 intent 处理；会实质改变未来实现、评审或风险处理且仍未决的候选进入本份问题；通用最佳实践、低影响偏好、无具体违规形态、重复问题和其他 owner 内容丢弃或路由出去。
+在 allocation 前逐项过滤：当前行为或 gap 归 observed；已有独立权威 policy locator 的约束按既有 intent 处理；会实质改变未来实现、评审或风险处理且仍未决的候选进入本份问题；低影响偏好、无具体违规形态、重复问题和其他 owner 内容丢弃或路由出去。对剩余候选执行 **通用性测试**：若某条规范放到任何同类项目都成立，该规范不得成为 Claim；“同类项目”以目标项目的语言与生态为参照，生态内普遍成立同样属于通用工程常识。有 repository evidence 支持的现状行为仍可按 `observed` 记录，但其规范性影子不追踪、不提问。
 
 完整推荐 statement 只能表达一个仍未裁决的未来决定；当前行为或 gap 留在 repository signal/observed draft，不能与 intent 捆绑。同一 signal 同时导出长期规则与临时补偿、迁移或验证动作时必须拆分。Evidence 只能证明风险而不能证明具体做法可行时，约束 bounded outcome，不指定未经 repository evidence 或权威 contract 核实的机制。
 
@@ -122,7 +122,7 @@ Root/part 与四种 rule artifact 始终使用 manifest 中的实际 path、name
 
 - Agent 只负责 statement、Claim 边界、`kind`、source path 与本份问题。
 - 不计算 ID、SHA-256、JSON ordering，不手写最终 sidecar，也不把 provenance metadata 当作正文来源。
-- 没有具体行为、违规形态或真实 intent 时，不把通用建议升级为 rule；不以 intent 数量、轮次数或篇幅作为完成标准。
+- 没有具体行为、违规形态或真实 intent 时，不生成 Rule Claim；不以 intent 数量、轮次数或篇幅作为完成标准。
 - 不复制 validation 命令/状态、development 步骤或 architecture 放置规则；只保留本领域判断并链接 owner。
 - 不修改已封存上游 artifact、未选择的人写内容、receipt 或其他 owner 文档，除非按跨 artifact 冲突路径交回原 owner；不得手工编辑 artifact manifest counter，只有 allocation tooling 可以更新它。
 - 不为已有 tracked inventory 定义后续更新行为。

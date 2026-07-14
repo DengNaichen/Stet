@@ -37,7 +37,7 @@ Kickoff 地图中的 validation entrypoint 只是扫描起点，不能替代本�
 
 逐项检查：低成本层是否会被误当成高风险层的替代；已配置 check 是否缺少按变更风险选择的 action rule；binding 或 path filter 是否遗漏真实变更面；有副作用、外部前提或成本的检查应如何运行和报告；未运行、部分运行与完整通过的语义是否未决。不存在相应 validation layer 时跳过，不把候选命令写成现有能力。
 
-先用当前 evidence 形成 checks、binding、前提、副作用、结果语义与 gap 的现状地图，再建立仅存在于当前热上下文的候选池；每项至少包含 `repository signal → repo-native anchors → 未决判断 → 未来影响 → semantic owner → 完整推荐 statement`。在 allocation 前逐项过滤：当前 command/config/binding 归 observed；已有独立权威 policy locator 的 action/report rule 按既有 intent 处理；会改变风险覆盖、层级替代或结果报告且仍未决的候选进入本份问题；未配置命令、单次成功、全量 gate 偏好和其他 owner 内容丢弃或路由出去。
+先用当前 evidence 形成 checks、binding、前提、副作用、结果语义与 gap 的现状地图，再建立仅存在于当前热上下文的候选池；每项至少包含 `repository signal → repo-native anchors → 未决判断 → 未来影响 → semantic owner → 完整推荐 statement`。在 allocation 前逐项过滤：当前 command/config/binding 归 observed；已有独立权威 policy locator 的 action/report rule 按既有 intent 处理；会改变风险覆盖、层级替代或结果报告且仍未决的候选进入本份问题；未配置命令、单次成功和其他 owner 内容丢弃或路由出去。对剩余候选执行 **通用性测试**：若某条规范放到任何同类项目都成立，该规范不得成为 Claim；“同类项目”以目标项目的语言与生态为参照，生态内普遍成立同样属于通用工程常识。有 repository evidence 支持的现状行为仍可按 `observed` 记录，但其规范性影子不追踪、不提问。
 
 完整推荐 statement 只能表达一个仍未裁决的未来决定；当前事实或 gap 留在 repository signal/observed draft，不能与 intent 捆绑。同一 signal 同时导出长期 binding 目标与临时补验或报告动作时必须拆分。Evidence 只能证明风险而不能证明具体做法可行时，约束 bounded outcome，不指定未经 repository evidence 或权威 contract 核实的机制。
 

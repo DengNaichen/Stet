@@ -38,7 +38,7 @@ Kickoff 地图是 repo shape 与 part roots 的起点，不能替代本份证据
 
 逐项检查：多个入口是否收敛到同一语义 owner 却没有明确长期边界；新增职责是否存在多个同样合理的放置位置或依赖方向；旁路是否绕过集中状态或副作用 owner；生成源头、运行时状态与可编辑输出是否容易混淆；public contract 的 ownership 或方向是否尚未裁决。这些只是发现模式，不是可直接写入的 statement。
 
-先用当前 evidence 形成模块、链路、依赖、生成源头与 gap 的现状地图，再建立仅存在于当前热上下文的候选池；每项至少包含 `repository signal → repo-native anchors → 未决判断 → 未来影响 → semantic owner → 完整推荐 statement`。在 allocation 前逐项过滤：可由 repository 直接裁决的当前事实转为 observed draft；已有独立权威 policy locator 的约束按既有 intent 处理；会实质改变未来依赖、放置或 public contract boundary 判断且仍未决的候选进入本份问题；通用最佳实践、低影响偏好、重复问题和其他 owner 内容丢弃或路由出去。历史状态、版本迁移与兼容保证路由 Reliability。
+先用当前 evidence 形成模块、链路、依赖、生成源头与 gap 的现状地图，再建立仅存在于当前热上下文的候选池；每项至少包含 `repository signal → repo-native anchors → 未决判断 → 未来影响 → semantic owner → 完整推荐 statement`。在 allocation 前逐项过滤：可由 repository 直接裁决的当前事实转为 observed draft；已有独立权威 policy locator 的约束按既有 intent 处理；会实质改变未来依赖、放置或 public contract boundary 判断且仍未决的候选进入本份问题；低影响偏好、重复问题和其他 owner 内容丢弃或路由出去。对剩余候选执行 **通用性测试**：若某条规范放到任何同类项目都成立，该规范不得成为 Claim；“同类项目”以目标项目的语言与生态为参照，生态内普遍成立同样属于通用工程常识。有 repository evidence 支持的现状行为仍可按 `observed` 记录，但其规范性影子不追踪、不提问。历史状态、版本迁移与兼容保证路由 Reliability。
 
 完整推荐 statement 只能表达一个仍未裁决的未来决定；当前事实或 gap 留在 repository signal/observed draft，不能与 intent 捆绑。同一 signal 同时导出长期边界与临时补偿、迁移或验证动作时必须拆分。Evidence 只能证明风险而不能证明具体做法可行时，约束 bounded outcome，不指定未经 repository evidence 或权威 contract 核实的机制。
 

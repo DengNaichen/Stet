@@ -41,7 +41,7 @@ Materialize 为本次 init 创建的 `.harnesskit/**`、`scripts/claims-verify.c
 
 逐项检查：哪类任务不先读既有 owner 就会选错路径；哪个 repo shape 或 part 区分会立即改变搜索与修改方式；哪些高影响任务必须先核实真实 source of truth；content drift 应路由哪个 owner 而不是在 AGENTS 复制修复细节。这些只是发现模式，不是可直接写入的 statement。
 
-先形成项目形状、owner pointers、常见任务路由与 drift 的现状地图，再建立仅存在于当前热上下文的候选池；每项至少包含 `repository signal → repo-native anchors → 未决行动 gate → 未来影响 → semantic owner → 完整推荐 statement`。在 allocation 前逐项过滤：当前项目事实和 pointer 归 observed；已有独立权威 guidance 的 gate 按既有 intent 处理；会立即改变 agent 读取、核实或路由顺序且仍未决的候选进入本份问题；详细禁令、阈值、命令、通用建议和其他 owner 正文丢弃或仅保留链接。
+先形成项目形状、owner pointers、常见任务路由与 drift 的现状地图，再建立仅存在于当前热上下文的候选池；每项至少包含 `repository signal → repo-native anchors → 未决行动 gate → 未来影响 → semantic owner → 完整推荐 statement`。在 allocation 前逐项过滤：当前项目事实和 pointer 归 observed；已有独立权威 guidance 的 gate 按既有 intent 处理；会立即改变 agent 读取、核实或路由顺序且仍未决的候选进入本份问题；详细禁令、阈值、命令和其他 owner 正文丢弃或仅保留链接。对剩余候选执行 **通用性测试**：若某条规范放到任何同类项目都成立，该规范不得成为 Claim；“同类项目”以目标项目的语言与生态为参照，生态内普遍成立同样属于通用工程常识。有 repository evidence 支持的现状行为仍可按 `observed` 记录，但其规范性影子不追踪、不提问。
 
 完整推荐 statement 只能表达一个仍未裁决的未来决定；当前事实或 gap 留在 repository signal/observed draft，不能与 intent 捆绑。同一 signal 同时导出长期 gate 与临时补偿、迁移或验证动作时必须拆分。Evidence 只能证明风险而不能证明具体做法可行时，约束 bounded outcome，不指定未经 repository evidence 或权威 contract 核实的机制。
 

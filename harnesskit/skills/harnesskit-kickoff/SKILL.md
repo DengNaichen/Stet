@@ -64,6 +64,7 @@ Evidence 已收敛时为零轮。Kickoff 拥有问题内容与答案复核，ini
 - 候选必须能拆成一个可独立移动、确认或退休的 atomic statement；mixed observed/intent 或 mixed owner 先拆分。
 - `observed` 只能由当前 repository evidence 支持；absence、exception、best-effort 与 known gap 必须写进最终 statement 的边界。
 - `intent` 默认由真实用户确认。只有 repository evidence 明确建立了不同于 claim-bearing artifact 的独立、权威 confirmation source，才可复用该安全 locator；现有 target Markdown 本身不能自证 intent，也不得发明确认来源。
+- **通用性测试**：若某条规范放到任何同类项目都成立，该规范不得成为 Claim；“同类项目”以目标项目的语言与生态为参照，生态内普遍成立同样属于通用工程常识。有 repository evidence 支持的现状行为仍可按 `observed` 记录，但其规范性影子不追踪、不提问。
 - Source path 是 agent 的语义选择；SHA-256、ID、JSON serialization/order 与 inventory comparison 都交给 deterministic tooling。
 - Partial evidence 不得推导“全部”“永远”“完整覆盖”等无限范围结论。
 
