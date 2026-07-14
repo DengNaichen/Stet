@@ -5,7 +5,7 @@ description: 编排 Context Harness 的 missing-only Markdown materialize、预�
 
 # Harness 初始化
 
-本 skill 是用户可见的总编排器。它只编排预热轮、artifact 处理计划、逐份循环、pause/resume、coverage review 和完成门禁；不替 artifact owner 读取证据、写 statement、判断 `kind`、选择 source 或发明 confirmation question。
+本 skill 是用户可见的总编排器。它只编排预热轮、用户可读的整体计划、artifact 处理循环、pause/resume、coverage review 和完成门禁；不替 artifact owner 读取证据、写 statement、判断 `kind`、选择 source 或发明问题。
 
 ## 职责分工
 
@@ -21,6 +21,8 @@ description: 编排 Context Harness 的 missing-only Markdown materialize、预�
 Materialize 本轮创建的 `.harnesskit/**`、`scripts/claims-verify.cjs`、`scripts/verify` 与 `scripts/verify.cjs` 是 HarnessKit 内部完成门禁。它们可以用于 allocation、provenance 和完成校验，但不得成为目标 Markdown 的项目事实、Claim statement、observed source 或目标验证结果。
 
 ## Missing-only materialize
+
+Bootstrap 必须先由 `$harnesskit-kickoff` 完成只读 eligibility preflight；未明确通过前不要运行本节命令。Adopt 保持既有 materialize 起点。
 
 从目标仓库根目录运行：
 
@@ -46,25 +48,28 @@ Materialize 后运行 `node scripts/claims-verify.cjs --help`，确认 `write-si
 
 ## 主工作流
 
-1. 运行 missing-only materialize，并保存每个 artifact 的 `created` / `skipped_existing` 结果。
-2. 调用 `$harnesskit-kickoff` 完成 repo-shape、part roots 与跨 artifact 信息核实，取得 artifact 地图。Kickoff 只在 repository evidence 无法收敛高影响共享信息时声明预热轮；没有问题时为零轮。
-3. 若存在预热轮，按 [protocol/README.md](../../protocol/README.md) 由 init emit；输出 `needs_input` 后立即停止读写。Continuation 从保存的预热轮恢复，不重跑 materialize 或重复已回答问题。能回 repository 验证的答案由 kickoff 复核后进入地图；repository evidence 无法裁决的答案路由给对应 artifact owner，在本份循环内作为 intent 处理。预热轮本身不写 Claim。
-4. Init 按 kickoff 地图与 repo-local manifest 动态展开本次 artifact 集合与顺序；计划必须覆盖地图 scope 内 manifest 登记的每个 artifact，不把固定路径列表当成合同。单 project 默认展开为 validation → development → architecture → rules（CODING、RELIABILITY、SECURITY、PRODUCT_SENSE）→ agents；AGENTS 只在全部内容 artifact 封存后处理。Monorepo 只按 kickoff 提供的 repo shape、part roots 与 artifact 地图展开，不自行发明 root/part 细则。
-5. 按计划逐 artifact 执行完整固定循环；当前 artifact 封存前不得进入下一份：
-   1. 调用对应 fill skill，只扫描本 artifact 所需 evidence，生成或选择 atomic Claims，并用 tooling 分配 ID。Observed 由 owner 执行最小 Markdown 写入；intent 只保存 pending draft，不得提前写入 target Markdown。
-   2. 若本份存在 pending intent，把当前 artifact、allocated IDs、完整 proposed statements、Adopt exact selected bytes 或 Bootstrap insertion anchors 保存到 run-state，再由 init emit 仅属于本份的轮次。零 intent 不停顿；不得跨 artifact 折叠。单轮超过 8 题时按语义边界顺延溢出轮，不在题数边界腰斩领域。
-   3. Continuation 只从保存的本份 pending context 恢复。先确认 target 与保存的 selected bytes/anchors 仍一致；不一致时停止并重新声明，不能模糊查找或覆盖。答案能回 repository 验证时由 owner 复核为 observed；证据无法裁决且用户明确同意的 intent 由 tooling 写 immutable confirmation record，再由 owner 最小写入 Markdown。
-   4. 自定义修正交回本 artifact owner 重新核实，不把回答直接当 repository evidence。语义变化时退休原 ID、重新分配并按需重新确认；拒绝或未确认的 draft 直接丢弃，target Markdown 保持未改，已分配 ID 退休且永不复用。每个 confirmation batch 使用新的唯一 repo-relative ref，已存在 record 不得覆盖或改写。
-   5. Owner 删除本 artifact 中由精确 `harnesskit:todo-checklist:start` / `end` marker 包围的完整 authoring checklist block；不得删除其他 HTML comment 或人写内容，marker 缺对时停止并报告冲突。
-   6. Owner 把本 artifact 的**当前完整 tracked inventory**交给 tooling 整份写 sidecar 并封存；不能只提交本轮新增项，空 inventory 写空 `items`。后续 artifact 只读取已封存定稿。
-6. 后续 artifact 的证据或回答若与已封存 Claim 矛盾，从最早受影响的 artifact 重新进入固定循环，交回原 owner 按 retire → 重新分配 → 重新核实或确认 → 重新封存处理，再依计划重核后续 artifact；不得静默保留冲突或整份重写。
-7. 全部 artifact 封存后执行内容 coverage review：检查 owner 边界、重复表达、证据支持、模板 section 三态（已填充、已删除、或明确写明无证据/待确认）与高影响缺口。发现问题时交回对应 owner 重新执行本份循环并封存，直到 review 收敛。
-8. 运行 `node scripts/claims-verify.cjs verify --final --json`，按 artifact、ID、字段、source 或残留 authoring checklist 修正失败并重跑，直到 `valid: true` 且 `status: passed`。普通 `verify` 允许未完成轮次保留 checklist；只有 `--final` 是退出门禁。
-9. 运行 HarnessKit 内部 root validation runner。只有 receipt `status: passed` 才能完成；引用 latest receipt 及 run receipt 路径，但不得把该 receipt 写成目标仓库的验证事实或结果。
+1. Bootstrap 先调用 `$harnesskit-kickoff` 执行只读 eligibility preflight：对照 HarnessKit asset 中的 manifest 与目标路径，确认仓库尚未建立 HarnessKit 项目说明且没有不兼容路径。发现已有 HarnessKit 项目说明、tracked inventory 或路径冲突时立即停止并说明，整个 preflight 不创建、覆盖或修改任何目标文件。Adopt 跳过这项 Bootstrap eligibility 判断，保持既有范围。
+2. Preflight 通过后运行 missing-only materialize，并保存每个 artifact 的 `created` / `skipped_existing` 结果；Adopt 仍从本步骤开始。
+3. 调用 `$harnesskit-kickoff` 以只读方式完成 repo-shape、part roots 与跨 artifact 信息核实，取得 artifact 地图与整体计划 brief。Kickoff 只在 repository evidence 无法收敛高影响共享信息时声明预热轮；没有问题时为零轮。从 materialize 结束到整体计划展示前，不得向 target Markdown 写入项目内容。
+4. 若存在预热轮，按 [protocol/README.md](../../protocol/README.md) 由 init emit；输出 `needs_input` 后立即停止读写。Continuation 从保存的预热轮恢复，不重跑 materialize 或重复已回答问题。能回 repository 验证的答案由 kickoff 复核后进入地图；repository evidence 无法裁决的答案路由给对应 artifact owner，在本份循环内作为 intent 处理。预热轮本身不写 Claim。
+5. Init 按 kickoff 地图与 repo-local manifest 动态展开本次 artifact 集合与顺序；计划必须覆盖地图 scope 内 manifest 登记的每个 artifact，不把固定路径列表当成合同。先用 kickoff brief 展示一次自然语言整体计划，说明将依次整理哪些用户可理解的主题、现在无需操作，以及只会在需要核对仓库理解或决定长期做法时邀请用户参与；展示后直接继续，不要求批准计划。单 project 默认展开为 validation → development → architecture → rules（CODING、RELIABILITY、SECURITY、PRODUCT_SENSE）→ agents；AGENTS 只在全部内容 artifact 封存后处理。Monorepo 只按 kickoff 提供的 repo shape、part roots 与 artifact 地图展开，不自行发明 root/part 细则。
+6. 按计划逐 artifact 执行完整固定循环；当前 artifact 封存前不得进入下一份：
+   1. 先发送本主题的自然语言阶段说明，再调用对应 fill skill，只扫描本 artifact 所需 evidence，生成或选择 atomic Claims，并用 tooling 分配 ID。Bootstrap observed 先保留 draft，不向 target Markdown 写入本主题内容；Adopt 保持已有最小写入行为。Intent 仍按既有规则区分已有有效 repository confirmation locator 与 pending draft。
+   2. Bootstrap owner 若返回可选的 scan review declaration，把当前 artifact、相关 observed drafts、allocated IDs 与 exact insertion anchors 保存到现有 waiting-round context，再由 init emit 这一道普通问题。每个 artifact 至多一道 scan review，多个相关结论放在该问题的 `claim.rows`；没有合格结论时跳过。Adopt 不新增 scan review。
+   3. Scan review continuation 只恢复保存的本份 context。整体接受只表示核对通过，Claim 仍为 `observed`，不得写 confirmation record；自然语言修正交回 owner，只重新核实被指出的结论及直接影响，未指出的结论保持不变。整组否定时丢弃当前 artifact 本次尚未封存的全部 observed drafts、退休其 IDs，并从最低扫描面重扫整个当前 artifact；表达未来做法的修正转入本份现有 intent 流程。不得为同一 artifact 再发第二道 scan review。
+   4. Scan review 处理完毕或被跳过后，owner 对 Bootstrap observed 与已有有效 repository confirmation locator 的 intent 执行最小 Markdown 写入。若本份存在 pending intent，把当前 artifact、allocated IDs、完整 proposed statements、Adopt exact selected bytes 或 Bootstrap insertion anchors 保存到 run-state，再由 init emit 仅属于本份的 intent 轮次。零 intent 不停顿；不得跨 artifact 折叠。单轮超过 8 题时按语义边界顺延溢出轮，不在题数边界腰斩领域。
+   5. Intent continuation 先确认 target 与保存的 selected bytes/anchors 仍一致；不一致时停止并重新声明，不能模糊查找或覆盖。答案能回 repository 验证时由 owner 复核为 observed；证据无法裁决且用户明确同意的 intent 由 tooling 写 immutable confirmation record，再由 owner 最小写入 Markdown。自定义修正交回 owner 重新核实，不把回答直接当 repository evidence；语义变化时退休原 ID、重新分配并按需重新确认。拒绝或未确认的 draft 直接丢弃，target Markdown 保持未改，已分配 ID 退休且永不复用。每个 confirmation batch 使用新的唯一 repo-relative ref，已存在 record 不得覆盖或改写。
+   6. Owner 删除本 artifact 中由精确 `harnesskit:todo-checklist:start` / `end` marker 包围的完整 authoring checklist block；不得删除其他 HTML comment 或人写内容，marker 缺对时停止并报告冲突。
+   7. Owner 把本 artifact 的**当前完整 tracked inventory**交给 tooling 整份写 sidecar 并封存；不能只提交本轮新增项，空 inventory 写空 `items`。后续 artifact 只读取已封存定稿。不要单独发送“本主题已完成”日志；进入下一主题时把过渡合并进下一条阶段说明。
+7. 后续 artifact 的证据或回答若与已封存 Claim 矛盾，从最早受影响的 artifact 重新进入固定循环，交回原 owner 按 retire → 重新分配 → 重新核实或确认 → 重新封存处理，再依计划重核后续 artifact；不得静默保留冲突或整份重写。
+8. 全部 artifact 封存后执行内容 coverage review：检查 owner 边界、重复表达、证据支持、模板 section 三态（已填充、已删除、或明确写明无证据/待确认）与高影响缺口。发现问题时交回对应 owner 重新执行本份循环并封存，直到 review 收敛。
+9. 运行 `node scripts/claims-verify.cjs verify --final --json`，按 artifact、ID、字段、source 或残留 authoring checklist 修正失败并重跑，直到 `valid: true` 且 `status: passed`。普通 `verify` 允许未完成轮次保留 checklist；只有 `--final` 是退出门禁。
+10. 运行 HarnessKit 内部 root validation runner。只有 receipt `status: passed` 才能完成；引用 latest receipt 及 run receipt 路径，但不得把该 receipt 写成目标仓库的验证事实或结果。
+11. 门禁通过后发送一段简洁完成说明，只说明已经整理的主题、用户修正是否已应用以及最终检查结果；不要列内部步骤、字段或统计。
 
 ## 轮前预告
 
-把预告作为面向用户的阶段过渡，而不是运行日志、审计日志或工具状态。只在以下有意义边界先预告再继续：进入预热轮、进入每个 artifact 固定循环、发射每次确认轮（含同一 artifact 的每个溢出轮）、continuation/resume，以及开始最终验证；不要等待用户确认预告，也不要为这些边界之间的内部小步骤制造 progress spam。
+把预告作为面向用户的阶段过渡，而不是运行日志、审计日志或工具状态。只在以下有意义边界先预告再继续：进入预热轮、展示整体计划、进入每个 artifact 固定循环、发射 scan review 或 intent 轮次（含同一 artifact 的每个溢出轮）、continuation/resume，以及开始最终验证；不要等待用户确认预告，也不要为这些边界之间的内部小步骤制造 progress spam。
 
 每条预告默认写成 1 个短段落、2–3 个短句。先用用户可理解的语言说明本阶段要解决什么问题，再把 2–4 类 repo-specific 真实来源以自然名称融入说明，解释为什么查看它们以及过滤后预计出现的问题类型和大致规模，最后用流程语言说明用户现在是否需要操作、何时参与；不要写“这条预告无需回复”“预告本身无需回复”或解释消息回复机制。来源类别必须来自当时可用的 kickoff/artifact 地图与对应 owner 的最低扫描面，不得机械逐字段罗列、使用与实际扫描无关的固定模板空话或暴露未过滤候选。
 
@@ -72,8 +77,9 @@ Materialize 后运行 `node scripts/claims-verify.cjs --help`，确认 `write-si
 
 以下内容只示范表达方式，不得照抄为固定模板，也不得据此固定 artifact 或扫描面：
 
-- Artifact 进入：“接下来我会整理项目的架构边界，主要对照源码目录、构建配置和依赖声明，确认模块职责与依赖方向是否一致。现在无需操作。我整理完后会把需要你决定的问题一起发给你，到时统一回答即可。”
-- 确认轮：“这一部分已经整理完成，接下来有 3 个长期约束需要你确认，主要涉及模块职责、依赖方向和失败处理。我会把这 3 个问题一起发给你，到时统一回答即可。”
+- Artifact 进入：“接下来我会整理项目的架构边界，主要对照源码目录、构建配置和依赖声明，确认模块职责与依赖方向是否一致。现在无需操作；整理完后，我只会在需要你核对理解或决定今后做法时再请你参与。”
+- Scan review：“我已经整理完项目的架构现状，下面会用一道问题集中列出扫描到的关键结论。你可以一次同意，也可以直接指出少数需要修正的内容。”
+- Intent 轮：“仓库没有说明模块之间今后是否必须保持这一依赖方向，我会单独请你决定这项长期做法。”
 - 最终检查：“文档已经整理完成，接下来我会对照这些文档、它们引用的仓库文件和项目验证入口，确认结论有依据、各文档不冲突且没有遗漏。现在不用操作；检查结束后我会说明能否作为基线，并只在发现影响结论的冲突时请你决定。”
 
 预告只属过程 commentary，不是运行产物；不得把它写入或用作 evidence、Claim、run-state、receipt 或最终 Markdown。保持纯自然语言，不新增结构化 status、协议字段、持久化 announcement transcript 或 UI。
@@ -83,10 +89,11 @@ Materialize 后运行 `node scripts/claims-verify.cjs --help`，确认 `write-si
 Questionnaire 只采用 [protocol/README.md](../../protocol/README.md) 定义的 UX、wrapper、字段、批量上限与 resume wire contract；artifact 顺序与轮次由本 skill 定义。不要新增协议字段或在本 skill 复制 JSON schema。
 
 - 只 emit kickoff 或当前 artifact 实际声明的问题；不设置固定轮数、最少问题数或额外语义门槛。
-- 每个 waiting round 最多 8 题、一轮一次 pause；超限时按语义边界拆分，整轮提交后 resume。
-- Artifact 轮次只包含本份 pending intent。零 intent 直接封存，不把问题借位到相邻 artifact。
+- Bootstrap 每个 artifact 先按需 emit 至多一道 scan review 问题，再处理本份 pending intent；scan review 是一道带多条 `claim.rows` 的普通问题，不拆成逐项表单。Adopt 保持原有 intent 流程。
+- 每个 waiting round 最多 8 题、一轮一次 pause；scan review 轮固定为一道问题，intent 超限时按语义边界拆分，整轮提交后 resume。
+- Artifact 轮次只包含本份 scan review 或 pending intent。两者都没有时直接封存，不把问题借位到相邻 artifact。
 - 输出 `needs_input` 后停止任何 repository 读写。Continuation 从 run-state 保存的预热轮或当前 artifact、Claim IDs、完整 proposed statements 和 exact selected bytes/insertion anchors 继续；不要依赖旧 session 记忆。
-- 用户自由文本是修正或定向复核指令；只有经 repository evidence 复核后才能成为 observed，证据无法裁决时必须在本份轮次按 intent 确认。
+- 用户自由文本是修正或定向复核指令；scan review 只重查用户指出的结论及直接影响，其他结论保持不变。只有经 repository evidence 复核后才能成为 observed，表达未来做法或证据无法裁决的内容必须在本份轮次按 intent 处理。
 
 ## 确定性 tooling
 
@@ -112,7 +119,7 @@ Verifier 把 canonical Markdown 中任何 literal registered token 都计入 inv
 
 逐项确认：
 
-- Kickoff 地图已消费，地图 scope 内每个 manifest-registered claim-bearing artifact 都已完成本份循环并恰有一个封存 sidecar；run-state 不含 pending 轮次。
+- Kickoff 地图与整体计划 brief 已消费，地图 scope 内每个 manifest-registered claim-bearing artifact 都已完成本份循环并恰有一个封存 sidecar；run-state 不含 pending scan review 或 intent 轮次。
 - Markdown token IDs 与 sidecar item IDs 集合完全相等；ID 全仓唯一，namespace 与编号合法，sidecar items 和 sources 为 canonical order。
 - 每条 Claim 是单一 owner 下的 atomic `observed` 或 `intent`；statement 只在 Markdown。
 - 每个 observed source 安全、存在且 hash fresh；每个 intent 都有可定位的真实 `confirmed_by`。

@@ -1,17 +1,22 @@
 ---
 name: harnesskit-kickoff
-description: 在 Context Harness 的 Bootstrap 或选择性 Adopt 开始时核实 repo shape、part roots 与高影响跨 artifact 信息，按需声明预热轮问题，并把基于 repo-local manifest 的 artifact 地图交给 init；不生成最终 Markdown、Claim sidecar 或 artifact-specific candidates。
+description: 在 Context Harness 的 Bootstrap 或选择性 Adopt 开始时核实 repo shape、part roots 与高影响跨 artifact 信息，按需声明预热轮问题，并把 artifact 地图与用户可读的整体计划 brief 交给 init；不生成最终 Markdown、Claim sidecar 或 artifact-specific candidates。
 ---
 
 # HarnessKit Kickoff
 
-本 skill 是 artifact 地图与预热轮的语义 owner。只读取建立地图所需的 repository evidence，判断 repo shape 与 part roots，并把地图交给 `$harnesskit-init` 动态展开处理计划；init 不自行读取 evidence。Per-artifact 证据发现归各 fill，在对应 artifact 的热上下文中完成。
+本 skill 是 Bootstrap eligibility preflight、artifact 地图、整体计划 brief 与预热轮的语义 owner。只读取建立这些结果所需的 repository evidence，判断 repo shape 与 part roots，并把地图和 brief 交给 `$harnesskit-init` 动态展开处理计划；init 不自行读取 evidence。Per-artifact 证据发现归各 fill，在对应 artifact 的热上下文中完成。
+
+## Bootstrap eligibility preflight
+
+Bootstrap 必须在 missing-only materialize 之前先做只读 preflight。读取 HarnessKit asset 中的 artifact manifest、模板目标路径与目标仓库现状，确认仓库尚未建立 HarnessKit 项目说明，并检查每个将创建的路径及 `CLAUDE.md -> AGENTS.md` alias 是否存在不兼容形态。发现 repo-local HarnessKit manifest、tracked inventory、已建立的 HarnessKit 项目说明或任一目标路径冲突时立即停止并用自然语言说明；不得先创建目录、skeleton、support file、run-state 或任何临时文件。Preflight 通过只表示 Bootstrap 输入安全，不代替 materialize 后的 repo-shape 与整体计划扫描。Adopt 跳过本节，保持既有行为。
 
 ## 输入与 evidence 边界
 
 从仓库根目录按需读取：
 
-- materialize 结果、现有 context Markdown 与 repo-local artifact manifest；
+- Bootstrap preflight 中的 HarnessKit asset manifest、模板目标路径与现有 context 路径形态；
+- preflight 通过后的 materialize 结果、现有 context Markdown 与 repo-local artifact manifest；
 - README、产品文档及仓库明确声明为权威的 identity source；
 - workspace/package manifests、lockfiles、源码入口、generated-source 声明与 operation boundary；
 - validation runner/config、scripts、hooks/CI 与 tests 中能证明真实 validation entrypoint 的最小证据。
@@ -49,13 +54,18 @@ Evidence 已收敛时为零轮。Kickoff 拥有问题内容与答案复核，ini
 
 用户答案能回 repository 验证时，复核后纳入地图；repository evidence 无法裁决时，把内容路由给对应 artifact owner，在本份轮次内按 intent 处理。用户自由文本只是修正或定向复核指令，不直接成为 evidence 或 durable guidance。
 
+## 整体计划 brief
+
+地图收敛后，向 init 返回一份仅供本次用户说明使用的 brief：使用项目自然名称，按实际 artifact 地图给出用户可理解的有序主题，并说明只有需要核对仓库理解或决定长期做法时才会邀请用户参与。主题名称来自本次地图，不展示内部文件分类、协议字段、tooling 或固定模板术语；不要求用户批准计划，也不持久化 brief。
+
 ## Kickoff 流程
 
-1. 读取 materialize 结果与 repo-local manifest，区分新建 skeleton、已有 Markdown 与 HarnessKit 内部资产。若已有非空 tracked inventory，报告当前 Bootstrap/Adopt 范围外，不自行定义更新语义。
-2. 只为地图做 compressed scan：先看 workspace/manifest 与真实 build/test/operation entrypoint，再在 repo-shape、part roots、identity 或 validation entrypoint 的高影响分叉处下钻。
-3. 综合独立证据判断 single project 或 monorepo，生成包含 repo shape、root/part roots、project identity、validation entrypoint 与 manifest artifact scope 的地图。若确认的 part 需要尚未登记的 artifact，报告 registration/tooling gap；不得发明 namespace、sidecar mapping 或 high-water mark。
-4. 对仍无法收敛的高影响跨 artifact 信息声明预热轮问题，交给 init emit。Continuation 后重新核实答案，不重做已完成且未受影响的判断。
-5. 把当前运行的地图交给 init 展开计划，不创建额外的持久 handoff 文件。到此停止；不得继续扫描 artifact-specific evidence、组织最终 statement 或向各 fill 一次性交付 candidates。
+1. Bootstrap 先执行上述只读 eligibility preflight；未通过时零写入退出。Adopt 从 materialize 后的下一步开始。
+2. 读取 materialize 结果与 repo-local manifest，区分新建 skeleton、已有 Markdown 与 HarnessKit 内部资产。若已有非空 tracked inventory，报告当前 Bootstrap/Adopt 范围外，不自行定义更新语义。
+3. 只为地图做 compressed scan：先看 workspace/manifest 与真实 build/test/operation entrypoint，再在 repo-shape、part roots、identity 或 validation entrypoint 的高影响分叉处下钻。
+4. 综合独立证据判断 single project 或 monorepo，生成包含 repo shape、root/part roots、project identity、validation entrypoint 与 manifest artifact scope 的地图。若确认的 part 需要尚未登记的 artifact，报告 registration/tooling gap；不得发明 namespace、sidecar mapping 或 high-water mark。
+5. 对仍无法收敛的高影响跨 artifact 信息声明预热轮问题，交给 init emit。Continuation 后重新核实答案，不重做已完成且未受影响的判断。
+6. 把当前运行的地图与整体计划 brief 交给 init 展开并展示计划，不创建额外的持久 handoff 文件。到此停止；不得继续扫描 artifact-specific evidence、组织最终 statement 或向各 fill 一次性交付 candidates。
 
 ## Claim 语义纪律
 
@@ -75,7 +85,8 @@ Evidence 已收敛时为零轮。Kickoff 拥有问题内容与答案复核，ini
 
 ## 边界
 
-- 不生成或更新 final Markdown、Claim sidecar、receipt、confirmation record、namespace counter 或 project-local skill。
+- 不生成或更新 final Markdown、Claim sidecar、receipt、confirmation record、namespace counter 或 project-local skill；整体计划 brief 只用于过程说明。
+- Bootstrap eligibility preflight 只读，不用“先 materialize 再检查”替代，也不为了保存 preflight 结果写 run-state 或临时文件。
 - 不执行 per-artifact evidence discovery，不生成 candidate handoff，不替各 fill 判断 statement、`kind`、source path 或本份问题。
 - 不让 init 回读 evidence；地图是 kickoff 对本次编排的 handoff。
 - 不创建 `facts.md` 或任何额外持久 handoff 文件。
