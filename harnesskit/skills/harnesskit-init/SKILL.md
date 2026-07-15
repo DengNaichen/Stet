@@ -1,15 +1,15 @@
 ---
 name: harnesskit-init
-description: 编排 Context Harness 的 missing-only Markdown materialize、预热轮、地图驱动的逐 artifact 封存循环、确定性 Claim provenance 与最终 verifier/receipt。用于 Bootstrap 或选择性 Adopt。
+description: 编排 Context Harness 的 evidence-first 单仓 materialize profile 选择、missing-only Markdown materialize、预热轮、地图驱动的逐 artifact 封存循环、确定性 Claim provenance 与最终 verifier/receipt。用于 Bootstrap 或选择性 Adopt。
 ---
 
 # Harness 初始化
 
-本 skill 是用户可见的总编排器。它只编排预热轮、用户可读的整体计划、artifact 处理循环、pause/resume、coverage review 和完成门禁；不替 artifact owner 读取证据、写 statement、判断 `kind`、选择 source 或发明问题。
+本 skill 是用户可见的总编排器。它只编排 Bootstrap/选择性 Adopt 单仓 profile 问题、预热轮、用户可读的整体计划、artifact 处理循环、pause/resume、coverage review 和完成门禁；不替 kickoff 或 artifact owner 读取证据、写 statement、判断 `kind`、选择 source 或发明问题。
 
 ## 职责分工
 
-- `$harnesskit-kickoff` 是 artifact 地图与预热轮 owner；它读取 repository evidence，判断 repo shape 与 part roots，并只声明 project identity、validation entrypoint 等真正跨 artifact 的问题。
+- `$harnesskit-kickoff` 是 Bootstrap/选择性 Adopt 单仓 materialize profile、artifact 地图与预热轮 owner；它读取 repository evidence，判断 repo shape、part roots 与 profile，并只声明会改变 artifact 集合的唯一 profile 问题或 project identity、validation entrypoint 等真正跨 artifact 的问题。
 - Fill skills 是本份轮次的语义 owner；它们负责当前 artifact 的证据扫描、Claim draft、问题声明、答案复核、最小 Markdown 写入、authoring checklist 清理与 sidecar 封存。
 - Init 只消费 kickoff 地图与 repo-local manifest，动态展开 artifact 处理计划，并按 owner 声明 emit 轮次；不自行读取 repository evidence，也不把多个 artifact 的问题合并。
 - Agent 只负责语义、statement、Claim 边界、`kind`、source path 与问题内容。
@@ -22,13 +22,21 @@ Materialize 本轮创建的 `.harnesskit/**`、`scripts/claims-verify.cjs`、`sc
 
 ## Missing-only materialize
 
-Bootstrap 必须先由 `$harnesskit-kickoff` 完成只读 eligibility preflight；未明确通过前不要运行本节命令。Adopt 保持既有 materialize 起点。
+Bootstrap 必须先由 `$harnesskit-kickoff` 完成只读 eligibility preflight 与单仓 profile 选择；选择性 Adopt 跳过 eligibility，但也必须在首次 materialize 前完成同一道只读 profile 选择。Profile 未收敛前不要运行本节命令。Adopt 的 artifact evidence scan、人工内容选择与写入仍从 materialize 后开始，保持 materialize-first 内容工作流。
 
 从目标仓库根目录运行：
 
 ```sh
 node /opt/harnesskit/scripts/init-materialize.mjs --target "$PWD"
 ```
+
+Kickoff 明确选择 `web-frontend` 时改为只运行一次：
+
+```sh
+node /opt/harnesskit/scripts/init-materialize.mjs --target "$PWD" --profile web-frontend
+```
+
+不要先 materialize base 再追加 profile；`web-frontend` 命令本身会 missing-only materialize base 与两个 profile artifact。明确不命中或用户明确保持基础集合时仍使用原 base 命令，base 报告形状与既有行为不变。
 
 若环境没有 `/opt/harnesskit`，使用实际 HarnessKit asset root 下的 `scripts/init-materialize.mjs`。Helper 只创建 `templates/init/**` 中缺失的文件，并在缺失时创建精确的 `CLAUDE.md -> AGENTS.md` 相对 alias；已有普通 `CLAUDE.md` 或正确 alias 返回 `skipped_existing`，错误 alias 或其他形态返回 conflict。不得覆盖、删除或重新格式化已有文件，也不得把这一例外扩展成通用 symlink 支持。
 
@@ -46,14 +54,25 @@ Materialize 后运行 `node scripts/claims-verify.cjs --help`，确认 `write-si
 
 不要要求 Claim 位于固定 heading、列表或列位置。Markdown statement 是正文 source of truth；sidecar 只保存 provenance。
 
+## 单仓 artifact 计划
+
+计划仍由 kickoff 地图与 repo-local manifest 动态产生；下列顺序是现有两个单仓 manifest 的展开合同，不把它扩展为 monorepo、part 或 mixed profile 规则。
+
+- **base 单仓**保持既有顺序：`docs/VALIDATION.md` → `docs/DEVELOPMENT.md` → `docs/ARCHITECTURE.md` → `docs/rules/CODING.md` → `docs/rules/RELIABILITY.md` → `docs/rules/SECURITY.md` → `docs/rules/PRODUCT_SENSE.md` → `AGENTS.md`。
+- **Web frontend 单仓**：`docs/VALIDATION.md` → `docs/DEVELOPMENT.md` → `docs/ARCHITECTURE.md` → `docs/DESIGN_SYSTEM.md` → `docs/INTERACTION_DESIGN.md` → `docs/rules/CODING.md` → `docs/rules/RELIABILITY.md` → `docs/rules/SECURITY.md` → `docs/rules/PRODUCT_SENSE.md` → `AGENTS.md`。
+
+选择 Web frontend 后，artifact 地图、整体计划 brief 与逐 artifact loop 都必须包含两份新增 artifact。正常首次遍历对 `docs/DESIGN_SYSTEM.md` 恰好调用一次 `$harnesskit-fill-design-system`，对 `docs/INTERACTION_DESIGN.md` 恰好调用一次 `$harnesskit-fill-interaction-design`；只有后续发现冲突或 coverage gap 时才按既有回退规则重新进入原 owner。框架 marker 与 profile 选择不提供本份内容，两个 owner 仍分别执行完整 evidence scan、问题轮次与封存循环。
+
 ## 主工作流
 
-1. Bootstrap 先调用 `$harnesskit-kickoff` 执行只读 eligibility preflight：对照 HarnessKit asset 中的 manifest 与目标路径，确认仓库尚未建立 HarnessKit 项目说明且没有不兼容路径。发现已有 HarnessKit 项目说明、tracked inventory 或路径冲突时立即停止并说明，整个 preflight 不创建、覆盖或修改任何目标文件。Adopt 跳过这项 Bootstrap eligibility 判断，保持既有范围。
-2. Preflight 通过后运行 missing-only materialize，并保存每个 artifact 的 `created` / `skipped_existing` 结果；Adopt 仍从本步骤开始。
-3. 调用 `$harnesskit-kickoff` 以只读方式完成 repo-shape、part roots 与跨 artifact 信息核实，取得 artifact 地图与整体计划 brief。Kickoff 只在 repository evidence 无法收敛高影响共享信息时声明预热轮；没有问题时为零轮。从 materialize 结束到整体计划展示前，不得向 target Markdown 写入项目内容。
-4. 若存在预热轮，按 [protocol/README.md](../../protocol/README.md) 由 init emit；输出 `needs_input` 后立即停止读写。Continuation 从保存的预热轮恢复，不重跑 materialize 或重复已回答问题。能回 repository 验证的答案由 kickoff 复核后进入地图；repository evidence 无法裁决的答案路由给对应 artifact owner，在本份循环内作为 intent 处理。预热轮本身不写 Claim。
-5. Init 按 kickoff 地图与 repo-local manifest 动态展开本次 artifact 集合与顺序；计划必须覆盖地图 scope 内 manifest 登记的每个 artifact，不把固定路径列表当成合同。先用 kickoff brief 展示一次自然语言整体计划，说明将依次整理哪些用户可理解的主题、现在无需操作，以及只会在需要核对仓库理解或决定长期做法时邀请用户参与；展示后直接继续，不要求批准计划。单 project 默认展开为 validation → development → architecture → rules（CODING、RELIABILITY、SECURITY、PRODUCT_SENSE）→ agents；AGENTS 只在全部内容 artifact 封存后处理。Monorepo 只按 kickoff 提供的 repo shape、part roots 与 artifact 地图展开，不自行发明 root/part 细则。
-6. 按计划逐 artifact 执行完整固定循环；当前 artifact 封存前不得进入下一份：
+1. Bootstrap 与选择性 Adopt 都先调用 `$harnesskit-kickoff` 做单仓 profile evidence scan。Bootstrap 同时执行只读 eligibility preflight：对照 HarnessKit asset 中的 base/profile manifest、目标路径和最小 repo-owned application evidence，确认仓库尚未建立 HarnessKit 项目说明，并在选择收敛后核对该完整目标集合没有不兼容路径；发现已有 HarnessKit 项目说明、tracked inventory 或路径冲突时立即停止，整个 preflight 不创建、覆盖或修改任何目标文件。选择性 Adopt 跳过 eligibility，profile routing 是其首次 materialize 前唯一新增的 repository scan，不读取或选择现有 artifact 内容，也不创建、覆盖或修改任何目标文件。
+2. 已确认 single project 的 evidence 明确命中或不命中时不提问，直接使用 kickoff 选择；只有 Web profile evidence 不足或冲突时才 emit kickoff 声明的一道显式 profile 问题。它说明接受 Web frontend 会新增 Design System 与 Interaction Design 两个主题，否则保持 base。Repo shape 已是 monorepo 或 single/monorepo 尚未收敛时保持 base，不借此问题声称支持 part/mixed routing。输出 `needs_input` 后立即停止全部 repository 读写，且当前运行保持零写入：不创建目录、skeleton、support file、run-state 或临时文件。
+3. Profile answer 提交后从 existing paused segment 的 `profile selection` continuation 恢复，不重新开始工作流，不重复已完成轮次、evidence scan 或 profile 问题。接受推荐即选择 `web-frontend`；明确修正为基础集合即选择 `base`。Bootstrap 只完成尚未执行的所选目标路径 safety check；选择性 Adopt 的 profile continuation 同样从 existing paused segment 恢复且不重复已完成轮次，然后直接进入首次 materialize 的原子 preflight。不得先运行 base 再追加 profile，也不新增 run-state、Questionnaire 字段或 backend lifecycle。
+4. Profile 收敛后运行 missing-only materialize，且只运行一次，并保存每个 artifact 的 `created` / `skipped_existing` 结果；`web-frontend` 在 Bootstrap 与选择性 Adopt 都使用带 `--profile web-frontend` 的现有 materializer，base 使用既有命令。对选择性 Adopt，这是首次 target mutation；overlay 对已有的人写 Markdown 返回 `skipped_existing` 并保留 bytes。随后逐 artifact 按 materialize result 分流：`created` skeleton 走 Bootstrap loop（含按需 scan review），`skipped_existing` 人工内容走 Adopt 原有的最小选择/写入保护；两份新增 artifact 即使一份 created、一份 skipped 也分别判断，并各调用一次对应 owner。Base-only repo-local manifest 不能原地升级为 profile manifest，沿用 materializer conflict 并零部分写入停止。
+5. 调用 `$harnesskit-kickoff` 以只读方式完成 materialize 后尚未完成的 repo-shape、part roots 与跨 artifact 信息核实，复用 pre-materialize 已收敛的 repo-shape/profile 结论，不重复 profile scan，取得 artifact 地图与整体计划 brief。Kickoff 只在 repository evidence 无法收敛高影响共享信息时声明预热轮；没有问题时为零轮。从 materialize 结束到整体计划展示前，不得向 target Markdown 写入项目内容。
+6. 若存在预热轮，按 [protocol/README.md](../../protocol/README.md) 由 init emit；输出 `needs_input` 后立即停止读写。Continuation 从保存的预热轮恢复，不重跑 materialize、profile 选择或重复已回答问题。能回 repository 验证的答案由 kickoff 复核后进入地图；repository evidence 无法裁决的答案路由给对应 artifact owner，在本份循环内作为 intent 处理。预热轮本身不写 Claim。
+7. Init 按 kickoff 地图与 repo-local manifest 动态展开本次 artifact 集合与顺序；计划必须覆盖地图 scope 内 manifest 登记的每个 artifact。先用 kickoff brief 展示一次自然语言整体计划，说明将依次整理哪些用户可理解的主题、现在无需操作，以及只会在需要核对仓库理解或决定长期做法时邀请用户参与；展示后直接继续，不要求批准计划。base 与 Web frontend 单仓按“单仓 artifact 计划”展开；AGENTS 只在全部内容 artifact 封存后处理。Monorepo 仍只按 kickoff 提供的既有 repo shape、part roots 与 artifact 地图展开，不把本次 profile 逻辑解释为 monorepo/part 支持。
+8. 按计划逐 artifact 执行完整固定循环；当前 artifact 封存前不得进入下一份：
    1. 先发送本主题的自然语言阶段说明，再调用对应 fill skill，只扫描本 artifact 所需 evidence，生成或选择 atomic Claims，并用 tooling 分配 ID。Bootstrap observed 先保留 draft，不向 target Markdown 写入本主题内容；Adopt 保持已有最小写入行为。Intent 仍按既有规则区分已有有效 repository confirmation locator 与 pending draft。
    2. Bootstrap owner 若返回可选的 scan review declaration，把当前 artifact、相关 observed drafts、allocated IDs 与 exact insertion anchors 保存到现有 waiting-round context，再由 init emit 这一道普通问题。每个 artifact 至多一道 scan review，多个相关结论放在该问题的 `claim.rows`；没有合格结论时跳过。Adopt 不新增 scan review。
    3. Scan review continuation 只恢复保存的本份 context。整体接受只表示核对通过，Claim 仍为 `observed`，不得写 confirmation record；自然语言修正交回 owner，只重新核实被指出的结论及直接影响，未指出的结论保持不变。整组否定时丢弃当前 artifact 本次尚未封存的全部 observed drafts、退休其 IDs，并从最低扫描面重扫整个当前 artifact；表达未来做法的修正转入本份现有 intent 流程。不得为同一 artifact 再发第二道 scan review。
@@ -61,11 +80,11 @@ Materialize 后运行 `node scripts/claims-verify.cjs --help`，确认 `write-si
    5. Intent continuation 先确认 target 与保存的 selected bytes/anchors 仍一致；不一致时停止并重新声明，不能模糊查找或覆盖。答案能回 repository 验证时由 owner 复核为 observed；证据无法裁决且用户明确同意的 intent 由 tooling 写 immutable confirmation record，再由 owner 最小写入 Markdown。自定义修正交回 owner 重新核实，不把回答直接当 repository evidence；语义变化时退休原 ID、重新分配并按需重新确认。拒绝或未确认的 draft 直接丢弃，target Markdown 保持未改，已分配 ID 退休且永不复用。每个 confirmation batch 使用新的唯一 repo-relative ref，已存在 record 不得覆盖或改写。
    6. Owner 删除本 artifact 中由精确 `harnesskit:todo-checklist:start` / `end` marker 包围的完整 authoring checklist block；不得删除其他 HTML comment 或人写内容，marker 缺对时停止并报告冲突。
    7. Owner 把本 artifact 的**当前完整 tracked inventory**交给 tooling 整份写 sidecar 并封存；不能只提交本轮新增项，空 inventory 写空 `items`。后续 artifact 只读取已封存定稿。不要单独发送“本主题已完成”日志；进入下一主题时把过渡合并进下一条阶段说明。
-7. 后续 artifact 的证据或回答若与已封存 Claim 矛盾，从最早受影响的 artifact 重新进入固定循环，交回原 owner 按 retire → 重新分配 → 重新核实或确认 → 重新封存处理，再依计划重核后续 artifact；不得静默保留冲突或整份重写。
-8. 全部 artifact 封存后执行内容 coverage review：检查 owner 边界、重复表达、证据支持、模板 section 三态（已填充、已删除、或明确写明无证据/待确认）与高影响缺口。发现问题时交回对应 owner 重新执行本份循环并封存，直到 review 收敛。
-9. 运行 `node scripts/claims-verify.cjs verify --final --json`，按 artifact、ID、字段、source 或残留 authoring checklist 修正失败并重跑，直到 `valid: true` 且 `status: passed`。普通 `verify` 允许未完成轮次保留 checklist；只有 `--final` 是退出门禁。
-10. 运行 HarnessKit 内部 root validation runner。只有 receipt `status: passed` 才能完成；引用 latest receipt 及 run receipt 路径，但不得把该 receipt 写成目标仓库的验证事实或结果。
-11. 门禁通过后发送一段简洁完成说明，只说明已经整理的主题、用户修正是否已应用以及最终检查结果；不要列内部步骤、字段或统计。
+9. 后续 artifact 的证据或回答若与已封存 Claim 矛盾，从最早受影响的 artifact 重新进入固定循环，交回原 owner 按 retire → 重新分配 → 重新核实或确认 → 重新封存处理，再依计划重核后续 artifact；不得静默保留冲突或整份重写。
+10. 全部 artifact 封存后执行内容 coverage review：检查 owner 边界、重复表达、证据支持、模板 section 三态（已填充、已删除、或明确写明无证据/待确认）与高影响缺口。发现问题时交回对应 owner 重新执行本份循环并封存，直到 review 收敛。
+11. 运行 `node scripts/claims-verify.cjs verify --final --json`，按 artifact、ID、字段、source 或残留 authoring checklist 修正失败并重跑，直到 `valid: true` 且 `status: passed`。普通 `verify` 允许未完成轮次保留 checklist；只有 `--final` 是退出门禁。
+12. 再运行 HarnessKit 内部 root validation runner。Final verifier 与 root validation receipt 是两个独立门禁，不能用前者成功替代后者。只有 receipt `status: passed` 才能完成；引用 latest receipt 及 run receipt 路径，但不得把该 receipt 写成目标仓库的验证事实或结果。Profile 不改变既有 receipt 路径、状态语义或报告要求。
+13. 门禁通过后发送一段简洁完成说明，只说明已经整理的主题、用户修正是否已应用以及最终检查结果；不要列内部步骤、字段或统计。
 
 ## 轮前预告
 
@@ -88,11 +107,12 @@ Materialize 后运行 `node scripts/claims-verify.cjs --help`，确认 `write-si
 
 Questionnaire 只采用 [protocol/README.md](../../protocol/README.md) 定义的 UX、wrapper、字段、批量上限与 resume wire contract；artifact 顺序与轮次由本 skill 定义。不要新增协议字段或在本 skill 复制 JSON schema。
 
+- Bootstrap/选择性 Adopt 的 pre-materialize profile 问题只在 kickoff 无法用 evidence 选择 `base | web-frontend` 时出现，固定为一道 `single_choice`，使用现有 `accept` 与自由文本修改入口；它改变 artifact 集合但不生成 Claim、confirmation 或第二道 profile 问题。Emit 后在现有 pause/resume boundary 停止全部 repository 读写。
 - 只 emit kickoff 或当前 artifact 实际声明的问题；不设置固定轮数、最少问题数或额外语义门槛。
 - Bootstrap 每个 artifact 先按需 emit 至多一道 scan review 问题，再处理本份 pending intent；scan review 是一道带多条 `claim.rows` 的普通问题，不拆成逐项表单。Adopt 保持原有 intent 流程。
 - 每个 waiting round 最多 8 题、一轮一次 pause；scan review 轮固定为一道问题，intent 超限时按语义边界拆分，整轮提交后 resume。
 - Artifact 轮次只包含本份 scan review 或 pending intent。两者都没有时直接封存，不把问题借位到相邻 artifact。
-- 输出 `needs_input` 后停止任何 repository 读写。Continuation 从 run-state 保存的预热轮或当前 artifact、Claim IDs、完整 proposed statements 和 exact selected bytes/insertion anchors 继续；不要依赖旧 session 记忆。
+- 输出 `needs_input` 后停止任何 repository 读写。Pre-materialize profile continuation 从 runtime 保存的 existing paused segment 继续；materialize 后的 continuation 从 run-state 保存的预热轮或当前 artifact、Claim IDs、完整 proposed statements 和 exact selected bytes/insertion anchors 继续。两者都不依赖旧 session 记忆，也不重复已完成轮次。
 - 用户自由文本是修正或定向复核指令；scan review 只重查用户指出的结论及直接影响，其他结论保持不变。只有经 repository evidence 复核后才能成为 observed，表达未来做法或证据无法裁决的内容必须在本份轮次按 intent 处理。
 
 ## 确定性 tooling
@@ -120,6 +140,7 @@ Verifier 把 canonical Markdown 中任何 literal registered token 都计入 inv
 逐项确认：
 
 - Kickoff 地图与整体计划 brief 已消费，地图 scope 内每个 manifest-registered claim-bearing artifact 都已完成本份循环并恰有一个封存 sidecar；run-state 不含 pending scan review 或 intent 轮次。
+- `web-frontend` 地图中 Design System 与 Interaction Design 各完成一次正常 owner 循环；base 地图没有这两份 artifact，既有 artifact 集合与 owner 顺序不变。
 - Markdown token IDs 与 sidecar item IDs 集合完全相等；ID 全仓唯一，namespace 与编号合法，sidecar items 和 sources 为 canonical order。
 - 每条 Claim 是单一 owner 下的 atomic `observed` 或 `intent`；statement 只在 Markdown。
 - 每个 observed source 安全、存在且 hash fresh；每个 intent 都有可定位的真实 `confirmed_by`。
@@ -134,6 +155,8 @@ Verifier 把 canonical Markdown 中任何 literal registered token 都计入 inv
 - 只处理本次 Bootstrap 或选择性 Adopt；不从已有 sidecar 反向恢复或覆盖 Markdown。
 - Init 不读取 repository evidence、不替 kickoff 判断 repo shape，也不替 fill owner 生成 artifact 内容。
 - 不硬编码 monorepo 展开细则，不定义超时或无人值守降级。
+- 不把单仓 `web-frontend` 选择扩展到 monorepo、part 或 mixed profile，不新增第三份 profile artifact。
+- 不修改 Questionnaire schema、Claim/confirmation/provenance、missing-only materialize、Adopt 人工内容保护或 canonical promotion 语义。
 - 不实现 force overwrite，不接管未选择的人写内容。
 - 不虚构 repository facts、commands、CI、branch protection、release、compatibility 或 security policy。
 - 不让 agent 计算 ID、hash、JSON ordering 或 verifier 结果。
