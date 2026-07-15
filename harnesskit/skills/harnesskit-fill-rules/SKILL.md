@@ -1,6 +1,6 @@
 ---
 name: harnesskit-fill-rules
-description: 在 Context Harness 的 Bootstrap 或选择性 Adopt 中，为 manifest-registered root/part CODING、RELIABILITY、SECURITY 与 PRODUCT_SENSE 逐份执行 Markdown-first 循环：只扫描本份规则证据，生成或选择 atomic Claims，按需声明本份轮次，并通过 deterministic tooling 独立封存 provenance sidecar。
+description: 在 Context Harness 的 Bootstrap、选择性 Adopt 或显式 Refresh invocation 中，为 manifest-registered root/part CODING、RELIABILITY、SECURITY 与 PRODUCT_SENSE 逐份执行 Markdown-first 循环：只核实当前规则证据，生成、选择或刷新 atomic Claims，并通过 deterministic tooling 独立整份封存 provenance sidecar。
 ---
 
 # 生成或采用 Rule Claims
@@ -77,6 +77,14 @@ Kickoff 地图只是 repo shape 与 part roots 的起点，不能替代本份证
 
 接受整组只表示核对通过，各项仍是 repository sources 支持的 `observed`，不得写 `confirm-user` 或改成用户制定的 intent。局部修正时保留未指出的 rows，只重新核实指出项及其直接影响，且不把回答当 evidence；statement 语义变化时退休旧 ID 并重新分配，未来默认、必须或禁止的做法转入既有 intent 流程。整组被否定时丢弃当前 rule artifact 本次尚未封存的全部 observed drafts、退休这些 IDs，并重扫整个当前 rule artifact；本份不再发第二道扫描核对，重建 observed 后继续。扫描核对解决或跳过后再写入 observed 并处理本份 pending intent。
 
+## Refresh invocation
+
+`$harnesskit-fill-rules Refresh` 独立于 Bootstrap / Adopt，并始终以一份 manifest-registered rule artifact 为边界。Orchestrator 必须传入冻结的 `changed paths`、`affected Claim IDs`、`verifier diagnostics`、`Markdown drift classification` 与 `sealed upstream outcomes`。按 `CODING → RELIABILITY → SECURITY → PRODUCT_SENSE` 顺序一份一份调用；当前份重新封存前不扫描下一份。读取当前份完整已有 inventory，但只扫本 rule 的受影响最小领域证据集及必要 sealed upstream outcomes，不建 rules-wide 候选池。
+
+先将每个 affected Claim 或 drift 分为 `provenance-only`、`observed semantic change`、`new/changed intent` 或 `manual Markdown`。Provenance-only 不提问；语义未变时保留 ID、kind 与 confirmation，只刷新 source SHA。Observed 语义变化沿用 Questionnaire，每份 artifact 至多一道 batch review；新或变化 intent 逐条独立确认；manual Markdown 先询问修改原因，再决定保留、修订、退休或新增 Claim。不得跨四份 rules 或其他 artifact 合并问题。
+
+Statement replacement / split / merge 必须退休被取代 ID，通过 tooling 分配新 ID，并移除 stale provenance；不继承失效 source 或 confirmation。先做最小 Markdown-first 修改，再用包含所有保留项与新项的完整 inventory 调用 `write-sidecar` 整份 rewrite 并 verify；四份 sidecar 永不合并。Topology、ID namespace 或 semantic owner 冲突返回 blocker。只返回当前份 sealed outcome 与 direct semantic downstream impacts；全局 closure 归 orchestrator，不建全局问题池，不新建 update-specific domain owner。
+
 ## Markdown-first workflow
 
 对 init 计划中的每个 rule artifact 重复以下流程：
@@ -132,4 +140,4 @@ Root/part 与四种 rule artifact 始终使用 manifest 中的实际 path、name
 - 没有具体行为、违规形态或真实 intent 时，不生成 Rule Claim；不以 intent 数量、轮次数或篇幅作为完成标准。
 - 不复制 validation 命令/状态、development 步骤或 architecture 放置规则；只保留本领域判断并链接 owner。
 - 不修改已封存上游 artifact、未选择的人写内容、receipt 或其他 owner 文档，除非按跨 artifact 冲突路径交回原 owner；不得手工编辑 artifact manifest counter，只有 allocation tooling 可以更新它。
-- 不为已有 tracked inventory 定义后续更新行为。
+- 除本节显式 Refresh invocation 外，不为已有 tracked inventory 定义其他更新行为。

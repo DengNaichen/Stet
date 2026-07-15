@@ -1,6 +1,6 @@
 ---
 name: harnesskit-kickoff
-description: 在 Context Harness 的 Bootstrap 或选择性 Adopt 开始时核实 repo shape、part roots 与高影响跨 artifact 信息，以 repository evidence 选择单仓 Web frontend profile，按需声明一次阻塞式 profile 问题，并把 artifact 地图与用户可读的整体计划 brief 交给 init；不生成最终 Markdown、Claim sidecar 或 artifact-specific candidates。
+description: 在 Context Harness 的 Bootstrap、选择性 Adopt 或显式 Refresh invocation 中核实 repo shape、part roots 与高影响跨 artifact 信息，以 repository evidence 选择或刷新 artifact 地图与用户可读的整体计划 brief；不生成最终 Markdown、Claim sidecar 或 artifact-specific candidates。
 ---
 
 # HarnessKit Kickoff
@@ -80,6 +80,14 @@ Repo-shape 若未收敛，其预热问题必须在首次 materialize 前完成�
 ## 整体计划 brief
 
 地图收敛后，向 init 返回一份仅供本次用户说明使用的 brief：使用项目自然名称，按实际 artifact 地图给出用户可理解的有序主题，并说明只有需要核对仓库理解或决定长期做法时才会邀请用户参与。选择 `web-frontend` 时，artifact 地图必须包含 `docs/DESIGN_SYSTEM.md` 与 `docs/INTERACTION_DESIGN.md` 的 manifest registration，brief 必须各用一个用户可理解的主题说明共享视觉系统与高影响交互行为；base 单仓不加入这两个主题。主题名称来自本次地图，不展示内部文件分类、协议字段、tooling 或固定模板术语；不要求用户批准计划，也不持久化 brief。
+
+## Refresh invocation
+
+`$harnesskit-kickoff Refresh` 是与 Bootstrap / Adopt 并列的显式独立调用；不执行 eligibility preflight、profile materialize 或 artifact Claim discovery，也不用 Refresh 覆盖上述两种既有行为。只接收 orchestrator 传入的 `changed paths`、`affected Claim IDs`、`verifier diagnostics`、`Markdown drift classification` 与 `sealed upstream outcomes`；任一输入未冻结、无 owner 或与 repo-local manifest 冲突时返回 blocker，不自行重建全局信号。
+
+只当 changed paths 或 diagnostics 指向 workspace / project manifest、CI binding、README / project identity、build-test-operation entrypoint、repo shape 或 part roots 等会改变多个 artifact 路由的高影响 surface 时，执行 compressed kickoff；否则原样返回已封存地图且不扫描。Compressed scan 只定向读变化 surface 及其直接关联，并核对现有 `base | web-frontend` profile 与 repo-local registrations；Design System 与 Interaction Design 仍分别由原唯一 owner 负责，不新建 update-specific domain owner。
+
+Refresh 只返回刷新后的 artifact map、压缩 plan brief 与直接受影响 owner；不产出 artifact-specific candidates、Claims、Markdown、sidecar 或全局 semantic closure。Topology、registration、Claim ID namespace 或 semantic ownership 冲突必须显式阻断，全局 closure 由 orchestrator 计算。
 
 ## Kickoff 流程
 

@@ -1,6 +1,6 @@
 ---
 name: harnesskit-fill-validation
-description: 在 Context Harness 的 Bootstrap 或选择性 Adopt 中，为 docs/VALIDATION.md 执行逐 artifact Markdown-first 循环：扫描真实 checks、runner 与 bindings，生成或选择 Claims，按需声明本份轮次，并通过 deterministic tooling 封存 provenance sidecar。
+description: 在 Context Harness 的 Bootstrap、选择性 Adopt 或显式 Refresh invocation 中，为 docs/VALIDATION.md 执行 artifact-scoped Markdown-first 循环：核实 checks、runner 与 bindings，生成、选择或刷新 Claims，并通过 deterministic tooling 整份封存 provenance sidecar。
 ---
 
 # 生成或采用 Validation Claims
@@ -55,6 +55,14 @@ Kickoff 地图中的 validation entrypoint 只是扫描起点，不能替代本�
 
 接受整组只表示核对通过，各项仍是 repository sources 支持的 `observed`，不得写 `confirm-user` 或改成用户制定的 intent。局部修正时保留未指出的 rows，只重新核实指出项及其直接影响，且不把回答当 evidence；statement 语义变化时退休旧 ID 并重新分配，未来默认、必须或禁止的做法转入既有 intent 流程。整组被否定时丢弃当前 artifact 本次尚未封存的全部 observed drafts、退休这些 IDs，并重扫整个当前 artifact；同一 artifact 不再发第二道扫描核对，重建 observed 后继续。扫描核对解决或跳过后再写入 observed 并处理 pending intent。
 
+## Refresh invocation
+
+`$harnesskit-fill-validation Refresh` 是独立于 Bootstrap / Adopt 的 invocation。输入必须包含 orchestrator 冻结的 `changed paths`、`affected Claim IDs`、`verifier diagnostics`、`Markdown drift classification` 与 `sealed upstream outcomes`。只处理 manifest-registered 当前 Validation artifact；读取其完整已有 tracked inventory，但仅扫描本领域受影响的最小 checks / runner / binding 证据集与必要的 sealed upstream outcomes，不重跑全仓 discovery。
+
+对每个 affected Claim 和 Markdown drift 先分类：`provenance-only`、`observed semantic change`、`new/changed intent` 或 `manual Markdown`。Provenance-only 不提问，statement 语义未变时保留 ID、kind 与已有 confirmation，只用 deterministic tooling 刷新 source SHA。Observed 语义变化沿用 Questionnaire，当前 artifact 至多一道 batch review；每条新或变化 intent 独立确认。Manual Markdown 必须 reason-first：先询问人工修改原因，再决定保留、修订、退休或新增 Claim；不把文本 drift 自动解释为语义变化。问题不得混入其他 artifact 轮次。
+
+真正的 statement replacement / split / merge 必须退休所有被取代的 ID，通过 allocation tooling 分配新 ID，并移除不再支持新语义的 stale provenance；不得继承失效 source 或 confirmation。先完成最小 Markdown-first 修改，再以保留项与新项组成完整 inventory，用 `write-sidecar` 整份 rewrite 并 verify；禁止局部拼接 sidecar。Topology、ID namespace 或 semantic owner 冲突立即返回 blocker。只返回当前 artifact 的 sealed outcome 与 direct semantic downstream impacts；全局 closure 归 orchestrator，不建全局问题池或 update-specific domain owner。
+
 ## Markdown-first workflow
 
 1. 读取 repo-local artifact manifest、materialize 结果、kickoff 地图与当前 `docs/VALIDATION.md`，执行上述最低扫描面；先排除 HarnessKit 内部完成门禁。
@@ -101,4 +109,4 @@ Kickoff 地图中的 validation entrypoint 只是扫描起点，不能替代本�
 - 不虚构 coverage、security scan、release gate、platform setting 或 check result。
 - 不把单个 check 成功、runner 存在或 `not_configured` 描述为完整 validation 通过。
 - 不把 HarnessKit 内部 verifier、runner、audit、receipt 或 completion status 写成目标仓库验证内容或验证结果。
-- 不为已有 tracked inventory 定义后续更新行为。
+- 除本节显式 Refresh invocation 外，不为已有 tracked inventory 定义其他更新行为。

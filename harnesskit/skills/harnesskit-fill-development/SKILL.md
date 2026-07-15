@@ -1,6 +1,6 @@
 ---
 name: harnesskit-fill-development
-description: 在 Context Harness 的 Bootstrap 或选择性 Adopt 中，为 docs/DEVELOPMENT.md 执行逐 artifact Markdown-first 循环：扫描真实安装、启动、配置与排障来源，生成或选择 Claims，按需声明本份轮次，并通过 deterministic tooling 封存 provenance sidecar。
+description: 在 Context Harness 的 Bootstrap、选择性 Adopt 或显式 Refresh invocation 中，为 docs/DEVELOPMENT.md 执行 artifact-scoped Markdown-first 循环：核实安装、启动、配置与排障来源，生成、选择或刷新 Claims，并通过 deterministic tooling 整份封存 provenance sidecar。
 ---
 
 # 生成或采用 Development Claims
@@ -56,6 +56,14 @@ Kickoff 地图只提供 repo shape、part roots 与共享入口，不能替代�
 
 接受整组只表示核对通过，各项仍是 repository sources 支持的 `observed`，不得写 `confirm-user` 或改成用户制定的 intent。局部修正时保留未指出的 rows，只重新核实指出项及其直接影响，且不把回答当 evidence；statement 语义变化时退休旧 ID 并重新分配，未来默认、必须或禁止的做法转入既有 intent 流程。整组被否定时丢弃当前 artifact 本次尚未封存的全部 observed drafts、退休这些 IDs，并重扫整个当前 artifact；同一 artifact 不再发第二道扫描核对，重建 observed 后继续。扫描核对解决或跳过后再写入 observed 并处理 pending intent。
 
+## Refresh invocation
+
+`$harnesskit-fill-development Refresh` 独立于 Bootstrap / Adopt。只接收 orchestrator 冻结的 `changed paths`、`affected Claim IDs`、`verifier diagnostics`、`Markdown drift classification` 与 `sealed upstream outcomes`；只处理 manifest-registered 当前 Development artifact。读取其完整已有 tracked inventory，但仅扫描安装、启停、配置、本地服务与排障的受影响最小证据集及必要 sealed upstream outcomes；不重跑全仓 discovery。
+
+先将每个 affected Claim 或 drift 分为 `provenance-only`、`observed semantic change`、`new/changed intent` 或 `manual Markdown`。Provenance-only 不提问；语义未变时保留 ID、kind 与 confirmation，只刷新 source SHA。Observed 语义变化沿用 Questionnaire，当前 artifact 至多一道 batch review；新或变化 intent 逐条独立确认；manual Markdown 必须先询问修改原因，再决定保留、修订、退休或新增 Claim。不得跨 artifact 合并问题。
+
+Statement replacement / split / merge 必须退休被取代 ID，通过 tooling 分配新 ID，并移除 stale provenance；不继承失效 source 或 confirmation。先做最小 Markdown-first 修改，再用包含所有保留项与新项的完整 inventory 调用 `write-sidecar` 整份 rewrite 并 verify。Topology、ID namespace 或 semantic owner 冲突返回 blocker。只返回当前 sealed outcome 与 direct semantic downstream impacts；全局 closure 归 orchestrator，不建全局问题池或 update-specific domain owner。
+
 ## Markdown-first workflow
 
 1. 读取 repo-local artifact manifest、materialize 结果、kickoff 地图与当前 `docs/DEVELOPMENT.md`，执行上述最低扫描面；先排除 HarnessKit 内部完成门禁。
@@ -101,4 +109,4 @@ Kickoff 地图只提供 repo shape、part roots 与共享入口，不能替代�
 - 不把 test matrix、quality gate、runner/receipt、模块地图、生产拓扑或发布操作写进 Development。
 - 不执行 destructive cleanup，不记录真实 credential、private URL 或个人绝对路径。
 - 不修改未选择的人写内容、receipt 或其他 owner 文档；不得手工编辑 artifact manifest counter，只有 allocation tooling 可以更新它。
-- 不为已有 tracked inventory 定义后续更新行为。
+- 除本节显式 Refresh invocation 外，不为已有 tracked inventory 定义其他更新行为。

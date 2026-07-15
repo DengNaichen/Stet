@@ -1,6 +1,6 @@
 ---
 name: harnesskit-fill-agents
-description: 在 Context Harness 的 Bootstrap 或选择性 Adopt 中，为 manifest-registered root/part AGENTS 执行最后一份逐 artifact Markdown-first 循环：读取已封存内容定稿生成简洁启动与路由 Claims，按需声明本份轮次，并通过 deterministic tooling 封存 provenance sidecar。
+description: 在 Context Harness 的 Bootstrap、选择性 Adopt 或显式 Refresh invocation 中，为 manifest-registered root/part AGENTS 执行最后一份 artifact-scoped Markdown-first 循环：读取已封存内容定稿生成、选择或刷新简洁启动与路由 Claims，并通过 deterministic tooling 整份封存 provenance sidecar。
 ---
 
 # 生成或采用 AGENTS Claims
@@ -61,6 +61,14 @@ Materialize 为本次 init 创建的 `.harnesskit/**`、`scripts/claims-verify.c
 
 接受整组只表示核对通过，各项仍是 repository sources 支持的 `observed`，不得写 `confirm-user` 或改成用户制定的 intent。局部修正时保留未指出的 rows，只重新核实指出项及其直接影响，且不把回答当 evidence；statement 语义变化时退休旧 ID 并重新分配，未来默认、必须或禁止的做法转入既有 intent 流程。整组被否定时丢弃当前 artifact 本次尚未封存的全部 observed drafts、退休这些 IDs，并重扫整个当前 artifact；同一 artifact 不再发第二道扫描核对，重建 observed 后继续。扫描核对解决或跳过后再写入 observed 并处理 pending intent。
 
+## Refresh invocation
+
+`$harnesskit-fill-agents Refresh` 独立于 Bootstrap / Adopt，仍是 root/part scope 的最后一份 owner invocation。Orchestrator 必须传入冻结的 `changed paths`、`affected Claim IDs`、`verifier diagnostics`、`Markdown drift classification` 与 `sealed upstream outcomes`。只有相关 Architecture、Development、Validation 与 rules 的 Refresh outcomes 全部 sealed 后才能开始；否则返回 blocker。读取当前 AGENTS 完整已有 inventory 与上游定稿，但只扫描受影响的启动事实、owner pointer、task route 与行动 gate 最小证据集，不复制上游正文或重跑全仓 discovery。
+
+先将每个 affected Claim 或 drift 分为 `provenance-only`、`observed semantic change`、`new/changed intent` 或 `manual Markdown`。Provenance-only 不提问；语义未变时保留 ID、kind 与 confirmation，只刷新 source SHA。Observed 语义变化沿用 Questionnaire，当前 root/part artifact 至多一道 batch review；新或变化 intent 逐条独立确认；manual Markdown 先询问修改原因，再决定保留、修订、退休或新增 Claim。不得跨 root/part 或上游 artifact 合并问题。
+
+Statement replacement / split / merge 必须退休被取代 ID，通过 tooling 分配新 ID，并移除 stale provenance；不继承失效 source 或 confirmation。先做最小 Markdown-first 修改，再用包含所有保留项与新项的完整 inventory 调用 `write-sidecar` 整份 rewrite 并 verify。Topology、ID namespace 或 semantic owner 冲突返回 blocker。AGENTS 只返回本份 sealed outcome，`direct semantic downstream impacts` 必须为空；全局 closure 归 orchestrator，不建全局问题池或 update-specific domain owner。
+
 ## Markdown-first workflow
 
 1. 从 init 计划与 repo-local artifact manifest 取得当前 root/part target、namespace 与 sidecar mapping，读取 materialize 结果、kickoff 地图、当前 target Markdown，以及当前 scope 全部已封存内容 artifact 的 Markdown 定稿；只处理 manifest 已登记的 canonical AGENTS artifact。
@@ -115,4 +123,4 @@ Part artifact 始终使用 manifest 中的实际 path、namespace 与 sidecar ma
 - 不编辑 `CLAUDE.md`、`.infcode/skills/**`、已封存内容 artifact、receipt 或其他 owner 文档，除非按跨 artifact 冲突路径交回原 owner；不得手工编辑 artifact manifest counter，只有 allocation tooling 可以更新它。
 - 不把 runtime-only built-in skill、template placeholder、candidate procedure 或未封存内容写成目标仓库事实。
 - 不把 HarnessKit 内部 verifier、runner、audit、receipt 或 completion status 写成目标仓库事实、验证入口或操作策略。
-- 不为已有 tracked inventory 定义后续更新行为。
+- 除本节显式 Refresh invocation 外，不为已有 tracked inventory 定义其他更新行为。
