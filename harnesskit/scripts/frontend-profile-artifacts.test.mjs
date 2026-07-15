@@ -14,6 +14,10 @@ const baseManifestURL = new URL(
 	"../templates/init/.harnesskit/audit/artifact-manifest.json",
 	import.meta.url,
 );
+const profileManifestURL = new URL(
+	"../templates/profiles/web-frontend/.harnesskit/audit/artifact-manifest.json",
+	import.meta.url,
+);
 const checklistBlockPattern =
 	/<!--\s*harnesskit:todo-checklist:start\s*-->[\s\S]*?<!--\s*harnesskit:todo-checklist:end\s*-->\n?/g;
 const baseCreatedGolden = [
@@ -68,6 +72,18 @@ async function createTarget(prefix) {
 
 async function assertMissing(path) {
 	await assert.rejects(lstat(path), { code: "ENOENT" });
+}
+
+async function assertOnlyPresetManifest(target, expectedBytes) {
+	assert.deepEqual(await readdir(target), [".harnesskit"]);
+	assert.deepEqual(await readdir(join(target, ".harnesskit")), ["audit"]);
+	assert.deepEqual(await readdir(join(target, ".harnesskit/audit")), [
+		"artifact-manifest.json",
+	]);
+	assert.equal(
+		await readFile(join(target, ".harnesskit/audit/artifact-manifest.json"), "utf8"),
+		expectedBytes,
+	);
 }
 
 test("default materialization keeps the base golden and omits Web frontend artifacts", async () => {
@@ -192,11 +208,62 @@ test("a base-only target rejects a later profile without partial writes", async 
 	assert.deepEqual(report.conflicts, [
 		{
 			path: ".harnesskit/audit/artifact-manifest.json",
-			reason: "existing manifest does not contain the required web-frontend registrations",
+			reason: "existing manifest is invalid or does not contain the required web-frontend registrations",
 		},
 	]);
 	assert.equal(await readFile(manifestPath, "utf8"), manifestBefore);
 	for (const path of frontendFiles) await assertMissing(join(target, ...path.split("/")));
+});
+
+test("invalid existing profile manifests fail before any target writes", async () => {
+	const validManifest = JSON.parse(await readFile(profileManifestURL, "utf8"));
+	const cases = [
+		{
+			name: "wrong schema",
+			mutate(manifest) {
+				manifest.schema_version = 2;
+			},
+		},
+		{
+			name: "unsorted namespaces",
+			mutate(manifest) {
+				[manifest.claim_namespaces[0], manifest.claim_namespaces[1]] = [
+					manifest.claim_namespaces[1],
+					manifest.claim_namespaces[0],
+				];
+			},
+		},
+		{
+			name: "duplicate artifact registration",
+			mutate(manifest) {
+				manifest.claim_artifacts.splice(1, 0, { ...manifest.claim_artifacts[0] });
+			},
+		},
+	];
+
+	for (const { name, mutate } of cases) {
+		const target = await createTarget(`harnesskit-invalid-manifest-${name.replaceAll(" ", "-")}-`);
+		const manifest = structuredClone(validManifest);
+		mutate(manifest);
+		const manifestBytes = `${JSON.stringify(manifest, null, 2)}\n`;
+		await mkdir(join(target, ".harnesskit/audit"), { recursive: true });
+		await writeFile(join(target, ".harnesskit/audit/artifact-manifest.json"), manifestBytes);
+
+		const report = await materializeInitTemplates({ target, profile: "web-frontend" });
+		assert.deepEqual(report.created, [], name);
+		assert.deepEqual(report.skipped_existing, [], name);
+		assert.deepEqual(
+			report.conflicts,
+			[
+				{
+					path: ".harnesskit/audit/artifact-manifest.json",
+					reason: "existing manifest is invalid or does not contain the required web-frontend registrations",
+				},
+			],
+			name,
+		);
+		await assertOnlyPresetManifest(target, manifestBytes);
+	}
 });
 
 test("invalid profiles and conflicting target paths fail clearly", async () => {
@@ -225,8 +292,13 @@ test("invalid profiles and conflicting target paths fail clearly", async () => {
 	);
 	assert.equal(conflictCLI.status, 1, conflictCLI.stderr);
 	const report = JSON.parse(conflictCLI.stdout);
+	assert.deepEqual(report.created, []);
+	assert.deepEqual(report.skipped_existing, []);
 	assert.deepEqual(report.conflicts, [
 		{ path: "docs/DESIGN_SYSTEM.md", reason: "target exists and is not a regular file" },
 	]);
 	assert.equal((await lstat(join(conflictTarget, "docs/DESIGN_SYSTEM.md"))).isDirectory(), true);
+	assert.deepEqual(await readdir(conflictTarget), ["docs"]);
+	assert.deepEqual(await readdir(join(conflictTarget, "docs")), ["DESIGN_SYSTEM.md"]);
+	assert.deepEqual(await readdir(join(conflictTarget, "docs/DESIGN_SYSTEM.md")), []);
 });

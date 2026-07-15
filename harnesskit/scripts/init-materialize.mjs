@@ -7,6 +7,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const defaultSource = resolve(scriptDir, "..", "templates", "init");
 const artifactManifestPath = ".harnesskit/audit/artifact-manifest.json";
+const artifactManifestSchemaVersion = 3;
+const claimsDirectory = ".harnesskit/audit/claims";
+const namespacePattern = /^[A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)*$/;
 const profileSources = new Map([
 	["web-frontend", resolve(scriptDir, "..", "templates", "profiles", "web-frontend")],
 ]);
@@ -29,42 +32,41 @@ export async function materializeInitTemplates(options = {}) {
 	if (profile) report.profile = profile.name;
 
 	let files = await listTemplateFiles(source);
+	let expectedProfileManifest = null;
 	if (profile) {
 		const overlayFiles = await listTemplateFiles(profile.source);
 		const overlayManifest = overlayFiles.find(({ rel }) => rel === artifactManifestPath);
 		if (!overlayManifest) {
 			throw new Error(`profile ${profile.name} does not provide ${artifactManifestPath}`);
 		}
-		const manifestConflict = await findProfileManifestConflict(
-			target,
-			overlayManifest.path,
-			profile.name,
-		);
-		if (manifestConflict) {
-			report.conflicts.push(manifestConflict);
-			return finalizeReport(report);
+		expectedProfileManifest = await readManifest(overlayManifest.path);
+		if (!validateArtifactManifest(expectedProfileManifest)) {
+			throw new Error(`profile ${profile.name} provides an invalid ${artifactManifestPath}`);
 		}
 		files = overlayTemplateFiles(files, overlayFiles);
 	}
-	for (const item of files) {
-		const targetPath = join(target, item.relNative);
-		const existing = await lstatMaybe(targetPath);
-		if (existing) {
-			if (existing.isFile()) {
-				report.skipped_existing.push(item.rel);
-			} else {
-				report.conflicts.push({ path: item.rel, reason: "target exists and is not a regular file" });
-			}
-			continue;
-		}
 
+	const plan = await preflightMaterialization({
+		target,
+		files,
+		profile,
+		expectedProfileManifest,
+	});
+	report.conflicts.push(...plan.conflicts);
+	if (report.conflicts.length > 0) return finalizeReport(report);
+	report.skipped_existing.push(...plan.skippedExisting);
+
+	for (const item of plan.createFiles) {
+		const targetPath = join(target, item.relNative);
 		await mkdir(dirname(targetPath), { recursive: true });
 		await copyFile(item.path, targetPath);
 		await chmod(targetPath, item.mode & 0o777);
 		report.created.push(item.rel);
 	}
-
-	await materializeClaudeCompanion(target, report);
+	if (plan.createClaudeCompanion) {
+		await symlink("AGENTS.md", join(target, "CLAUDE.md"));
+		report.created.push("CLAUDE.md");
+	}
 
 	return finalizeReport(report);
 }
@@ -98,49 +100,162 @@ function overlayTemplateFiles(baseFiles, overlayFiles) {
 	return [...byPath.values()].sort((a, b) => a.rel.localeCompare(b.rel));
 }
 
-async function findProfileManifestConflict(target, expectedPath, profile) {
-	const targetPath = join(target, ...artifactManifestPath.split("/"));
-	const existing = await lstatMaybe(targetPath);
-	if (!existing) return null;
-	if (!existing.isFile()) {
-		return { path: artifactManifestPath, reason: "target exists and is not a regular file" };
+async function preflightMaterialization({ target, files, profile, expectedProfileManifest }) {
+	const plan = {
+		createFiles: [],
+		createClaudeCompanion: false,
+		skippedExisting: [],
+		conflicts: [],
+	};
+	const fileStates = new Map();
+	const targetRoot = await lstatMaybe(target);
+	if (targetRoot && !targetRoot.isDirectory()) {
+		plan.conflicts.push({ path: ".", reason: "target root exists and is not a directory" });
+		return plan;
 	}
 
-	let actual;
-	let expected;
-	try {
-		[actual, expected] = await Promise.all([
-			readFile(targetPath, "utf8").then(JSON.parse),
-			readFile(expectedPath, "utf8").then(JSON.parse),
-		]);
-	} catch {
-		return {
-			path: artifactManifestPath,
-			reason: `existing manifest does not contain the required ${profile} registrations`,
-		};
+	for (const item of files) {
+		const parentConflict = await findParentConflict(target, item.relNative);
+		if (parentConflict) {
+			addConflict(plan.conflicts, parentConflict);
+			fileStates.set(item.rel, "conflict");
+			continue;
+		}
+		const targetPath = join(target, item.relNative);
+		const existing = await lstatMaybe(targetPath);
+		if (!existing) {
+			plan.createFiles.push(item);
+			fileStates.set(item.rel, "create");
+			continue;
+		}
+		if (!existing.isFile()) {
+			addConflict(plan.conflicts, {
+				path: item.rel,
+				reason: "target exists and is not a regular file",
+			});
+			fileStates.set(item.rel, "conflict");
+			continue;
+		}
+		if (profile && item.rel === artifactManifestPath) {
+			let actualManifest = null;
+			try {
+				actualManifest = await readManifest(targetPath);
+			} catch {}
+			if (
+				!validateArtifactManifest(actualManifest) ||
+				!manifestContains(actualManifest, expectedProfileManifest)
+			) {
+				addConflict(plan.conflicts, {
+					path: artifactManifestPath,
+					reason: `existing manifest is invalid or does not contain the required ${profile.name} registrations`,
+				});
+				fileStates.set(item.rel, "conflict");
+				continue;
+			}
+		}
+		plan.skippedExisting.push(item.rel);
+		fileStates.set(item.rel, "existing");
 	}
-	if (!manifestContains(actual, expected)) {
-		return {
-			path: artifactManifestPath,
-			reason: `existing manifest does not contain the required ${profile} registrations`,
-		};
+
+	await preflightClaudeCompanion(target, fileStates, plan);
+	if (plan.conflicts.length > 0) {
+		plan.createFiles = [];
+		plan.createClaudeCompanion = false;
+		plan.skippedExisting = [];
+	}
+	return plan;
+}
+
+async function findParentConflict(target, relNative) {
+	const parent = dirname(relNative);
+	if (parent === ".") return null;
+	let current = target;
+	let repoPath = "";
+	for (const segment of parent.split(sep)) {
+		current = join(current, segment);
+		repoPath = repoPath ? `${repoPath}/${segment}` : segment;
+		const existing = await lstatMaybe(current);
+		if (!existing) return null;
+		if (!existing.isDirectory()) {
+			return { path: repoPath, reason: "target parent exists and is not a directory" };
+		}
 	}
 	return null;
 }
 
-function manifestContains(actual, expected) {
+function addConflict(conflicts, conflict) {
 	if (
-		!actual ||
-		!expected ||
-		!Array.isArray(actual.claim_namespaces) ||
-		!Array.isArray(expected.claim_namespaces) ||
-		!Array.isArray(actual.claim_artifacts) ||
-		!Array.isArray(expected.claim_artifacts)
+		!conflicts.some(
+			(existing) => existing.path === conflict.path && existing.reason === conflict.reason,
+		)
 	) {
-		return false;
+		conflicts.push(conflict);
 	}
+}
+
+async function preflightClaudeCompanion(target, fileStates, plan) {
+	const companion = "CLAUDE.md";
+	const companionTarget = "AGENTS.md";
+	const companionPath = join(target, companion);
+	const existing = await lstatMaybe(companionPath);
+
+	if (existing) {
+		if (existing.isFile()) {
+			plan.skippedExisting.push(companion);
+			return;
+		}
+		if (existing.isSymbolicLink()) {
+			const actualTarget = await readlink(companionPath);
+			if (actualTarget === companionTarget) {
+				plan.skippedExisting.push(companion);
+			} else {
+				addConflict(plan.conflicts, {
+					path: companion,
+					reason: `target symlink must point to ${companionTarget}`,
+				});
+			}
+			return;
+		}
+		addConflict(plan.conflicts, {
+			path: companion,
+			reason: "target exists and is neither a regular file nor the expected symlink",
+		});
+		return;
+	}
+
+	const companionState = fileStates.get(companion);
+	if (companionState === "create") {
+		addConflict(plan.conflicts, {
+			path: companion,
+			reason: `template file conflicts with required alias to ${companionTarget}`,
+		});
+		return;
+	}
+	if (companionState === "conflict") return;
+	const agentsState = fileStates.get(companionTarget);
+	if (agentsState === "create" || agentsState === "existing") {
+		plan.createClaudeCompanion = true;
+		return;
+	}
+	if (agentsState === "conflict") return;
+	const aliasTarget = await lstatMaybe(join(target, companionTarget));
+	if (aliasTarget && aliasTarget.isFile()) {
+		plan.createClaudeCompanion = true;
+		return;
+	}
+	addConflict(plan.conflicts, {
+		path: companion,
+		reason: `cannot create alias because ${companionTarget} is not a regular file`,
+	});
+}
+
+async function readManifest(path) {
+	return JSON.parse(await readFile(path, "utf8"));
+}
+
+function manifestContains(actual, expected) {
 	const actualNamespaces = new Map(
-		actual.claim_namespaces.map((entry) => [entry && entry.namespace, entry]),
+		actual.claim_namespaces.map((entry) => [entry.namespace, entry]),
 	);
 	for (const namespace of expected.claim_namespaces) {
 		const registered = actualNamespaces.get(namespace.namespace);
@@ -153,7 +268,7 @@ function manifestContains(actual, expected) {
 			return false;
 		}
 	}
-	const actualArtifacts = new Map(actual.claim_artifacts.map((entry) => [entry && entry.path, entry]));
+	const actualArtifacts = new Map(actual.claim_artifacts.map((entry) => [entry.path, entry]));
 	return expected.claim_artifacts.every((artifact) => {
 		const registered = actualArtifacts.get(artifact.path);
 		return (
@@ -164,47 +279,77 @@ function manifestContains(actual, expected) {
 	});
 }
 
-async function materializeClaudeCompanion(target, report) {
-	const companion = "CLAUDE.md";
-	const companionTarget = "AGENTS.md";
-	const companionPath = join(target, companion);
-	const existing = await lstatMaybe(companionPath);
+function validateArtifactManifest(value) {
+	if (!isPlainObject(value) || !hasExactKeys(value, ["schema_version", "claim_namespaces", "claim_artifacts"])) {
+		return false;
+	}
+	if (value.schema_version !== artifactManifestSchemaVersion) return false;
+	if (!Array.isArray(value.claim_namespaces) || !Array.isArray(value.claim_artifacts)) return false;
 
-	if (existing) {
-		if (existing.isFile()) {
-			report.skipped_existing.push(companion);
-			return;
+	const namespaces = new Set();
+	let previousNamespace = null;
+	for (const entry of value.claim_namespaces) {
+		if (!isPlainObject(entry) || !hasExactKeys(entry, ["namespace", "display_name", "next_number"])) {
+			return false;
 		}
-		if (existing.isSymbolicLink()) {
-			const actualTarget = await readlink(companionPath);
-			if (actualTarget === companionTarget) {
-				report.skipped_existing.push(companion);
-			} else {
-				report.conflicts.push({
-					path: companion,
-					reason: `target symlink must point to ${companionTarget}`,
-				});
-			}
-			return;
-		}
-		report.conflicts.push({
-			path: companion,
-			reason: "target exists and is neither a regular file nor the expected symlink",
-		});
-		return;
+		if (!namespacePattern.test(entry.namespace)) return false;
+		if (typeof entry.display_name !== "string" || !/\S/.test(entry.display_name)) return false;
+		if (!Number.isSafeInteger(entry.next_number) || entry.next_number < 1) return false;
+		if (namespaces.has(entry.namespace)) return false;
+		if (previousNamespace !== null && previousNamespace >= entry.namespace) return false;
+		namespaces.add(entry.namespace);
+		previousNamespace = entry.namespace;
 	}
 
-	const aliasTarget = await lstatMaybe(join(target, companionTarget));
-	if (!aliasTarget || !aliasTarget.isFile()) {
-		report.conflicts.push({
-			path: companion,
-			reason: `cannot create alias because ${companionTarget} is not a regular file`,
-		});
-		return;
+	const artifactPaths = new Set();
+	const sidecarPaths = new Set();
+	let previousArtifact = null;
+	for (const entry of value.claim_artifacts) {
+		if (!isPlainObject(entry) || !hasExactKeys(entry, ["path", "namespace", "sidecar"])) {
+			return false;
+		}
+		if (!isRepoRelativePath(entry.path) || !entry.path.endsWith(".md")) return false;
+		if (!namespaces.has(entry.namespace)) return false;
+		const sidecarLeaf =
+			typeof entry.sidecar === "string" && entry.sidecar.startsWith(`${claimsDirectory}/`)
+				? entry.sidecar.slice(claimsDirectory.length + 1)
+				: "";
+		if (
+			!isRepoRelativePath(entry.sidecar) ||
+			!sidecarLeaf ||
+			sidecarLeaf.length <= ".json".length ||
+			sidecarLeaf.includes("/") ||
+			!sidecarLeaf.endsWith(".json")
+		) {
+			return false;
+		}
+		if (artifactPaths.has(entry.path) || sidecarPaths.has(entry.sidecar)) return false;
+		if (previousArtifact !== null && previousArtifact >= entry.path) return false;
+		artifactPaths.add(entry.path);
+		sidecarPaths.add(entry.sidecar);
+		previousArtifact = entry.path;
 	}
+	return true;
+}
 
-	await symlink(companionTarget, companionPath);
-	report.created.push(companion);
+function isPlainObject(value) {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasExactKeys(value, expected) {
+	const actual = Object.keys(value).sort();
+	const sortedExpected = [...expected].sort();
+	return (
+		actual.length === sortedExpected.length &&
+		actual.every((key, index) => key === sortedExpected[index])
+	);
+}
+
+function isRepoRelativePath(value) {
+	if (typeof value !== "string" || value.length === 0 || !/^\S+$/.test(value)) return false;
+	if (isAbsolute(value) || /^(?:\/|[A-Za-z]:)/.test(value)) return false;
+	if (value.includes("\\") || value.includes(":") || /[\u0000-\u001f\u007f]/.test(value)) return false;
+	return value.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..");
 }
 
 async function listTemplateFiles(source) {

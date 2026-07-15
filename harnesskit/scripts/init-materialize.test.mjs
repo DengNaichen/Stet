@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { lstat, mkdir, mkdtemp, readFile, readlink, symlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, readdir, readlink, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -31,6 +31,20 @@ test("creates the exact Claude companion alias without a Claim inventory", async
 		await readFile(new URL("../templates/init/.harnesskit/audit/artifact-manifest.json", import.meta.url), "utf8"),
 	);
 	assert.equal(manifest.claim_artifacts.some(({ path }) => path === "CLAUDE.md"), false);
+});
+
+test("rejects a template-owned Claude path before any target writes", async () => {
+	const { source, target } = await createFixture();
+	await writeFile(join(source, "CLAUDE.md"), "template Claude guidance\n");
+
+	const report = await materializeInitTemplates({ source, target });
+
+	assert.deepEqual(report.created, []);
+	assert.deepEqual(report.skipped_existing, []);
+	assert.deepEqual(report.conflicts, [
+		{ path: "CLAUDE.md", reason: "template file conflicts with required alias to AGENTS.md" },
+	]);
+	assert.deepEqual(await readdir(target), []);
 });
 
 test("preserves an existing user-owned Claude companion file", async () => {
@@ -65,9 +79,12 @@ test("rejects wrong or unsafe Claude companion aliases", async () => {
 
 		const report = await materializeInitTemplates({ source, target });
 
+		assert.deepEqual(report.created, []);
+		assert.deepEqual(report.skipped_existing, []);
 		assert.deepEqual(report.conflicts, [
 			{ path: "CLAUDE.md", reason: "target symlink must point to AGENTS.md" },
 		]);
+		await assert.rejects(lstat(join(target, "AGENTS.md")), { code: "ENOENT" });
 		assert.equal(await readlink(join(target, "CLAUDE.md")), actualTarget);
 	}
 });
@@ -78,10 +95,13 @@ test("rejects a non-file Claude companion shape", async () => {
 
 	const report = await materializeInitTemplates({ source, target });
 
+	assert.deepEqual(report.created, []);
+	assert.deepEqual(report.skipped_existing, []);
 	assert.deepEqual(report.conflicts, [
 		{
 			path: "CLAUDE.md",
 			reason: "target exists and is neither a regular file nor the expected symlink",
 		},
 	]);
+	await assert.rejects(lstat(join(target, "AGENTS.md")), { code: "ENOENT" });
 });
