@@ -1,15 +1,23 @@
 #!/usr/bin/env node
 
-import { chmod, copyFile, lstat, mkdir, readdir, readlink, stat, symlink } from "node:fs/promises";
+import { chmod, copyFile, lstat, mkdir, readdir, readFile, readlink, stat, symlink } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const defaultSource = resolve(scriptDir, "..", "templates", "init");
+const artifactManifestPath = ".harnesskit/audit/artifact-manifest.json";
+const profileSources = new Map([
+	["web-frontend", resolve(scriptDir, "..", "templates", "profiles", "web-frontend")],
+]);
 
 export async function materializeInitTemplates(options = {}) {
 	const source = resolve(options.source || defaultSource);
 	const target = resolve(options.target || process.cwd());
+	const profile = selectProfile(options.profile);
+	if (profile && source !== defaultSource) {
+		throw new Error("a custom template source cannot be combined with --profile");
+	}
 	const report = {
 		source,
 		target,
@@ -18,8 +26,26 @@ export async function materializeInitTemplates(options = {}) {
 		skipped_existing: [],
 		conflicts: [],
 	};
+	if (profile) report.profile = profile.name;
 
-	const files = await listTemplateFiles(source);
+	let files = await listTemplateFiles(source);
+	if (profile) {
+		const overlayFiles = await listTemplateFiles(profile.source);
+		const overlayManifest = overlayFiles.find(({ rel }) => rel === artifactManifestPath);
+		if (!overlayManifest) {
+			throw new Error(`profile ${profile.name} does not provide ${artifactManifestPath}`);
+		}
+		const manifestConflict = await findProfileManifestConflict(
+			target,
+			overlayManifest.path,
+			profile.name,
+		);
+		if (manifestConflict) {
+			report.conflicts.push(manifestConflict);
+			return finalizeReport(report);
+		}
+		files = overlayTemplateFiles(files, overlayFiles);
+	}
 	for (const item of files) {
 		const targetPath = join(target, item.relNative);
 		const existing = await lstatMaybe(targetPath);
@@ -40,10 +66,102 @@ export async function materializeInitTemplates(options = {}) {
 
 	await materializeClaudeCompanion(target, report);
 
+	return finalizeReport(report);
+}
+
+function finalizeReport(report) {
 	report.created.sort();
 	report.skipped_existing.sort();
 	report.conflicts.sort((a, b) => a.path.localeCompare(b.path));
 	return report;
+}
+
+function selectProfile(value) {
+	if (value === undefined || value === null) return null;
+	const source = typeof value === "string" ? profileSources.get(value) : null;
+	if (!source) {
+		throw new Error(
+			`unknown profile: ${String(value)}; supported profiles: ${[...profileSources.keys()].join(", ")}`,
+		);
+	}
+	return { name: value, source };
+}
+
+function overlayTemplateFiles(baseFiles, overlayFiles) {
+	const byPath = new Map(baseFiles.map((item) => [item.rel, item]));
+	for (const item of overlayFiles) {
+		if (byPath.has(item.rel) && item.rel !== artifactManifestPath) {
+			throw new Error(`profile overlay conflicts with base template: ${item.rel}`);
+		}
+		byPath.set(item.rel, item);
+	}
+	return [...byPath.values()].sort((a, b) => a.rel.localeCompare(b.rel));
+}
+
+async function findProfileManifestConflict(target, expectedPath, profile) {
+	const targetPath = join(target, ...artifactManifestPath.split("/"));
+	const existing = await lstatMaybe(targetPath);
+	if (!existing) return null;
+	if (!existing.isFile()) {
+		return { path: artifactManifestPath, reason: "target exists and is not a regular file" };
+	}
+
+	let actual;
+	let expected;
+	try {
+		[actual, expected] = await Promise.all([
+			readFile(targetPath, "utf8").then(JSON.parse),
+			readFile(expectedPath, "utf8").then(JSON.parse),
+		]);
+	} catch {
+		return {
+			path: artifactManifestPath,
+			reason: `existing manifest does not contain the required ${profile} registrations`,
+		};
+	}
+	if (!manifestContains(actual, expected)) {
+		return {
+			path: artifactManifestPath,
+			reason: `existing manifest does not contain the required ${profile} registrations`,
+		};
+	}
+	return null;
+}
+
+function manifestContains(actual, expected) {
+	if (
+		!actual ||
+		!expected ||
+		!Array.isArray(actual.claim_namespaces) ||
+		!Array.isArray(expected.claim_namespaces) ||
+		!Array.isArray(actual.claim_artifacts) ||
+		!Array.isArray(expected.claim_artifacts)
+	) {
+		return false;
+	}
+	const actualNamespaces = new Map(
+		actual.claim_namespaces.map((entry) => [entry && entry.namespace, entry]),
+	);
+	for (const namespace of expected.claim_namespaces) {
+		const registered = actualNamespaces.get(namespace.namespace);
+		if (
+			!registered ||
+			registered.display_name !== namespace.display_name ||
+			!Number.isSafeInteger(registered.next_number) ||
+			registered.next_number < namespace.next_number
+		) {
+			return false;
+		}
+	}
+	const actualArtifacts = new Map(actual.claim_artifacts.map((entry) => [entry && entry.path, entry]));
+	return expected.claim_artifacts.every((artifact) => {
+		const registered = actualArtifacts.get(artifact.path);
+		return (
+			registered &&
+			registered.namespace === artifact.namespace &&
+			registered.sidecar === artifact.sidecar
+		);
+	});
 }
 
 async function materializeClaudeCompanion(target, report) {
@@ -163,6 +281,14 @@ function parseArgs(argv) {
 			options.source = argv[i];
 			continue;
 		}
+		if (arg === "--profile") {
+			i += 1;
+			if (!argv[i]) {
+				throw new Error("--profile requires a value");
+			}
+			options.profile = argv[i];
+			continue;
+		}
 		if (arg === "--help" || arg === "-h") {
 			options.help = true;
 			continue;
@@ -174,9 +300,11 @@ function parseArgs(argv) {
 
 function usage() {
 	return [
-		"Usage: node /opt/harnesskit/scripts/init-materialize.mjs [--target <repo-root>] [--source <template-root>]",
+		"Usage: node /opt/harnesskit/scripts/init-materialize.mjs [--target <repo-root>] [--source <template-root>] [--profile <profile>]",
 		"",
 		"Copies missing files from harnesskit/templates/init and creates CLAUDE.md -> AGENTS.md.",
+		"Use --profile web-frontend to add the Web frontend artifact overlay.",
+		"A custom --source cannot be combined with --profile.",
 		"Existing files are never overwritten.",
 	].join("\n");
 }

@@ -379,6 +379,76 @@ test("materializes direct sealing for clean Bootstrap and selective Adopt", asyn
 	await assert.rejects(lstat(join(adopt.target, ".harnesskit/audit/evidence")), { code: "ENOENT" });
 });
 
+test("Web frontend profile artifacts use independent Claim contracts", async () => {
+	const target = await mkdtemp(join(tmpdir(), "harnesskit-frontend-claims-"));
+	const report = await materializeInitTemplates({ target, profile: "web-frontend" });
+	assert.deepEqual(report.conflicts, []);
+	const verifierPath = join(target, "scripts", "claims-verify.cjs");
+	const verifier = createRequire(import.meta.url)(verifierPath);
+	const contracts = [
+		{
+			artifact: "docs/DESIGN_SYSTEM.md",
+			namespace: "DESIGN-SYSTEM",
+			sidecar: ".harnesskit/audit/claims/docs-DESIGN_SYSTEM.json",
+			source: "design-system-source.txt",
+		},
+		{
+			artifact: "docs/INTERACTION_DESIGN.md",
+			namespace: "INTERACTION-DESIGN",
+			sidecar: ".harnesskit/audit/claims/docs-INTERACTION_DESIGN.json",
+			source: "interaction-design-source.txt",
+		},
+	];
+
+	const allocated = [];
+	for (const contract of contracts) {
+		const [id] = verifier.allocateClaimIds(target, contract.artifact, 1);
+		assert.equal(id, `${contract.namespace}-0001`);
+		allocated.push(id);
+		await writeFile(join(target, contract.source), `${contract.namespace} evidence\n`);
+		await appendFile(join(target, contract.artifact), `\n- [${id}] tracked frontend statement\n`);
+	}
+
+	const crossNamespace = runWriter(
+		target,
+		verifierPath,
+		JSON.stringify([{ id: allocated[0], kind: "observed", sources: [contracts[1].source] }]),
+		[
+			"write-sidecar",
+			"--artifact",
+			contracts[1].artifact,
+			"--stdin",
+			"--root",
+			target,
+		],
+	);
+	assert.equal(crossNamespace.status, 1);
+	assert.match(crossNamespace.stderr, /invalid ID for namespace INTERACTION-DESIGN/);
+
+	for (let index = 0; index < contracts.length; index += 1) {
+		const contract = contracts[index];
+		const result = runWriter(
+			target,
+			verifierPath,
+			JSON.stringify([{ id: allocated[index], kind: "observed", sources: [contract.source] }]),
+			[
+				"write-sidecar",
+				"--artifact",
+				contract.artifact,
+				"--stdin",
+				"--root",
+				target,
+			],
+		);
+		assert.equal(result.status, 0, `${contract.artifact}: ${result.stderr}`);
+		const sealed = JSON.parse(await readFile(join(target, contract.sidecar), "utf8"));
+		assert.equal(sealed.artifact, contract.artifact);
+		assert.deepEqual(sealed.items.map(({ id }) => id), [allocated[index]]);
+	}
+
+	assert.equal(verifier.verifyClaims(target).status, "passed");
+});
+
 test("repo-owned orchestration and owner skills use only direct inventory", async () => {
 	const skillPaths = [
 		"harnesskit-init",
