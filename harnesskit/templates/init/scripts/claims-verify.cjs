@@ -25,6 +25,7 @@ const CLAIM_SCHEMA_VERSION = 4;
 const ARTIFACT_MANIFEST_SCHEMA_VERSION = 3;
 const CONFIRMATION_SCHEMA_VERSION = 1;
 const REPORT_SCHEMA_VERSION = 1;
+const CLAIM_INVENTORY_SCHEMA_VERSION = 1;
 const ARTIFACT_MANIFEST_PATH = ".harnesskit/audit/artifact-manifest.json";
 const CLAIMS_DIR = ".harnesskit/audit/claims";
 const TRANSCRIPT_DIR = ".harnesskit/audit/transcript";
@@ -467,6 +468,76 @@ function loadArtifactManifest(root) {
 	const errors = validateArtifactManifest(value);
 	if (errors.length > 0) throw new Error(`${ARTIFACT_MANIFEST_PATH}: ${errors.join("; ")}`);
 	return value;
+}
+
+function collectClaimInventory(root = process.cwd()) {
+	const absoluteRoot = resolve(root);
+	const verification = verifyClaims(absoluteRoot);
+	const blocking = verification.violations.filter(
+		({ code }) => code !== "source_hash_mismatch" && code !== "source_unavailable",
+	);
+	if (blocking.length > 0) {
+		const codes = [...new Set(blocking.map(({ code }) => code))].sort(compareText).join(", ");
+		throw new Error(`Claim inventory unavailable: ${codes}`);
+	}
+
+	const manifest = loadArtifactManifest(absoluteRoot);
+	const claims = [];
+	const locatorMap = new Map();
+	function addLocator(path, id, artifact) {
+		const entry = locatorMap.get(path) || { claimIds: new Set(), artifacts: new Set() };
+		entry.claimIds.add(id);
+		entry.artifacts.add(artifact);
+		locatorMap.set(path, entry);
+	}
+
+	for (const artifact of manifest.claim_artifacts) {
+		const sidecar = readRepoJSON(absoluteRoot, artifact.sidecar);
+		for (const item of sidecar.items) {
+			if (item.kind === "observed") {
+				const sources = item.sources.map(({ path }) => path);
+				claims.push({
+					id: item.id,
+					kind: "observed",
+					artifact: artifact.path,
+					sidecar: artifact.sidecar,
+					sources,
+					confirmation: null,
+				});
+				for (const path of sources) addLocator(path, item.id, artifact.path);
+				continue;
+			}
+			const confirmation = {
+				type: item.confirmed_by.type,
+				ref: item.confirmed_by.ref,
+			};
+			claims.push({
+				id: item.id,
+				kind: "intent",
+				artifact: artifact.path,
+				sidecar: artifact.sidecar,
+				sources: [],
+				confirmation,
+			});
+			addLocator(confirmation.ref, item.id, artifact.path);
+		}
+	}
+
+	claims.sort(
+		(left, right) => compareText(left.id, right.id) || compareText(left.artifact, right.artifact),
+	);
+	const locators = [...locatorMap]
+		.sort(([left], [right]) => compareText(left, right))
+		.map(([path, entry]) => ({
+			path,
+			claim_ids: [...entry.claimIds].sort(compareText),
+			artifacts: [...entry.artifacts].sort(compareText),
+		}));
+	return {
+		schema_version: CLAIM_INVENTORY_SCHEMA_VERSION,
+		claims,
+		locators,
+	};
 }
 
 function canonicalArtifactManifest(value) {
@@ -1129,6 +1200,7 @@ module.exports = {
 	CLAIM_SCHEMA_VERSION,
 	allocateClaimIds,
 	canonicalJSONStringify,
+	collectClaimInventory,
 	compareText,
 	formatClaimId,
 	hashRepoFile,
