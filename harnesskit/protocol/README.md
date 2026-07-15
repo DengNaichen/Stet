@@ -111,6 +111,77 @@ target.
 When one artifact has more admitted intent questions than the runtime batch
 limit, continue in artifact-scoped overflow rounds split at semantic boundaries.
 
+## Update Questionnaire Checkpoints
+
+Update is additive to the Bootstrap/Adopt workflow. It uses the same question
+wire contract and backend pause lifecycle, but persists its own version 2
+`workflow: "update"` checkpoint in
+`.harnesskit/audit/state/run-state.json`. A legacy version 1 state is never
+silently migrated or overwritten. A version 2 Bootstrap/Adopt state is also not
+an Update checkpoint; only `workflow: "update"`, `status: "pending"`, a frozen
+HEAD, and a complete waiting round may be resumed as one.
+
+Before discovery or new admission, check for that real pending Update round.
+Use `checkpoint-read` followed by `checkpoint-compare` to decide whether it can
+resume; `checkpoint-build` fails closed while any Update checkpoint is pending
+and never replaces it, even when HEAD or a saved input has gone stale. A pending
+round owned by another workflow also blocks Update, while an idle/completed
+version 2 state may be replaced by a newly built Update checkpoint.
+
+Update admission remains artifact-scoped and Markdown-first:
+
+- every internal `question_declarations[]` entry wraps, but does not modify, its
+  `question-v1` wire object with `artifact` and an explicit `admission` of
+  `observed`, `intent`, or `manual_markdown`. Strip this internal metadata when
+  emitting the wire question. Missing/unknown admission and provenance
+  questions are rejected.
+- `observed` is the one optional review batch for the current artifact. It is
+  the round's only declaration and its wire question has non-empty
+  `claim.rows`.
+- every `intent` declaration is one independent unresolved future practice;
+  intent never uses observed rows or shares a round with another admission.
+- a `manual_markdown` round cannot mix with observed or intent. Each declaration
+  uses `phase: "reason"`, so the repository-change reason is presented before
+  the proposed Markdown conclusion.
+- one round contains only the current artifact and at most 8 questions;
+  overflow stays with that artifact. Do not ask the user to supply or approve
+  provenance metadata.
+- one complete round creates one pause and one explicit submission. Do not
+  create a pause per row, per answer save, or per provenance operation.
+
+Before emitting `needs_input`, build the canonical checkpoint through
+`scripts/harness-update.cjs checkpoint-build --stdin`. The stdin payload carries
+semantic state and repo-relative path lists only; it never carries caller-made
+hashes. Tooling freezes HEAD, derives whole-file hashes for relevant inputs and
+accepted Harness writes, automatically injects the artifact manifest and Update
+baseline as whole-file tooling dependencies, and binds both lists through
+`dependency_scope` to the current artifact's pending round. The caller cannot
+omit those tooling dependencies or supply their hashes. Accepted writes never
+include the manifest, baseline, run-state, receipts, or an arbitrary transcript
+path: membership is limited to the current artifact, its sidecar, and valid user
+confirmation references from that current sidecar. Those artifact and sidecar
+paths must exist in the unchanged baseline/current manifest topology. This
+remains profile-driven for both base and Web repositories. Tooling then
+atomically saves the full round under the shared Claim-contract writer lock.
+Once `needs_input` is emitted, stop all repository reads and writes immediately.
+
+Continuation first uses `checkpoint-read` and `checkpoint-compare`. A changed
+HEAD invalidates the frozen run. Otherwise, only mismatched relevant inputs or
+accepted writes invalidate their saved artifact context; unrelated worktree
+changes do not force a global rescan. Missing, replaced, symlinked, or changed
+paths are reported as stable mismatch data rather than accepted implicitly.
+Manifest or Update-baseline mismatch is additionally reported as a stable
+`tooling_blockers` entry with compare `status: "blocked"`; it blocks continuation
+and is not downgraded to current-round invalidation, even when a changed
+canonical baseline matches a concurrently changed manifest. Comparison remains
+read-only and preserves the saved checkpoint bytes. On any non-tooling dependency
+mismatch or HEAD drift, the canonical `invalidation_plan` invalidates only the
+current round's `question_declarations`, `answers`,
+`unsealed_outcomes`, `open_questions`, and `resume_context`. It explicitly
+preserves `confirmations` and `sealed_outcomes` byte-for-byte. Re-admit that
+invalidated work through its artifact owner; do not reuse stale selected bytes,
+anchors, questions, or unsealed outcomes.
+
 ## Runtime Wrapper and Backend Resume
 
 Protocol v1.1 requires a `needs_input` segment result to carry one complete

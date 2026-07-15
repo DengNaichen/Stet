@@ -1,7 +1,19 @@
 {
-  "schema_version": 1,
-  "status": "pending",
+  "schema_version": 2,
+  "workflow": "bootstrap_or_adopt",
+  "status": "idle",
+  "frozen_head": null,
   "current_step": "NEEDS_CLARIFICATION",
   "current_artifact": "NEEDS_CLARIFICATION",
+  "round": null,
+  "question_declarations": [],
+  "answers": [],
+  "unsealed_outcomes": [],
+  "resume_context": {},
+  "dependency_scope": null,
+  "relevant_inputs": [],
+  "accepted_writes": [],
+  "confirmations": [],
+  "sealed_outcomes": [],
   "open_questions": []
 }
