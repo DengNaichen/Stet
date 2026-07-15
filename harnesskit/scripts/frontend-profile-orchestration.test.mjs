@@ -44,6 +44,7 @@ const baseCreatedGolden = [
 	"docs/rules/RELIABILITY.md",
 	"docs/rules/SECURITY.md",
 	"scripts/claims-verify.cjs",
+	"scripts/harness-update.cjs",
 	"scripts/verify",
 	"scripts/verify.cjs",
 ];
