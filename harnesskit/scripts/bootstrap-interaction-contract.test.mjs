@@ -15,6 +15,7 @@ const paths = {
 		"harnesskit-fill-validation",
 		"harnesskit-fill-development",
 		"harnesskit-fill-architecture",
+		"harnesskit-fill-design-system",
 		"harnesskit-fill-rules",
 		"harnesskit-fill-agents",
 	].map((name) => join(skillRoot, name, "SKILL.md")),

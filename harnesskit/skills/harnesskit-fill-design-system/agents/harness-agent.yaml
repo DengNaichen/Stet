@@ -1,0 +1,4 @@
+interface:
+  display_name: "生成 Design System Claims"
+  short_description: "生成或选择设计系统的 Markdown Claims"
+  default_prompt: "使用 $harnesskit-fill-design-system 在 Bootstrap 或选择性 Adopt 中维护 Design System Claims，并通过 deterministic tooling 建立 provenance。"
