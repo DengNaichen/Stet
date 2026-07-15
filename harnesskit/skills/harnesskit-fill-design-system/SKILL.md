@@ -79,10 +79,14 @@ Design System 只回答“仓库已经采用或明确决定采用哪套可复用
 9. 删除精确 `harnesskit:todo-checklist:start` / `end` marker 包围的完整 authoring checklist block；marker 缺对时停止，不删除其他 comment 或人写内容。准备当前 Markdown 的完整 tracked inventory，包含此前保留项与本轮新增项；每项只含 `id`、`kind` 与 observed `sources` 或已成立的 `confirmed_by`，然后把 direct inventory 通过 stdin 交给 tooling：
 
    ```sh
-   node scripts/claims-verify.cjs write-sidecar --artifact "docs/DESIGN_SYSTEM.md" --stdin
+   node scripts/claims-verify.cjs write-sidecar --artifact "docs/DESIGN_SYSTEM.md" --stdin <<'JSON'
+   {
+     "items": []
+   }
+   JSON
    ```
 
-   Tooling 计算 whole-file SHA-256、canonical ordering 并整份替换 manifest-mapped sidecar；不要只提交本轮新增项，也不要把 inventory 落盘为中间文件。
+   示例 payload 只表示 direct inventory envelope；仅当当前 Markdown 没有 tracked Claim 时才使用空 `items`，否则提交完整 inventory。Tooling 计算 whole-file SHA-256、canonical ordering 并整份替换 manifest-mapped sidecar；不要只提交本轮新增项，也不要把 inventory 落盘为中间文件。
 10. 运行 `node scripts/claims-verify.cjs verify --json`，按当前 artifact、ID、source 或 confirmation 修正语义输入并重跑到 `passed`。只有此时才把本 artifact 标记为已封存。
 
 ## Bootstrap / Adopt 写入纪律
@@ -95,6 +99,6 @@ Design System 只回答“仓库已经采用或明确决定采用哪套可复用
 
 - 只负责 Design System statement、Claim 边界、`kind`、source paths 与本份问题；不实现 Interaction Design owner 或其他 artifact owner。
 - 不计算 ID、SHA-256、JSON ordering，不手写最终 sidecar，也不把 provenance metadata 当正文来源。
-- 不创建或修改 profile materialize，不处理 root/part，不把本 artifact 提升为 canonical；不修改 kickoff、init、artifact registration、manifest counter、receipt 或其他 owner 文档。
+- 不创建或修改 profile materialize，不处理 root/part，不把本 artifact 提升为 canonical；不修改 kickoff、init、artifact registration、receipt 或其他 owner 文档；不得手工编辑 manifest counter，只有 allocation tooling 可更新。
 - 不吸收路径、依赖、数据流、实现约定、产品理由、失败恢复、trust boundary、检查命令或交互行为；只保留本份视觉与共享组件外观判断。
 - 不为已有 tracked inventory 定义后续更新行为。

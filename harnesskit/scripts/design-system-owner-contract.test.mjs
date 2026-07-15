@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { mkdtemp, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
+
+import { materializeInitTemplates } from "./init-materialize.mjs";
 
 const harnesskitRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const skillPath = join(
@@ -46,6 +50,18 @@ function assertInOrder(contents, snippets) {
 		assert.notEqual(index, -1, `missing or out-of-order text: ${snippet}`);
 		offset = index + snippet.length;
 	}
+}
+
+function sealingExample(markdown) {
+	const workflow = section(markdown, "## Markdown-first workflow");
+	const block = /```sh\n(   node scripts\/claims-verify\.cjs write-sidecar --artifact "docs\/DESIGN_SYSTEM\.md" --stdin <<'JSON'\n[\s\S]*?\n   JSON)\n   ```/.exec(
+		workflow,
+	);
+	assert.ok(block, "missing executable write-sidecar example");
+	const script = block[1].replace(/^ {3}/gm, "");
+	const payload = /<<'JSON'\n([\s\S]*?)\nJSON$/.exec(script);
+	assert.ok(payload, "missing write-sidecar JSON stdin payload");
+	return { script, payload: JSON.parse(payload[1]) };
 }
 
 test("owns only the registered Design System Claim contract", async () => {
@@ -135,9 +151,25 @@ test("requires repository evidence, atomic Claims, confirmation, and determinist
 		workflow,
 		/node scripts\/claims-verify\.cjs write-sidecar --artifact "docs\/DESIGN_SYSTEM\.md" --stdin/,
 	);
+	const example = sealingExample(skill);
+	assert.deepEqual(example.payload, { items: [] });
+	const target = await mkdtemp(join(tmpdir(), "harnesskit-design-owner-contract-"));
+	await materializeInitTemplates({ target, profile: "web-frontend" });
+	const result = spawnSync("/bin/sh", ["-c", example.script], {
+		cwd: target,
+		encoding: "utf8",
+	});
+	assert.equal(result.status, 0, result.stderr);
+	assert.deepEqual(JSON.parse(result.stdout), {
+		schema_version: 4,
+		artifact: "docs/DESIGN_SYSTEM.md",
+		items: [],
+	});
 	assert.match(workflow, /完整 tracked inventory/);
 	assert.match(workflow, /node scripts\/claims-verify\.cjs verify --json/);
 	assert.match(boundaries, /不计算 ID、SHA-256、JSON ordering，不手写最终 sidecar/);
+	assert.match(boundaries, /不得手工编辑 manifest counter，只有 allocation tooling 可更新/);
+	assert.doesNotMatch(boundaries, /不修改[^；。\n]*manifest counter/);
 });
 
 test("routes non-visual ownership away from Design System", async () => {
