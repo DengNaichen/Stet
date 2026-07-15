@@ -9,7 +9,7 @@ description: 在 Context Harness 的 Bootstrap 或选择性 Adopt 开始时核�
 
 ## Bootstrap eligibility preflight
 
-Bootstrap 必须在 missing-only materialize 之前先做只读 preflight。读取 HarnessKit asset 中的 base 与可选 profile artifact manifest、模板目标路径与目标仓库现状，确认仓库尚未建立 HarnessKit 项目说明；profile 自动选择或回答收敛后，再检查所选 profile 将创建的每个路径及 `CLAUDE.md -> AGENTS.md` alias 是否存在不兼容形态。发现 repo-local HarnessKit manifest、tracked inventory、已建立的 HarnessKit 项目说明或任一目标路径冲突时立即停止并用自然语言说明；不得先创建目录、skeleton、support file、run-state 或任何临时文件。Preflight 通过只表示 Bootstrap 输入安全，不代替 materialize 后的 repo-shape 与整体计划扫描。Adopt 跳过本节，保持既有行为。
+Bootstrap 必须在 missing-only materialize 之前先做只读 preflight。读取 HarnessKit asset 中的 base 与可选 profile artifact manifest、模板目标路径与目标仓库现状，确认仓库尚未建立 HarnessKit 项目说明；profile 自动选择或回答收敛后，再检查所选 profile 将创建的每个路径及 `CLAUDE.md -> AGENTS.md` alias 是否存在不兼容形态。发现 repo-local HarnessKit manifest、tracked inventory、已建立的 HarnessKit 项目说明或任一目标路径冲突时立即停止并用自然语言说明；不得先创建目录、skeleton、support file、run-state 或任何临时文件。Preflight 通过只表示 Bootstrap 输入安全；repo shape/profile 仍必须在首次 materialize 前单独收敛，materialize 后复用已收敛结论且不重扫。Preflight 不代替 materialize 后为剩余 artifact 地图与整体计划 brief 核实尚未确认的 part roots、project identity、build/test/operation entrypoint 与 validation entrypoint。Adopt 跳过本节，保持既有行为。
 
 ## 单仓 Web frontend profile 识别
 

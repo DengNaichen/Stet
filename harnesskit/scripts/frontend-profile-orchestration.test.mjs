@@ -157,6 +157,7 @@ test("protocol, kickoff, and init settle repo shape before the one materialize",
 		read(paths.init),
 	]);
 	const protocolWorkflow = section(protocol, "## Workflow Rounds");
+	const kickoffPreflight = section(kickoff, "## Bootstrap eligibility preflight");
 	const kickoffProfile = section(kickoff, "## 单仓 Web frontend profile 识别");
 	const kickoffWorkflow = section(kickoff, "## Kickoff 流程");
 	const initWorkflow = section(init, "## 主工作流");
@@ -174,12 +175,21 @@ test("protocol, kickoff, and init settle repo shape before the one materialize",
 		"选择 materialize profile",
 		"运行一次 missing-only materialize",
 	]);
+	assertInOrder(kickoffPreflight, [
+		"repo shape/profile 仍必须在首次 materialize 前单独收敛",
+		"materialize 后复用已收敛结论且不重扫",
+		"剩余 artifact 地图与整体计划 brief",
+		"尚未确认的 part roots、project identity、build/test/operation entrypoint 与 validation entrypoint",
+	]);
 	assertInOrder(initWorkflow, [
 		"只读核实 `single project | monorepo`",
 		"首次 materialize 前必须收敛为 single project 或 monorepo",
 		"Single project 才执行 profile 分类",
 		"运行 missing-only materialize",
 	]);
+	assert.doesNotMatch(kickoffPreflight, /不代替 materialize 后的 repo-shape 与整体计划扫描/);
+	assert.match(kickoffWorkflow, /复用 materialize 前已收敛的 repo-shape\/profile 结论，不重复这些轮次/);
+	assert.match(initWorkflow, /复用 pre-materialize 已收敛的 repo-shape\/profile 结论，不重复这些轮次/);
 	assert.doesNotMatch(kickoffProfile, /尚未收敛[^\n]*保持 base materialize/);
 	assert.doesNotMatch(initWorkflow, /single\/monorepo 尚未收敛[^\n]*保持 base/);
 	assert.match(protocolWorkflow, /only read-only pre-materialize routing[\s\S]*exception to Adopt's materialize-first flow/);
