@@ -1,6 +1,6 @@
 ---
 name: harnesskit-fill-interaction-design
-description: 在 Context Harness 的 Bootstrap 或选择性 Adopt 中，为 manifest-registered docs/INTERACTION_DESIGN.md 执行独立 Markdown-first 循环：只扫描仓库可证明的跨功能用户行为与交互转换，生成或选择 atomic Claims，按需声明本份轮次，并通过 deterministic tooling 封存 provenance sidecar。
+description: 在 Context Harness 的 Bootstrap 或选择性 Adopt 中，为 manifest-registered docs/INTERACTION_DESIGN.md 执行独立 Markdown-first 循环：只扫描仓库可证明的跨功能复用或单页高影响用户行为与交互转换，生成或选择 atomic Claims，按需声明本份轮次，并通过 deterministic tooling 封存 provenance sidecar。
 ---
 
 # 生成或采用 Interaction Design Claims
@@ -9,40 +9,41 @@ description: 在 Context Harness 的 Bootstrap 或选择性 Adopt 中，为 mani
 
 ## Owner
 
-Interaction Design 只回答“仓库已经采用或明确决定采用哪些跨功能用户行为与交互转换”：
+Interaction Design 只回答“仓库已经采用或明确决定采用哪些跨功能复用或单页高影响用户行为与交互转换”：
 
 - 收 navigation、back、transitions 与 context preservation；
 - 收 form validation、submission、dirty state 与 leave protection；
 - 收 overlay 的 enter、exit、focus 与 close 行为；
 - 收 loading、empty、error、success 与 progress 的用户可见反馈；
+- 收用户可见 retry 入口、cancel 动作、recovery 路径与反馈；
 - 收 optimistic、undo 与 destructive confirmation 行为；
 - 收 keyboard、pointer、touch、focus 与 responsive behavior changes。
 
-token、theme、component variant、size、state 与 visual primitive 归 Design System；Design System 只负责视觉外观，不记录行为触发、转换或结果。路径、依赖与数据流归 Architecture；实现约定归 Coding；产品理由归 Product Sense；cache、retry、cancel 与 state consistency 归 Reliability；trust、input、storage 与 output 归 Security；checks 归 Validation。相同页面、组件或状态同时产生多类 signal 时，把每个候选交给唯一 semantic owner，不复制其他 owner 的正文。
+token、theme、component variant、size、state 与 visual primitive 归 Design System；Design System 只负责视觉外观，不记录行为触发、转换或结果。路径、依赖与数据流归 Architecture；实现约定归 Coding；产品理由归 Product Sense；用户可见 retry 入口、cancel 动作、recovery 路径与反馈归 Interaction Design，retry/cancel 背后的内部幂等、副作用、cleanup、cache 与 state consistency policy 归 Reliability；表单、keyboard、pointer input 与用户可见反馈归 Interaction Design，trust boundary、不可信或外部 input、敏感数据、文件或外部 output confinement 归 Security；checks 归 Validation。相同页面、组件或状态同时产生多类 signal 时，把每个候选交给唯一 semantic owner，不复制其他 owner 的正文。
 
 本次 HarnessKit 创建的内部状态、support tooling、verifier 输出与 receipt 不能作为目标仓库的 Interaction Design evidence。当前 target Markdown 与其 sidecar 也不能自证其中的 statement 或 intent。
 
 ## 最低扫描面
 
-只为当前 Interaction Design artifact 发现仓库可证明的跨功能用户行为，至少核对：
+只为当前 Interaction Design artifact 发现仓库可证明的跨功能复用或单页高影响用户行为，至少核对：
 
 - **navigation、back、transitions 与 context preservation**：路由配置、页面壳、history/state 处理、用户流程测试与产品文档中的入口、返回、转场顺序及上下文保留；不把模块路径或数据流写成 Interaction Claim；
 - **form validation、submission、dirty 与 leave protection**：表单实现、校验触发、提交状态、未保存变更提示、离开保护及相应测试；只记录用户可见行为，不扩展为 input trust 或实现约定；
 - **overlay enter、exit、focus 与 close**：dialog、sheet、drawer、popover 等实现与测试中的打开入口、焦点移动或返回、关闭手段和退出结果；外观、尺寸与 motion primitive 路由 Design System；
-- **loading、empty、error、success 与 progress**：异步视图、状态渲染与交互测试中的反馈时机、可用操作和状态转换；不推导内部 retry、cancel 或 consistency policy；
+- **loading、empty、error、success 与 progress**：异步视图、状态渲染与交互测试中的反馈时机、可用操作和状态转换，包括用户可见 retry 入口、cancel 动作、recovery 路径与反馈；不推导这些动作背后的内部幂等、副作用、cleanup、cache 或 consistency policy；
 - **optimistic、undo 与 destructive confirmation**：用户动作、确认界面、可逆窗口、呈现结果与测试；不把内部副作用恢复或缓存策略纳入本 artifact；
 - **keyboard、pointer、touch 与 focus**：快捷操作、焦点顺序或回退、等价输入路径及相关 accessibility 实现；
 - **responsive behavior changes**：视口、输入方式或设备能力真正改变步骤、控件可用性或交互顺序的边界；breakpoint、layout primitive 与纯视觉适配归 Design System。
 
-只选择能直接支持 statement 的最小安全 repo-relative sources。单个页面实例只能证明其自身行为，不能自行证明跨功能契约；只有行为跨页面复用或贯穿关键任务的多个交互环节时才进入本 artifact。Kickoff 地图只可帮助定位，不能替代本份 evidence 核实。
+只选择能直接支持 statement 的最小安全 repo-relative sources。单个页面实例只能证明其自身行为，不能自行证明跨功能契约，但能证明本页会改变任务完成、未保存上下文、破坏性结果或可访问性的高影响交互。只有行为已跨功能复用或属于这种单页高影响边界时才进入本 artifact。Kickoff 地图只可帮助定位，不能替代本份 evidence 核实。
 
 ## Intent 问题发现
 
 完成最低扫描后、分配任何新 ID 或写入 target 前，执行一次仅属于本 artifact 的 intent discovery pass。先从 evidence 提取真实 route、task、field、overlay、state、action、input mode 与 viewport 名称作为 repo-native anchors；推荐 statement 的关键名词、边界和值必须能回指这些 anchors。
 
-逐项检查：返回或转场是否丢失用户上下文；同类表单是否在校验、提交、dirty 或离开保护上存在多个未裁决行为；overlay 的进入、退出、焦点或关闭路径是否冲突；反馈状态的触发与用户下一步是否不一致；optimistic、undo 或 destructive confirmation 是否暴露未裁决的可逆边界；keyboard、pointer、touch、focus 或 responsive behavior 是否改变同一任务的可达路径。这些只是发现 signal，不是可直接复制的交互建议。
+逐项检查：返回或转场是否丢失用户上下文；同类表单是否在校验、提交、dirty 或离开保护上存在多个未裁决行为；overlay 的进入、退出、焦点或关闭路径是否冲突；反馈状态的触发、用户可见 retry/cancel/recovery 与下一步是否不一致；optimistic、undo 或 destructive confirmation 是否暴露未裁决的可逆边界；keyboard、pointer、touch、focus 或 responsive behavior 是否改变同一任务的可达路径。这些只是发现 signal，不是可直接复制的交互建议。
 
-先形成当前任务、转换、输入方式与 gap 地图，再建立仅存在于当前热上下文的候选池；每项至少包含 `repository signal → repo-native anchors → 未决判断 → 未来影响 → semantic owner → 完整推荐 statement`。在 allocation 前逐项过滤：当前实现或 gap 转为 observed draft；已有独立权威 interaction policy locator 的约束按既有 intent 处理；会实质改变未来跨功能行为且仍未决的候选进入本份问题；页面局部偏好、重复项和其他 owner 内容丢弃或路由出去。对剩余候选执行通用性测试：若一条规范放到任何同类 Web 前端都成立，就不得成为 Claim；有 repository evidence 的当前行为仍可按 `observed` 记录，但不追踪或询问它的通用规范性影子。
+先形成当前任务、转换、输入方式与 gap 地图，再建立仅存在于当前热上下文的候选池；每项至少包含 `repository signal → repo-native anchors → 未决判断 → 未来影响 → semantic owner → 完整推荐 statement`。在 allocation 前逐项过滤：当前实现或 gap 转为 observed draft；已有独立权威 interaction policy locator 的约束按既有 intent 处理；会实质改变未来跨功能复用或单页高影响行为且仍未决的候选进入本份问题；低影响页面局部偏好、重复项和其他 owner 内容丢弃或路由出去。对剩余候选执行通用性测试：若一条规范放到任何同类 Web 前端都成立，就不得成为 Claim；有 repository evidence 的当前行为仍可按 `observed` 记录，但不追踪或询问它的通用规范性影子。
 
 完整推荐 statement 只表达一个仍未裁决的未来决定。当前事实与规范要求拆开；navigation、form、overlay、feedback、optimistic/undo/confirmation、input modality、focus 或 responsive behavior 的不同判断即使共享来源也继续拆分。候选必须 atomic、bounded。当前实现恰好符合某个约束，只能触发“是否长期保持”的问题，不能自行确认该 intent。
 
@@ -66,7 +67,7 @@ token、theme、component variant、size、state 与 visual primitive 归 Design
 
 1. 从 repo-local artifact manifest 核对 `docs/INTERACTION_DESIGN.md`、`INTERACTION-DESIGN` 与 `.harnesskit/audit/claims/docs-INTERACTION_DESIGN.json` 的完整 mapping，读取当前 target Markdown；mapping 缺失或不一致时停止，不自行注册、materialize 或替换 artifact。
 2. 只执行本份最低扫描面与 intent discovery pass，再起草或选择 tracked Claims。Bootstrap 生成最少但足够的 guidance；Adopt 只选择本轮明确采用的既有 guidance，不自动 atomize 整份人工文档。按上述 owner 与 atomic 边界判断 `observed | intent`：
-   - observed 只记录当前可证明的跨功能用户行为、转换或明确 gap，并选择最小安全 repo-relative sources；
+   - observed 只记录当前可证明的跨功能复用或单页高影响用户行为、转换或明确 gap，并选择最小安全 repo-relative sources；
    - intent 需要独立且权威的 repository confirmation locator，或者进入真实用户确认；常见做法与当前实现不能自动升级成规范。
 3. 对每条新 Claim 调用 tooling 分配 ID，只使用 allocation 输出：
 
@@ -104,5 +105,5 @@ token、theme、component variant、size、state 与 visual primitive 归 Design
 - 只负责 Interaction Design statement、Claim 边界、`kind`、source paths 与本份问题；不实现 Design System owner 或其他 artifact owner。
 - 不计算 ID、SHA-256、JSON ordering，不手写最终 sidecar，也不把 provenance metadata 当正文来源。
 - 不创建或修改 profile materialize，不处理 root/part，不把本 artifact 提升为 canonical；不修改 kickoff、init、artifact registration、receipt 或其他 owner 文档；不得手工编辑 manifest counter，只有 allocation tooling 可更新。
-- 不吸收 Design System 的 token/theme/component variant/size/state/visual primitive、Architecture 路径/依赖/数据流、Coding 实现约定、Product Sense 理由、Reliability cache/retry/cancel/state consistency、Security trust/input/storage/output 或 Validation checks。
+- 不吸收 Design System 的 token/theme/component variant/size/state/visual primitive、Architecture 路径/依赖/数据流、Coding 实现约定、Product Sense 理由、Reliability 的内部幂等/副作用/cleanup/cache/state consistency policy、Security 的 trust boundary/不可信或外部 input/敏感数据/文件或外部 output confinement，或 Validation checks；用户可见 retry/cancel/recovery、表单与 keyboard/pointer input、用户可见反馈仍由本 owner 负责。
 - 不为已有 tracked inventory 定义后续更新行为。

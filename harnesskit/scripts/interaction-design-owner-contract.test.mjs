@@ -31,6 +31,14 @@ const manifestPath = join(
 	"audit",
 	"artifact-manifest.json",
 );
+const templatePath = join(
+	harnesskitRoot,
+	"templates",
+	"profiles",
+	"web-frontend",
+	"docs",
+	"INTERACTION_DESIGN.md",
+);
 
 async function read(path) {
 	return readFile(path, "utf8");
@@ -152,11 +160,20 @@ test("requires repository evidence, atomic Claims, allocation, and deterministic
 		workflow,
 		/node scripts\/claims-verify\.cjs write-sidecar --artifact "docs\/INTERACTION_DESIGN\.md" --stdin/,
 	);
+	assert.deepEqual(
+		[...skill.matchAll(/node scripts\/claims-verify\.cjs (allocate|write-sidecar) --artifact "([^"]+)"/g)].map(
+			([, command, artifact]) => ({ command, artifact }),
+		),
+		[
+			{ command: "allocate", artifact: "docs/INTERACTION_DESIGN.md" },
+			{ command: "write-sidecar", artifact: "docs/INTERACTION_DESIGN.md" },
+		],
+	);
 	const example = sealingExample(skill);
 	assert.deepEqual(example.payload, { items: [] });
 	const target = await mkdtemp(join(tmpdir(), "harnesskit-interaction-owner-contract-"));
 	await materializeInitTemplates({ target, profile: "web-frontend" });
-	const allocation = spawnSync(
+	const firstAllocation = spawnSync(
 		process.execPath,
 		[
 			"scripts/claims-verify.cjs",
@@ -168,8 +185,15 @@ test("requires repository evidence, atomic Claims, allocation, and deterministic
 		],
 		{ cwd: target, encoding: "utf8" },
 	);
-	assert.equal(allocation.status, 0, allocation.stderr);
-	assert.deepEqual(JSON.parse(allocation.stdout), { ids: ["INTERACTION-DESIGN-0001"] });
+	assert.equal(firstAllocation.status, 0, firstAllocation.stderr);
+	assert.deepEqual(JSON.parse(firstAllocation.stdout), { ids: ["INTERACTION-DESIGN-0001"] });
+	const targetManifestPath = join(target, ".harnesskit", "audit", "artifact-manifest.json");
+	const firstManifest = JSON.parse(await read(targetManifestPath));
+	assert.equal(
+		firstManifest.claim_namespaces.find(({ namespace }) => namespace === "INTERACTION-DESIGN")
+			.next_number,
+		2,
+	);
 	const result = spawnSync("/bin/sh", ["-c", example.script], {
 		cwd: target,
 		encoding: "utf8",
@@ -180,6 +204,48 @@ test("requires repository evidence, atomic Claims, allocation, and deterministic
 		artifact: "docs/INTERACTION_DESIGN.md",
 		items: [],
 	});
+	const sealedPath = join(
+		target,
+		".harnesskit",
+		"audit",
+		"claims",
+		"docs-INTERACTION_DESIGN.json",
+	);
+	assert.deepEqual(JSON.parse(await read(sealedPath)), {
+		schema_version: 4,
+		artifact: "docs/INTERACTION_DESIGN.md",
+		items: [],
+	});
+	const secondAllocation = spawnSync(
+		process.execPath,
+		[
+			"scripts/claims-verify.cjs",
+			"allocate",
+			"--artifact",
+			"docs/INTERACTION_DESIGN.md",
+			"--count",
+			"1",
+		],
+		{ cwd: target, encoding: "utf8" },
+	);
+	assert.equal(secondAllocation.status, 0, secondAllocation.stderr);
+	assert.deepEqual(JSON.parse(secondAllocation.stdout), { ids: ["INTERACTION-DESIGN-0002"] });
+	const secondManifest = JSON.parse(await read(targetManifestPath));
+	assert.equal(
+		secondManifest.claim_namespaces.find(({ namespace }) => namespace === "INTERACTION-DESIGN")
+			.next_number,
+		3,
+	);
+	const verification = spawnSync(
+		process.execPath,
+		["scripts/claims-verify.cjs", "verify", "--json"],
+		{ cwd: target, encoding: "utf8" },
+	);
+	assert.equal(verification.status, 0, verification.stderr);
+	assert.match(verification.stdout, /"status": "passed"/);
+	const verificationReport = JSON.parse(verification.stdout);
+	assert.equal(verificationReport.status, "passed");
+	assert.equal(verificationReport.valid, true);
 	assert.match(workflow, /完整 tracked inventory/);
 	assert.match(workflow, /node scripts\/claims-verify\.cjs verify --json/);
 	assert.match(boundaries, /不计算 ID、SHA-256、JSON ordering，不手写最终 sidecar/);
@@ -188,17 +254,27 @@ test("requires repository evidence, atomic Claims, allocation, and deterministic
 });
 
 test("routes non-interaction ownership away from Interaction Design", async () => {
-	const skill = await read(skillPath);
+	const [skill, template] = await Promise.all([read(skillPath), read(templatePath)]);
 	const owner = section(skill, "## Owner");
+	const scan = section(skill, "## 最低扫描面");
+	const templateFeedback = section(template, "## 反馈、错误与恢复");
 
 	assert.match(owner, /token、theme、component variant、size、state 与 visual primitive 归 Design System/);
 	assert.match(owner, /路径、依赖与数据流归 Architecture/);
 	assert.match(owner, /实现约定归 Coding/);
 	assert.match(owner, /产品理由归 Product Sense/);
-	assert.match(owner, /cache、retry、cancel 与 state consistency 归 Reliability/);
-	assert.match(owner, /trust、input、storage 与 output 归 Security/);
+	assertInOrder(template, ["等待", "空状态", "失败", "取消", "恢复"]);
+	assertInOrder(templateFeedback, ["重试", "撤销", "离线或中断恢复"]);
+	assert.match(owner, /用户可见 retry 入口、cancel 动作、recovery 路径与反馈归 Interaction Design/);
+	assert.match(owner, /retry\/cancel 背后的内部幂等、副作用、cleanup、cache 与 state consistency policy 归 Reliability/);
+	assert.doesNotMatch(owner, /retry、cancel 与 state consistency 归 Reliability/);
+	assert.match(owner, /trust boundary、不可信或外部 input、敏感数据、文件或外部 output confinement 归 Security/);
+	assert.match(owner, /表单、keyboard、pointer input 与用户可见反馈归 Interaction Design/);
+	assert.doesNotMatch(owner, /trust、input、storage 与 output 归 Security/);
 	assert.match(owner, /checks 归 Validation/);
 	assertInOrder(owner, ["视觉外观", "不记录行为触发、转换或结果"]);
+	assert.match(scan, /跨功能复用或单页高影响/);
+	assertInOrder(scan, ["用户可见 retry 入口", "cancel 动作", "recovery 路径与反馈"]);
 });
 
 test("leaves unsupported interaction guidance unknown without generic defaults", async () => {
