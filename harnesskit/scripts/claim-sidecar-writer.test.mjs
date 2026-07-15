@@ -455,6 +455,7 @@ test("repo-owned orchestration and owner skills use only direct inventory", asyn
 		"harnesskit-fill-agents",
 		"harnesskit-fill-architecture",
 		"harnesskit-fill-design-system",
+		"harnesskit-fill-interaction-design",
 		"harnesskit-fill-development",
 		"harnesskit-fill-rules",
 		"harnesskit-fill-validation",
