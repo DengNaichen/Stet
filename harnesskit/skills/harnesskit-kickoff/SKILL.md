@@ -13,7 +13,9 @@ Bootstrap 必须在 missing-only materialize 之前先做只读 preflight。读�
 
 ## 单仓 Web frontend profile 识别
 
-本节只适用于 Bootstrap 与选择性 Adopt 中 repository evidence 已能建立为 `single project` 的单仓。两种模式都在 materialize 前完成这一道只读 profile routing，因为 materializer 首次调用就必须选择 base 或 overlay；选择性 Adopt 的首次 target mutation、artifact evidence scan、人工内容选择与写入仍从 materialize 后开始，因此保持既有 materialize-first 内容工作流。Evidence 已建立 monorepo，或 single project / monorepo 尚未收敛时，保持 base materialize 且不发 Web profile 问题；后续仍走既有 repo-shape/registration gap 处理，不得把 base 解释为已覆盖 frontend artifacts。Monorepo、part 与 mixed profile routing 在当前范围外：不要为其中某个 part 自动选择或询问 `web-frontend`，也不要声称其 Design System 或 Interaction Design 已被覆盖。
+Bootstrap 与选择性 Adopt 都必须在首次 materialize 前先用 repository evidence 收敛 `single project | monorepo`。无法收敛时先声明现有 repo-shape 预热问题并 pause，不能用 base materialize 抢跑；Continuation 只复核答案指出的 shape evidence，直到 shape 明确，且不重复已完成的 eligibility 判断。已确认 monorepo 时使用既有 base 路由，Web part/mixed profile 仍在当前范围外：不要为其中某个 part 自动选择或询问 `web-frontend`，也不要声称其 Design System 或 Interaction Design 已被覆盖。
+
+只有 shape 已确认为 `single project` 才进入本节的 Web profile 分类。两种模式都在 materialize 前完成这一道只读 profile routing，因为 materializer 首次调用就必须选择 base 或 overlay；这是 Adopt materialize-first 的唯一只读 routing 例外。选择性 Adopt 的首次 target mutation、artifact evidence scan、人工内容选择与写入仍从 materialize 后开始；不得先运行 base 再尝试 overlay。
 
 在 materialize 前先读 repository evidence，再选择 profile。只读取足以建立应用表面的 repo-owned identity、package/workspace manifest、build/serve scripts 与 config、browser entrypoint、页面或路由入口及相应测试；generated、vendor、dependency、example、storybook-only 或 cache 内容不能单独决定 profile。分类使用以下可核查 fixture：
 
@@ -25,12 +27,14 @@ React、Vue、Svelte、Next、Vite 等 framework marker 只能帮助判断 repo 
 
 明确命中时自动选择 `web-frontend`；明确不命中时自动选择 `base`。证据不足或冲突且仍确认是 single project 时，只声明一次会改变 artifact 集合的显式 profile 问题，说明接受 `Web frontend profile` 会新增 `docs/DESIGN_SYSTEM.md` 与 `docs/INTERACTION_DESIGN.md`，否则保持 base 集合。问题沿用现有 `single_choice`、`accept` 与自由文本修改入口；既有 `sources[].path` 保留造成分歧的安全 repo-relative evidence path，`summary` / `rationale` 简述 entrypoint、build/serve target 与 UI surface 之间为何能或不能关联，不放原始内容。它不是 Claim、intent confirmation 或 repository fact。把声明交给 init emit 后停止；不得为同一次选择声明第二道 profile 问题。
 
+Profile continuation 只恢复同一 existing paused segment。`accept` 选择推荐集合；自由文本可以用普通语言表达 base/Web 选择，也可以指出应复核的 repo-relative path 或关联关系。后一种情况只定向复核用户指出的 evidence 及直接影响，再据复核结果收敛 profile；不把回答本身当 evidence，不重做 repo-shape/eligibility，也不重发 profile 问题。复核后仍无法收敛时停止并说明剩余冲突，不猜测或 materialize。
+
 ## 输入与 evidence 边界
 
 从仓库根目录按需读取：
 
 - Bootstrap preflight 中的 HarnessKit asset manifest、模板目标路径与现有 context 路径形态；
-- materialize 前用于单仓 profile 识别的 repo-owned identity、package/workspace manifest、build/serve config、browser entrypoint、页面/路由入口与 UI tests；
+- materialize 前用于 repo-shape 与单仓 profile 识别的 repo-owned identity、package/workspace manifest、build/serve config、browser entrypoint、页面/路由入口与 UI tests；
 - preflight 通过后的 materialize 结果、现有 context Markdown 与 repo-local artifact manifest；
 - README、产品文档及仓库明确声明为权威的 identity source；
 - workspace/package manifests、lockfiles、源码入口、generated-source 声明与 operation boundary；
@@ -69,6 +73,8 @@ Project-local procedures 使用独立 skill 合同，不进入 Markdown Claim in
 
 Evidence 已收敛时为零轮。Kickoff 拥有问题内容与答案复核，init 只负责 emit、pause/resume 和继续编排；不询问阶段批准、写入许可或流程同意，也不为凑数量提问。
 
+Repo-shape 若未收敛，其预热问题必须在首次 materialize 前完成；只有 shape 已明确，才继续 single-project profile 选择或 monorepo base 路由。Project identity 与 validation entrypoint 等不影响 materializer profile 的预热问题仍可在 materialize 后处理。
+
 用户答案能回 repository 验证时，复核后纳入地图；repository evidence 无法裁决时，把内容路由给对应 artifact owner，在本份轮次内按 intent 处理。用户自由文本只是修正或定向复核指令，不直接成为 evidence 或 durable guidance。
 
 ## 整体计划 brief
@@ -77,13 +83,15 @@ Evidence 已收敛时为零轮。Kickoff 拥有问题内容与答案复核，ini
 
 ## Kickoff 流程
 
-1. Bootstrap 与选择性 Adopt 都先用本节的正、负、模糊 fixture，只读选择 single-project materialize profile；Bootstrap 同时执行上述 eligibility preflight，自动收敛后检查所选完整目标集合，路径不安全时零写入退出。选择性 Adopt 此时不扫描或选择现有 artifact 内容。证据不足或冲突时把唯一 profile 问题交给 init emit，并在它 pause 后停止全部 repository 读写，当前运行零写入退出。
-2. Profile continuation 只消费现有 paused segment 中已提交的答案，在已完成的 profile boundary 上恢复；明确接受则选择 `web-frontend`，明确要求保持基础集合则选择 `base`。Bootstrap 只完成尚未执行的所选目标路径 safety check；选择性 Adopt 直接交给 materializer 的原子 preflight。两种模式都不重复 evidence scan、已完成轮次或 profile 问题；自由文本仍未给出两者之一时停止并说明，不能猜测或再问一次。
-3. Init 按选择运行一次 missing-only materialize。`web-frontend` overlay 遇到已存在的人写 Design System 或 Interaction Design Markdown 时按 `skipped_existing` 保留；若 repo-local manifest 只有 base registration，沿用 materializer conflict 并零部分写入停止，不升级或改写 manifest。读取 materialize 结果与 repo-local manifest，逐 artifact 区分 `created` skeleton、`skipped_existing` Markdown 与 HarnessKit 内部资产；profile 两份 artifact 的结果可以不同，不能把整个运行一律归为 Bootstrap 或 Adopt。若已有非空 tracked inventory，报告当前 Bootstrap/Adopt 范围外，不自行定义更新语义。
-4. 只为地图做 compressed scan：复用 materialize 前已收敛的 repo-shape/profile 结论，不重复 profile scan；先看仍未核实的 workspace/manifest 与真实 build/test/operation entrypoint，再只在 part roots、identity 或 validation entrypoint 的高影响分叉处下钻。
-5. 综合独立证据判断 single project 或 monorepo，生成包含 repo shape、root/part roots、project identity、validation entrypoint、已选 materialize profile 与 manifest artifact scope 的地图。`web-frontend` 地图只使用 repo-local manifest 已登记的两个附加 artifact；若确认的 part 需要尚未登记的 artifact，报告 registration/tooling gap；不得发明 namespace、sidecar mapping 或 high-water mark。
-6. 对仍无法收敛的高影响跨 artifact 信息声明预热轮问题，交给 init emit。Continuation 后重新核实答案，不重做已完成且未受影响的判断。
-7. 把当前运行的地图与整体计划 brief 交给 init 展开并展示计划，不创建额外的持久 handoff 文件。到此停止；不得继续扫描 artifact-specific evidence、组织最终 statement 或向各 fill 一次性交付 candidates。
+1. Bootstrap 与选择性 Adopt 先只读核实 repo shape；Bootstrap 同时执行上述 eligibility preflight 的公共检查。Shape 无法收敛时把现有 repo-shape 预热问题交给 init emit，pause 后停止全部 repository 读写并保持零写入；Continuation 从同一 paused segment 定向复核，不重复已完成轮次。首次 materialize 前必须得到 `single project | monorepo`。
+2. 已确认 monorepo 时选择既有 base materialize，且不声称 Web part/mixed profile 支持。已确认 single project 时再使用本节正、负、模糊 fixture 选择 materialize profile；明确命中或不命中自动收敛，证据不足或冲突才把唯一 profile 问题交给 init emit，pause 后同样停止读写、零写入。
+3. Profile continuation 只消费同一 existing paused segment 中已提交的答案。接受或普通语言选择直接收敛；指向 evidence 的自由文本只触发定向复核，再按复核结果选择 `web-frontend | base`。不重复 repo-shape/eligibility、完整 profile scan、已完成轮次或问题，也不发第二道 profile 问题。
+4. Bootstrap 对所选完整目标集合完成尚未执行的 path safety check；选择性 Adopt 直接交给 materializer 的原子 preflight。Init 按选择运行一次 missing-only materialize，禁止先 base 后 overlay。`web-frontend` overlay 遇到已存在的人写 Design System 或 Interaction Design Markdown 时按 `skipped_existing` 保留；若 repo-local manifest 只有 base registration，沿用 materializer conflict 并零部分写入停止，不升级或改写 manifest。
+5. 读取 materialize 结果与 repo-local manifest，逐 artifact 区分 `created` skeleton、`skipped_existing` Markdown 与 HarnessKit 内部资产；profile 两份 artifact 的结果可以不同，不能把整个运行一律归为 Bootstrap 或 Adopt。若已有非空 tracked inventory，报告当前 Bootstrap/Adopt 范围外，不自行定义更新语义。
+6. 只为地图做 compressed scan：复用 materialize 前已收敛的 repo-shape/profile 结论，不重复这些轮次；先看仍未核实的 workspace/manifest 与真实 build/test/operation entrypoint，再只在 part roots、identity 或 validation entrypoint 的高影响分叉处下钻。
+7. 生成包含 repo shape、root/part roots、project identity、validation entrypoint、已选 materialize profile 与 manifest artifact scope 的地图。`web-frontend` 地图只使用 repo-local manifest 已登记的两个附加 artifact；若确认的 part 需要尚未登记的 artifact，报告 registration/tooling gap；不得发明 namespace、sidecar mapping 或 high-water mark。
+8. 对剩余 project identity、validation entrypoint 等高影响跨 artifact 信息按需声明 materialize 后的预热轮问题。Continuation 后重新核实答案，不重做已完成且未受影响的判断。
+9. 把当前运行的 artifact 地图与整体计划 brief 交给 init 展开并展示计划，不创建额外的持久 handoff 文件。到此停止；不得继续扫描 artifact-specific evidence、组织最终 statement 或向各 fill 一次性交付 candidates。
 
 ## Claim 语义纪律
 

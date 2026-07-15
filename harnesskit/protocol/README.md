@@ -39,12 +39,29 @@ non-empty, and any `label` must be non-empty. Rendering convention:
 
 A Bootstrap starts with a read-only eligibility preflight before materialize.
 Existing HarnessKit project guidance or an incompatible target path stops the
-run without creating files. Adopt keeps its existing materialize-first flow.
+run without creating files.
 
-A run may begin with an optional warm-up round hosted by kickoff. It contains
-only repository-specific questions whose answers are shared across artifacts,
-such as repository shape, project identity, or the validation entrypoint. When
-repository evidence already resolves them, emit no warm-up round.
+Before the first materialize, kickoff must settle repository shape as
+single-project or monorepo. If repository evidence cannot settle that boundary,
+kickoff may use its existing warm-up question and resume before materialize;
+monorepo Web/part/mixed profile routing remains unsupported. For a confirmed
+single project, kickoff then selects `base` or `web-frontend` from repository
+evidence. Only an ambiguous or conflicting single-project classification emits
+one explicit profile question whose answer changes the artifact set.
+
+This repo-shape/profile selection is the only read-only pre-materialize routing
+exception to Adopt's materialize-first flow. It must not inspect or select
+artifact content, mutate the target, or run base materialize speculatively.
+After the profile is settled, Adopt runs exactly one missing-only materialize;
+its artifact evidence scan, human-content selection, and writes remain
+materialize-first. The Questionnaire wrapper, answer schema, pause lifecycle,
+and missing-only behavior are unchanged.
+
+A run may begin with an optional warm-up round hosted by kickoff. A repository
+shape question runs before materialize because its answer controls profile
+eligibility; project identity or validation-entrypoint questions may remain in
+the post-materialize warm-up. When repository evidence already resolves them,
+emit no warm-up round.
 
 After warm-up, init expands the artifact plan from the kickoff map and the
 repository-local manifest, presents one repository-specific plan, and continues
@@ -108,6 +125,13 @@ waiting round:
 - backend re-enqueues only when the submitted round has no pending questions.
 - resume is unified through PromptEnvelope `question_answer` parts; the runtime
   continues from the paused segment instead of restarting the workflow.
+
+For the one profile question, `accept` selects the recommended artifact set. A
+free-text answer may either select base/Web in ordinary language or point to
+repository evidence that changes the classification. The resumed paused segment
+performs only that targeted evidence re-check, preserves completed repo-shape
+and eligibility work, and does not emit a second profile question. This remains
+the existing resume lifecycle; it creates no new round, state, or answer type.
 
 No extra backend lifecycle mechanism is required for v1.1 beyond the existing
 question round pause/submit/resume path.

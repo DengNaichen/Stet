@@ -12,8 +12,13 @@ const harnesskitRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const skillRoot = join(harnesskitRoot, "skills");
 const paths = {
 	init: join(skillRoot, "harnesskit-init", "SKILL.md"),
+	initAgent: join(skillRoot, "harnesskit-init", "agents", "harness-agent.yaml"),
 	kickoff: join(skillRoot, "harnesskit-kickoff", "SKILL.md"),
+	kickoffAgent: join(skillRoot, "harnesskit-kickoff", "agents", "harness-agent.yaml"),
+	protocol: join(harnesskitRoot, "protocol", "README.md"),
 };
+
+const frontendArtifacts = ["docs/DESIGN_SYSTEM.md", "docs/INTERACTION_DESIGN.md"];
 
 const baseCreatedGolden = [
 	".gitignore",
@@ -54,10 +59,35 @@ const baseArtifactOrder = [
 ];
 const frontendArtifactOrder = [
 	...baseArtifactOrder.slice(0, 3),
-	"docs/DESIGN_SYSTEM.md",
-	"docs/INTERACTION_DESIGN.md",
+	...frontendArtifacts,
 	...baseArtifactOrder.slice(3),
 ];
+const baseReceiptGolden = {
+	keys: [
+		"checks",
+		"config_path",
+		"finished_at",
+		"mode",
+		"run_id",
+		"schema_version",
+		"started_at",
+		"status",
+		"trigger",
+	],
+	schema_version: 1,
+	trigger: "manual",
+	mode: "full",
+	status: "passed",
+	config_path: ".harnesskit/validation.json",
+	checks: [
+		{
+			name: "claims-verify",
+			command: "node scripts/claims-verify.cjs --json",
+			status: "passed",
+			exit_code: 0,
+		},
+	],
+};
 
 async function read(path) {
 	return readFile(path, "utf8");
@@ -89,6 +119,12 @@ function artifactOrder(plan, label) {
 	return [...line.matchAll(/`((?:AGENTS|docs\/[^`]+)\.md)`/g)].map(([, path]) => path);
 }
 
+function frontmatterName(skill) {
+	const match = /^---\n[\s\S]*?^name:\s*(\S+)\s*$/m.exec(skill);
+	assert.ok(match, "missing skill frontmatter name");
+	return match[1];
+}
+
 async function assertMissing(path) {
 	await assert.rejects(lstat(path), { code: "ENOENT" });
 }
@@ -114,8 +150,51 @@ test("single-repository profile selection is evidence-first with positive, negat
 	assert.match(profile, /entrypoint、build\/serve target 与 UI surface[^\n]*关联/);
 });
 
+test("protocol, kickoff, and init settle repo shape before the one materialize", async () => {
+	const [protocol, kickoff, init] = await Promise.all([
+		read(paths.protocol),
+		read(paths.kickoff),
+		read(paths.init),
+	]);
+	const protocolWorkflow = section(protocol, "## Workflow Rounds");
+	const kickoffProfile = section(kickoff, "## 单仓 Web frontend profile 识别");
+	const kickoffWorkflow = section(kickoff, "## Kickoff 流程");
+	const initWorkflow = section(init, "## 主工作流");
+
+	assertInOrder(protocolWorkflow, [
+		"settle repository shape",
+		"For a confirmed",
+		"selects `base` or `web-frontend`",
+		"exactly one missing-only materialize",
+	]);
+	assertInOrder(kickoffWorkflow, [
+		"只读核实 repo shape",
+		"首次 materialize 前必须得到 `single project | monorepo`",
+		"已确认 single project",
+		"选择 materialize profile",
+		"运行一次 missing-only materialize",
+	]);
+	assertInOrder(initWorkflow, [
+		"只读核实 `single project | monorepo`",
+		"首次 materialize 前必须收敛为 single project 或 monorepo",
+		"Single project 才执行 profile 分类",
+		"运行 missing-only materialize",
+	]);
+	assert.doesNotMatch(kickoffProfile, /尚未收敛[^\n]*保持 base materialize/);
+	assert.doesNotMatch(initWorkflow, /single\/monorepo 尚未收敛[^\n]*保持 base/);
+	assert.match(protocolWorkflow, /only read-only pre-materialize routing[\s\S]*exception to Adopt's materialize-first flow/);
+	assert.match(initWorkflow, /materialize-first 的唯一只读 pre-materialize 例外/);
+	assert.match(protocolWorkflow, /artifact evidence scan[\s\S]*writes remain[\s\S]*materialize-first/);
+	assert.match(initWorkflow, /不读取或选择现有 artifact 内容/);
+});
+
 test("ambiguous Bootstrap or Adopt selection emits one blocking profile question and resumes at the existing boundary", async () => {
-	const [kickoff, init] = await Promise.all([read(paths.kickoff), read(paths.init)]);
+	const [protocol, kickoff, init] = await Promise.all([
+		read(paths.protocol),
+		read(paths.kickoff),
+		read(paths.init),
+	]);
+	const protocolResume = section(protocol, "## Runtime Wrapper and Backend Resume");
 	const profile = section(kickoff, "## 单仓 Web frontend profile 识别");
 	const workflow = section(init, "## 主工作流");
 	const questionnaire = section(init, "## Questionnaire 编排");
@@ -130,20 +209,24 @@ test("ambiguous Bootstrap or Adopt selection emits one blocking profile question
 	assert.match(profile, /Web frontend profile[\s\S]*`docs\/DESIGN_SYSTEM\.md`[\s\S]*`docs\/INTERACTION_DESIGN\.md`/);
 	assert.match(questionnaire, /profile 问题[\s\S]*一道 `single_choice`[\s\S]*(?:不得|不生成)[^\n]*第二道/);
 	assert.match(workflow, /输出 `needs_input` 后立即停止[\s\S]*repository 读写[\s\S]*零写入/);
-	assertInOrder(workflow, [
-		"existing paused segment",
-		"profile selection",
-		"不重复已完成轮次",
-		"missing-only materialize",
-	]);
+	assert.match(profile, /自由文本[^\n]*普通语言[^\n]*base\/Web 选择/);
+	assert.match(profile, /定向复核用户指出的 evidence[^\n]*不重发 profile 问题/);
+	assert.match(workflow, /Profile answer 从同一 existing paused segment 恢复/);
+	assert.match(workflow, /自由文本[^\n]*只定向复核[^\n]*证据及直接影响/);
+	assert.match(protocolResume, /free-text answer[\s\S]*point to[\s\S]*repository evidence/);
+	assert.match(protocolResume, /targeted evidence re-check[\s\S]*does not emit a second profile question/);
+	assert.ok(workflow.indexOf("Profile answer") < workflow.indexOf("运行 missing-only materialize"));
 	assert.match(workflow, /不新增 run-state、Questionnaire 字段或 backend lifecycle/);
 });
 
 test("selected Web frontend profile materializes both artifacts and routes each owner once", async () => {
 	const [kickoff, init] = await Promise.all([read(paths.kickoff), read(paths.init)]);
 	const routing = section(kickoff, "## Artifact 路由（全局硬规则）");
+	const brief = section(kickoff, "## 整体计划 brief");
+	const kickoffWorkflow = section(kickoff, "## Kickoff 流程");
 	const materialize = section(init, "## Missing-only materialize");
 	const plan = section(init, "## 单仓 artifact 计划");
+	const initWorkflow = section(init, "## 主工作流");
 
 	assert.match(
 		materialize,
@@ -155,12 +238,45 @@ test("selected Web frontend profile materializes both artifacts and routes each 
 	assert.match(routing, /`docs\/DESIGN_SYSTEM\.md`[^\n]*semantic token[^\n]*共享组件外观/);
 	assert.match(routing, /`docs\/INTERACTION_DESIGN\.md`[^\n]*用户行为[^\n]*转换/);
 	assert.match(plan, /artifact 地图[\s\S]*整体计划 brief[\s\S]*逐 artifact loop/);
+	for (const artifact of frontendArtifacts) {
+		assert.ok(routing.includes(`\`${artifact}\``), `route missing ${artifact}`);
+		assert.ok(brief.includes(`\`${artifact}\``), `brief handoff missing ${artifact}`);
+		assert.ok(plan.includes(`\`${artifact}\``), `plan missing ${artifact}`);
+	}
+	assert.match(kickoffWorkflow, /artifact 地图与整体计划 brief 交给 init/);
+	assert.match(initWorkflow, /按 kickoff artifact 地图[\s\S]*消费 kickoff 整体计划 brief/);
 
 	const target = await mkdtemp(join(tmpdir(), "harnesskit-frontend-orchestration-"));
 	const report = await materializeInitTemplates({ target, profile: "web-frontend" });
 	assert.equal(report.profile, "web-frontend");
 	assert.equal((await lstat(join(target, "docs/DESIGN_SYSTEM.md"))).isFile(), true);
 	assert.equal((await lstat(join(target, "docs/INTERACTION_DESIGN.md"))).isFile(), true);
+	const manifest = JSON.parse(
+		await readFile(join(target, ".harnesskit/audit/artifact-manifest.json"), "utf8"),
+	);
+	assert.deepEqual(
+		manifest.claim_artifacts
+			.map(({ path }) => path)
+			.filter((path) => frontendArtifacts.includes(path)),
+		frontendArtifacts,
+	);
+});
+
+test("kickoff and init agent metadata route to their declared skill names", async () => {
+	const [kickoff, kickoffAgent, init, initAgent] = await Promise.all([
+		read(paths.kickoff),
+		read(paths.kickoffAgent),
+		read(paths.init),
+		read(paths.initAgent),
+	]);
+	for (const [skill, agent] of [
+		[kickoff, kickoffAgent],
+		[init, initAgent],
+	]) {
+		const name = frontmatterName(skill);
+		assert.match(agent, new RegExp(`default_prompt: "[^"]*\\$${name}(?: |\\.)`));
+		assert.match(agent, /short_description: "[^\n]*profile[^\n]*"/);
+	}
 });
 
 test("non-frontend single repositories retain the base artifact golden and owner order", async () => {
@@ -178,7 +294,12 @@ test("non-frontend single repositories retain the base artifact golden and owner
 });
 
 test("selective Adopt resolves once, preserves human docs, and keeps mixed artifacts independent", async () => {
-	const [kickoff, init] = await Promise.all([read(paths.kickoff), read(paths.init)]);
+	const [protocol, kickoff, init] = await Promise.all([
+		read(paths.protocol),
+		read(paths.kickoff),
+		read(paths.init),
+	]);
+	const protocolWorkflow = section(protocol, "## Workflow Rounds");
 	const profile = section(kickoff, "## 单仓 Web frontend profile 识别");
 	const workflow = section(init, "## 主工作流");
 	const target = await mkdtemp(join(tmpdir(), "harnesskit-frontend-adopt-"));
@@ -188,13 +309,16 @@ test("selective Adopt resolves once, preserves human docs, and keeps mixed artif
 	await writeFile(join(target, "docs/DESIGN_SYSTEM.md"), designBytes);
 	await writeFile(join(target, "docs/INTERACTION_DESIGN.md"), interactionBytes);
 
-	assert.match(profile, /Adopt[^\n]*materialize 前[^\n]*只读 profile routing/);
-	assert.match(workflow, /选择性 Adopt[^\n]*profile[^\n]*首次 materialize/);
+	assert.match(profile, /两种模式都在 materialize 前[^\n]*只读 profile routing/);
+	assert.match(profile, /Adopt materialize-first 的唯一只读 routing 例外/);
+	assert.match(workflow, /选择性 Adopt[^\n]*repo-shape\/profile routing[^\n]*pre-materialize 例外/);
 	assert.match(workflow, /选择性 Adopt[^\n]*不读取或选择现有 artifact 内容/);
-	assert.match(workflow, /overlay[^\n]*人写 Markdown[^\n]*`skipped_existing`/);
-	assert.match(workflow, /选择性 Adopt 的 profile continuation[^\n]*existing paused segment[^\n]*不重复/);
-	assert.match(workflow, /逐 artifact 按 materialize result 分流/);
+	assert.match(workflow, /`skipped_existing` 人工内容走 Adopt 最小选择\/写入保护/);
+	assert.match(workflow, /Profile answer 从同一 existing paused segment 恢复[^\n]*只定向复核[^\n]*不重发 profile 问题/);
+	assert.match(workflow, /混合结果逐 artifact 分流并各调用一次对应 owner/);
 	assert.match(workflow, /`created` skeleton 走 Bootstrap loop[^\n]*`skipped_existing` 人工内容走 Adopt/);
+	assert.match(protocolWorkflow, /After the profile is settled, Adopt runs exactly one missing-only materialize/);
+	assert.match(protocolWorkflow, /Questionnaire wrapper[\s\S]*missing-only behavior are unchanged/);
 
 	const report = await materializeInitTemplates({ target, profile: "web-frontend" });
 	assert.equal(report.profile, "web-frontend");
@@ -257,6 +381,7 @@ test("final Claim verification and root validation receipt stay independent of p
 		receiptContracts.push({
 			keys: Object.keys(receipt).sort(),
 			schema_version: receipt.schema_version,
+			trigger: receipt.trigger,
 			mode: receipt.mode,
 			status: receipt.status,
 			config_path: receipt.config_path,
@@ -268,6 +393,7 @@ test("final Claim verification and root validation receipt stay independent of p
 			})),
 		});
 	}
+	assert.deepEqual(receiptContracts[0], baseReceiptGolden);
 	assert.deepEqual(receiptContracts[1], receiptContracts[0]);
 });
 
@@ -275,9 +401,10 @@ test("monorepo and mixed-profile routing remain explicitly unsupported", async (
 	const kickoff = await read(paths.kickoff);
 	const profile = section(kickoff, "## 单仓 Web frontend profile 识别");
 
-	assert.match(profile, /只适用于[^\n]*single project/);
-	assert.match(profile, /monorepo、part 与 mixed profile(?: routing)?[^\n]*当前范围外/i);
-	assert.match(profile, /single project \/ monorepo 尚未收敛[^\n]*保持 base[^\n]*不发 Web profile 问题/);
+	assert.match(profile, /只有 shape 已确认为 `single project`[^\n]*Web profile 分类/);
+	assert.match(profile, /Web part\/mixed profile[^\n]*当前范围外/i);
+	assert.match(profile, /无法收敛[^\n]*repo-shape 预热问题[^\n]*不能用 base materialize 抢跑/);
+	assert.match(profile, /已确认 monorepo[^\n]*既有 base 路由/);
 	assert.match(profile, /不要为其中某个 part 自动选择或询问 `web-frontend`/);
 	assert.match(profile, /不要声称其 Design System 或 Interaction Design 已被覆盖/);
 });
