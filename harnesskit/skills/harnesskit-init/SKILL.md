@@ -85,7 +85,8 @@ Materialize 后运行 `node scripts/claims-verify.cjs --help`，确认 `write-si
 11. 全部 artifact 封存后执行内容 coverage review：检查 owner 边界、重复表达、证据支持、模板 section 三态（已填充、已删除、或明确写明无证据/待确认）与高影响缺口。发现问题时交回对应 owner 重新执行本份循环并封存，直到 review 收敛。
 12. 运行 `node scripts/claims-verify.cjs verify --final --json`，按 artifact、ID、字段、source 或残留 authoring checklist 修正失败并重跑，直到 `valid: true` 且 `status: passed`。普通 `verify` 允许未完成轮次保留 checklist；只有 `--final` 是退出门禁。
 13. 再运行 HarnessKit 内部 root validation runner。Final verifier 与 root validation receipt 是两个独立门禁，不能用前者成功替代后者。只有 receipt `status: passed` 才能完成；引用 latest receipt 及 run receipt 路径，但不得把该 receipt 写成目标仓库的验证事实或结果。Profile 不改变既有 receipt 路径、状态语义或报告要求。
-14. 门禁通过后发送一段简洁完成说明，只说明已经整理的主题、用户修正是否已应用以及最终检查结果；不要列内部步骤、字段或统计。
+14. 仅当本次**整体运行是 Bootstrap**，且全部 artifact 已封存、没有 pending round、步骤 12 的 final verifier 与步骤 13 的 root validation receipt 都已 `passed` 后，才读取当前目标仓库 `HEAD^{commit}` 的完整 object ID，并调用已 materialized 的 `node scripts/harness-update.cjs finalize --source-commit <full-HEAD>` 建立首个 Update baseline。Base 与 `web-frontend` Bootstrap 都执行本门禁；选择性 Adopt、`needs_input`、`blocked`、`failed` 或任一前置门禁失败都不得调用 finalize。Missing-only materialize 本身仍不创建空 baseline；任一 final verifier、root validation receipt 门禁或 finalize 失败都必须保持 baseline 缺失或原值，即不得创建或推进 baseline，且不得报告 Bootstrap 完成。
+15. 只有适用的 Bootstrap baseline finalize 也成功后，才发送一段简洁完成说明；选择性 Adopt 仍在原有 final verifier 与 root receipt 通过后完成，不创建或推进 baseline。说明只包含已经整理的主题、用户修正是否已应用以及最终检查结果；不要列内部步骤、字段或统计。
 
 ## 轮前预告
 
@@ -151,6 +152,7 @@ Verifier 把 canonical Markdown 中任何 literal registered token 都计入 inv
 - Coverage review 已覆盖 owner 边界、重复、证据支持、section 三态与高影响缺口；发现项已由对应 owner 修正并重新封存。
 - `AGENTS.md` 只做启动和路由；Architecture、Development、Validation 与 rules 各守 owner 边界。
 - Claim verifier `passed`，root validation receipt 也为 `passed`。`not_configured`、`failed`、`skipped` 或 `not_run` 都不能报告为完成门禁通过。
+- 整体 Bootstrap 已在上述两个门禁之后用当前目标仓库 full HEAD 成功 finalize 首个 Update baseline；base 与 `web-frontend` 均适用。选择性 Adopt 与所有 pause/失败终态没有调用 finalize，materialize 没有预建空 baseline。
 
 ## 边界
 

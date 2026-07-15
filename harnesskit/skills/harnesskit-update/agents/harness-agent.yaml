@@ -1,0 +1,4 @@
+interface:
+  display_name: "HarnessKit Update"
+  short_description: "编排可恢复、确定性的 Harness Update"
+  default_prompt: "使用 $harnesskit-update 从既有有效 baseline 执行用户主动触发的 Context Harness Update。"
