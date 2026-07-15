@@ -198,6 +198,16 @@ async function preflightClaudeCompanion(target, fileStates, plan) {
 	const companionTarget = "AGENTS.md";
 	const companionPath = join(target, companion);
 	const existing = await lstatMaybe(companionPath);
+	const companionState = fileStates.get(companion);
+	if (companionState) {
+		if (companionState !== "conflict") {
+			addConflict(plan.conflicts, {
+				path: companion,
+				reason: `template file conflicts with required alias to ${companionTarget}`,
+			});
+		}
+		return;
+	}
 
 	if (existing) {
 		if (existing.isFile()) {
@@ -223,15 +233,6 @@ async function preflightClaudeCompanion(target, fileStates, plan) {
 		return;
 	}
 
-	const companionState = fileStates.get(companion);
-	if (companionState === "create") {
-		addConflict(plan.conflicts, {
-			path: companion,
-			reason: `template file conflicts with required alias to ${companionTarget}`,
-		});
-		return;
-	}
-	if (companionState === "conflict") return;
 	const agentsState = fileStates.get(companionTarget);
 	if (agentsState === "create" || agentsState === "existing") {
 		plan.createClaudeCompanion = true;

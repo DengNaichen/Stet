@@ -47,6 +47,24 @@ test("rejects a template-owned Claude path before any target writes", async () =
 	assert.deepEqual(await readdir(target), []);
 });
 
+test("rejects a template-owned Claude path over an existing user file", async () => {
+	const { source, target } = await createFixture();
+	const sentinel = "user-owned Claude guidance\n";
+	await writeFile(join(source, "CLAUDE.md"), "template Claude guidance\n");
+	await writeFile(join(source, "EXTRA.md"), "extra template\n");
+	await writeFile(join(target, "CLAUDE.md"), sentinel);
+
+	const report = await materializeInitTemplates({ source, target });
+
+	assert.deepEqual(report.created, []);
+	assert.deepEqual(report.skipped_existing, []);
+	assert.deepEqual(report.conflicts, [
+		{ path: "CLAUDE.md", reason: "template file conflicts with required alias to AGENTS.md" },
+	]);
+	assert.deepEqual(await readdir(target), ["CLAUDE.md"]);
+	assert.equal(await readFile(join(target, "CLAUDE.md"), "utf8"), sentinel);
+});
+
 test("preserves an existing user-owned Claude companion file", async () => {
 	const { source, target } = await createFixture();
 	const sentinel = "user-owned Claude guidance\n";
