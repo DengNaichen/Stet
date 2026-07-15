@@ -190,6 +190,11 @@ test("protocol, kickoff, and init settle repo shape before the one materialize",
 	assert.doesNotMatch(kickoffPreflight, /不代替 materialize 后的 repo-shape 与整体计划扫描/);
 	assert.match(kickoffWorkflow, /复用 materialize 前已收敛的 repo-shape\/profile 结论，不重复这些轮次/);
 	assert.match(initWorkflow, /复用 pre-materialize 已收敛的 repo-shape\/profile 结论，不重复这些轮次/);
+	assert.match(kickoffPreflight, /profile 自动选择或回答收敛后[^\n]*检查所选 profile 将创建的每个路径/);
+	assert.match(initWorkflow, /eligibility preflight 的 profile 无关部分/);
+	assert.match(initWorkflow, /Profile 收敛前不检查 base\/profile manifest 的专属目标路径[^\n]*不因未选 profile 的既有目标文件停止/);
+	assert.doesNotMatch(initWorkflow, /eligibility preflight：对照 HarnessKit asset 中的 base\/profile manifest 与现有目标路径/);
+	assert.match(initWorkflow, /Profile 收敛后，Bootstrap 只对所选完整目标集合[^\n]*path safety check/);
 	assert.doesNotMatch(kickoffProfile, /尚未收敛[^\n]*保持 base materialize/);
 	assert.doesNotMatch(initWorkflow, /single\/monorepo 尚未收敛[^\n]*保持 base/);
 	assert.match(protocolWorkflow, /only read-only pre-materialize routing[\s\S]*exception to Adopt's materialize-first flow/);
@@ -293,13 +298,17 @@ test("non-frontend single repositories retain the base artifact golden and owner
 	const init = await read(paths.init);
 	const plan = section(init, "## 单仓 artifact 计划");
 	const target = await mkdtemp(join(tmpdir(), "harnesskit-base-orchestration-"));
+	const webOnlyBytes = "# Existing Web-only design guidance\n";
+	await mkdir(join(target, "docs"), { recursive: true });
+	await writeFile(join(target, "docs/DESIGN_SYSTEM.md"), webOnlyBytes);
 	const report = await materializeInitTemplates({ target });
 
 	assert.deepEqual(artifactOrder(plan, "base 单仓"), baseArtifactOrder);
 	assert.match(plan, /base 单仓[\s\S]*保持既有顺序/);
 	assert.equal(Object.hasOwn(report, "profile"), false);
 	assert.deepEqual(report.created, baseCreatedGolden);
-	await assertMissing(join(target, "docs/DESIGN_SYSTEM.md"));
+	assert.equal(await readFile(join(target, "docs/DESIGN_SYSTEM.md"), "utf8"), webOnlyBytes);
+	assert.equal(report.skipped_existing.includes("docs/DESIGN_SYSTEM.md"), false);
 	await assertMissing(join(target, "docs/INTERACTION_DESIGN.md"));
 });
 
