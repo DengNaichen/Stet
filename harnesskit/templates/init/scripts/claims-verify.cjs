@@ -37,9 +37,20 @@ let temporaryFileCounter = 0;
 const lockWaitArray = new Int32Array(new SharedArrayBuffer(4));
 
 function compareText(left, right) {
-	if (left < right) return -1;
-	if (left > right) return 1;
-	return 0;
+	const leftIterator = String(left)[Symbol.iterator]();
+	const rightIterator = String(right)[Symbol.iterator]();
+	while (true) {
+		const leftPoint = leftIterator.next();
+		const rightPoint = rightIterator.next();
+		if (leftPoint.done || rightPoint.done) {
+			if (leftPoint.done && rightPoint.done) return 0;
+			return leftPoint.done ? -1 : 1;
+		}
+		const leftValue = leftPoint.value.codePointAt(0);
+		const rightValue = rightPoint.value.codePointAt(0);
+		if (leftValue < rightValue) return -1;
+		if (leftValue > rightValue) return 1;
+	}
 }
 
 function isPlainObject(value) {
@@ -190,6 +201,16 @@ function hashRepoFile(root, repoPath) {
 	return sha256FileWithoutFollowingSymlink(file.path);
 }
 
+function readRepoFile(root, repoPath) {
+	const file = safeRegularFile(root, repoPath);
+	if (!file.ok) throw new Error(`${repoPath}: ${file.reason}`);
+	try {
+		return readFileWithoutFollowingSymlink(file.path);
+	} catch {
+		throw new Error(`${repoPath}: unreadable`);
+	}
+}
+
 function ensureSafeDirectory(root, repoPath) {
 	if (!isRepoRelativePath(repoPath)) throw new Error(`${repoPath}: unsafe_path`);
 	const absoluteRoot = resolve(root);
@@ -221,7 +242,19 @@ function lockIsStale(lockPath) {
 	}
 }
 
-function withClaimContractLock(root, callback) {
+function releaseClaimContractLock(lockPath, removeLock) {
+	const firstAttempt = removeLock || (() => rmSync(lockPath, { recursive: true, force: true }));
+	try {
+		firstAttempt();
+	} catch {}
+	if (existsSync(lockPath)) {
+		try {
+			rmSync(lockPath, { recursive: true, force: true });
+		} catch {}
+	}
+}
+
+function withClaimContractLock(root, callback, options = {}) {
 	const parent = safeExistingDirectory(root, dirname(CLAIM_TOOL_LOCK_PATH));
 	if (!parent.ok) throw new Error(`${dirname(CLAIM_TOOL_LOCK_PATH)}: ${parent.reason}`);
 	const lockPath = join(resolve(root), ...CLAIM_TOOL_LOCK_PATH.split("/"));
@@ -259,11 +292,11 @@ function withClaimContractLock(root, callback) {
 	try {
 		return callback();
 	} finally {
-		rmSync(lockPath, { recursive: true, force: true });
+		releaseClaimContractLock(lockPath, options.removeLock);
 	}
 }
 
-function writeRepoJSON(root, repoPath, value) {
+function writeRepoFileAtomic(root, repoPath, contents, options = {}) {
 	if (!isRepoRelativePath(repoPath)) throw new Error(`${repoPath}: unsafe_path`);
 	ensureSafeDirectory(root, dirname(repoPath));
 	const absolutePath = join(resolve(root), ...repoPath.split("/"));
@@ -278,7 +311,8 @@ function writeRepoJSON(root, repoPath, value) {
 		`.${basename(absolutePath)}.tmp-${process.pid}-${temporaryFileCounter++}`,
 	);
 	try {
-		writeFileSync(temporaryPath, canonicalJSONStringify(value), { encoding: "utf8", flag: "wx", mode: 0o644 });
+		writeFileSync(temporaryPath, contents, { encoding: "utf8", flag: "wx", mode: 0o644 });
+		if (options.beforeRename) options.beforeRename();
 		renameSync(temporaryPath, absolutePath);
 	} catch (error) {
 		try {
@@ -286,6 +320,10 @@ function writeRepoJSON(root, repoPath, value) {
 		} catch {}
 		throw error;
 	}
+}
+
+function writeRepoJSON(root, repoPath, value) {
+	writeRepoFileAtomic(root, repoPath, canonicalJSONStringify(value));
 }
 
 function writeImmutableRepoJSON(root, repoPath, value) {
@@ -316,14 +354,7 @@ function writeImmutableRepoJSON(root, repoPath, value) {
 }
 
 function readRepoJSON(root, repoPath) {
-	const file = safeRegularFile(root, repoPath);
-	if (!file.ok) throw new Error(`${repoPath}: ${file.reason}`);
-	let contents;
-	try {
-		contents = readFileWithoutFollowingSymlink(file.path).toString("utf8");
-	} catch {
-		throw new Error(`${repoPath}: unreadable`);
-	}
+	const contents = readRepoFile(root, repoPath).toString("utf8");
 	try {
 		return JSON.parse(contents);
 	} catch {
@@ -1093,16 +1124,23 @@ function main(argv = process.argv.slice(2)) {
 }
 
 module.exports = {
+	ARTIFACT_MANIFEST_PATH,
 	ARTIFACT_MANIFEST_SCHEMA_VERSION,
 	CLAIM_SCHEMA_VERSION,
 	allocateClaimIds,
 	canonicalJSONStringify,
+	compareText,
 	formatClaimId,
 	hashRepoFile,
 	isRepoRelativePath,
 	loadArtifactManifest,
+	readRepoFile,
+	readRepoJSON,
+	safeRegularFile,
 	verifyClaims,
+	withClaimContractLock,
 	writeClaimSidecar,
+	writeRepoFileAtomic,
 	writeUserConfirmation,
 };
 
