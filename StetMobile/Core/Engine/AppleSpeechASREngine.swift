@@ -1,6 +1,9 @@
 import AVFoundation
 import Foundation
+import os
 import Speech
+
+private let appleSpeechLog = Logger(subsystem: "com.stet.dictation", category: "AppleSpeechASR")
 
 @available(iOS 26.0, *)
 final class AppleSpeechASREngine: ASREngine {
@@ -94,20 +97,74 @@ final class AppleSpeechASREngine: ASREngine {
         let analyzer = SpeechAnalyzer(modules: [transcriber])
         self.analyzer = analyzer
 
-        analysisTask = Task {
-            try await analyzer.start(inputSequence: inputStream)
+        let sessionTag = sessionId.prefix(8)
+
+        analysisTask = Task { [weak self] in
+            do {
+                try await analyzer.start(inputSequence: inputStream)
+                appleSpeechLog.info("[\(sessionTag, privacy: .public)] analyzer.start returned (input stream finished). activeSessionId=\(self?.activeSessionId ?? "nil", privacy: .public)")
+            } catch {
+                appleSpeechLog.error("[\(sessionTag, privacy: .public)] analyzer.start threw: \(error.localizedDescription, privacy: .public)")
+                throw error
+            }
         }
 
         resultsTask = Task { [weak self] in
             guard let self = self else { return }
+            var finalizedSegments: [String] = []
+            var currentVolatile = ""
+            var resultCount = 0
+            var finalCount = 0
+            var lastResultAt = Date()
+
+            func accumulated() -> String {
+                let locked = finalizedSegments.joined(separator: " ")
+                if currentVolatile.isEmpty { return locked }
+                if locked.isEmpty { return currentVolatile }
+                return locked + " " + currentVolatile
+            }
+
             do {
                 for try await result in transcriber.results {
+                    resultCount += 1
+                    lastResultAt = Date()
                     let text = String(result.text.characters)
-                    let asrResult = ASRResult(text: text, isFinal: result.isFinal, metrics: nil)
-                    self.continuation.yield(asrResult)
+                    if result.isFinal {
+                        finalCount += 1
+                        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmed.isEmpty {
+                            finalizedSegments.append(trimmed)
+                        }
+                        currentVolatile = ""
+                    } else {
+                        currentVolatile = text
+                    }
+                    self.continuation.yield(ASRResult(text: accumulated(), isFinal: false, metrics: nil))
                 }
+
+                guard !Task.isCancelled else {
+                    appleSpeechLog.info("[\(sessionTag, privacy: .public)] results task cancelled (likely new session starting)")
+                    return
+                }
+
+                let gap = Date().timeIntervalSince(lastResultAt)
+                let stillActive = self.activeSessionId != nil
+                let merged = finalizedSegments.joined(separator: " ")
+                appleSpeechLog.info("[\(sessionTag, privacy: .public)] results stream ended. total=\(resultCount) finals=\(finalCount) segments=\(finalizedSegments.count) mergedChars=\(merged.count) gapSinceLast=\(String(format: "%.2f", gap), privacy: .public)s stillActive=\(stillActive, privacy: .public)")
+                if stillActive {
+                    appleSpeechLog.warning("[\(sessionTag, privacy: .public)] UNEXPECTED stop: emitting accumulated text as final")
+                    self.activeSessionId = nil
+                }
+                self.continuation.yield(ASRResult(text: merged, isFinal: true, metrics: nil))
             } catch {
-                // Stream ended or task cancelled; ignore.
+                guard !Task.isCancelled else { return }
+                let stillActive = self.activeSessionId != nil
+                let merged = finalizedSegments.joined(separator: " ")
+                appleSpeechLog.error("[\(sessionTag, privacy: .public)] results stream threw: \(error.localizedDescription, privacy: .public) finals=\(finalCount) mergedChars=\(merged.count) stillActive=\(stillActive, privacy: .public)")
+                if stillActive {
+                    self.activeSessionId = nil
+                }
+                self.continuation.yield(ASRResult(text: merged, isFinal: true, metrics: nil))
             }
         }
 
@@ -122,7 +179,8 @@ final class AppleSpeechASREngine: ASREngine {
     }
 
     func stop() {
-        guard activeSessionId != nil else { return }
+        guard let sid = activeSessionId else { return }
+        appleSpeechLog.info("[\(sid.prefix(8), privacy: .public)] stop() called by caller")
 
         let pendingAnalyzer = analyzer
         inputContinuation?.finish()
@@ -165,6 +223,10 @@ final class AppleSpeechASREngine: ASREngine {
     }
 
     private func handleRouteChange(_ note: Notification) {
+        let reasonRaw = (note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt) ?? 0
+        let activeTag = activeSessionId.map { String($0.prefix(8)) } ?? "no-session"
+        appleSpeechLog.info("[\(activeTag, privacy: .public)] route change reason=\(reasonRaw)")
+
         guard let engine = audioEngine else { return }
         let input = engine.inputNode
         let newInputFormat = input.outputFormat(forBus: 0)
@@ -176,6 +238,7 @@ final class AppleSpeechASREngine: ASREngine {
            existing.inputFormat.channelCount == newInputFormat.channelCount {
             return
         }
+        appleSpeechLog.info("[\(activeTag, privacy: .public)] route change → format changed, rebuilding converter")
 
         let wasRunning = engine.isRunning
         engine.stop()

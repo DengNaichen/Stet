@@ -13,7 +13,7 @@ class ASREngineManager {
         if let type = type {
             selectedType = type
         } else {
-            // Apple Speech temporarily disabled; always use Sherpa-Onnx
+            // Default to Sherpa-Onnx for all devices; Apple Speech available via picker for debugging until it stabilizes.
             selectedType = .sherpa
         }
         

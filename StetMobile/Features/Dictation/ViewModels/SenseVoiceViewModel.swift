@@ -24,6 +24,7 @@ final class SenseVoiceViewModel: ObservableObject {
     @Published var isExternalLaunch: Bool = false
     @Published var isRecordingDone: Bool = false
     @Published private(set) var activeEngineName: String = ""
+    @Published var selectedEngineType: ASREngineType
 
     func dismissExternalGuide() {
         isExternalLaunch = false
@@ -31,6 +32,7 @@ final class SenseVoiceViewModel: ObservableObject {
 
     private var engine: ASREngine?
     private var resultsListener: Task<Void, Never>?
+    private var cancellables = Set<AnyCancellable>()
     private let rewriteSettingsStore: RewriteSettingsStore
 
     private var commandPollingTimer: Timer?
@@ -46,9 +48,14 @@ final class SenseVoiceViewModel: ObservableObject {
     init(rewriteSettingsStore: RewriteSettingsStore) {
         self.rewriteSettingsStore = rewriteSettingsStore
 
-        let initialEngine = ASREngineManager.makeEngine()
+        let initialType: ASREngineType = .sherpa
+        self.selectedEngineType = initialType
+
+        let initialEngine = ASREngineManager.makeEngine(type: initialType)
         self.engine = initialEngine
         attachResultsListener(to: initialEngine)
+
+        setupEngineSwitching()
 
         // Start polling immediately so heartbeat and incoming requestStart can be
         // picked up while bootstrap (model load) is still running in the background.
@@ -58,6 +65,23 @@ final class SenseVoiceViewModel: ObservableObject {
             await self.bootstrap()
         }
         registerAudioSessionObservers()
+    }
+
+    private func setupEngineSwitching() {
+        $selectedEngineType
+            .dropFirst()
+            .sink { [weak self] newType in
+                guard let self = self else { return }
+                self.engine?.stop()
+                let newEngine = ASREngineManager.makeEngine(type: newType)
+                self.engine = newEngine
+                self.activeEngineName = ""
+                self.attachResultsListener(to: newEngine)
+                Task { @MainActor in
+                    try? await newEngine.prepare()
+                }
+            }
+            .store(in: &cancellables)
     }
 
     private func attachResultsListener(to engine: ASREngine) {
@@ -266,8 +290,12 @@ final class SenseVoiceViewModel: ObservableObject {
         } else {
             if let rewriteService = rewriteSettingsStore.makeRewriteServiceIfEnabled() {
                 partialStatus = "Rewriting..."
+                let dictionary = DictionaryModel()
+                let preferredSpellings = dictionary.loadIsEnabled() ? dictionary.loadEntries() : []
                 Task { @MainActor in
-                    let cleaned = (try? await rewriteService.rewrite(.cleanup(merged, audience: .human))) ?? merged
+                    let cleaned = (try? await rewriteService.rewrite(
+                        .cleanup(merged, audience: .human, preferredSpellings: preferredSpellings)
+                    )) ?? merged
                     self.transcript = cleaned
                     self.partialStatus = "Finished."
                     self.notificationGenerator.notificationOccurred(.success)

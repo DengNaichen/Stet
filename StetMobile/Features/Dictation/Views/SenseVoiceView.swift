@@ -11,7 +11,15 @@ struct SenseVoiceView: View {
                         .font(.largeTitle.bold())
                     Text(viewModel.activeEngineName.isEmpty ? "Ready to dictate" : "Powered by \(viewModel.activeEngineName)")
                         .foregroundStyle(.secondary)
-                    
+
+                    Picker("ASR Engine", selection: $viewModel.selectedEngineType) {
+                        ForEach(ASREngineType.allCases) { type in
+                            Text(type.rawValue).tag(type)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.top, 4)
+                    .disabled(viewModel.isRecording)
                 }
 
                 ScrollView {
