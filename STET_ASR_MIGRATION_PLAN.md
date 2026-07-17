@@ -86,8 +86,3 @@
 - [ ] **iOS 端**: 移除 `StetMobile` 项目中内置的所有 `.onnx` 和 `.txt` 文件。
 - [ ] **iOS 端**: 在 `SenseVoiceViewModel` 中实现下载状态 UI 的展示。
 - [ ] **macOS 端**: 移除旧的 `Core/SenseVoice` 和 `Core/LocalWhisper` 代码，全面切换至 `StetASR`。
-
-## 6. 风险与注意事项
-- **存储权限**：iOS 端需确保在下载前正确解析并创建 `Application Support` 目录。
-- **构建配置**：确保 `StetEngine` 对底层 C++ 库的链接在 Package 模式下依然生效。
-- **Git 历史**：由于涉及文件大范围移动，建议分次 commit 以保留 Git Trace 记录。
