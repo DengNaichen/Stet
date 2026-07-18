@@ -15,15 +15,27 @@ private enum KeyboardButtonState: Equatable {
 }
 
 final class KeyboardViewController: UIInputViewController {
-    private let controlRow = UIStackView()
+    private enum Layout {
+        static let actionDiameter: CGFloat = 112
+        static let returnWidth: CGFloat = 120
+        static let returnHeight: CGFloat = 52
+        static let utilityDiameter: CGFloat = 52
+        static let horizontalInset: CGFloat = 20
+        static let actionSpacing: CGFloat = 20
+        static let actionStackVerticalOffset: CGFloat = 4
+    }
+
     private let deleteButton = UIButton(type: .system)
     private let actionButton = UIButton(type: .system)
     private let returnButton = UIButton(type: .system)
     private let nextKeyboardButton = UIButton(type: .system)
+    private let actionStack = UIStackView()
     private let waveformView = KeyboardWaveformView()
 
     private var buttonState: KeyboardButtonState = .idle
     private var pollTimer: Timer?
+    private var deleteInitialTimer: Timer?
+    private var deleteRepeatTimer: Timer?
     private var waveformDisplayLink: CADisplayLink?
     private var waveformSampleTimer: DispatchSourceTimer?
     private var latestVolume: Float = 0
@@ -45,7 +57,7 @@ final class KeyboardViewController: UIInputViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         configureActionButton()
-        configureControlRow()
+        configureControlButtons()
         configureNextKeyboardButton()
         updateActionButton()
     }
@@ -83,6 +95,7 @@ final class KeyboardViewController: UIInputViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         stopPolling()
+        stopDeleteRepeat()
         stopWaveformUpdates()
 
         // Keep the request alive only when this extension is intentionally waking Stet.
@@ -102,6 +115,13 @@ final class KeyboardViewController: UIInputViewController {
     private func configureActionButton() {
         actionButton.translatesAutoresizingMaskIntoConstraints = false
         actionButton.addTarget(self, action: #selector(handleActionButton), for: .touchUpInside)
+        actionButton.accessibilityIdentifier = "DictationButton"
+        actionButton.layer.cornerRadius = Layout.actionDiameter / 2
+        actionButton.layer.shadowColor = UIColor.black.cgColor
+        actionButton.layer.shadowOpacity = 0.22
+        actionButton.layer.shadowRadius = 12
+        actionButton.layer.shadowOffset = CGSize(width: 0, height: 4)
+        actionButton.layer.masksToBounds = false
 
         waveformView.translatesAutoresizingMaskIntoConstraints = false
         waveformView.tintColor = .systemBackground
@@ -109,82 +129,120 @@ final class KeyboardViewController: UIInputViewController {
         actionButton.addSubview(waveformView)
 
         NSLayoutConstraint.activate([
-            actionButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 180),
-            actionButton.heightAnchor.constraint(equalToConstant: 52),
+            actionButton.widthAnchor.constraint(equalToConstant: Layout.actionDiameter),
+            actionButton.heightAnchor.constraint(equalToConstant: Layout.actionDiameter),
             waveformView.centerXAnchor.constraint(equalTo: actionButton.centerXAnchor),
             waveformView.centerYAnchor.constraint(equalTo: actionButton.centerYAnchor),
-            waveformView.widthAnchor.constraint(equalToConstant: 92),
+            waveformView.widthAnchor.constraint(equalToConstant: 72),
             waveformView.heightAnchor.constraint(equalToConstant: 28),
         ])
     }
 
-    private func configureControlRow() {
+    private func configureControlButtons() {
         configureEditingButton(
             deleteButton,
             systemImage: "delete.left.fill",
             accessibilityLabel: "Delete",
-            action: #selector(handleDeleteButton)
+            width: Layout.utilityDiameter,
+            action: nil
         )
+        deleteButton.accessibilityIdentifier = "DeleteButton"
+        deleteButton.addTarget(self, action: #selector(handleDeleteDown), for: .touchDown)
+        deleteButton.addTarget(
+            self,
+            action: #selector(handleDeleteUp),
+            for: [.touchUpInside, .touchUpOutside, .touchCancel]
+        )
+
         configureEditingButton(
             returnButton,
-            systemImage: "return",
+            title: "return",
             accessibilityLabel: "New Line",
+            width: Layout.returnWidth,
+            height: Layout.returnHeight,
             action: #selector(handleReturnButton)
         )
+        returnButton.accessibilityIdentifier = "ReturnButton"
 
-        controlRow.axis = .horizontal
-        controlRow.alignment = .center
-        controlRow.spacing = 10
-        controlRow.translatesAutoresizingMaskIntoConstraints = false
-        controlRow.addArrangedSubview(deleteButton)
-        controlRow.addArrangedSubview(actionButton)
-        controlRow.addArrangedSubview(returnButton)
-        view.addSubview(controlRow)
+        actionStack.axis = .vertical
+        actionStack.alignment = .center
+        actionStack.spacing = Layout.actionSpacing
+        actionStack.translatesAutoresizingMaskIntoConstraints = false
+        actionStack.addArrangedSubview(actionButton)
+        actionStack.addArrangedSubview(returnButton)
+        view.addSubview(actionStack)
+        view.addSubview(deleteButton)
 
         NSLayoutConstraint.activate([
-            controlRow.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor),
-            controlRow.centerYAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerYAnchor),
-            controlRow.leadingAnchor.constraint(
-                greaterThanOrEqualTo: view.safeAreaLayoutGuide.leadingAnchor,
-                constant: 8
+            actionStack.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor),
+            actionStack.centerYAnchor.constraint(
+                equalTo: view.safeAreaLayoutGuide.centerYAnchor,
+                constant: Layout.actionStackVerticalOffset
             ),
-            controlRow.trailingAnchor.constraint(
-                lessThanOrEqualTo: view.safeAreaLayoutGuide.trailingAnchor,
-                constant: -8
+            deleteButton.topAnchor.constraint(equalTo: actionButton.topAnchor),
+            deleteButton.trailingAnchor.constraint(
+                equalTo: view.safeAreaLayoutGuide.trailingAnchor,
+                constant: -Layout.horizontalInset
             ),
         ])
     }
 
     private func configureEditingButton(
         _ button: UIButton,
-        systemImage: String,
+        systemImage: String? = nil,
+        title: String? = nil,
         accessibilityLabel: String,
-        action: Selector
+        width: CGFloat,
+        height: CGFloat = 52,
+        action: Selector?
     ) {
         var configuration = UIButton.Configuration.filled()
-        configuration.cornerStyle = .medium
-        configuration.image = UIImage(systemName: systemImage)
+        configuration.cornerStyle = .capsule
+        configuration.image = systemImage.flatMap(UIImage.init(systemName:))
+        configuration.title = title
         configuration.baseBackgroundColor = .secondarySystemFill
         configuration.baseForegroundColor = .label
+
+        if systemImage != nil {
+            configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(
+                pointSize: 20,
+                weight: .regular
+            )
+        }
+
+        if title != nil {
+            configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { attributes in
+                var updatedAttributes = attributes
+                updatedAttributes.font = .preferredFont(forTextStyle: .body)
+                return updatedAttributes
+            }
+        }
 
         button.configuration = configuration
         button.accessibilityLabel = accessibilityLabel
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.addTarget(self, action: action, for: .touchUpInside)
+        if let action {
+            button.addTarget(self, action: action, for: .touchUpInside)
+        }
 
         NSLayoutConstraint.activate([
-            button.widthAnchor.constraint(equalToConstant: 52),
-            button.heightAnchor.constraint(equalToConstant: 52),
+            button.widthAnchor.constraint(equalToConstant: width),
+            button.heightAnchor.constraint(equalToConstant: height),
         ])
     }
 
     private func configureNextKeyboardButton() {
         var configuration = UIButton.Configuration.plain()
         configuration.image = UIImage(systemName: "globe")
+        configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(
+            pointSize: 28,
+            weight: .regular
+        )
         configuration.baseForegroundColor = .label
 
         nextKeyboardButton.configuration = configuration
         nextKeyboardButton.accessibilityLabel = "Next Keyboard"
+        nextKeyboardButton.accessibilityIdentifier = "NextKeyboardButton"
         nextKeyboardButton.translatesAutoresizingMaskIntoConstraints = false
         nextKeyboardButton.addTarget(
             self,
@@ -194,30 +252,35 @@ final class KeyboardViewController: UIInputViewController {
         view.addSubview(nextKeyboardButton)
 
         NSLayoutConstraint.activate([
-            nextKeyboardButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 8),
+            nextKeyboardButton.leadingAnchor.constraint(
+                equalTo: view.safeAreaLayoutGuide.leadingAnchor,
+                constant: Layout.horizontalInset
+            ),
             nextKeyboardButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -4),
-            nextKeyboardButton.widthAnchor.constraint(equalToConstant: 44),
-            nextKeyboardButton.heightAnchor.constraint(equalToConstant: 44),
+            nextKeyboardButton.widthAnchor.constraint(equalToConstant: 52),
+            nextKeyboardButton.heightAnchor.constraint(equalToConstant: 52),
         ])
     }
 
     private func updateActionButton() {
         var configuration = UIButton.Configuration.filled()
         configuration.cornerStyle = .capsule
-        configuration.imagePadding = 8
         configuration.baseBackgroundColor = .label
         configuration.baseForegroundColor = .systemBackground
+        configuration.contentInsets = .zero
 
         switch buttonState {
         case .idle:
-            configuration.title = "Tap to speak"
             configuration.image = UIImage(systemName: "mic.fill")
+            configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(
+                pointSize: 30,
+                weight: .medium
+            )
             actionButton.isEnabled = true
             actionButton.accessibilityLabel = "Start Dictation"
             actionButton.accessibilityValue = nil
 
         case .pending:
-            configuration.title = "Starting…"
             configuration.showsActivityIndicator = true
             actionButton.isEnabled = false
             actionButton.accessibilityLabel = "Starting Dictation"
@@ -229,7 +292,6 @@ final class KeyboardViewController: UIInputViewController {
             actionButton.accessibilityValue = "Recording"
 
         case .processing:
-            configuration.title = "Processing…"
             configuration.showsActivityIndicator = true
             actionButton.isEnabled = false
             actionButton.accessibilityLabel = "Processing Dictation"
@@ -266,8 +328,30 @@ final class KeyboardViewController: UIInputViewController {
         handleInputModeList(from: sender, with: event)
     }
 
-    @objc private func handleDeleteButton() {
+    @objc private func handleDeleteDown() {
         textDocumentProxy.deleteBackward()
+        deleteInitialTimer?.invalidate()
+        deleteInitialTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { [weak self] _ in
+            self?.beginDeleteRepeat()
+        }
+    }
+
+    @objc private func handleDeleteUp() {
+        stopDeleteRepeat()
+    }
+
+    private func beginDeleteRepeat() {
+        deleteRepeatTimer?.invalidate()
+        deleteRepeatTimer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: true) { [weak self] _ in
+            self?.textDocumentProxy.deleteBackward()
+        }
+    }
+
+    private func stopDeleteRepeat() {
+        deleteInitialTimer?.invalidate()
+        deleteInitialTimer = nil
+        deleteRepeatTimer?.invalidate()
+        deleteRepeatTimer = nil
     }
 
     @objc private func handleReturnButton() {

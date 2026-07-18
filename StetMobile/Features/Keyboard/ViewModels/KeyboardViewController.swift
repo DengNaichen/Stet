@@ -17,9 +17,6 @@ class KeyboardViewController: UIInputViewController {
             onMicUp: {
                 // Mock behavior for the main app's internal preview
             },
-            onKeyTap: { [weak self] text in
-                self?.textDocumentProxy.insertText(text)
-            },
             onBackspace: { [weak self] in
                 self?.textDocumentProxy.deleteBackward()
             },

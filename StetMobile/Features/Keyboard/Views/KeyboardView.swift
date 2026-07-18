@@ -3,7 +3,6 @@ import SwiftUI
 struct KeyboardView: View {
     var onMicDown: () -> Void
     var onMicUp: () -> Void
-    var onKeyTap: (String) -> Void
     var onBackspace: () -> Void
     var onReturn: () -> Void
     var onNextKeyboard: () -> Void
@@ -11,83 +10,79 @@ struct KeyboardView: View {
     @State private var isPressing = false
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Top Row Functions
-            HStack {
-                Spacer()
-                HStack(spacing: 12) {
-                    KeyboardButton(icon: "at", action: { onKeyTap("@") })
-                    KeyboardButton(icon: "minus", action: { onKeyTap("_") })
-                }
-                .padding(.horizontal)
-                
-                // Center Content
-                VStack(spacing: 12) {
-                    Text(isPressing ? "Release to stop" : "Hold to speak")
-                        .font(.subheadline)
-                        .foregroundColor(isPressing ? .red : .secondary)
-                    
-                    Image(systemName: "mic.fill")
-                        .font(.system(size: 30))
-                        .foregroundColor(.white)
-                        .frame(width: 140, height: 64)
-                        .background(isPressing ? Color.red : Color.black)
+        ZStack {
+            VStack(spacing: 20) {
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 30, weight: .medium))
+                    .foregroundStyle(Color(.systemBackground))
+                    .frame(width: 112, height: 112)
+                    .background(isPressing ? Color(.systemRed) : Color(.label))
+                    .clipShape(Circle())
+                    .contentShape(Circle())
+                    .scaleEffect(isPressing ? 0.97 : 1.0)
+                    .animation(.spring(response: 0.25, dampingFraction: 1), value: isPressing)
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { _ in
+                                if !isPressing {
+                                    isPressing = true
+                                    onMicDown()
+                                }
+                            }
+                            .onEnded { _ in
+                                isPressing = false
+                                onMicUp()
+                            }
+                    )
+
+                Button(action: onReturn) {
+                    Text("return")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.primary)
+                        .frame(width: 120, height: 52)
+                        .background(Color(.systemGray4))
                         .clipShape(Capsule())
-                        .scaleEffect(isPressing ? 1.1 : 1.0)
-                        .animation(.spring(), value: isPressing)
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { _ in
-                                    if !isPressing {
-                                        isPressing = true
-                                        onMicDown()
-                                    }
-                                }
-                                .onEnded { _ in
-                                    isPressing = false
-                                    onMicUp()
-                                }
-                        )
-                }
-                
-                // Bottom Row
-                VStack(spacing: 15) {
-                    Button(action: onReturn) {
-                        Text("return")
-                            .font(.body)
-                            .foregroundColor(.black)
-                            .frame(width: 120, height: 44)
-                            .background(Color(.systemGray4))
-                            .clipShape(Capsule())
-                    }
-                    
-                    HStack {
-                        Button(action: onNextKeyboard) {
-                            Image(systemName: "globe")
-                                .font(.title2)
-                                .foregroundColor(.black)
-                        }
-                        Spacer()
-                    }
-                    .padding(.horizontal, 20)
                 }
             }
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity)
-            .background(Color(.systemGray6))
+            .offset(y: 4)
+
+            KeyboardButton(icon: "delete.left.fill", size: 52, iconSize: 20, action: onBackspace)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            .padding(.trailing, 20)
+
+            Button(action: onNextKeyboard) {
+                Image(systemName: "globe")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.primary)
+                    .frame(width: 52, height: 52)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+            .padding(.leading, 20)
+            .padding(.bottom, 4)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemGray6))
     }
     
     struct KeyboardButton: View {
         let icon: String
+        let size: CGFloat
+        let iconSize: CGFloat
         let action: () -> Void
+
+        init(icon: String, size: CGFloat = 44, iconSize: CGFloat = 18, action: @escaping () -> Void) {
+            self.icon = icon
+            self.size = size
+            self.iconSize = iconSize
+            self.action = action
+        }
         
         var body: some View {
             Button(action: action) {
                 Image(systemName: icon)
-                    .font(.system(size: 18))
-                    .foregroundColor(.black)
-                    .frame(width: 44, height: 44)
+                    .font(.system(size: iconSize))
+                    .foregroundStyle(Color(.label))
+                    .frame(width: size, height: size)
                     .background(Color(.systemGray4))
                     .clipShape(Circle())
             }
