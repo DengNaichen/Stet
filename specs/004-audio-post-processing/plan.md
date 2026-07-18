@@ -52,14 +52,14 @@ StetMac/Core/Audio/Processing/
 StetMac/Core/Speech/
 └── ConfigurableSpeechService.swift
 
-StetTests/Core/Audio/Processing/
+StetMacTests/Core/Audio/Processing/
 ├── AudioPostProcessingTests.swift
 ├── AudioSignalAnalyzerTests.swift
 ├── DefaultAudioPostProcessorTests.swift
 ├── SpeechAwareGainProcessorTests.swift
 └── SpeechEnhancementTypesTests.swift
 
-StetTests/Core/Speech/
+StetMacTests/Core/Speech/
 └── ConfigurableSpeechServiceTests.swift
 ```
 

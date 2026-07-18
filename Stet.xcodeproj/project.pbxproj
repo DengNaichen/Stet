@@ -90,12 +90,12 @@
 		};
 		6D29DC8F2F5FA23100267DEA /* StetTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = StetTests;
+			path = StetMacTests;
 			sourceTree = "<group>";
 		};
 		6D29DC992F5FA23100267DEA /* StetUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = StetUITests;
+			path = StetMacUITests;
 			sourceTree = "<group>";
 		};
 		F1A0B0010000000000000004 /* StetVisuals */ = {

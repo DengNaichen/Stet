@@ -96,13 +96,13 @@ StetMac/Features/Onboarding/Components/
 ### Relevant Tests
 
 ```text
-StetTests/Core/Audio/Devices/
+StetMacTests/Core/Audio/Devices/
 ├── AudioInputDeviceManagerTests.swift
 ├── AudioDeviceSelectionResolverTests.swift
 ├── AudioDeviceSelectionManagerTests.swift
 └── AudioDeviceChangeMonitorTests.swift
 
-StetTests/Core/Audio/Capture/
+StetMacTests/Core/Audio/Capture/
 └── MacCaptureAudioDevicePlannerTests.swift
 ```
 

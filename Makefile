@@ -19,10 +19,10 @@ swiftlint:
 	swiftlint lint --config .swiftlint.yml --strict --no-cache
 
 format:
-	xcrun swift-format format --in-place --recursive --parallel --configuration .swift-format StetMac StetTests StetUITests StetVisuals
+	xcrun swift-format format --in-place --recursive --parallel --configuration .swift-format StetMac StetMacTests StetMacUITests StetVisuals
 
 format-lint:
-	xcrun swift-format lint --strict --recursive --parallel --configuration .swift-format StetMac StetTests StetUITests StetVisuals
+	xcrun swift-format lint --strict --recursive --parallel --configuration .swift-format StetMac StetMacTests StetMacUITests StetVisuals
 
 lint: swiftlint format-lint
 

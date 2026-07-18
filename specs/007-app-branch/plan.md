@@ -20,7 +20,7 @@ Where the old `.kiro` draft conflicts with the current implementation, this plan
 **Language/Version**: Swift 6 / macOS app target  
 **Primary Dependencies**: AppKit, Foundation, Swift Concurrency, Swift Testing  
 **Storage**: No persistence for app-branch state; all state is runtime-only  
-**Testing**: Swift Testing in `StetTests/Core/AppBranch` plus existing workflow integration tests  
+**Testing**: Swift Testing in `StetMacTests/Core/AppBranch` plus existing workflow integration tests
 **Target Platform**: macOS desktop app  
 **Project Type**: Desktop application feature inside the main app target  
 **Performance Goals**: Synchronous `currentApp` access, event-driven updates, and non-blocking observer delivery on a dedicated callback queue  
@@ -69,7 +69,7 @@ StetMac/
 │   │   └── ConfigurableSpeechService.swift
 │   └── Rewrite/
 │       └── TextRewriteService.swift
-StetTests/
+StetMacTests/
 ├── Core/AppBranch/
 │   ├── AppBranchMonitor*.swift
 │   ├── AppAudienceResolverTests.swift

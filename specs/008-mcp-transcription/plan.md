@@ -48,11 +48,11 @@ Add an app-hosted, opt-in MCP server around Stet's existing file transcription a
 
 ### Relevant Tests
 
-- `StetTests/Core/MCP/MCPTranscriptionCoordinatorTests.swift`
-- `StetTests/Core/MCP/StetMCPHTTPServerTests.swift`
-- `StetTests/Core/MCP/StetMCPProtocolServerTests.swift`
-- `StetTests/Core/MCP/StetMCPServerControllerTests.swift`
-- `StetTests/App/Lifecycle/MacAppBootstrapperTests.swift`
+- `StetMacTests/Core/MCP/MCPTranscriptionCoordinatorTests.swift`
+- `StetMacTests/Core/MCP/StetMCPHTTPServerTests.swift`
+- `StetMacTests/Core/MCP/StetMCPProtocolServerTests.swift`
+- `StetMacTests/Core/MCP/StetMCPServerControllerTests.swift`
+- `StetMacTests/App/Lifecycle/MacAppBootstrapperTests.swift`
 
 ### Documentation
 

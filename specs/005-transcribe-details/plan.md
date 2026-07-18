@@ -28,10 +28,10 @@ The goal of this document is not to propose a new refactor. It is to explain how
 - In-memory snapshot and pipeline state at runtime
 
 **Testing**:
-- Swift Testing coverage in `StetTests/Core/DictationPipeline`
-- Swift Testing coverage in `StetTests/Core/Speech`
-- Swift Testing coverage in `StetTests/Features/MacShell/Openai`
-- Feature-level failure-path coverage in `StetTests/Features/Dictation`
+- Swift Testing coverage in `StetMacTests/Core/DictationPipeline`
+- Swift Testing coverage in `StetMacTests/Core/Speech`
+- Swift Testing coverage in `StetMacTests/Features/MacShell/Openai`
+- Feature-level failure-path coverage in `StetMacTests/Features/Dictation`
 
 **Target Platform**: macOS  
 **Project Type**: Native desktop application  
@@ -102,19 +102,19 @@ StetMac/Shared/Utilities/
 ### Relevant Tests
 
 ```text
-StetTests/App/Lifecycle/
+StetMacTests/App/Lifecycle/
 └── MacAppBootstrapperTests.swift
 
-StetTests/Core/DictationPipeline/
+StetMacTests/Core/DictationPipeline/
 └── DictationPipelineTests.swift
 
-StetTests/Core/Speech/
+StetMacTests/Core/Speech/
 └── ConfigurableSpeechServiceTests.swift
 
-StetTests/Features/Dictation/
+StetMacTests/Features/Dictation/
 └── DictationViewModelTests.swift
 
-StetTests/Features/MacShell/Openai/
+StetMacTests/Features/MacShell/Openai/
 └── MacOpenAISettingsViewModelTests.swift
 ```
 

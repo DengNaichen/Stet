@@ -73,7 +73,7 @@ StetMac/Features/Dictation/
     ├── MicrophoneTestView.swift
     └── MicrophoneTestViewModel.swift
 
-StetTests/Core/
+StetMacTests/Core/
 ├── Audio/
 │   ├── Levels/
 │   │   └── AudioLevelBridgeTests.swift

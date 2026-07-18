@@ -89,12 +89,12 @@
 │   └── Shared/            # Shared models and utilities
 │       ├── Models/
 │       └── Utilities/
-├── StetTests/             # Unit and integration tests, mirrors app structure
+├── StetMacTests/          # macOS unit and integration tests, mirrors app structure
 │   ├── App/
 │   ├── Core/
 │   ├── Features/
 │   └── Support/
-├── StetUITests/           # UI tests
+├── StetMacUITests/        # macOS UI tests
 ├── StetVisuals/           # Visual components and shader workbench
 ├── Stet.xcodeproj/        # Xcode project
 ├── docs/                  # Human-oriented project docs

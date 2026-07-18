@@ -49,9 +49,9 @@
 
 ### Tests for Phase 3
 
-- [X] T009 [P] Add snapshot and route coverage for separate transcription and rewrite configs in `StetTests/Core/DictationPipeline/DictationPipelineTests.swift`
-- [X] T010 [P] Add adapter coverage for capability-specific config input in `StetTests/Core/AIProviders/OpenAICompatible/OpenAITests.swift`
-- [X] T011 [P] Add BYOK runtime coverage for same-provider and mixed-provider capability wiring in `StetTests/Core/Speech/ConfigurableSpeechServiceTests.swift`
+- [X] T009 [P] Add snapshot and route coverage for separate transcription and rewrite configs in `StetMacTests/Core/DictationPipeline/DictationPipelineTests.swift`
+- [X] T010 [P] Add adapter coverage for capability-specific config input in `StetMacTests/Core/AIProviders/OpenAICompatible/OpenAITests.swift`
+- [X] T011 [P] Add BYOK runtime coverage for same-provider and mixed-provider capability wiring in `StetMacTests/Core/Speech/ConfigurableSpeechServiceTests.swift`
 
 ### Implementation for Phase 3
 
@@ -72,8 +72,8 @@
 
 ### Tests for Phase 4
 
-- [X] T016 [P] Add settings persistence and warning coverage in `StetTests/Features/MacShell/Openai/MacOpenAISettingsViewModelTests.swift`
-- [X] T017 [P] Add Dictation UI error-mapping coverage for step-aware provider configuration failures and preserved unsupported-pair messaging in `StetTests/Features/Dictation/DictationViewModelTests.swift`
+- [X] T016 [P] Add settings persistence and warning coverage in `StetMacTests/Features/MacShell/Openai/MacOpenAISettingsViewModelTests.swift`
+- [X] T017 [P] Add Dictation UI error-mapping coverage for step-aware provider configuration failures and preserved unsupported-pair messaging in `StetMacTests/Features/Dictation/DictationViewModelTests.swift`
 
 ### Implementation for Phase 4
 
@@ -89,8 +89,8 @@
 **Purpose**: Finish regression validation, documentation alignment, and cleanup that affects multiple user stories
 
 - [X] T020 Apply any remaining file/folder renames and configuration-facing naming cleanup needed to make the capability boundary obvious in the source tree
-- [X] T021 Run the affected macOS test suites covering `StetTests/Core/DictationPipeline/`, `StetTests/Core/AIProviders/OpenAICompatible/`, `StetTests/Core/Speech/`, and `StetTests/Features/Dictation/`
-- [X] T021 Run the affected macOS test suites covering `StetTests/Core/DictationPipeline/`, `StetTests/Core/AIProviders/OpenAICompatible/`, `StetTests/Core/Speech/`, and `StetTests/Features/Dictation/`
+- [X] T021 Run the affected macOS test suites covering `StetMacTests/Core/DictationPipeline/`, `StetMacTests/Core/AIProviders/OpenAICompatible/`, `StetMacTests/Core/Speech/`, and `StetMacTests/Features/Dictation/`
+- [X] T021 Run the affected macOS test suites covering `StetMacTests/Core/DictationPipeline/`, `StetMacTests/Core/AIProviders/OpenAICompatible/`, `StetMacTests/Core/Speech/`, and `StetMacTests/Features/Dictation/`
 - [X] T023 [P] Refresh `specs/005-transcribe-details/plan.md` and `specs/005-transcribe-details/tasks.md` so they match the final capability-split architecture
 - [ ] T024 [P] Refresh `specs/005-transcribe-details/quickstart.md` with the final implementation entry points, validation matrix, and supported provider combinations
 
@@ -128,8 +128,8 @@
 
 ```bash
 # Launch capability-config and adapter coverage work together:
-Task: "T009 [P] Add snapshot and route coverage for separate transcription and rewrite configs in StetTests/Core/DictationPipeline/DictationPipelineTests.swift"
-Task: "T010 [P] Add adapter coverage for capability-specific config input in StetTests/Core/AIProviders/OpenAICompatible/OpenAITests.swift"
+Task: "T009 [P] Add snapshot and route coverage for separate transcription and rewrite configs in StetMacTests/Core/DictationPipeline/DictationPipelineTests.swift"
+Task: "T010 [P] Add adapter coverage for capability-specific config input in StetMacTests/Core/AIProviders/OpenAICompatible/OpenAITests.swift"
 ```
 
 ## Implementation Strategy

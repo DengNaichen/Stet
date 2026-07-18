@@ -87,11 +87,11 @@ StetMac/Core/Speech/
 ### Relevant Tests
 
 ```text
-StetTests/App/Workflows/
+StetMacTests/App/Workflows/
 ├── MacAppSessionControllerActionTests.swift
 └── MacAppSessionControllerSettingsTests.swift
 
-StetTests/App/Lifecycle/
+StetMacTests/App/Lifecycle/
 └── MacAppPrimitiveTests.swift
 ```
 

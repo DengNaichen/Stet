@@ -94,16 +94,16 @@ StetMac/Features/Dictation/
 ### Relevant Tests
 
 ```text
-StetTests/App/Workflows/
+StetMacTests/App/Workflows/
 ├── MacDictationCaptureCoordinatorTests.swift
 ├── MacDictationWorkflowControllerTests.swift
 └── MacAppSessionControllerActionTests.swift
 
-StetTests/Core/Clipboard/
+StetMacTests/Core/Clipboard/
 ├── ClipboardServiceTests.swift
 └── PasteboardRestoreCoordinatorTests.swift
 
-StetTests/Core/TextInput/
+StetMacTests/Core/TextInput/
 └── SystemTextInjectionServiceTests.swift
 ```
 
