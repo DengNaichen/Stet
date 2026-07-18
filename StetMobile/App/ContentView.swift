@@ -32,33 +32,27 @@ struct ContentView: View {
                 }
             } else {
                 TabView(selection: $selectedTab) {
-                    HomeView()
-                        .tabItem {
-                            Label("Home", systemImage: "house.fill")
-                        }
-                        .tag(0)
-
                     DictionaryView()
                         .tabItem {
                             Label("Dictionary", systemImage: "book.closed.fill")
                         }
-                        .tag(1)
+                        .tag(0)
 
                     SenseVoiceView(viewModel: viewModel)
                         .tabItem {
                             Label("Dictate", systemImage: "mic.fill")
                         }
-                        .tag(2)
+                        .tag(1)
 
                     RewriteSettingsView(viewModel: RewriteSettingsViewModel(settingsStore: rewriteSettingsStore))
                         .tabItem {
                             Label("Settings", systemImage: "gearshape.fill")
                         }
-                        .tag(3)
+                        .tag(2)
                 }
                 .onOpenURL { url in
                     guard viewModel.handleIncomingURL(url) else { return }
-                    selectedTab = 2
+                    selectedTab = 1
                 }
             }
         }
