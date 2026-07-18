@@ -52,11 +52,11 @@ final class WhisperASREngine: ASREngine {
         let loadStartedAt = ProcessInfo.processInfo.systemUptime
         try await runtime.initializeModel(at: modelURL)
         logger.info(
-            "event=model_loaded duration_ms=\(Self.elapsedMilliseconds(since: loadStartedAt), privacy: .public)"
+            "event=model_loaded backend=cpu duration_ms=\(Self.elapsedMilliseconds(since: loadStartedAt), privacy: .public)"
         )
 
         #if os(iOS)
-            try await activateAudioSession()
+            try await Self.activateAudioSession()
         #endif
         if let audioEngine, !audioEngine.isRunning {
             try audioEngine.start()
@@ -84,11 +84,14 @@ final class WhisperASREngine: ASREngine {
         inferenceTask = Task { @concurrent in
             let startedAt = ProcessInfo.processInfo.systemUptime
             let text: String
+            let succeeded: Bool
             do {
                 text = try await runtime.transcribe(samples: recording.samples)
+                succeeded = true
             } catch {
                 logger.error("event=transcription_failed error=\(error.localizedDescription, privacy: .public)")
                 text = ""
+                succeeded = false
             }
 
             let wallDuration = ProcessInfo.processInfo.systemUptime - startedAt
@@ -110,9 +113,11 @@ final class WhisperASREngine: ASREngine {
                 )
             }
             continuation.yield(result)
-            logger.info(
-                "event=transcription_completed audio_seconds=\(audioDuration, privacy: .public) wall_seconds=\(wallDuration, privacy: .public) rtf=\(rtf, privacy: .public)"
-            )
+            if succeeded {
+                logger.info(
+                    "event=transcription_completed audio_seconds=\(audioDuration, privacy: .public) wall_seconds=\(wallDuration, privacy: .public) rtf=\(rtf, privacy: .public)"
+                )
+            }
         }
     }
 
@@ -149,16 +154,7 @@ final class WhisperASREngine: ASREngine {
 
     private func configureAudioSessionAndEngine() async throws {
         #if os(iOS)
-            let session = AVAudioSession.sharedInstance()
-            var options: AVAudioSession.CategoryOptions = [
-                .mixWithOthers,
-                .allowBluetoothHFP,
-            ]
-            if #available(iOS 26.0, *) {
-                options.insert(.bluetoothHighQualityRecording)
-            }
-            try session.setCategory(.playAndRecord, mode: .default, options: options)
-            try await activateAudioSession(session)
+            try await Self.configureAudioSession()
         #endif
 
         try configureAudioEngine()
@@ -255,17 +251,41 @@ final class WhisperASREngine: ASREngine {
     }
 
     #if os(iOS)
-        private func activateAudioSession(_ session: AVAudioSession = .sharedInstance()) async throws {
-            if #available(iOS 27.0, *) {
-                let activated = try await session.activate(options: [])
-                guard activated else {
-                    throw WhisperASREngineError.audioSessionActivationFailed
+        private nonisolated static func configureAudioSession() async throws {
+            try await Task { @concurrent in
+                let session = AVAudioSession.sharedInstance()
+                var options: AVAudioSession.CategoryOptions = [
+                    .mixWithOthers,
+                    .allowBluetoothHFP,
+                ]
+                if #available(iOS 26.0, *) {
+                    options.insert(.bluetoothHighQualityRecording)
                 }
-            } else {
-                try await Task { @concurrent in
+
+                try session.setCategory(.playAndRecord, mode: .default, options: options)
+                if #available(iOS 27.0, *) {
+                    let activated = try await session.activate(options: [])
+                    guard activated else {
+                        throw WhisperASREngineError.audioSessionActivationFailed
+                    }
+                } else {
                     try session.setActive(true)
-                }.value
-            }
+                }
+            }.value
+        }
+
+        private nonisolated static func activateAudioSession() async throws {
+            try await Task { @concurrent in
+                let session = AVAudioSession.sharedInstance()
+                if #available(iOS 27.0, *) {
+                    let activated = try await session.activate(options: [])
+                    guard activated else {
+                        throw WhisperASREngineError.audioSessionActivationFailed
+                    }
+                } else {
+                    try session.setActive(true)
+                }
+            }.value
         }
     #endif
 }
@@ -303,11 +323,8 @@ private actor WhisperRuntime {
         guard context == nil else { return }
 
         var parameters = whisper_context_default_params()
-        #if targetEnvironment(simulator)
-            parameters.use_gpu = false
-        #else
-            parameters.flash_attn = true
-        #endif
+        parameters.use_gpu = false
+        parameters.flash_attn = false
 
         guard let loadedContext = whisper_init_from_file_with_params(modelURL.path, parameters) else {
             throw WhisperASREngineError.modelLoadFailed
