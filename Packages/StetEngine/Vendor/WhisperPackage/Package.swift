@@ -5,6 +5,7 @@ import PackageDescription
 let package = Package(
     name: "WhisperPackage",
     platforms: [
+        .iOS(.v17),
         .macOS(.v11),
     ],
     products: [
