@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var viewModel: SenseVoiceViewModel
-    @ObservedObject var rewriteSettingsStore: RewriteSettingsStore
+    @ObservedObject var rewriteSettingsViewModel: RewriteSettingsViewModel
     @State private var selectedTab = 0
 
     var body: some View {
@@ -44,7 +44,7 @@ struct ContentView: View {
                         }
                         .tag(1)
 
-                    RewriteSettingsView(viewModel: RewriteSettingsViewModel(settingsStore: rewriteSettingsStore))
+                    RewriteSettingsView(viewModel: rewriteSettingsViewModel)
                         .tabItem {
                             Label("Settings", systemImage: "gearshape.fill")
                         }
@@ -77,5 +77,8 @@ struct ContentView: View {
 
 #Preview {
     let store = RewriteSettingsStore()
-    return ContentView(viewModel: SenseVoiceViewModel(rewriteSettingsStore: store), rewriteSettingsStore: store)
+    return ContentView(
+        viewModel: SenseVoiceViewModel(rewriteSettingsStore: store),
+        rewriteSettingsViewModel: RewriteSettingsViewModel(settingsStore: store)
+    )
 }
