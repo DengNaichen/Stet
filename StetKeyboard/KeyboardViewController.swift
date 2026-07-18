@@ -50,7 +50,21 @@ final class KeyboardViewController: UIInputViewController {
         notificationFeedback.prepare()
 
         // The extension may be recreated while the main app is handling a request.
-        pendingSessionId = SharedDictationManager.shared.getPendingKeyboardSessionId()
+        // The origin stored in the transactional session file also repairs the
+        // pending UserDefaults hint if a previous extension process exited between
+        // the two writes.
+        let manager = SharedDictationManager.shared
+        if let savedSessionId = manager.getPendingKeyboardSessionId() {
+            pendingSessionId = savedSessionId
+        } else if let session = manager.getSession(),
+            session.origin == .keyboard,
+            isActiveState(session.state)
+        {
+            pendingSessionId = session.sessionId
+            manager.savePendingKeyboardSessionId(session.sessionId)
+        } else {
+            pendingSessionId = nil
+        }
         startPolling()
     }
 
@@ -160,16 +174,13 @@ final class KeyboardViewController: UIInputViewController {
 
     private func handleMicDown() {
         let sessionId = UUID().uuidString
-        pendingSessionId = sessionId
-        SharedDictationManager.shared.savePendingKeyboardSessionId(sessionId)
+        guard SharedDictationManager.shared.beginKeyboardSession(sessionId: sessionId) else {
+            pendingSessionId = nil
+            publishState(.idle)
+            return
+        }
 
-        let session = DictationSession(
-            sessionId: sessionId,
-            createdAt: Date(),
-            updatedAt: Date(),
-            state: .requestStart
-        )
-        SharedDictationManager.shared.saveSession(session)
+        pendingSessionId = sessionId
 
         // A live main app will observe the shared request; otherwise wake it explicitly.
         if !SharedDictationManager.shared.mainAppAlive(within: 0.6) {
@@ -181,24 +192,22 @@ final class KeyboardViewController: UIInputViewController {
 
     private func handleMicUp() {
         guard let sessionId = pendingSessionId else { return }
-        let currentSession = SharedDictationManager.shared.getSession()
-        guard currentSession == nil || currentSession?.sessionId == sessionId else {
-            cleanupSession()
-            publishState(.idle)
-            return
+        let manager = SharedDictationManager.shared
+        let didRequestStop = manager.transitionState(
+            for: sessionId,
+            from: [.requestStart, .launching, .warming, .recording],
+            to: .requestStop
+        )
+        if !didRequestStop {
+            guard let session = manager.getSession(),
+                session.sessionId == sessionId,
+                [.requestStop, .transcribing, .ready].contains(session.state)
+            else {
+                cleanupSession(sessionId: sessionId)
+                publishState(.idle)
+                return
+            }
         }
-
-        var session =
-            currentSession
-            ?? DictationSession(
-                sessionId: sessionId,
-                createdAt: Date(),
-                updatedAt: Date(),
-                state: .requestStop
-            )
-        session.state = .requestStop
-        session.updatedAt = Date()
-        SharedDictationManager.shared.saveSession(session)
 
         publishState(.processing)
     }
@@ -236,22 +245,23 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func tick() {
-        let session = SharedDictationManager.shared.getSession()
+        guard let pendingSessionId else {
+            publishState(.idle)
+            return
+        }
 
-        guard let session, session.sessionId == pendingSessionId else {
-            if let session, isActiveState(session.state) {
-                let appDead = !SharedDictationManager.shared.mainAppAlive(within: 2.0)
-                let stale = Date().timeIntervalSince(session.updatedAt) > 10.0
-                if appDead || stale {
-                    SharedDictationManager.shared.updateState(.cancelled)
-                }
-            }
+        guard let session = SharedDictationManager.shared.getSession(),
+            session.sessionId == pendingSessionId,
+            session.origin != .app
+        else {
+            cleanupSession(sessionId: pendingSessionId)
             publishState(.idle)
             return
         }
 
         switch session.state {
         case .idle:
+            cleanupSession(sessionId: session.sessionId)
             publishState(.idle)
 
         case .requestStart, .launching, .warming:
@@ -284,7 +294,7 @@ final class KeyboardViewController: UIInputViewController {
             publishState(.idle)
 
         case .inserted, .cancelled, .failed, .timeout:
-            cleanupSession()
+            cleanupSession(sessionId: session.sessionId)
             publishState(.idle)
         }
     }
@@ -305,24 +315,37 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func insertTranscription(_ session: DictationSession) {
+        guard pendingSessionId == session.sessionId else { return }
+        guard
+            SharedDictationManager.shared.transitionState(
+                for: session.sessionId,
+                from: [.ready],
+                to: .inserted
+            )
+        else { return }
+
         if !session.finalText.isEmpty {
             textDocumentProxy.insertText(session.finalText)
             notificationFeedback.notificationOccurred(.success)
         }
         lastProcessedSessionId = session.sessionId
-        pendingSessionId = nil
-        SharedDictationManager.shared.clearPendingKeyboardSessionId()
-        SharedDictationManager.shared.updateState(.inserted)
+        cleanupSession(sessionId: session.sessionId)
     }
 
     private func cancelOurSession() {
-        SharedDictationManager.shared.updateState(.cancelled)
-        SharedDictationManager.shared.clearPendingKeyboardSessionId()
-        pendingSessionId = nil
+        guard let sessionId = pendingSessionId else { return }
+        _ = SharedDictationManager.shared.transitionState(
+            for: sessionId,
+            from: [.requestStart, .launching, .warming, .recording, .requestStop, .transcribing],
+            to: .cancelled
+        )
+        cleanupSession(sessionId: sessionId)
     }
 
-    private func cleanupSession() {
-        pendingSessionId = nil
-        SharedDictationManager.shared.clearPendingKeyboardSessionId()
+    private func cleanupSession(sessionId: String) {
+        if pendingSessionId == sessionId {
+            pendingSessionId = nil
+        }
+        SharedDictationManager.shared.clearPendingKeyboardSessionId(ifMatching: sessionId)
     }
 }

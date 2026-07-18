@@ -1,4 +1,10 @@
+import Darwin
 import Foundation
+
+// Swift imports both `struct flock` and `flock(2)` under the same Darwin
+// member name. Give the public POSIX function an unambiguous Swift name.
+@_silgen_name("flock")
+private func stetAdvisoryFlock(_ fileDescriptor: Int32, _ operation: Int32) -> Int32
 
 enum DictationState: String, Codable, Equatable {
     case idle
@@ -11,10 +17,15 @@ enum DictationState: String, Codable, Equatable {
     case cancelled
     case failed
     case timeout
-    
+
     // Commands from keyboard to background app
     case requestStart
     case requestStop
+}
+
+enum DictationSessionOrigin: String, Codable, Equatable {
+    case app
+    case keyboard
 }
 
 struct DictationSession: Codable {
@@ -26,12 +37,24 @@ struct DictationSession: Codable {
     var finalText: String = ""
     var revision: Int = 0
     var error: String?
+    var origin: DictationSessionOrigin?
 }
 
 class SharedDictationManager {
     static let shared = SharedDictationManager()
+
+    private struct SessionStorageContext {
+        let sessionFileURL: URL?
+        let permitsWrites: Bool
+    }
+
+    private let appGroupIdentifier = "group.NaichengDeng.StetMobile"
     private let sessionKey = "dictation.session"
     private let heartbeatKey = "dictation.heartbeat"
+    private let pendingKey = "dictation.pending_keyboard_session_id"
+    private let sessionFileName = "dictation_session.json"
+    private let sessionLockFileName = "dictation_session.lock"
+    private let processSessionLock = NSLock()
     private let defaults = UserDefaults(suiteName: "group.NaichengDeng.StetMobile")
 
     func heartbeat() {
@@ -39,28 +62,71 @@ class SharedDictationManager {
     }
 
     func mainAppAlive(within seconds: TimeInterval) -> Bool {
-        guard let ts = defaults?.object(forKey: heartbeatKey) as? TimeInterval, ts > 0 else { return false }
+        guard let ts = defaults?.object(forKey: heartbeatKey) as? TimeInterval, ts > 0 else {
+            return false
+        }
         return Date().timeIntervalSince1970 - ts < seconds
     }
-    
-    func saveSession(_ session: DictationSession) {
-        if let data = try? JSONEncoder().encode(session) {
-            defaults?.set(data, forKey: sessionKey)
-            defaults?.synchronize()
+
+    func getSession() -> DictationSession? {
+        withSessionTransaction { storage in
+            loadSessionUnlocked(storage: storage)
         }
     }
-    
-    func getSession() -> DictationSession? {
-        guard let data = defaults?.data(forKey: sessionKey) else { return nil }
-        return try? JSONDecoder().decode(DictationSession.self, from: data)
+
+    @discardableResult
+    func claimSessionForStart(sessionId: String) -> Bool {
+        withSessionTransaction { storage in
+            guard storage.permitsWrites else { return false }
+            if let session = loadSessionUnlocked(storage: storage) {
+                if session.sessionId == sessionId {
+                    return session.state == .requestStart
+                }
+                guard !blocksForeignClaimUnlocked(session) else { return false }
+            }
+
+            let now = Date()
+            let session = DictationSession(
+                sessionId: sessionId,
+                createdAt: now,
+                updatedAt: now,
+                state: .requestStart,
+                origin: .app
+            )
+            return persistSessionUnlocked(session, storage: storage)
+        }
     }
-    
-    func updateState(_ state: DictationState, error: String? = nil) {
-        var session = getSession() ?? DictationSession(sessionId: UUID().uuidString, createdAt: Date(), updatedAt: Date(), state: .idle)
-        session.state = state
-        session.updatedAt = Date()
-        session.error = error
-        saveSession(session)
+
+    @discardableResult
+    func beginKeyboardSession(sessionId: String) -> Bool {
+        withSessionTransaction { storage in
+            if var session = loadSessionUnlocked(storage: storage) {
+                if session.sessionId == sessionId {
+                    guard session.state == .requestStart, session.origin != .app else {
+                        return false
+                    }
+                    session.origin = .keyboard
+                    guard persistSessionUnlocked(session, storage: storage) else {
+                        return false
+                    }
+                    savePendingKeyboardSessionIdUnlocked(sessionId)
+                    return true
+                }
+                guard !blocksForeignClaimUnlocked(session) else { return false }
+            }
+
+            let now = Date()
+            let session = DictationSession(
+                sessionId: sessionId,
+                createdAt: now,
+                updatedAt: now,
+                state: .requestStart,
+                origin: .keyboard
+            )
+            guard persistSessionUnlocked(session, storage: storage) else { return false }
+            savePendingKeyboardSessionIdUnlocked(sessionId)
+            return true
+        }
     }
 
     @discardableResult
@@ -69,21 +135,28 @@ class SharedDictationManager {
         to state: DictationState,
         error: String? = nil
     ) -> Bool {
-        guard var session = getSession(), session.sessionId == sessionId else { return false }
-        session.state = state
-        session.updatedAt = Date()
-        session.error = error
-        saveSession(session)
-        return true
+        mutateSession(for: sessionId) { session in
+            session.state = state
+            session.updatedAt = Date()
+            session.error = error
+            return true
+        }
     }
-    
-    func updateText(partial: String, final: String) {
-        guard var session = getSession() else { return }
-        session.partialText = partial
-        session.finalText = final
-        session.revision += 1
-        session.updatedAt = Date()
-        saveSession(session)
+
+    @discardableResult
+    func transitionState(
+        for sessionId: String,
+        from expectedStates: [DictationState],
+        to state: DictationState,
+        error: String? = nil
+    ) -> Bool {
+        mutateSession(for: sessionId) { session in
+            guard expectedStates.contains(session.state) else { return false }
+            session.state = state
+            session.updatedAt = Date()
+            session.error = error
+            return true
+        }
     }
 
     @discardableResult
@@ -92,37 +165,66 @@ class SharedDictationManager {
         partial: String,
         final: String
     ) -> Bool {
-        guard var session = getSession(), session.sessionId == sessionId else { return false }
-        session.partialText = partial
-        session.finalText = final
-        session.revision += 1
-        session.updatedAt = Date()
-        saveSession(session)
-        return true
+        mutateSession(for: sessionId) { session in
+            session.partialText = partial
+            session.finalText = final
+            session.revision += 1
+            session.updatedAt = Date()
+            return true
+        }
     }
-    
+
+    @discardableResult
+    func completeSession(
+        for sessionId: String,
+        from expectedStates: [DictationState],
+        finalText: String
+    ) -> Bool {
+        mutateSession(for: sessionId) { session in
+            guard expectedStates.contains(session.state) else { return false }
+            if !finalText.isEmpty {
+                session.partialText = finalText
+                session.finalText = finalText
+                session.revision += 1
+            }
+            session.state = .ready
+            session.updatedAt = Date()
+            session.error = nil
+            return true
+        }
+    }
+
     // MARK: - Pending Keyboard Session ID
-    // Used to track if a session was initiated by the keyboard, surviving extension restarts.
-    
-    private let pendingKey = "dictation.pending_keyboard_session_id"
-    
+
     func savePendingKeyboardSessionId(_ sessionId: String) {
-        defaults?.set(sessionId, forKey: pendingKey)
-        defaults?.synchronize()
+        withSessionTransaction { storage in
+            guard storage.permitsWrites else { return }
+            savePendingKeyboardSessionIdUnlocked(sessionId)
+        }
     }
-    
+
     func getPendingKeyboardSessionId() -> String? {
-        defaults?.string(forKey: pendingKey)
+        withSessionTransaction { _ in
+            defaults?.string(forKey: pendingKey)
+        }
     }
-    
-    func clearPendingKeyboardSessionId() {
-        defaults?.removeObject(forKey: pendingKey)
-        defaults?.synchronize()
+
+    func clearPendingKeyboardSessionId(ifMatching sessionId: String) {
+        withSessionTransaction { storage in
+            guard storage.permitsWrites,
+                defaults?.string(forKey: pendingKey) == sessionId
+            else { return }
+            defaults?.removeObject(forKey: pendingKey)
+            defaults?.synchronize()
+        }
     }
-    
+
     // MARK: - Volume Sync
+
     private var volumeURL: URL? {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.NaichengDeng.StetMobile")?.appendingPathComponent("mic_volume.dat")
+        FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: appGroupIdentifier
+        )?.appendingPathComponent("mic_volume.dat")
     }
 
     func updateVolume(_ level: Float) {
@@ -134,8 +236,141 @@ class SharedDictationManager {
 
     func readVolume() -> Float {
         guard let url = volumeURL,
-              let data = try? Data(contentsOf: url),
-              data.count == MemoryLayout<Float>.size else { return 0 }
-        return data.withUnsafeBytes { $0.load(as: Float.self) }
+            let data = try? Data(contentsOf: url),
+            data.count == MemoryLayout<Float>.size
+        else { return 0 }
+        return data.withUnsafeBytes { $0.loadUnaligned(as: Float.self) }
+    }
+
+    // MARK: - Session Transaction Internals
+
+    private func mutateSession(
+        for sessionId: String? = nil,
+        _ mutation: (inout DictationSession) -> Bool
+    ) -> Bool {
+        withSessionTransaction { storage in
+            guard var session = loadSessionUnlocked(storage: storage) else { return false }
+            if let sessionId, session.sessionId != sessionId { return false }
+            guard mutation(&session) else { return false }
+            return persistSessionUnlocked(session, storage: storage)
+        }
+    }
+
+    private func withSessionTransaction<T>(
+        _ operation: (SessionStorageContext) -> T
+    ) -> T {
+        processSessionLock.lock()
+        defer { processSessionLock.unlock() }
+
+        guard
+            let containerURL = FileManager.default.containerURL(
+                forSecurityApplicationGroupIdentifier: appGroupIdentifier
+            )
+        else {
+            return operation(
+                SessionStorageContext(sessionFileURL: nil, permitsWrites: true)
+            )
+        }
+
+        let lockURL = containerURL.appendingPathComponent(sessionLockFileName)
+        let fileDescriptor = Darwin.open(
+            lockURL.path,
+            O_CREAT | O_RDWR,
+            S_IRUSR | S_IWUSR
+        )
+        guard fileDescriptor >= 0 else {
+            return operation(
+                SessionStorageContext(sessionFileURL: nil, permitsWrites: false)
+            )
+        }
+        defer { _ = Darwin.close(fileDescriptor) }
+
+        guard stetAdvisoryFlock(fileDescriptor, LOCK_EX) == 0 else {
+            return operation(
+                SessionStorageContext(sessionFileURL: nil, permitsWrites: false)
+            )
+        }
+        defer { _ = stetAdvisoryFlock(fileDescriptor, LOCK_UN) }
+
+        return operation(
+            SessionStorageContext(
+                sessionFileURL: containerURL.appendingPathComponent(sessionFileName),
+                permitsWrites: true
+            )
+        )
+    }
+
+    private func loadSessionUnlocked(storage: SessionStorageContext) -> DictationSession? {
+        if let fileURL = storage.sessionFileURL,
+            let data = try? Data(contentsOf: fileURL),
+            let session = try? JSONDecoder().decode(DictationSession.self, from: data)
+        {
+            return session
+        }
+
+        // A valid App Group with an unavailable lock must not fall back to a
+        // potentially stale UserDefaults mirror. The mirror is only for migration
+        // or environments where the App Group container itself is unavailable.
+        guard storage.permitsWrites else { return nil }
+        guard let mirroredData = defaults?.data(forKey: sessionKey),
+            let session = try? JSONDecoder().decode(
+                DictationSession.self,
+                from: mirroredData
+            )
+        else {
+            return nil
+        }
+
+        if storage.permitsWrites,
+            let fileURL = storage.sessionFileURL,
+            let encoded = try? JSONEncoder().encode(session)
+        {
+            try? encoded.write(to: fileURL, options: .atomic)
+        }
+        return session
+    }
+
+    private func persistSessionUnlocked(
+        _ session: DictationSession,
+        storage: SessionStorageContext
+    ) -> Bool {
+        guard storage.permitsWrites else { return false }
+        guard let data = try? JSONEncoder().encode(session) else { return false }
+
+        if let fileURL = storage.sessionFileURL {
+            do {
+                try data.write(to: fileURL, options: .atomic)
+            } catch {
+                return false
+            }
+        } else if defaults == nil {
+            return false
+        }
+
+        mirrorSessionDataUnlocked(data)
+        return true
+    }
+
+    private func mirrorSessionDataUnlocked(_ data: Data) {
+        defaults?.set(data, forKey: sessionKey)
+        defaults?.synchronize()
+    }
+
+    private func savePendingKeyboardSessionIdUnlocked(_ sessionId: String) {
+        defaults?.set(sessionId, forKey: pendingKey)
+        defaults?.synchronize()
+    }
+
+    private func blocksForeignClaimUnlocked(_ session: DictationSession) -> Bool {
+        switch session.state {
+        case .requestStart, .launching, .warming, .recording, .requestStop, .transcribing:
+            return true
+        case .ready:
+            if session.origin == .keyboard { return true }
+            return session.origin == nil
+                && defaults?.string(forKey: pendingKey) == session.sessionId
+        default:
+            return false
+        }
     }
 }

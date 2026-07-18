@@ -35,7 +35,7 @@ protocol DictationSessionCoordinating: AnyObject {
     func startRecording(sessionId: String)
     func stopRecording(sessionId: String?)
     func cancelRecording(sessionId: String)
-    func shutdown()
+    func shutdown() async
 }
 
 @MainActor
@@ -54,8 +54,13 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
     private let notificationCenter: NotificationCenter
 
     private var activeSessionId: String?
-    private var pendingStopSessionId: String?
     private var isStarted = false
+    private var lifecycleGeneration = UUID()
+    private var bootstrapGeneration: UUID?
+    private var recoveryGeneration: UUID?
+    private var startGeneration: UUID?
+    private var rewriteGeneration: UUID?
+    private var requiresAudioEngineReset = false
 
     private var bootstrapTask: Task<Void, Never>?
     private var recoveryTask: Task<Void, Never>?
@@ -89,6 +94,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
     func start() {
         guard !isStarted else { return }
         isStarted = true
+        lifecycleGeneration = UUID()
         listenForResults()
         listenForKeyboardCommands()
         registerAudioSessionObservers()
@@ -98,92 +104,141 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
 
     func recoverAudioSession() {
         guard isStarted else { return }
-
         if case .failed = phase {
             bootstrap()
             return
         }
+        guard phase == .idle else { return }
 
-        guard bootstrapTask == nil, recoveryTask == nil else { return }
+        guard bootstrapTask == nil,
+            recoveryTask == nil,
+            startTask == nil
+        else { return }
+        let generation = UUID()
+        let lifecycle = lifecycleGeneration
+        recoveryGeneration = generation
+        phase = .loading
+        continuation.yield(.loading)
         recoveryTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            defer { recoveryTask = nil }
+            defer {
+                if self.recoveryGeneration == generation {
+                    self.recoveryGeneration = nil
+                    self.recoveryTask = nil
+                }
+            }
 
             do {
-                try await engine.prepare()
+                try await self.prepareEngine()
+                guard self.isCurrent(lifecycle: lifecycle),
+                    self.recoveryGeneration == generation,
+                    !Task.isCancelled
+                else { return }
+                self.phase = .idle
+                self.continuation.yield(.ready(engineName: self.engine.name))
+                self.commandMonitor.pollNow(force: true)
             } catch {
-                fail(sessionId: activeSessionId, message: error.localizedDescription)
+                guard self.isCurrent(lifecycle: lifecycle),
+                    self.recoveryGeneration == generation,
+                    !Task.isCancelled
+                else { return }
+                self.fail(sessionId: nil, message: error.localizedDescription)
             }
         }
     }
 
     func synchronizeKeyboardCommands() {
-        commandMonitor.pollNow()
+        commandMonitor.pollNow(force: true)
     }
 
     func startRecording(sessionId: String) {
-        guard phase == .idle else { return }
+        guard phase == .idle,
+            startTask == nil,
+            recoveryTask == nil,
+            sessionStore.claimSessionForStart(sessionId: sessionId)
+        else { return }
 
         activeSessionId = sessionId
-        pendingStopSessionId = nil
         phase = .starting(sessionId: sessionId)
         continuation.yield(.starting(sessionId: sessionId))
 
-        startTask?.cancel()
+        let generation = UUID()
+        let lifecycle = lifecycleGeneration
+        startGeneration = generation
         startTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            defer { startTask = nil }
+            defer {
+                if self.startGeneration == generation {
+                    self.startGeneration = nil
+                    self.startTask = nil
+                    if self.shouldFinishCancelledStart(sessionId: sessionId) {
+                        self.phase = .idle
+                        self.continuation.yield(.ready(engineName: self.engine.name))
+                    }
+                    if self.phase == .idle {
+                        self.commandMonitor.pollNow(force: true)
+                    }
+                }
+            }
 
             do {
-                try await engine.start(sessionId: sessionId)
+                try await self.engine.start(sessionId: sessionId)
             } catch {
-                guard activeSessionId == sessionId else { return }
-                activeSessionId = nil
-                pendingStopSessionId = nil
-                fail(sessionId: sessionId, message: error.localizedDescription)
+                guard self.isCurrent(lifecycle: lifecycle),
+                    self.startGeneration == generation,
+                    self.activeSessionId == sessionId,
+                    !Task.isCancelled
+                else { return }
+                self.fail(sessionId: sessionId, message: error.localizedDescription)
                 return
             }
 
-            guard activeSessionId == sessionId else {
-                engine.stop()
+            guard self.isCurrent(lifecycle: lifecycle) else { return }
+            guard self.startGeneration == generation,
+                self.activeSessionId == sessionId,
+                !Task.isCancelled
+            else {
+                self.engine.stop()
                 return
             }
 
-            if pendingStopSessionId == sessionId {
-                pendingStopSessionId = nil
-                engine.stop()
-                markTranscribing(sessionId: sessionId)
-                return
-            }
-
-            if !sessionStore.updateState(for: sessionId, to: .recording, error: nil) {
-                sessionStore.saveSession(
-                    DictationSession(
-                        sessionId: sessionId,
-                        createdAt: Date(),
-                        updatedAt: Date(),
-                        state: .recording
-                    )
-                )
-            }
-            phase = .recording(sessionId: sessionId)
-            continuation.yield(.recording(sessionId: sessionId))
+            self.finishStartingSession(sessionId: sessionId)
         }
     }
 
     func stopRecording(sessionId: String?) {
-        guard let activeSessionId else { return }
+        guard let activeSessionId else {
+            reconcileStopWithoutActiveSession(sessionId: sessionId)
+            return
+        }
         if let sessionId, sessionId != activeSessionId { return }
 
         switch phase {
         case .starting:
-            pendingStopSessionId = activeSessionId
+            let didTransition = sessionStore.transitionState(
+                for: activeSessionId,
+                from: [.requestStart],
+                to: .requestStop,
+                error: nil
+            )
+            if !didTransition {
+                guard let session = sessionStore.getSession(),
+                    session.sessionId == activeSessionId,
+                    session.state == .requestStop
+                else {
+                    relinquishSession(sessionId: activeSessionId)
+                    return
+                }
+            }
+            guard self.activeSessionId == activeSessionId else {
+                return
+            }
             phase = .transcribing(sessionId: activeSessionId)
             continuation.yield(.transcribing(sessionId: activeSessionId))
 
         case .recording:
+            guard markTranscribing(sessionId: activeSessionId) else { return }
             engine.stop()
-            markTranscribing(sessionId: activeSessionId)
 
         default:
             break
@@ -193,66 +248,101 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
     func cancelRecording(sessionId: String) {
         guard activeSessionId == sessionId else { return }
 
+        let isSettlingStart = startTask != nil
         activeSessionId = nil
-        pendingStopSessionId = nil
+        startTask?.cancel()
         rewriteTask?.cancel()
+        rewriteGeneration = nil
         rewriteTask = nil
         engine.stop()
-        sessionStore.updateState(for: sessionId, to: .idle, error: nil)
+        guard !isSettlingStart else { return }
         phase = .idle
         continuation.yield(.ready(engineName: engine.name))
     }
 
-    func shutdown() {
+    func shutdown() async {
         guard isStarted else { return }
         isStarted = false
+        lifecycleGeneration = UUID()
 
-        bootstrapTask?.cancel()
-        recoveryTask?.cancel()
-        startTask?.cancel()
-        rewriteTask?.cancel()
-        resultsTask?.cancel()
-        commandsTask?.cancel()
-        bootstrapTask = nil
-        recoveryTask = nil
-        startTask = nil
-        rewriteTask = nil
-        resultsTask = nil
-        commandsTask = nil
+        let tasks = [
+            bootstrapTask,
+            recoveryTask,
+            startTask,
+            rewriteTask,
+            resultsTask,
+            commandsTask,
+        ].compactMap { $0 }
+
+        for task in tasks {
+            task.cancel()
+        }
 
         commandMonitor.stop()
         for observer in audioSessionObservers {
             notificationCenter.removeObserver(observer)
         }
         audioSessionObservers.removeAll()
-        engine.teardown()
         activeSessionId = nil
-        pendingStopSessionId = nil
+        bootstrapGeneration = nil
+        recoveryGeneration = nil
+        startGeneration = nil
+        rewriteGeneration = nil
         phase = .inactive
+
+        for task in tasks {
+            await task.value
+        }
+
+        bootstrapTask = nil
+        recoveryTask = nil
+        startTask = nil
+        rewriteTask = nil
+        resultsTask = nil
+        commandsTask = nil
+        engine.teardown()
         continuation.finish()
     }
 
     private func bootstrap() {
-        guard bootstrapTask == nil else { return }
+        guard isStarted,
+            bootstrapTask == nil,
+            recoveryTask == nil,
+            startTask == nil
+        else { return }
         phase = .loading
         continuation.yield(.loading)
 
+        let generation = UUID()
+        let lifecycle = lifecycleGeneration
+        bootstrapGeneration = generation
         bootstrapTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            defer { bootstrapTask = nil }
+            defer {
+                if self.bootstrapGeneration == generation {
+                    self.bootstrapGeneration = nil
+                    self.bootstrapTask = nil
+                }
+            }
 
             do {
-                try await permissionProvider.requestPermission()
-                try await modelManager.downloadIfNeeded(for: modelName)
-                try await engine.prepare()
+                try await self.permissionProvider.requestPermission()
+                try await self.modelManager.downloadIfNeeded(for: self.modelName)
+                try await self.prepareEngine()
 
-                guard !Task.isCancelled else { return }
-                phase = .idle
-                continuation.yield(.ready(engineName: engine.name))
-                commandMonitor.pollNow()
+                guard self.isCurrent(lifecycle: lifecycle),
+                    self.bootstrapGeneration == generation,
+                    !Task.isCancelled
+                else { return }
+                self.phase = .idle
+                self.continuation.yield(.ready(engineName: self.engine.name))
+                self.commandMonitor.pollNow(force: true)
             } catch {
-                guard !Task.isCancelled else { return }
-                fail(sessionId: nil, message: error.localizedDescription)
+                guard self.isCurrent(lifecycle: lifecycle),
+                    self.bootstrapGeneration == generation,
+                    !Task.isCancelled
+                else { return }
+                self.fail(sessionId: nil, message: error.localizedDescription)
             }
         }
     }
@@ -278,6 +368,8 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
     }
 
     private func handle(_ command: KeyboardDictationCommand) {
+        guard isStarted else { return }
+
         switch command {
         case .start(let sessionId):
             startRecording(sessionId: sessionId)
@@ -289,7 +381,8 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
     }
 
     private func handle(_ result: ASRResult) {
-        guard let sessionId = activeSessionId else { return }
+        guard isStarted, activeSessionId == result.sessionId else { return }
+        let sessionId = result.sessionId
 
         if result.isFinal {
             finalize(sessionId: sessionId, text: result.text, metrics: result.metrics)
@@ -319,13 +412,25 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         phase = .rewriting(sessionId: sessionId)
         continuation.yield(.rewriting(sessionId: sessionId))
         rewriteTask?.cancel()
+        let generation = UUID()
+        let lifecycle = lifecycleGeneration
+        rewriteGeneration = generation
         rewriteTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            defer { rewriteTask = nil }
+            defer {
+                if self.rewriteGeneration == generation {
+                    self.rewriteGeneration = nil
+                    self.rewriteTask = nil
+                }
+            }
 
-            let processedText = await postProcessor.process(text)
-            guard !Task.isCancelled, activeSessionId == sessionId else { return }
-            complete(sessionId: sessionId, text: processedText, metrics: metrics)
+            let processedText = await self.postProcessor.process(text)
+            guard self.isCurrent(lifecycle: lifecycle),
+                self.rewriteGeneration == generation,
+                !Task.isCancelled,
+                self.activeSessionId == sessionId
+            else { return }
+            self.complete(sessionId: sessionId, text: processedText, metrics: metrics)
         }
     }
 
@@ -335,33 +440,136 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         metrics: ASRMetrics?
     ) {
         guard activeSessionId == sessionId else { return }
-
-        if !text.isEmpty {
-            sessionStore.updateText(for: sessionId, partial: text, final: text)
+        guard
+            sessionStore.completeSession(
+                for: sessionId,
+                from: [.recording, .requestStop, .transcribing],
+                finalText: text
+            )
+        else {
+            relinquishSession(sessionId: sessionId)
+            return
         }
-        sessionStore.updateState(for: sessionId, to: .ready, error: nil)
+
         activeSessionId = nil
-        pendingStopSessionId = nil
         phase = .idle
         continuation.yield(.completed(sessionId: sessionId, text: text, metrics: metrics))
+        commandMonitor.pollNow(force: true)
     }
 
-    private func markTranscribing(sessionId: String) {
-        guard activeSessionId == sessionId else { return }
+    @discardableResult
+    private func markTranscribing(sessionId: String) -> Bool {
+        guard activeSessionId == sessionId else { return false }
+        let didTransition = sessionStore.transitionState(
+            for: sessionId,
+            from: [.recording, .requestStop],
+            to: .transcribing,
+            error: nil
+        )
+        if !didTransition {
+            guard let session = sessionStore.getSession(),
+                session.sessionId == sessionId,
+                session.state == .transcribing
+            else {
+                relinquishSession(sessionId: sessionId)
+                return false
+            }
+        }
+
         phase = .transcribing(sessionId: sessionId)
-        sessionStore.updateState(for: sessionId, to: .transcribing, error: nil)
         continuation.yield(.transcribing(sessionId: sessionId))
+        return true
     }
 
     private func fail(sessionId: String?, message: String) {
+        guard isStarted else { return }
         let targetSessionId = sessionId ?? activeSharedSessionId()
         if let targetSessionId {
-            sessionStore.updateState(for: targetSessionId, to: .failed, error: message)
+            sessionStore.transitionState(
+                for: targetSessionId,
+                from: [.requestStart, .launching, .warming, .recording, .requestStop, .transcribing],
+                to: .failed,
+                error: message
+            )
         }
+        if activeSessionId != nil {
+            engine.stop()
+        }
+        startTask?.cancel()
+        rewriteTask?.cancel()
+        rewriteTask = nil
+        rewriteGeneration = nil
         activeSessionId = nil
-        pendingStopSessionId = nil
         phase = .failed(message: message)
         continuation.yield(.failed(sessionId: sessionId, message: message))
+    }
+
+    private func finishStartingSession(sessionId: String) {
+        guard activeSessionId == sessionId,
+            let session = sessionStore.getSession(),
+            session.sessionId == sessionId
+        else {
+            engine.stop()
+            relinquishSession(sessionId: sessionId)
+            return
+        }
+
+        switch session.state {
+        case .requestStart:
+            guard
+                sessionStore.transitionState(
+                    for: sessionId,
+                    from: [.requestStart],
+                    to: .recording,
+                    error: nil
+                )
+            else {
+                resolveChangedSessionAfterStart(sessionId: sessionId)
+                return
+            }
+            phase = .recording(sessionId: sessionId)
+            continuation.yield(.recording(sessionId: sessionId))
+
+        case .requestStop:
+            if markTranscribing(sessionId: sessionId) {
+                engine.stop()
+            }
+
+        case .cancelled:
+            engine.stop()
+            relinquishSession(sessionId: sessionId)
+
+        default:
+            engine.stop()
+            relinquishSession(sessionId: sessionId)
+        }
+    }
+
+    private func resolveChangedSessionAfterStart(sessionId: String) {
+        guard let session = sessionStore.getSession(), session.sessionId == sessionId else {
+            engine.stop()
+            relinquishSession(sessionId: sessionId)
+            return
+        }
+
+        if session.state == .requestStop, markTranscribing(sessionId: sessionId) {
+            engine.stop()
+        } else {
+            engine.stop()
+            relinquishSession(sessionId: sessionId)
+        }
+    }
+
+    private func relinquishSession(sessionId: String) {
+        guard activeSessionId == sessionId else { return }
+        activeSessionId = nil
+        phase = .idle
+        continuation.yield(.ready(engineName: engine.name))
+        commandMonitor.pollNow(force: true)
+    }
+
+    private func isCurrent(lifecycle: UUID) -> Bool {
+        isStarted && lifecycleGeneration == lifecycle
     }
 
     private func activeSharedSessionId() -> String? {
@@ -389,7 +597,9 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
                 let self
             else { return }
             Task { @MainActor [self] in
-                self.recoverAudioSession()
+                self.handleAudioSessionInvalidation(
+                    message: "The audio session was interrupted. Please try again."
+                )
             }
         }
 
@@ -400,11 +610,71 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         ) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor [self] in
-                self.recoverAudioSession()
+                self.handleAudioSessionInvalidation(
+                    message: "Audio services were reset. Please try again.",
+                    requiresEngineReset: true
+                )
             }
         }
 
         audioSessionObservers = [interruptionObserver, resetObserver]
+    }
+
+    private func reconcileStopWithoutActiveSession(sessionId: String?) {
+        guard let sessionId,
+            sessionStore.completeSession(
+                for: sessionId,
+                from: [.requestStop],
+                finalText: ""
+            )
+        else { return }
+        continuation.yield(.completed(sessionId: sessionId, text: "", metrics: nil))
+        if phase == .loading {
+            continuation.yield(.loading)
+        }
+        commandMonitor.pollNow(force: true)
+    }
+
+    private func shouldFinishCancelledStart(sessionId: String) -> Bool {
+        guard activeSessionId == nil else { return false }
+        switch phase {
+        case .starting(let phaseSessionId), .transcribing(let phaseSessionId):
+            return phaseSessionId == sessionId
+        default:
+            return false
+        }
+    }
+
+    private func prepareEngine() async throws {
+        while true {
+            if requiresAudioEngineReset {
+                requiresAudioEngineReset = false
+                do {
+                    try await engine.resetAudio()
+                } catch {
+                    requiresAudioEngineReset = true
+                    throw error
+                }
+            } else {
+                try await engine.prepare()
+            }
+
+            guard requiresAudioEngineReset else { return }
+        }
+    }
+
+    private func handleAudioSessionInvalidation(
+        message: String,
+        requiresEngineReset: Bool = false
+    ) {
+        if requiresEngineReset {
+            requiresAudioEngineReset = true
+        }
+        if let activeSessionId {
+            fail(sessionId: activeSessionId, message: message)
+        } else {
+            recoverAudioSession()
+        }
     }
 }
 
@@ -437,5 +707,7 @@ final class UnavailableDictationSessionCoordinator: DictationSessionCoordinating
     func startRecording(sessionId _: String) {}
     func stopRecording(sessionId _: String?) {}
     func cancelRecording(sessionId _: String) {}
-    func shutdown() {}
+    func shutdown() async {
+        continuation.finish()
+    }
 }

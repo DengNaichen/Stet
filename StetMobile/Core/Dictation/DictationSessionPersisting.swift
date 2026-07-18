@@ -3,7 +3,9 @@ import Foundation
 protocol DictationSessionPersisting: AnyObject {
     func heartbeat()
     func getSession() -> DictationSession?
-    func saveSession(_ session: DictationSession)
+
+    @discardableResult
+    func claimSessionForStart(sessionId: String) -> Bool
 
     @discardableResult
     func updateState(
@@ -13,10 +15,25 @@ protocol DictationSessionPersisting: AnyObject {
     ) -> Bool
 
     @discardableResult
+    func transitionState(
+        for sessionId: String,
+        from expectedStates: [DictationState],
+        to state: DictationState,
+        error: String?
+    ) -> Bool
+
+    @discardableResult
     func updateText(
         for sessionId: String,
         partial: String,
         final: String
+    ) -> Bool
+
+    @discardableResult
+    func completeSession(
+        for sessionId: String,
+        from expectedStates: [DictationState],
+        finalText: String
     ) -> Bool
 }
 
