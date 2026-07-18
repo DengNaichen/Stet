@@ -74,7 +74,10 @@ struct DictationPipelineFactory: Sendable {
         case .direct(let direct):
             transcriptionService = try makeLocalTranscriptionService()
 
-            transcriptionLanguageCode = snapshot.transcriptionPrimaryLanguage
+            transcriptionLanguageCode =
+                snapshot.transcriptionEngine == .localWhisper
+                ? nil
+                : snapshot.transcriptionPrimaryLanguage
             preferredSpellings = direct.preferredSpellings
             promptProvider = Self.makePromptProvider(preferredSpellings: preferredSpellings)
             usesAudienceAwareLocalPrompts = true
@@ -99,18 +102,53 @@ struct DictationPipelineFactory: Sendable {
         )
     }
 
-    /// The current local transcription baseline is SenseVoice on every
-    /// supported macOS language path. Stored legacy engine preferences are
-    /// intentionally ignored until multiple local engines are reintroduced.
+    /// Instantiates the local engine selected in settings. Parakeet and
+    /// SenseVoice retain the established Whisper fallback when their runtime
+    /// cannot be prepared.
     nonisolated static func makeLiveLocalTranscriptionService(
         configuration: any ModelStorageConfiguration = UserDefaultsModelStorage()
     ) throws -> any AudioFileTranscriptionService {
         #if os(macOS)
+            let stored = configuration.transcriptionEngine
+
             Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "PipelineFactory").info(
-                "DictationPipelineFactory selected local engine=SenseVoice"
+                "DictationPipelineFactory selected local engine=\(stored.rawValue)"
             )
-            _ = configuration
-            return try SherpaOnnxSenseVoiceTranscriptionService()
+
+            switch stored {
+            case .fluidAudio:
+                do {
+                    return try FluidAudioTranscriptionService()
+                } catch {
+                    Logger(
+                        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+                        category: "PipelineFactory"
+                    ).warning(
+                        "Parakeet engine unavailable (\(error.localizedDescription)); falling back to local whisper."
+                    )
+                    return try LocalWhisperTranscriptionService(
+                        modelManager: LocalWhisperModelManager(configuration: configuration)
+                    )
+                }
+            case .localWhisper:
+                return try LocalWhisperTranscriptionService(
+                    modelManager: LocalWhisperModelManager(configuration: configuration)
+                )
+            case .sherpaOnnxSenseVoice:
+                do {
+                    return try SherpaOnnxSenseVoiceTranscriptionService()
+                } catch {
+                    Logger(
+                        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+                        category: "PipelineFactory"
+                    ).warning(
+                        "SenseVoice engine unavailable (\(error.localizedDescription)); falling back to local whisper."
+                    )
+                    return try LocalWhisperTranscriptionService(
+                        modelManager: LocalWhisperModelManager(configuration: configuration)
+                    )
+                }
+            }
         #else
             return try LocalWhisperTranscriptionService(
                 modelManager: LocalWhisperModelManager(configuration: configuration))

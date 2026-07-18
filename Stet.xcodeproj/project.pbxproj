@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0B4E0F6F7A5B4D88A1C9E113 /* whisper in Frameworks */ = {isa = PBXBuildFile; productRef = 0B4E0F6F7A5B4D88A1C9E112 /* whisper */; };
 		A1C000010000000000000001 /* MCP in Frameworks */ = {isa = PBXBuildFile; productRef = A1C000030000000000000001 /* MCP */; };
 		A1C000010000000000000002 /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1C000030000000000000002 /* NIOCore */; };
 		A1C000010000000000000003 /* NIOPosix in Frameworks */ = {isa = PBXBuildFile; productRef = A1C000030000000000000003 /* NIOPosix */; };
@@ -119,6 +120,7 @@
 				6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */,
 				C80A4F64301851B7005C2101 /* OpenAI in Frameworks */,
 				6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */,
+				0B4E0F6F7A5B4D88A1C9E113 /* whisper in Frameworks */,
 				6DC0CD032F9DD8BE00696D0F /* TelemetryDeck in Frameworks */,
 				E5E0E5E0E5E0E5E0E5E00005 /* StetCore in Frameworks */,
 				E5E0E5E0E5E0E5E0E5E00006 /* StetAI in Frameworks */,
@@ -214,6 +216,7 @@
 				A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */,
 				6D3A1A982F675F44005DA839 /* KeyboardShortcuts */,
 				6DCB53142F6DB36500358FE5 /* FluidAudio */,
+				0B4E0F6F7A5B4D88A1C9E112 /* whisper */,
 				6DC0CD022F9DD8BE00696D0F /* TelemetryDeck */,
 				E5E0E5E0E5E0E5E0E5E00002 /* StetCore */,
 				E5E0E5E0E5E0E5E0E5E00003 /* StetAI */,
@@ -332,6 +335,7 @@
 			mainGroup = 6D29DC742F5FA23000267DEA;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				0B4E0F6F7A5B4D88A1C9E111 /* XCLocalSwiftPackageReference "Vendor/WhisperPackage" */,
 				A1C000020000000000000001 /* XCRemoteSwiftPackageReference "mcp-swift-sdk" */,
 				A1C000020000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */,
 				C80A4F65301851B7005C2101 /* XCRemoteSwiftPackageReference "OpenAI" */,
@@ -915,6 +919,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		0B4E0F6F7A5B4D88A1C9E111 /* XCLocalSwiftPackageReference "Vendor/WhisperPackage" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/StetEngine/Vendor/WhisperPackage;
+		};
 		E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/StetEngine;
@@ -981,6 +989,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		0B4E0F6F7A5B4D88A1C9E112 /* whisper */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0B4E0F6F7A5B4D88A1C9E111 /* XCLocalSwiftPackageReference "Vendor/WhisperPackage" */;
+			productName = whisper;
+		};
 		A1C000030000000000000001 /* MCP */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A1C000020000000000000001 /* XCRemoteSwiftPackageReference "mcp-swift-sdk" */;
