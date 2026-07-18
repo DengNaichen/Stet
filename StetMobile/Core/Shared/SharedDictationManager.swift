@@ -62,6 +62,20 @@ class SharedDictationManager {
         session.error = error
         saveSession(session)
     }
+
+    @discardableResult
+    func updateState(
+        for sessionId: String,
+        to state: DictationState,
+        error: String? = nil
+    ) -> Bool {
+        guard var session = getSession(), session.sessionId == sessionId else { return false }
+        session.state = state
+        session.updatedAt = Date()
+        session.error = error
+        saveSession(session)
+        return true
+    }
     
     func updateText(partial: String, final: String) {
         guard var session = getSession() else { return }
@@ -70,6 +84,21 @@ class SharedDictationManager {
         session.revision += 1
         session.updatedAt = Date()
         saveSession(session)
+    }
+
+    @discardableResult
+    func updateText(
+        for sessionId: String,
+        partial: String,
+        final: String
+    ) -> Bool {
+        guard var session = getSession(), session.sessionId == sessionId else { return false }
+        session.partialText = partial
+        session.finalText = final
+        session.revision += 1
+        session.updatedAt = Date()
+        saveSession(session)
+        return true
     }
     
     // MARK: - Pending Keyboard Session ID
