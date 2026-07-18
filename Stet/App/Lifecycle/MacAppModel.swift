@@ -17,6 +17,7 @@
         private let sessionController: MacAppSessionController
         private let interactionSoundPlayer: InteractionSoundPlayer
         private let appearanceSettingsViewModel: MacAppearanceSettingsViewModel
+        private let mcpServerController: StetMCPServerController?
 
         private var cancellables = Set<AnyCancellable>()
 
@@ -39,7 +40,8 @@
                     clipboardService: clipboardService,
                     textInjectionService: textInjectionService,
                     pasteboardRestoreCoordinator: pasteboardRestoreCoordinator
-                )
+                ),
+                mcpServerController: StetMCPServerController.live(settingsStore: settingsStore)
             )
         }
 
@@ -50,7 +52,8 @@
             mediaPlaybackController: any MediaPlaybackControlling,
             systemAudioMuting: (any SystemAudioMuting)? = nil,
             settingsStore: DictationSettingsStore = DictationSettingsStore(),
-            captureCoordinator: MacDictationCaptureCoordinator? = nil
+            captureCoordinator: MacDictationCaptureCoordinator? = nil,
+            mcpServerController: StetMCPServerController? = nil
         ) {
             let bootstrapper = MacAppBootstrapper(settingsStore: settingsStore)
             let captureCoordinator =
@@ -78,6 +81,7 @@
             self.sessionController = sessionController
             self.interactionSoundPlayer = interactionSoundPlayer
             self.appearanceSettingsViewModel = .shared
+            self.mcpServerController = mcpServerController
             let launchConfiguration = bootstrapper.prepareForLaunch()
             sessionController.onChange = { [weak self] in
                 self?.objectWillChange.send()
@@ -89,6 +93,7 @@
                 }
                 .store(in: &cancellables)
             sessionController.activate(presentationModel: self, showInDock: launchConfiguration.showInDock)
+            mcpServerController?.startIfEnabled()
         }
 
         var updates: AnyPublisher<Void, Never> {

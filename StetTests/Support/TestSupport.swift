@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import StetRewrite
 
 @testable import Stet
 

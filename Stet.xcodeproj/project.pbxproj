@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1C000010000000000000001 /* MCP in Frameworks */ = {isa = PBXBuildFile; productRef = A1C000030000000000000001 /* MCP */; };
+		A1C000010000000000000002 /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1C000030000000000000002 /* NIOCore */; };
+		A1C000010000000000000003 /* NIOPosix in Frameworks */ = {isa = PBXBuildFile; productRef = A1C000030000000000000003 /* NIOPosix */; };
+		A1C000010000000000000004 /* NIOHTTP1 in Frameworks */ = {isa = PBXBuildFile; productRef = A1C000030000000000000004 /* NIOHTTP1 */; };
 		6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 6D3A1A982F675F44005DA839 /* KeyboardShortcuts */; };
 		6D483F322F9C186400BF3105 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */; };
 		6DC0CD032F9DD8BE00696D0F /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = 6DC0CD022F9DD8BE00696D0F /* TelemetryDeck */; };
@@ -106,6 +110,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1C000010000000000000001 /* MCP in Frameworks */,
+				A1C000010000000000000002 /* NIOCore in Frameworks */,
+				A1C000010000000000000003 /* NIOPosix in Frameworks */,
+				A1C000010000000000000004 /* NIOHTTP1 in Frameworks */,
 				6D483F322F9C186400BF3105 /* Sparkle in Frameworks */,
 				F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */,
 				6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */,
@@ -198,6 +206,10 @@
 			);
 			name = Stet;
 			packageProductDependencies = (
+				A1C000030000000000000001 /* MCP */,
+				A1C000030000000000000002 /* NIOCore */,
+				A1C000030000000000000003 /* NIOPosix */,
+				A1C000030000000000000004 /* NIOHTTP1 */,
 				C80A4F66301851B7005C2101 /* OpenAI */,
 				A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */,
 				6D3A1A982F675F44005DA839 /* KeyboardShortcuts */,
@@ -320,6 +332,8 @@
 			mainGroup = 6D29DC742F5FA23000267DEA;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				A1C000020000000000000001 /* XCRemoteSwiftPackageReference "mcp-swift-sdk" */,
+				A1C000020000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */,
 				C80A4F65301851B7005C2101 /* XCRemoteSwiftPackageReference "OpenAI" */,
 				A7D90C1E4B4D4E5F8A1B2C32 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
@@ -908,6 +922,22 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		A1C000020000000000000001 /* XCRemoteSwiftPackageReference "mcp-swift-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/modelcontextprotocol/swift-sdk.git";
+			requirement = {
+				kind = exactVersion;
+				version = 0.12.1;
+			};
+		};
+		A1C000020000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-nio.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.65.0;
+			};
+		};
 		6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
@@ -951,6 +981,26 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		A1C000030000000000000001 /* MCP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C000020000000000000001 /* XCRemoteSwiftPackageReference "mcp-swift-sdk" */;
+			productName = MCP;
+		};
+		A1C000030000000000000002 /* NIOCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C000020000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOCore;
+		};
+		A1C000030000000000000003 /* NIOPosix */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C000020000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOPosix;
+		};
+		A1C000030000000000000004 /* NIOHTTP1 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C000020000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOHTTP1;
+		};
 		6D3A1A982F675F44005DA839 /* KeyboardShortcuts */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;

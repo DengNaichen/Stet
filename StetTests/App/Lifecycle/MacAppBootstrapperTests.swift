@@ -1,5 +1,6 @@
 #if os(macOS)
     import Foundation
+    import StetCore
     import Testing
 
     @testable import Stet
@@ -20,6 +21,7 @@
 
             #expect(launchConfiguration == .init(showInDock: false))
             #expect(!defaults.bool(forKey: MacPreferences.pauseMediaDuringDictation))
+            #expect(!defaults.bool(forKey: MacPreferences.mcpServerEnabled))
             #expect(defaults.string(forKey: MacPreferences.transcriptionProvider) == DictationProvider.openAI.rawValue)
             #expect(defaults.string(forKey: MacPreferences.rewriteProvider) == DictationProvider.openAI.rawValue)
             #expect(defaults.string(forKey: MacPreferences.transcriptionPrimaryLanguage) == "en")

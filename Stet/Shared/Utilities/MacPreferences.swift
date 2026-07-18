@@ -17,6 +17,7 @@ enum MacPreferences {
     nonisolated static let hotkeyDistinguishModifierSides = "mac.hotkeyDistinguishModifierSides"
     nonisolated static let dictationPerfTracingEnabled = "mac.dictationPerfTracingEnabled"
     nonisolated static let dictationTranscriptTracingEnabled = "mac.dictationTranscriptTracingEnabled"
+    nonisolated static let mcpServerEnabled = "mac.mcpServerEnabled"
     nonisolated static let personalDictionary = "mac.personalDictionary"
     nonisolated static let personalDictionaryEnabled = "mac.personalDictionaryEnabled"
     nonisolated static let interactionSoundsEnabled = "mac.interactionSoundsEnabled"

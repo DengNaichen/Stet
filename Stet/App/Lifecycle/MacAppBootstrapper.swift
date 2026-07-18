@@ -31,6 +31,7 @@
             .bool(MacPreferences.onboardingCompleted, false),
             .bool(MacPreferences.debugForceOnboarding, false),
             .bool(MacPreferences.pauseMediaDuringDictation, false),
+            .bool(MacPreferences.mcpServerEnabled, false),
             .string(MacPreferences.transcriptionProvider, DictationProvider.openAI.rawValue),
             .string(MacPreferences.rewriteProvider, DictationProvider.openAI.rawValue),
             .bool(MacPreferences.rewriteEnabled, true),

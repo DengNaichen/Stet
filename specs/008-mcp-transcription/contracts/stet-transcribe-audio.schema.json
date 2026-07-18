@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stet.local/mcp/stet-transcribe-audio.schema.json",
+  "title": "stet_transcribe_audio",
+  "description": "Transcribe an AVAudioFile-readable local audio file with Stet and optionally apply the current rewrite configuration.",
+  "type": "object",
+  "required": ["audio_path"],
+  "additionalProperties": false,
+  "properties": {
+    "audio_path": {
+      "type": "string",
+      "description": "Absolute path to an existing, readable regular audio file."
+    }
+  },
+  "x-output-schema": {
+    "type": "object",
+    "required": [
+      "text",
+      "raw_text",
+      "language_code",
+      "rewrite_applied",
+      "warnings"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "text": {
+        "type": "string"
+      },
+      "raw_text": {
+        "type": "string"
+      },
+      "language_code": {
+        "type": "string"
+      },
+      "rewrite_applied": {
+        "type": "boolean"
+      },
+      "warnings": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
