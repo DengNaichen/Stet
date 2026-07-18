@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(iOS)
+    import StetVisuals
+#endif
 
 struct DictationView: View {
     @StateObject private var viewModel: DictationViewModel
@@ -21,18 +24,7 @@ struct DictationView: View {
                     .foregroundStyle(.secondary)
             }
 
-            ZStack {
-                Circle()
-                    .fill(buttonColor)
-                    .frame(width: 120, height: 120)
-
-                Text(primaryButtonLabel)
-                    .font(.headline)
-                    .foregroundStyle(.white)
-            }
-            .onTapGesture {
-                viewModel.send(primaryAction)
-            }
+            primaryControl
 
             messageView
                 .frame(maxWidth: .infinity, minHeight: 80)
@@ -59,6 +51,68 @@ struct DictationView: View {
             return Color(.secondarySystemBackground)
         #endif
     }
+
+    @ViewBuilder
+    private var primaryControl: some View {
+        #if os(iOS)
+            if usesListeningShader {
+                Button(action: stopListeningFromShader) {
+                    DictationLevelShaderView(
+                        level: viewModel.recordingLevel,
+                        diameter: 120,
+                        preferredFramesPerSecond: 40,
+                        isPaused: isListeningShaderPaused
+                    )
+                }
+                .buttonStyle(DictationShaderButtonStyle())
+                .contentShape(Circle())
+                .disabled(isListeningShaderPaused)
+                .accessibilityLabel("停止录音")
+            } else {
+                legacyPrimaryControl
+            }
+        #else
+            legacyPrimaryControl
+        #endif
+    }
+
+    private var legacyPrimaryControl: some View {
+        ZStack {
+            Circle()
+                .fill(buttonColor)
+                .frame(width: 120, height: 120)
+
+            Text(primaryButtonLabel)
+                .font(.headline)
+                .foregroundStyle(.white)
+        }
+        .onTapGesture {
+            viewModel.send(primaryAction)
+        }
+    }
+
+    #if os(iOS)
+        private var usesListeningShader: Bool {
+            switch viewModel.state {
+            case .listening, .processing:
+                return true
+            case .idle, .starting, .result, .clipboardPending, .error:
+                return false
+            }
+        }
+
+        private var isListeningShaderPaused: Bool {
+            if case .processing = viewModel.state {
+                return true
+            }
+            return false
+        }
+
+        private func stopListeningFromShader() {
+            guard case .listening = viewModel.state else { return }
+            viewModel.send(.stopTapped)
+        }
+    #endif
 
     private var primaryAction: DictationAction {
         switch viewModel.state {
@@ -152,6 +206,14 @@ struct DictationView: View {
         }
     }
 }
+
+#if os(iOS)
+    private struct DictationShaderButtonStyle: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+        }
+    }
+#endif
 
 struct DictationView_Previews: PreviewProvider {
     static var previews: some View {
