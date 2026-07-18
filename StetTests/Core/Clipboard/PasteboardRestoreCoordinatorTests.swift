@@ -23,7 +23,7 @@
         @Test func rapidSuccessiveOverridesRestoreOriginalClipboard() async {
             let pasteboard = makePasteboard()
             let clipboard = SystemClipboardService(pasteboard: pasteboard)
-            let coordinator = PasteboardRestoreCoordinator(restoreDelay: .milliseconds(40))
+            let coordinator = PasteboardRestoreCoordinator(restoreDelay: .zero)
 
             pasteboard.clearContents()
             pasteboard.setString("original", forType: .string)
