@@ -230,9 +230,15 @@ public final class SherpaOnnxASREngine: ASREngine {
     }
 
     private func handleInputBuffer(_ buffer: AVAudioPCMBuffer) {
+        lock.lock()
+        guard let sessionId = activeSessionId else {
+            lock.unlock()
+            return
+        }
+        lock.unlock()
+
         let inputFormat = buffer.format
-        guard activeSessionId != nil,
-              inputFormat.sampleRate > 0,
+        guard inputFormat.sampleRate > 0,
               inputFormat.channelCount > 0,
               let outputFormat = self.outputFormat else { return }
         guard let converter = converter(for: inputFormat, outputFormat: outputFormat) else { return }
@@ -255,11 +261,12 @@ public final class SherpaOnnxASREngine: ASREngine {
             let sumSq = samples.reduce(0) { $0 + $1 * $1 }
             let rms = sqrt(sumSq / Float(samples.count))
             let level = min(rms * 15, 1.0)
-            
-            onVolumeUpdate?(level)
-            
+
             lock.lock()
-            defer { lock.unlock() }
+            guard activeSessionId == sessionId else {
+                lock.unlock()
+                return
+            }
             if let vad = self.vad {
                 if !self.preLoadBuffer.isEmpty {
                     vad.acceptWaveform(samples: self.preLoadBuffer)
@@ -270,6 +277,9 @@ public final class SherpaOnnxASREngine: ASREngine {
             } else {
                 self.preLoadBuffer.append(contentsOf: samples)
             }
+            lock.unlock()
+
+            onVolumeUpdate?(level)
         }
     }
 
