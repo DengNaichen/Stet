@@ -43,7 +43,7 @@ normalize_versioned_framework() {
 }
 
 DERIVED_DATA_DIR="$(cd "${BUILD_DIR:-$TARGET_BUILD_DIR}/../.." && pwd)"
-SHERPA_ARTIFACT_DIR="$DERIVED_DATA_DIR/SourcePackages/artifacts/sherpaonnxpackage/sherpa_onnx/Packages/StetEngine/Vendor/SherpaOnnxPackage/sherpa-onnx-new.xcframework"
+SHERPA_ARTIFACT_DIR="$DERIVED_DATA_DIR/SourcePackages/artifacts/sherpaonnxpackage/sherpa_onnx/Vendor/SherpaOnnxPackage/sherpa-onnx-new.xcframework"
 
 normalize_versioned_framework \
   "$SHERPA_ARTIFACT_DIR/macos-arm64_x86_64/sherpa_onnx.framework" \
