@@ -1,11 +1,18 @@
 import Foundation
 
 public struct ASRResult: Sendable {
+    public let sessionId: String
     public let text: String
     public let isFinal: Bool
     public let metrics: ASRMetrics?
 
-    public init(text: String, isFinal: Bool, metrics: ASRMetrics? = nil) {
+    public init(
+        sessionId: String,
+        text: String,
+        isFinal: Bool,
+        metrics: ASRMetrics? = nil
+    ) {
+        self.sessionId = sessionId
         self.text = text
         self.isFinal = isFinal
         self.metrics = metrics

@@ -363,6 +363,7 @@ public final class SherpaOnnxASREngine: ASREngine {
     private func finalize(merged: String) {
         lock.lock()
         defer { lock.unlock() }
+        guard let sessionId = activeSessionId else { return }
         let wallSeconds = CFAbsoluteTimeGetCurrent() - sessionWallStart
         let rtf = sessionAudioSeconds > 0 ? sessionDecodeCpuSeconds / sessionAudioSeconds : 0
 
@@ -373,7 +374,12 @@ public final class SherpaOnnxASREngine: ASREngine {
             rtf: rtf
         )
 
-        let result = ASRResult(text: merged, isFinal: true, metrics: metrics)
+        let result = ASRResult(
+            sessionId: sessionId,
+            text: merged,
+            isFinal: true,
+            metrics: metrics
+        )
         continuation.yield(result)
 
         activeSessionId = nil
