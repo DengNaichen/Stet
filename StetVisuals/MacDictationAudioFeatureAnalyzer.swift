@@ -5,6 +5,12 @@
     import simd
 
     public final class MacDictationAudioFeatureAnalyzer: @unchecked Sendable {
+        private enum LevelResponse {
+            static let silenceFloorDBFS: Float = -60
+            static let fullResponseDBFS: Float = -20
+            static let perceptualPower: Float = 0.65
+        }
+
         private let fftSize = MacDictationAudioFieldConstants.fftSize
         private let bandCount = MacDictationCapsuleVisualSignals.bandCount
         private let window: [Float]
@@ -85,11 +91,12 @@
             for index in 0..<frameCount {
                 mono[index] *= scale
             }
+            let unwindowed = Array(mono.prefix(frameCount))
             var windowed = mono
             for index in 0..<frameCount {
                 windowed[index] *= window[index]
             }
-            return (windowed, mono)
+            return (windowed, unwindowed)
         }
 
         private func spectrumMagnitudes(samples: [Float]) -> [Float] {
@@ -219,7 +226,16 @@
                     partialResult + sample * sample
                 } / Float(samples.count)
             let rms = sqrt(meanSquare)
-            return max(0, min(1, (rms - 0.004) * 5.0))
+            guard rms > 0 else { return 0 }
+
+            let levelDBFS = 20 * log10(rms)
+            let responseRange = LevelResponse.fullResponseDBFS - LevelResponse.silenceFloorDBFS
+            let normalized = max(
+                0,
+                min(1, (levelDBFS - LevelResponse.silenceFloorDBFS) / responseRange)
+            )
+            let softKnee = normalized * normalized * (3 - 2 * normalized)
+            return pow(softKnee, LevelResponse.perceptualPower)
         }
 
         private static func buildGeomspace(start: Float, end: Float, count: Int) -> [Float] {

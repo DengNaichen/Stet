@@ -29,7 +29,7 @@
                     signals: currentSignals(),
                     colors: colors,
                     isPaused: isPaused,
-                    motionGain: 1,
+                    motionGain: 1.55,
                     processingMix: isProcessing ? 1 : 0
                 )
                 .frame(width: mainWidth, height: controlHeight)
