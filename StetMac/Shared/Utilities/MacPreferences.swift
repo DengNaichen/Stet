@@ -42,6 +42,6 @@ enum MacPreferences {
     nonisolated static let transcriptionSecondaryLanguage = "mac.transcriptionSecondaryLanguage"
 
     /// Which on-device transcription engine the dictation pipeline uses.
-    /// Values are `StoredTranscriptionEngine.rawValue` ("fluidAudio" or "localWhisper").
+    /// Values are `StoredTranscriptionEngine.rawValue`.
     nonisolated static let transcriptionEngine = "mac.transcriptionEngine"
 }

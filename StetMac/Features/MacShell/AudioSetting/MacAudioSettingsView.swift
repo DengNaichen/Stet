@@ -13,7 +13,7 @@
                 )
                 Section {
                     VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
-                        Text("SenseVoice handles on-device transcription.")
+                        Text("Choose which on-device model handles transcription.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
 
@@ -28,10 +28,40 @@
                             .frame(width: 240, alignment: .trailing)
                         }
 
+                        if viewModel.localTranscriptionEngine == .fluidAudio, !viewModel.isParakeetDownloaded {
+                            Text(
+                                "Parakeet model isn't downloaded yet. Stet will fall back to Whisper until you download it below."
+                            )
+                            .font(.system(size: 11))
+                            .foregroundStyle(.orange)
+                        }
+
                         Divider().padding(.vertical, 4)
 
                         // Models Management
                         VStack(spacing: 12) {
+                            TranscriptionModelRow(
+                                name: "Whisper",
+                                isDownloaded: viewModel.isWhisperDownloaded,
+                                isDownloading: viewModel.isWhisperDownloading,
+                                errorMessage: viewModel.whisperErrorMessage,
+                                onDownload: { viewModel.downloadWhisperModel() },
+                                onReveal: { viewModel.openWhisperFolder() }
+                            )
+
+                            Divider()
+
+                            TranscriptionModelRow(
+                                name: "Parakeet V3",
+                                isDownloaded: viewModel.isParakeetDownloaded,
+                                isDownloading: viewModel.isParakeetDownloading,
+                                errorMessage: viewModel.parakeetErrorMessage,
+                                onDownload: { viewModel.downloadParakeetModel() },
+                                onReveal: { viewModel.openParakeetFolder() }
+                            )
+
+                            Divider()
+
                             TranscriptionModelRow(
                                 name: "SenseVoice",
                                 isDownloaded: viewModel.isSenseVoiceDownloaded,
