@@ -170,20 +170,6 @@
 			name = "Recovered References";
 			sourceTree = "<group>";
 		};
-		C30000012FA6000000000001 /* Shared StetASR */ = {
-			isa = PBXGroup;
-			children = (
-				C20000012FA6000000000001 /* ASREngine.swift */,
-				C20000012FA6000000000002 /* ASRModelManager.swift */,
-				C20000012FA6000000000003 /* AudioBuffer+Samples.swift */,
-				C20000012FA6000000000004 /* SenseVoiceModelManager.swift */,
-				C20000012FA6000000000005 /* SherpaOnnx.swift */,
-				C20000012FA6000000000006 /* SherpaOnnxASREngine.swift */,
-			);
-			name = "Shared StetASR";
-			path = ../Packages/StetEngine/Sources/StetASR;
-			sourceTree = SOURCE_ROOT;
-		};
 		6DD04D432FA3B64B004D9143 = {
 			isa = PBXGroup;
 			children = (
@@ -209,6 +195,20 @@
 			);
 			name = Products;
 			sourceTree = "<group>";
+		};
+		C30000012FA6000000000001 /* Shared StetASR */ = {
+			isa = PBXGroup;
+			children = (
+				C20000012FA6000000000001 /* ASREngine.swift */,
+				C20000012FA6000000000002 /* ASRModelManager.swift */,
+				C20000012FA6000000000003 /* AudioBuffer+Samples.swift */,
+				C20000012FA6000000000004 /* SenseVoiceModelManager.swift */,
+				C20000012FA6000000000005 /* SherpaOnnx.swift */,
+				C20000012FA6000000000006 /* SherpaOnnxASREngine.swift */,
+			);
+			name = "Shared StetASR";
+			path = ../Packages/StetEngine/Sources/StetASR;
+			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXGroup section */
 
@@ -589,7 +589,6 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -606,7 +605,7 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "StetMobile/SherpaOnnx-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -631,7 +630,6 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -648,7 +646,7 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "StetMobile/SherpaOnnx-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -672,7 +670,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/StetMobile.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/StetMobile";
 			};
 			name = Debug;
@@ -697,7 +695,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/StetMobile.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/StetMobile";
 			};
 			name = Release;
@@ -720,7 +718,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_TARGET_NAME = StetMobile;
 			};
 			name = Debug;
@@ -743,7 +741,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_TARGET_NAME = StetMobile;
 			};
 			name = Release;
@@ -777,7 +775,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -811,7 +809,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
