@@ -6,13 +6,15 @@ import StetCore
 @MainActor
 final class RewriteSettingsViewModel: ObservableObject {
     var settingsStore: RewriteSettingsStore
+    var dictationSettingsStore: LocalDictationSettingsStore
     private let validationService: ProviderCredentialValidationService
-    private let localModelManager: any LocalDictationModelManaging
-    private let onLocalModelReady: @MainActor () -> Void
+    private let localModelManagers: [MobileDictationModel: any LocalDictationModelManaging]
+    private let onLocalModelReady: @MainActor (MobileDictationModel) -> Void
+    private let onLocalModelSelected: @MainActor (MobileDictationModel) -> Void
 
     @Published var apiKeyInput: String = ""
     @Published private(set) var validationState: ValidationState = .idle
-    @Published private(set) var localModelState: LocalModelState = .checking
+    @Published private var localModelStates: [MobileDictationModel: LocalModelState] = [:]
 
     enum ValidationState: Equatable {
         case idle
@@ -33,14 +35,22 @@ final class RewriteSettingsViewModel: ObservableObject {
 
     init(
         settingsStore: RewriteSettingsStore,
-        localModelManager: any LocalDictationModelManaging,
-        onLocalModelReady: @escaping @MainActor () -> Void = {}
+        dictationSettingsStore: LocalDictationSettingsStore? = nil,
+        localModelManagers: [MobileDictationModel: any LocalDictationModelManaging],
+        onLocalModelReady: @escaping @MainActor (MobileDictationModel) -> Void = { _ in },
+        onLocalModelSelected: @escaping @MainActor (MobileDictationModel) -> Void = { _ in }
     ) {
         self.settingsStore = settingsStore
+        self.dictationSettingsStore = dictationSettingsStore ?? LocalDictationSettingsStore()
         self.validationService = ProviderCredentialValidationService()
-        self.localModelManager = localModelManager
+        self.localModelManagers = localModelManagers
         self.onLocalModelReady = onLocalModelReady
+        self.onLocalModelSelected = onLocalModelSelected
         self.apiKeyInput = settingsStore.loadAPIKey(for: settingsStore.selectedProvider) ?? ""
+    }
+
+    var availableDictationModels: [MobileDictationModel] {
+        MobileDictationModel.allCases
     }
 
     var availableProviders: [DictationProvider] {
@@ -75,10 +85,29 @@ final class RewriteSettingsViewModel: ObservableObject {
         }
     }
 
-    func refreshLocalModelStatus() async {
+    func onDictationModelSelected() {
+        onLocalModelSelected(dictationSettingsStore.selectedModel)
+    }
+
+    func localModelState(for model: MobileDictationModel) -> LocalModelState {
+        localModelStates[model] ?? .checking
+    }
+
+    func refreshLocalModelStatuses() async {
+        for model in availableDictationModels {
+            await refreshLocalModelStatus(for: model)
+        }
+    }
+
+    func refreshLocalModelStatus(for model: MobileDictationModel) async {
+        guard let manager = localModelManagers[model] else {
+            localModelStates[model] = .downloadFailed
+            return
+        }
+
         repeat {
-            let status = await localModelManager.status()
-            localModelState = Self.localModelState(for: status)
+            let status = await manager.status()
+            localModelStates[model] = Self.localModelState(for: status)
 
             guard case .downloading = status else { return }
             do {
@@ -89,32 +118,36 @@ final class RewriteSettingsViewModel: ObservableObject {
         } while !Task.isCancelled
     }
 
-    func downloadLocalModel() async {
-        guard localModelState != .downloading else { return }
+    func downloadLocalModel(_ model: MobileDictationModel) async {
+        guard let manager = localModelManagers[model], localModelState(for: model) != .downloading else {
+            return
+        }
 
-        localModelState = .downloading
+        localModelStates[model] = .downloading
         do {
-            try await localModelManager.download()
-            localModelState = .downloaded
-            onLocalModelReady()
+            try await manager.download()
+            localModelStates[model] = .downloaded
+            onLocalModelReady(model)
         } catch is CancellationError {
-            await refreshLocalModelStatus()
+            await refreshLocalModelStatus(for: model)
         } catch {
-            localModelState = .downloadFailed
+            localModelStates[model] = .downloadFailed
         }
     }
 
-    func deleteLocalModel() async {
-        guard localModelState != .deleting else { return }
+    func deleteLocalModel(_ model: MobileDictationModel) async {
+        guard let manager = localModelManagers[model], localModelState(for: model) != .deleting else {
+            return
+        }
 
-        localModelState = .deleting
+        localModelStates[model] = .deleting
         do {
-            try await localModelManager.delete()
-            localModelState = .notDownloaded
+            try await manager.delete()
+            localModelStates[model] = .notDownloaded
         } catch is CancellationError {
-            await refreshLocalModelStatus()
+            await refreshLocalModelStatus(for: model)
         } catch {
-            localModelState = .deletionFailed
+            localModelStates[model] = .deletionFailed
         }
     }
 

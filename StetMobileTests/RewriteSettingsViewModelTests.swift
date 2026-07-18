@@ -10,12 +10,12 @@ struct RewriteSettingsViewModelTests {
         )
         let viewModel = RewriteSettingsViewModel(
             settingsStore: RewriteSettingsStore(),
-            localModelManager: manager
+            localModelManagers: [.senseVoice: manager]
         )
 
-        await viewModel.refreshLocalModelStatus()
+        await viewModel.refreshLocalModelStatus(for: .senseVoice)
 
-        #expect(viewModel.localModelState == .downloaded)
+        #expect(viewModel.localModelState(for: .senseVoice) == .downloaded)
     }
 
     @MainActor
@@ -24,18 +24,18 @@ struct RewriteSettingsViewModelTests {
         var didNotifyDictation = false
         let viewModel = RewriteSettingsViewModel(
             settingsStore: RewriteSettingsStore(),
-            localModelManager: manager,
-            onLocalModelReady: {
-                didNotifyDictation = true
+            localModelManagers: [.whisperLargeV3Turbo: manager],
+            onLocalModelReady: { model in
+                didNotifyDictation = model == .whisperLargeV3Turbo
             }
         )
 
-        await viewModel.downloadLocalModel()
-        #expect(viewModel.localModelState == .downloadFailed)
+        await viewModel.downloadLocalModel(.whisperLargeV3Turbo)
+        #expect(viewModel.localModelState(for: .whisperLargeV3Turbo) == .downloadFailed)
         #expect(!didNotifyDictation)
 
-        await viewModel.downloadLocalModel()
-        #expect(viewModel.localModelState == .downloaded)
+        await viewModel.downloadLocalModel(.whisperLargeV3Turbo)
+        #expect(viewModel.localModelState(for: .whisperLargeV3Turbo) == .downloaded)
         #expect(didNotifyDictation)
     }
 
@@ -46,13 +46,57 @@ struct RewriteSettingsViewModelTests {
         )
         let viewModel = RewriteSettingsViewModel(
             settingsStore: RewriteSettingsStore(),
-            localModelManager: manager
+            localModelManagers: [.senseVoice: manager]
         )
 
-        await viewModel.deleteLocalModel()
+        await viewModel.deleteLocalModel(.senseVoice)
 
-        #expect(viewModel.localModelState == .notDownloaded)
+        #expect(viewModel.localModelState(for: .senseVoice) == .notDownloaded)
         #expect(await manager.deleteCount == 1)
+    }
+
+    @MainActor
+    @Test func reportsBothLocalModelsIndependently() async {
+        let senseVoice = TestLocalDictationModelManager(status: .notDownloaded)
+        let whisper = TestLocalDictationModelManager(
+            status: .ready(localURL: URL(fileURLWithPath: "/tmp/whisper.bin"))
+        )
+        let viewModel = RewriteSettingsViewModel(
+            settingsStore: RewriteSettingsStore(),
+            localModelManagers: [
+                .senseVoice: senseVoice,
+                .whisperLargeV3Turbo: whisper,
+            ]
+        )
+
+        await viewModel.refreshLocalModelStatuses()
+
+        #expect(viewModel.localModelState(for: .senseVoice) == .notDownloaded)
+        #expect(viewModel.localModelState(for: .whisperLargeV3Turbo) == .downloaded)
+    }
+
+    @MainActor
+    @Test func selectedDictationModelIsPersistedAndForwarded() {
+        let suiteName = "LocalDictationSettingsStoreTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let dictationSettings = LocalDictationSettingsStore(defaults: defaults)
+        var selectedModel: MobileDictationModel?
+        let viewModel = RewriteSettingsViewModel(
+            settingsStore: RewriteSettingsStore(),
+            dictationSettingsStore: dictationSettings,
+            localModelManagers: [:],
+            onLocalModelSelected: { selectedModel = $0 }
+        )
+
+        dictationSettings.selectedModel = .whisperLargeV3Turbo
+        viewModel.onDictationModelSelected()
+
+        #expect(selectedModel == .whisperLargeV3Turbo)
+        #expect(
+            LocalDictationSettingsStore(defaults: defaults).selectedModel
+                == .whisperLargeV3Turbo
+        )
     }
 
     @Test func senseVoiceModelManagerDeletesDownloadedAssets() async throws {

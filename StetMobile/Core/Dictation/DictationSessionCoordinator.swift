@@ -679,6 +679,172 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
 }
 
 @MainActor
+final class SelectableDictationSessionCoordinator: DictationSessionCoordinating {
+    typealias CoordinatorFactory = @MainActor (MobileDictationModel) -> any DictationSessionCoordinating
+
+    let events: AsyncStream<DictationCoordinatorEvent>
+    private(set) var phase: DictationCoordinatorPhase = .inactive
+
+    private let continuation: AsyncStream<DictationCoordinatorEvent>.Continuation
+    private let coordinatorFactory: CoordinatorFactory
+    private var desiredModel: MobileDictationModel
+    private var activeModel: MobileDictationModel?
+    private var activeCoordinator: (any DictationSessionCoordinating)?
+    private var eventGeneration = UUID()
+    private var eventsTask: Task<Void, Never>?
+    private var switchTask: Task<Void, Never>?
+    private var isStarted = false
+
+    init(
+        selectedModel: MobileDictationModel,
+        coordinatorFactory: @escaping CoordinatorFactory
+    ) {
+        desiredModel = selectedModel
+        self.coordinatorFactory = coordinatorFactory
+        (events, continuation) = AsyncStream.makeStream()
+    }
+
+    func start() {
+        guard !isStarted else { return }
+        isStarted = true
+        scheduleSwitchIfPossible()
+    }
+
+    func selectModel(_ model: MobileDictationModel) {
+        guard desiredModel != model else { return }
+        desiredModel = model
+        scheduleSwitchIfPossible()
+    }
+
+    func recoverAudioSession() {
+        if activeCoordinator == nil {
+            scheduleSwitchIfPossible()
+        } else {
+            activeCoordinator?.recoverAudioSession()
+        }
+    }
+
+    func synchronizeKeyboardCommands() {
+        activeCoordinator?.synchronizeKeyboardCommands()
+    }
+
+    func startRecording(sessionId: String) {
+        guard switchTask == nil, activeModel == desiredModel else { return }
+        activeCoordinator?.startRecording(sessionId: sessionId)
+    }
+
+    func stopRecording(sessionId: String?) {
+        activeCoordinator?.stopRecording(sessionId: sessionId)
+    }
+
+    func cancelRecording(sessionId: String) {
+        activeCoordinator?.cancelRecording(sessionId: sessionId)
+    }
+
+    func shutdown() async {
+        guard isStarted else { return }
+        isStarted = false
+        switchTask?.cancel()
+        await switchTask?.value
+        switchTask = nil
+
+        eventsTask?.cancel()
+        eventsTask = nil
+        if let activeCoordinator {
+            await activeCoordinator.shutdown()
+        }
+        self.activeCoordinator = nil
+        activeModel = nil
+        phase = .inactive
+        continuation.finish()
+    }
+
+    private func scheduleSwitchIfPossible() {
+        guard isStarted, switchTask == nil, activeModel != desiredModel else { return }
+        switch phase {
+        case .inactive, .loading, .idle, .failed:
+            let model = desiredModel
+            phase = .loading
+            continuation.yield(.loading)
+            switchTask = Task { @MainActor [weak self] in
+                await self?.activate(model)
+            }
+        case .starting, .recording, .transcribing, .rewriting:
+            break
+        }
+    }
+
+    private func activate(_ model: MobileDictationModel) async {
+        eventsTask?.cancel()
+        eventsTask = nil
+
+        if let activeCoordinator {
+            await activeCoordinator.shutdown()
+        }
+        activeCoordinator = nil
+        activeModel = nil
+
+        guard isStarted, !Task.isCancelled, desiredModel == model else {
+            finishSwitch()
+            return
+        }
+
+        let coordinator = coordinatorFactory(model)
+        let generation = UUID()
+        eventGeneration = generation
+        activeModel = model
+        activeCoordinator = coordinator
+        listen(to: coordinator, generation: generation)
+        coordinator.start()
+        finishSwitch()
+    }
+
+    private func finishSwitch() {
+        switchTask = nil
+        scheduleSwitchIfPossible()
+    }
+
+    private func listen(
+        to coordinator: any DictationSessionCoordinating,
+        generation: UUID
+    ) {
+        let childEvents = coordinator.events
+        eventsTask = Task { @MainActor [weak self] in
+            for await event in childEvents {
+                guard let self, self.eventGeneration == generation, !Task.isCancelled else { break }
+                self.handle(event)
+            }
+        }
+    }
+
+    private func handle(_ event: DictationCoordinatorEvent) {
+        switch event {
+        case .loading:
+            phase = .loading
+        case .ready:
+            phase = .idle
+        case .starting(let sessionId):
+            phase = .starting(sessionId: sessionId)
+        case .recording(let sessionId):
+            phase = .recording(sessionId: sessionId)
+        case .transcribing(let sessionId):
+            phase = .transcribing(sessionId: sessionId)
+        case .rewriting(let sessionId):
+            phase = .rewriting(sessionId: sessionId)
+        case .completed:
+            phase = .idle
+        case .failed(_, let message):
+            phase = .failed(message: message)
+        case .partialTranscript:
+            break
+        }
+
+        continuation.yield(event)
+        scheduleSwitchIfPossible()
+    }
+}
+
+@MainActor
 final class UnavailableDictationSessionCoordinator: DictationSessionCoordinating {
     let events: AsyncStream<DictationCoordinatorEvent>
     private(set) var phase: DictationCoordinatorPhase

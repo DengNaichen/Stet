@@ -25,6 +25,32 @@ struct DictationSessionCoordinatorTests {
     }
 
     @Test
+    func selectableCoordinatorSwitchesToTheChosenIdleModel() async throws {
+        let senseVoice = SwitchingChildCoordinator(engineName: "SenseVoice")
+        let whisper = SwitchingChildCoordinator(engineName: "Whisper large-v3-turbo")
+        let subject = SelectableDictationSessionCoordinator(selectedModel: .senseVoice) { model in
+            switch model {
+            case .senseVoice: senseVoice
+            case .whisperLargeV3Turbo: whisper
+            }
+        }
+        var events = subject.events.makeAsyncIterator()
+
+        subject.start()
+        expectLoading(try await nextEvent(&events))
+        expectReady(try await nextEvent(&events), engineName: "SenseVoice")
+
+        subject.selectModel(.whisperLargeV3Turbo)
+        expectLoading(try await nextEvent(&events))
+        expectReady(try await nextEvent(&events), engineName: "Whisper large-v3-turbo")
+
+        #expect(senseVoice.shutdownCallCount == 1)
+        #expect(whisper.startCallCount == 1)
+        #expect(subject.phase == .idle)
+        await subject.shutdown()
+    }
+
+    @Test
     func startStopAndFinalResultCompleteTheSession() async throws {
         let fixture = makeFixture()
         var events = fixture.coordinator.events.makeAsyncIterator()
@@ -422,6 +448,40 @@ private struct CoordinatorFixture {
     let sessionStore: InMemoryDictationSessionStore
     let commandMonitor: FakeKeyboardCommandMonitor
     let notificationCenter: NotificationCenter
+}
+
+@MainActor
+private final class SwitchingChildCoordinator: DictationSessionCoordinating {
+    let events: AsyncStream<DictationCoordinatorEvent>
+    private(set) var phase: DictationCoordinatorPhase = .inactive
+    private(set) var startCallCount = 0
+    private(set) var shutdownCallCount = 0
+
+    private let continuation: AsyncStream<DictationCoordinatorEvent>.Continuation
+    private let engineName: String
+
+    init(engineName: String) {
+        self.engineName = engineName
+        (events, continuation) = AsyncStream.makeStream()
+    }
+
+    func start() {
+        startCallCount += 1
+        phase = .idle
+        continuation.yield(.ready(engineName: engineName))
+    }
+
+    func recoverAudioSession() {}
+    func synchronizeKeyboardCommands() {}
+    func startRecording(sessionId _: String) {}
+    func stopRecording(sessionId _: String?) {}
+    func cancelRecording(sessionId _: String) {}
+
+    func shutdown() async {
+        shutdownCallCount += 1
+        phase = .inactive
+        continuation.finish()
+    }
 }
 
 @MainActor

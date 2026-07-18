@@ -90,14 +90,19 @@ struct ContentView: View {
         let store = RewriteSettingsStore()
         let coordinator = PreviewDictationSessionCoordinator()
         let dictationViewModel = SenseVoiceViewModel(coordinator: coordinator)
-        return ContentView(
+        ContentView(
             appViewModel: AppViewModel(dictationViewModel: dictationViewModel),
             viewModel: dictationViewModel,
             rewriteSettingsViewModel: RewriteSettingsViewModel(
                 settingsStore: store,
-                localModelManager: UnavailableLocalDictationModelManager(
-                    currentStatus: .notDownloaded
-                )
+                localModelManagers: [
+                    .senseVoice: UnavailableLocalDictationModelManager(
+                        currentStatus: .notDownloaded
+                    ),
+                    .whisperLargeV3Turbo: UnavailableLocalDictationModelManager(
+                        currentStatus: .notDownloaded
+                    ),
+                ]
             )
         )
     }

@@ -1,4 +1,41 @@
+import Combine
 import Foundation
+
+enum MobileDictationModel: String, CaseIterable, Identifiable, Sendable {
+    case senseVoice
+    case whisperLargeV3Turbo
+
+    var id: Self { self }
+
+    var displayName: String {
+        switch self {
+        case .senseVoice:
+            "SenseVoice"
+        case .whisperLargeV3Turbo:
+            "Whisper large-v3-turbo"
+        }
+    }
+}
+
+@MainActor
+final class LocalDictationSettingsStore: ObservableObject {
+    @Published var selectedModel: MobileDictationModel {
+        didSet {
+            defaults.set(selectedModel.rawValue, forKey: Self.selectedModelKey)
+        }
+    }
+
+    private static let selectedModelKey = "dictation.localModel"
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        selectedModel =
+            defaults.string(forKey: Self.selectedModelKey)
+            .flatMap(MobileDictationModel.init(rawValue:))
+            ?? .senseVoice
+    }
+}
 
 protocol LocalDictationModelManaging {
     func status() async -> ASRModelStatus

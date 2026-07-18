@@ -9,23 +9,25 @@ struct RewriteSettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 16) {
-                            localModelSummary
-                            Spacer(minLength: 8)
-                            localModelAction
-                        }
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            localModelSummary
-                            localModelAction
+                    Picker(
+                        "Engine",
+                        selection: $viewModel.dictationSettingsStore.selectedModel
+                    ) {
+                        ForEach(viewModel.availableDictationModels) { model in
+                            Text(model.displayName).tag(model)
                         }
                     }
-                    .buttonStyle(.borderless)
+                    .onChange(of: viewModel.dictationSettingsStore.selectedModel) {
+                        viewModel.onDictationModelSelected()
+                    }
+
+                    ForEach(viewModel.availableDictationModels) { model in
+                        localModelRow(model)
+                    }
                 } header: {
-                    Text("Dictation Model")
+                    Text("On-Device Dictation")
                 } footer: {
-                    Text(localModelFooter)
+                    Text("Choose the active engine and manage each model independently.")
                 }
 
                 Section {
@@ -90,22 +92,39 @@ struct RewriteSettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
             .task {
-                await viewModel.refreshLocalModelStatus()
+                await viewModel.refreshLocalModelStatuses()
             }
         }
     }
 
     @ViewBuilder
-    private var localModelSummary: some View {
+    private func localModelRow(_ model: MobileDictationModel) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 16) {
+                localModelSummary(model)
+                Spacer(minLength: 8)
+                localModelAction(model)
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                localModelSummary(model)
+                localModelAction(model)
+            }
+        }
+        .buttonStyle(.borderless)
+    }
+
+    @ViewBuilder
+    private func localModelSummary(_ model: MobileDictationModel) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text("Whisper large-v3-turbo")
-            localModelStatus
+            Text(model.displayName)
+            localModelStatus(model)
         }
     }
 
     @ViewBuilder
-    private var localModelStatus: some View {
-        switch viewModel.localModelState {
+    private func localModelStatus(_ model: MobileDictationModel) -> some View {
+        switch viewModel.localModelState(for: model) {
         case .checking:
             statusProgress("Checking…")
         case .notDownloaded:
@@ -131,35 +150,24 @@ struct RewriteSettingsView: View {
         }
     }
 
-    private var localModelFooter: String {
-        switch viewModel.localModelState {
-        case .downloadFailed:
-            "The model couldn't be downloaded. Check your connection and try again."
-        case .deletionFailed:
-            "The model couldn't be deleted. Try again."
-        default:
-            "Download it for private, on-device dictation, or delete it to free storage."
-        }
-    }
-
     @ViewBuilder
-    private var localModelAction: some View {
-        switch viewModel.localModelState {
+    private func localModelAction(_ model: MobileDictationModel) -> some View {
+        switch viewModel.localModelState(for: model) {
         case .notDownloaded:
             Button("Download") {
-                Task { await viewModel.downloadLocalModel() }
+                Task { await viewModel.downloadLocalModel(model) }
             }
         case .downloadFailed:
             Button("Try Again") {
-                Task { await viewModel.downloadLocalModel() }
+                Task { await viewModel.downloadLocalModel(model) }
             }
         case .downloaded:
             Button("Delete", role: .destructive) {
-                Task { await viewModel.deleteLocalModel() }
+                Task { await viewModel.deleteLocalModel(model) }
             }
         case .deletionFailed:
             Button("Try Again", role: .destructive) {
-                Task { await viewModel.deleteLocalModel() }
+                Task { await viewModel.deleteLocalModel(model) }
             }
         case .checking, .downloading, .deleting:
             EmptyView()

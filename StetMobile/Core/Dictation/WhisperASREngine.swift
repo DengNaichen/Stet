@@ -96,7 +96,7 @@ final class WhisperASREngine: ASREngine {
             let rtf = audioDuration > 0 ? wallDuration / audioDuration : 0
             await runtime.releaseResources()
 
-            continuation.yield(
+            let result = await MainActor.run {
                 ASRResult(
                     sessionId: recording.sessionId,
                     text: text.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -108,7 +108,8 @@ final class WhisperASREngine: ASREngine {
                         rtf: rtf
                     )
                 )
-            )
+            }
+            continuation.yield(result)
             logger.info(
                 "event=transcription_completed audio_seconds=\(audioDuration, privacy: .public) wall_seconds=\(wallDuration, privacy: .public) rtf=\(rtf, privacy: .public)"
             )
@@ -164,7 +165,7 @@ final class WhisperASREngine: ASREngine {
     }
 
     private func configureAudioEngine() throws {
-        guard audioEngine == nil, let outputFormat else { return }
+        guard audioEngine == nil, outputFormat != nil else { return }
 
         let engine = AVAudioEngine()
         let input = engine.inputNode
