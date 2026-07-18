@@ -1,5 +1,6 @@
 #if os(macOS)
     import Foundation
+    import StetCore
     import Testing
 
     @testable import Stet
@@ -17,10 +18,13 @@
             let sampleURL = modelsDirectoryURL.appendingPathComponent("sample.wav")
             try Data("sample".utf8).write(to: sampleURL)
 
+            let configuration = UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults())
+            configuration.saveTranscriptionEngine(.localWhisper)
             let createdServices = CreatedWarmServices()
             let coordinator = LocalWhisperWarmupCoordinator(
+                configuration: configuration,
                 modelManager: LocalWhisperModelManager(
-                    configuration: UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults()),
+                    configuration: configuration,
                     modelsDirectoryProvider: { modelsDirectoryURL },
                     runtimeAvailableProvider: { true }
                 ),
@@ -38,8 +42,10 @@
 
             let services = createdServices.snapshot()
             #expect(services.count == 2)
-            #expect(services[0].transcribeCallCount == 1)
-            #expect(services[1].transcribeCallCount == 1)
+            let firstService = try #require(services.first)
+            let secondService = try #require(services.dropFirst().first)
+            #expect(firstService.transcribeCallCount == 1)
+            #expect(secondService.transcribeCallCount == 1)
         }
 
         @Test func warmupSkipsServiceCreationWhenModelIsMissing() async throws {
@@ -49,10 +55,13 @@
             let sampleURL = modelsDirectoryURL.appendingPathComponent("sample.wav")
             try Data("sample".utf8).write(to: sampleURL)
 
+            let configuration = UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults())
+            configuration.saveTranscriptionEngine(.localWhisper)
             let createdServices = CreatedWarmServices()
             let coordinator = LocalWhisperWarmupCoordinator(
+                configuration: configuration,
                 modelManager: LocalWhisperModelManager(
-                    configuration: UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults()),
+                    configuration: configuration,
                     modelsDirectoryProvider: { modelsDirectoryURL },
                     runtimeAvailableProvider: { true }
                 ),
