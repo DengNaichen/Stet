@@ -79,6 +79,28 @@ struct RewriteSettingsViewModelTests {
         #expect(await manager.status(for: SenseVoiceModelManager.modelName) == .notDownloaded)
         #expect(!FileManager.default.fileExists(atPath: directory.path))
     }
+
+    @Test func whisperModelManagerFindsAndDeletesDownloadedModel() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("StetWhisperModelDeletionTests", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let modelURL = directory.appendingPathComponent(WhisperModelManager.modelFileName)
+        try Data([1]).write(to: modelURL)
+
+        let manager = try WhisperModelManager(modelsDirectory: directory)
+        #expect(
+            await manager.status(for: WhisperModelManager.modelName)
+                == .ready(localURL: modelURL)
+        )
+
+        try await manager.deleteModel(for: WhisperModelManager.modelName)
+
+        #expect(await manager.status(for: WhisperModelManager.modelName) == .notDownloaded)
+        #expect(!FileManager.default.fileExists(atPath: directory.path))
+    }
 }
 
 @MainActor

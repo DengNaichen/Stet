@@ -22,6 +22,22 @@ struct SenseVoiceLocalDictationModelManager: LocalDictationModelManaging {
     }
 }
 
+struct WhisperLocalDictationModelManager: LocalDictationModelManaging {
+    let modelManager: WhisperModelManager
+
+    func status() async -> ASRModelStatus {
+        await modelManager.status(for: WhisperModelManager.modelName)
+    }
+
+    func download() async throws {
+        try await modelManager.downloadIfNeeded(for: WhisperModelManager.modelName)
+    }
+
+    func delete() async throws {
+        try await modelManager.deleteModel(for: WhisperModelManager.modelName)
+    }
+}
+
 struct UnavailableLocalDictationModelManager: LocalDictationModelManaging {
     let currentStatus: ASRModelStatus
 

@@ -15,6 +15,7 @@
 		B10000012FA5000000000001 /* StetCore in Frameworks */ = {isa = PBXBuildFile; productRef = B10000042FA5000000000004 /* StetCore */; };
 		B10000022FA5000000000002 /* StetAI in Frameworks */ = {isa = PBXBuildFile; productRef = B10000052FA5000000000005 /* StetAI */; };
 		B10000032FA5000000000003 /* StetRewrite in Frameworks */ = {isa = PBXBuildFile; productRef = B10000062FA5000000000006 /* StetRewrite */; };
+		E20000032FC0000000000003 /* whisper in Frameworks */ = {isa = PBXBuildFile; productRef = E20000022FC0000000000002 /* whisper */; };
 		C10000012FA6000000000001 /* ASREngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000001 /* ASREngine.swift */; };
 		C10000012FA6000000000002 /* ASRModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000002 /* ASRModelManager.swift */; };
 		C10000012FA6000000000003 /* AudioBuffer+Samples.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000003 /* AudioBuffer+Samples.swift */; };
@@ -159,6 +160,7 @@
 			files = (
 				A10000022FA4000000000002 /* onnxruntime.xcframework in Frameworks */,
 				A10000012FA4000000000001 /* sherpa-onnx.xcframework in Frameworks */,
+				E20000032FC0000000000003 /* whisper in Frameworks */,
 				B10000012FA5000000000001 /* StetCore in Frameworks */,
 				B10000022FA5000000000002 /* StetAI in Frameworks */,
 				B10000032FA5000000000003 /* StetRewrite in Frameworks */,
@@ -273,6 +275,7 @@
 				B10000042FA5000000000004 /* StetCore */,
 				B10000052FA5000000000005 /* StetAI */,
 				B10000062FA5000000000006 /* StetRewrite */,
+				E20000022FC0000000000002 /* whisper */,
 			);
 			productName = StetMobile;
 			productReference = 6DD04D4C2FA3B64B004D9143 /* StetMobile.app */;
@@ -409,6 +412,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				B10000072FA5000000000007 /* XCLocalSwiftPackageReference "../Packages/StetEngine" */,
+				E20000012FC0000000000001 /* XCLocalSwiftPackageReference "../Packages/StetEngine/Vendor/WhisperPackage" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6DD04D4D2FA3B64B004D9143 /* Products */;
@@ -668,7 +672,7 @@
 				INFOPLIST_FILE = StetMobile/Info.plist;
 				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.stetmobile.dictate\";\n    CFBundleURLSchemes =     (\n        stetmobile\n    );\n}";
 				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record microphone audio for local SenseVoice transcription.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record microphone audio for private, on-device transcription.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = audio;
@@ -709,7 +713,7 @@
 				INFOPLIST_FILE = StetMobile/Info.plist;
 				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.stetmobile.dictate\";\n    CFBundleURLSchemes =     (\n        stetmobile\n    );\n}";
 				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record microphone audio for local SenseVoice transcription.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record microphone audio for private, on-device transcription.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = audio;
@@ -1022,6 +1026,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../Packages/StetEngine;
 		};
+		E20000012FC0000000000001 /* XCLocalSwiftPackageReference "../Packages/StetEngine/Vendor/WhisperPackage" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../Packages/StetEngine/Vendor/WhisperPackage;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1036,6 +1044,10 @@
 		B10000062FA5000000000006 /* StetRewrite */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = StetRewrite;
+		};
+		E20000022FC0000000000002 /* whisper */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = whisper;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

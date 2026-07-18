@@ -57,8 +57,8 @@ private enum StetMobileComposition {
         settingsStore: RewriteSettingsStore
     ) -> Dependencies {
         do {
-            let modelManager = try SenseVoiceModelManager()
-            let engine = SherpaOnnxASREngine(modelManager: modelManager)
+            let modelManager = try WhisperModelManager()
+            let engine = WhisperASREngine(modelManager: modelManager)
             engine.onVolumeUpdate = { level in
                 SharedDictationManager.shared.updateVolume(level)
             }
@@ -68,12 +68,13 @@ private enum StetMobileComposition {
                 dictationCoordinator: DictationSessionCoordinator(
                     engine: engine,
                     modelManager: modelManager,
+                    modelName: WhisperModelManager.modelName,
                     permissionProvider: SystemMicrophonePermissionProvider(),
                     sessionStore: sessionStore,
                     postProcessor: SettingsTranscriptPostProcessor(settingsStore: settingsStore),
                     commandMonitor: SharedKeyboardCommandMonitor(sessionStore: sessionStore)
                 ),
-                localModelManager: SenseVoiceLocalDictationModelManager(modelManager: modelManager)
+                localModelManager: WhisperLocalDictationModelManager(modelManager: modelManager)
             )
         } catch {
             return Dependencies(

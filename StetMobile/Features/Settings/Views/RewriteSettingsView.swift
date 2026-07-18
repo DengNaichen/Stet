@@ -98,7 +98,7 @@ struct RewriteSettingsView: View {
     @ViewBuilder
     private var localModelSummary: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text("On-Device Dictation")
+            Text("Whisper large-v3-turbo")
             localModelStatus
         }
     }
