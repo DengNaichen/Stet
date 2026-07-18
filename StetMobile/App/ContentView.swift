@@ -63,7 +63,6 @@ struct ContentView: View {
         case .idle: return viewModel.partialStatus
         case .loading: return "Loading model..."
         case .recording: return viewModel.partialStatus
-        case .warming: return "Warming up SenseVoice..."
         case .failed(let message): return message
         }
     }

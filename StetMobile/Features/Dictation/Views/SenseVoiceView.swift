@@ -68,8 +68,6 @@ struct SenseVoiceView: View {
             return "Loading model..."
         case .recording:
             return viewModel.partialStatus
-        case .warming:
-            return "Warming up SenseVoice..."
         case .failed(let message):
             return message
         }

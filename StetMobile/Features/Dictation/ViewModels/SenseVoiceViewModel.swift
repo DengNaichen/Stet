@@ -13,7 +13,6 @@ final class SenseVoiceViewModel: ObservableObject {
         case idle
         case loading
         case recording
-        case warming
         case failed(String)
     }
 

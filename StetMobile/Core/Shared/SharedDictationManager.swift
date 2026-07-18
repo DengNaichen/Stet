@@ -63,12 +63,6 @@ class SharedDictationManager {
         saveSession(session)
     }
     
-    func updateError(_ error: String) {
-        guard var session = getSession() else { return }
-        session.error = error
-        saveSession(session)
-    }
-    
     func updateText(partial: String, final: String) {
         guard var session = getSession() else { return }
         session.partialText = partial
@@ -76,11 +70,6 @@ class SharedDictationManager {
         session.revision += 1
         session.updatedAt = Date()
         saveSession(session)
-    }
-    
-    func clearSession() {
-        defaults?.removeObject(forKey: sessionKey)
-        defaults?.synchronize()
     }
     
     // MARK: - Pending Keyboard Session ID
