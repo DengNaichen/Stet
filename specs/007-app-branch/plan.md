@@ -55,7 +55,7 @@ specs/007-app-branch/
 ### Source Code (repository root)
 
 ```text
-Stet/
+StetMac/
 ├── App/
 │   └── Workflows/
 │       └── MacAppSessionController.swift
@@ -78,7 +78,7 @@ StetTests/
     └── MacAppSessionControllerSettingsTests.swift
 ```
 
-**Structure Decision**: Keep the feature embedded in the main app target under `Stet/Core/AppBranch` and document only the real public surface. The current implementation is not a standalone module even though the old `.kiro` draft described it that way.
+**Structure Decision**: Keep the feature embedded in the main app target under `StetMac/Core/AppBranch` and document only the real public surface. The current implementation is not a standalone module even though the old `.kiro` draft described it that way.
 
 ## Complexity Tracking
 

@@ -68,22 +68,22 @@ specs/006-text-output-handling/
 ### Relevant Source Code
 
 ```text
-Stet/App/Workflows/
+StetMac/App/Workflows/
 ├── MacDictationCaptureCoordinator.swift
 ├── MacDictationWorkflowController.swift
 └── MacAppSessionController.swift
 
-Stet/App/Lifecycle/
+StetMac/App/Lifecycle/
 └── MacPermissionManager.swift
 
-Stet/Core/Clipboard/
+StetMac/Core/Clipboard/
 ├── ClipboardService.swift
 └── PasteboardRestoreCoordinator.swift
 
-Stet/Core/TextInput/
+StetMac/Core/TextInput/
 └── TextInjectionService.swift
 
-Stet/Features/Dictation/
+StetMac/Features/Dictation/
 ├── DictationAction.swift
 ├── DictationFailure.swift
 ├── DictationState.swift
@@ -182,7 +182,7 @@ This is the main mitigation against the false-success risk. If one of the profil
 
 ### 5. Component-Level Design
 
-#### `Stet/Core/TextInput/TextInjectionService.swift`
+#### `StetMac/Core/TextInput/TextInjectionService.swift`
 
 - Keep the `TextInjectionOutcome` surface small and outcome-oriented rather than pushing app-specific policy into the service.
 - Continue bounded verification polling for all apps.
@@ -190,19 +190,19 @@ This is the main mitigation against the false-success risk. If one of the profil
 - Allow the implementation to return a narrower text-input-context verification-unavailable result when the paste event is posted, the focused element still looks editable or text-like, and mutation still cannot be confirmed.
 - No app-specific policy should be embedded here.
 
-#### `Stet/App/Workflows/MacDictationCaptureCoordinator.swift`
+#### `StetMac/App/Workflows/MacDictationCaptureCoordinator.swift`
 
 - Add the internal target-app profile resolution step before interpreting the paste result.
 - Reclassify only the text-input-context verification-unavailable outcome as completed when the resolved target-app profile is optimistic-verification-blind.
 - Skip fallback clipboard copy and skip visible failure/panel behavior for that profiled path.
 - Request permission remediation only for the existing missing-permission path, not for the profiled optimistic case.
 
-#### `Stet/Core/Clipboard/PasteboardRestoreCoordinator.swift`
+#### `StetMac/Core/Clipboard/PasteboardRestoreCoordinator.swift`
 
 - Extend restore scheduling so the output workflow can request a longer restore delay for the optimistic-delivery path.
 - Reuse the existing snapshot-match guard so delayed restoration still avoids overwriting newer clipboard content.
 
-#### `Stet/App/Workflows/MacAppSessionController.swift`
+#### `StetMac/App/Workflows/MacAppSessionController.swift`
 
 - No new session or panel states are required.
 - The session controller should continue mapping `completed`, `clipboardPending`, and `failed` exactly as it does now.

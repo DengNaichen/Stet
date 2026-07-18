@@ -46,12 +46,12 @@ specs/003-audio-capture-pipeline/
 ### Source Code (repository root)
 
 ```text
-Stet/Core/Speech/
+StetMac/Core/Speech/
 ├── AudioCaptureService.swift
 ├── ConfigurableSpeechService.swift
 └── MacAudioCaptureService.swift
 
-Stet/Core/Audio/
+StetMac/Core/Audio/
 ├── Levels/
 │   ├── AudioLevelBridge.swift
 │   └── AudioLevelNormalizer.swift
@@ -66,7 +66,7 @@ Stet/Core/Audio/
     ├── MacCaptureAudioSampleBufferConverter.swift
     └── MacCaptureAudioSessionFactory.swift
 
-Stet/Features/Dictation/
+StetMac/Features/Dictation/
 └── MicrophoneTest/
     ├── DefaultMicrophoneTestService.swift
     ├── MicrophoneTestService.swift
@@ -89,7 +89,7 @@ StetTests/Core/
     └── ConfigurableSpeechServiceTests.swift
 ```
 
-**Structure Decision**: This feature is documented as shared capture infrastructure. The concrete macOS implementation lives under `Stet/Core/Speech`, `Stet/Core/Audio/Capture`, `Stet/Core/Audio/Levels`, and `Stet/Core/Audio/Recording`, with shared consumer coverage in dictation and microphone test features.
+**Structure Decision**: This feature is documented as shared capture infrastructure. The concrete macOS implementation lives under `StetMac/Core/Speech`, `StetMac/Core/Audio/Capture`, `StetMac/Core/Audio/Levels`, and `StetMac/Core/Audio/Recording`, with shared consumer coverage in dictation and microphone test features.
 
 ## Implementation Observations
 

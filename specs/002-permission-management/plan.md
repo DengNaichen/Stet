@@ -58,29 +58,29 @@ specs/002-permission-management/
 ### Relevant Source Code
 
 ```text
-Stet/App/Lifecycle/
+StetMac/App/Lifecycle/
 ├── MacAppContracts.swift
 ├── MacAppModel.swift
 └── MacPermissionManager.swift
 
-Stet/App/Workflows/
+StetMac/App/Workflows/
 └── MacAppSessionController.swift
 
-Stet/App/Windowing/
+StetMac/App/Windowing/
 └── MacPermissionGateController.swift
 
-Stet/Features/Onboarding/
+StetMac/Features/Onboarding/
 ├── OnboardingViewModel.swift
 └── Steps/OnboardingPermissionsStep.swift
 
-Stet/Features/MacShell/PermissionFailure/
+StetMac/Features/MacShell/PermissionFailure/
 ├── RuntimePermissionFailureView.swift
 └── RuntimePermissionFailureViewModel.swift
 
-Stet/Core/TextInput/
+StetMac/Core/TextInput/
 └── TextInjectionService.swift
 
-Stet/Core/Speech/
+StetMac/Core/Speech/
 └── MacAudioCaptureService.swift
 ```
 

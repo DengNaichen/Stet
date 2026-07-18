@@ -59,7 +59,7 @@ specs/001-audio-device-management/
 ### Relevant Source Code
 
 ```text
-Stet/Core/Audio/Devices/
+StetMac/Core/Audio/Devices/
 ├── AudioHardwareDevice.swift
 ├── AudioInputDeviceManager.swift
 ├── AudioDeviceProviding.swift
@@ -67,29 +67,29 @@ Stet/Core/Audio/Devices/
 ├── AudioDeviceSelectionManager.swift
 └── AudioDeviceChangeMonitor.swift
 
-Stet/Core/Audio/Capture/
+StetMac/Core/Audio/Capture/
 ├── MacCaptureAudioCaptureError.swift
 ├── MacCaptureAudioDevicePlanner.swift
 └── MacCaptureAudioFileRecorder.swift
 
-Stet/Core/Speech/
+StetMac/Core/Speech/
 └── MacAudioCaptureService.swift
 
-Stet/Features/MacShell/AudioDeviceManagement/
+StetMac/Features/MacShell/AudioDeviceManagement/
 ├── AudioInputDeviceSettingsSection.swift
 └── AudioInputDeviceMenuSection.swift
 
-Stet/Features/MacShell/AudioSetting/
+StetMac/Features/MacShell/AudioSetting/
 ├── MacAudioSettingsView.swift
 └── MacAudioSettingsViewModel.swift
 
-Stet/Features/Dictation/MicrophoneTest/
+StetMac/Features/Dictation/MicrophoneTest/
 ├── MicrophoneTestService.swift
 ├── DefaultMicrophoneTestService.swift
 ├── MicrophoneTestViewModel.swift
 └── MicrophoneTestView.swift
 
-Stet/Features/Onboarding/Components/
+StetMac/Features/Onboarding/Components/
 └── OnboardingComponents.swift
 ```
 

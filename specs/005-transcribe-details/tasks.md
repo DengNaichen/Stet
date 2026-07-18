@@ -19,8 +19,8 @@
 
 **Purpose**: Confirm the final write scope for the capability split and document the new folder/type boundary.
 
-- [X] T001 Inspect `Stet/Shared/Utilities/DictationSettingsStore.swift`, `Stet/Core/DictationPipeline/DictationPipelineFactory.swift`, and `Stet/Core/Speech/ConfigurableSpeechService.swift` to confirm the final write scope before code changes
-- [X] T002 Inspect `Stet/Core/AIProviders/OpenAICompatible/OpenAISDKClientFactory.swift`, `Stet/Core/AIProviders/OpenAI/OpenAITranscriptionService.swift`, and `Stet/Core/AIProviders/OpenAI/OpenAIRewriteService.swift` to confirm which naming and adapter layers stay OpenAI-compatible
+- [X] T001 Inspect `StetMac/Shared/Utilities/DictationSettingsStore.swift`, `StetMac/Core/DictationPipeline/DictationPipelineFactory.swift`, and `StetMac/Core/Speech/ConfigurableSpeechService.swift` to confirm the final write scope before code changes
+- [X] T002 Inspect `StetMac/Core/AIProviders/OpenAICompatible/OpenAISDKClientFactory.swift`, `StetMac/Core/AIProviders/OpenAI/OpenAITranscriptionService.swift`, and `StetMac/Core/AIProviders/OpenAI/OpenAIRewriteService.swift` to confirm which naming and adapter layers stay OpenAI-compatible
 
 ---
 
@@ -30,12 +30,12 @@
 
 **⚠️ CRITICAL**: No user story work should begin until this phase is complete
 
-- [X] T003 Introduce provider-neutral capability config types and shared endpoint/auth config under `Stet/Core/AIProviders/`
+- [X] T003 Introduce provider-neutral capability config types and shared endpoint/auth config under `StetMac/Core/AIProviders/`
 - [X] T004 Move provider defaults and settings/UI pair-policy resolution into the new provider-neutral layer without introducing a generalized provider framework
-- [X] T005 Update `Stet/Shared/Utilities/DictationSettingsStore.swift` so the snapshot carries separate provider selections and separate capability configs for BYOK
+- [X] T005 Update `StetMac/Shared/Utilities/DictationSettingsStore.swift` so the snapshot carries separate provider selections and separate capability configs for BYOK
 - [X] T006 Apply naming cleanup for configuration-facing types and files while keeping `OpenAI*` names only for the OpenAI-compatible adapter layer
-- [X] T007 Remove execution-time unsupported-pair enforcement from `Stet/Core/DictationPipeline/DictationExecutionRoute.swift` while keeping step-aware BYOK preflight validation
-- [X] T008 Update `Stet/Features/Dictation/DictationFailure.swift` and related provider error types to preserve step-aware configuration failures and keep unsupported-pair messaging decoupled from execution
+- [X] T007 Remove execution-time unsupported-pair enforcement from `StetMac/Core/DictationPipeline/DictationExecutionRoute.swift` while keeping step-aware BYOK preflight validation
+- [X] T008 Update `StetMac/Features/Dictation/DictationFailure.swift` and related provider error types to preserve step-aware configuration failures and keep unsupported-pair messaging decoupled from execution
 
 **Checkpoint**: Shared provider modeling, adapter boundaries, and BYOK preflight are ready; feature-level wiring can now proceed safely
 
@@ -55,10 +55,10 @@
 
 ### Implementation for Phase 3
 
-- [X] T012 Update `Stet/Core/DictationPipeline/DictationPipelineFactory.swift` so direct transcription and rewrite services are built from separate capability-specific configs
-- [X] T013 Update `Stet/Core/AIProviders/OpenAI/OpenAITranscriptionService.swift` and `Stet/Core/AIProviders/OpenAI/OpenAIRewriteService.swift` to consume the new capability-specific configs
-- [X] T014 Update `Stet/Core/AIProviders/OpenAICompatible/OpenAISDKClientFactory.swift` and onboarding API-key validation to use the shared OpenAI-compatible endpoint/auth config
-- [X] T015 Keep `Stet/Core/Speech/ConfigurableSpeechService.swift` on the current two-step flow while consuming the new pipeline inputs
+- [X] T012 Update `StetMac/Core/DictationPipeline/DictationPipelineFactory.swift` so direct transcription and rewrite services are built from separate capability-specific configs
+- [X] T013 Update `StetMac/Core/AIProviders/OpenAI/OpenAITranscriptionService.swift` and `StetMac/Core/AIProviders/OpenAI/OpenAIRewriteService.swift` to consume the new capability-specific configs
+- [X] T014 Update `StetMac/Core/AIProviders/OpenAICompatible/OpenAISDKClientFactory.swift` and onboarding API-key validation to use the shared OpenAI-compatible endpoint/auth config
+- [X] T015 Keep `StetMac/Core/Speech/ConfigurableSpeechService.swift` on the current two-step flow while consuming the new pipeline inputs
 
 **Checkpoint**: The runtime uses a provider-neutral capability boundary with OpenAI-compatible adapters above it
 
@@ -77,8 +77,8 @@
 
 ### Implementation for Phase 4
 
-- [X] T018 Update `Stet/Features/MacShell/Openai/MacOpenAISettingsViewModel.swift` so unsupported-pair policy comes from settings/UI policy only
-- [X] T019 Update dictation-facing failure messaging under `Stet/Features/Dictation/` so step-aware configuration failures remain clear without depending on execution-time pair rejection
+- [X] T018 Update `StetMac/Features/MacShell/Openai/MacOpenAISettingsViewModel.swift` so unsupported-pair policy comes from settings/UI policy only
+- [X] T019 Update dictation-facing failure messaging under `StetMac/Features/Dictation/` so step-aware configuration failures remain clear without depending on execution-time pair rejection
 
 **Checkpoint**: Unsupported-pair policy is now a settings/UI concern, not a runtime assembly concern
 

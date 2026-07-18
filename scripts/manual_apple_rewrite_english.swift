@@ -43,7 +43,7 @@ let reminder = """
     """
 
 let examplesURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-    .appendingPathComponent("Stet/Resources/Prompts/Rewrite_en.txt")
+    .appendingPathComponent("StetMac/Resources/Prompts/Rewrite_en.txt")
 let examples = try String(contentsOf: examplesURL, encoding: .utf8)
 
 let instructions = """

@@ -42,14 +42,14 @@ specs/004-audio-post-processing/
 ### Source Code (repository root)
 
 ```text
-Stet/Core/Audio/Processing/
+StetMac/Core/Audio/Processing/
 ├── AudioPostProcessing.swift
 ├── AudioSignalAnalyzer.swift
 ├── DefaultAudioPostProcessor.swift
 ├── SpeechAwareGainProcessor.swift
 └── SpeechEnhancementTypes.swift
 
-Stet/Core/Speech/
+StetMac/Core/Speech/
 └── ConfigurableSpeechService.swift
 
 StetTests/Core/Audio/Processing/
@@ -63,7 +63,7 @@ StetTests/Core/Speech/
 └── ConfigurableSpeechServiceTests.swift
 ```
 
-**Structure Decision**: The feature is implemented as an internal processing stage between capture and transcription. The documentation lives under `specs/004-audio-post-processing/`, while the behavior is anchored by the audio-processing types in `Stet/Core/Audio/Processing/` and the speech pipeline integration in `Stet/Core/Speech/ConfigurableSpeechService.swift`.
+**Structure Decision**: The feature is implemented as an internal processing stage between capture and transcription. The documentation lives under `specs/004-audio-post-processing/`, while the behavior is anchored by the audio-processing types in `StetMac/Core/Audio/Processing/` and the speech pipeline integration in `StetMac/Core/Speech/ConfigurableSpeechService.swift`.
 
 ## Design
 

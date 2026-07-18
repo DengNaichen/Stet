@@ -42,10 +42,10 @@ The current codebase now centralizes provider endpoint/auth handling in a shared
 
 Relevant implementation points:
 
-- `Stet/Core/AIProviders/OpenAICompatible/OpenAICompatibleProviderConfiguration.swift`
-- `Stet/Core/AIProviders/OpenAICompatible/OpenAISDKClientFactory.swift`
-- `Stet/Core/AIProviders/OpenAI/OpenAITranscriptionService.swift`
-- `Stet/Core/AIProviders/OpenAI/OpenAIRewriteService.swift`
+- `StetMac/Core/AIProviders/OpenAICompatible/OpenAICompatibleProviderConfiguration.swift`
+- `StetMac/Core/AIProviders/OpenAICompatible/OpenAISDKClientFactory.swift`
+- `StetMac/Core/AIProviders/OpenAI/OpenAITranscriptionService.swift`
+- `StetMac/Core/AIProviders/OpenAI/OpenAIRewriteService.swift`
 
 Alternatives considered:
 
@@ -110,7 +110,7 @@ Rationale: The root `research.md` is useful source material, but it is broader a
 Source material incorporated:
 
 - Root-level model comparison and cost/latency findings from `/research.md`
-- Current provider defaults in `Stet/Core/AIProviders/OpenAICompatible/OpenAICompatibleProviderConfiguration.swift`
+- Current provider defaults in `StetMac/Core/AIProviders/OpenAICompatible/OpenAICompatibleProviderConfiguration.swift`
 
 Alternatives considered:
 

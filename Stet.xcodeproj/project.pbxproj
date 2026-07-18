@@ -85,7 +85,7 @@
 			exceptions = (
 				6D2A00012FA1111100000001 /* Exceptions for "Stet" folder in "Stet" target */,
 			);
-			path = Stet;
+			path = StetMac;
 			sourceTree = "<group>";
 		};
 		6D29DC8F2F5FA23100267DEA /* StetTests */ = {
@@ -596,7 +596,7 @@
 				AUTOMATION_APPLE_EVENTS = NO;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CODE_SIGN_ENTITLEMENTS = Stet/Stet.entitlements;
+				CODE_SIGN_ENTITLEMENTS = StetMac/Stet.entitlements;
 				CURRENT_PROJECT_VERSION = 4000;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
@@ -650,7 +650,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				AUTOMATION_APPLE_EVENTS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CODE_SIGN_ENTITLEMENTS = Stet/Stet.entitlements;
+				CODE_SIGN_ENTITLEMENTS = StetMac/Stet.entitlements;
 				CURRENT_PROJECT_VERSION = 4000;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 67BL3M4FPS;

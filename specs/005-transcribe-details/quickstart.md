@@ -7,15 +7,15 @@ Validate BYOK dictation provider splitting on macOS without regressing dictation
 ## Entry Points
 
 - Settings persistence and provider selection:
-  - `Stet/Features/MacShell/Openai/MacOpenAISettingsViewModel.swift`
-  - `Stet/Features/MacShell/Openai/MacOpenAISettingsView.swift`
+  - `StetMac/Features/MacShell/Openai/MacOpenAISettingsViewModel.swift`
+  - `StetMac/Features/MacShell/Openai/MacOpenAISettingsView.swift`
 - Runtime routing and pipeline wiring:
-  - `Stet/Core/DictationPipeline/DictationExecutionRoute.swift`
-  - `Stet/Core/DictationPipeline/DictationPipelineFactory.swift`
-  - `Stet/Core/Speech/ConfigurableSpeechService.swift`
+  - `StetMac/Core/DictationPipeline/DictationExecutionRoute.swift`
+  - `StetMac/Core/DictationPipeline/DictationPipelineFactory.swift`
+  - `StetMac/Core/Speech/ConfigurableSpeechService.swift`
 - User-facing failure mapping:
-  - `Stet/Features/Dictation/DictationFailure.swift`
-  - `Stet/Features/Dictation/DictationViewModel.swift`
+  - `StetMac/Features/Dictation/DictationFailure.swift`
+  - `StetMac/Features/Dictation/DictationViewModel.swift`
 
 ## Supported Provider Combinations
 

@@ -15,7 +15,7 @@
 
 ## Where To Start
 
-- Project start: begin with this `AGENTS.md`, then locate the relevant feature under `specs/`, and use `Stet/StetApp.swift`, `Stet/App/`, and `Stet/Features/` as the main repository-level entry points.
+- Project start: begin with this `AGENTS.md`, then locate the relevant feature under `specs/`, and use `StetMac/StetApp.swift`, `StetMac/App/`, and `StetMac/Features/` as the main repository-level entry points.
 - Feature start: after identifying the target `specs/<id>-<feature>/` directory, read `quickstart.md` first when present, then `spec.md`, then `plan.md`.
 - If a feature's `quickstart.md` is missing or stale, fall back to `plan.md` and use its `Project Structure` section to find the right source files and tests.
 
@@ -48,7 +48,7 @@
 - Prefer small, verifiable patches over speculative refactors or broad architectural cleanup.
 - Do not silently introduce behavior that is outside the target `spec.md` and `plan.md`; if implementation and docs conflict, call out the conflict before broadening scope.
 - Do not add extra fallback paths, defensive branches, or alternative UX flows by default. Only add fallback behavior when the spec, plan, existing architecture, or the task explicitly calls for it.
-- Reuse the existing app structure: keep app lifecycle and windowing logic in `Stet/App/`, core services in `Stet/Core/`, feature UI and view models in `Stet/Features/`, and shared types in `Stet/Shared/`.
+- Reuse the existing app structure: keep app lifecycle and windowing logic in `StetMac/App/`, core services in `StetMac/Core/`, feature UI and view models in `StetMac/Features/`, and shared types in `StetMac/Shared/`.
 - Preserve the current SwiftUI + AppKit integration patterns instead of introducing a parallel UI or state-management approach without a strong reason.
 - For UI work, do not add extra buttons, toggles, menus, panels, or settings without an explicit product or spec reason. Prefer the smallest UI change that satisfies the request.
 - When changing behavior, update or add tests where practical, starting with the feature's documented `Relevant Tests`.
@@ -61,7 +61,7 @@
 ```text
 .
 ├── AGENTS.md
-├── Stet/                  # Main app target
+├── StetMac/               # Main macOS app target sources
 │   ├── App/               # App lifecycle, windowing, workflows, platform behavior
 │   │   ├── AudioBehavior/
 │   │   ├── Lifecycle/

@@ -69,10 +69,10 @@ specs/005-transcribe-details/
 ### Relevant Source Code
 
 ```text
-Stet/App/Lifecycle/
+StetMac/App/Lifecycle/
 └── MacAppModel.swift
 
-Stet/Core/AIProviders/
+StetMac/Core/AIProviders/
 ├── OpenAI/
 │   ├── OpenAIRewriteService.swift
 │   └── OpenAITranscriptionService.swift
@@ -83,18 +83,18 @@ Stet/Core/AIProviders/
 └── Shared/
     └── DictationProviderPair.swift
 
-Stet/Core/DictationPipeline/
+StetMac/Core/DictationPipeline/
 ├── DictationExecutionRoute.swift
 └── DictationPipelineFactory.swift
 
-Stet/Core/Speech/
+StetMac/Core/Speech/
 └── ConfigurableSpeechService.swift
 
-Stet/Features/MacShell/Openai/
+StetMac/Features/MacShell/Openai/
 ├── MacOpenAISettingsView.swift
 └── MacOpenAISettingsViewModel.swift
 
-Stet/Shared/Utilities/
+StetMac/Shared/Utilities/
 ├── DictationSettingsStore.swift
 └── MacPreferences.swift
 ```

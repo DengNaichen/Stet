@@ -37,13 +37,13 @@ Add an app-hosted, opt-in MCP server around Stet's existing file transcription a
 
 ### Relevant Source Code
 
-- `Stet/Core/MCP/MCPTranscriptionCoordinator.swift`
-- `Stet/Core/MCP/StetMCPProtocolServer.swift`
-- `Stet/Core/MCP/StetMCPHTTPServer.swift`
-- `Stet/Core/MCP/StetMCPServerController.swift`
-- `Stet/App/Lifecycle/MacAppModel.swift`
-- `Stet/App/Lifecycle/MacAppBootstrapper.swift`
-- `Stet/Shared/Utilities/MacPreferences.swift`
+- `StetMac/Core/MCP/MCPTranscriptionCoordinator.swift`
+- `StetMac/Core/MCP/StetMCPProtocolServer.swift`
+- `StetMac/Core/MCP/StetMCPHTTPServer.swift`
+- `StetMac/Core/MCP/StetMCPServerController.swift`
+- `StetMac/App/Lifecycle/MacAppModel.swift`
+- `StetMac/App/Lifecycle/MacAppBootstrapper.swift`
+- `StetMac/Shared/Utilities/MacPreferences.swift`
 - `Stet.xcodeproj/project.pbxproj`
 
 ### Relevant Tests
