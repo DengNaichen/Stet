@@ -1,0 +1,3 @@
+interface:
+  display_name: "Vision"
+  short_description: "Implementing ANY computer vision feature"
