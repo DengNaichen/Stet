@@ -64,11 +64,13 @@ Secrets:
 - `APP_SPECIFIC_PASSWORD`
 - `DEVELOPER_ID_APPLICATION_P12_BASE64`
 - `DEVELOPER_ID_APPLICATION_P12_PASSWORD`
+- `DEVELOPER_ID_PROVISIONING_PROFILE_BASE64`
+- `ARCHIVE_PROVISIONING_PROFILE_SPECIFIER`
+- `DEVELOPER_ID_PROVISIONING_PROFILE_UUID`
 
 Variables:
 
 - `DEVELOPER_ID_APPLICATION`
-- `ARCHIVE_PROVISIONING_PROFILE_SPECIFIER` if the release archive needs a distribution provisioning profile
 
 ### `production`
 
@@ -79,14 +81,32 @@ Secrets:
 - `APP_SPECIFIC_PASSWORD`
 - `DEVELOPER_ID_APPLICATION_P12_BASE64`
 - `DEVELOPER_ID_APPLICATION_P12_PASSWORD`
+- `DEVELOPER_ID_PROVISIONING_PROFILE_BASE64`
+- `ARCHIVE_PROVISIONING_PROFILE_SPECIFIER`
+- `DEVELOPER_ID_PROVISIONING_PROFILE_UUID`
 - `SPARKLE_PRIVATE_KEY_BASE64`
 
 Variables:
 
 - `DEVELOPER_ID_APPLICATION`
-- `ARCHIVE_PROVISIONING_PROFILE_SPECIFIER` if required
 - `SPARKLE_APPCAST_URL`
 - `SPARKLE_PUBLIC_ED_KEY`
+
+## Developer ID Provisioning Profile
+
+The macOS app uses iCloud key-value storage, so the Developer ID archive requires a
+manually managed distribution provisioning profile.
+
+Store the single-line base64 encoding of the downloaded `.provisionprofile` file in
+the `DEVELOPER_ID_PROVISIONING_PROFILE_BASE64` secret for both GitHub environments.
+The workflows install it before archiving. The project passes its name through the
+Stet target-only `STET_RELEASE_PROVISIONING_PROFILE_SPECIFIER` build setting so that
+Swift package resource bundles and the StetVisuals framework do not inherit an app
+provisioning profile.
+
+When the profile is regenerated, validate its App ID, Developer ID certificate,
+iCloud KVS entitlement, distribution type, and UUID. Then update the matching GitHub
+Environment secrets together.
 
 ## Important Sparkle Note
 
