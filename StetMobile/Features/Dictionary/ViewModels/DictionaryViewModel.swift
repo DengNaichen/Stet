@@ -17,7 +17,8 @@ final class DictionaryViewModel: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.load()
+            guard let self else { return }
+            Task { @MainActor [self] in self.load() }
         }
     }
 

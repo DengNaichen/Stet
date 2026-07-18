@@ -8,12 +8,17 @@
 
 /* Begin PBXBuildFile section */
 		6DD04E062FA3D494004D9143 /* StetKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6DD04DFF2FA3D494004D9143 /* StetKeyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		6DD057E72FA4906A004D9143 /* KeyboardKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6DD057E62FA4906A004D9143 /* KeyboardKit */; };
 		A10000012FA4000000000001 /* sherpa-onnx.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000032FA4000000000003 /* sherpa-onnx.xcframework */; };
 		A10000022FA4000000000002 /* onnxruntime.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000042FA4000000000004 /* onnxruntime.xcframework */; };
 		B10000012FA5000000000001 /* StetCore in Frameworks */ = {isa = PBXBuildFile; productRef = B10000042FA5000000000004 /* StetCore */; };
 		B10000022FA5000000000002 /* StetAI in Frameworks */ = {isa = PBXBuildFile; productRef = B10000052FA5000000000005 /* StetAI */; };
 		B10000032FA5000000000003 /* StetRewrite in Frameworks */ = {isa = PBXBuildFile; productRef = B10000062FA5000000000006 /* StetRewrite */; };
+		C10000012FA6000000000001 /* ASREngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000001 /* ASREngine.swift */; };
+		C10000012FA6000000000002 /* ASRModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000002 /* ASRModelManager.swift */; };
+		C10000012FA6000000000003 /* AudioBuffer+Samples.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000003 /* AudioBuffer+Samples.swift */; };
+		C10000012FA6000000000004 /* SenseVoiceModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000004 /* SenseVoiceModelManager.swift */; };
+		C10000012FA6000000000005 /* SherpaOnnx.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000005 /* SherpaOnnx.swift */; };
+		C10000012FA6000000000006 /* SherpaOnnxASREngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000006 /* SherpaOnnxASREngine.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -61,6 +66,12 @@
 		6DD04DFF2FA3D494004D9143 /* StetKeyboard.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StetKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000032FA4000000000003 /* sherpa-onnx.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = "sherpa-onnx.xcframework"; path = "Frameworks/sherpa-onnx.xcframework"; sourceTree = SOURCE_ROOT; };
 		A10000042FA4000000000004 /* onnxruntime.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = onnxruntime.xcframework; path = "Frameworks/ios-onnxruntime/onnxruntime.xcframework"; sourceTree = SOURCE_ROOT; };
+		C20000012FA6000000000001 /* ASREngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASREngine.swift; sourceTree = "<group>"; };
+		C20000012FA6000000000002 /* ASRModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASRModelManager.swift; sourceTree = "<group>"; };
+		C20000012FA6000000000003 /* AudioBuffer+Samples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AudioBuffer+Samples.swift"; sourceTree = "<group>"; };
+		C20000012FA6000000000004 /* SenseVoiceModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SenseVoiceModelManager.swift; sourceTree = "<group>"; };
+		C20000012FA6000000000005 /* SherpaOnnx.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SherpaOnnx.swift; sourceTree = "<group>"; };
+		C20000012FA6000000000006 /* SherpaOnnxASREngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SherpaOnnxASREngine.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -120,7 +131,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000022FA4000000000002 /* onnxruntime.xcframework in Frameworks */,
-				6DD057E72FA4906A004D9143 /* KeyboardKit in Frameworks */,
 				A10000012FA4000000000001 /* sherpa-onnx.xcframework in Frameworks */,
 				B10000012FA5000000000001 /* StetCore in Frameworks */,
 				B10000022FA5000000000002 /* StetAI in Frameworks */,
@@ -160,6 +170,20 @@
 			name = "Recovered References";
 			sourceTree = "<group>";
 		};
+		C30000012FA6000000000001 /* Shared StetASR */ = {
+			isa = PBXGroup;
+			children = (
+				C20000012FA6000000000001 /* ASREngine.swift */,
+				C20000012FA6000000000002 /* ASRModelManager.swift */,
+				C20000012FA6000000000003 /* AudioBuffer+Samples.swift */,
+				C20000012FA6000000000004 /* SenseVoiceModelManager.swift */,
+				C20000012FA6000000000005 /* SherpaOnnx.swift */,
+				C20000012FA6000000000006 /* SherpaOnnxASREngine.swift */,
+			);
+			name = "Shared StetASR";
+			path = ../Packages/StetEngine/Sources/StetASR;
+			sourceTree = SOURCE_ROOT;
+		};
 		6DD04D432FA3B64B004D9143 = {
 			isa = PBXGroup;
 			children = (
@@ -170,6 +194,7 @@
 				6DD04D4D2FA3B64B004D9143 /* Products */,
 				A10000032FA4000000000003 /* sherpa-onnx.xcframework */,
 				A10000042FA4000000000004 /* onnxruntime.xcframework */,
+				C30000012FA6000000000001 /* Shared StetASR */,
 				6D04F0652FA5512200E6BB55 /* Recovered References */,
 			);
 			sourceTree = "<group>";
@@ -207,7 +232,6 @@
 			);
 			name = StetMobile;
 			packageProductDependencies = (
-				6DD057E62FA4906A004D9143 /* KeyboardKit */,
 				B10000042FA5000000000004 /* StetCore */,
 				B10000052FA5000000000005 /* StetAI */,
 				B10000062FA5000000000006 /* StetRewrite */,
@@ -321,7 +345,6 @@
 			mainGroup = 6DD04D432FA3B64B004D9143;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				6DD057E52FA4906A004D9143 /* XCRemoteSwiftPackageReference "KeyboardKit" */,
 				B10000072FA5000000000007 /* XCLocalSwiftPackageReference "../Packages/StetEngine" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -373,6 +396,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C10000012FA6000000000001 /* ASREngine.swift in Sources */,
+				C10000012FA6000000000002 /* ASRModelManager.swift in Sources */,
+				C10000012FA6000000000003 /* AudioBuffer+Samples.swift in Sources */,
+				C10000012FA6000000000004 /* SenseVoiceModelManager.swift in Sources */,
+				C10000012FA6000000000005 /* SherpaOnnx.swift in Sources */,
+				C10000012FA6000000000006 /* SherpaOnnxASREngine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -551,7 +580,7 @@
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/sherpa-onnx";
+				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks/sherpa-onnx.xcframework/Headers";
 				INFOPLIST_FILE = StetMobile/Info.plist;
 				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.stetmobile.dictate\";\n    CFBundleURLSchemes =     (\n        stetmobile\n    );\n}";
 				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
@@ -593,7 +622,7 @@
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/sherpa-onnx";
+				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks/sherpa-onnx.xcframework/Headers";
 				INFOPLIST_FILE = StetMobile/Info.plist;
 				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.stetmobile.dictate\";\n    CFBundleURLSchemes =     (\n        stetmobile\n    );\n}";
 				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
@@ -843,23 +872,7 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		6DD057E52FA4906A004D9143 /* XCRemoteSwiftPackageReference "KeyboardKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/KeyboardKit/KeyboardKit.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 10.4.1;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
 /* Begin XCSwiftPackageProductDependency section */
-		6DD057E62FA4906A004D9143 /* KeyboardKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 6DD057E52FA4906A004D9143 /* XCRemoteSwiftPackageReference "KeyboardKit" */;
-			productName = KeyboardKit;
-		};
 		B10000042FA5000000000004 /* StetCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = StetCore;

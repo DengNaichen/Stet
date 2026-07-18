@@ -6,63 +6,41 @@
 //
 
 import UIKit
-import SwiftUI
-import Combine
-import KeyboardKit
 
-enum KeyboardButtonState: Equatable {
+private enum KeyboardButtonState: Equatable {
     case idle
-    case pending      // requestStart / launching / warming
+    case pending
     case recording
-    case processing   // requestStop / transcribing / ready
+    case processing
 }
 
-class KeyboardViewController: KeyboardInputViewController, ObservableObject {
+final class KeyboardViewController: UIInputViewController {
+    private let actionButton = UIButton(type: .system)
+    private let nextKeyboardButton = UIButton(type: .system)
 
-    @Published var buttonState: KeyboardButtonState = .idle
-    @Published var processingStartDate: Date? = nil
-
+    private var buttonState: KeyboardButtonState = .idle
     private var pollTimer: Timer?
     private var lastProcessedSessionId: String?
     private var pendingSessionId: String?
-    private var isWakingMainApp: Bool = false
+    private var isWakingMainApp = false
+
     private let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
     private let notificationFeedback = UINotificationFeedbackGenerator()
 
-    internal func prepareButtonFeedback() {
-        impactFeedback.prepare()
+    override func loadView() {
+        view = UIInputView(frame: .zero, inputViewStyle: .keyboard)
     }
 
-    internal func triggerButtonFeedback() {
-        impactFeedback.impactOccurred()
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        configureActionButton()
+        configureNextKeyboardButton()
+        updateActionButton()
     }
 
-    override func viewWillSetupKeyboardKit() {
-        let app = KeyboardApp(
-            name: "StetMobile",
-            appGroupId: "group.NaichengDeng.StetMobile",
-            deepLinks: .init(app: "stetmobile://")
-        )
-        setupKeyboardKit(for: app) { _ in }
-    }
-
-    override func viewWillSetupInitialKeyboardType() {
-        setKeyboardType(.numeric)
-    }
-
-    override func viewWillSetupKeyboardView() {
-        // ⚠️ Don't call `super.viewWillSetupKeyboardView()` in v10 as it might conflict with custom setup.
-
-        view.backgroundColor = .clear
-
-        // Enable KeyboardKit's built-in liquid glass button rendering on iOS 26+.
-        if KeyboardContext.isLiquidGlassAvailable {
-            state.keyboardContext.isLiquidGlassEnabled = true
-        }
-
-        setupKeyboardView { [weak self] controller in
-            StetKeyboardView(controller: controller as! KeyboardViewController)
-        }
+    override func viewWillLayoutSubviews() {
+        super.viewWillLayoutSubviews()
+        nextKeyboardButton.isHidden = !needsInputModeSwitchKey
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -71,10 +49,8 @@ class KeyboardViewController: KeyboardInputViewController, ObservableObject {
         impactFeedback.prepare()
         notificationFeedback.prepare()
 
-        // Restore pendingSessionId from shared storage in case the extension was restarted
-        // during the app-switching process.
+        // The extension may be recreated while the main app is handling a request.
         pendingSessionId = SharedDictationManager.shared.getPendingKeyboardSessionId()
-
         startPolling()
     }
 
@@ -82,13 +58,13 @@ class KeyboardViewController: KeyboardInputViewController, ObservableObject {
         super.viewWillDisappear(animated)
         stopPolling()
 
-        // If the keyboard is closed mid-dictation (and we aren't just opening the main app),
-        // we should discard the recording.
+        // Keep the request alive only when this extension is intentionally waking Stet.
         if !isWakingMainApp,
-           let session = SharedDictationManager.shared.getSession(),
-           session.sessionId == pendingSessionId {
+            let session = SharedDictationManager.shared.getSession(),
+            session.sessionId == pendingSessionId
+        {
             switch session.state {
-            case .requestStart, .launching, .warming, .recording, .requestStop, .transcribing:
+            case .requestStart, .launching, .warming, .recording:
                 cancelOurSession()
             default:
                 break
@@ -96,7 +72,93 @@ class KeyboardViewController: KeyboardInputViewController, ObservableObject {
         }
     }
 
-    internal func handleMicDown() {
+    private func configureActionButton() {
+        actionButton.translatesAutoresizingMaskIntoConstraints = false
+        actionButton.addTarget(self, action: #selector(handleActionButton), for: .touchUpInside)
+        view.addSubview(actionButton)
+
+        NSLayoutConstraint.activate([
+            actionButton.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor),
+            actionButton.centerYAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerYAnchor),
+            actionButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 180),
+            actionButton.heightAnchor.constraint(equalToConstant: 52),
+        ])
+    }
+
+    private func configureNextKeyboardButton() {
+        var configuration = UIButton.Configuration.plain()
+        configuration.image = UIImage(systemName: "globe")
+        configuration.baseForegroundColor = .label
+
+        nextKeyboardButton.configuration = configuration
+        nextKeyboardButton.accessibilityLabel = "Next Keyboard"
+        nextKeyboardButton.translatesAutoresizingMaskIntoConstraints = false
+        nextKeyboardButton.addTarget(
+            self,
+            action: #selector(handleNextKeyboard(_:event:)),
+            for: .allTouchEvents
+        )
+        view.addSubview(nextKeyboardButton)
+
+        NSLayoutConstraint.activate([
+            nextKeyboardButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 8),
+            nextKeyboardButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -4),
+            nextKeyboardButton.widthAnchor.constraint(equalToConstant: 44),
+            nextKeyboardButton.heightAnchor.constraint(equalToConstant: 44),
+        ])
+    }
+
+    private func updateActionButton() {
+        var configuration = UIButton.Configuration.filled()
+        configuration.cornerStyle = .capsule
+        configuration.imagePadding = 8
+        configuration.baseBackgroundColor = .label
+        configuration.baseForegroundColor = .systemBackground
+
+        switch buttonState {
+        case .idle:
+            configuration.title = "Tap to speak"
+            configuration.image = UIImage(systemName: "mic.fill")
+            actionButton.isEnabled = true
+
+        case .pending:
+            configuration.title = "Starting…"
+            configuration.showsActivityIndicator = true
+            actionButton.isEnabled = false
+
+        case .recording:
+            configuration.title = "Tap to stop"
+            configuration.image = UIImage(systemName: "stop.fill")
+            actionButton.isEnabled = true
+
+        case .processing:
+            configuration.title = "Processing…"
+            configuration.showsActivityIndicator = true
+            actionButton.isEnabled = false
+        }
+
+        actionButton.configuration = configuration
+    }
+
+    @objc private func handleActionButton() {
+        switch buttonState {
+        case .idle:
+            handleMicDown()
+        case .recording:
+            handleMicUp()
+        case .pending, .processing:
+            return
+        }
+
+        impactFeedback.impactOccurred()
+        impactFeedback.prepare()
+    }
+
+    @objc private func handleNextKeyboard(_ sender: UIButton, event: UIEvent) {
+        handleInputModeList(from: sender, with: event)
+    }
+
+    private func handleMicDown() {
         let sessionId = UUID().uuidString
         pendingSessionId = sessionId
         SharedDictationManager.shared.savePendingKeyboardSessionId(sessionId)
@@ -109,21 +171,31 @@ class KeyboardViewController: KeyboardInputViewController, ObservableObject {
         )
         SharedDictationManager.shared.saveSession(session)
 
-        // If the main app's polling heartbeat is fresh, it'll pick up the
-        // requestStart on its own; otherwise wake it via URL scheme.
+        // A live main app will observe the shared request; otherwise wake it explicitly.
         if !SharedDictationManager.shared.mainAppAlive(within: 0.6) {
-            isWakingMainApp = true
-            openMainApp(sessionId: sessionId)
+            isWakingMainApp = openMainApp(sessionId: sessionId)
         }
 
-        // Optimistic update so the button responds before the next tick.
         publishState(.pending)
     }
 
-    internal func handleMicUp() {
+    private func handleMicUp() {
         guard let sessionId = pendingSessionId else { return }
-        var session = SharedDictationManager.shared.getSession()
-            ?? DictationSession(sessionId: sessionId, createdAt: Date(), updatedAt: Date(), state: .requestStop)
+        let currentSession = SharedDictationManager.shared.getSession()
+        guard currentSession == nil || currentSession?.sessionId == sessionId else {
+            cleanupSession()
+            publishState(.idle)
+            return
+        }
+
+        var session =
+            currentSession
+            ?? DictationSession(
+                sessionId: sessionId,
+                createdAt: Date(),
+                updatedAt: Date(),
+                state: .requestStop
+            )
         session.state = .requestStop
         session.updatedAt = Date()
         SharedDictationManager.shared.saveSession(session)
@@ -131,25 +203,28 @@ class KeyboardViewController: KeyboardInputViewController, ObservableObject {
         publishState(.processing)
     }
 
-    // MARK: - Open Main App
-
-    private func openMainApp(sessionId: String) {
+    private func openMainApp(sessionId: String) -> Bool {
         let urlString = "stetmobile://dictate?session_id=\(sessionId)"
-        guard let url = URL(string: urlString) else { return }
+        guard let url = URL(string: urlString) else { return false }
 
         var responder: UIResponder? = self
         while let current = responder {
             if let application = current as? UIApplication {
-                application.open(url, options: [:], completionHandler: nil)
-                return
+                application.open(url, options: [:]) { [weak self] didOpen in
+                    if !didOpen {
+                        self?.isWakingMainApp = false
+                    }
+                }
+                return true
             }
             responder = current.next
         }
+        return false
     }
 
-    // MARK: - Polling
-
     private func startPolling() {
+        guard pollTimer == nil else { return }
+        tick()
         pollTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             self?.tick()
         }
@@ -163,9 +238,6 @@ class KeyboardViewController: KeyboardInputViewController, ObservableObject {
     private func tick() {
         let session = SharedDictationManager.shared.getSession()
 
-        // Ownership check: anything that isn't ours renders as idle. If a not-ours
-        // session is stuck active and the main app is dead/silent, sweep it so it
-        // doesn't haunt subsequent keyboard instances.
         guard let session, session.sessionId == pendingSessionId else {
             if let session, isActiveState(session.state) {
                 let appDead = !SharedDictationManager.shared.mainAppAlive(within: 2.0)
@@ -183,7 +255,14 @@ class KeyboardViewController: KeyboardInputViewController, ObservableObject {
             publishState(.idle)
 
         case .requestStart, .launching, .warming:
-            publishState(.pending)
+            let appDead = !SharedDictationManager.shared.mainAppAlive(within: 2.0)
+            let stale = Date().timeIntervalSince(session.updatedAt) > 10.0
+            if appDead && stale {
+                cancelOurSession()
+                publishState(.idle)
+            } else {
+                publishState(.pending)
+            }
 
         case .recording:
             publishState(.recording)
@@ -210,8 +289,8 @@ class KeyboardViewController: KeyboardInputViewController, ObservableObject {
         }
     }
 
-    private func isActiveState(_ s: DictationState) -> Bool {
-        switch s {
+    private func isActiveState(_ state: DictationState) -> Bool {
+        switch state {
         case .requestStart, .launching, .warming, .recording, .requestStop, .transcribing, .ready:
             return true
         default:
@@ -220,14 +299,9 @@ class KeyboardViewController: KeyboardInputViewController, ObservableObject {
     }
 
     private func publishState(_ state: KeyboardButtonState) {
-        if state == .processing && buttonState != .processing {
-            processingStartDate = Date()
-        } else if state != .processing && processingStartDate != nil {
-            processingStartDate = nil
-        }
-        if buttonState != state {
-            buttonState = state
-        }
+        guard buttonState != state else { return }
+        buttonState = state
+        updateActionButton()
     }
 
     private func insertTranscription(_ session: DictationSession) {
@@ -251,5 +325,4 @@ class KeyboardViewController: KeyboardInputViewController, ObservableObject {
         pendingSessionId = nil
         SharedDictationManager.shared.clearPendingKeyboardSessionId()
     }
-
 }

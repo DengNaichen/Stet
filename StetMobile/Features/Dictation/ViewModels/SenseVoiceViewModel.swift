@@ -24,15 +24,15 @@ final class SenseVoiceViewModel: ObservableObject {
     @Published var isExternalLaunch: Bool = false
     @Published var isRecordingDone: Bool = false
     @Published private(set) var activeEngineName: String = ""
-    @Published var selectedEngineType: ASREngineType
 
     func dismissExternalGuide() {
         isExternalLaunch = false
     }
 
     private var engine: ASREngine?
+    private let modelManager: SenseVoiceModelManager?
+    private let engineInitializationError: String?
     private var resultsListener: Task<Void, Never>?
-    private var cancellables = Set<AnyCancellable>()
     private let rewriteSettingsStore: RewriteSettingsStore
 
     private var commandPollingTimer: Timer?
@@ -48,14 +48,31 @@ final class SenseVoiceViewModel: ObservableObject {
     init(rewriteSettingsStore: RewriteSettingsStore) {
         self.rewriteSettingsStore = rewriteSettingsStore
 
-        let initialType: ASREngineType = .sherpa
-        self.selectedEngineType = initialType
+        let initialEngine: ASREngine?
+        let initialModelManager: SenseVoiceModelManager?
+        let initializationError: String?
 
-        let initialEngine = ASREngineManager.makeEngine(type: initialType)
+        do {
+            let modelManager = try SenseVoiceModelManager()
+            let engine = SherpaOnnxASREngine(modelManager: modelManager)
+            engine.onVolumeUpdate = { level in
+                SharedDictationManager.shared.updateVolume(level)
+            }
+            initialEngine = engine
+            initialModelManager = modelManager
+            initializationError = nil
+        } catch {
+            initialEngine = nil
+            initialModelManager = nil
+            initializationError = error.localizedDescription
+        }
+
         self.engine = initialEngine
-        attachResultsListener(to: initialEngine)
-
-        setupEngineSwitching()
+        self.modelManager = initialModelManager
+        self.engineInitializationError = initializationError
+        if let initialEngine {
+            attachResultsListener(to: initialEngine)
+        }
 
         // Start polling immediately so heartbeat and incoming requestStart can be
         // picked up while bootstrap (model load) is still running in the background.
@@ -65,23 +82,6 @@ final class SenseVoiceViewModel: ObservableObject {
             await self.bootstrap()
         }
         registerAudioSessionObservers()
-    }
-
-    private func setupEngineSwitching() {
-        $selectedEngineType
-            .dropFirst()
-            .sink { [weak self] newType in
-                guard let self = self else { return }
-                self.engine?.stop()
-                let newEngine = ASREngineManager.makeEngine(type: newType)
-                self.engine = newEngine
-                self.activeEngineName = ""
-                self.attachResultsListener(to: newEngine)
-                Task { @MainActor in
-                    try? await newEngine.prepare()
-                }
-            }
-            .store(in: &cancellables)
     }
 
     private func attachResultsListener(to engine: ASREngine) {
@@ -102,8 +102,14 @@ final class SenseVoiceViewModel: ObservableObject {
         }
         Task {
             do {
-                try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
-                try await engine?.prepare()
+                guard let engine else {
+                    throw NSError(
+                        domain: "StetMobile",
+                        code: 2,
+                        userInfo: [NSLocalizedDescriptionKey: engineInitializationError ?? "SenseVoice is unavailable."]
+                    )
+                }
+                try await engine.prepare()
             } catch {
                 await MainActor.run {
                     self.state = .failed(error.localizedDescription)
@@ -123,10 +129,11 @@ final class SenseVoiceViewModel: ObservableObject {
             guard
                 let info = note.userInfo,
                 let typeRaw = info[AVAudioSessionInterruptionTypeKey] as? UInt,
-                let type = AVAudioSession.InterruptionType(rawValue: typeRaw)
+                let type = AVAudioSession.InterruptionType(rawValue: typeRaw),
+                let self
             else { return }
             if type == .ended {
-                Task { @MainActor in self?.ensureMicAlive() }
+                Task { @MainActor [self] in self.ensureMicAlive() }
             }
         }
         center.addObserver(
@@ -134,32 +141,34 @@ final class SenseVoiceViewModel: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.ensureMicAlive() }
+            guard let self else { return }
+            Task { @MainActor [self] in self.ensureMicAlive() }
         }
     }
 
     private func bootstrap() async {
         state = .loading
-        partialStatus = "Loading models & requesting mic..."
+        partialStatus = "Downloading SenseVoice model & requesting mic..."
         do {
-            async let permissionTask: () = requestMicrophonePermission()
-            async let prepareTask: ()? = engine?.prepare()
-            
-            _ = try await permissionTask
-            try await prepareTask
-            
-            // Don't downgrade state if startEngine already advanced us to .recording
-            // (can happen when keyboard's requestStart fires during loading).
-            if state == .loading {
-                state = .idle
-                partialStatus = "Ready. Hold mic on keyboard to dictate."
+            guard let engine, let modelManager else {
+                throw NSError(
+                    domain: "StetMobile",
+                    code: 1,
+                    userInfo: [NSLocalizedDescriptionKey: engineInitializationError ?? "SenseVoice could not be initialized."]
+                )
             }
+
+            try await requestMicrophonePermission()
+            try await modelManager.downloadIfNeeded(for: SenseVoiceModelManager.modelName)
+            try await engine.prepare()
+
+            activeEngineName = engine.name
+            state = .idle
+            partialStatus = "Ready. Hold mic on keyboard to dictate."
         } catch {
-            if state != .recording {
-                state = .failed(error.localizedDescription)
-                partialStatus = error.localizedDescription
-                SharedDictationManager.shared.updateState(.failed, error: error.localizedDescription)
-            }
+            state = .failed(error.localizedDescription)
+            partialStatus = error.localizedDescription
+            SharedDictationManager.shared.updateState(.failed, error: error.localizedDescription)
         }
         checkKeyboardCommands()
     }
@@ -167,19 +176,31 @@ final class SenseVoiceViewModel: ObservableObject {
     private func requestMicrophonePermission() async throws {
         if #available(iOS 17.0, *) {
             let granted = await AVAudioApplication.requestRecordPermission()
-            if !granted { throw SenseVoiceError.microphoneDenied }
+            if !granted {
+                throw NSError(
+                    domain: "StetMobile",
+                    code: 3,
+                    userInfo: [NSLocalizedDescriptionKey: "Microphone permission was not granted."]
+                )
+            }
         } else {
             let granted = await withCheckedContinuation { continuation in
                 AVAudioSession.sharedInstance().requestRecordPermission { granted in
                     continuation.resume(returning: granted)
                 }
             }
-            if !granted { throw SenseVoiceError.microphoneDenied }
+            if !granted {
+                throw NSError(
+                    domain: "StetMobile",
+                    code: 3,
+                    userInfo: [NSLocalizedDescriptionKey: "Microphone permission was not granted."]
+                )
+            }
         }
     }
 
     func toggleRecording() {
-        guard state != .loading, state != .warming else { return }
+        guard state == .idle || state == .recording else { return }
         impactGenerator.impactOccurred()
         if isRecording {
             stopEngine()
@@ -204,9 +225,8 @@ final class SenseVoiceViewModel: ObservableObject {
     private func startCommandPolling() {
         commandPollingTimer?.invalidate()
         commandPollingTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.checkKeyboardCommands()
-            }
+            guard let self else { return }
+            Task { @MainActor [self] in self.checkKeyboardCommands() }
         }
     }
 
@@ -215,9 +235,7 @@ final class SenseVoiceViewModel: ObservableObject {
         guard let session = SharedDictationManager.shared.getSession() else { return }
         switch session.state {
         case .requestStart:
-            // Allow during .loading too: engine.start() lazy-prepares internally,
-            // overlapping model load with the keyboard's tap so recording starts ASAP.
-            if state == .idle || state == .loading {
+            if state == .idle {
                 startEngine(sessionId: session.sessionId)
             }
         case .requestStop:

@@ -70,7 +70,7 @@ final class RewriteSettingsStore: ObservableObject {
             kSecAttrAccount as String: account,
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-            kSecAttrSynchronizable as String: kCFBooleanTrue,
+            kSecAttrSynchronizable as String: true,
         ]
         SecItemAdd(addQuery as CFDictionary, nil)
     }

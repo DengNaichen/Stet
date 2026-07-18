@@ -9,6 +9,7 @@ DerivedData/
 # Swift
 .swiftpm/
 .build/
+.runtime/
 
 # Large Models (Optional - depends on if user wants them in git)
 # StetMobile/SenseVoice/
