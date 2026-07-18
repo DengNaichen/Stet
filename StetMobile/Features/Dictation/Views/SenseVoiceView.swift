@@ -9,22 +9,28 @@ struct SenseVoiceView: View {
                 VStack(spacing: 8) {
                     Text("SenseVoice")
                         .font(.largeTitle.bold())
-                    Text(viewModel.activeEngineName.isEmpty ? "Ready to dictate" : "Powered by \(viewModel.activeEngineName)")
-                        .foregroundStyle(.secondary)
+                    Text(
+                        viewModel.activeEngineName.isEmpty
+                            ? "Ready to dictate" : "Powered by \(viewModel.activeEngineName)"
+                    )
+                    .foregroundStyle(.secondary)
 
                 }
 
                 ScrollView {
-                    Text(viewModel.transcript.isEmpty ? "Transcript will appear here after recording stops." : viewModel.transcript)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
+                    Text(
+                        viewModel.transcript.isEmpty
+                            ? "Transcript will appear here after recording stops." : viewModel.transcript
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
                 }
                 .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text(statusText)
                         .foregroundStyle(statusColor)
-                    
+
                     if !viewModel.activeEngineName.isEmpty {
                         Text("Active Backend: \(viewModel.activeEngineName)")
                             .font(.caption2)
@@ -39,11 +45,15 @@ struct SenseVoiceView: View {
 
                 HStack(spacing: 12) {
                     Button(action: viewModel.toggleRecording) {
-                        Label(viewModel.isRecording ? "Stop" : "Record", systemImage: viewModel.isRecording ? "stop.fill" : "mic.fill")
-                            .frame(maxWidth: .infinity)
+                        Label(
+                            viewModel.isRecording ? "Stop" : "Record",
+                            systemImage: viewModel.isRecording ? "stop.fill" : "mic.fill"
+                        )
+                        .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
+                    .disabled(!viewModel.canToggleRecording)
 
                     Button("Clear", action: viewModel.clearTranscript)
                         .buttonStyle(.bordered)
@@ -52,11 +62,6 @@ struct SenseVoiceView: View {
             }
             .padding(24)
             .navigationTitle("Dictation")
-            .fullScreenCover(isPresented: $viewModel.isExternalLaunch) {
-                ExternalReturnGuideView {
-                    viewModel.dismissExternalGuide()
-                }
-            }
         }
     }
 
@@ -65,8 +70,12 @@ struct SenseVoiceView: View {
         case .idle:
             return viewModel.partialStatus
         case .loading:
-            return "Loading model..."
+            return viewModel.partialStatus
+        case .starting:
+            return viewModel.partialStatus
         case .recording:
+            return viewModel.partialStatus
+        case .processing, .rewriting:
             return viewModel.partialStatus
         case .failed(let message):
             return message
