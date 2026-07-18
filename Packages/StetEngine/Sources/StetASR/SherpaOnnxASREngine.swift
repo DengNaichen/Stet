@@ -205,8 +205,14 @@ public final class SherpaOnnxASREngine: ASREngine {
                     if !engine.isRunning {
                         try engine.start()
                     }
+                    self.logAudioRoute(
+                        AVAudioSession.sharedInstance(),
+                        event: "audio_route_changed"
+                    )
                 } catch {
-                    // The next start(sessionId:) will retry engine.start().
+                    Self.lifecycleLogger.error(
+                        "event=audio_route_recovery_failed error=\(error.localizedDescription, privacy: .public)"
+                    )
                 }
             }
         #endif
@@ -305,13 +311,63 @@ public final class SherpaOnnxASREngine: ASREngine {
     private func configureAudioSessionAndEngine() async throws {
         #if os(iOS)
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(
-                .playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker, .allowBluetoothHFP])
+            var options: AVAudioSession.CategoryOptions = [
+                .mixWithOthers,
+                .allowBluetoothHFP,
+            ]
+            if #available(iOS 26.0, *) {
+                options.insert(.bluetoothHighQualityRecording)
+            }
+            try session.setCategory(.playAndRecord, mode: .default, options: options)
             try await activateAudioSession(session)
         #endif
 
         try configureAudioEngine()
+
+        #if os(iOS)
+            logAudioRoute(session, event: "audio_route_configured")
+        #endif
     }
+
+    #if os(iOS)
+        private func logAudioRoute(_ session: AVAudioSession, event: String) {
+            let input = session.currentRoute.inputs.first
+            let output = session.currentRoute.outputs.first
+            let inputName = input?.portName ?? "none"
+            let inputType = input?.portType.rawValue ?? "none"
+            let outputName = output?.portName ?? "none"
+            let outputType = output?.portType.rawValue ?? "none"
+
+            if #available(iOS 26.0, *) {
+                let highQualityRecording =
+                    input?.bluetoothMicrophoneExtension?.highQualityRecording
+                Self.lifecycleLogger.info(
+                    """
+                    event=\(event, privacy: .public) \
+                    input=\(inputName, privacy: .public) \
+                    input_type=\(inputType, privacy: .public) \
+                    output=\(outputName, privacy: .public) \
+                    output_type=\(outputType, privacy: .public) \
+                    sample_rate=\(session.sampleRate, privacy: .public) \
+                    hq_supported=\(highQualityRecording?.isSupported == true, privacy: .public) \
+                    hq_enabled=\(highQualityRecording?.isEnabled == true, privacy: .public)
+                    """
+                )
+            } else {
+                Self.lifecycleLogger.info(
+                    """
+                    event=\(event, privacy: .public) \
+                    input=\(inputName, privacy: .public) \
+                    input_type=\(inputType, privacy: .public) \
+                    output=\(outputName, privacy: .public) \
+                    output_type=\(outputType, privacy: .public) \
+                    sample_rate=\(session.sampleRate, privacy: .public) \
+                    hq_supported=false hq_enabled=false
+                    """
+                )
+            }
+        }
+    #endif
 
     private func configureAudioEngine() throws {
         lock.lock()
