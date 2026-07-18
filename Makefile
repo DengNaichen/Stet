@@ -1,4 +1,4 @@
-.PHONY: help swiftlint format format-lint lint whisper-deps build ci-build test release-github notary-setup
+.PHONY: help swiftlint format format-lint lint whisper-deps build ci-build test doctor clean-derived-data release-github notary-setup
 
 help:
 	@echo "Available targets:"
@@ -9,6 +9,8 @@ help:
 	@echo "  build           Build the macOS app"
 	@echo "  ci-build        Build without code signing for CI"
 	@echo "  test            Run StetTests on macOS"
+	@echo "  doctor          Report Xcode and project build-cache usage"
+	@echo "  clean-derived-data  Remove only Stet/StetMobile build caches"
 	@echo "  release-github  Build signed GitHub release artifacts"
 	# @echo "  publish-github  Publish GitHub release artifacts"
 	@echo "  notary-setup    Configure notarytool profile"
@@ -35,6 +37,12 @@ ci-build:
 
 test:
 	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' -only-testing:StetTests test
+
+doctor:
+	./scripts/xcode-storage.sh doctor
+
+clean-derived-data:
+	./scripts/xcode-storage.sh clean-project
 
 release-github:
 	./scripts/release-macos-github.sh

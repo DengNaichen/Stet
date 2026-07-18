@@ -13,5 +13,5 @@ public enum StoredTranscriptionEngine: String, CaseIterable, Sendable {
         }
     }
 
-    public static let `default`: StoredTranscriptionEngine = .localWhisper
+    public static let `default`: StoredTranscriptionEngine = .sherpaOnnxSenseVoice
 }

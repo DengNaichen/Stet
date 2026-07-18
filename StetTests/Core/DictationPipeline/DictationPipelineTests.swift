@@ -21,7 +21,7 @@ private func makeSnapshot(
     personalDictionary: [String] = [],
     transcriptionPrimaryLanguage: String = "en",
     transcriptionSecondaryLanguage: String? = nil,
-    transcriptionEngine: StoredTranscriptionEngine = .localWhisper
+    transcriptionEngine: StoredTranscriptionEngine = .sherpaOnnxSenseVoice
 ) -> DictationSettingsSnapshot {
     DictationSettingsSnapshot(
         transcriptionProvider: transcriptionProvider,
@@ -180,7 +180,7 @@ struct LogicPrimitiveTests {
                 == DictationPipelineFactory.makeTranscriptionPrompt(
                     preferredSpellings: ["OpenAI", "Groq"]
                 ))
-        #expect(pipeline.transcriptionLanguageCode == nil)
+        #expect(pipeline.transcriptionLanguageCode == "en")
         #expect(pipeline.usesAudienceAwareLocalPrompts == true)
         #expect(await local.callCount == 1)
         #expect(await local.capturedPrompt?.contains("OpenAI, Groq") == true)
@@ -230,7 +230,7 @@ struct LogicPrimitiveTests {
         }
 
         #expect(transcript.text == "mixed transcript")
-        #expect(pipeline.transcriptionLanguageCode == nil)
+        #expect(pipeline.transcriptionLanguageCode == "en")
         #expect(pipeline.usesAudienceAwareLocalPrompts == true)
         #expect(capturedRewriteConfiguration?.provider == .openAI)
     }
@@ -357,78 +357,39 @@ struct LogicPrimitiveTests {
     }
 }
 
-// MARK: - Regression: Whisper language hint must always be nil
+// MARK: - SenseVoice baseline routing
 
-/// Regression suite for the bug introduced in `feat: rewrite onboarding flow with language
-/// routing and engine selection` where `TranscriptionLanguageRouting` would pass the primary
-/// language code as a hint to Whisper when no secondary language was set, causing Whisper to
-/// sometimes auto-translate instead of transcribing.
-@Suite("TranscriptionLanguageRouting – nil hint guarantee")
+@Suite("TranscriptionLanguageRouting – SenseVoice baseline")
 struct TranscriptionLanguageRoutingTests {
-    /// Non-Parakeet language with no secondary → routes to Whisper. Hint must be nil.
-    /// Regression: before fix, hint was set to `primary` (e.g. "vi"), which caused Whisper
-    /// to produce inconsistent results and sometimes translate output.
-    @Test func whisperPathHasNilHintForSingleNonParakeetLanguage() {
-        let engine = TranscriptionLanguageRouting.resolveEngine(primary: "vi", secondary: nil)
-        guard case .localWhisper(let hint) = engine else {
-            Issue.record("Expected .localWhisper for Vietnamese (not in Parakeet list)")
-            return
-        }
-        #expect(hint == nil, "Hint must always be nil – passing a hint caused Whisper auto-translation")
-    }
-
-    /// Non-Parakeet primary with Parakeet secondary → routes to Whisper. Hint must be nil.
-    @Test func whisperPathHasNilHintWhenSecondaryLanguageSet() {
-        let engine = TranscriptionLanguageRouting.resolveEngine(primary: "vi", secondary: "en")
-        guard case .localWhisper(let hint) = engine else {
-            Issue.record("Expected .localWhisper when primary is non-Parakeet")
-            return
-        }
-        #expect(hint == nil)
-    }
-
-    /// Both languages are Parakeet-supported → should route to FluidAudio, not Whisper.
-    @Test func parakeetSupportedLanguagesPairRoutesToFluidAudio() {
-        #expect(TranscriptionLanguageRouting.resolveEngine(primary: "en", secondary: nil) == .fluidAudio)
-        #expect(TranscriptionLanguageRouting.resolveEngine(primary: "zh", secondary: nil) == .fluidAudio)
-        #expect(TranscriptionLanguageRouting.resolveEngine(primary: "en", secondary: "zh") == .fluidAudio)
+    @Test func everyLanguageSelectionRoutesToSenseVoice() {
+        #expect(TranscriptionLanguageRouting.resolveEngine(primary: "vi", secondary: nil) == .sherpaOnnxSenseVoice)
+        #expect(TranscriptionLanguageRouting.resolveEngine(primary: "zh", secondary: nil) == .sherpaOnnxSenseVoice)
+        #expect(TranscriptionLanguageRouting.resolveEngine(primary: "en", secondary: "zh") == .sherpaOnnxSenseVoice)
     }
 }
 
-// MARK: - Regression: makePipeline must respect stored engine, not override via language routing
-
-/// Regression suite for the P0 bug where `makeLiveLocalTranscriptionService` read the stored
-/// engine preference (`StoredTranscriptionEngine.current()`) but then discarded it, switching
-/// on the language-routing result instead. This meant the UI engine picker had zero effect.
-@Suite("DictationPipelineFactory – engine selection respects stored preference")
+@Suite("DictationPipelineFactory – SenseVoice language forwarding")
 struct EngineSelectionRegressionTests {
-    /// When the snapshot targets a non-Parakeet language, the pipeline must route to Whisper
-    /// and produce a nil `transcriptionLanguageCode` (no hint → auto-detect, no translation).
-    @Test func makePipelinePassesNilLanguageCodeForNonParakeetWhisperRoute() async throws {
+    @Test func makePipelinePassesPrimaryLanguageToSenseVoice() async throws {
         let local = RecordingTranscriptionService(result: "ok")
         let factory = DictationPipelineFactory(
             makeLocalTranscriptionService: { local },
             makeRewriteService: { _, _ in RecordingRewriteService() }
         )
-        // Vietnamese is not in Parakeet's supported list → TranscriptionLanguageRouting
-        // resolves to .localWhisper. The pipeline must pass nil as the language code.
         let snapshot = makeSnapshot(
             transcriptionPrimaryLanguage: "vi",
             transcriptionSecondaryLanguage: nil,
-            transcriptionEngine: .localWhisper
+            transcriptionEngine: .sherpaOnnxSenseVoice
         )
 
         let pipeline = try await factory.makePipeline(from: snapshot)
 
         #expect(
-            pipeline.transcriptionLanguageCode == nil,
-            "Whisper must receive nil language code – a non-nil hint caused auto-translation regression"
+            pipeline.transcriptionLanguageCode == "vi"
         )
     }
 
-    /// For a language that would normally route elsewhere, a user-selected Whisper engine
-    /// must still receive nil so short utterances are not biased into one language.
-    @Test func makePipelinePassesNilLanguageCodeForChineseWhisperRoute() async throws {
+    @Test func legacyStoredEngineDoesNotChangeSenseVoiceLanguageForwarding() async throws {
         let local = RecordingTranscriptionService(result: "ok")
         let factory = DictationPipelineFactory(
             makeLocalTranscriptionService: { local },
@@ -443,8 +404,7 @@ struct EngineSelectionRegressionTests {
         let pipeline = try await factory.makePipeline(from: snapshot)
 
         #expect(
-            pipeline.transcriptionLanguageCode == nil,
-            "Whisper must receive nil even when the primary language is Chinese."
+            pipeline.transcriptionLanguageCode == "zh"
         )
     }
 }

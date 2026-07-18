@@ -46,6 +46,22 @@ make build
 xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' build
 ```
 
+### Xcode 存储治理
+
+运行仓库自带的容量检查，可以查看 Stet、StetMobile、Xcode 共享缓存、SwiftPM 下载、Archives 和 simulator runtimes 各自占用的空间：
+
+```bash
+make doctor
+```
+
+退出 Xcode 以及其他 Swift 编辑器或构建工具后，可以只清理 Stet 与 StetMobile 可重新生成的构建缓存：
+
+```bash
+make clean-derived-data
+```
+
+清理命令使用严格的路径白名单，不会删除 Archives、签名资料、模型、已下载的 frameworks 或 simulator runtimes。
+
 ## 配置说明
 
 首次启动时，Stet 会引导你完成权限、听写设置，以及 Stet 账号或自己的 API Key。设置里也可以调整音频输入、语言偏好、外观、更新和个人词典。

@@ -47,6 +47,22 @@ Or call `xcodebuild` directly:
 xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' build
 ```
 
+### Xcode storage
+
+Use the repository storage doctor to see exactly how much space Stet, StetMobile, shared Xcode caches, SwiftPM downloads, archives, and simulator runtimes consume:
+
+```bash
+make doctor
+```
+
+After quitting Xcode and other Swift editors or build tools, remove only reproducible Stet and StetMobile build caches with:
+
+```bash
+make clean-derived-data
+```
+
+The cleanup command uses an explicit allowlist. It does not remove archives, signing data, models, downloaded frameworks, or simulator runtimes.
+
 ## Configuration
 
 On first launch, Stet guides you through permissions, dictation setup, and either a Stet account or your own API key. Settings also cover audio input, appearance, updates, and the personal dictionary.

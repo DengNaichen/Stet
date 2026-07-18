@@ -74,19 +74,7 @@ struct DictationPipelineFactory: Sendable {
         case .direct(let direct):
             transcriptionService = try makeLocalTranscriptionService()
 
-            let primary = snapshot.transcriptionPrimaryLanguage
-            let secondary = snapshot.transcriptionSecondaryLanguage
-            let engine = TranscriptionLanguageRouting.resolveEngine(primary: primary, secondary: secondary)
-            if snapshot.transcriptionEngine == .localWhisper {
-                transcriptionLanguageCode = nil
-            } else {
-                switch engine {
-                case .localWhisper(let hint):
-                    transcriptionLanguageCode = hint
-                case .sherpaOnnxSenseVoice, .fluidAudio:
-                    transcriptionLanguageCode = primary
-                }
-            }
+            transcriptionLanguageCode = snapshot.transcriptionPrimaryLanguage
             preferredSpellings = direct.preferredSpellings
             promptProvider = Self.makePromptProvider(preferredSpellings: preferredSpellings)
             usesAudienceAwareLocalPrompts = true
@@ -111,51 +99,18 @@ struct DictationPipelineFactory: Sendable {
         )
     }
 
-    /// Picks which local-engine implementation to instantiate based on the
-    /// user's `localTranscriptionEngine` preference. Whisper is the default and
-    /// kept for the case where the Parakeet model isn't downloaded yet — we
-    /// fall back to whisper rather than throwing so dictation never hard-fails
-    /// because of a misconfigured picker.
+    /// The current local transcription baseline is SenseVoice on every
+    /// supported macOS language path. Stored legacy engine preferences are
+    /// intentionally ignored until multiple local engines are reintroduced.
     nonisolated static func makeLiveLocalTranscriptionService(
         configuration: any ModelStorageConfiguration = UserDefaultsModelStorage()
     ) throws -> any AudioFileTranscriptionService {
         #if os(macOS)
-            let stored = configuration.transcriptionEngine
-
             Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "PipelineFactory").info(
-                "DictationPipelineFactory selected local engine=\(stored.rawValue)"
+                "DictationPipelineFactory selected local engine=SenseVoice"
             )
-
-            switch stored {
-            case .fluidAudio:
-                do {
-                    return try FluidAudioTranscriptionService()
-                } catch {
-                    Logger(
-                        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "PipelineFactory"
-                    ).warning(
-                        "Parakeet engine unavailable (\(error.localizedDescription)); falling back to local whisper."
-                    )
-                    return try LocalWhisperTranscriptionService(
-                        modelManager: LocalWhisperModelManager(configuration: configuration))
-                }
-            case .localWhisper:
-                return try LocalWhisperTranscriptionService(
-                    modelManager: LocalWhisperModelManager(configuration: configuration))
-            case .sherpaOnnxSenseVoice:
-                do {
-                    return try SherpaOnnxSenseVoiceTranscriptionService(
-                        modelManager: SherpaOnnxSenseVoiceModelManager(configuration: configuration))
-                } catch {
-                    Logger(
-                        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "PipelineFactory"
-                    ).warning(
-                        "Sherpa-ONNX SenseVoice engine unavailable (\(error.localizedDescription)); falling back to local whisper."
-                    )
-                    return try LocalWhisperTranscriptionService(
-                        modelManager: LocalWhisperModelManager(configuration: configuration))
-                }
-            }
+            _ = configuration
+            return try SherpaOnnxSenseVoiceTranscriptionService()
         #else
             return try LocalWhisperTranscriptionService(
                 modelManager: LocalWhisperModelManager(configuration: configuration))

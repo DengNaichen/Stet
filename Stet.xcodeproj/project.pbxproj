@@ -7,16 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0B4E0F6F7A5B4D88A1C9E113 /* whisper in Frameworks */ = {isa = PBXBuildFile; productRef = 0B4E0F6F7A5B4D88A1C9E112 /* whisper */; };
 		6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 6D3A1A982F675F44005DA839 /* KeyboardShortcuts */; };
 		6D483F322F9C186400BF3105 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */; };
 		6DC0CD032F9DD8BE00696D0F /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = 6DC0CD022F9DD8BE00696D0F /* TelemetryDeck */; };
 		6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 6DCB53142F6DB36500358FE5 /* FluidAudio */; };
-		8CCC48443EE864D507095EDC /* sherpa_onnx in Frameworks */ = {isa = PBXBuildFile; productRef = 7DA5841E8ABDD1A8EF19D919 /* sherpa_onnx */; };
 		C80A4F64301851B7005C2101 /* OpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = C80A4F66301851B7005C2101 /* OpenAI */; };
 		E5E0E5E0E5E0E5E0E5E00005 /* StetCore in Frameworks */ = {isa = PBXBuildFile; productRef = E5E0E5E0E5E0E5E0E5E00002 /* StetCore */; };
 		E5E0E5E0E5E0E5E0E5E00006 /* StetAI in Frameworks */ = {isa = PBXBuildFile; productRef = E5E0E5E0E5E0E5E0E5E00003 /* StetAI */; };
 		E5E0E5E0E5E0E5E0E5E00007 /* StetRewrite in Frameworks */ = {isa = PBXBuildFile; productRef = E5E0E5E0E5E0E5E0E5E00004 /* StetRewrite */; };
+		E5E0E5E0E5E0E5E0E5E00009 /* StetASR in Frameworks */ = {isa = PBXBuildFile; productRef = E5E0E5E0E5E0E5E0E5E00008 /* StetASR */; };
 		F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; };
 		F1A0B001000000000000000E /* StetVisuals.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -107,17 +106,16 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8CCC48443EE864D507095EDC /* sherpa_onnx in Frameworks */,
 				6D483F322F9C186400BF3105 /* Sparkle in Frameworks */,
 				F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */,
 				6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */,
 				C80A4F64301851B7005C2101 /* OpenAI in Frameworks */,
 				6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */,
-				0B4E0F6F7A5B4D88A1C9E113 /* whisper in Frameworks */,
 				6DC0CD032F9DD8BE00696D0F /* TelemetryDeck in Frameworks */,
 				E5E0E5E0E5E0E5E0E5E00005 /* StetCore in Frameworks */,
 				E5E0E5E0E5E0E5E0E5E00006 /* StetAI in Frameworks */,
 				E5E0E5E0E5E0E5E0E5E00007 /* StetRewrite in Frameworks */,
+				E5E0E5E0E5E0E5E0E5E00009 /* StetASR in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -200,16 +198,15 @@
 			);
 			name = Stet;
 			packageProductDependencies = (
-				7DA5841E8ABDD1A8EF19D919 /* sherpa_onnx */,
 				C80A4F66301851B7005C2101 /* OpenAI */,
 				A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */,
 				6D3A1A982F675F44005DA839 /* KeyboardShortcuts */,
 				6DCB53142F6DB36500358FE5 /* FluidAudio */,
-				0B4E0F6F7A5B4D88A1C9E112 /* whisper */,
 				6DC0CD022F9DD8BE00696D0F /* TelemetryDeck */,
 				E5E0E5E0E5E0E5E0E5E00002 /* StetCore */,
 				E5E0E5E0E5E0E5E0E5E00003 /* StetAI */,
 				E5E0E5E0E5E0E5E0E5E00004 /* StetRewrite */,
+				E5E0E5E0E5E0E5E0E5E00008 /* StetASR */,
 			);
 			productName = Stet;
 			productReference = 6D29DC7D2F5FA23000267DEA /* Stet.app */;
@@ -323,14 +320,11 @@
 			mainGroup = 6D29DC742F5FA23000267DEA;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				9F963C49B3BE9A6549CF7490 /* XCLocalSwiftPackageReference "Vendor/SherpaOnnxPackage" */,
 				C80A4F65301851B7005C2101 /* XCRemoteSwiftPackageReference "OpenAI" */,
 				A7D90C1E4B4D4E5F8A1B2C32 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 				6DCB53132F6DB36500358FE5 /* XCRemoteSwiftPackageReference "FluidAudio" */,
-				0B4E0F6F7A5B4D88A1C9E111 /* XCLocalSwiftPackageReference "Vendor/WhisperPackage" */,
 				6DC0CD012F9DD8BE00696D0F /* XCRemoteSwiftPackageReference "SwiftSDK" */,
-				6D4B97452F9F6A0700738874 /* XCLocalSwiftPackageReference "Vendor/SherpaOnnxPackage" */,
 				E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -906,18 +900,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		0B4E0F6F7A5B4D88A1C9E111 /* XCLocalSwiftPackageReference "Vendor/WhisperPackage" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = Packages/StetEngine/Vendor/WhisperPackage;
-		};
-		6D4B97452F9F6A0700738874 /* XCLocalSwiftPackageReference "Vendor/SherpaOnnxPackage" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = Packages/StetEngine/Vendor/SherpaOnnxPackage;
-		};
-		9F963C49B3BE9A6549CF7490 /* XCLocalSwiftPackageReference "Vendor/SherpaOnnxPackage" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = Packages/StetEngine/Vendor/SherpaOnnxPackage;
-		};
 		E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/StetEngine;
@@ -968,11 +950,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		0B4E0F6F7A5B4D88A1C9E112 /* whisper */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 0B4E0F6F7A5B4D88A1C9E111 /* XCLocalSwiftPackageReference "Vendor/WhisperPackage" */;
-			productName = whisper;
-		};
 		6D3A1A982F675F44005DA839 /* KeyboardShortcuts */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
@@ -987,11 +964,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 6DCB53132F6DB36500358FE5 /* XCRemoteSwiftPackageReference "FluidAudio" */;
 			productName = FluidAudio;
-		};
-		7DA5841E8ABDD1A8EF19D919 /* sherpa_onnx */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9F963C49B3BE9A6549CF7490 /* XCLocalSwiftPackageReference "Vendor/SherpaOnnxPackage" */;
-			productName = sherpa_onnx;
 		};
 		A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -1017,6 +989,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */;
 			productName = StetRewrite;
+		};
+		E5E0E5E0E5E0E5E0E5E00008 /* StetASR */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */;
+			productName = StetASR;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

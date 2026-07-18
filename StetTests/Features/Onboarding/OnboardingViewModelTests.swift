@@ -19,23 +19,18 @@
                 settingsStore: settingsStore
             )
 
-            // Default should be en -> fluidAudio
+            // The current local-ASR baseline uses SenseVoice for every language selection.
             #expect(viewModel.transcriptionPrimaryLanguage == "en")
-            #expect(viewModel.transcriptionEngine == .fluidAudio)
+            #expect(viewModel.transcriptionEngine == .sherpaOnnxSenseVoice)
 
-            // Switch to a language not supported by Parakeet (e.g., Icelandic 'is')
             viewModel.transcriptionPrimaryLanguage = "is"
-            #expect(viewModel.transcriptionEngine == .localWhisper(languageHint: nil))
+            #expect(viewModel.transcriptionEngine == .sherpaOnnxSenseVoice)
 
-            // Add a secondary language (supported by Parakeet)
-            // But if one is NOT supported, it should stay Whisper
             viewModel.transcriptionSecondaryLanguage = "zh-Hans"
-            #expect(viewModel.transcriptionEngine == .localWhisper(languageHint: nil))
+            #expect(viewModel.transcriptionEngine == .sherpaOnnxSenseVoice)
 
-            // Switch primary back to supported (en)
             viewModel.transcriptionPrimaryLanguage = "en"
-            // Both en and zh-Hans are supported -> fluidAudio
-            #expect(viewModel.transcriptionEngine == .fluidAudio)
+            #expect(viewModel.transcriptionEngine == .sherpaOnnxSenseVoice)
         }
 
         @Test func testEnginePreparationFlow() async throws {

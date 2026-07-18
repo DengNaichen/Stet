@@ -2,7 +2,6 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-DERIVED_DATA_PATH="$ROOT_DIR/.build/AppleIntelligenceRewriteProbe"
 
 cd "$ROOT_DIR"
 
@@ -11,12 +10,27 @@ xcodebuild \
   -scheme Stet \
   -configuration Debug \
   -destination 'platform=macOS' \
-  -derivedDataPath "$DERIVED_DATA_PATH" \
   build
 
-APP_BUNDLE="$(find "$DERIVED_DATA_PATH/Build/Products/Debug" -maxdepth 1 -name 'Stet*.app' -print -quit)"
-if [[ -z "$APP_BUNDLE" ]]; then
-  echo "No Stet app bundle found under $DERIVED_DATA_PATH/Build/Products/Debug" >&2
+BUILD_SETTINGS="$(
+  xcodebuild \
+    -project Stet.xcodeproj \
+    -scheme Stet \
+    -configuration Debug \
+    -destination 'platform=macOS' \
+    -showBuildSettings
+)"
+TARGET_BUILD_DIR="$(printf '%s\n' "$BUILD_SETTINGS" | /usr/bin/sed -n 's/^[[:space:]]*TARGET_BUILD_DIR = //p')"
+WRAPPER_NAME="$(printf '%s\n' "$BUILD_SETTINGS" | /usr/bin/sed -n 's/^[[:space:]]*WRAPPER_NAME = //p')"
+
+if [[ -z "$TARGET_BUILD_DIR" || -z "$WRAPPER_NAME" ]]; then
+  echo "Unable to resolve the Stet build product from Xcode build settings." >&2
+  exit 1
+fi
+
+APP_BUNDLE="$TARGET_BUILD_DIR/$WRAPPER_NAME"
+if [[ ! -d "$APP_BUNDLE" ]]; then
+  echo "No Stet app bundle found at $APP_BUNDLE" >&2
   exit 1
 fi
 

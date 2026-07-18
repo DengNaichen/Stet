@@ -1,6 +1,6 @@
 import Foundation
 
-public enum ASRModelStatus: Equatable {
+public enum ASRModelStatus: Equatable, Sendable {
     case notDownloaded
     case downloading(progress: Double)
     case ready(localURL: URL)

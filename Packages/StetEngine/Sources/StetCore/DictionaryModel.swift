@@ -4,6 +4,25 @@ public extension Notification.Name {
     static let dictionaryDidSync = Notification.Name("StetCore.DictionaryDidSync")
 }
 
+/// `UserDefaults` supports access from multiple threads and tasks, but is not
+/// declared `Sendable` by Foundation. Keep that unchecked boundary limited to
+/// the enabled-flag operations used by `DictionaryModel`.
+private final class DictionaryDefaultsStore: @unchecked Sendable {
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults) {
+        self.defaults = defaults
+    }
+
+    func loadIsEnabled(forKey key: String) -> Bool {
+        defaults.object(forKey: key) as? Bool ?? true
+    }
+
+    func saveIsEnabled(_ enabled: Bool, forKey key: String) {
+        defaults.set(enabled, forKey: key)
+    }
+}
+
 public final class SyncedDictionaryStore: @unchecked Sendable {
     private let defaults: UserDefaults
     private let cloudStore: NSUbiquitousKeyValueStore
@@ -78,7 +97,7 @@ public final class SyncedDictionaryStore: @unchecked Sendable {
 
 public struct DictionaryModel: Sendable {
     private let syncedStore: SyncedDictionaryStore
-    private let defaults: UserDefaults
+    private let defaultsStore: DictionaryDefaultsStore
     private let enabledKey: String
 
     public init(
@@ -87,7 +106,7 @@ public struct DictionaryModel: Sendable {
         entriesKey: String = "dictionary.entries",
         enabledKey: String = "dictionary.enabled"
     ) {
-        self.defaults = defaults
+        self.defaultsStore = DictionaryDefaultsStore(defaults: defaults)
         self.enabledKey = enabledKey
         self.syncedStore =
             syncedStore
@@ -102,7 +121,7 @@ public struct DictionaryModel: Sendable {
     }
 
     public func loadIsEnabled() -> Bool {
-        defaults.object(forKey: enabledKey) as? Bool ?? true
+        defaultsStore.loadIsEnabled(forKey: enabledKey)
     }
 
     public func saveEntries(_ entries: [String]) {
@@ -110,7 +129,7 @@ public struct DictionaryModel: Sendable {
     }
 
     public func saveIsEnabled(_ enabled: Bool) {
-        defaults.set(enabled, forKey: enabledKey)
+        defaultsStore.saveIsEnabled(enabled, forKey: enabledKey)
     }
 
     public func addEntries(from rawInput: String) -> [String] {
