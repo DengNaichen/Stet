@@ -13,10 +13,41 @@ public struct OpenAIRewriteService: TextRewriteService {
         let model: String
         let messages: [ChatCompletionMessage]
         let thinking: ChatCompletionThinking?
+        let responseFormat: ChatCompletionResponseFormat
+
+        enum CodingKeys: String, CodingKey {
+            case model, messages, thinking
+            case responseFormat = "response_format"
+        }
     }
 
     private struct ChatCompletionThinking: Encodable {
         let type: String
+    }
+
+    private struct ChatCompletionResponseFormat: Encodable {
+        struct JSONSchema: Encodable {
+            let name = StructuredRewriteOutput.schemaName
+            let description = StructuredRewriteOutput.schemaDescription
+            let strict = true
+            let schema = StructuredRewriteOutput.jsonSchema
+        }
+
+        let type: String
+        let jsonSchema: JSONSchema?
+
+        enum CodingKeys: String, CodingKey {
+            case type
+            case jsonSchema = "json_schema"
+        }
+
+        static func configuration(provider: DictationProvider, model: String) -> Self {
+            let normalizedModel = model.lowercased()
+            if provider == .groq && normalizedModel.hasPrefix("openai/gpt-oss-") {
+                return Self(type: "json_schema", jsonSchema: JSONSchema())
+            }
+            return Self(type: "json_object", jsonSchema: nil)
+        }
     }
 
     private struct ChatCompletionResponse: Decodable {
@@ -77,18 +108,26 @@ public struct OpenAIRewriteService: TextRewriteService {
                 query: CreateModelResponseQuery(
                     input: .inputItemList(messages),
                     model: request.model ?? defaultModel,
-                    store: supportsResponsesStore ? false : nil
+                    store: supportsResponsesStore ? false : nil,
+                    text: .jsonSchema(
+                        .init(
+                            name: StructuredRewriteOutput.schemaName,
+                            schema: .dynamicJsonSchema(StructuredRewriteOutput.jsonSchema),
+                            description: StructuredRewriteOutput.schemaDescription,
+                            strict: true
+                        )
+                    )
                 )
             )
 
             if let outputText = response.stetOutputText {
-                return outputText
+                return try Self.decodeStructuredText(outputText, provider: endpoint.provider)
             }
 
             if let responseData = requestContext.responseData,
                 let recoveredText = Self.extractOutputText(from: responseData)
             {
-                return recoveredText
+                return try Self.decodeStructuredText(recoveredText, provider: endpoint.provider)
             }
 
             throw OpenAIError.missingRewriteText
@@ -97,7 +136,7 @@ public struct OpenAIRewriteService: TextRewriteService {
                 let responseData = requestContext.responseData,
                 let recoveredText = Self.extractOutputText(from: responseData)
             {
-                return recoveredText
+                return try Self.decodeStructuredText(recoveredText, provider: endpoint.provider)
             }
 
             throw requestContext.mapError(error)
@@ -140,7 +179,7 @@ public struct OpenAIRewriteService: TextRewriteService {
             else {
                 continue
             }
-            return text
+            return try Self.decodeStructuredText(text, provider: endpoint.provider)
         }
 
         throw OpenAIError.missingRewriteText
@@ -169,7 +208,8 @@ public struct OpenAIRewriteService: TextRewriteService {
                     ChatCompletionMessage(role: "system", content: prepared.systemPrompt),
                     ChatCompletionMessage(role: "user", content: prepared.userPrompt),
                 ],
-                thinking: Self.thinkingConfiguration(for: endpoint.provider)
+                thinking: Self.thinkingConfiguration(for: endpoint.provider),
+                responseFormat: .configuration(provider: endpoint.provider, model: model)
             )
         )
         return request
@@ -230,6 +270,19 @@ public struct OpenAIRewriteService: TextRewriteService {
         }
 
         return nil
+    }
+
+    private static func decodeStructuredText(
+        _ content: String,
+        provider: DictationProvider
+    ) throws -> String {
+        do {
+            return try StructuredRewriteOutputDecoder.decodeText(from: content)
+        } catch StructuredRewriteOutputError.emptyText {
+            throw OpenAIError.missingRewriteText
+        } catch {
+            throw OpenAIError.invalidResponse(provider: provider)
+        }
     }
 
     private static func normalizedBaseURL(_ baseURL: URL) -> URL {

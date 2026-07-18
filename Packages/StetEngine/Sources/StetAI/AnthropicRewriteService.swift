@@ -69,7 +69,13 @@ public struct AnthropicRewriteService: TextRewriteService {
             throw AnthropicError.missingContent
         }
 
-        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            return try StructuredRewriteOutputDecoder.decodeText(from: text)
+        } catch StructuredRewriteOutputError.emptyText {
+            throw AnthropicError.missingContent
+        } catch {
+            throw AnthropicError.invalidStructuredOutput
+        }
     }
 
     private func withRetry<T>(
@@ -103,11 +109,22 @@ private struct AnthropicRequest: Encodable {
     let system: String
     let messages: [AnthropicMessage]
     let maxTokens: Int = 4096
+    let outputConfig = AnthropicOutputConfiguration()
 
     enum CodingKeys: String, CodingKey {
         case model, system, messages
         case maxTokens = "max_tokens"
+        case outputConfig = "output_config"
     }
+}
+
+private struct AnthropicOutputConfiguration: Encodable {
+    struct Format: Encodable {
+        let type = "json_schema"
+        let schema = StructuredRewriteOutput.jsonSchema
+    }
+
+    let format = Format()
 }
 
 private struct AnthropicMessage: Encodable {
@@ -132,6 +149,7 @@ private struct AnthropicErrorResponse: Decodable {
 
 public enum AnthropicError: Error, LocalizedError {
     case invalidResponse
+    case invalidStructuredOutput
     case apiError(statusCode: Int, message: String)
     case missingContent
     case unknown
@@ -153,6 +171,8 @@ public enum AnthropicError: Error, LocalizedError {
             return "Anthropic API Error (\(code)): \(msg)"
         case .missingContent:
             return "Anthropic response missing text content"
+        case .invalidStructuredOutput:
+            return "Anthropic response did not match the rewrite output schema"
         default:
             return "Anthropic service encountered an error"
         }

@@ -70,7 +70,13 @@ public struct GoogleRewriteService: TextRewriteService {
             throw GoogleError.missingContent
         }
 
-        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            return try StructuredRewriteOutputDecoder.decodeText(from: text)
+        } catch StructuredRewriteOutputError.emptyText {
+            throw GoogleError.missingContent
+        } catch {
+            throw GoogleError.invalidStructuredOutput
+        }
     }
 
     private func withRetry<T>(
@@ -122,6 +128,8 @@ private struct GooglePart: Encodable, Decodable {
 
 private struct GoogleGenerationConfig: Encodable {
     let maxOutputTokens: Int = 4096
+    let responseMimeType = "application/json"
+    let responseJsonSchema = StructuredRewriteOutput.jsonSchema
 }
 
 private struct GoogleGeminiResponse: Decodable {
@@ -144,6 +152,7 @@ private struct GoogleErrorResponse: Decodable {
 public enum GoogleError: Error, LocalizedError {
     case invalidURL
     case invalidResponse
+    case invalidStructuredOutput
     case apiError(statusCode: Int, message: String)
     case missingContent
     case unknown
@@ -165,6 +174,8 @@ public enum GoogleError: Error, LocalizedError {
             return "Google API Error (\(code)): \(msg)"
         case .missingContent:
             return "Gemini response missing text content"
+        case .invalidStructuredOutput:
+            return "Gemini response did not match the rewrite output schema"
         default:
             return "Google Gemini service encountered an error"
         }

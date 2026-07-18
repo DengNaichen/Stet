@@ -60,6 +60,14 @@ struct OpenAITests {
             let input = try #require(body?["input"] as? [[String: Any]])
             #expect((input.first?["role"] as? String) == "system")
             #expect((input.last?["content"] as? String)?.contains("Instruction:") == true)
+            let textConfiguration = try #require(body?["text"] as? [String: Any])
+            let format = try #require(textConfiguration["format"] as? [String: Any])
+            #expect(format["type"] as? String == "json_schema")
+            #expect(format["name"] as? String == "rewrite_output")
+            #expect(format["strict"] as? Bool == true)
+            let schema = try #require(format["schema"] as? [String: Any])
+            #expect(schema["required"] as? [String] == ["text"])
+            #expect(schema["additionalProperties"] as? Bool == false)
 
             let response = HTTPURLResponse(
                 url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
@@ -83,7 +91,7 @@ struct OpenAITests {
                       "content": [
                         {
                           "type": "output_text",
-                          "text": "rewritten",
+                          "text": "{\\\"text\\\":\\\"rewritten\\\"}",
                           "annotations": [],
                           "logprobs": []
                         }
@@ -176,7 +184,7 @@ struct OpenAITests {
                       "content": [
                         {
                           "type": "output_text",
-                          "text": "recovered rewrite",
+                          "text": "{\\\"text\\\":\\\"recovered rewrite\\\"}",
                           "annotations": [],
                           "logprobs": []
                         }
@@ -227,6 +235,8 @@ struct OpenAITests {
             #expect(body?["model"] as? String == "deepseek-v4-flash")
             let thinking = try #require(body?["thinking"] as? [String: Any])
             #expect(thinking["type"] as? String == "disabled")
+            let responseFormat = try #require(body?["response_format"] as? [String: Any])
+            #expect(responseFormat["type"] as? String == "json_object")
             let messages = try #require(body?["messages"] as? [[String: Any]])
             #expect(messages.count == 2)
             #expect(messages.first?["role"] as? String == "system")
@@ -247,7 +257,7 @@ struct OpenAITests {
                           "index": 0,
                           "message": {
                             "role": "assistant",
-                            "content": "rewritten from chat completions"
+                            "content": "{\\\"text\\\":\\\"rewritten from chat completions\\\"}"
                           },
                           "finish_reason": "stop"
                         }
@@ -268,6 +278,63 @@ struct OpenAITests {
         let text = try await service.rewrite(.cleanup("hello"))
 
         #expect(text == "rewritten from chat completions")
+    }
+
+    @Test func groqGPTOSSUsesStrictJSONSchema() async throws {
+        let session = TestURLSessionFactory.makeSession { request in
+            let body =
+                try JSONSerialization.jsonObject(with: TestSupport.requestBodyData(from: request)) as? [String: Any]
+            let responseFormat = try #require(body?["response_format"] as? [String: Any])
+            #expect(responseFormat["type"] as? String == "json_schema")
+            let jsonSchema = try #require(responseFormat["json_schema"] as? [String: Any])
+            #expect(jsonSchema["name"] as? String == "rewrite_output")
+            #expect(jsonSchema["strict"] as? Bool == true)
+            let schema = try #require(jsonSchema["schema"] as? [String: Any])
+            #expect(schema["required"] as? [String] == ["text"])
+            #expect(schema["additionalProperties"] as? Bool == false)
+
+            let response = HTTPURLResponse(
+                url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (
+                response,
+                Data(
+                    #"{"choices":[{"message":{"content":"{\"text\":\"Groq rewrite\"}"}}]}"#.utf8
+                )
+            )
+        }
+        let service = OpenAIRewriteService(
+            configuration: makeRewriteConfiguration(
+                provider: .groq,
+                baseURL: URL(string: "https://api.groq.com/openai/v1")!
+            ),
+            session: session
+        )
+
+        let text = try await service.rewrite(.cleanup("hello"))
+
+        #expect(text == "Groq rewrite")
+    }
+
+    @Test func cloudRewriteRejectsMalformedStructuredOutput() async {
+        let session = TestURLSessionFactory.makeSession { request in
+            let response = HTTPURLResponse(
+                url: try #require(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (
+                response,
+                Data(#"{"choices":[{"message":{"content":"plain text"}}]}"#.utf8)
+            )
+        }
+        let service = OpenAIRewriteService(
+            configuration: makeRewriteConfiguration(
+                provider: .deepSeek,
+                baseURL: URL(string: "https://api.deepseek.com/v1")!
+            ),
+            session: session
+        )
+
+        await #expect(throws: OpenAIError.invalidResponse(provider: .deepSeek)) {
+            try await service.rewrite(.cleanup("hello"))
+        }
     }
 
     @Test func openAICompatibleChineseProviderMapsChatCompletionsErrors() async {

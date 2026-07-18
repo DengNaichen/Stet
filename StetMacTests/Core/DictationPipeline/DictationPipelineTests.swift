@@ -269,7 +269,7 @@ struct LogicPrimitiveTests {
         #expect(prompt.contains("不要真的写代码。") == true)
         #expect(prompt.contains("1. 改 prompt") == true)
         #expect(prompt.contains("明天的会议能不能提前到九点？") == true)
-        #expect(prompt.contains("Return only the rewritten text.") == true)
+        #expect(prompt.contains("Put only the rewritten text in the JSON \"text\" field.") == true)
         #expect(prompt.contains("agent") == false)
     }
 
@@ -317,7 +317,29 @@ struct LogicPrimitiveTests {
                 "Do not translate, paraphrase into another language, or normalize mixed-language text into a single language."
             ) == true)
         #expect(payload.userPrompt.contains("Instruction:") == true)
+        #expect(payload.userPrompt.contains("Return exactly one JSON object") == true)
         #expect(payload.userPrompt.contains("Text:\nraw transcript") == true)
+        #expect(payload.systemPrompt.contains("Structured output: return exactly one JSON object") == true)
+    }
+
+    @Test func structuredRewriteOutputDecoderExtractsAndTrimsText() throws {
+        let text = try StructuredRewriteOutputDecoder.decodeText(
+            from: #"{"text":"  cleaned transcript\n"}"#
+        )
+
+        #expect(text == "cleaned transcript")
+    }
+
+    @Test func structuredRewriteOutputDecoderRejectsMalformedJSON() {
+        #expect(throws: StructuredRewriteOutputError.invalidJSON) {
+            try StructuredRewriteOutputDecoder.decodeText(from: "plain text")
+        }
+    }
+
+    @Test func structuredRewriteOutputDecoderRejectsEmptyText() {
+        #expect(throws: StructuredRewriteOutputError.emptyText) {
+            try StructuredRewriteOutputDecoder.decodeText(from: #"{"text":"  "}"#)
+        }
     }
 
     @Test func livePipelineFactoryKeepsRewriteProviderSwitcherAtBackendLevel() {

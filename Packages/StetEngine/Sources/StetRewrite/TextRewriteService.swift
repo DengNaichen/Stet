@@ -48,11 +48,11 @@ public enum CloudRewritePromptBuilder {
                 10. Preserve code snippets, commands, API names, file paths, parameters, version numbers, and technical terms exactly as spoken or clearly intended.
 
                 Output format:
-                11. Output plain text only. Do not use bullets, headings, code fences, backticks, or any special formatting beyond the plain numbered lists described in rule 8.
+                11. In the JSON "text" field, output plain text only. Do not use bullets, headings, code fences, backticks, or any special formatting beyond the plain numbered lists described in rule 8.
                 12. Do not add a title, wrapper, template, or shell around the result.
                 13. If the transcript ends with a period, do not add additional terminal punctuation.
 
-                Examples:
+                Examples (each Output below is the value for the JSON "text" field):
 
                 Input: 额, 我想让 AI 帮我写一个 swift function parse json，但是, 但是就是你这里只要帮我把文档写了，不要真的写代码。
                 Output: 我想让 AI 帮我写一个 Swift function parse JSON，但是这里只要帮我把文档写了，不要真的写代码。
@@ -80,7 +80,7 @@ public enum CloudRewritePromptBuilder {
                 另外我想说的是，明天的会议能不能提前到九点？因为我下午还要出差。
 
 
-                Return only the rewritten text.
+                Put only the rewritten text in the JSON "text" field.
                 """
         case .ai:
             return """
@@ -108,11 +108,11 @@ public enum CloudRewritePromptBuilder {
                 10. Preserve code snippets, commands, API names, file paths, parameters, version numbers, and technical terms exactly as spoken or clearly intended.
 
                 Output format:
-                11. Output plain text only. Do not use bullets, headings, code fences, backticks, or any special formatting beyond the plain numbered lists described in rule 8.
+                11. In the JSON "text" field, output plain text only. Do not use bullets, headings, code fences, backticks, or any special formatting beyond the plain numbered lists described in rule 8.
                 12. Do not add a title, wrapper, template, or shell around the result.
                 13. If the transcript ends with a period, do not add additional terminal punctuation.
 
-                Examples:
+                Examples (each Output below is the value for the JSON "text" field):
 
                 Input: 额, 我想让 AI 帮我写一个 swift function parse json，但是, 但是就是你这里只要帮我把文档写了，不要真的写代码。
                 Output: 我想让 AI 帮我写一个 Swift function parse JSON，但是这里只要帮我把文档写了，不要真的写代码。
@@ -140,14 +140,15 @@ public enum CloudRewritePromptBuilder {
                 另外我想说的是，明天的会议能不能提前到九点？因为我下午还要出差。
 
 
-                Return only the rewritten text.
+                Put only the rewritten text in the JSON "text" field.
                 """
         }
     }
 }
 
 private enum TextRewritePromptConfiguration {
-    nonisolated static let cleanupInstruction = "Clean the following raw transcription according to your instructions."
+    nonisolated static let cleanupInstruction =
+        "Clean the following raw transcription according to your instructions. Return exactly one JSON object with a single string field named \"text\" and no other fields. Do not wrap the JSON in Markdown or code fences."
 }
 
 public struct TextRewriteRequest: Sendable, Equatable {
@@ -217,6 +218,9 @@ public struct PreparedCloudRewritePayload: Sendable, Equatable {
             systemPrompt +=
                 "\n\nLanguage lock: preserve the detected transcript language (\(languageCode)) exactly. Do not translate, paraphrase into another language, or normalize mixed-language text into a single language."
         }
+
+        systemPrompt +=
+            "\n\nStructured output: return exactly one JSON object matching this shape: {\"text\":\"the final cleaned transcript\"}. Include no other fields and do not wrap the JSON in Markdown or code fences."
 
         self.audience = audience
         self.systemPrompt = systemPrompt
