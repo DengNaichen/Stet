@@ -20,9 +20,9 @@
             let createdServices = CreatedWarmServices()
             let coordinator = LocalWhisperWarmupCoordinator(
                 modelManager: LocalWhisperModelManager(
+                    configuration: UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults()),
                     modelsDirectoryProvider: { modelsDirectoryURL },
-                    runtimeAvailableProvider: { true },
-                    customPathProvider: { nil }
+                    runtimeAvailableProvider: { true }
                 ),
                 startupWarmupDelay: 60,
                 sampleURLProvider: { sampleURL },
@@ -52,9 +52,9 @@
             let createdServices = CreatedWarmServices()
             let coordinator = LocalWhisperWarmupCoordinator(
                 modelManager: LocalWhisperModelManager(
+                    configuration: UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults()),
                     modelsDirectoryProvider: { modelsDirectoryURL },
-                    runtimeAvailableProvider: { true },
-                    customPathProvider: { nil }
+                    runtimeAvailableProvider: { true }
                 ),
                 startupWarmupDelay: 60,
                 sampleURLProvider: { sampleURL },

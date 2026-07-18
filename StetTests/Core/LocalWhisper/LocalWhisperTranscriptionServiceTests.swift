@@ -23,9 +23,9 @@
             }
 
             let modelManager = LocalWhisperModelManager(
+                configuration: UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults()),
                 modelsDirectoryProvider: { modelsDirectoryURL },
-                runtimeAvailableProvider: { true },
-                customPathProvider: { nil }
+                runtimeAvailableProvider: { true }
             )
             let service = try LocalWhisperTranscriptionService(
                 modelManager: modelManager,
@@ -62,9 +62,9 @@
             let createdEngines = CreatedEngines()
             let manager = LocalWhisperContextManager()
             let modelManager = LocalWhisperModelManager(
+                configuration: UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults()),
                 modelsDirectoryProvider: { modelsDirectoryURL },
-                runtimeAvailableProvider: { true },
-                customPathProvider: { nil }
+                runtimeAvailableProvider: { true }
             )
             let service = try LocalWhisperTranscriptionService(
                 modelManager: modelManager,
@@ -100,9 +100,9 @@
             let createdEngines = CreatedEngines()
             let manager = LocalWhisperContextManager()
             let modelManager = LocalWhisperModelManager(
+                configuration: UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults()),
                 modelsDirectoryProvider: { modelsDirectoryURL },
-                runtimeAvailableProvider: { true },
-                customPathProvider: { nil }
+                runtimeAvailableProvider: { true }
             )
             let service = try LocalWhisperTranscriptionService(
                 modelManager: modelManager,

@@ -1,8 +1,9 @@
 #if os(macOS)
 
     import Foundation
-    import Testing
     import Combine
+    import StetCore
+    import Testing
 
     @testable import Stet
 

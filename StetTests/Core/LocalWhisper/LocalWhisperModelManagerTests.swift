@@ -14,9 +14,9 @@
 
             let downloadQueue = DownloadQueue(urls: [downloadedModelURL])
             let manager = LocalWhisperModelManager(
+                configuration: UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults()),
                 modelsDirectoryProvider: { modelsDirectoryURL },
                 runtimeAvailableProvider: { true },
-                customPathProvider: { nil },
                 downloadProvider: { url, _ in
                     try await downloadQueue.next(requestedURL: url)
                 }
@@ -38,9 +38,9 @@
 
             let downloadQueue = DownloadQueue(urls: [downloadedModelURL])
             let manager = LocalWhisperModelManager(
+                configuration: UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults()),
                 modelsDirectoryProvider: { modelsDirectoryURL },
                 runtimeAvailableProvider: { true },
-                customPathProvider: { nil },
                 downloadProvider: { url, _ in
                     try await downloadQueue.next(requestedURL: url)
                 }
@@ -70,9 +70,9 @@
 
             let downloadQueue = DownloadQueue(urls: [downloadedModelURL])
             let manager = LocalWhisperModelManager(
+                configuration: UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults()),
                 modelsDirectoryProvider: { modelsDirectoryURL },
                 runtimeAvailableProvider: { true },
-                customPathProvider: { nil },
                 downloadProvider: { url, _ in
                     try await downloadQueue.next(requestedURL: url)
                 }
@@ -102,9 +102,9 @@
 
             let downloadQueue = DownloadQueue(urls: [])
             let manager = LocalWhisperModelManager(
+                configuration: UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults()),
                 modelsDirectoryProvider: { modelsDirectoryURL },
                 runtimeAvailableProvider: { true },
-                customPathProvider: { nil },
                 downloadProvider: { url, _ in
                     try await downloadQueue.next(requestedURL: url)
                 }
@@ -132,9 +132,9 @@
             )
 
             let manager = LocalWhisperModelManager(
+                configuration: UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults()),
                 modelsDirectoryProvider: { modelsDirectoryURL },
-                runtimeAvailableProvider: { true },
-                customPathProvider: { nil }
+                runtimeAvailableProvider: { true }
             )
 
             let resolvedURL = try manager.resolvedModelURL()
@@ -152,9 +152,9 @@
 
             let downloadQueue = DownloadQueue(urls: [downloadedModelURL])
             let manager = LocalWhisperModelManager(
+                configuration: UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults()),
                 modelsDirectoryProvider: { modelsDirectoryURL },
                 runtimeAvailableProvider: { true },
-                customPathProvider: { nil },
                 downloadProvider: { url, progressSink in
                     progressSink.update(fraction: 0.15, completed: 15, total: 100)
                     progressSink.update(fraction: 0.72, completed: 72, total: 100)

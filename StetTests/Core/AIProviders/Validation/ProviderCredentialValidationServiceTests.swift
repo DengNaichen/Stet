@@ -1,7 +1,9 @@
 import Foundation
+import StetCore
 import Testing
 
 @testable import Stet
+@testable import StetAI
 
 @MainActor
 @Suite("Provider Credential Validation", .serialized)

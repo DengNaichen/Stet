@@ -1,4 +1,6 @@
 import Foundation
+import StetAI
+import StetCore
 import Testing
 
 @testable import Stet

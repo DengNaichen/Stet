@@ -1,6 +1,7 @@
 #if os(macOS)
     import Foundation
     import Sparkle
+    import StetCore
     import Testing
 
     @testable import Stet

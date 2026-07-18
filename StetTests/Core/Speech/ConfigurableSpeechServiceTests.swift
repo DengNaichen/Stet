@@ -1,5 +1,8 @@
 import AVFoundation
 import Foundation
+import StetAI
+import StetCore
+import StetRewrite
 import Testing
 
 @testable import Stet
@@ -404,7 +407,7 @@ struct ConfigurableSpeechServiceTests {
 
         #expect(transcript == "rewritten transcript")
         #expect(directInvocation?.prompt?.contains("OpenAI, Groq") == true)
-        #expect(directInvocation?.languageCode == nil)
+        #expect(directInvocation?.languageCode == "en")
         #expect(await direct.callCount() == 1)
         #expect(await capture.counts().stop == 1)
         #expect(rewriteRequests.count == 1)
@@ -427,7 +430,11 @@ struct ConfigurableSpeechServiceTests {
         )
 
         try await service.startRecording()
-        try await Task.sleep(for: .milliseconds(50))
+
+        let didPrewarm = await TestSupport.eventuallyAsync(timeout: .seconds(2)) {
+            !(await rewrite.recordedPrewarmRequests()).isEmpty
+        }
+        #expect(didPrewarm)
 
         let prewarmRequest = try #require(await rewrite.recordedPrewarmRequests().first)
         #expect(prewarmRequest.text.isEmpty)
@@ -785,7 +792,7 @@ struct ConfigurableSpeechServiceTests {
         #expect(await rewrite.recordedRequests().count == 1)
     }
 
-    @Test func primaryChineseLanguageDoesNotPassLanguageBiasToWhisper() async throws {
+    @Test func primaryChineseLanguageIsForwardedToLocalTranscriptionAndRewrite() async throws {
         let audioFileURL = makeAudioFileURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
 
@@ -812,8 +819,8 @@ struct ConfigurableSpeechServiceTests {
         let directInvocation = await direct.lastInvocation()
         let rewriteRequests = await rewrite.recordedRequests()
 
-        #expect(directInvocation?.languageCode == nil)
-        #expect(rewriteRequests.first?.languageCode == nil)
+        #expect(directInvocation?.languageCode == "zh")
+        #expect(rewriteRequests.first?.languageCode == "zh")
     }
 
     @Test func emptyTranscriptThrowsEmptyTranscription() async throws {

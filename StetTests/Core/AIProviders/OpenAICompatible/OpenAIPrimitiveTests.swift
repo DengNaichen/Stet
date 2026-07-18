@@ -1,17 +1,19 @@
 import Foundation
 import OpenAI
+import StetCore
 import Testing
 
 @testable import Stet
+@testable import StetAI
 
 @Suite("OpenAI Primitives")
 struct OpenAIPrimitiveTests {
     @Test func errorMapperPassesThroughExistingOpenAIError() {
-        let error = Stet.OpenAIError.missingAPIKey(provider: .groq)
+        let error = StetAI.OpenAIError.missingAPIKey(provider: .groq)
 
         let mapped = OpenAISDKErrorMapper.map(error, responseStatusCode: 401, provider: .openAI)
 
-        #expect(mapped as? Stet.OpenAIError == .missingAPIKey(provider: .groq))
+        #expect(mapped as? StetAI.OpenAIError == .missingAPIKey(provider: .groq))
     }
 
     @Test func errorMapperConvertsAPIErrorResponseIntoProviderAwareAPIError() throws {
@@ -22,7 +24,7 @@ struct OpenAIPrimitiveTests {
 
         let mapped = OpenAISDKErrorMapper.map(response, responseStatusCode: 401, provider: .groq)
 
-        #expect(mapped as? Stet.OpenAIError == .api(provider: .groq, statusCode: 401, message: "bad key"))
+        #expect(mapped as? StetAI.OpenAIError == .api(provider: .groq, statusCode: 401, message: "bad key"))
     }
 
     @Test func errorMapperUsesHTTPStatusMessageForDecodingFailuresOnErrorResponses() {
@@ -33,7 +35,7 @@ struct OpenAIPrimitiveTests {
         )
 
         #expect(
-            mapped as? Stet.OpenAIError
+            mapped as? StetAI.OpenAIError
                 == .api(
                     provider: .openAI, statusCode: 429, message: HTTPURLResponse.localizedString(forStatusCode: 429))
         )
@@ -49,7 +51,7 @@ struct OpenAIPrimitiveTests {
             provider: .groq
         )
 
-        #expect(mapped as? Stet.OpenAIError == .invalidResponse(provider: .groq))
+        #expect(mapped as? StetAI.OpenAIError == .invalidResponse(provider: .groq))
     }
 
     @Test func stetOutputTextReturnsFirstTrimmedNonEmptyAssistantText() throws {

@@ -1,8 +1,11 @@
 import Foundation
 import OpenAI
+import StetCore
+import StetRewrite
 import Testing
 
 @testable import Stet
+@testable import StetAI
 
 @MainActor
 @Suite("OpenAI Adapters", .serialized)
