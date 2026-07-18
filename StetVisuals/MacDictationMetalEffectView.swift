@@ -16,6 +16,7 @@
         var fieldBlurSigma: Float
         var gradientBlurSigma: Float
         var motionGain: Float
+        var processingMix: Float
     }
 
     struct MacDictationMetalEffectView: NSViewRepresentable {
@@ -28,7 +29,8 @@
         var fieldGain: Float = 1
         var fieldBlurSigma: Float = MacDictationAudioFieldConstants.fieldBlurSigma
         var gradientBlurSigma: Float = MacDictationAudioFieldConstants.gradientBlurSigma
-        var motionGain: Float = 10
+        var motionGain: Float = 1
+        var processingMix: Float = 0
 
         func makeCoordinator() -> Coordinator {
             Coordinator()
@@ -59,7 +61,8 @@
                 fieldGain: fieldGain,
                 fieldBlurSigma: fieldBlurSigma,
                 gradientBlurSigma: gradientBlurSigma,
-                motionGain: motionGain
+                motionGain: motionGain,
+                processingMix: processingMix
             )
             coordinator.renderer?.update(configuration: configuration, view: nsView)
         }
@@ -101,6 +104,10 @@
         var gradientBlurSigma: Float
         var fieldGain: Float
         var motionGain: Float
+        var deltaTime: Float
+        var inputLevel: Float
+        var padding: SIMD2<Float> = .zero
+        var inputGroupedBands: SIMD4<Float>
     }
 
     private struct AudioFieldSummaryGPU {
@@ -109,12 +116,14 @@
         var flowY: Float
         var padding: Float
         var groupedBands: SIMD4<Float>
+        var transport: SIMD2<Float>
+        var padding2: SIMD2<Float> = .zero
     }
 
     private struct AudioFieldRenderUniformsGPU {
         var size: SIMD2<Float>
         var time: Float
-        var motionGain: Float
+        var processingMix: Float
         var cottonFoam: SIMD3<Float>
         var padding0: Float = 0
         var waveTop: SIMD3<Float>
@@ -152,15 +161,22 @@
             fieldGain: 1,
             fieldBlurSigma: MacDictationAudioFieldConstants.fieldBlurSigma,
             gradientBlurSigma: MacDictationAudioFieldConstants.gradientBlurSigma,
-            motionGain: 10
+            motionGain: 1,
+            processingMix: 0
         )
         private var lastKnownStartDate = Date.distantPast
         private var accumulatedPauseDuration: TimeInterval = 0
         private var pauseStartedAt: Date?
         private var previousPaused = false
         private var pausedElapsed: TimeInterval = 0
+        private var lastFrameUptime: TimeInterval?
 
         init?(device: MTLDevice, view: MTKView) {
+            assert(MemoryLayout<AudioBandFeatureGPU>.stride == 16)
+            assert(MemoryLayout<AudioFieldComputeUniformsGPU>.stride == 64)
+            assert(MemoryLayout<AudioFieldSummaryGPU>.stride == 48)
+            assert(MemoryLayout<AudioFieldRenderUniformsGPU>.stride == 112)
+
             guard let commandQueue = device.makeCommandQueue(),
                 let library = try? device.makeDefaultLibrary(bundle: Self.shaderBundle),
                 let renderPipeline = Self.makeRenderPipeline(device: device, library: library, view: view),
@@ -216,8 +232,7 @@
 
             super.init()
 
-            memset(summaryA.contents(), 0, MemoryLayout<AudioFieldSummaryGPU>.stride)
-            memset(summaryB.contents(), 0, MemoryLayout<AudioFieldSummaryGPU>.stride)
+            resetSummaryBuffers()
         }
 
         func update(configuration: MacDictationMetalEffectConfiguration, view: MTKView) {
@@ -234,9 +249,9 @@
                 accumulatedPauseDuration = 0
                 pauseStartedAt = nil
                 pausedElapsed = 0
+                lastFrameUptime = nil
                 summaryBufferIndex = 0
-                memset(summaryBuffers[0].contents(), 0, MemoryLayout<AudioFieldSummaryGPU>.stride)
-                memset(summaryBuffers[1].contents(), 0, MemoryLayout<AudioFieldSummaryGPU>.stride)
+                resetSummaryBuffers()
             }
 
             if configuration.isPaused, !previousPaused {
@@ -246,10 +261,13 @@
                 accumulatedPauseDuration += Date().timeIntervalSince(pauseStartedAt)
                 self.pauseStartedAt = nil
             }
+            if configuration.isPaused != previousPaused {
+                lastFrameUptime = nil
+            }
             previousPaused = configuration.isPaused
 
             writeFeatureBuffer(signals: configuration.signals)
-            writeUniforms()
+            writeUniforms(deltaTime: 0)
         }
 
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
@@ -262,7 +280,7 @@
                 return
             }
 
-            writeUniforms()
+            writeUniforms(deltaTime: nextFrameInterval())
 
             if let computeEncoder = commandBuffer.makeComputeCommandEncoder() {
                 encodeSplat(into: computeEncoder)
@@ -300,7 +318,7 @@
             }
         }
 
-        private func writeUniforms() {
+        private func writeUniforms(deltaTime: Float) {
             let computePointer = computeUniformBuffer.contents().bindMemory(
                 to: AudioFieldComputeUniformsGPU.self,
                 capacity: 1
@@ -313,7 +331,10 @@
                 fieldBlurSigma: configuration.fieldBlurSigma,
                 gradientBlurSigma: configuration.gradientBlurSigma,
                 fieldGain: configuration.fieldGain,
-                motionGain: configuration.motionGain
+                motionGain: configuration.motionGain,
+                deltaTime: deltaTime,
+                inputLevel: configuration.signals.estimatedSummary.level,
+                inputGroupedBands: configuration.signals.estimatedSummary.groupedBands
             )
 
             let renderPointer = renderUniformBuffer.contents().bindMemory(
@@ -323,7 +344,7 @@
             renderPointer.pointee = AudioFieldRenderUniformsGPU(
                 size: SIMD2<Float>(Float(configuration.size.width), Float(configuration.size.height)),
                 time: Float(configuration.isPaused ? pausedElapsed : currentElapsed(now: Date())),
-                motionGain: configuration.motionGain,
+                processingMix: configuration.processingMix,
                 cottonFoam: configuration.colors.cottonFoam,
                 waveTop: configuration.colors.waveTop,
                 deepSea: configuration.colors.deepSea
@@ -389,6 +410,29 @@
                 accumulatedPauseDuration
                 + (configuration.isPaused ? now.timeIntervalSince(pauseStartedAt ?? now) : 0)
             return max(0, now.timeIntervalSince(configuration.startDate) - pauseDuration)
+        }
+
+        private func nextFrameInterval() -> Float {
+            let now = ProcessInfo.processInfo.systemUptime
+            defer { lastFrameUptime = now }
+            guard let lastFrameUptime else {
+                return Float(min(max(configuration.frameInterval, 0), 0.05))
+            }
+            return Float(min(max(now - lastFrameUptime, 0), 0.05))
+        }
+
+        private func resetSummaryBuffers() {
+            let initialSummary = AudioFieldSummaryGPU(
+                level: 0,
+                flowX: 0.055,
+                flowY: 0,
+                padding: 0,
+                groupedBands: .zero,
+                transport: .zero
+            )
+            for buffer in summaryBuffers {
+                buffer.contents().bindMemory(to: AudioFieldSummaryGPU.self, capacity: 1).pointee = initialSummary
+            }
         }
 
         private var currentSummaryBuffer: MTLBuffer {

@@ -26,11 +26,13 @@ public enum SenseVoiceModelAsset: CaseIterable, Sendable {
         switch self {
         case .model:
             return URL(
-                string: "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main/model.int8.onnx"
+                string:
+                    "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main/model.int8.onnx"
             )!
         case .tokens:
             return URL(
-                string: "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main/tokens.txt"
+                string:
+                    "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main/tokens.txt"
             )!
         case .vad:
             return URL(
@@ -87,14 +89,17 @@ public actor SenseVoiceModelManager: ASRModelManager {
     }
 
     public nonisolated static func defaultModelsDirectory() throws -> URL {
-        guard let applicationSupportURL = FileManager.default.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first else {
+        guard
+            let applicationSupportURL = FileManager.default.urls(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask
+            ).first
+        else {
             throw SenseVoiceModelManagerError.modelsDirectoryUnavailable
         }
 
-        return applicationSupportURL
+        return
+            applicationSupportURL
             .appendingPathComponent("Stet", isDirectory: true)
             .appendingPathComponent("Models", isDirectory: true)
             .appendingPathComponent("SenseVoice", isDirectory: true)
@@ -145,6 +150,32 @@ public actor SenseVoiceModelManager: ASRModelManager {
         } catch {
             state = .error(message: error.localizedDescription)
             inFlightDownload = nil
+            throw error
+        }
+    }
+
+    /// Removes every downloaded asset for the supported model.
+    ///
+    /// Any active download is cancelled and settled before the model directory
+    /// is removed, preventing a late download from recreating files after the
+    /// delete operation finishes.
+    public func deleteModel(for modelName: String) async throws {
+        try validate(modelName: modelName)
+
+        if let inFlightDownload {
+            inFlightDownload.cancel()
+            _ = try? await inFlightDownload.value
+            self.inFlightDownload = nil
+        }
+
+        let fileManager = FileManager.default
+        do {
+            if fileManager.fileExists(atPath: modelsDirectory.path) {
+                try fileManager.removeItem(at: modelsDirectory)
+            }
+            state = .notDownloaded
+        } catch {
+            state = .error(message: error.localizedDescription)
             throw error
         }
     }

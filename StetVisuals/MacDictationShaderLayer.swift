@@ -29,7 +29,8 @@
                     signals: currentSignals(),
                     colors: colors,
                     isPaused: isPaused,
-                    motionGain: isProcessing ? 10.0 : 9.999
+                    motionGain: 1,
+                    processingMix: isProcessing ? 1 : 0
                 )
                 .frame(width: mainWidth, height: controlHeight)
                 .clipShape(Capsule())

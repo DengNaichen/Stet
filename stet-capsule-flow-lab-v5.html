@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stet Capsule Flow Lab</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family:
+          Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI",
+          sans-serif;
+        --bg: #080b12;
+        --panel: rgba(19, 24, 37, 0.78);
+        --panel-strong: rgba(25, 31, 46, 0.94);
+        --line: rgba(255, 255, 255, 0.11);
+        --muted: #929bb1;
+        --text: #f4f6fb;
+        --accent: #9cb8ff;
+        --accent-strong: #c5d5ff;
+        --success: #89e0bf;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        min-height: 100vh;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 18% 0%, rgba(86, 113, 180, 0.18), transparent 34rem),
+          radial-gradient(circle at 82% 18%, rgba(86, 175, 178, 0.1), transparent 32rem), var(--bg);
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      .page {
+        width: min(1180px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 42px 0 54px;
+      }
+
+      header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 28px;
+        align-items: end;
+        margin-bottom: 26px;
+      }
+
+      .eyebrow {
+        margin: 0 0 10px;
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 760;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(30px, 5vw, 54px);
+        font-weight: 720;
+        letter-spacing: -0.045em;
+        line-height: 0.98;
+      }
+
+      .lede {
+        max-width: 700px;
+        margin: 16px 0 0;
+        color: #b5bdd0;
+        font-size: 15px;
+        line-height: 1.7;
+      }
+
+      .audio-note {
+        display: grid;
+        gap: 4px;
+        min-width: 218px;
+        padding: 13px 15px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.035);
+        font-size: 12px;
+      }
+
+      .audio-note strong {
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .transport {
+        display: grid;
+        grid-template-columns: auto auto auto minmax(180px, 1fr);
+        gap: 10px;
+        align-items: center;
+        padding: 12px;
+        margin-bottom: 18px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--panel-strong);
+        box-shadow: 0 16px 50px rgba(0, 0, 0, 0.22);
+      }
+
+      button {
+        min-height: 40px;
+        padding: 0 16px;
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: 11px;
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.065);
+        cursor: pointer;
+        transition:
+          transform 140ms ease,
+          border-color 140ms ease,
+          background 140ms ease;
+      }
+
+      button:hover {
+        border-color: rgba(255, 255, 255, 0.24);
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      button:active {
+        transform: translateY(1px);
+      }
+
+      button.primary {
+        border-color: rgba(175, 197, 255, 0.45);
+        color: #0e1422;
+        background: linear-gradient(135deg, #dbe5ff, #98b6ff);
+        font-weight: 720;
+      }
+
+      button:focus-visible {
+        outline: 2px solid var(--accent-strong);
+        outline-offset: 2px;
+      }
+
+      .timeline {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px 12px;
+        align-items: center;
+        min-width: 0;
+        padding: 0 5px 0 8px;
+      }
+
+      .timeline-track {
+        grid-column: 1 / -1;
+        position: relative;
+        height: 4px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.09);
+      }
+
+      .timeline-fill {
+        width: 0%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #7e9ef0, #a9e0d1);
+      }
+
+      .transport-status,
+      .transport-time {
+        color: var(--muted);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .comparison {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .recipe {
+        position: relative;
+        overflow: hidden;
+        padding: 19px;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--panel);
+        box-shadow: 0 22px 70px rgba(0, 0, 0, 0.24);
+        backdrop-filter: blur(24px);
+      }
+
+      .recipe.is-active {
+        border-color: rgba(164, 189, 255, 0.38);
+        box-shadow:
+          0 22px 70px rgba(0, 0, 0, 0.24),
+          inset 0 0 0 1px rgba(164, 189, 255, 0.08);
+      }
+
+      .recipe-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+        margin-bottom: 16px;
+      }
+
+      .recipe-label {
+        display: inline-flex;
+        align-items: center;
+        min-height: 25px;
+        padding: 0 9px;
+        margin-bottom: 9px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        color: #aeb8cb;
+        background: rgba(255, 255, 255, 0.045);
+        font-size: 11px;
+        font-weight: 760;
+        letter-spacing: 0.1em;
+      }
+
+      .recipe-b .recipe-label {
+        border-color: rgba(137, 224, 191, 0.22);
+        color: var(--success);
+        background: rgba(99, 198, 164, 0.08);
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 22px;
+        letter-spacing: -0.025em;
+      }
+
+      .signal-readout {
+        display: grid;
+        gap: 4px;
+        color: var(--muted);
+        font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+        font-size: 10px;
+        line-height: 1.35;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .canvas-stage {
+        padding: clamp(34px, 8vw, 74px) 6px;
+        margin-bottom: 17px;
+        border: 1px solid rgba(255, 255, 255, 0.065);
+        border-radius: 18px;
+        background:
+          radial-gradient(circle at 50% 46%, rgba(134, 153, 196, 0.1), transparent 42%),
+          linear-gradient(155deg, rgba(3, 5, 9, 0.96), rgba(10, 14, 23, 0.9));
+      }
+
+      .canvas-shell {
+        position: relative;
+        width: min(100%, 480px);
+        aspect-ratio: 2 / 1;
+        margin: 0 auto;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 999px;
+        background: #11182a;
+        box-shadow:
+          0 18px 38px rgba(0, 0, 0, 0.42),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+          inset 0 -20px 38px rgba(1, 4, 10, 0.28);
+      }
+
+      .canvas-shell::after {
+        content: "";
+        position: absolute;
+        inset: 1px 8% auto;
+        height: 42%;
+        border-radius: 999px;
+        pointer-events: none;
+        background: linear-gradient(to bottom, rgba(255, 255, 255, 0.16), transparent);
+        mix-blend-mode: screen;
+        opacity: 0.54;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .recipe-copy {
+        min-height: 68px;
+        margin: 0;
+        color: #aeb6c8;
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      .recipe-copy strong {
+        color: var(--text);
+        font-weight: 680;
+      }
+
+      .bands {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 7px;
+        margin-top: 16px;
+      }
+
+      .band {
+        display: grid;
+        gap: 7px;
+      }
+
+      .band-label {
+        color: #727d95;
+        font-size: 9px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .band-track {
+        height: 3px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.07);
+      }
+
+      .band-fill {
+        width: 0%;
+        height: 100%;
+        border-radius: inherit;
+        background: #8ba8ee;
+        transition: width 70ms linear;
+      }
+
+      .recipe-b .band-fill {
+        background: #83d2b9;
+      }
+
+      .footer-note {
+        margin: 18px 3px 0;
+        color: #7d879d;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      .error {
+        display: none;
+        margin-bottom: 18px;
+        padding: 12px 14px;
+        border: 1px solid rgba(255, 122, 122, 0.34);
+        border-radius: 12px;
+        color: #ffc0c0;
+        background: rgba(121, 27, 27, 0.24);
+        white-space: pre-wrap;
+      }
+
+      @media (max-width: 820px) {
+        .page {
+          width: min(100% - 24px, 650px);
+          padding-top: 24px;
+        }
+
+        header,
+        .comparison {
+          grid-template-columns: 1fr;
+        }
+
+        .audio-note {
+          width: fit-content;
+        }
+
+        .transport {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .timeline {
+          grid-column: 1 / -1;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        button,
+        .band-fill {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <div>
+          <p class="eyebrow">StetVisuals · WebGL A/B Lab</p>
+          <h1>胶囊流动配方对比</h1>
+          <p class="lede">
+            两个 shader 使用完全相同的 22.6 秒普通话自然语音。A 保留当前液面式 FBM；B
+            改用纵横比校正、大尺度域平流与边界翻卷，让眼睛能够持续追踪蓝白体积云。
+          </p>
+        </div>
+        <div class="audio-note" aria-label="测试音频说明">
+          <strong>Matched Mandarin speech · 22.6s</strong>
+          <span>自然语速 · 句间停顿 · 轻重音 · 同一频段分析</span>
+        </div>
+      </header>
+
+      <div id="error" class="error" role="alert"></div>
+
+      <section class="transport" aria-label="播放控制">
+        <button id="playTogether" class="primary">同步对比</button>
+        <button id="playSequence">A → B 依次试听</button>
+        <button id="stop">停止</button>
+        <div class="timeline" aria-live="polite">
+          <span id="status" class="transport-status">准备就绪</span>
+          <span id="time" class="transport-time">0.0 / 22.6s</span>
+          <div class="timeline-track" aria-hidden="true">
+            <div id="progress" class="timeline-fill"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="comparison" aria-label="Shader 配方比较">
+        <article id="cardA" class="recipe recipe-a">
+          <div class="recipe-head">
+            <div>
+              <span class="recipe-label">A · CURRENT</span>
+              <h2>现有配方</h2>
+            </div>
+            <div id="readoutA" class="signal-readout">
+              <span>level 0.00</span>
+              <span>flow +0.00 +0.00</span>
+            </div>
+          </div>
+          <div class="canvas-stage">
+            <div class="canvas-shell">
+              <canvas id="currentCanvas" width="960" height="480" aria-label="当前液体式 shader"></canvas>
+            </div>
+          </div>
+          <p class="recipe-copy">
+            <strong>软液面 + 宽阈值 FBM。</strong>频段归一化后 level 很快饱和；全局梯度平均接近零，主要看到缓慢融化，而不是清晰位移。
+          </p>
+          <div id="bandsA" class="bands" aria-label="当前配方频段"></div>
+        </article>
+
+        <article id="cardB" class="recipe recipe-b">
+          <div class="recipe-head">
+            <div>
+              <span class="recipe-label">B · PROPOSED</span>
+              <h2>气体流动配方</h2>
+            </div>
+            <div id="readoutB" class="signal-readout">
+              <span>level 0.00</span>
+              <span>flow +0.18 +0.00</span>
+            </div>
+          </div>
+          <div class="canvas-stage">
+            <div class="canvas-shell">
+              <canvas id="newCanvas" width="960" height="480" aria-label="新的气体流动 shader"></canvas>
+            </div>
+          </div>
+          <p class="recipe-copy">
+            <strong>惯性平流 + 边界翻卷。</strong>音频先变成连续速度，再积分为位移；保留参考里的蓝白体积和羽化界面，不再用瞬时音量拖动噪声。
+          </p>
+          <div id="bandsB" class="bands" aria-label="新配方频段"></div>
+        </article>
+      </section>
+
+      <p class="footer-note">
+        “同步对比”最适合判断配方差异；“A → B”会用同一段普通话语音播放两次，中间停顿 0.7 秒。语音文件只从本机页面加载。
+      </p>
+    </main>
+
+    <script>
+      const vertexSource = `#version 300 es
+        precision highp float;
+        in vec2 a_position;
+        out vec2 v_uv;
+
+        void main() {
+          gl_Position = vec4(a_position, 0.0, 1.0);
+          v_uv = a_position * 0.5 + 0.5;
+        }
+      `;
+
+      const sharedNoise = `
+        float randomValue(vec2 st) {
+          return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+        }
+
+        float noiseValue(vec2 st) {
+          vec2 i = floor(st);
+          vec2 f = fract(st);
+          float a = randomValue(i);
+          float b = randomValue(i + vec2(1.0, 0.0));
+          float c = randomValue(i + vec2(0.0, 1.0));
+          float d = randomValue(i + vec2(1.0, 1.0));
+          vec2 u = f * f * (3.0 - 2.0 * f);
+          return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+        }
+
+        float fbmValue(vec2 x) {
+          float value = 0.0;
+          float amplitude = 0.5;
+          mat2 rotation = mat2(cos(0.5), -sin(0.5), sin(0.5), cos(0.5));
+          for (int index = 0; index < 5; ++index) {
+            value += amplitude * noiseValue(x);
+            x = rotation * x * 2.0 + vec2(100.0);
+            amplitude *= 0.5;
+          }
+          return value;
+        }
+      `;
+
+      const currentFragmentSource = `#version 300 es
+        precision highp float;
+        in vec2 v_uv;
+        out vec4 fragColor;
+
+        uniform vec2 u_size;
+        uniform float u_time;
+        uniform float u_level;
+        uniform vec2 u_flow;
+        uniform vec4 u_bands;
+        uniform vec3 u_cotton;
+        uniform vec3 u_wave;
+        uniform vec3 u_deep;
+
+        ${sharedNoise}
+
+        void main() {
+          vec2 p = v_uv * 2.0 - 1.0;
+          p *= 1.08;
+
+          vec3 bgLightBlue = mix(u_cotton, u_wave, 0.36);
+          float level = clamp(u_level, 0.0, 1.0);
+          float motionMix = level;
+          float tilt = u_flow.x * (0.66 + 0.22 * level) + (u_bands.z - u_bands.x) * 0.08;
+          float basinCurve = 0.15 + 0.08 * u_bands.x;
+          float surfaceHeight = -0.24 + p.x * tilt - abs(p.x * p.x) * basinCurve + u_flow.y * 0.48;
+          float depth = p.y - surfaceHeight;
+
+          vec2 audioWarp = vec2(
+            u_flow.x * (0.46 + 0.30 * abs(p.y)) + (u_bands.z - u_bands.x) * 0.12,
+            u_flow.y * (0.82 + 0.56 * abs(p.x)) + (u_bands.w - u_bands.y) * 0.18
+          );
+
+          vec2 pScale = vec2(
+            p.x * (1.18 + 0.12 * u_bands.z) - u_time * motionMix * (0.06 + 0.10 * u_bands.y),
+            p.y * (1.18 + 0.18 * u_bands.x) + u_time * motionMix * (0.06 + 0.10 * u_bands.w)
+          );
+          pScale += audioWarp;
+
+          vec2 q = vec2(
+            fbmValue(pScale + vec2(0.0, u_time * motionMix * 0.05 + u_bands.x * 1.9)),
+            fbmValue(pScale + vec2(5.2, 1.3) + u_time * motionMix * 0.025 + audioWarp * 1.6)
+          );
+
+          vec2 r = vec2(
+            fbmValue(pScale + 2.0 * q + vec2(1.7, 9.2) - u_time * motionMix * (0.018 + 0.04 * u_bands.z)),
+            fbmValue(pScale + 2.0 * q + vec2(8.3, 2.8) + u_time * motionMix * (0.018 + 0.03 * u_bands.w))
+          );
+
+          float bodyField = fbmValue(pScale + r * (0.95 + 0.35 * level) + audioWarp * 1.35);
+          float shimmerField = fbmValue(pScale * 1.35 - q * 0.65 + audioWarp * 2.2 + vec2(6.0, 2.0));
+          float distortedDepth = depth - bodyField * (1.05 + 0.9 * level);
+          float cottonMask = 1.0 - smoothstep(-0.10, 0.34, distortedDepth);
+          float bodyFade = 1.0 - smoothstep(-1.45 - u_bands.x * 0.3, -0.55, distortedDepth);
+          vec3 liquidColor = mix(u_wave, u_deep, bodyFade);
+          float foamMix = smoothstep(0.22, 0.82, shimmerField + level * 0.45);
+          float surfaceFade = 1.0 - smoothstep(-0.72 - 0.15 * u_bands.y, -0.08, distortedDepth);
+          liquidColor = mix(u_cotton, liquidColor, surfaceFade);
+          liquidColor = mix(liquidColor, u_cotton, foamMix * 0.08 * level);
+
+          vec3 color = mix(bgLightBlue, liquidColor, cottonMask);
+          color += vec3(0.04 + 0.05 * level) * (1.0 - smoothstep(-0.08, 0.32, distortedDepth));
+          fragColor = vec4(color, 1.0);
+        }
+      `;
+
+      const newFragmentSource = `#version 300 es
+        precision highp float;
+        in vec2 v_uv;
+        out vec4 fragColor;
+
+        uniform vec2 u_size;
+        uniform float u_time;
+        uniform float u_level;
+        uniform vec2 u_flow;
+        uniform vec2 u_transport;
+        uniform vec4 u_bands;
+        uniform vec3 u_cotton;
+        uniform vec3 u_wave;
+        uniform vec3 u_deep;
+
+        ${sharedNoise}
+
+        void main() {
+          vec2 centered = v_uv * 2.0 - 1.0;
+          float aspect = u_size.x / max(u_size.y, 1.0);
+          vec2 p = vec2(centered.x * aspect * 0.68, centered.y) * 1.06;
+          float level = clamp(u_level, 0.0, 1.0);
+          vec2 flowDirection = normalize(vec2(1.0, clamp(u_flow.y * 0.7, -0.42, 0.42)));
+          vec2 advected = p - u_transport;
+          advected += vec2(sin(u_time * 0.13), cos(u_time * 0.17)) * (0.035 + level * 0.035);
+          float turn = sin(u_time * 0.16 + u_flow.y * 0.45) * (0.045 + level * 0.055);
+          mat2 flowTurn = mat2(cos(turn), -sin(turn), sin(turn), cos(turn));
+          advected = flowTurn * advected;
+          advected.y += sin(p.x * 0.72 - u_time * 0.27) * (0.055 + level * 0.075);
+
+          vec2 q = vec2(
+            fbmValue(advected + vec2(0.0, u_time * 0.115 + u_bands.x * 0.34)),
+            fbmValue(advected + vec2(5.2, 1.3) - flowDirection * u_time * 0.092)
+          );
+
+          vec2 r = vec2(
+            fbmValue(advected + q * (1.55 + level * 0.42) + vec2(1.7, 9.2) - u_time * vec2(0.10, 0.045)),
+            fbmValue(advected + q * (1.72 + u_bands.y * 0.36) + vec2(8.3, 2.8) + u_time * vec2(0.055, 0.085))
+          );
+
+          vec2 rolled = advected + (q - 0.5) * (0.50 + level * 0.28) + (r - 0.5) * (0.34 + u_bands.z * 0.24);
+          float broadBody = fbmValue(rolled * vec2(0.92, 1.08));
+          float edgeBody = fbmValue(rolled * 2.65 + q * 1.35 - flowDirection * u_time * 0.27);
+          float microBody = fbmValue(rolled * 5.1 - r * 0.8 + vec2(6.0, 2.0));
+
+          float tilt = (u_bands.z - u_bands.x) * 0.12 + u_flow.y * 0.22;
+          float surfaceHeight = -0.24 + p.x * tilt - p.x * p.x * 0.045;
+          surfaceHeight += sin(p.x * 0.82 - u_time * 0.28) * (0.08 + level * 0.075);
+          float depth = p.y - surfaceHeight;
+
+          float cloudLift = broadBody * (1.10 + level * 0.82);
+          float boundaryZone = 1.0 - smoothstep(0.12, 0.64, abs(depth - cloudLift * 0.72));
+          float feather = (edgeBody - 0.5) * (0.18 + level * 0.22) * boundaryZone;
+          feather += (microBody - 0.5) * (0.055 + u_bands.w * 0.12) * boundaryZone;
+          float distortedDepth = depth - cloudLift - feather;
+
+          float cloudMask = 1.0 - smoothstep(-0.08, 0.30, distortedDepth);
+          float deepMix = 1.0 - smoothstep(-1.52 - u_bands.x * 0.22, -0.46, distortedDepth);
+          float foamLayer = 1.0 - smoothstep(-0.66 - u_bands.y * 0.12, -0.04, distortedDepth);
+          float edgeFoam = smoothstep(0.46, 0.84, edgeBody + level * 0.18) * boundaryZone;
+
+          vec3 sky = mix(u_cotton, u_wave, 0.30);
+          vec3 volumeColor = mix(u_wave, u_deep, deepMix);
+          volumeColor = mix(u_cotton, volumeColor, foamLayer);
+          volumeColor = mix(volumeColor, u_cotton, edgeFoam * (0.12 + level * 0.16));
+
+          vec3 color = mix(sky, volumeColor, cloudMask);
+          float softGlow = (1.0 - smoothstep(-0.06, 0.26, distortedDepth)) * (0.035 + level * 0.045);
+          color += vec3(softGlow);
+          fragColor = vec4(color, 1.0);
+        }
+      `;
+
+      const palette = {
+        cotton: [0.949, 0.957, 0.98],
+        wave: [0.478, 0.682, 1.0],
+        deep: [0.039, 0.235, 0.663],
+      };
+
+      class ShaderCanvas {
+        constructor(canvas, fragmentSource) {
+          this.canvas = canvas;
+          this.gl = canvas.getContext("webgl2", { antialias: false, alpha: false });
+          if (!this.gl) throw new Error("当前浏览器不支持 WebGL 2。");
+
+          const gl = this.gl;
+          const vertexShader = this.compile(gl.VERTEX_SHADER, vertexSource);
+          const fragmentShader = this.compile(gl.FRAGMENT_SHADER, fragmentSource);
+          this.program = gl.createProgram();
+          gl.attachShader(this.program, vertexShader);
+          gl.attachShader(this.program, fragmentShader);
+          gl.linkProgram(this.program);
+          if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
+            throw new Error(`Shader link failed:\n${gl.getProgramInfoLog(this.program)}`);
+          }
+
+          gl.deleteShader(vertexShader);
+          gl.deleteShader(fragmentShader);
+          gl.useProgram(this.program);
+
+          const buffer = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+          const position = gl.getAttribLocation(this.program, "a_position");
+          gl.enableVertexAttribArray(position);
+          gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+
+          this.uniforms = Object.fromEntries(
+            ["u_size", "u_time", "u_level", "u_flow", "u_transport", "u_bands", "u_cotton", "u_wave", "u_deep"].map(
+              (name) => [name, gl.getUniformLocation(this.program, name)],
+            ),
+          );
+        }
+
+        compile(type, source) {
+          const gl = this.gl;
+          const shader = gl.createShader(type);
+          gl.shaderSource(shader, source);
+          gl.compileShader(shader);
+          if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            const stage = type === gl.VERTEX_SHADER ? "Vertex" : "Fragment";
+            throw new Error(`${stage} shader compile failed:\n${gl.getShaderInfoLog(shader)}`);
+          }
+          return shader;
+        }
+
+        render({ time, level, bands, flow, transport = [0, 0] }) {
+          const gl = this.gl;
+          gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+          gl.useProgram(this.program);
+          gl.uniform2f(this.uniforms.u_size, this.canvas.width, this.canvas.height);
+          gl.uniform1f(this.uniforms.u_time, time);
+          gl.uniform1f(this.uniforms.u_level, level);
+          gl.uniform2f(this.uniforms.u_flow, flow[0], flow[1]);
+          gl.uniform2f(this.uniforms.u_transport, transport[0], transport[1]);
+          gl.uniform4fv(this.uniforms.u_bands, bands);
+          gl.uniform3fv(this.uniforms.u_cotton, palette.cotton);
+          gl.uniform3fv(this.uniforms.u_wave, palette.wave);
+          gl.uniform3fv(this.uniforms.u_deep, palette.deep);
+          gl.drawArrays(gl.TRIANGLES, 0, 3);
+        }
+      }
+
+      const clamp01 = (value) => Math.max(0, Math.min(1, value));
+      const smoothToward = (current, target, attack, release) => {
+        const rate = target > current ? attack : release;
+        return current + (target - current) * rate;
+      };
+
+      function makeBandMeters(container) {
+        const names = ["body", "presence", "pulse", "air"];
+        return names.map((name) => {
+          const wrapper = document.createElement("div");
+          wrapper.className = "band";
+          wrapper.innerHTML = `<span class="band-label">${name}</span><div class="band-track"><div class="band-fill"></div></div>`;
+          container.append(wrapper);
+          return wrapper.querySelector(".band-fill");
+        });
+      }
+
+      class AudioLab {
+        constructor() {
+          this.context = null;
+          this.buffer = null;
+          this.source = null;
+          this.analyser = null;
+          this.frequencyData = null;
+          this.timeData = null;
+          this.startedAt = 0;
+          this.offset = 0;
+          this.mode = "idle";
+          this.sequenceTimer = null;
+          this.duration = 22.580045;
+        }
+
+        async prepare() {
+          if (!this.context) {
+            this.context = new AudioContext();
+            const response = await fetch("speech.wav?v=1");
+            if (!response.ok) throw new Error(`无法加载测试语音：${response.status}`);
+            const encodedAudio = await response.arrayBuffer();
+            this.buffer = await this.context.decodeAudioData(encodedAudio);
+            this.duration = this.buffer.duration;
+          }
+          if (this.context.state === "suspended") await this.context.resume();
+        }
+
+        stop() {
+          if (this.source) {
+            this.source.onended = null;
+            try {
+              this.source.stop();
+            } catch (_) {}
+          }
+          if (this.sequenceTimer) window.clearTimeout(this.sequenceTimer);
+          this.sequenceTimer = null;
+          this.source = null;
+          this.analyser = null;
+          this.frequencyData = null;
+          this.timeData = null;
+          this.mode = "idle";
+          this.startedAt = 0;
+          this.offset = 0;
+        }
+
+        async play(mode, onEnded) {
+          await this.prepare();
+          this.stop();
+          this.mode = mode;
+          this.analyser = this.context.createAnalyser();
+          this.analyser.fftSize = 2048;
+          this.analyser.smoothingTimeConstant = 0.57;
+          this.frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
+          this.timeData = new Float32Array(this.analyser.fftSize);
+          this.source = this.context.createBufferSource();
+          this.source.buffer = this.buffer;
+          this.source.connect(this.analyser);
+          this.analyser.connect(this.context.destination);
+          this.source.onended = () => {
+            this.source = null;
+            if (onEnded) onEnded();
+          };
+          this.startedAt = this.context.currentTime;
+          this.source.start();
+        }
+
+        elapsed() {
+          if (!this.context || !this.startedAt) return 0;
+          return Math.min(this.duration, Math.max(0, this.context.currentTime - this.startedAt));
+        }
+
+        features() {
+          if (!this.analyser || !this.frequencyData || !this.timeData) {
+            return { level: 0, bands: [0, 0, 0, 0] };
+          }
+          this.analyser.getByteFrequencyData(this.frequencyData);
+          this.analyser.getFloatTimeDomainData(this.timeData);
+
+          let rms = 0;
+          for (const sample of this.timeData) rms += sample * sample;
+          rms = Math.sqrt(rms / this.timeData.length);
+          const level = clamp01((rms - 0.004) * 8.2);
+
+          const nyquist = this.context.sampleRate * 0.5;
+          const ranges = [
+            [80, 250],
+            [250, 1000],
+            [1000, 3000],
+            [3000, 9000],
+          ];
+          const bands = ranges.map(([minimum, maximum]) => {
+            const first = Math.max(0, Math.floor((minimum / nyquist) * this.frequencyData.length));
+            const last = Math.min(this.frequencyData.length - 1, Math.ceil((maximum / nyquist) * this.frequencyData.length));
+            let energy = 0;
+            for (let index = first; index <= last; index += 1) {
+              const magnitude = this.frequencyData[index] / 255;
+              energy += magnitude * magnitude;
+            }
+            const mean = energy / Math.max(1, last - first + 1);
+            return clamp01(Math.sqrt(mean) * 1.55);
+          });
+
+          return { level, bands };
+        }
+      }
+
+      const errorBox = document.querySelector("#error");
+      let currentShader;
+      let newShader;
+
+      try {
+        currentShader = new ShaderCanvas(document.querySelector("#currentCanvas"), currentFragmentSource);
+        newShader = new ShaderCanvas(document.querySelector("#newCanvas"), newFragmentSource);
+      } catch (error) {
+        errorBox.style.display = "block";
+        errorBox.textContent = error instanceof Error ? error.message : String(error);
+        throw error;
+      }
+
+      const audio = new AudioLab();
+      const status = document.querySelector("#status");
+      const timeLabel = document.querySelector("#time");
+      const progress = document.querySelector("#progress");
+      const cardA = document.querySelector("#cardA");
+      const cardB = document.querySelector("#cardB");
+      const readoutA = document.querySelector("#readoutA");
+      const readoutB = document.querySelector("#readoutB");
+      const metersA = makeBandMeters(document.querySelector("#bandsA"));
+      const metersB = makeBandMeters(document.querySelector("#bandsB"));
+
+      let smoothedCurrentLevel = 0;
+      let smoothedNewLevel = 0;
+      let smoothedBands = [0, 0, 0, 0];
+      let proposedVelocity = [0.055, 0];
+      let proposedTransport = [0, 0];
+      let lastRenderSeconds = performance.now() / 1000;
+      let sequenceStage = null;
+      const renderStartedAt = performance.now() / 1000;
+
+      const updateActiveCards = () => {
+        const drivesA = audio.mode === "together" || audio.mode === "a";
+        const drivesB = audio.mode === "together" || audio.mode === "b";
+        cardA.classList.toggle("is-active", drivesA);
+        cardB.classList.toggle("is-active", drivesB);
+      };
+
+      const playTogether = async () => {
+        sequenceStage = null;
+        await audio.play("together", () => {
+          status.textContent = "播放完成";
+          audio.mode = "idle";
+          updateActiveCards();
+        });
+        status.textContent = "同步驱动 A 与 B";
+        updateActiveCards();
+      };
+
+      const playSequence = async () => {
+        sequenceStage = "a";
+        await audio.play("a", () => {
+          status.textContent = "A 完成 · 0.7 秒后播放 B";
+          audio.mode = "gap";
+          updateActiveCards();
+          audio.sequenceTimer = window.setTimeout(async () => {
+            sequenceStage = "b";
+            await audio.play("b", () => {
+              sequenceStage = null;
+              audio.mode = "idle";
+              status.textContent = "A → B 播放完成";
+              updateActiveCards();
+            });
+            status.textContent = "B · 气体流动配方";
+            updateActiveCards();
+          }, 700);
+        });
+        status.textContent = "A · 现有配方";
+        updateActiveCards();
+      };
+
+      document.querySelector("#playTogether").addEventListener("click", () => {
+        playTogether().catch(showAudioError);
+      });
+      document.querySelector("#playSequence").addEventListener("click", () => {
+        playSequence().catch(showAudioError);
+      });
+      document.querySelector("#stop").addEventListener("click", () => {
+        audio.stop();
+        sequenceStage = null;
+        status.textContent = "已停止";
+        updateActiveCards();
+      });
+
+      function showAudioError(error) {
+        errorBox.style.display = "block";
+        errorBox.textContent = `Audio failed: ${error instanceof Error ? error.message : String(error)}`;
+      }
+
+      function renderFrame(nowMilliseconds) {
+        const time = nowMilliseconds / 1000 - renderStartedAt;
+        const nowSeconds = nowMilliseconds / 1000;
+        const deltaTime = Math.min(0.05, Math.max(0, nowSeconds - lastRenderSeconds));
+        lastRenderSeconds = nowSeconds;
+        const sourceFeatures = audio.features();
+        const drivesA = audio.mode === "together" || audio.mode === "a";
+        const drivesB = audio.mode === "together" || audio.mode === "b";
+        const targetBands = sourceFeatures.bands;
+
+        smoothedBands = smoothedBands.map((value, index) => smoothToward(value, targetBands[index], 0.18, 0.055));
+
+        // Faithful to the production behavior: any meaningful signal quickly becomes level=1.
+        const currentTarget = drivesA && sourceFeatures.level > 0.025 ? 1 : 0;
+        smoothedCurrentLevel = smoothToward(smoothedCurrentLevel, currentTarget, 0.045, 0.011);
+
+        // Proposed behavior: preserve loudness dynamics through a soft knee and faster release.
+        const dynamicTarget = drivesB ? Math.pow(sourceFeatures.level, 0.72) : 0;
+        smoothedNewLevel = smoothToward(smoothedNewLevel, dynamicTarget, 0.14, 0.065);
+
+        const currentBands = drivesA ? smoothedBands : smoothedBands.map((value) => value * 0.22);
+        const newBands = drivesB ? smoothedBands : smoothedBands.map((value) => value * 0.18);
+        const currentFlow = [
+          (currentBands[2] - currentBands[0]) * 0.025,
+          (currentBands[3] - currentBands[1]) * 0.025,
+        ];
+        const targetVelocity = [
+          0.055 + (drivesB ? smoothedNewLevel * 0.15 + newBands[2] * 0.045 : 0),
+          drivesB ? (newBands[3] - newBands[0]) * 0.055 + (newBands[2] - newBands[1]) * 0.022 : 0,
+        ];
+        const forwardResponse = 1 - Math.exp(-deltaTime * 1.9);
+        const verticalResponse = 1 - Math.exp(-deltaTime * 1.15);
+        proposedVelocity[0] += (targetVelocity[0] - proposedVelocity[0]) * forwardResponse;
+        proposedVelocity[1] += (targetVelocity[1] - proposedVelocity[1]) * verticalResponse;
+        proposedTransport[0] += proposedVelocity[0] * deltaTime;
+        proposedTransport[1] += proposedVelocity[1] * deltaTime;
+        const newFlow = proposedVelocity;
+
+        currentShader.render({
+          time,
+          level: smoothedCurrentLevel,
+          bands: currentBands,
+          flow: currentFlow,
+        });
+        newShader.render({
+          time,
+          level: smoothedNewLevel,
+          bands: newBands,
+          flow: newFlow,
+          transport: proposedTransport,
+        });
+
+        const elapsed = audio.elapsed();
+        const progressValue = audio.mode === "gap" ? 1 : elapsed / audio.duration;
+        progress.style.width = `${clamp01(progressValue) * 100}%`;
+        const sequencePrefix = sequenceStage ? `${sequenceStage.toUpperCase()} · ` : "";
+        timeLabel.textContent = `${sequencePrefix}${elapsed.toFixed(1)} / ${audio.duration.toFixed(1)}s`;
+
+        readoutA.innerHTML = `<span>level ${smoothedCurrentLevel.toFixed(2)}</span><span>flow ${currentFlow[0] >= 0 ? "+" : ""}${currentFlow[0].toFixed(2)} ${currentFlow[1] >= 0 ? "+" : ""}${currentFlow[1].toFixed(2)}</span>`;
+        readoutB.innerHTML = `<span>level ${smoothedNewLevel.toFixed(2)}</span><span>flow ${newFlow[0] >= 0 ? "+" : ""}${newFlow[0].toFixed(2)} ${newFlow[1] >= 0 ? "+" : ""}${newFlow[1].toFixed(2)}</span>`;
+        metersA.forEach((meter, index) => (meter.style.width = `${currentBands[index] * 100}%`));
+        metersB.forEach((meter, index) => (meter.style.width = `${newBands[index] * 100}%`));
+
+        requestAnimationFrame(renderFrame);
+      }
+
+      updateActiveCards();
+      requestAnimationFrame(renderFrame);
+    </script>
+  </body>
+</html>

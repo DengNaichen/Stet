@@ -37,19 +37,20 @@
             let sampleRate = Float(buffer.format.sampleRate)
             guard sampleRate > 0 else { return .zero }
 
-            let samples = monoSamples(from: buffer)
+            let monoSignal = monoSignal(from: buffer)
+            let samples = monoSignal.windowedSamples
             guard samples.contains(where: { abs($0) > 0.000_01 }) else { return .zero }
 
+            let level = Self.normalizedLevel(from: monoSignal.unwindowedSamples)
             let magnitudes = spectrumMagnitudes(samples: samples)
             let frequencies = frequencyBins(sampleRate: sampleRate, count: magnitudes.count)
-            let features = computeBandFeatures(spectrumMag: magnitudes, freqs: frequencies)
+            let features = computeBandFeatures(spectrumMag: magnitudes, freqs: frequencies, level: level)
             let groupedBands = summarizeGroupedBands(from: features)
-            let level = groupedBands.max() ?? 0
 
             return MacDictationCapsuleVisualSignals(
                 bands: features,
                 estimatedSummary: MacDictationAudioVisualSummary(
-                    level: min(level * 1.2, 1),
+                    level: level,
                     flowX: (groupedBands[2] - groupedBands[0]) * 0.12,
                     flowY: (groupedBands[3] - groupedBands[1]) * 0.12,
                     groupedBands: SIMD4<Float>(groupedBands[0], groupedBands[1], groupedBands[2], groupedBands[3])
@@ -57,17 +58,20 @@
             )
         }
 
-        private func monoSamples(from buffer: AVAudioPCMBuffer) -> [Float] {
+        private func monoSignal(from buffer: AVAudioPCMBuffer) -> (
+            windowedSamples: [Float], unwindowedSamples: [Float]
+        ) {
             let frameCount = min(Int(buffer.frameLength), fftSize)
             let channelCount = Int(buffer.format.channelCount)
             guard frameCount > 0, channelCount > 0 else {
-                return Array(repeating: 0, count: fftSize)
+                let silence = Array(repeating: Float(0), count: fftSize)
+                return (silence, silence)
             }
 
             var mono = Array(repeating: Float(0), count: fftSize)
 
             guard let channelData = buffer.floatChannelData else {
-                return mono
+                return (mono, mono)
             }
 
             for channel in 0..<channelCount {
@@ -80,9 +84,12 @@
             let scale = 1 / Float(channelCount)
             for index in 0..<frameCount {
                 mono[index] *= scale
-                mono[index] *= window[index]
             }
-            return mono
+            var windowed = mono
+            for index in 0..<frameCount {
+                windowed[index] *= window[index]
+            }
+            return (windowed, mono)
         }
 
         private func spectrumMagnitudes(samples: [Float]) -> [Float] {
@@ -126,7 +133,8 @@
 
         private func computeBandFeatures(
             spectrumMag: [Float],
-            freqs: [Float]
+            freqs: [Float],
+            level: Float
         ) -> [MacDictationAudioBandFeature] {
             var rawEnergies = Array(repeating: Float(0), count: bandCount)
             var centroids = Array(repeating: Float(0), count: bandCount)
@@ -154,7 +162,7 @@
                 if totalEqualized <= 1e-12 {
                     weight = 0
                 } else {
-                    weight = (rawEnergies[index] * bandDisplayWeights[index]) / totalEqualized
+                    weight = (rawEnergies[index] * bandDisplayWeights[index]) / totalEqualized * level
                 }
 
                 return MacDictationAudioBandFeature(
@@ -202,6 +210,16 @@
                 groupedBands[min(3, index / 3)] += feature.weight
             }
             return groupedBands
+        }
+
+        private static func normalizedLevel(from samples: [Float]) -> Float {
+            guard !samples.isEmpty else { return 0 }
+            let meanSquare =
+                samples.reduce(Float(0)) { partialResult, sample in
+                    partialResult + sample * sample
+                } / Float(samples.count)
+            let rms = sqrt(meanSquare)
+            return max(0, min(1, (rms - 0.004) * 5.0))
         }
 
         private static func buildGeomspace(start: Float, end: Float, count: Int) -> [Float] {
