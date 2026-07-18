@@ -9,7 +9,8 @@ public final class SherpaOnnxASREngine: ASREngine {
     private var vad: SherpaOnnxVoiceActivityDetectorWrapper?
     private var audioEngine: AVAudioEngine?
     private var converter: AVAudioConverter?
-    private let outputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)
+    private let outputFormat = AVAudioFormat(
+        commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)
     private let decodeQueue = DispatchQueue(label: "com.stet.StetASR.SherpaOnnxASREngine.decode")
     private let lock = NSRecursiveLock()
     private var preLoadBuffer: [Float] = []
@@ -25,7 +26,7 @@ public final class SherpaOnnxASREngine: ASREngine {
 
     public let resultStream: AsyncStream<ASRResult>
     private let continuation: AsyncStream<ASRResult>.Continuation
-    
+
     private let modelManager: ASRModelManager
     public var onVolumeUpdate: ((Float) -> Void)?
 
@@ -47,7 +48,7 @@ public final class SherpaOnnxASREngine: ASREngine {
 
         if let engine = audioEngine, !engine.isRunning {
             #if os(iOS)
-            try await activateAudioSession()
+                try await activateAudioSession()
             #endif
             if !engine.isRunning {
                 try engine.start()
@@ -88,6 +89,34 @@ public final class SherpaOnnxASREngine: ASREngine {
         }
     }
 
+    public func resetAudio() async throws {
+        unregisterRouteChangeObserver()
+        let previousEngine = detachAudioEngineForReset()
+
+        previousEngine?.stop()
+        previousEngine?.inputNode.removeTap(onBus: 0)
+
+        try await configureAudioSessionAndEngine()
+        registerRouteChangeObserver()
+    }
+
+    private func detachAudioEngineForReset() -> AVAudioEngine? {
+        lock.lock()
+        defer { lock.unlock() }
+
+        let previousEngine = audioEngine
+        audioEngine = nil
+        converter = nil
+        activeSessionId = nil
+        preLoadBuffer.removeAll()
+        decodedSegments.removeAll()
+        expectedSegmentCount = nil
+        if let vad {
+            while !vad.isEmpty() { vad.pop() }
+        }
+        return previousEngine
+    }
+
     public func teardown() {
         unregisterRouteChangeObserver()
         audioEngine?.stop()
@@ -102,14 +131,14 @@ public final class SherpaOnnxASREngine: ASREngine {
 
     private func registerRouteChangeObserver() {
         #if os(iOS)
-        guard routeChangeObserver == nil else { return }
-        routeChangeObserver = NotificationCenter.default.addObserver(
-            forName: AVAudioSession.routeChangeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            self?.handleRouteChange(note)
-        }
+            guard routeChangeObserver == nil else { return }
+            routeChangeObserver = NotificationCenter.default.addObserver(
+                forName: AVAudioSession.routeChangeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] note in
+                self?.handleRouteChange(note)
+            }
         #endif
     }
 
@@ -122,33 +151,33 @@ public final class SherpaOnnxASREngine: ASREngine {
 
     private func handleRouteChange(_: Notification) {
         #if os(iOS)
-        guard let engine = audioEngine else { return }
-        let input = engine.inputNode
+            guard let engine = audioEngine else { return }
+            let input = engine.inputNode
 
-        engine.stop()
-        input.removeTap(onBus: 0)
+            engine.stop()
+            input.removeTap(onBus: 0)
 
-        lock.lock()
-        converter = nil
-        lock.unlock()
+            lock.lock()
+            converter = nil
+            lock.unlock()
 
-        input.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, _ in
-            self?.handleInputBuffer(buffer)
-        }
-        engine.prepare()
-
-        Task { [weak self] in
-            guard let self else { return }
-            do {
-                try await self.activateAudioSession()
-                guard self.audioEngine === engine else { return }
-                if !engine.isRunning {
-                    try engine.start()
-                }
-            } catch {
-                // The next start(sessionId:) will retry engine.start().
+            input.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, _ in
+                self?.handleInputBuffer(buffer)
             }
-        }
+            engine.prepare()
+
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    try await self.activateAudioSession()
+                    guard self.audioEngine === engine else { return }
+                    if !engine.isRunning {
+                        try engine.start()
+                    }
+                } catch {
+                    // The next start(sessionId:) will retry engine.start().
+                }
+            }
         #endif
     }
 
@@ -157,7 +186,9 @@ public final class SherpaOnnxASREngine: ASREngine {
 
         let urls = try await modelManager.resolveModelURLs(for: "SenseVoice")
         guard let modelURL = urls["model"], let tokensURL = urls["tokens"], let vadURL = urls["vad"] else {
-            throw NSError(domain: "StetASR", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing model paths from ModelManager"])
+            throw NSError(
+                domain: "StetASR", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Missing model paths from ModelManager"])
         }
 
         installModelsIfNeeded(modelURL: modelURL, tokensURL: tokensURL, vadURL: vadURL)
@@ -174,7 +205,8 @@ public final class SherpaOnnxASREngine: ASREngine {
         defer { lock.unlock() }
         guard recognizer == nil || vad == nil else { return }
 
-        let senseVoiceConfig = sherpaOnnxOfflineSenseVoiceModelConfig(model: modelURL.path, language: "auto", useInverseTextNormalization: true)
+        let senseVoiceConfig = sherpaOnnxOfflineSenseVoiceModelConfig(
+            model: modelURL.path, language: "auto", useInverseTextNormalization: true)
 
         let modelConfig = sherpaOnnxOfflineModelConfig(
             tokens: tokensURL.path,
@@ -186,16 +218,19 @@ public final class SherpaOnnxASREngine: ASREngine {
         var recognizerConfig = sherpaOnnxOfflineRecognizerConfig(featConfig: featConfig, modelConfig: modelConfig)
         recognizer = SherpaOnnxOfflineRecognizer(config: &recognizerConfig)
 
-        let sileroConfig = sherpaOnnxSileroVadModelConfig(model: vadURL.path, threshold: 0.5, minSilenceDuration: 0.5, minSpeechDuration: 0.25, windowSize: 512, maxSpeechDuration: 12.0)
+        let sileroConfig = sherpaOnnxSileroVadModelConfig(
+            model: vadURL.path, threshold: 0.5, minSilenceDuration: 0.5, minSpeechDuration: 0.25, windowSize: 512,
+            maxSpeechDuration: 12.0)
         var vadConfig = sherpaOnnxVadModelConfig(sileroVad: sileroConfig, sampleRate: 16_000)
         vad = SherpaOnnxVoiceActivityDetectorWrapper(config: &vadConfig, buffer_size_in_seconds: 30)
     }
 
     private func configureAudioSessionAndEngine() async throws {
         #if os(iOS)
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker, .allowBluetoothHFP])
-        try await activateAudioSession(session)
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(
+                .playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker, .allowBluetoothHFP])
+            try await activateAudioSession(session)
         #endif
 
         try configureAudioEngine()
@@ -213,7 +248,8 @@ public final class SherpaOnnxASREngine: ASREngine {
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
         guard inputFormat.channelCount > 0 else {
-            throw NSError(domain: "StetASR", code: 3, userInfo: [NSLocalizedDescriptionKey: "Audio engine input unavailable"])
+            throw NSError(
+                domain: "StetASR", code: 3, userInfo: [NSLocalizedDescriptionKey: "Audio engine input unavailable"])
         }
         self.audioEngine = engine
         self.converter = nil
@@ -239,8 +275,9 @@ public final class SherpaOnnxASREngine: ASREngine {
 
         let inputFormat = buffer.format
         guard inputFormat.sampleRate > 0,
-              inputFormat.channelCount > 0,
-              let outputFormat = self.outputFormat else { return }
+            inputFormat.channelCount > 0,
+            let outputFormat = self.outputFormat
+        else { return }
         guard let converter = converter(for: inputFormat, outputFormat: outputFormat) else { return }
 
         var consumed = false
@@ -251,7 +288,8 @@ public final class SherpaOnnxASREngine: ASREngine {
             return buffer
         }
 
-        let frameCapacity = AVAudioFrameCount(Double(buffer.frameLength) * outputFormat.sampleRate / inputFormat.sampleRate) + 1
+        let frameCapacity =
+            AVAudioFrameCount(Double(buffer.frameLength) * outputFormat.sampleRate / inputFormat.sampleRate) + 1
         guard let converted = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: frameCapacity) else { return }
         var error: NSError?
         let status = converter.convert(to: converted, error: &error, withInputFrom: inputBlock)
@@ -288,7 +326,8 @@ public final class SherpaOnnxASREngine: ASREngine {
         defer { lock.unlock() }
 
         if let converter,
-           formatsMatch(converter.inputFormat, inputFormat) {
+            formatsMatch(converter.inputFormat, inputFormat)
+        {
             return converter
         }
 
@@ -305,22 +344,22 @@ public final class SherpaOnnxASREngine: ASREngine {
     }
 
     #if os(iOS)
-    private func activateAudioSession(_ session: AVAudioSession = .sharedInstance()) async throws {
-        if #available(iOS 27.0, *) {
-            let activated = try await session.activate(options: [])
-            guard activated else {
-                throw NSError(
-                    domain: "StetASR",
-                    code: 4,
-                    userInfo: [NSLocalizedDescriptionKey: "Audio session activation did not complete."]
-                )
+        private func activateAudioSession(_ session: AVAudioSession = .sharedInstance()) async throws {
+            if #available(iOS 27.0, *) {
+                let activated = try await session.activate(options: [])
+                guard activated else {
+                    throw NSError(
+                        domain: "StetASR",
+                        code: 4,
+                        userInfo: [NSLocalizedDescriptionKey: "Audio session activation did not complete."]
+                    )
+                }
+            } else {
+                try await Task.detached(priority: .userInitiated) {
+                    try session.setActive(true)
+                }.value
             }
-        } else {
-            try await Task.detached(priority: .userInitiated) {
-                try session.setActive(true)
-            }.value
         }
-    }
     #endif
 
     private func drainVAD() {
@@ -362,7 +401,8 @@ public final class SherpaOnnxASREngine: ASREngine {
 
     private func checkAllSegmentsDecoded() {
         guard let expected = expectedSegmentCount,
-              decodedSegments.count >= expected else { return }
+            decodedSegments.count >= expected
+        else { return }
         let merged = (0..<expected)
             .compactMap { decodedSegments[$0] }
             .filter { !$0.isEmpty }
