@@ -11,10 +11,21 @@ struct StetMobileApp: App {
 
     init() {
         let store = RewriteSettingsStore()
-        let coordinator = StetMobileComposition.makeDictationCoordinator(settingsStore: store)
-        let dictationViewModel = SenseVoiceViewModel(coordinator: coordinator)
+        let dependencies = StetMobileComposition.makeDependencies(settingsStore: store)
+        let dictationViewModel = SenseVoiceViewModel(
+            coordinator: dependencies.dictationCoordinator,
+            liveActivityManager: MicrophoneLiveActivityManager()
+        )
         _rewriteSettingsStore = StateObject(wrappedValue: store)
-        _rewriteSettingsViewModel = StateObject(wrappedValue: RewriteSettingsViewModel(settingsStore: store))
+        _rewriteSettingsViewModel = StateObject(
+            wrappedValue: RewriteSettingsViewModel(
+                settingsStore: store,
+                localModelManager: dependencies.localModelManager,
+                onLocalModelReady: {
+                    dictationViewModel.ensureMicAlive()
+                }
+            )
+        )
         _viewModel = StateObject(wrappedValue: dictationViewModel)
         _appViewModel = StateObject(wrappedValue: AppViewModel(dictationViewModel: dictationViewModel))
     }
@@ -37,9 +48,14 @@ struct StetMobileApp: App {
 
 @MainActor
 private enum StetMobileComposition {
-    static func makeDictationCoordinator(
+    struct Dependencies {
+        let dictationCoordinator: any DictationSessionCoordinating
+        let localModelManager: any LocalDictationModelManaging
+    }
+
+    static func makeDependencies(
         settingsStore: RewriteSettingsStore
-    ) -> any DictationSessionCoordinating {
+    ) -> Dependencies {
         do {
             let modelManager = try SenseVoiceModelManager()
             let engine = SherpaOnnxASREngine(modelManager: modelManager)
@@ -48,16 +64,26 @@ private enum StetMobileComposition {
             }
 
             let sessionStore = SharedDictationManager.shared
-            return DictationSessionCoordinator(
-                engine: engine,
-                modelManager: modelManager,
-                permissionProvider: SystemMicrophonePermissionProvider(),
-                sessionStore: sessionStore,
-                postProcessor: SettingsTranscriptPostProcessor(settingsStore: settingsStore),
-                commandMonitor: SharedKeyboardCommandMonitor(sessionStore: sessionStore)
+            return Dependencies(
+                dictationCoordinator: DictationSessionCoordinator(
+                    engine: engine,
+                    modelManager: modelManager,
+                    permissionProvider: SystemMicrophonePermissionProvider(),
+                    sessionStore: sessionStore,
+                    postProcessor: SettingsTranscriptPostProcessor(settingsStore: settingsStore),
+                    commandMonitor: SharedKeyboardCommandMonitor(sessionStore: sessionStore)
+                ),
+                localModelManager: SenseVoiceLocalDictationModelManager(modelManager: modelManager)
             )
         } catch {
-            return UnavailableDictationSessionCoordinator(message: error.localizedDescription)
+            return Dependencies(
+                dictationCoordinator: UnavailableDictationSessionCoordinator(
+                    message: error.localizedDescription
+                ),
+                localModelManager: UnavailableLocalDictationModelManager(
+                    currentStatus: .error(message: error.localizedDescription)
+                )
+            )
         }
     }
 }

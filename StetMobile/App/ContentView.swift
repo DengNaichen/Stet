@@ -32,7 +32,7 @@ struct ContentView: View {
 
                     SenseVoiceView(viewModel: viewModel)
                         .tabItem {
-                            Label("Dictate", systemImage: "mic.fill")
+                            Label("Dictation", systemImage: "mic.fill")
                         }
                         .tag(AppViewModel.Tab.dictation)
 
@@ -93,7 +93,12 @@ struct ContentView: View {
         return ContentView(
             appViewModel: AppViewModel(dictationViewModel: dictationViewModel),
             viewModel: dictationViewModel,
-            rewriteSettingsViewModel: RewriteSettingsViewModel(settingsStore: store)
+            rewriteSettingsViewModel: RewriteSettingsViewModel(
+                settingsStore: store,
+                localModelManager: UnavailableLocalDictationModelManager(
+                    currentStatus: .notDownloaded
+                )
+            )
         )
     }
 

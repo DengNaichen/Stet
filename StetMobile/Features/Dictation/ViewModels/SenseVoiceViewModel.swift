@@ -17,17 +17,20 @@ final class SenseVoiceViewModel: ObservableObject {
     @Published private(set) var state: State = .loading
     @Published private(set) var transcript = ""
     @Published private(set) var partialStatus = "Loading..."
-    @Published private(set) var metricsText = "Metrics will appear after decoding."
-    @Published private(set) var activeEngineName = ""
     @Published private(set) var completedSessionId: String?
 
     private let coordinator: any DictationSessionCoordinating
+    private let liveActivityManager: any MicrophoneLiveActivityManaging
     private var eventsListener: Task<Void, Never>?
     private let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
     private let notificationGenerator = UINotificationFeedbackGenerator()
 
-    init(coordinator: any DictationSessionCoordinating) {
+    init(
+        coordinator: any DictationSessionCoordinating,
+        liveActivityManager: (any MicrophoneLiveActivityManaging)? = nil
+    ) {
         self.coordinator = coordinator
+        self.liveActivityManager = liveActivityManager ?? NoOpMicrophoneLiveActivityManager()
     }
 
     var isRecording: Bool {
@@ -55,7 +58,7 @@ final class SenseVoiceViewModel: ObservableObject {
         eventsListener = Task { @MainActor [weak self] in
             for await event in events {
                 guard !Task.isCancelled else { break }
-                self?.handle(event)
+                await self?.handle(event)
             }
         }
         coordinator.start()
@@ -84,16 +87,16 @@ final class SenseVoiceViewModel: ObservableObject {
         coordinator.synchronizeKeyboardCommands()
     }
 
-    private func handle(_ event: DictationCoordinatorEvent) {
+    private func handle(_ event: DictationCoordinatorEvent) async {
         switch event {
         case .loading:
             state = .loading
             partialStatus = "Preparing speech recognition..."
 
-        case .ready(let engineName):
-            activeEngineName = engineName
+        case .ready:
             state = .idle
             partialStatus = "Ready. Hold mic on keyboard to dictate."
+            await liveActivityManager.ensureActive()
 
         case .starting:
             state = .starting
@@ -114,29 +117,20 @@ final class SenseVoiceViewModel: ObservableObject {
         case .partialTranscript(_, let text):
             transcript = text
 
-        case .completed(let sessionId, let text, let metrics):
+        case .completed(let sessionId, let text, _):
             transcript = text
             state = .idle
             completedSessionId = sessionId
             partialStatus = text.isEmpty ? "Empty result." : "Finished."
-            updateMetrics(metrics)
             if !text.isEmpty {
                 notificationGenerator.notificationOccurred(.success)
             }
 
-        case .failed(_, let message):
-            state = .failed(message)
-            partialStatus = message
+        case .failed:
+            let userFacingMessage = "Dictation isn't available right now. Please try again."
+            state = .failed(userFacingMessage)
+            partialStatus = userFacingMessage
+            await liveActivityManager.endAll()
         }
-    }
-
-    private func updateMetrics(_ metrics: ASRMetrics?) {
-        guard let metrics else { return }
-        metricsText = String(
-            format: "audio %.2fs, cpu %.2fs, RTF %.2f",
-            metrics.audioDuration,
-            metrics.cpuDuration,
-            metrics.rtf
-        )
     }
 }

@@ -15,14 +15,25 @@ private enum KeyboardButtonState: Equatable {
 }
 
 final class KeyboardViewController: UIInputViewController {
+    private let controlRow = UIStackView()
+    private let deleteButton = UIButton(type: .system)
     private let actionButton = UIButton(type: .system)
+    private let returnButton = UIButton(type: .system)
     private let nextKeyboardButton = UIButton(type: .system)
+    private let waveformView = KeyboardWaveformView()
 
     private var buttonState: KeyboardButtonState = .idle
     private var pollTimer: Timer?
+    private var waveformDisplayLink: CADisplayLink?
+    private var waveformSampleTimer: DispatchSourceTimer?
+    private var latestVolume: Float = 0
     private var lastProcessedSessionId: String?
     private var pendingSessionId: String?
     private var isWakingMainApp = false
+
+    private lazy var waveformDisplayLinkTarget = DisplayLinkTarget { [weak self] in
+        self?.drawLatestVolume()
+    }
 
     private let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
     private let notificationFeedback = UINotificationFeedbackGenerator()
@@ -34,6 +45,7 @@ final class KeyboardViewController: UIInputViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         configureActionButton()
+        configureControlRow()
         configureNextKeyboardButton()
         updateActionButton()
     }
@@ -71,6 +83,7 @@ final class KeyboardViewController: UIInputViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         stopPolling()
+        stopWaveformUpdates()
 
         // Keep the request alive only when this extension is intentionally waking Stet.
         if !isWakingMainApp,
@@ -89,13 +102,79 @@ final class KeyboardViewController: UIInputViewController {
     private func configureActionButton() {
         actionButton.translatesAutoresizingMaskIntoConstraints = false
         actionButton.addTarget(self, action: #selector(handleActionButton), for: .touchUpInside)
-        view.addSubview(actionButton)
+
+        waveformView.translatesAutoresizingMaskIntoConstraints = false
+        waveformView.tintColor = .systemBackground
+        waveformView.isHidden = true
+        actionButton.addSubview(waveformView)
 
         NSLayoutConstraint.activate([
-            actionButton.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor),
-            actionButton.centerYAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerYAnchor),
             actionButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 180),
             actionButton.heightAnchor.constraint(equalToConstant: 52),
+            waveformView.centerXAnchor.constraint(equalTo: actionButton.centerXAnchor),
+            waveformView.centerYAnchor.constraint(equalTo: actionButton.centerYAnchor),
+            waveformView.widthAnchor.constraint(equalToConstant: 92),
+            waveformView.heightAnchor.constraint(equalToConstant: 28),
+        ])
+    }
+
+    private func configureControlRow() {
+        configureEditingButton(
+            deleteButton,
+            systemImage: "delete.left.fill",
+            accessibilityLabel: "Delete",
+            action: #selector(handleDeleteButton)
+        )
+        configureEditingButton(
+            returnButton,
+            systemImage: "return",
+            accessibilityLabel: "New Line",
+            action: #selector(handleReturnButton)
+        )
+
+        controlRow.axis = .horizontal
+        controlRow.alignment = .center
+        controlRow.spacing = 10
+        controlRow.translatesAutoresizingMaskIntoConstraints = false
+        controlRow.addArrangedSubview(deleteButton)
+        controlRow.addArrangedSubview(actionButton)
+        controlRow.addArrangedSubview(returnButton)
+        view.addSubview(controlRow)
+
+        NSLayoutConstraint.activate([
+            controlRow.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor),
+            controlRow.centerYAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerYAnchor),
+            controlRow.leadingAnchor.constraint(
+                greaterThanOrEqualTo: view.safeAreaLayoutGuide.leadingAnchor,
+                constant: 8
+            ),
+            controlRow.trailingAnchor.constraint(
+                lessThanOrEqualTo: view.safeAreaLayoutGuide.trailingAnchor,
+                constant: -8
+            ),
+        ])
+    }
+
+    private func configureEditingButton(
+        _ button: UIButton,
+        systemImage: String,
+        accessibilityLabel: String,
+        action: Selector
+    ) {
+        var configuration = UIButton.Configuration.filled()
+        configuration.cornerStyle = .medium
+        configuration.image = UIImage(systemName: systemImage)
+        configuration.baseBackgroundColor = .secondarySystemFill
+        configuration.baseForegroundColor = .label
+
+        button.configuration = configuration
+        button.accessibilityLabel = accessibilityLabel
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.addTarget(self, action: action, for: .touchUpInside)
+
+        NSLayoutConstraint.activate([
+            button.widthAnchor.constraint(equalToConstant: 52),
+            button.heightAnchor.constraint(equalToConstant: 52),
         ])
     }
 
@@ -134,24 +213,39 @@ final class KeyboardViewController: UIInputViewController {
             configuration.title = "Tap to speak"
             configuration.image = UIImage(systemName: "mic.fill")
             actionButton.isEnabled = true
+            actionButton.accessibilityLabel = "Start Dictation"
+            actionButton.accessibilityValue = nil
 
         case .pending:
             configuration.title = "Starting…"
             configuration.showsActivityIndicator = true
             actionButton.isEnabled = false
+            actionButton.accessibilityLabel = "Starting Dictation"
+            actionButton.accessibilityValue = nil
 
         case .recording:
-            configuration.title = "Tap to stop"
-            configuration.image = UIImage(systemName: "stop.fill")
             actionButton.isEnabled = true
+            actionButton.accessibilityLabel = "Stop Dictation"
+            actionButton.accessibilityValue = "Recording"
 
         case .processing:
             configuration.title = "Processing…"
             configuration.showsActivityIndicator = true
             actionButton.isEnabled = false
+            actionButton.accessibilityLabel = "Processing Dictation"
+            actionButton.accessibilityValue = nil
         }
 
         actionButton.configuration = configuration
+        let showsWaveform = buttonState == .recording
+        waveformView.isHidden = !showsWaveform
+        actionButton.bringSubviewToFront(waveformView)
+
+        if showsWaveform {
+            startWaveformUpdates()
+        } else {
+            stopWaveformUpdates()
+        }
     }
 
     @objc private func handleActionButton() {
@@ -172,6 +266,14 @@ final class KeyboardViewController: UIInputViewController {
         handleInputModeList(from: sender, with: event)
     }
 
+    @objc private func handleDeleteButton() {
+        textDocumentProxy.deleteBackward()
+    }
+
+    @objc private func handleReturnButton() {
+        textDocumentProxy.insertText("\n")
+    }
+
     private func handleMicDown() {
         let sessionId = UUID().uuidString
         guard SharedDictationManager.shared.beginKeyboardSession(sessionId: sessionId) else {
@@ -181,6 +283,7 @@ final class KeyboardViewController: UIInputViewController {
         }
 
         pendingSessionId = sessionId
+        SharedDictationManager.shared.updateVolume(0)
 
         // A live main app will observe the shared request; otherwise wake it explicitly.
         if !SharedDictationManager.shared.mainAppAlive(within: 0.6) {
@@ -242,6 +345,61 @@ final class KeyboardViewController: UIInputViewController {
     private func stopPolling() {
         pollTimer?.invalidate()
         pollTimer = nil
+    }
+
+    private func startWaveformUpdates() {
+        guard waveformDisplayLink == nil else { return }
+
+        latestVolume = 0
+        waveformView.reset()
+
+        let sampleTimer = DispatchSource.makeTimerSource(
+            flags: [],
+            queue: DispatchQueue(label: "com.stet.keyboard.waveform", qos: .userInitiated)
+        )
+        sampleTimer.schedule(
+            deadline: .now(),
+            repeating: .milliseconds(33),
+            leeway: .milliseconds(8)
+        )
+        sampleTimer.setEventHandler { [weak self] in
+            let level = SharedDictationManager.shared.readVolume()
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.buttonState == .recording else { return }
+                self.latestVolume = level
+            }
+        }
+        waveformSampleTimer = sampleTimer
+        sampleTimer.activate()
+
+        let displayLink = CADisplayLink(
+            target: waveformDisplayLinkTarget,
+            selector: #selector(DisplayLinkTarget.tick(_:))
+        )
+        displayLink.preferredFrameRateRange = CAFrameRateRange(
+            minimum: 15,
+            maximum: 30,
+            preferred: 30
+        )
+        displayLink.add(to: .main, forMode: .common)
+        waveformDisplayLink = displayLink
+    }
+
+    private func stopWaveformUpdates() {
+        waveformDisplayLink?.invalidate()
+        waveformDisplayLink = nil
+
+        waveformSampleTimer?.setEventHandler {}
+        waveformSampleTimer?.cancel()
+        waveformSampleTimer = nil
+
+        latestVolume = 0
+        waveformView.reset()
+    }
+
+    private func drawLatestVolume() {
+        guard buttonState == .recording else { return }
+        waveformView.update(level: latestVolume)
     }
 
     private func tick() {
@@ -309,7 +467,12 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func publishState(_ state: KeyboardButtonState) {
-        guard buttonState != state else { return }
+        guard buttonState != state else {
+            if state == .recording {
+                startWaveformUpdates()
+            }
+            return
+        }
         buttonState = state
         updateActionButton()
     }
@@ -346,6 +509,19 @@ final class KeyboardViewController: UIInputViewController {
         if pendingSessionId == sessionId {
             pendingSessionId = nil
         }
+        SharedDictationManager.shared.updateVolume(0)
         SharedDictationManager.shared.clearPendingKeyboardSessionId(ifMatching: sessionId)
+    }
+}
+
+private final class DisplayLinkTarget {
+    private let action: () -> Void
+
+    init(action: @escaping () -> Void) {
+        self.action = action
+    }
+
+    @objc func tick(_: CADisplayLink) {
+        action()
     }
 }

@@ -31,6 +31,129 @@ struct AppViewModelTests {
         #expect(subject.externalDictationFlow == .none)
         await coordinator.shutdown()
     }
+
+    @Test
+    func rawCoordinatorFailureIsNotExposed() async {
+        let coordinator = RoutingDictationCoordinator()
+        let liveActivityManager = RecordingMicrophoneLiveActivityManager()
+        let subject = SenseVoiceViewModel(
+            coordinator: coordinator,
+            liveActivityManager: liveActivityManager
+        )
+        var states = subject.$state.values.makeAsyncIterator()
+        var liveActivityCalls = liveActivityManager.calls.makeAsyncIterator()
+        _ = await states.next()
+        subject.start()
+
+        coordinator.emit(
+            .failed(
+                sessionId: nil,
+                message: "Unsupported ASR model: SenseVoice. HTTP 500."
+            )
+        )
+
+        #expect(
+            await states.next()
+                == .failed("Dictation isn't available right now. Please try again.")
+        )
+        #expect(await liveActivityCalls.next() == .endAll)
+        #expect(liveActivityManager.endAllCallCount == 1)
+        #expect(subject.partialStatus == "Dictation isn't available right now. Please try again.")
+        await coordinator.shutdown()
+    }
+
+    @Test
+    func readyEnsuresOneLiveActivityWithoutChangingLaterDictationStates() async {
+        let coordinator = RoutingDictationCoordinator()
+        let liveActivityManager = RecordingMicrophoneLiveActivityManager()
+        let subject = SenseVoiceViewModel(
+            coordinator: coordinator,
+            liveActivityManager: liveActivityManager
+        )
+        var states = subject.$state.values.makeAsyncIterator()
+        var liveActivityCalls = liveActivityManager.calls.makeAsyncIterator()
+        _ = await states.next()
+        subject.start()
+
+        coordinator.emit(.ready(engineName: "SenseVoice"))
+        #expect(await states.next() == .idle)
+        #expect(await liveActivityCalls.next() == .ensureActive)
+        #expect(liveActivityManager.ensureActiveCallCount == 1)
+
+        coordinator.emit(.ready(engineName: "SenseVoice"))
+        #expect(await states.next() == .idle)
+        #expect(await liveActivityCalls.next() == .ensureActive)
+        #expect(liveActivityManager.ensureActiveCallCount == 2)
+
+        coordinator.emit(.recording(sessionId: "session-a"))
+        #expect(await states.next() == .recording)
+        #expect(liveActivityManager.ensureActiveCallCount == 2)
+        #expect(liveActivityManager.endAllCallCount == 0)
+
+        await coordinator.shutdown()
+    }
+
+    @Test
+    func handledLiveActivityCreationFailureDoesNotChangeReadyState() async {
+        let coordinator = RoutingDictationCoordinator()
+        let liveActivityManager = SimulatedCreationFailureLiveActivityManager()
+        let subject = SenseVoiceViewModel(
+            coordinator: coordinator,
+            liveActivityManager: liveActivityManager
+        )
+        var states = subject.$state.values.makeAsyncIterator()
+        _ = await states.next()
+        subject.start()
+
+        coordinator.emit(.ready(engineName: "SenseVoice"))
+
+        #expect(await states.next() == .idle)
+        #expect(liveActivityManager.ensureActiveCallCount == 1)
+        #expect(subject.partialStatus == "Ready. Hold mic on keyboard to dictate.")
+        await coordinator.shutdown()
+    }
+}
+
+@MainActor
+private final class RecordingMicrophoneLiveActivityManager: MicrophoneLiveActivityManaging {
+    enum Call: Equatable {
+        case ensureActive
+        case endAll
+    }
+
+    let calls: AsyncStream<Call>
+    private(set) var ensureActiveCallCount = 0
+    private(set) var endAllCallCount = 0
+
+    private let continuation: AsyncStream<Call>.Continuation
+
+    init() {
+        (calls, continuation) = AsyncStream.makeStream()
+    }
+
+    func ensureActive() async {
+        ensureActiveCallCount += 1
+        continuation.yield(.ensureActive)
+    }
+
+    func endAll() async {
+        endAllCallCount += 1
+        continuation.yield(.endAll)
+    }
+}
+
+@MainActor
+private final class SimulatedCreationFailureLiveActivityManager:
+    MicrophoneLiveActivityManaging
+{
+    private(set) var ensureActiveCallCount = 0
+
+    func ensureActive() async {
+        ensureActiveCallCount += 1
+        // The production manager handles ActivityKit request failures internally.
+    }
+
+    func endAll() async {}
 }
 
 @MainActor

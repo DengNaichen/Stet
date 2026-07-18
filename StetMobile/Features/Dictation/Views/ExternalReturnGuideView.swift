@@ -61,13 +61,6 @@ struct ExternalReturnGuideView: View {
             }
             .padding(.vertical, 20)
             
-            // Description
-            Text("We wish you didn't have to switch apps to use Typeless, but Apple now requires it to activate the microphone.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-            
             Spacer()
             
             // Bottom Action Indicator

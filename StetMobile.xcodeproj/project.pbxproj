@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		6DD04E062FA3D494004D9143 /* StetKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6DD04DFF2FA3D494004D9143 /* StetKeyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D100000A2FB000000000000A /* StetLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D10000022FB0000000000002 /* StetLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D100000E2FB000000000000E /* StetMicrophoneActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D100000D2FB000000000000D /* StetMicrophoneActivityAttributes.swift */; };
 		A10000012FA4000000000001 /* sherpa-onnx.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000032FA4000000000003 /* sherpa-onnx.xcframework */; };
 		A10000022FA4000000000002 /* onnxruntime.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000042FA4000000000004 /* onnxruntime.xcframework */; };
 		B10000012FA5000000000001 /* StetCore in Frameworks */ = {isa = PBXBuildFile; productRef = B10000042FA5000000000004 /* StetCore */; };
@@ -43,6 +45,13 @@
 			remoteGlobalIDString = 6DD04DFE2FA3D494004D9143;
 			remoteInfo = StetKeyboard;
 		};
+		D100000B2FB000000000000B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6DD04D442FA3B64B004D9143 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D10000012FB0000000000001;
+			remoteInfo = StetLiveActivity;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -53,6 +62,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				6DD04E062FA3D494004D9143 /* StetKeyboard.appex in Embed Foundation Extensions */,
+				D100000A2FB000000000000A /* StetLiveActivity.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -64,6 +74,8 @@
 		6DD04D5B2FA3B64D004D9143 /* StetMobileTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StetMobileTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6DD04D652FA3B64D004D9143 /* StetMobileUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StetMobileUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6DD04DFF2FA3D494004D9143 /* StetKeyboard.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StetKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D10000022FB0000000000002 /* StetLiveActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StetLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D100000D2FB000000000000D /* StetMicrophoneActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift; sourceTree = SOURCE_ROOT; };
 		A10000032FA4000000000003 /* sherpa-onnx.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = "sherpa-onnx.xcframework"; path = "Frameworks/sherpa-onnx.xcframework"; sourceTree = SOURCE_ROOT; };
 		A10000042FA4000000000004 /* onnxruntime.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = onnxruntime.xcframework; path = "Frameworks/ios-onnxruntime/onnxruntime.xcframework"; sourceTree = SOURCE_ROOT; };
 		C20000012FA6000000000001 /* ASREngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASREngine.swift; sourceTree = "<group>"; };
@@ -88,6 +100,13 @@
 				Info.plist,
 			);
 			target = 6DD04D4B2FA3B64B004D9143 /* StetMobile */;
+		};
+		D100000F2FB000000000000F /* Exceptions for "StetLiveActivity" folder in "StetLiveActivity" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = D10000012FB0000000000001 /* StetLiveActivity */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -121,6 +140,14 @@
 		A1000000SHAREDCORE000001 /* StetMobile/Core/Shared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = StetMobile/Core/Shared;
+			sourceTree = "<group>";
+		};
+		D10000032FB0000000000003 /* StetLiveActivity */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D100000F2FB000000000000F /* Exceptions for "StetLiveActivity" folder in "StetLiveActivity" target */,
+			);
+			path = StetLiveActivity;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -159,6 +186,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D10000052FB0000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -174,6 +208,7 @@
 			isa = PBXGroup;
 			children = (
 				6DD04D4E2FA3B64B004D9143 /* StetMobile */,
+				D10000032FB0000000000003 /* StetLiveActivity */,
 				6DD04D5E2FA3B64D004D9143 /* StetMobileTests */,
 				6DD04D682FA3B64D004D9143 /* StetMobileUITests */,
 				6DD04E002FA3D494004D9143 /* StetKeyboard */,
@@ -182,6 +217,7 @@
 				A10000042FA4000000000004 /* onnxruntime.xcframework */,
 				C30000012FA6000000000001 /* Shared StetASR */,
 				6D04F0652FA5512200E6BB55 /* Recovered References */,
+				D100000D2FB000000000000D /* StetMicrophoneActivityAttributes.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -192,6 +228,7 @@
 				6DD04D5B2FA3B64D004D9143 /* StetMobileTests.xctest */,
 				6DD04D652FA3B64D004D9143 /* StetMobileUITests.xctest */,
 				6DD04DFF2FA3D494004D9143 /* StetKeyboard.appex */,
+				D10000022FB0000000000002 /* StetLiveActivity.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -226,6 +263,7 @@
 			);
 			dependencies = (
 				6DD04E052FA3D494004D9143 /* PBXTargetDependency */,
+				D100000C2FB000000000000C /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				6DD04D4E2FA3B64B004D9143 /* StetMobile */,
@@ -309,6 +347,28 @@
 			productReference = 6DD04DFF2FA3D494004D9143 /* StetKeyboard.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		D10000012FB0000000000001 /* StetLiveActivity */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D10000072FB0000000000007 /* Build configuration list for PBXNativeTarget "StetLiveActivity" */;
+			buildPhases = (
+				D10000042FB0000000000004 /* Sources */,
+				D10000052FB0000000000005 /* Frameworks */,
+				D10000062FB0000000000006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				D10000032FB0000000000003 /* StetLiveActivity */,
+			);
+			name = StetLiveActivity;
+			packageProductDependencies = (
+			);
+			productName = StetLiveActivity;
+			productReference = D10000022FB0000000000002 /* StetLiveActivity.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -331,6 +391,9 @@
 						TestTargetID = 6DD04D4B2FA3B64B004D9143;
 					};
 					6DD04DFE2FA3D494004D9143 = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
+					D10000012FB0000000000001 = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
 				};
@@ -356,6 +419,7 @@
 				6DD04D5A2FA3B64D004D9143 /* StetMobileTests */,
 				6DD04D642FA3B64D004D9143 /* StetMobileUITests */,
 				6DD04DFE2FA3D494004D9143 /* StetKeyboard */,
+				D10000012FB0000000000001 /* StetLiveActivity */,
 			);
 		};
 /* End PBXProject section */
@@ -383,6 +447,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		6DD04DFD2FA3D494004D9143 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D10000062FB0000000000006 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -426,6 +497,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D10000042FB0000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D100000E2FB000000000000E /* StetMicrophoneActivityAttributes.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -443,6 +522,11 @@
 			isa = PBXTargetDependency;
 			target = 6DD04DFE2FA3D494004D9143 /* StetKeyboard */;
 			targetProxy = 6DD04E042FA3D494004D9143 /* PBXContainerItemProxy */;
+		};
+		D100000C2FB000000000000C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D10000012FB0000000000001 /* StetLiveActivity */;
+			targetProxy = D100000B2FB000000000000B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -815,6 +899,65 @@
 			};
 			name = Release;
 		};
+		D10000082FB0000000000008 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 67BL3M4FPS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StetLiveActivity/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetMobile.StetLiveActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		D10000092FB0000000000009 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 67BL3M4FPS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StetLiveActivity/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetMobile.StetLiveActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -859,6 +1002,15 @@
 			buildConfigurations = (
 				6DD04E092FA3D494004D9143 /* Debug */,
 				6DD04E0A2FA3D494004D9143 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D10000072FB0000000000007 /* Build configuration list for PBXNativeTarget "StetLiveActivity" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D10000082FB0000000000008 /* Debug */,
+				D10000092FB0000000000009 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
