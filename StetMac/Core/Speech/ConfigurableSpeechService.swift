@@ -183,6 +183,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             #if os(macOS)
                 await LocalWhisperContextManager.shared.cleanupResources()
                 await LocalParakeetContextManager.shared.cleanupResources()
+                await FunASRNanoContextManager.shared.cleanupResources()
             #endif
         }
 
@@ -344,6 +345,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         #if os(macOS)
             await LocalWhisperContextManager.shared.cleanupResources()
             await LocalParakeetContextManager.shared.cleanupResources()
+            await FunASRNanoContextManager.shared.cleanupResources()
         #endif
     }
 

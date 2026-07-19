@@ -7,12 +7,13 @@
     @MainActor
     @Suite("Mac Audio Settings View Model", .serialized)
     struct MacAudioSettingsViewModelTests {
-        @Test func exposesAllThreeLocalTranscriptionEngines() {
+        @Test func exposesAllLocalTranscriptionEngines() {
             let viewModel = MacAudioSettingsViewModel()
 
             #expect(
                 viewModel.localTranscriptionEngineOptions == [
                     .fluidAudio,
+                    .funASRNano,
                     .localWhisper,
                     .sherpaOnnxSenseVoice,
                 ]

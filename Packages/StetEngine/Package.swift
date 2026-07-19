@@ -18,6 +18,7 @@ let package = Package(
         .package(url: "https://github.com/MacPaw/OpenAI.git", exact: "0.4.7"),
         .package(url: "https://github.com/mattt/EventSource.git", exact: "1.4.1"),
         .package(path: "Vendor/SherpaOnnxPackage"),
+        .package(path: "Vendor/FunASRPackage"),
     ],
     targets: [
         .target(
@@ -29,8 +30,17 @@ let package = Package(
             dependencies: [
                 "StetCore",
                 .product(name: "sherpa_onnx", package: "SherpaOnnxPackage"),
+                .product(
+                    name: "FunASRRuntime",
+                    package: "FunASRPackage",
+                    condition: .when(platforms: [.macOS])
+                ),
             ],
-            path: "Sources/StetASR"
+            path: "Sources/StetASR",
+            linkerSettings: [
+                .linkedFramework("Accelerate", .when(platforms: [.macOS])),
+                .linkedLibrary("c++", .when(platforms: [.macOS])),
+            ]
         ),
         .target(
             name: "StetRewrite",

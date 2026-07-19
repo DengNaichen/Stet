@@ -102,9 +102,8 @@ struct DictationPipelineFactory: Sendable {
         )
     }
 
-    /// Instantiates the local engine selected in settings. Parakeet and
-    /// SenseVoice retain the established Whisper fallback when their runtime
-    /// cannot be prepared.
+    /// Instantiates the local engine selected in settings. Alternative local
+    /// engines retain the established Whisper fallback when they cannot be prepared.
     nonisolated static func makeLiveLocalTranscriptionService(
         configuration: any ModelStorageConfiguration = UserDefaultsModelStorage()
     ) throws -> any AudioFileTranscriptionService {
@@ -125,6 +124,20 @@ struct DictationPipelineFactory: Sendable {
                         category: "PipelineFactory"
                     ).warning(
                         "Parakeet engine unavailable (\(error.localizedDescription)); falling back to local whisper."
+                    )
+                    return try LocalWhisperTranscriptionService(
+                        modelManager: LocalWhisperModelManager(configuration: configuration)
+                    )
+                }
+            case .funASRNano:
+                do {
+                    return try FunASRNanoTranscriptionService()
+                } catch {
+                    Logger(
+                        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+                        category: "PipelineFactory"
+                    ).warning(
+                        "Fun-ASR Nano unavailable (\(error.localizedDescription)); falling back to local whisper."
                     )
                     return try LocalWhisperTranscriptionService(
                         modelManager: LocalWhisperModelManager(configuration: configuration)
