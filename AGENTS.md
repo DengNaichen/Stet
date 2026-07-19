@@ -33,6 +33,16 @@
 - Release process and GitHub Actions behavior are documented in `docs/release.md` and `.github/workflows/`.
 - Do not change release scripts, signing, notarization, Sparkle, or GitHub release automation unless the task is explicitly about release infrastructure.
 
+### Local Xcode Selection
+
+- This machine intentionally has two Xcode installations. Use stable Xcode at `/Applications/Xcode.app` for the macOS `Stet.xcodeproj`; keep `/usr/bin/xcode-select -p` pointing to `/Applications/Xcode.app/Contents/Developer`.
+- Use Xcode 27 Beta at `/Applications/Xcode-beta.app` only for the iOS `StetMobile.xcodeproj`. Select it per command with `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer`; do not switch the global `xcode-select` path to Beta.
+- The current iOS worktree is `StetMobile-remove-whisper/StetMobile.xcodeproj`. If that worktree moves, locate it with `rg --files -g 'project.pbxproj' | rg 'StetMobile\.xcodeproj'` before building.
+- Stable macOS build: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make build`.
+- iOS 27 simulator build: `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer /Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild -project StetMobile-remove-whisper/StetMobile.xcodeproj -scheme StetMobile -sdk iphonesimulator27.0 -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`.
+- `StetVisuals/MacDictationAudioReactiveOrb.metal` makes the macOS build depend on the Metal Toolchain matching stable Xcode. Diagnose with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -showComponent MetalToolchain -json`; install with the same `DEVELOPER_DIR` and `xcodebuild -downloadComponent MetalToolchain`. Never substitute the Beta or an older Metal toolchain for the stable build.
+- Local state verified on 2026-07-19: Xcode 27 Beta and Metal Toolchain `27A5218h` are installed and functional, while stable Xcode 26.6 expects Metal Toolchain `17F109`, which its Apple component catalog currently fails to install. Recheck component status before attributing a Metal build failure to source code.
+
 ## Documentation Entry Points
 
 - Use `README.md` for repository-level setup, local build, and baseline test commands.
