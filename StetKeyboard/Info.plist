@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleDisplayName</key>
-    <string>Stet Keyboard</string>
+    <string>Stet</string>
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionAttributes</key>

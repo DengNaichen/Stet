@@ -670,6 +670,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks/sherpa-onnx.xcframework/Headers";
 				INFOPLIST_FILE = StetMobile/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Stet;
 				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.stetmobile.dictate\";\n    CFBundleURLSchemes =     (\n        stetmobile\n    );\n}";
 				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record microphone audio for private, on-device transcription.";
@@ -711,6 +712,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/Frameworks/sherpa-onnx.xcframework/Headers";
 				INFOPLIST_FILE = StetMobile/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Stet;
 				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.stetmobile.dictate\";\n    CFBundleURLSchemes =     (\n        stetmobile\n    );\n}";
 				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record microphone audio for private, on-device transcription.";
@@ -845,7 +847,7 @@
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = StetKeyboard/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Stet Keyboard";
+				INFOPLIST_KEY_CFBundleDisplayName = Stet;
 				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.stetmobile.dictate\";\n    CFBundleURLSchemes =     (\n        stetmobile\n    );\n}";
 				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -879,7 +881,7 @@
 				DEVELOPMENT_TEAM = 67BL3M4FPS;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = StetKeyboard/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Stet Keyboard";
+				INFOPLIST_KEY_CFBundleDisplayName = Stet;
 				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.stetmobile.dictate\";\n    CFBundleURLSchemes =     (\n        stetmobile\n    );\n}";
 				INFOPLIST_KEY_LSApplicationQueriesSchemes = "weixin sms notes mobilenotes dingtalk";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
