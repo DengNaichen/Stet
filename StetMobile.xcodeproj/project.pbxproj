@@ -22,6 +22,10 @@
 		D100000A2FB000000000000A /* StetLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D10000022FB0000000000002 /* StetLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D100000E2FB000000000000E /* StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D100000D2FB000000000000D /* StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift */; };
 		E20000032FC0000000000003 /* whisper in Frameworks */ = {isa = PBXBuildFile; productRef = E20000022FC0000000000002 /* whisper */; };
+		F10000012FD0000000000001 /* DictationLevelShaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000012FD0000000000001 /* DictationLevelShaderView.swift */; };
+		F10000022FD0000000000002 /* DictationMetalEffectRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000022FD0000000000002 /* DictationMetalEffectRenderer.swift */; };
+		F10000032FD0000000000003 /* MacDictationAudioFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000032FD0000000000003 /* MacDictationAudioFeatures.swift */; };
+		F10000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal in Sources */ = {isa = PBXBuildFile; fileRef = F20000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -85,6 +89,10 @@
 		C20000012FA6000000000006 /* SherpaOnnxASREngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SherpaOnnxASREngine.swift; sourceTree = "<group>"; };
 		D10000022FB0000000000002 /* StetLiveActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StetLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D100000D2FB000000000000D /* StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift; sourceTree = SOURCE_ROOT; };
+		F20000012FD0000000000001 /* DictationLevelShaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationLevelShaderView.swift; sourceTree = "<group>"; };
+		F20000022FD0000000000002 /* DictationMetalEffectRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationMetalEffectRenderer.swift; sourceTree = "<group>"; };
+		F20000032FD0000000000003 /* MacDictationAudioFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacDictationAudioFeatures.swift; sourceTree = "<group>"; };
+		F20000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = MacDictationAudioReactiveOrb.metal; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -218,6 +226,7 @@
 				A10000032FA4000000000003 /* sherpa-onnx.xcframework */,
 				A10000042FA4000000000004 /* onnxruntime.xcframework */,
 				C30000012FA6000000000001 /* Shared StetASR */,
+				F30000012FD0000000000001 /* Shared StetVisuals */,
 				6D04F0652FA5512200E6BB55 /* Recovered References */,
 				D100000D2FB000000000000D /* StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift */,
 			);
@@ -247,6 +256,18 @@
 			);
 			name = "Shared StetASR";
 			path = ../Packages/StetEngine/Sources/StetASR;
+			sourceTree = SOURCE_ROOT;
+		};
+		F30000012FD0000000000001 /* Shared StetVisuals */ = {
+			isa = PBXGroup;
+			children = (
+				F20000012FD0000000000001 /* DictationLevelShaderView.swift */,
+				F20000022FD0000000000002 /* DictationMetalEffectRenderer.swift */,
+				F20000032FD0000000000003 /* MacDictationAudioFeatures.swift */,
+				F20000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal */,
+			);
+			name = "Shared StetVisuals";
+			path = ../StetVisuals;
 			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXGroup section */
@@ -477,6 +498,10 @@
 				C10000012FA6000000000004 /* SenseVoiceModelManager.swift in Sources */,
 				C10000012FA6000000000005 /* SherpaOnnx.swift in Sources */,
 				C10000012FA6000000000006 /* SherpaOnnxASREngine.swift in Sources */,
+				F10000012FD0000000000001 /* DictationLevelShaderView.swift in Sources */,
+				F10000022FD0000000000002 /* DictationMetalEffectRenderer.swift in Sources */,
+				F10000032FD0000000000003 /* MacDictationAudioFeatures.swift in Sources */,
+				F10000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -112,6 +112,60 @@ struct AppViewModelTests {
         #expect(subject.partialStatus == "Ready. Hold mic on keyboard to dictate.")
         await coordinator.shutdown()
     }
+
+    @Test
+    func recordingSamplesScalarVolumeAndProcessingFreezesTheLastLevel() async throws {
+        let coordinator = RoutingDictationCoordinator()
+        let volumeTransport = MutableVolumeTransport(level: 0.4)
+        let subject = SenseVoiceViewModel(
+            coordinator: coordinator,
+            volumeTransport: volumeTransport
+        )
+        var states = subject.$state.values.makeAsyncIterator()
+        _ = await states.next()
+        subject.start()
+
+        coordinator.emit(.recording(sessionId: "session-a"))
+        #expect(await states.next() == .recording)
+        #expect(isNear(subject.recordingLevel, 0.4))
+
+        volumeTransport.level = 0.9
+        try await Task.sleep(for: .milliseconds(80))
+        #expect(isNear(subject.recordingLevel, 0.9))
+
+        coordinator.emit(.transcribing(sessionId: "session-a"))
+        #expect(await states.next() == .processing)
+        let frozenLevel = subject.recordingLevel
+
+        volumeTransport.level = 0.1
+        try await Task.sleep(for: .milliseconds(80))
+        #expect(subject.recordingLevel == frozenLevel)
+
+        coordinator.emit(.completed(sessionId: "session-a", text: "hello", metrics: nil))
+        #expect(await states.next() == .idle)
+        #expect(subject.recordingLevel == 0)
+        await coordinator.shutdown()
+    }
+
+    private func isNear(_ lhs: Double, _ rhs: Double, tolerance: Double = 0.000_001) -> Bool {
+        abs(lhs - rhs) <= tolerance
+    }
+}
+
+private final class MutableVolumeTransport: DictationVolumeTransporting {
+    var level: Float
+
+    init(level: Float) {
+        self.level = level
+    }
+
+    func updateVolume(_ level: Float) {
+        self.level = level
+    }
+
+    func readVolume() -> Float {
+        level
+    }
 }
 
 @MainActor

@@ -18,19 +18,24 @@ final class SenseVoiceViewModel: ObservableObject {
     @Published private(set) var transcript = ""
     @Published private(set) var partialStatus = "Loading..."
     @Published private(set) var completedSessionId: String?
+    @Published private(set) var recordingLevel: Double = 0
 
     private let coordinator: any DictationSessionCoordinating
     private let liveActivityManager: any MicrophoneLiveActivityManaging
+    private let volumeTransport: any DictationVolumeTransporting
     private var eventsListener: Task<Void, Never>?
+    private var volumeSampler: AnyCancellable?
     private let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
     private let notificationGenerator = UINotificationFeedbackGenerator()
 
     init(
         coordinator: any DictationSessionCoordinating,
-        liveActivityManager: (any MicrophoneLiveActivityManaging)? = nil
+        liveActivityManager: (any MicrophoneLiveActivityManaging)? = nil,
+        volumeTransport: any DictationVolumeTransporting = SharedDictationManager.shared
     ) {
         self.coordinator = coordinator
         self.liveActivityManager = liveActivityManager ?? NoOpMicrophoneLiveActivityManager()
+        self.volumeTransport = volumeTransport
     }
 
     var isRecording: Bool {
@@ -90,27 +95,33 @@ final class SenseVoiceViewModel: ObservableObject {
     private func handle(_ event: DictationCoordinatorEvent) async {
         switch event {
         case .loading:
+            stopVolumeSampling(resetLevel: true)
             state = .loading
             partialStatus = "Preparing speech recognition..."
 
         case .ready:
+            stopVolumeSampling(resetLevel: true)
             state = .idle
             partialStatus = "Ready. Hold mic on keyboard to dictate."
             await liveActivityManager.ensureActive()
 
         case .starting:
+            stopVolumeSampling(resetLevel: true)
             state = .starting
             partialStatus = "Starting microphone..."
 
         case .recording:
             state = .recording
             partialStatus = "Recording..."
+            startVolumeSampling()
 
         case .transcribing:
+            stopVolumeSampling(resetLevel: false)
             state = .processing
             partialStatus = "Decoding..."
 
         case .rewriting:
+            stopVolumeSampling(resetLevel: false)
             state = .rewriting
             partialStatus = "Rewriting..."
 
@@ -118,6 +129,7 @@ final class SenseVoiceViewModel: ObservableObject {
             transcript = text
 
         case .completed(let sessionId, let text, _):
+            stopVolumeSampling(resetLevel: true)
             transcript = text
             state = .idle
             completedSessionId = sessionId
@@ -127,10 +139,34 @@ final class SenseVoiceViewModel: ObservableObject {
             }
 
         case .failed:
+            stopVolumeSampling(resetLevel: true)
             let userFacingMessage = "Dictation isn't available right now. Please try again."
             state = .failed(userFacingMessage)
             partialStatus = userFacingMessage
             await liveActivityManager.endAll()
         }
+    }
+
+    private func startVolumeSampling() {
+        guard volumeSampler == nil else { return }
+        sampleVolume()
+        volumeSampler = Timer.publish(every: 0.06, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                self?.sampleVolume()
+            }
+    }
+
+    private func stopVolumeSampling(resetLevel: Bool) {
+        volumeSampler?.cancel()
+        volumeSampler = nil
+        if resetLevel {
+            recordingLevel = 0
+        }
+    }
+
+    private func sampleVolume() {
+        let level = Double(volumeTransport.readVolume())
+        recordingLevel = level.isFinite ? min(max(level, 0), 1) : 0
     }
 }

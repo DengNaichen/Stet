@@ -23,16 +23,7 @@ struct SenseVoiceView: View {
                         .font(.subheadline)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    Button(action: viewModel.toggleRecording) {
-                        Label(
-                            viewModel.isRecording ? "Stop" : "Record",
-                            systemImage: viewModel.isRecording ? "stop.fill" : "mic.fill"
-                        )
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .disabled(!viewModel.canToggleRecording)
+                    recordingControl
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
@@ -46,6 +37,58 @@ struct SenseVoiceView: View {
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var recordingControl: some View {
+        if usesListeningShader {
+            DictationLevelShaderView(
+                level: viewModel.recordingLevel,
+                diameter: 120,
+                preferredFramesPerSecond: 40,
+                isPaused: isListeningShaderPaused
+            )
+            .overlay {
+                if viewModel.state == .recording {
+                    Button(action: viewModel.toggleRecording) {
+                        Color.clear
+                            .frame(width: 120, height: 120)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("停止录音")
+                }
+            }
+        } else {
+            Button(action: viewModel.toggleRecording) {
+                Label(
+                    viewModel.isRecording ? "Stop" : "Record",
+                    systemImage: viewModel.isRecording ? "stop.fill" : "mic.fill"
+                )
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(!viewModel.canToggleRecording)
+        }
+    }
+
+    private var usesListeningShader: Bool {
+        switch viewModel.state {
+        case .recording, .processing, .rewriting:
+            true
+        case .loading, .idle, .starting, .failed:
+            false
+        }
+    }
+
+    private var isListeningShaderPaused: Bool {
+        switch viewModel.state {
+        case .processing, .rewriting:
+            true
+        case .loading, .idle, .starting, .recording, .failed:
+            false
         }
     }
 
