@@ -1,4 +1,3 @@
-import AVFoundation
 import CoreFoundation
 import Foundation
 import os
@@ -29,16 +28,12 @@ public final class SherpaOnnxASREngine: ASREngine {
 
     private var recognizer: SherpaOnnxOfflineRecognizer?
     private var vad: SherpaOnnxVoiceActivityDetectorWrapper?
-    private var audioEngine: AVAudioEngine?
-    private var converter: AVAudioConverter?
-    private let outputFormat = AVAudioFormat(
-        commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)
+    private let audioCapture: any ASRAudioCapturing
     private let decodeQueue = DispatchQueue(label: "com.stet.StetASR.SherpaOnnxASREngine.decode")
     private let lock = NSRecursiveLock()
     private var preLoadBuffer: [Float] = []
 
     private var activeSessionId: String?
-    private var routeChangeObserver: NSObjectProtocol?
     private var nextSegmentOrder: Int = 0
     private var decodedSegments: [Int: String] = [:]
     private var expectedSegmentCount: Int?
@@ -53,32 +48,39 @@ public final class SherpaOnnxASREngine: ASREngine {
     private let modelManager: ASRModelManager
     public var onVolumeUpdate: ((Float) -> Void)?
 
-    public init(modelManager: ASRModelManager) {
+    public convenience init(modelManager: ASRModelManager) {
+        self.init(
+            modelManager: modelManager,
+            audioCapture: PersistentASRAudioCapture(strategy: .builtInPreferred)
+        )
+    }
+
+    init(
+        modelManager: ASRModelManager,
+        audioCapture: any ASRAudioCapturing
+    ) {
         let (stream, cont) = AsyncStream<ASRResult>.makeStream()
         self.resultStream = stream
         self.continuation = cont
         self.modelManager = modelManager
+        self.audioCapture = audioCapture
     }
 
     public func prepare() async throws {
-        try await configureAudioSessionAndEngine()
-        registerRouteChangeObserver()
+        try await audioCapture.prepare()
     }
 
     public func start(sessionId: String) async throws {
-        if audioEngine == nil { try await prepare() }
-
-        if let engine = audioEngine, !engine.isRunning {
-            #if os(iOS)
-                try await activateAudioSession()
-            #endif
-            if !engine.isRunning {
-                try engine.start()
-            }
-        }
-
         try await loadModelsIfNeeded()
         beginSession(sessionId: sessionId)
+        do {
+            try await audioCapture.start { [weak self] result in
+                self?.handleAudioFrameResult(result)
+            }
+        } catch {
+            clearActiveSession()
+            throw error
+        }
     }
 
     private func beginSession(sessionId: String) {
@@ -99,6 +101,7 @@ public final class SherpaOnnxASREngine: ASREngine {
     }
 
     public func stop() {
+        audioCapture.stop()
         lock.lock()
         guard activeSessionId != nil else {
             lock.unlock()
@@ -121,23 +124,15 @@ public final class SherpaOnnxASREngine: ASREngine {
     }
 
     public func resetAudio() async throws {
-        unregisterRouteChangeObserver()
-        let previousEngine = detachAudioEngineForReset()
-
-        previousEngine?.stop()
-        previousEngine?.inputNode.removeTap(onBus: 0)
-
-        try await configureAudioSessionAndEngine()
-        registerRouteChangeObserver()
+        audioCapture.stop()
+        clearActiveSession()
+        try await audioCapture.reset()
     }
 
-    private func detachAudioEngineForReset() -> AVAudioEngine? {
+    private func clearActiveSession() {
         lock.lock()
         defer { lock.unlock() }
 
-        let previousEngine = audioEngine
-        audioEngine = nil
-        converter = nil
         activeSessionId = nil
         preLoadBuffer.removeAll()
         decodedSegments.removeAll()
@@ -145,77 +140,14 @@ public final class SherpaOnnxASREngine: ASREngine {
         if let vad {
             while !vad.isEmpty() { vad.pop() }
         }
-        return previousEngine
     }
 
     public func teardown() {
-        unregisterRouteChangeObserver()
-        audioEngine?.stop()
-        audioEngine?.inputNode.removeTap(onBus: 0)
-        audioEngine = nil
-        converter = nil
+        audioCapture.teardown()
         recognizer = nil
         vad = nil
         activeSessionId = nil
         continuation.finish()
-    }
-
-    private func registerRouteChangeObserver() {
-        #if os(iOS)
-            guard routeChangeObserver == nil else { return }
-            routeChangeObserver = NotificationCenter.default.addObserver(
-                forName: AVAudioSession.routeChangeNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] note in
-                self?.handleRouteChange(note)
-            }
-        #endif
-    }
-
-    private func unregisterRouteChangeObserver() {
-        if let token = routeChangeObserver {
-            NotificationCenter.default.removeObserver(token)
-            routeChangeObserver = nil
-        }
-    }
-
-    private func handleRouteChange(_: Notification) {
-        #if os(iOS)
-            guard let engine = audioEngine else { return }
-            let input = engine.inputNode
-
-            engine.stop()
-            input.removeTap(onBus: 0)
-
-            lock.lock()
-            converter = nil
-            lock.unlock()
-
-            input.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, _ in
-                self?.handleInputBuffer(buffer)
-            }
-            engine.prepare()
-
-            Task { [weak self] in
-                guard let self else { return }
-                do {
-                    try await self.activateAudioSession()
-                    guard self.audioEngine === engine else { return }
-                    if !engine.isRunning {
-                        try engine.start()
-                    }
-                    self.logAudioRoute(
-                        AVAudioSession.sharedInstance(),
-                        event: "audio_route_changed"
-                    )
-                } catch {
-                    Self.lifecycleLogger.error(
-                        "event=audio_route_recovery_failed error=\(error.localizedDescription, privacy: .public)"
-                    )
-                }
-            }
-        #endif
     }
 
     private func loadModelsIfNeeded() async throws {
@@ -308,97 +240,20 @@ public final class SherpaOnnxASREngine: ASREngine {
         String(format: "%.1f", (ProcessInfo.processInfo.systemUptime - start) * 1_000)
     }
 
-    private func configureAudioSessionAndEngine() async throws {
-        #if os(iOS)
-            let session = AVAudioSession.sharedInstance()
-            var options: AVAudioSession.CategoryOptions = [
-                .mixWithOthers,
-                .allowBluetoothHFP,
-            ]
-            if #available(iOS 26.0, *) {
-                options.insert(.bluetoothHighQualityRecording)
-            }
-            try session.setCategory(.playAndRecord, mode: .default, options: options)
-            try await activateAudioSession(session)
-        #endif
-
-        try configureAudioEngine()
-
-        #if os(iOS)
-            logAudioRoute(session, event: "audio_route_configured")
-        #endif
+    private func handleAudioFrameResult(
+        _ result: Result<ASRAudioFrame, ASRAudioCaptureError>
+    ) {
+        switch result {
+        case .success(let frame):
+            handleAudioFrame(frame)
+        case .failure(let error):
+            Self.lifecycleLogger.error(
+                "event=audio_capture_failed error=\(error.localizedDescription, privacy: .public)"
+            )
+        }
     }
 
-    #if os(iOS)
-        private func logAudioRoute(_ session: AVAudioSession, event: String) {
-            let input = session.currentRoute.inputs.first
-            let output = session.currentRoute.outputs.first
-            let inputName = input?.portName ?? "none"
-            let inputType = input?.portType.rawValue ?? "none"
-            let outputName = output?.portName ?? "none"
-            let outputType = output?.portType.rawValue ?? "none"
-
-            if #available(iOS 26.0, *) {
-                let highQualityRecording =
-                    input?.bluetoothMicrophoneExtension?.highQualityRecording
-                Self.lifecycleLogger.info(
-                    """
-                    event=\(event, privacy: .public) \
-                    input=\(inputName, privacy: .public) \
-                    input_type=\(inputType, privacy: .public) \
-                    output=\(outputName, privacy: .public) \
-                    output_type=\(outputType, privacy: .public) \
-                    sample_rate=\(session.sampleRate, privacy: .public) \
-                    hq_supported=\(highQualityRecording?.isSupported == true, privacy: .public) \
-                    hq_enabled=\(highQualityRecording?.isEnabled == true, privacy: .public)
-                    """
-                )
-            } else {
-                Self.lifecycleLogger.info(
-                    """
-                    event=\(event, privacy: .public) \
-                    input=\(inputName, privacy: .public) \
-                    input_type=\(inputType, privacy: .public) \
-                    output=\(outputName, privacy: .public) \
-                    output_type=\(outputType, privacy: .public) \
-                    sample_rate=\(session.sampleRate, privacy: .public) \
-                    hq_supported=false hq_enabled=false
-                    """
-                )
-            }
-        }
-    #endif
-
-    private func configureAudioEngine() throws {
-        lock.lock()
-        defer { lock.unlock() }
-        guard audioEngine == nil else { return }
-        guard outputFormat != nil else {
-            throw NSError(domain: "StetASR", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid output format"])
-        }
-
-        let engine = AVAudioEngine()
-        let input = engine.inputNode
-        let inputFormat = input.outputFormat(forBus: 0)
-        guard inputFormat.channelCount > 0 else {
-            throw NSError(
-                domain: "StetASR", code: 3, userInfo: [NSLocalizedDescriptionKey: "Audio engine input unavailable"])
-        }
-        self.audioEngine = engine
-        self.converter = nil
-
-        // Passing a non-nil format forces the pre-start format onto the tap. On
-        // iOS the route can renegotiate while the engine starts (for example,
-        // 48 kHz to 24 kHz for a voice input), which makes the graph invalid.
-        // Let AVAudioEngine deliver its negotiated hardware format instead.
-        input.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, _ in
-            self?.handleInputBuffer(buffer)
-        }
-        engine.prepare()
-        try engine.start()
-    }
-
-    private func handleInputBuffer(_ buffer: AVAudioPCMBuffer) {
+    private func handleAudioFrame(_ frame: ASRAudioFrame) {
         lock.lock()
         guard let sessionId = activeSessionId else {
             lock.unlock()
@@ -406,94 +261,26 @@ public final class SherpaOnnxASREngine: ASREngine {
         }
         lock.unlock()
 
-        let inputFormat = buffer.format
-        guard inputFormat.sampleRate > 0,
-            inputFormat.channelCount > 0,
-            let outputFormat = self.outputFormat
-        else { return }
-        guard let converter = converter(for: inputFormat, outputFormat: outputFormat) else { return }
-
-        var consumed = false
-        let inputBlock: AVAudioConverterInputBlock = { _, status in
-            if consumed { status.pointee = .noDataNow; return nil }
-            consumed = true
-            status.pointee = .haveData
-            return buffer
-        }
-
-        let frameCapacity =
-            AVAudioFrameCount(Double(buffer.frameLength) * outputFormat.sampleRate / inputFormat.sampleRate) + 1
-        guard let converted = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: frameCapacity) else { return }
-        var error: NSError?
-        let status = converter.convert(to: converted, error: &error, withInputFrom: inputBlock)
-        guard status != .error, error == nil else { return }
-        let samples = converted.floatArray()
-        if !samples.isEmpty {
-            let sumSq = samples.reduce(0) { $0 + $1 * $1 }
-            let rms = sqrt(sumSq / Float(samples.count))
-            let level = min(rms * 15, 1.0)
-
-            lock.lock()
-            guard activeSessionId == sessionId else {
-                lock.unlock()
-                return
-            }
-            if let vad = self.vad {
-                if !self.preLoadBuffer.isEmpty {
-                    vad.acceptWaveform(samples: self.preLoadBuffer)
-                    self.preLoadBuffer.removeAll()
-                }
-                vad.acceptWaveform(samples: samples)
-                self.drainVAD()
-            } else {
-                self.preLoadBuffer.append(contentsOf: samples)
-            }
-            lock.unlock()
-
-            onVolumeUpdate?(level)
-        }
-    }
-
-    private func converter(for inputFormat: AVAudioFormat, outputFormat: AVAudioFormat) -> AVAudioConverter? {
+        guard !frame.samples.isEmpty else { return }
         lock.lock()
-        defer { lock.unlock() }
-
-        if let converter,
-            formatsMatch(converter.inputFormat, inputFormat)
-        {
-            return converter
+        guard activeSessionId == sessionId else {
+            lock.unlock()
+            return
         }
-
-        let newConverter = AVAudioConverter(from: inputFormat, to: outputFormat)
-        converter = newConverter
-        return newConverter
-    }
-
-    private func formatsMatch(_ lhs: AVAudioFormat, _ rhs: AVAudioFormat) -> Bool {
-        lhs.sampleRate == rhs.sampleRate
-            && lhs.channelCount == rhs.channelCount
-            && lhs.commonFormat == rhs.commonFormat
-            && lhs.isInterleaved == rhs.isInterleaved
-    }
-
-    #if os(iOS)
-        private func activateAudioSession(_ session: AVAudioSession = .sharedInstance()) async throws {
-            if #available(iOS 27.0, *) {
-                let activated = try await session.activate(options: [])
-                guard activated else {
-                    throw NSError(
-                        domain: "StetASR",
-                        code: 4,
-                        userInfo: [NSLocalizedDescriptionKey: "Audio session activation did not complete."]
-                    )
-                }
-            } else {
-                try await Task.detached(priority: .userInitiated) {
-                    try session.setActive(true)
-                }.value
+        if let vad {
+            if !preLoadBuffer.isEmpty {
+                vad.acceptWaveform(samples: preLoadBuffer)
+                preLoadBuffer.removeAll()
             }
+            vad.acceptWaveform(samples: frame.samples)
+            drainVAD()
+        } else {
+            preLoadBuffer.append(contentsOf: frame.samples)
         }
-    #endif
+        lock.unlock()
+
+        onVolumeUpdate?(frame.level)
+    }
 
     private func drainVAD() {
         lock.lock()

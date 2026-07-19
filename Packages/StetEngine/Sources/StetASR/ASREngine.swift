@@ -1,6 +1,6 @@
 import Foundation
 
-public struct ASRResult: Sendable {
+nonisolated public struct ASRResult: Sendable {
     public let sessionId: String
     public let text: String
     public let isFinal: Bool
@@ -19,7 +19,7 @@ public struct ASRResult: Sendable {
     }
 }
 
-public struct ASRMetrics: Sendable {
+nonisolated public struct ASRMetrics: Sendable {
     public let audioDuration: Double
     public let cpuDuration: Double
     public let wallDuration: Double
