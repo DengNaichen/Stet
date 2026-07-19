@@ -8,6 +8,7 @@ struct ASRAudioCaptureTests {
         let options = ASRAudioInputStrategy.builtInPreferred.categoryOptions
 
         #expect(options.contains(.mixWithOthers))
+        #expect(options.contains(.allowBluetoothA2DP))
         #expect(!options.contains(.allowBluetoothHFP))
         if #available(iOS 26.0, *) {
             #expect(!options.contains(.bluetoothHighQualityRecording))
