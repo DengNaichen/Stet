@@ -27,12 +27,17 @@
         @Published private(set) var isSenseVoiceDownloading = false
         @Published private(set) var senseVoiceErrorMessage: String?
 
+        @Published private(set) var isFunASRNanoDownloaded = false
+        @Published private(set) var isFunASRNanoDownloading = false
+        @Published private(set) var funASRNanoErrorMessage: String?
+
         private let settingsStore: DictationSettingsStore
         private var hasLoadedState = false
 
         private let localWhisperModelManager: LocalWhisperModelManager
         private let fluidAudioModelManager: FluidAudioModelManager
         private let sherpaOnnxSenseVoiceModelManager: SherpaOnnxSenseVoiceModelManager
+        private let funASRNanoModelManager: FunASRNanoModelManager
 
         init(
             deviceManager: AudioDeviceSelectionManager = .shared,
@@ -46,6 +51,7 @@
             self.localWhisperModelManager = LocalWhisperModelManager(configuration: configuration)
             self.fluidAudioModelManager = FluidAudioModelManager()
             self.sherpaOnnxSenseVoiceModelManager = SherpaOnnxSenseVoiceModelManager(configuration: configuration)
+            self.funASRNanoModelManager = FunASRNanoModelManager()
         }
 
         func onAppear() {
@@ -56,6 +62,7 @@
             isWhisperDownloaded = (try? localWhisperModelManager.defaultModelReady()) ?? false
             isParakeetDownloaded = fluidAudioModelManager.isModelDownloaded()
             isSenseVoiceDownloaded = sherpaOnnxSenseVoiceModelManager.isModelDownloaded()
+            isFunASRNanoDownloaded = funASRNanoModelManager.isModelDownloaded()
             localTranscriptionEngine = settingsStore.loadTranscriptionEngine()
             hasLoadedState = true
         }
@@ -131,6 +138,27 @@
             }
         }
 
+        func downloadFunASRNanoModel() {
+            guard !isFunASRNanoDownloading, !isFunASRNanoDownloaded else { return }
+            isFunASRNanoDownloading = true
+            funASRNanoErrorMessage = nil
+
+            Task { [funASRNanoModelManager] in
+                do {
+                    try await funASRNanoModelManager.installDefaultModel()
+                    await MainActor.run {
+                        self.isFunASRNanoDownloaded = funASRNanoModelManager.isModelDownloaded()
+                        self.isFunASRNanoDownloading = false
+                    }
+                } catch {
+                    await MainActor.run {
+                        self.funASRNanoErrorMessage = error.localizedDescription
+                        self.isFunASRNanoDownloading = false
+                    }
+                }
+            }
+        }
+
         func openWhisperFolder() {
             revealInFinder(urlProvider: { try self.localWhisperModelManager.defaultModelURL() })
         }
@@ -143,9 +171,16 @@
             revealInFinder(urlProvider: { try self.sherpaOnnxSenseVoiceModelManager.defaultModelURL() })
         }
 
+        func openFunASRNanoFolder() {
+            revealInFinder(urlProvider: { try self.funASRNanoModelManager.modelsDirectoryURL() })
+        }
+
         private func revealInFinder(urlProvider: @escaping () throws -> URL) {
             do {
-                let url = try urlProvider().deletingLastPathComponent()
+                let providedURL = try urlProvider()
+                var isDirectory: ObjCBool = false
+                let exists = FileManager.default.fileExists(atPath: providedURL.path, isDirectory: &isDirectory)
+                let url = exists && isDirectory.boolValue ? providedURL : providedURL.deletingLastPathComponent()
                 NSWorkspace.shared.open(url)
             } catch {}
         }

@@ -20,18 +20,18 @@
                 settingsStore: settingsStore
             )
 
-            // The current local-ASR baseline uses SenseVoice for every language selection.
+            // The three-model router selects the engine from the active language combination.
             #expect(viewModel.transcriptionPrimaryLanguage == "en")
-            #expect(viewModel.transcriptionEngine == .sherpaOnnxSenseVoice)
+            #expect(viewModel.transcriptionEngine == .fluidAudio)
 
             viewModel.transcriptionPrimaryLanguage = "is"
-            #expect(viewModel.transcriptionEngine == .sherpaOnnxSenseVoice)
+            #expect(viewModel.transcriptionEngine == .localWhisper(languageHint: nil))
 
             viewModel.transcriptionSecondaryLanguage = "zh-Hans"
-            #expect(viewModel.transcriptionEngine == .sherpaOnnxSenseVoice)
+            #expect(viewModel.transcriptionEngine == .localWhisper(languageHint: nil))
 
             viewModel.transcriptionPrimaryLanguage = "en"
-            #expect(viewModel.transcriptionEngine == .sherpaOnnxSenseVoice)
+            #expect(viewModel.transcriptionEngine == .localWhisper(languageHint: nil))
         }
 
         @Test func testEnginePreparationFlow() async throws {

@@ -36,6 +36,16 @@
                             .foregroundStyle(.orange)
                         }
 
+                        if viewModel.localTranscriptionEngine == .funASRNano,
+                            !viewModel.isFunASRNanoDownloaded
+                        {
+                            Text(
+                                "Fun-ASR Nano isn't downloaded yet. Stet will fall back to Whisper until you download it below."
+                            )
+                            .font(.system(size: 11))
+                            .foregroundStyle(.orange)
+                        }
+
                         Divider().padding(.vertical, 4)
 
                         // Models Management
@@ -69,6 +79,17 @@
                                 errorMessage: viewModel.senseVoiceErrorMessage,
                                 onDownload: { viewModel.downloadSenseVoiceModel() },
                                 onReveal: { viewModel.openSenseVoiceFolder() }
+                            )
+
+                            Divider()
+
+                            TranscriptionModelRow(
+                                name: "Fun-ASR Nano (Chinese / English / Japanese)",
+                                isDownloaded: viewModel.isFunASRNanoDownloaded,
+                                isDownloading: viewModel.isFunASRNanoDownloading,
+                                errorMessage: viewModel.funASRNanoErrorMessage,
+                                onDownload: { viewModel.downloadFunASRNanoModel() },
+                                onReveal: { viewModel.openFunASRNanoFolder() }
                             )
                         }
                     }

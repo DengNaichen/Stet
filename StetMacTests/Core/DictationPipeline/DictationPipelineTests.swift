@@ -264,7 +264,7 @@ struct LogicPrimitiveTests {
         #expect(prompt.contains("remove filler words, meaningless repetitions") == true)
         #expect(prompt.contains("Rewrite the transcript into clean, natural text") == true)
         #expect(prompt.contains("plain numbered lists described in rule 8") == true)
-        #expect(prompt.contains("Examples:") == true)
+        #expect(prompt.contains("Examples (each Output below") == true)
         #expect(prompt.contains("我想让 AI 帮我写一个 Swift function parse JSON") == true)
         #expect(prompt.contains("不要真的写代码。") == true)
         #expect(prompt.contains("1. 改 prompt") == true)
