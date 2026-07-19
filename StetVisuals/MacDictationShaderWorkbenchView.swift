@@ -31,8 +31,6 @@
         @State private var hexA = "#F2F4FA"
         @State private var hexB = "#7AAEFF"
         @State private var hexC = "#0A3CA9"
-        @State private var fieldGain = 1.0
-        @State private var blurSigma = Double(MacDictationAudioFieldConstants.fieldBlurSigma)
         @State private var motionGain = 1.0
         @StateObject private var microphoneMonitor = MacDictationShaderWorkbenchMicrophoneMonitor()
 
@@ -173,8 +171,6 @@
 
                 Toggle("Pause timeline", isOn: $isPaused)
 
-                labeledSlider(title: "Field gain", value: $fieldGain, range: 0.2...2.5)
-                labeledSlider(title: "Blur sigma", value: $blurSigma, range: 0.2...1.8)
                 labeledSlider(title: "Motion gain", value: $motionGain, range: 0.2...2.0)
                 labeledSlider(title: "Width", value: $surfaceWidth, range: 480...1200)
                 labeledSlider(title: "Height", value: $surfaceHeight, range: 300...900)
@@ -280,9 +276,6 @@
                     signals: resolvedSignals,
                     colors: colors,
                     isPaused: isPaused,
-                    fieldGain: Float(fieldGain),
-                    fieldBlurSigma: Float(blurSigma),
-                    gradientBlurSigma: MacDictationAudioFieldConstants.gradientBlurSigma,
                     motionGain: Float(motionGain)
                 )
                 .frame(width: size.width, height: size.height)

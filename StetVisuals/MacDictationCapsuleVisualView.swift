@@ -105,7 +105,7 @@
                         state: model.state,
                         mainWidth: model.mainWidth,
                         controlHeight: model.controlHeight,
-                        startDate: processingStartDate ?? startDate,
+                        startDate: startDate,
                         shaderFrameInterval: model.shaderFrameInterval,
                         signals: model.signals,
                         shaderTheme: model.shaderTheme,

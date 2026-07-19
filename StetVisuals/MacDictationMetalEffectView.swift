@@ -11,11 +11,7 @@
         let signals: MacDictationCapsuleVisualSignals
         let colors: (cottonFoam: Color, waveTop: Color, deepSea: Color)
         let isPaused: Bool
-        var fieldGain: Float = 1
-        var fieldBlurSigma: Float = MacDictationAudioFieldConstants.fieldBlurSigma
-        var gradientBlurSigma: Float = MacDictationAudioFieldConstants.gradientBlurSigma
         var motionGain: Float = 1
-        var processingMix: Float = 0
 
         func makeCoordinator() -> DictationMetalEffectCoordinator {
             DictationMetalEffectCoordinator()
@@ -47,11 +43,7 @@
                     deepSea: colors.deepSea.simdRGB
                 ),
                 isPaused: isPaused,
-                fieldGain: fieldGain,
-                fieldBlurSigma: fieldBlurSigma,
-                gradientBlurSigma: gradientBlurSigma,
-                motionGain: motionGain,
-                processingMix: processingMix
+                motionGain: motionGain
             )
             coordinator.update(view: nsView, configuration: configuration)
         }

@@ -1,24 +1,11 @@
 #include <metal_stdlib>
 using namespace metal;
 
-struct AudioBandFeatureGPU {
-    float2 position;
-    float weight;
-    float padding;
-};
-
 struct AudioFieldComputeUniformsGPU {
-    uint gridSize;
-    uint bandCount;
-    float sigmaX;
-    float sigmaY;
-    float fieldBlurSigma;
-    float gradientBlurSigma;
-    float fieldGain;
     float motionGain;
     float deltaTime;
     float inputLevel;
-    float2 padding;
+    float padding;
     float4 inputGroupedBands;
 };
 
@@ -35,7 +22,6 @@ struct AudioFieldSummaryGPU {
 struct AudioFieldRenderUniformsGPU {
     float2 size;
     float time;
-    float processingMix;
     float3 cottonFoam;
     float padding0;
     float3 waveTop;
@@ -54,100 +40,10 @@ static float smoothToward(float current, float target, float attack, float relea
     return current + (target - current) * rate;
 }
 
-kernel void audioFieldSplatKernel(
-    texture2d<half, access::write> densityTexture [[texture(0)]],
-    constant AudioBandFeatureGPU* features [[buffer(0)]],
-    constant AudioFieldComputeUniformsGPU& uniforms [[buffer(1)]],
-    uint2 gid [[thread_position_in_grid]]
-) {
-    if (gid.x >= uniforms.gridSize || gid.y >= uniforms.gridSize) {
-        return;
-    }
-
-    float gx = uniforms.gridSize <= 1 ? 0.0 : float(gid.x) / float(uniforms.gridSize - 1);
-    float gy = uniforms.gridSize <= 1 ? 0.0 : float(gid.y) / float(uniforms.gridSize - 1);
-    float value = 0.0;
-
-    for (uint index = 0; index < uniforms.bandCount; ++index) {
-        AudioBandFeatureGPU feature = features[index];
-        if (feature.weight <= 1e-8) {
-            continue;
-        }
-
-        float dx = gx - feature.position.x;
-        float dy = gy - feature.position.y;
-        value += feature.weight * uniforms.fieldGain * exp(
-            -(dx * dx) / (2.0 * uniforms.sigmaX * uniforms.sigmaX)
-            - (dy * dy) / (2.0 * uniforms.sigmaY * uniforms.sigmaY)
-        );
-    }
-
-    densityTexture.write(half4(half(value), 0.0h, 0.0h, 1.0h), gid);
-}
-
-kernel void audioFieldBlurKernel(
-    texture2d<half, access::read> inputTexture [[texture(0)]],
-    texture2d<half, access::write> outputTexture [[texture(1)]],
-    constant AudioFieldComputeUniformsGPU& uniforms [[buffer(1)]],
-    uint2 gid [[thread_position_in_grid]]
-) {
-    if (gid.x >= uniforms.gridSize || gid.y >= uniforms.gridSize) {
-        return;
-    }
-
-    int radius = max(1, int(ceil(uniforms.fieldBlurSigma * 2.0)));
-    float sigma = max(uniforms.fieldBlurSigma, 0.001);
-    float totalWeight = 0.0;
-    float blurred = 0.0;
-
-    for (int offsetY = -radius; offsetY <= radius; ++offsetY) {
-        for (int offsetX = -radius; offsetX <= radius; ++offsetX) {
-            int sampleX = clamp(int(gid.x) + offsetX, 0, int(uniforms.gridSize) - 1);
-            int sampleY = clamp(int(gid.y) + offsetY, 0, int(uniforms.gridSize) - 1);
-            float distance2 = float(offsetX * offsetX + offsetY * offsetY);
-            float weight = exp(-distance2 / (2.0 * sigma * sigma));
-            blurred += float(inputTexture.read(uint2(sampleX, sampleY)).x) * weight;
-            totalWeight += weight;
-        }
-    }
-
-    float value = totalWeight <= 1e-10 ? 0.0 : blurred / totalWeight;
-    outputTexture.write(half4(half(value), 0.0h, 0.0h, 1.0h), gid);
-}
-
-kernel void audioFieldGradientKernel(
-    texture2d<half, access::read> fieldTexture [[texture(0)]],
-    texture2d<half, access::write> gradientTexture [[texture(1)]],
-    constant AudioFieldComputeUniformsGPU& uniforms [[buffer(1)]],
-    uint2 gid [[thread_position_in_grid]]
-) {
-    if (gid.x >= uniforms.gridSize || gid.y >= uniforms.gridSize) {
-        return;
-    }
-
-    float step = uniforms.gridSize <= 1 ? 1.0 : 1.0 / float(uniforms.gridSize - 1);
-    int leftX = max(int(gid.x) - 1, 0);
-    int rightX = min(int(gid.x) + 1, int(uniforms.gridSize) - 1);
-    int upY = max(int(gid.y) - 1, 0);
-    int downY = min(int(gid.y) + 1, int(uniforms.gridSize) - 1);
-
-    float left = float(fieldTexture.read(uint2(leftX, gid.y)).x);
-    float right = float(fieldTexture.read(uint2(rightX, gid.y)).x);
-    float up = float(fieldTexture.read(uint2(gid.x, upY)).x);
-    float down = float(fieldTexture.read(uint2(gid.x, downY)).x);
-
-    float gradX = (right - left) / (2.0 * step);
-    float gradY = (down - up) / (2.0 * step);
-    gradientTexture.write(half4(half(gradX), half(gradY), 0.0h, 1.0h), gid);
-}
-
 kernel void audioFieldSummaryKernel(
-    texture2d<half, access::read> fieldTexture [[texture(0)]],
-    texture2d<half, access::read> gradientTexture [[texture(1)]],
-    constant AudioBandFeatureGPU* features [[buffer(0)]],
-    constant AudioFieldComputeUniformsGPU& uniforms [[buffer(1)]],
-    constant AudioFieldSummaryGPU* previousSummary [[buffer(2)]],
-    device AudioFieldSummaryGPU* nextSummary [[buffer(3)]],
+    constant AudioFieldComputeUniformsGPU& uniforms [[buffer(0)]],
+    constant AudioFieldSummaryGPU* previousSummary [[buffer(1)]],
+    device AudioFieldSummaryGPU* nextSummary [[buffer(2)]],
     uint gid [[thread_position_in_grid]]
 ) {
     if (gid > 0) {
@@ -292,64 +188,6 @@ fragment float4 audioReactiveOrbFragment(
     float3 color = mix(sky, volumeColor, cloudMask);
     float softGlow = (1.0 - smoothstep(-0.06, 0.26, distortedDepth)) * (0.035 + level * 0.045);
     color += float3(softGlow);
-
-    // Keep the existing processing treatment connected to the v5 volume fields.
-    float bodyField = broadBody;
-    float foamMix = edgeFoam;
-    float bodyFade = deepMix;
-    float surfaceFade = foamLayer;
-    float cottonMask = cloudMask;
-
-    // Processing remains an explicit visual state, independent of audio motion gain.
-    float processingGate = clamp(uniforms.processingMix, 0.0, 1.0);
-    float processingProgress = min(0.95, 1.0 - exp(-uniforms.time * 1.15));
-    float progressEdge = mix(-1.0, 1.0, processingProgress);
-
-    float edgeNoiseA = fbmValue(
-        float2(in.uv.x * 4.2 - uniforms.time * 0.05, in.uv.y * 6.6 + uniforms.time * 0.08)
-    );
-    float edgeNoiseB = noiseValue(
-        float2(in.uv.x * 9.4 + uniforms.time * 0.04, in.uv.y * 11.8 - uniforms.time * 0.03)
-    );
-    float edgeNoise = ((edgeNoiseA * 0.72 + edgeNoiseB * 0.28) - 0.5) * 0.13;
-    float noisyEdge = progressEdge + edgeNoise;
-    float fillAmount = smoothstep(noisyEdge + 0.14, noisyEdge - 0.14, p.x) * processingGate;
-
-    float3 mistGray = mix(colCottonFoam, float3(0.70, 0.74, 0.78), 0.60);
-    float3 steelBlue = mix(colDeepSea, float3(0.43, 0.54, 0.66), 0.74);
-    float3 frostBlue = mix(colWaveTop, float3(0.74, 0.86, 0.95), 0.68);
-    float3 frontFoam = mix(colCottonFoam, float3(0.96, 0.98, 1.0), 0.42);
-
-    float fillSpan = max(noisyEdge + 1.0, 0.001);
-    float pushCoord = clamp((p.x + 1.0) / fillSpan, 0.0, 1.0);
-    float frontPressure = smoothstep(0.50, 1.0, pushCoord);
-    float rearSettle = 1.0 - smoothstep(0.18, 0.72, pushCoord);
-
-    float pushField = fbmValue(
-        float2(
-            p.x * 1.55 - uniforms.time * 0.12 + flow.x * 1.1 + pushCoord * 1.8,
-            p.y * 1.10 + uniforms.time * 0.03 + bodyField * 0.55
-        )
-    );
-    float pushFoam = smoothstep(0.50, 0.84, pushField + frontPressure * 0.28 + foamMix * 0.12);
-
-    float3 processingBase = mix(steelBlue, mistGray, rearSettle * 0.55 + 0.12);
-    processingBase = mix(processingBase, frostBlue, frontPressure * 0.30);
-
-    float3 processingBody = mix(steelBlue, frostBlue, bodyFade * 0.58 + frontPressure * 0.26);
-    processingBody = mix(mistGray, processingBody, surfaceFade);
-    processingBody = mix(processingBody, frontFoam, pushFoam * (0.16 + frontPressure * 0.22));
-    processingBody = mix(processingBody, frostBlue, frontPressure * 0.18);
-
-    float3 processingColor = mix(processingBase, processingBody, cottonMask);
-    processingColor += float3(0.03, 0.04, 0.05) * smoothstep(0.32, -0.08, distortedDepth);
-
-    float edgeHighlight = smoothstep(0.16, 0.02, abs(p.x - noisyEdge)) * processingGate;
-    float edgeGlow = smoothstep(0.26, 0.0, abs(p.x - noisyEdge)) * processingGate;
-
-    color = mix(color, processingColor, fillAmount);
-    color += colCottonFoam * edgeHighlight * 0.16;
-    color += mix(colWaveTop, colCottonFoam, 0.65) * edgeGlow * 0.08;
 
     return float4(color, 1.0);
 }

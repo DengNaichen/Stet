@@ -117,11 +117,6 @@ public struct MacDictationCapsuleVisualSignals: Equatable, Sendable {
 }
 
 public enum MacDictationAudioFieldConstants {
-    public static let fieldGridSize = 48
-    public static let fieldSigmaX: Float = 0.09
-    public static let fieldSigmaY: Float = 0.11
-    public static let fieldBlurSigma: Float = 0.9
-    public static let gradientBlurSigma: Float = 0.8
     public static let minFrequency: Float = 80
     public static let maxFrequency: Float = 9_000
     public static let fftSize = 2_048

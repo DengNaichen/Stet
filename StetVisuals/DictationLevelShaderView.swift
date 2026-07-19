@@ -48,11 +48,7 @@ public struct DictationLevelShaderView: View {
             signals: DictationLevelShaderSignalMapper.signals(level: level),
             colors: Self.eggSpeakingColors,
             isPaused: isPaused,
-            fieldGain: 1,
-            fieldBlurSigma: MacDictationAudioFieldConstants.fieldBlurSigma,
-            gradientBlurSigma: MacDictationAudioFieldConstants.gradientBlurSigma,
-            motionGain: 1.55,
-            processingMix: 0
+            motionGain: 1.55
         )
     }
 

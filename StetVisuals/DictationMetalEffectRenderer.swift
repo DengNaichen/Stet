@@ -10,11 +10,7 @@ struct DictationMetalEffectConfiguration {
     var signals: MacDictationCapsuleVisualSignals
     var colors: (cottonFoam: SIMD3<Float>, waveTop: SIMD3<Float>, deepSea: SIMD3<Float>)
     var isPaused: Bool
-    var fieldGain: Float
-    var fieldBlurSigma: Float
-    var gradientBlurSigma: Float
     var motionGain: Float
-    var processingMix: Float
 }
 
 final class DictationMetalEffectCoordinator {
@@ -50,24 +46,11 @@ final class DictationMetalEffectCoordinator {
 
 private final class StetVisualsMetalBundleToken {}
 
-private struct AudioBandFeatureGPU {
-    var position: SIMD2<Float>
-    var weight: Float
-    var padding: Float = 0
-}
-
 private struct AudioFieldComputeUniformsGPU {
-    var gridSize: UInt32
-    var bandCount: UInt32
-    var sigmaX: Float
-    var sigmaY: Float
-    var fieldBlurSigma: Float
-    var gradientBlurSigma: Float
-    var fieldGain: Float
     var motionGain: Float
     var deltaTime: Float
     var inputLevel: Float
-    var padding: SIMD2<Float> = .zero
+    var padding: Float = 0
     var inputGroupedBands: SIMD4<Float>
 }
 
@@ -84,7 +67,6 @@ private struct AudioFieldSummaryGPU {
 private struct AudioFieldRenderUniformsGPU {
     var size: SIMD2<Float>
     var time: Float
-    var processingMix: Float
     var cottonFoam: SIMD3<Float>
     var padding0: Float = 0
     var waveTop: SIMD3<Float>
@@ -96,20 +78,12 @@ private struct AudioFieldRenderUniformsGPU {
 private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
     private let commandQueue: MTLCommandQueue
     private let renderPipeline: MTLRenderPipelineState
-    private let splatPipeline: MTLComputePipelineState
-    private let blurPipeline: MTLComputePipelineState
-    private let gradientPipeline: MTLComputePipelineState
     private let summaryPipeline: MTLComputePipelineState
 
-    private let featureBuffer: MTLBuffer
     private let computeUniformBuffer: MTLBuffer
     private let renderUniformBuffer: MTLBuffer
     private let summaryBuffers: [MTLBuffer]
     private var summaryBufferIndex = 0
-
-    private let densityTexture: MTLTexture
-    private let blurredTexture: MTLTexture
-    private let gradientTexture: MTLTexture
 
     private var configuration = DictationMetalEffectConfiguration(
         size: .zero,
@@ -118,11 +92,7 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
         signals: .zero,
         colors: (.zero, .zero, .zero),
         isPaused: false,
-        fieldGain: 1,
-        fieldBlurSigma: MacDictationAudioFieldConstants.fieldBlurSigma,
-        gradientBlurSigma: MacDictationAudioFieldConstants.gradientBlurSigma,
-        motionGain: 1,
-        processingMix: 0
+        motionGain: 1
     )
     private var lastKnownStartDate = Date.distantPast
     private var accumulatedPauseDuration: TimeInterval = 0
@@ -132,26 +102,15 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
     private var lastFrameUptime: TimeInterval?
 
     init?(device: MTLDevice, view: MTKView) {
-        assert(MemoryLayout<AudioBandFeatureGPU>.stride == 16)
-        assert(MemoryLayout<AudioFieldComputeUniformsGPU>.stride == 64)
+        assert(MemoryLayout<AudioFieldComputeUniformsGPU>.stride == 32)
         assert(MemoryLayout<AudioFieldSummaryGPU>.stride == 48)
         assert(MemoryLayout<AudioFieldRenderUniformsGPU>.stride == 112)
 
         guard let commandQueue = device.makeCommandQueue(),
             let library = try? device.makeDefaultLibrary(bundle: Self.shaderBundle),
             let renderPipeline = Self.makeRenderPipeline(device: device, library: library, view: view),
-            let splatPipeline = Self.makeComputePipeline(
-                device: device, library: library, name: "audioFieldSplatKernel"),
-            let blurPipeline = Self.makeComputePipeline(
-                device: device, library: library, name: "audioFieldBlurKernel"),
-            let gradientPipeline = Self.makeComputePipeline(
-                device: device, library: library, name: "audioFieldGradientKernel"),
             let summaryPipeline = Self.makeComputePipeline(
                 device: device, library: library, name: "audioFieldSummaryKernel"),
-            let featureBuffer = device.makeBuffer(
-                length: MemoryLayout<AudioBandFeatureGPU>.stride * MacDictationCapsuleVisualSignals.bandCount,
-                options: .storageModeShared
-            ),
             let computeUniformBuffer = device.makeBuffer(
                 length: MemoryLayout<AudioFieldComputeUniformsGPU>.stride,
                 options: .storageModeShared
@@ -167,27 +126,17 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
             let summaryB = device.makeBuffer(
                 length: MemoryLayout<AudioFieldSummaryGPU>.stride,
                 options: .storageModeShared
-            ),
-            let densityTexture = Self.makeTexture(device: device, pixelFormat: .r16Float),
-            let blurredTexture = Self.makeTexture(device: device, pixelFormat: .r16Float),
-            let gradientTexture = Self.makeTexture(device: device, pixelFormat: .rg16Float)
+            )
         else {
             return nil
         }
 
         self.commandQueue = commandQueue
         self.renderPipeline = renderPipeline
-        self.splatPipeline = splatPipeline
-        self.blurPipeline = blurPipeline
-        self.gradientPipeline = gradientPipeline
         self.summaryPipeline = summaryPipeline
-        self.featureBuffer = featureBuffer
         self.computeUniformBuffer = computeUniformBuffer
         self.renderUniformBuffer = renderUniformBuffer
         self.summaryBuffers = [summaryA, summaryB]
-        self.densityTexture = densityTexture
-        self.blurredTexture = blurredTexture
-        self.gradientTexture = gradientTexture
 
         super.init()
 
@@ -243,7 +192,6 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
             resetSummaryBuffers()
         }
 
-        writeFeatureBuffer(signals: configuration.signals)
         writeUniforms(deltaTime: 0)
     }
 
@@ -260,9 +208,6 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
         writeUniforms(deltaTime: nextFrameInterval())
 
         if let computeEncoder = commandBuffer.makeComputeCommandEncoder() {
-            encodeSplat(into: computeEncoder)
-            encodeBlur(into: computeEncoder)
-            encodeGradient(into: computeEncoder)
             encodeSummary(into: computeEncoder)
             computeEncoder.endEncoding()
         }
@@ -281,33 +226,12 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
         summaryBufferIndex = (summaryBufferIndex + 1) % 2
     }
 
-    private func writeFeatureBuffer(signals: MacDictationCapsuleVisualSignals) {
-        let pointer = featureBuffer.contents().bindMemory(
-            to: AudioBandFeatureGPU.self,
-            capacity: MacDictationCapsuleVisualSignals.bandCount
-        )
-        for index in 0..<MacDictationCapsuleVisualSignals.bandCount {
-            let feature = signals.bands[index]
-            pointer[index] = AudioBandFeatureGPU(
-                position: SIMD2<Float>(feature.x, feature.y),
-                weight: feature.weight
-            )
-        }
-    }
-
     private func writeUniforms(deltaTime: Float) {
         let computePointer = computeUniformBuffer.contents().bindMemory(
             to: AudioFieldComputeUniformsGPU.self,
             capacity: 1
         )
         computePointer.pointee = AudioFieldComputeUniformsGPU(
-            gridSize: UInt32(MacDictationAudioFieldConstants.fieldGridSize),
-            bandCount: UInt32(MacDictationCapsuleVisualSignals.bandCount),
-            sigmaX: MacDictationAudioFieldConstants.fieldSigmaX,
-            sigmaY: MacDictationAudioFieldConstants.fieldSigmaY,
-            fieldBlurSigma: configuration.fieldBlurSigma,
-            gradientBlurSigma: configuration.gradientBlurSigma,
-            fieldGain: configuration.fieldGain,
             motionGain: configuration.motionGain,
             deltaTime: deltaTime,
             inputLevel: configuration.signals.estimatedSummary.level,
@@ -321,69 +245,21 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
         renderPointer.pointee = AudioFieldRenderUniformsGPU(
             size: SIMD2<Float>(Float(configuration.size.width), Float(configuration.size.height)),
             time: Float(configuration.isPaused ? pausedElapsed : currentElapsed(now: Date())),
-            processingMix: configuration.processingMix,
             cottonFoam: configuration.colors.cottonFoam,
             waveTop: configuration.colors.waveTop,
             deepSea: configuration.colors.deepSea
         )
     }
 
-    private func encodeSplat(into encoder: MTLComputeCommandEncoder) {
-        encoder.setComputePipelineState(splatPipeline)
-        encoder.setTexture(densityTexture, index: 0)
-        encoder.setBuffer(featureBuffer, offset: 0, index: 0)
-        encoder.setBuffer(computeUniformBuffer, offset: 0, index: 1)
-        dispatch2D(pipeline: splatPipeline, encoder: encoder)
-    }
-
-    private func encodeBlur(into encoder: MTLComputeCommandEncoder) {
-        encoder.setComputePipelineState(blurPipeline)
-        encoder.setTexture(densityTexture, index: 0)
-        encoder.setTexture(blurredTexture, index: 1)
-        encoder.setBuffer(computeUniformBuffer, offset: 0, index: 1)
-        dispatch2D(pipeline: blurPipeline, encoder: encoder)
-    }
-
-    private func encodeGradient(into encoder: MTLComputeCommandEncoder) {
-        encoder.setComputePipelineState(gradientPipeline)
-        encoder.setTexture(blurredTexture, index: 0)
-        encoder.setTexture(gradientTexture, index: 1)
-        encoder.setBuffer(computeUniformBuffer, offset: 0, index: 1)
-        dispatch2D(pipeline: gradientPipeline, encoder: encoder)
-    }
-
     private func encodeSummary(into encoder: MTLComputeCommandEncoder) {
         encoder.setComputePipelineState(summaryPipeline)
-        encoder.setTexture(blurredTexture, index: 0)
-        encoder.setTexture(gradientTexture, index: 1)
-        encoder.setBuffer(featureBuffer, offset: 0, index: 0)
-        encoder.setBuffer(computeUniformBuffer, offset: 0, index: 1)
-        encoder.setBuffer(previousSummaryBuffer, offset: 0, index: 2)
-        encoder.setBuffer(currentSummaryBuffer, offset: 0, index: 3)
+        encoder.setBuffer(computeUniformBuffer, offset: 0, index: 0)
+        encoder.setBuffer(previousSummaryBuffer, offset: 0, index: 1)
+        encoder.setBuffer(currentSummaryBuffer, offset: 0, index: 2)
         encoder.dispatchThreads(
             MTLSize(width: 1, height: 1, depth: 1),
             threadsPerThreadgroup: MTLSize(width: 1, height: 1, depth: 1)
         )
-    }
-
-    private func dispatch2D(pipeline: MTLComputePipelineState, encoder: MTLComputeCommandEncoder) {
-        let size = MTLSize(
-            width: MacDictationAudioFieldConstants.fieldGridSize,
-            height: MacDictationAudioFieldConstants.fieldGridSize,
-            depth: 1
-        )
-        let threads = MTLSize(
-            width: min(pipeline.threadExecutionWidth, MacDictationAudioFieldConstants.fieldGridSize),
-            height: max(
-                1,
-                min(
-                    pipeline.maxTotalThreadsPerThreadgroup / max(pipeline.threadExecutionWidth, 1),
-                    MacDictationAudioFieldConstants.fieldGridSize
-                )
-            ),
-            depth: 1
-        )
-        encoder.dispatchThreads(size, threadsPerThreadgroup: threads)
     }
 
     private func currentElapsed(now: Date) -> TimeInterval {
@@ -422,18 +298,6 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
 
     private var previousSummaryBuffer: MTLBuffer {
         summaryBuffers[(summaryBufferIndex + 1) % 2]
-    }
-
-    private static func makeTexture(device: MTLDevice, pixelFormat: MTLPixelFormat) -> MTLTexture? {
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: pixelFormat,
-            width: MacDictationAudioFieldConstants.fieldGridSize,
-            height: MacDictationAudioFieldConstants.fieldGridSize,
-            mipmapped: false
-        )
-        descriptor.usage = [.shaderRead, .shaderWrite]
-        descriptor.storageMode = .private
-        return device.makeTexture(descriptor: descriptor)
     }
 
     private static func makeRenderPipeline(
