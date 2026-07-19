@@ -149,7 +149,7 @@ private struct GoogleErrorResponse: Decodable {
     let error: ErrorDetail
 }
 
-public enum GoogleError: Error, LocalizedError {
+public enum GoogleError: Error, LocalizedError, Equatable {
     case invalidURL
     case invalidResponse
     case invalidStructuredOutput
