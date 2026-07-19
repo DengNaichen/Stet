@@ -27,12 +27,10 @@ struct DictationSessionCoordinatorTests {
     @Test
     func selectableCoordinatorSwitchesToTheChosenIdleModel() async throws {
         let senseVoice = SwitchingChildCoordinator(engineName: "SenseVoice")
-        let whisper = SwitchingChildCoordinator(engineName: "Whisper large-v3-turbo")
         let funASR = SwitchingChildCoordinator(engineName: "FunASR Realtime")
         let subject = SelectableDictationSessionCoordinator(selectedEngine: .senseVoice) { engine in
             switch engine {
             case .senseVoice: senseVoice
-            case .whisperLargeV3Turbo: whisper
             case .funASRRealtime: funASR
             }
         }
@@ -42,17 +40,11 @@ struct DictationSessionCoordinatorTests {
         expectLoading(try await nextEvent(&events))
         expectReady(try await nextEvent(&events), engineName: "SenseVoice")
 
-        subject.selectEngine(.whisperLargeV3Turbo)
-        expectLoading(try await nextEvent(&events))
-        expectReady(try await nextEvent(&events), engineName: "Whisper large-v3-turbo")
-
         subject.selectEngine(.funASRRealtime)
         expectLoading(try await nextEvent(&events))
         expectReady(try await nextEvent(&events), engineName: "FunASR Realtime")
 
         #expect(senseVoice.shutdownCallCount == 1)
-        #expect(whisper.startCallCount == 1)
-        #expect(whisper.shutdownCallCount == 1)
         #expect(funASR.startCallCount == 1)
         #expect(subject.phase == .idle)
         await subject.shutdown()

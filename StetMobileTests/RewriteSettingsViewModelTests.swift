@@ -24,18 +24,18 @@ struct RewriteSettingsViewModelTests {
         var didNotifyDictation = false
         let viewModel = RewriteSettingsViewModel(
             settingsStore: RewriteSettingsStore(),
-            localModelManagers: [.whisperLargeV3Turbo: manager],
+            localModelManagers: [.senseVoice: manager],
             onLocalModelReady: { model in
-                didNotifyDictation = model == .whisperLargeV3Turbo
+                didNotifyDictation = model == .senseVoice
             }
         )
 
-        await viewModel.downloadLocalModel(.whisperLargeV3Turbo)
-        #expect(viewModel.localModelState(for: .whisperLargeV3Turbo) == .downloadFailed)
+        await viewModel.downloadLocalModel(.senseVoice)
+        #expect(viewModel.localModelState(for: .senseVoice) == .downloadFailed)
         #expect(!didNotifyDictation)
 
-        await viewModel.downloadLocalModel(.whisperLargeV3Turbo)
-        #expect(viewModel.localModelState(for: .whisperLargeV3Turbo) == .downloaded)
+        await viewModel.downloadLocalModel(.senseVoice)
+        #expect(viewModel.localModelState(for: .senseVoice) == .downloaded)
         #expect(didNotifyDictation)
     }
 
@@ -53,26 +53,6 @@ struct RewriteSettingsViewModelTests {
 
         #expect(viewModel.localModelState(for: .senseVoice) == .notDownloaded)
         #expect(manager.deleteCount == 1)
-    }
-
-    @MainActor
-    @Test func reportsBothLocalModelsIndependently() async {
-        let senseVoice = TestLocalDictationModelManager(status: .notDownloaded)
-        let whisper = TestLocalDictationModelManager(
-            status: .ready(localURL: URL(fileURLWithPath: "/tmp/whisper.bin"))
-        )
-        let viewModel = RewriteSettingsViewModel(
-            settingsStore: RewriteSettingsStore(),
-            localModelManagers: [
-                .senseVoice: senseVoice,
-                .whisperLargeV3Turbo: whisper,
-            ]
-        )
-
-        await viewModel.refreshLocalModelStatuses()
-
-        #expect(viewModel.localModelState(for: .senseVoice) == .notDownloaded)
-        #expect(viewModel.localModelState(for: .whisperLargeV3Turbo) == .downloaded)
     }
 
     @MainActor
@@ -126,26 +106,31 @@ struct RewriteSettingsViewModelTests {
     }
 
     @MainActor
-    @Test func whisperModelManagerFindsAndDeletesDownloadedModel() async throws {
+    @Test func retiredWhisperModelIsRemoved() throws {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("StetWhisperModelDeletionTests", isDirectory: true)
+            .appendingPathComponent("StetRetiredModelCleanupTests", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: directory) }
 
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let modelURL = directory.appendingPathComponent(WhisperModelManager.modelFileName)
+        let modelDirectory =
+            directory
+            .appendingPathComponent("Stet", isDirectory: true)
+            .appendingPathComponent("Models", isDirectory: true)
+            .appendingPathComponent("Whisper", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: modelDirectory,
+            withIntermediateDirectories: true
+        )
+        let modelURL = modelDirectory.appendingPathComponent("model.bin")
         try Data([1]).write(to: modelURL)
 
-        let manager = try WhisperModelManager(modelsDirectory: directory)
-        #expect(
-            await manager.status(for: WhisperModelManager.modelName)
-                == .ready(localURL: modelURL)
+        RetiredDictationModelCleanup.removeWhisperModel(
+            from: directory,
+            fileManager: .default
         )
 
-        try await manager.deleteModel(for: WhisperModelManager.modelName)
-
-        #expect(await manager.status(for: WhisperModelManager.modelName) == .notDownloaded)
-        #expect(!FileManager.default.fileExists(atPath: directory.path))
+        #expect(!FileManager.default.fileExists(atPath: modelDirectory.path))
+        #expect(FileManager.default.fileExists(atPath: directory.path))
     }
 }
 

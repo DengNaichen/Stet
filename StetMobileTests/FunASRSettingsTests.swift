@@ -21,16 +21,17 @@ struct FunASRSettingsTests {
         #expect(restored.workspaceID == "workspace-123")
     }
 
-    @Test func migratesTheExistingLocalModelSelection() {
+    @Test(arguments: ["dictation.engine", "dictation.localModel"])
+    func retiredWhisperSelectionFallsBackToSenseVoice(selectionKey: String) {
         let isolatedDefaults = makeDefaults()
         defer { isolatedDefaults.clear() }
         let defaults = isolatedDefaults.value
-        defaults.set("whisperLargeV3Turbo", forKey: "dictation.localModel")
+        defaults.set("whisperLargeV3Turbo", forKey: selectionKey)
 
         let store = MobileDictationSettingsStore(defaults: defaults)
 
-        #expect(store.selectedEngine == .whisperLargeV3Turbo)
-        #expect(defaults.string(forKey: "dictation.engine") == "whisperLargeV3Turbo")
+        #expect(store.selectedEngine == .senseVoice)
+        #expect(defaults.string(forKey: "dictation.engine") == "senseVoice")
     }
 
     @Test func credentialStoreRoundTripFeedsConfiguration() throws {

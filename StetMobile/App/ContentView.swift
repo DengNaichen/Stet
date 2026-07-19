@@ -98,10 +98,7 @@ struct ContentView: View {
                 localModelManagers: [
                     .senseVoice: UnavailableLocalDictationModelManager(
                         currentStatus: .notDownloaded
-                    ),
-                    .whisperLargeV3Turbo: UnavailableLocalDictationModelManager(
-                        currentStatus: .notDownloaded
-                    ),
+                    )
                 ]
             )
         )
