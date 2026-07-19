@@ -59,7 +59,7 @@ StetMobile/StetMobileTests/
 
 ### Input strategies
 
-`builtInPreferred` configures `.playAndRecord`, `.default`, and `.mixWithOthers`, activates the session, requests an available `.builtInMic`, and then verifies the actual route. It never includes `.allowBluetoothHFP` or `.bluetoothHighQualityRecording`.
+`builtInPreferred` configures `.playAndRecord`, `.default`, `.mixWithOthers`, and `.allowBluetoothA2DP`, activates the session, requests an available `.builtInMic`, and then verifies the actual route. A2DP keeps AirPods eligible as a high-quality playback output; the strategy never includes `.allowBluetoothHFP` or `.bluetoothHighQualityRecording`, so AirPods remain ineligible as an input.
 
 `airPodsHighQuality` retains `.allowBluetoothHFP` and adds `.bluetoothHighQualityRecording` on iOS 26 or later. The production mobile composition does not select it.
 

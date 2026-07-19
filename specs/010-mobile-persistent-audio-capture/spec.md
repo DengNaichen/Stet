@@ -51,7 +51,7 @@ As a developer, I want the existing AirPods HFP and iOS 26 high-quality recordin
 - **FR-001**: Shared capture MUST emit 16 kHz mono Float32 samples with a normalized level.
 - **FR-002**: `prepare()` MUST keep the audio engine warm; `start()` and `stop()` MUST only open and close frame delivery.
 - **FR-003**: Shared capture MUST allow no more than one active frame consumer.
-- **FR-004**: `builtInPreferred` MUST use `.playAndRecord`, `.default`, and `.mixWithOthers` without Bluetooth input options.
+- **FR-004**: `builtInPreferred` MUST use `.playAndRecord`, `.default`, `.mixWithOthers`, and `.allowBluetoothA2DP` while excluding Bluetooth input options.
 - **FR-005**: After activation, `builtInPreferred` MUST request `.builtInMic` and verify `currentRoute`.
 - **FR-006**: A rejected preference MUST resolve to `systemFallback` without preventing capture.
 - **FR-007**: Real route changes MUST reapply policy and rebuild the tap/converter while preserving the active consumer.

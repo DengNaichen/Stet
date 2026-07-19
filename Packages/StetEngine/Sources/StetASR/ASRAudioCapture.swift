@@ -47,7 +47,10 @@ nonisolated enum ASRAudioInputStrategy: String, Sendable {
         var categoryOptions: AVAudioSession.CategoryOptions {
             switch self {
             case .builtInPreferred:
-                return [.mixWithOthers]
+                return [
+                    .mixWithOthers,
+                    .allowBluetoothA2DP,
+                ]
             case .airPodsHighQuality:
                 var options: AVAudioSession.CategoryOptions = [
                     .mixWithOthers,
