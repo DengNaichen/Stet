@@ -40,13 +40,14 @@ protocol DictationSessionCoordinating: AnyObject {
 
 @MainActor
 final class DictationSessionCoordinator: DictationSessionCoordinating {
+    typealias ResourcePreparation = @MainActor () async throws -> Void
+
     let events: AsyncStream<DictationCoordinatorEvent>
     private(set) var phase: DictationCoordinatorPhase = .inactive
 
     private let continuation: AsyncStream<DictationCoordinatorEvent>.Continuation
     private let engine: any ASREngine
-    private let modelManager: any ASRModelManager
-    private let modelName: String
+    private let prepareResources: ResourcePreparation
     private let permissionProvider: any MicrophonePermissionProviding
     private let sessionStore: any DictationSessionPersisting
     private let postProcessor: any TranscriptPostProcessing
@@ -67,13 +68,13 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
     private var startTask: Task<Void, Never>?
     private var rewriteTask: Task<Void, Never>?
     private var resultsTask: Task<Void, Never>?
+    private var failuresTask: Task<Void, Never>?
     private var commandsTask: Task<Void, Never>?
     private var audioSessionObservers: [NSObjectProtocol] = []
 
     init(
         engine: any ASREngine,
-        modelManager: any ASRModelManager,
-        modelName: String = SenseVoiceModelManager.modelName,
+        prepareResources: @escaping ResourcePreparation = {},
         permissionProvider: any MicrophonePermissionProviding,
         sessionStore: any DictationSessionPersisting,
         postProcessor: any TranscriptPostProcessing,
@@ -81,8 +82,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         notificationCenter: NotificationCenter = .default
     ) {
         self.engine = engine
-        self.modelManager = modelManager
-        self.modelName = modelName
+        self.prepareResources = prepareResources
         self.permissionProvider = permissionProvider
         self.sessionStore = sessionStore
         self.postProcessor = postProcessor
@@ -96,6 +96,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         isStarted = true
         lifecycleGeneration = UUID()
         listenForResults()
+        listenForEngineFailures()
         listenForKeyboardCommands()
         registerAudioSessionObservers()
         commandMonitor.start()
@@ -271,6 +272,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             startTask,
             rewriteTask,
             resultsTask,
+            failuresTask,
             commandsTask,
         ].compactMap { $0 }
 
@@ -299,6 +301,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         startTask = nil
         rewriteTask = nil
         resultsTask = nil
+        failuresTask = nil
         commandsTask = nil
         engine.teardown()
         continuation.finish()
@@ -327,7 +330,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
 
             do {
                 try await self.permissionProvider.requestPermission()
-                try await self.modelManager.downloadIfNeeded(for: self.modelName)
+                try await self.prepareResources()
                 try await self.prepareEngine()
 
                 guard self.isCurrent(lifecycle: lifecycle),
@@ -353,6 +356,19 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             for await result in resultStream {
                 guard !Task.isCancelled else { break }
                 self?.handle(result)
+            }
+        }
+    }
+
+    private func listenForEngineFailures() {
+        guard let failureReportingEngine = engine as? any MobileASREngineFailureReporting else {
+            return
+        }
+        let failures = failureReportingEngine.failureStream
+        failuresTask = Task { @MainActor [weak self] in
+            for await failure in failures {
+                guard !Task.isCancelled else { break }
+                self?.handle(failure)
             }
         }
     }
@@ -390,6 +406,14 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             sessionStore.updateText(for: sessionId, partial: result.text, final: "")
             continuation.yield(.partialTranscript(sessionId: sessionId, text: result.text))
         }
+    }
+
+    private func handle(_ failure: MobileASREngineFailure) {
+        guard isStarted else { return }
+        if let sessionId = failure.sessionId, sessionId != activeSessionId {
+            return
+        }
+        fail(sessionId: failure.sessionId, message: failure.message)
     }
 
     private func finalize(
@@ -680,15 +704,15 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
 
 @MainActor
 final class SelectableDictationSessionCoordinator: DictationSessionCoordinating {
-    typealias CoordinatorFactory = @MainActor (MobileDictationModel) -> any DictationSessionCoordinating
+    typealias CoordinatorFactory = @MainActor (MobileDictationEngine) -> any DictationSessionCoordinating
 
     let events: AsyncStream<DictationCoordinatorEvent>
     private(set) var phase: DictationCoordinatorPhase = .inactive
 
     private let continuation: AsyncStream<DictationCoordinatorEvent>.Continuation
     private let coordinatorFactory: CoordinatorFactory
-    private var desiredModel: MobileDictationModel
-    private var activeModel: MobileDictationModel?
+    private var desiredEngine: MobileDictationEngine
+    private var activeEngine: MobileDictationEngine?
     private var activeCoordinator: (any DictationSessionCoordinating)?
     private var eventGeneration = UUID()
     private var eventsTask: Task<Void, Never>?
@@ -696,10 +720,10 @@ final class SelectableDictationSessionCoordinator: DictationSessionCoordinating 
     private var isStarted = false
 
     init(
-        selectedModel: MobileDictationModel,
+        selectedEngine: MobileDictationEngine,
         coordinatorFactory: @escaping CoordinatorFactory
     ) {
-        desiredModel = selectedModel
+        desiredEngine = selectedEngine
         self.coordinatorFactory = coordinatorFactory
         (events, continuation) = AsyncStream.makeStream()
     }
@@ -710,9 +734,9 @@ final class SelectableDictationSessionCoordinator: DictationSessionCoordinating 
         scheduleSwitchIfPossible()
     }
 
-    func selectModel(_ model: MobileDictationModel) {
-        guard desiredModel != model else { return }
-        desiredModel = model
+    func selectEngine(_ engine: MobileDictationEngine) {
+        guard desiredEngine != engine else { return }
+        desiredEngine = engine
         scheduleSwitchIfPossible()
     }
 
@@ -729,7 +753,7 @@ final class SelectableDictationSessionCoordinator: DictationSessionCoordinating 
     }
 
     func startRecording(sessionId: String) {
-        guard switchTask == nil, activeModel == desiredModel else { return }
+        guard switchTask == nil, activeEngine == desiredEngine else { return }
         activeCoordinator?.startRecording(sessionId: sessionId)
     }
 
@@ -754,27 +778,27 @@ final class SelectableDictationSessionCoordinator: DictationSessionCoordinating 
             await activeCoordinator.shutdown()
         }
         self.activeCoordinator = nil
-        activeModel = nil
+        activeEngine = nil
         phase = .inactive
         continuation.finish()
     }
 
     private func scheduleSwitchIfPossible() {
-        guard isStarted, switchTask == nil, activeModel != desiredModel else { return }
+        guard isStarted, switchTask == nil, activeEngine != desiredEngine else { return }
         switch phase {
         case .inactive, .loading, .idle, .failed:
-            let model = desiredModel
+            let engine = desiredEngine
             phase = .loading
             continuation.yield(.loading)
             switchTask = Task { @MainActor [weak self] in
-                await self?.activate(model)
+                await self?.activate(engine)
             }
         case .starting, .recording, .transcribing, .rewriting:
             break
         }
     }
 
-    private func activate(_ model: MobileDictationModel) async {
+    private func activate(_ engine: MobileDictationEngine) async {
         eventsTask?.cancel()
         eventsTask = nil
 
@@ -782,17 +806,17 @@ final class SelectableDictationSessionCoordinator: DictationSessionCoordinating 
             await activeCoordinator.shutdown()
         }
         activeCoordinator = nil
-        activeModel = nil
+        activeEngine = nil
 
-        guard isStarted, !Task.isCancelled, desiredModel == model else {
+        guard isStarted, !Task.isCancelled, desiredEngine == engine else {
             finishSwitch()
             return
         }
 
-        let coordinator = coordinatorFactory(model)
+        let coordinator = coordinatorFactory(engine)
         let generation = UUID()
         eventGeneration = generation
-        activeModel = model
+        activeEngine = engine
         activeCoordinator = coordinator
         listen(to: coordinator, generation: generation)
         coordinator.start()

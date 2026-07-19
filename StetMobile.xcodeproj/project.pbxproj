@@ -8,20 +8,20 @@
 
 /* Begin PBXBuildFile section */
 		6DD04E062FA3D494004D9143 /* StetKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6DD04DFF2FA3D494004D9143 /* StetKeyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		D100000A2FB000000000000A /* StetLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D10000022FB0000000000002 /* StetLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		D100000E2FB000000000000E /* StetMicrophoneActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D100000D2FB000000000000D /* StetMicrophoneActivityAttributes.swift */; };
 		A10000012FA4000000000001 /* sherpa-onnx.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000032FA4000000000003 /* sherpa-onnx.xcframework */; };
 		A10000022FA4000000000002 /* onnxruntime.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000042FA4000000000004 /* onnxruntime.xcframework */; };
 		B10000012FA5000000000001 /* StetCore in Frameworks */ = {isa = PBXBuildFile; productRef = B10000042FA5000000000004 /* StetCore */; };
 		B10000022FA5000000000002 /* StetAI in Frameworks */ = {isa = PBXBuildFile; productRef = B10000052FA5000000000005 /* StetAI */; };
 		B10000032FA5000000000003 /* StetRewrite in Frameworks */ = {isa = PBXBuildFile; productRef = B10000062FA5000000000006 /* StetRewrite */; };
-		E20000032FC0000000000003 /* whisper in Frameworks */ = {isa = PBXBuildFile; productRef = E20000022FC0000000000002 /* whisper */; };
 		C10000012FA6000000000001 /* ASREngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000001 /* ASREngine.swift */; };
 		C10000012FA6000000000002 /* ASRModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000002 /* ASRModelManager.swift */; };
 		C10000012FA6000000000003 /* AudioBuffer+Samples.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000003 /* AudioBuffer+Samples.swift */; };
 		C10000012FA6000000000004 /* SenseVoiceModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000004 /* SenseVoiceModelManager.swift */; };
 		C10000012FA6000000000005 /* SherpaOnnx.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000005 /* SherpaOnnx.swift */; };
 		C10000012FA6000000000006 /* SherpaOnnxASREngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000006 /* SherpaOnnxASREngine.swift */; };
+		D100000A2FB000000000000A /* StetLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D10000022FB0000000000002 /* StetLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D100000E2FB000000000000E /* StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D100000D2FB000000000000D /* StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift */; };
+		E20000032FC0000000000003 /* whisper in Frameworks */ = {isa = PBXBuildFile; productRef = E20000022FC0000000000002 /* whisper */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,8 +75,6 @@
 		6DD04D5B2FA3B64D004D9143 /* StetMobileTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StetMobileTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6DD04D652FA3B64D004D9143 /* StetMobileUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StetMobileUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6DD04DFF2FA3D494004D9143 /* StetKeyboard.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StetKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		D10000022FB0000000000002 /* StetLiveActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StetLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		D100000D2FB000000000000D /* StetMicrophoneActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift; sourceTree = SOURCE_ROOT; };
 		A10000032FA4000000000003 /* sherpa-onnx.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = "sherpa-onnx.xcframework"; path = "Frameworks/sherpa-onnx.xcframework"; sourceTree = SOURCE_ROOT; };
 		A10000042FA4000000000004 /* onnxruntime.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = onnxruntime.xcframework; path = "Frameworks/ios-onnxruntime/onnxruntime.xcframework"; sourceTree = SOURCE_ROOT; };
 		C20000012FA6000000000001 /* ASREngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASREngine.swift; sourceTree = "<group>"; };
@@ -85,6 +83,8 @@
 		C20000012FA6000000000004 /* SenseVoiceModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SenseVoiceModelManager.swift; sourceTree = "<group>"; };
 		C20000012FA6000000000005 /* SherpaOnnx.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SherpaOnnx.swift; sourceTree = "<group>"; };
 		C20000012FA6000000000006 /* SherpaOnnxASREngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SherpaOnnxASREngine.swift; sourceTree = "<group>"; };
+		D10000022FB0000000000002 /* StetLiveActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StetLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D100000D2FB000000000000D /* StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -219,7 +219,7 @@
 				A10000042FA4000000000004 /* onnxruntime.xcframework */,
 				C30000012FA6000000000001 /* Shared StetASR */,
 				6D04F0652FA5512200E6BB55 /* Recovered References */,
-				D100000D2FB000000000000D /* StetMicrophoneActivityAttributes.swift */,
+				D100000D2FB000000000000D /* StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -505,7 +505,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D100000E2FB000000000000E /* StetMicrophoneActivityAttributes.swift in Sources */,
+				D100000E2FB000000000000E /* StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -685,6 +685,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = "-lc++";
+				OTHER_SWIFT_FLAGS = "$(inherited) -Xfrontend -disable-availability-checking";
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetMobile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -727,6 +728,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = "-lc++";
+				OTHER_SWIFT_FLAGS = "$(inherited) -Xfrontend -disable-availability-checking";
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetMobile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

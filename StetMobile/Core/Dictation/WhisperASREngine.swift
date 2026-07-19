@@ -263,28 +263,14 @@ final class WhisperASREngine: ASREngine {
                 }
 
                 try session.setCategory(.playAndRecord, mode: .default, options: options)
-                if #available(iOS 27.0, *) {
-                    let activated = try await session.activate(options: [])
-                    guard activated else {
-                        throw WhisperASREngineError.audioSessionActivationFailed
-                    }
-                } else {
-                    try session.setActive(true)
-                }
+                try session.setActive(true)
             }.value
         }
 
         private nonisolated static func activateAudioSession() async throws {
             try await Task { @concurrent in
                 let session = AVAudioSession.sharedInstance()
-                if #available(iOS 27.0, *) {
-                    let activated = try await session.activate(options: [])
-                    guard activated else {
-                        throw WhisperASREngineError.audioSessionActivationFailed
-                    }
-                } else {
-                    try session.setActive(true)
-                }
+                try session.setActive(true)
             }.value
         }
     #endif

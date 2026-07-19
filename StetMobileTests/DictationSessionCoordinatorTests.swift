@@ -28,10 +28,12 @@ struct DictationSessionCoordinatorTests {
     func selectableCoordinatorSwitchesToTheChosenIdleModel() async throws {
         let senseVoice = SwitchingChildCoordinator(engineName: "SenseVoice")
         let whisper = SwitchingChildCoordinator(engineName: "Whisper large-v3-turbo")
-        let subject = SelectableDictationSessionCoordinator(selectedModel: .senseVoice) { model in
-            switch model {
+        let funASR = SwitchingChildCoordinator(engineName: "FunASR Realtime")
+        let subject = SelectableDictationSessionCoordinator(selectedEngine: .senseVoice) { engine in
+            switch engine {
             case .senseVoice: senseVoice
             case .whisperLargeV3Turbo: whisper
+            case .funASRRealtime: funASR
             }
         }
         var events = subject.events.makeAsyncIterator()
@@ -40,14 +42,46 @@ struct DictationSessionCoordinatorTests {
         expectLoading(try await nextEvent(&events))
         expectReady(try await nextEvent(&events), engineName: "SenseVoice")
 
-        subject.selectModel(.whisperLargeV3Turbo)
+        subject.selectEngine(.whisperLargeV3Turbo)
         expectLoading(try await nextEvent(&events))
         expectReady(try await nextEvent(&events), engineName: "Whisper large-v3-turbo")
 
+        subject.selectEngine(.funASRRealtime)
+        expectLoading(try await nextEvent(&events))
+        expectReady(try await nextEvent(&events), engineName: "FunASR Realtime")
+
         #expect(senseVoice.shutdownCallCount == 1)
         #expect(whisper.startCallCount == 1)
+        #expect(whisper.shutdownCallCount == 1)
+        #expect(funASR.startCallCount == 1)
         #expect(subject.phase == .idle)
         await subject.shutdown()
+    }
+
+    @Test
+    func cloudEngineBootstrapDoesNotRequireModelPreparation() async throws {
+        let engine = FakeASREngine()
+        let permission = FakeMicrophonePermissionProvider()
+        let sessionStore = InMemoryDictationSessionStore()
+        let commandMonitor = FakeKeyboardCommandMonitor()
+        commandMonitor.attach(sessionStore: sessionStore)
+        let coordinator = DictationSessionCoordinator(
+            engine: engine,
+            permissionProvider: permission,
+            sessionStore: sessionStore,
+            postProcessor: FakeTranscriptPostProcessor(),
+            commandMonitor: commandMonitor,
+            notificationCenter: NotificationCenter()
+        )
+        var events = coordinator.events.makeAsyncIterator()
+
+        coordinator.start()
+
+        expectLoading(try await nextEvent(&events))
+        expectReady(try await nextEvent(&events), engineName: engine.name)
+        #expect(permission.requestCallCount == 1)
+        #expect(engine.prepareCallCount == 1)
+        await coordinator.shutdown()
     }
 
     @Test
@@ -76,6 +110,35 @@ struct DictationSessionCoordinatorTests {
         #expect(fixture.sessionStore.session?.state == .ready)
         #expect(fixture.sessionStore.session?.finalText == "hello world")
 
+        await fixture.coordinator.shutdown()
+    }
+
+    @Test
+    func runtimeEngineFailureFailsTheActiveSessionWithoutFallback() async throws {
+        let fixture = makeFixture()
+        var events = fixture.coordinator.events.makeAsyncIterator()
+        try await startAndBecomeReady(fixture, events: &events)
+
+        fixture.coordinator.startRecording(sessionId: "session-a")
+        expectStarting(try await nextEvent(&events), sessionId: "session-a")
+        expectRecording(try await nextEvent(&events), sessionId: "session-a")
+
+        fixture.engine.emitFailure(
+            sessionId: "session-a",
+            message: FunASRError.connectionFailed.localizedDescription
+        )
+
+        expectFailed(
+            try await nextEvent(&events),
+            sessionId: "session-a",
+            message: FunASRError.connectionFailed.localizedDescription
+        )
+        #expect(
+            fixture.coordinator.phase
+                == .failed(message: FunASRError.connectionFailed.localizedDescription)
+        )
+        #expect(fixture.sessionStore.session?.state == .failed)
+        #expect(fixture.engine.startedSessionIds == ["session-a"])
         await fixture.coordinator.shutdown()
     }
 
@@ -415,8 +478,9 @@ private func makeFixture(
     commandMonitor.attach(sessionStore: sessionStore)
     let coordinator = DictationSessionCoordinator(
         engine: engine,
-        modelManager: modelManager,
-        modelName: "test-model",
+        prepareResources: {
+            try await modelManager.downloadIfNeeded(for: "test-model")
+        },
         permissionProvider: permission,
         sessionStore: sessionStore,
         postProcessor: postProcessor,
@@ -572,6 +636,19 @@ private func expectCompleted(
     #expect(actualText == text)
 }
 
+private func expectFailed(
+    _ event: DictationCoordinatorEvent,
+    sessionId: String,
+    message: String
+) {
+    guard case .failed(let actualSessionId, let actualMessage) = event else {
+        Issue.record("Expected failed event, got \(String(describing: event))")
+        return
+    }
+    #expect(actualSessionId == sessionId)
+    #expect(actualMessage == message)
+}
+
 private func makeSession(id: String, state: DictationState) -> DictationSession {
     DictationSession(
         sessionId: id,
@@ -581,7 +658,7 @@ private func makeSession(id: String, state: DictationState) -> DictationSession 
     )
 }
 
-private final class FakeASREngine: ASREngine {
+private final class FakeASREngine: ASREngine, MobileASREngineFailureReporting {
     enum StartMode {
         case immediate
         case suspended
@@ -594,10 +671,12 @@ private final class FakeASREngine: ASREngine {
 
     let name = "Fake ASR"
     let resultStream: AsyncStream<ASRResult>
+    let failureStream: AsyncStream<MobileASREngineFailure>
     let startCalls: AsyncStream<String>
     let suspendedPrepareCalls: AsyncStream<Int>
 
     private let resultContinuation: AsyncStream<ASRResult>.Continuation
+    private let failureContinuation: AsyncStream<MobileASREngineFailure>.Continuation
     private let startCallContinuation: AsyncStream<String>.Continuation
     private let suspendedPrepareCallContinuation: AsyncStream<Int>.Continuation
     private let startMode: StartMode
@@ -618,6 +697,7 @@ private final class FakeASREngine: ASREngine {
         self.startMode = startMode
         self.prepareMode = prepareMode
         (resultStream, resultContinuation) = AsyncStream.makeStream()
+        (failureStream, failureContinuation) = AsyncStream.makeStream()
         (startCalls, startCallContinuation) = AsyncStream.makeStream()
         (suspendedPrepareCalls, suspendedPrepareCallContinuation) = AsyncStream.makeStream()
     }
@@ -654,6 +734,7 @@ private final class FakeASREngine: ASREngine {
     func teardown() {
         teardownCallCount += 1
         resultContinuation.finish()
+        failureContinuation.finish()
         startCallContinuation.finish()
         suspendedPrepareCallContinuation.finish()
     }
@@ -670,6 +751,12 @@ private final class FakeASREngine: ASREngine {
     func emitFinal(sessionId: String, text: String) {
         resultContinuation.yield(
             ASRResult(sessionId: sessionId, text: text, isFinal: true)
+        )
+    }
+
+    func emitFailure(sessionId: String?, message: String) {
+        failureContinuation.yield(
+            MobileASREngineFailure(sessionId: sessionId, message: message)
         )
     }
 }

@@ -3,7 +3,8 @@ import SwiftUI
 @main
 struct StetMobileApp: App {
     @StateObject private var rewriteSettingsStore: RewriteSettingsStore
-    @StateObject private var localDictationSettingsStore: LocalDictationSettingsStore
+    @StateObject private var dictationSettingsStore: MobileDictationSettingsStore
+    @StateObject private var funASRSettingsStore: FunASRSettingsStore
     @StateObject private var rewriteSettingsViewModel: RewriteSettingsViewModel
     @StateObject private var appViewModel: AppViewModel
     @Environment(\.scenePhase) private var scenePhase
@@ -12,29 +13,33 @@ struct StetMobileApp: App {
 
     init() {
         let store = RewriteSettingsStore()
-        let dictationSettingsStore = LocalDictationSettingsStore()
+        let dictationSettingsStore = MobileDictationSettingsStore()
+        let funASRSettingsStore = FunASRSettingsStore()
         let dependencies = StetMobileComposition.makeDependencies(
             settingsStore: store,
-            selectedDictationModel: dictationSettingsStore.selectedModel
+            funASRSettingsStore: funASRSettingsStore,
+            selectedDictationEngine: dictationSettingsStore.selectedEngine
         )
         let dictationViewModel = SenseVoiceViewModel(
             coordinator: dependencies.dictationCoordinator,
             liveActivityManager: MicrophoneLiveActivityManager()
         )
         _rewriteSettingsStore = StateObject(wrappedValue: store)
-        _localDictationSettingsStore = StateObject(wrappedValue: dictationSettingsStore)
+        _dictationSettingsStore = StateObject(wrappedValue: dictationSettingsStore)
+        _funASRSettingsStore = StateObject(wrappedValue: funASRSettingsStore)
         _rewriteSettingsViewModel = StateObject(
             wrappedValue: RewriteSettingsViewModel(
                 settingsStore: store,
                 dictationSettingsStore: dictationSettingsStore,
+                funASRSettingsStore: funASRSettingsStore,
                 localModelManagers: dependencies.localModelManagers,
-                onLocalModelReady: { model in
-                    if dictationSettingsStore.selectedModel == model {
+                onLocalModelReady: { engine in
+                    if dictationSettingsStore.selectedEngine == engine {
                         dictationViewModel.ensureMicAlive()
                     }
                 },
-                onLocalModelSelected: { model in
-                    dependencies.selectDictationModel(model)
+                onDictationEngineSelected: { engine in
+                    dependencies.selectDictationEngine(engine)
                 }
             )
         )
@@ -62,83 +67,99 @@ struct StetMobileApp: App {
 private enum StetMobileComposition {
     struct Dependencies {
         let dictationCoordinator: any DictationSessionCoordinating
-        let localModelManagers: [MobileDictationModel: any LocalDictationModelManaging]
-        let selectDictationModel: @MainActor (MobileDictationModel) -> Void
+        let localModelManagers: [MobileDictationEngine: any LocalDictationModelManaging]
+        let selectDictationEngine: @MainActor (MobileDictationEngine) -> Void
     }
 
     static func makeDependencies(
         settingsStore: RewriteSettingsStore,
-        selectedDictationModel: MobileDictationModel
+        funASRSettingsStore: FunASRSettingsStore,
+        selectedDictationEngine: MobileDictationEngine
     ) -> Dependencies {
-        do {
-            let senseVoiceModelManager = try SenseVoiceModelManager()
-            let whisperModelManager = try WhisperModelManager()
-            let sessionStore = SharedDictationManager.shared
-            let coordinator = SelectableDictationSessionCoordinator(
-                selectedModel: selectedDictationModel
-            ) { model in
-                let engine: any ASREngine
-                let modelManager: any ASRModelManager
-                let modelName: String
+        let senseVoiceModelManager = try? SenseVoiceModelManager()
+        let whisperModelManager = try? WhisperModelManager()
+        let sessionStore = SharedDictationManager.shared
+        let coordinator = SelectableDictationSessionCoordinator(
+            selectedEngine: selectedDictationEngine
+        ) { selectedEngine in
+            let engine: any ASREngine
+            let prepareResources: DictationSessionCoordinator.ResourcePreparation
 
-                switch model {
-                case .senseVoice:
-                    let senseVoiceEngine = SherpaOnnxASREngine(modelManager: senseVoiceModelManager)
-                    senseVoiceEngine.onVolumeUpdate = { level in
-                        SharedDictationManager.shared.updateVolume(level)
-                    }
-                    engine = senseVoiceEngine
-                    modelManager = senseVoiceModelManager
-                    modelName = SenseVoiceModelManager.modelName
-                case .whisperLargeV3Turbo:
-                    let whisperEngine = WhisperASREngine(modelManager: whisperModelManager)
-                    whisperEngine.onVolumeUpdate = { level in
-                        SharedDictationManager.shared.updateVolume(level)
-                    }
-                    engine = whisperEngine
-                    modelManager = whisperModelManager
-                    modelName = WhisperModelManager.modelName
+            switch selectedEngine {
+            case .senseVoice:
+                guard let senseVoiceModelManager else {
+                    return UnavailableDictationSessionCoordinator(
+                        message: "SenseVoice is unavailable on this device."
+                    )
                 }
-
-                return DictationSessionCoordinator(
-                    engine: engine,
-                    modelManager: modelManager,
-                    modelName: modelName,
-                    permissionProvider: SystemMicrophonePermissionProvider(),
-                    sessionStore: sessionStore,
-                    postProcessor: SettingsTranscriptPostProcessor(settingsStore: settingsStore),
-                    commandMonitor: SharedKeyboardCommandMonitor(sessionStore: sessionStore)
-                )
+                let senseVoiceEngine = SherpaOnnxASREngine(modelManager: senseVoiceModelManager)
+                senseVoiceEngine.onVolumeUpdate = { level in
+                    SharedDictationManager.shared.updateVolume(level)
+                }
+                engine = senseVoiceEngine
+                prepareResources = {
+                    try await senseVoiceModelManager.downloadIfNeeded(
+                        for: SenseVoiceModelManager.modelName
+                    )
+                }
+            case .whisperLargeV3Turbo:
+                guard let whisperModelManager else {
+                    return UnavailableDictationSessionCoordinator(
+                        message: "Whisper large-v3-turbo is unavailable on this device."
+                    )
+                }
+                let whisperEngine = WhisperASREngine(modelManager: whisperModelManager)
+                whisperEngine.onVolumeUpdate = { level in
+                    SharedDictationManager.shared.updateVolume(level)
+                }
+                engine = whisperEngine
+                prepareResources = {
+                    try await whisperModelManager.downloadIfNeeded(
+                        for: WhisperModelManager.modelName
+                    )
+                }
+            case .funASRRealtime:
+                let funASREngine = FunASRRealtimeEngine {
+                    try funASRSettingsStore.configuration()
+                }
+                funASREngine.onVolumeUpdate = { level in
+                    SharedDictationManager.shared.updateVolume(level)
+                }
+                engine = funASREngine
+                prepareResources = {}
             }
 
-            return Dependencies(
-                dictationCoordinator: coordinator,
-                localModelManagers: [
-                    .senseVoice: SenseVoiceLocalDictationModelManager(
-                        modelManager: senseVoiceModelManager
-                    ),
-                    .whisperLargeV3Turbo: WhisperLocalDictationModelManager(
-                        modelManager: whisperModelManager
-                    ),
-                ],
-                selectDictationModel: { model in
-                    coordinator.selectModel(model)
-                }
-            )
-        } catch {
-            let unavailable = UnavailableLocalDictationModelManager(
-                currentStatus: .error(message: error.localizedDescription)
-            )
-            return Dependencies(
-                dictationCoordinator: UnavailableDictationSessionCoordinator(
-                    message: error.localizedDescription
-                ),
-                localModelManagers: [
-                    .senseVoice: unavailable,
-                    .whisperLargeV3Turbo: unavailable,
-                ],
-                selectDictationModel: { _ in }
+            return DictationSessionCoordinator(
+                engine: engine,
+                prepareResources: prepareResources,
+                permissionProvider: SystemMicrophonePermissionProvider(),
+                sessionStore: sessionStore,
+                postProcessor: SettingsTranscriptPostProcessor(settingsStore: settingsStore),
+                commandMonitor: SharedKeyboardCommandMonitor(sessionStore: sessionStore)
             )
         }
+
+        let unavailable = UnavailableLocalDictationModelManager(
+            currentStatus: .error(message: "This model is unavailable on this device.")
+        )
+        let senseVoiceLocalManager: any LocalDictationModelManaging =
+            senseVoiceModelManager.map {
+                SenseVoiceLocalDictationModelManager(modelManager: $0)
+            } ?? unavailable
+        let whisperLocalManager: any LocalDictationModelManaging =
+            whisperModelManager.map {
+                WhisperLocalDictationModelManager(modelManager: $0)
+            } ?? unavailable
+
+        return Dependencies(
+            dictationCoordinator: coordinator,
+            localModelManagers: [
+                .senseVoice: senseVoiceLocalManager,
+                .whisperLargeV3Turbo: whisperLocalManager,
+            ],
+            selectDictationEngine: { engine in
+                coordinator.selectEngine(engine)
+            }
+        )
     }
 }

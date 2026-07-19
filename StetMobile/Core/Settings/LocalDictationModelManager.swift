@@ -1,9 +1,10 @@
 import Combine
 import Foundation
 
-enum MobileDictationModel: String, CaseIterable, Identifiable, Sendable {
+enum MobileDictationEngine: String, CaseIterable, Identifiable, Sendable {
     case senseVoice
     case whisperLargeV3Turbo
+    case funASRRealtime
 
     var id: Self { self }
 
@@ -13,27 +14,47 @@ enum MobileDictationModel: String, CaseIterable, Identifiable, Sendable {
             "SenseVoice"
         case .whisperLargeV3Turbo:
             "Whisper large-v3-turbo"
+        case .funASRRealtime:
+            "FunASR Realtime"
         }
+    }
+
+    var isLocal: Bool {
+        self != .funASRRealtime
+    }
+
+    static var localEngines: [Self] {
+        allCases.filter(\.isLocal)
     }
 }
 
 @MainActor
-final class LocalDictationSettingsStore: ObservableObject {
-    @Published var selectedModel: MobileDictationModel {
+final class MobileDictationSettingsStore: ObservableObject {
+    @Published var selectedEngine: MobileDictationEngine {
         didSet {
-            defaults.set(selectedModel.rawValue, forKey: Self.selectedModelKey)
+            defaults.set(selectedEngine.rawValue, forKey: Self.selectedEngineKey)
         }
     }
 
-    private static let selectedModelKey = "dictation.localModel"
+    private static let selectedEngineKey = "dictation.engine"
+    private static let legacySelectedModelKey = "dictation.localModel"
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        selectedModel =
-            defaults.string(forKey: Self.selectedModelKey)
-            .flatMap(MobileDictationModel.init(rawValue:))
-            ?? .senseVoice
+        if let rawValue = defaults.string(forKey: Self.selectedEngineKey),
+            let engine = MobileDictationEngine(rawValue: rawValue)
+        {
+            selectedEngine = engine
+        } else if let legacyRawValue = defaults.string(forKey: Self.legacySelectedModelKey),
+            let legacyEngine = MobileDictationEngine(rawValue: legacyRawValue),
+            legacyEngine.isLocal
+        {
+            selectedEngine = legacyEngine
+            defaults.set(legacyEngine.rawValue, forKey: Self.selectedEngineKey)
+        } else {
+            selectedEngine = .senseVoice
+        }
     }
 }
 

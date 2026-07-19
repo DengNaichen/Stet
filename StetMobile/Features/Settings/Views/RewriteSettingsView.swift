@@ -11,23 +11,67 @@ struct RewriteSettingsView: View {
                 Section {
                     Picker(
                         "Engine",
-                        selection: $viewModel.dictationSettingsStore.selectedModel
+                        selection: $viewModel.dictationSettingsStore.selectedEngine
                     ) {
-                        ForEach(viewModel.availableDictationModels) { model in
-                            Text(model.displayName).tag(model)
+                        ForEach(viewModel.availableDictationEngines) { engine in
+                            Text(engine.displayName).tag(engine)
                         }
                     }
-                    .onChange(of: viewModel.dictationSettingsStore.selectedModel) {
-                        viewModel.onDictationModelSelected()
-                    }
-
-                    ForEach(viewModel.availableDictationModels) { model in
-                        localModelRow(model)
+                    .onChange(of: viewModel.dictationSettingsStore.selectedEngine) {
+                        viewModel.onDictationEngineSelected()
                     }
                 } header: {
-                    Text("On-Device Dictation")
+                    Text("Dictation Engine")
                 } footer: {
-                    Text("Choose the active engine and manage each model independently.")
+                    Text("FunASR Realtime sends live microphone audio to Alibaba Cloud.")
+                }
+
+                if viewModel.dictationSettingsStore.selectedEngine == .funASRRealtime {
+                    Section("FunASR Realtime") {
+                        Picker("Region", selection: $viewModel.funASRSettingsStore.region) {
+                            ForEach(FunASRRegion.allCases) { region in
+                                Text(region.displayName).tag(region)
+                            }
+                        }
+
+                        TextField(
+                            "Workspace ID",
+                            text: $viewModel.funASRSettingsStore.workspaceID
+                        )
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .onChange(of: viewModel.funASRSettingsStore.workspaceID) {
+                            viewModel.sanitizeFunASRWorkspaceID()
+                        }
+
+                        SecureField("API Key", text: $viewModel.funASRAPIKeyInput)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .onSubmit { viewModel.saveFunASRAPIKey() }
+
+                        Button {
+                            Task { await viewModel.validateFunASRConnection() }
+                        } label: {
+                            HStack {
+                                Text("Validate Connection")
+                                Spacer()
+                                validationIndicator(viewModel.funASRValidationState)
+                            }
+                        }
+                        .disabled(viewModel.funASRValidationState == .validating)
+
+                        if case .failed(let message) = viewModel.funASRValidationState {
+                            Text(message)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                    }
+                }
+
+                Section("Local Models") {
+                    ForEach(viewModel.availableLocalDictationEngines) { engine in
+                        localModelRow(engine)
+                    }
                 }
 
                 Section {
@@ -98,7 +142,7 @@ struct RewriteSettingsView: View {
     }
 
     @ViewBuilder
-    private func localModelRow(_ model: MobileDictationModel) -> some View {
+    private func localModelRow(_ model: MobileDictationEngine) -> some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 16) {
                 localModelSummary(model)
@@ -115,7 +159,7 @@ struct RewriteSettingsView: View {
     }
 
     @ViewBuilder
-    private func localModelSummary(_ model: MobileDictationModel) -> some View {
+    private func localModelSummary(_ model: MobileDictationEngine) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(model.displayName)
             localModelStatus(model)
@@ -123,7 +167,7 @@ struct RewriteSettingsView: View {
     }
 
     @ViewBuilder
-    private func localModelStatus(_ model: MobileDictationModel) -> some View {
+    private func localModelStatus(_ model: MobileDictationEngine) -> some View {
         switch viewModel.localModelState(for: model) {
         case .checking:
             statusProgress("Checking…")
@@ -151,7 +195,7 @@ struct RewriteSettingsView: View {
     }
 
     @ViewBuilder
-    private func localModelAction(_ model: MobileDictationModel) -> some View {
+    private func localModelAction(_ model: MobileDictationEngine) -> some View {
         switch viewModel.localModelState(for: model) {
         case .notDownloaded:
             Button("Download") {
@@ -182,5 +226,21 @@ struct RewriteSettingsView: View {
                 .foregroundStyle(.secondary)
         }
         .font(.footnote)
+    }
+
+    @ViewBuilder
+    private func validationIndicator(_ state: RewriteSettingsViewModel.ValidationState) -> some View {
+        switch state {
+        case .idle:
+            EmptyView()
+        case .validating:
+            ProgressView()
+        case .success:
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+        case .failed:
+            Image(systemName: "xmark.circle.fill")
+                .foregroundStyle(.red)
+        }
     }
 }

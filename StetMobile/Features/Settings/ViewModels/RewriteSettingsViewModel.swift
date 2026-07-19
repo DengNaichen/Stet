@@ -6,15 +6,19 @@ import StetCore
 @MainActor
 final class RewriteSettingsViewModel: ObservableObject {
     var settingsStore: RewriteSettingsStore
-    var dictationSettingsStore: LocalDictationSettingsStore
+    var dictationSettingsStore: MobileDictationSettingsStore
+    var funASRSettingsStore: FunASRSettingsStore
     private let validationService: ProviderCredentialValidationService
-    private let localModelManagers: [MobileDictationModel: any LocalDictationModelManaging]
-    private let onLocalModelReady: @MainActor (MobileDictationModel) -> Void
-    private let onLocalModelSelected: @MainActor (MobileDictationModel) -> Void
+    private let funASRConnectionValidator: any FunASRConnectionValidating
+    private let localModelManagers: [MobileDictationEngine: any LocalDictationModelManaging]
+    private let onLocalModelReady: @MainActor (MobileDictationEngine) -> Void
+    private let dictationEngineSelectionHandler: @MainActor (MobileDictationEngine) -> Void
 
     @Published var apiKeyInput: String = ""
+    @Published var funASRAPIKeyInput: String = ""
     @Published private(set) var validationState: ValidationState = .idle
-    @Published private var localModelStates: [MobileDictationModel: LocalModelState] = [:]
+    @Published private(set) var funASRValidationState: ValidationState = .idle
+    @Published private var localModelStates: [MobileDictationEngine: LocalModelState] = [:]
 
     enum ValidationState: Equatable {
         case idle
@@ -35,22 +39,31 @@ final class RewriteSettingsViewModel: ObservableObject {
 
     init(
         settingsStore: RewriteSettingsStore,
-        dictationSettingsStore: LocalDictationSettingsStore? = nil,
-        localModelManagers: [MobileDictationModel: any LocalDictationModelManaging],
-        onLocalModelReady: @escaping @MainActor (MobileDictationModel) -> Void = { _ in },
-        onLocalModelSelected: @escaping @MainActor (MobileDictationModel) -> Void = { _ in }
+        dictationSettingsStore: MobileDictationSettingsStore? = nil,
+        funASRSettingsStore: FunASRSettingsStore? = nil,
+        funASRConnectionValidator: (any FunASRConnectionValidating)? = nil,
+        localModelManagers: [MobileDictationEngine: any LocalDictationModelManaging],
+        onLocalModelReady: @escaping @MainActor (MobileDictationEngine) -> Void = { _ in },
+        onDictationEngineSelected: @escaping @MainActor (MobileDictationEngine) -> Void = { _ in }
     ) {
         self.settingsStore = settingsStore
-        self.dictationSettingsStore = dictationSettingsStore ?? LocalDictationSettingsStore()
+        self.dictationSettingsStore = dictationSettingsStore ?? MobileDictationSettingsStore()
+        self.funASRSettingsStore = funASRSettingsStore ?? FunASRSettingsStore()
         self.validationService = ProviderCredentialValidationService()
+        self.funASRConnectionValidator = funASRConnectionValidator ?? FunASRConnectionValidator()
         self.localModelManagers = localModelManagers
         self.onLocalModelReady = onLocalModelReady
-        self.onLocalModelSelected = onLocalModelSelected
+        self.dictationEngineSelectionHandler = onDictationEngineSelected
         self.apiKeyInput = settingsStore.loadAPIKey(for: settingsStore.selectedProvider) ?? ""
+        self.funASRAPIKeyInput = (try? self.funASRSettingsStore.loadAPIKey()) ?? ""
     }
 
-    var availableDictationModels: [MobileDictationModel] {
-        MobileDictationModel.allCases
+    var availableDictationEngines: [MobileDictationEngine] {
+        MobileDictationEngine.allCases
+    }
+
+    var availableLocalDictationEngines: [MobileDictationEngine] {
+        MobileDictationEngine.localEngines
     }
 
     var availableProviders: [DictationProvider] {
@@ -85,29 +98,72 @@ final class RewriteSettingsViewModel: ObservableObject {
         }
     }
 
-    func onDictationModelSelected() {
-        onLocalModelSelected(dictationSettingsStore.selectedModel)
+    func onDictationEngineSelected() {
+        dictationEngineSelectionHandler(dictationSettingsStore.selectedEngine)
     }
 
-    func localModelState(for model: MobileDictationModel) -> LocalModelState {
-        localModelStates[model] ?? .checking
-    }
-
-    func refreshLocalModelStatuses() async {
-        for model in availableDictationModels {
-            await refreshLocalModelStatus(for: model)
+    func saveFunASRAPIKey() {
+        do {
+            try funASRSettingsStore.saveAPIKey(funASRAPIKeyInput)
+            funASRValidationState = .idle
+        } catch {
+            funASRValidationState = .failed("The FunASR API key could not be saved securely.")
         }
     }
 
-    func refreshLocalModelStatus(for model: MobileDictationModel) async {
-        guard let manager = localModelManagers[model] else {
-            localModelStates[model] = .downloadFailed
+    func sanitizeFunASRWorkspaceID() {
+        let sanitized = String(funASRSettingsStore.workspaceID.filter { character in
+            character.unicodeScalars.count == 1
+                && character.unicodeScalars.allSatisfy {
+                    (65...90).contains($0.value)
+                        || (97...122).contains($0.value)
+                        || (48...57).contains($0.value)
+                        || $0.value == 45
+                }
+        })
+        if sanitized != funASRSettingsStore.workspaceID {
+            funASRSettingsStore.workspaceID = sanitized
+        }
+        funASRValidationState = .idle
+    }
+
+    func validateFunASRConnection() async {
+        funASRValidationState = .validating
+        do {
+            let configuration = try funASRSettingsStore.configuration(apiKey: funASRAPIKeyInput)
+            try await funASRConnectionValidator.validate(configuration: configuration)
+            try funASRSettingsStore.saveAPIKey(funASRAPIKeyInput)
+            funASRValidationState = .success
+        } catch let error as FunASRConfigurationError {
+            funASRValidationState = .failed(error.localizedDescription)
+        } catch let error as FunASRError {
+            funASRValidationState = .failed(error.localizedDescription)
+        } catch {
+            funASRValidationState = .failed(
+                "The FunASR connection could not be validated. Check the credentials and try again."
+            )
+        }
+    }
+
+    func localModelState(for engine: MobileDictationEngine) -> LocalModelState {
+        localModelStates[engine] ?? .checking
+    }
+
+    func refreshLocalModelStatuses() async {
+        for engine in availableLocalDictationEngines {
+            await refreshLocalModelStatus(for: engine)
+        }
+    }
+
+    func refreshLocalModelStatus(for engine: MobileDictationEngine) async {
+        guard engine.isLocal, let manager = localModelManagers[engine] else {
+            localModelStates[engine] = .downloadFailed
             return
         }
 
         repeat {
             let status = await manager.status()
-            localModelStates[model] = Self.localModelState(for: status)
+            localModelStates[engine] = Self.localModelState(for: status)
 
             guard case .downloading = status else { return }
             do {
@@ -118,36 +174,40 @@ final class RewriteSettingsViewModel: ObservableObject {
         } while !Task.isCancelled
     }
 
-    func downloadLocalModel(_ model: MobileDictationModel) async {
-        guard let manager = localModelManagers[model], localModelState(for: model) != .downloading else {
+    func downloadLocalModel(_ engine: MobileDictationEngine) async {
+        guard engine.isLocal, let manager = localModelManagers[engine],
+            localModelState(for: engine) != .downloading
+        else {
             return
         }
 
-        localModelStates[model] = .downloading
+        localModelStates[engine] = .downloading
         do {
             try await manager.download()
-            localModelStates[model] = .downloaded
-            onLocalModelReady(model)
+            localModelStates[engine] = .downloaded
+            onLocalModelReady(engine)
         } catch is CancellationError {
-            await refreshLocalModelStatus(for: model)
+            await refreshLocalModelStatus(for: engine)
         } catch {
-            localModelStates[model] = .downloadFailed
+            localModelStates[engine] = .downloadFailed
         }
     }
 
-    func deleteLocalModel(_ model: MobileDictationModel) async {
-        guard let manager = localModelManagers[model], localModelState(for: model) != .deleting else {
+    func deleteLocalModel(_ engine: MobileDictationEngine) async {
+        guard engine.isLocal, let manager = localModelManagers[engine],
+            localModelState(for: engine) != .deleting
+        else {
             return
         }
 
-        localModelStates[model] = .deleting
+        localModelStates[engine] = .deleting
         do {
             try await manager.delete()
-            localModelStates[model] = .notDownloaded
+            localModelStates[engine] = .notDownloaded
         } catch is CancellationError {
-            await refreshLocalModelStatus(for: model)
+            await refreshLocalModelStatus(for: engine)
         } catch {
-            localModelStates[model] = .deletionFailed
+            localModelStates[engine] = .deletionFailed
         }
     }
 

@@ -52,7 +52,7 @@ struct RewriteSettingsViewModelTests {
         await viewModel.deleteLocalModel(.senseVoice)
 
         #expect(viewModel.localModelState(for: .senseVoice) == .notDownloaded)
-        #expect(await manager.deleteCount == 1)
+        #expect(manager.deleteCount == 1)
     }
 
     @MainActor
@@ -76,29 +76,30 @@ struct RewriteSettingsViewModelTests {
     }
 
     @MainActor
-    @Test func selectedDictationModelIsPersistedAndForwarded() {
-        let suiteName = "LocalDictationSettingsStoreTests.\(UUID().uuidString)"
+    @Test func selectedDictationEngineIsPersistedAndForwarded() {
+        let suiteName = "MobileDictationSettingsStoreTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let dictationSettings = LocalDictationSettingsStore(defaults: defaults)
-        var selectedModel: MobileDictationModel?
+        let dictationSettings = MobileDictationSettingsStore(defaults: defaults)
+        var selectedEngine: MobileDictationEngine?
         let viewModel = RewriteSettingsViewModel(
             settingsStore: RewriteSettingsStore(),
             dictationSettingsStore: dictationSettings,
             localModelManagers: [:],
-            onLocalModelSelected: { selectedModel = $0 }
+            onDictationEngineSelected: { selectedEngine = $0 }
         )
 
-        dictationSettings.selectedModel = .whisperLargeV3Turbo
-        viewModel.onDictationModelSelected()
+        dictationSettings.selectedEngine = .funASRRealtime
+        viewModel.onDictationEngineSelected()
 
-        #expect(selectedModel == .whisperLargeV3Turbo)
+        #expect(selectedEngine == .funASRRealtime)
         #expect(
-            LocalDictationSettingsStore(defaults: defaults).selectedModel
-                == .whisperLargeV3Turbo
+            MobileDictationSettingsStore(defaults: defaults).selectedEngine
+                == .funASRRealtime
         )
     }
 
+    @MainActor
     @Test func senseVoiceModelManagerDeletesDownloadedAssets() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("StetModelDeletionTests", isDirectory: true)
@@ -124,6 +125,7 @@ struct RewriteSettingsViewModelTests {
         #expect(!FileManager.default.fileExists(atPath: directory.path))
     }
 
+    @MainActor
     @Test func whisperModelManagerFindsAndDeletesDownloadedModel() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("StetWhisperModelDeletionTests", isDirectory: true)

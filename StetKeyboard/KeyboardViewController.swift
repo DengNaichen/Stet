@@ -282,9 +282,9 @@ final class KeyboardViewController: UIInputViewController {
 
         case .pending:
             configuration.showsActivityIndicator = true
-            actionButton.isEnabled = false
-            actionButton.accessibilityLabel = "Starting Dictation"
-            actionButton.accessibilityValue = nil
+            actionButton.isEnabled = true
+            actionButton.accessibilityLabel = "Cancel Dictation"
+            actionButton.accessibilityValue = "Starting"
 
         case .recording:
             actionButton.isEnabled = true
@@ -314,9 +314,12 @@ final class KeyboardViewController: UIInputViewController {
         switch buttonState {
         case .idle:
             handleMicDown()
+        case .pending:
+            cancelOurSession()
+            publishState(.idle)
         case .recording:
             handleMicUp()
-        case .pending, .processing:
+        case .processing:
             return
         }
 
