@@ -25,6 +25,10 @@
 		F10000022FD0000000000002 /* DictationMetalEffectRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000022FD0000000000002 /* DictationMetalEffectRenderer.swift */; };
 		F10000032FD0000000000003 /* MacDictationAudioFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000032FD0000000000003 /* MacDictationAudioFeatures.swift */; };
 		F10000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal in Sources */ = {isa = PBXBuildFile; fileRef = F20000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal */; };
+		F11000012FD0000000000001 /* DictationLevelShaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000012FD0000000000001 /* DictationLevelShaderView.swift */; };
+		F11000022FD0000000000002 /* DictationMetalEffectRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000022FD0000000000002 /* DictationMetalEffectRenderer.swift */; };
+		F11000032FD0000000000003 /* MacDictationAudioFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000032FD0000000000003 /* MacDictationAudioFeatures.swift */; };
+		F11000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal in Sources */ = {isa = PBXBuildFile; fileRef = F20000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -519,6 +523,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F11000012FD0000000000001 /* DictationLevelShaderView.swift in Sources */,
+				F11000022FD0000000000002 /* DictationMetalEffectRenderer.swift in Sources */,
+				F11000032FD0000000000003 /* MacDictationAudioFeatures.swift in Sources */,
+				F11000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

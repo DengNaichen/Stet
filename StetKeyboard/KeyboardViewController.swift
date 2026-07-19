@@ -5,6 +5,7 @@
 //  Created by Naicheng Deng on 2026-04-30.
 //
 
+import SwiftUI
 import UIKit
 
 private enum KeyboardButtonState: Equatable {
@@ -30,22 +31,17 @@ final class KeyboardViewController: UIInputViewController {
     private let returnButton = UIButton(type: .system)
     private let nextKeyboardButton = UIButton(type: .system)
     private let actionStack = UIStackView()
-    private let waveformView = KeyboardWaveformView()
+    private var listeningShaderHost: UIHostingController<DictationLevelShaderView>?
 
     private var buttonState: KeyboardButtonState = .idle
     private var pollTimer: Timer?
     private var deleteInitialTimer: Timer?
     private var deleteRepeatTimer: Timer?
-    private var waveformDisplayLink: CADisplayLink?
-    private var waveformSampleTimer: DispatchSourceTimer?
-    private var latestVolume: Float = 0
+    private var shaderSampleTimer: DispatchSourceTimer?
+    private var latestVolume: Double = 0
     private var lastProcessedSessionId: String?
     private var pendingSessionId: String?
     private var isWakingMainApp = false
-
-    private lazy var waveformDisplayLinkTarget = DisplayLinkTarget { [weak self] in
-        self?.drawLatestVolume()
-    }
 
     private let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
     private let notificationFeedback = UINotificationFeedbackGenerator()
@@ -96,7 +92,8 @@ final class KeyboardViewController: UIInputViewController {
         super.viewWillDisappear(animated)
         stopPolling()
         stopDeleteRepeat()
-        stopWaveformUpdates()
+        updateListeningShader(level: latestVolume, isPaused: true)
+        stopListeningShaderUpdates()
 
         // Keep the request alive only when this extension is intentionally waking Stet.
         if !isWakingMainApp,
@@ -123,18 +120,9 @@ final class KeyboardViewController: UIInputViewController {
         actionButton.layer.shadowOffset = CGSize(width: 0, height: 4)
         actionButton.layer.masksToBounds = false
 
-        waveformView.translatesAutoresizingMaskIntoConstraints = false
-        waveformView.tintColor = .systemBackground
-        waveformView.isHidden = true
-        actionButton.addSubview(waveformView)
-
         NSLayoutConstraint.activate([
             actionButton.widthAnchor.constraint(equalToConstant: Layout.actionDiameter),
             actionButton.heightAnchor.constraint(equalToConstant: Layout.actionDiameter),
-            waveformView.centerXAnchor.constraint(equalTo: actionButton.centerXAnchor),
-            waveformView.centerYAnchor.constraint(equalTo: actionButton.centerYAnchor),
-            waveformView.widthAnchor.constraint(equalToConstant: 72),
-            waveformView.heightAnchor.constraint(equalToConstant: 28),
         ])
     }
 
@@ -268,6 +256,7 @@ final class KeyboardViewController: UIInputViewController {
         configuration.baseBackgroundColor = .label
         configuration.baseForegroundColor = .systemBackground
         configuration.contentInsets = .zero
+        actionButton.isUserInteractionEnabled = true
 
         switch buttonState {
         case .idle:
@@ -292,21 +281,25 @@ final class KeyboardViewController: UIInputViewController {
             actionButton.accessibilityValue = "Recording"
 
         case .processing:
-            configuration.showsActivityIndicator = true
-            actionButton.isEnabled = false
+            actionButton.isEnabled = true
+            actionButton.isUserInteractionEnabled = false
             actionButton.accessibilityLabel = "Processing Dictation"
             actionButton.accessibilityValue = nil
         }
 
         actionButton.configuration = configuration
-        let showsWaveform = buttonState == .recording
-        waveformView.isHidden = !showsWaveform
-        actionButton.bringSubviewToFront(waveformView)
-
-        if showsWaveform {
-            startWaveformUpdates()
-        } else {
-            stopWaveformUpdates()
+        switch buttonState {
+        case .recording:
+            ensureListeningShaderHost()
+            updateListeningShader(level: latestVolume, isPaused: false)
+            startListeningShaderUpdates()
+        case .processing:
+            ensureListeningShaderHost()
+            updateListeningShader(level: latestVolume, isPaused: true)
+            stopListeningShaderUpdates()
+        case .idle, .pending:
+            stopListeningShaderUpdates()
+            removeListeningShaderHost()
         }
     }
 
@@ -434,59 +427,90 @@ final class KeyboardViewController: UIInputViewController {
         pollTimer = nil
     }
 
-    private func startWaveformUpdates() {
-        guard waveformDisplayLink == nil else { return }
+    private func startListeningShaderUpdates() {
+        guard shaderSampleTimer == nil else { return }
 
-        latestVolume = 0
-        waveformView.reset()
+        latestVolume = Double(SharedDictationManager.shared.readVolume())
+        updateListeningShader(level: latestVolume, isPaused: false)
 
         let sampleTimer = DispatchSource.makeTimerSource(
             flags: [],
-            queue: DispatchQueue(label: "com.stet.keyboard.waveform", qos: .userInitiated)
+            queue: DispatchQueue(label: "com.stet.keyboard.shader", qos: .userInitiated)
         )
         sampleTimer.schedule(
             deadline: .now(),
-            repeating: .milliseconds(33),
-            leeway: .milliseconds(8)
+            repeating: .milliseconds(60),
+            leeway: .milliseconds(10)
         )
         sampleTimer.setEventHandler { [weak self] in
-            let level = SharedDictationManager.shared.readVolume()
+            let level = Double(SharedDictationManager.shared.readVolume())
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.buttonState == .recording else { return }
                 self.latestVolume = level
+                self.updateListeningShader(level: level, isPaused: false)
             }
         }
-        waveformSampleTimer = sampleTimer
+        shaderSampleTimer = sampleTimer
         sampleTimer.activate()
-
-        let displayLink = CADisplayLink(
-            target: waveformDisplayLinkTarget,
-            selector: #selector(DisplayLinkTarget.tick(_:))
-        )
-        displayLink.preferredFrameRateRange = CAFrameRateRange(
-            minimum: 15,
-            maximum: 30,
-            preferred: 30
-        )
-        displayLink.add(to: .main, forMode: .common)
-        waveformDisplayLink = displayLink
     }
 
-    private func stopWaveformUpdates() {
-        waveformDisplayLink?.invalidate()
-        waveformDisplayLink = nil
+    private func stopListeningShaderUpdates() {
+        shaderSampleTimer?.setEventHandler {}
+        shaderSampleTimer?.cancel()
+        shaderSampleTimer = nil
+    }
 
-        waveformSampleTimer?.setEventHandler {}
-        waveformSampleTimer?.cancel()
-        waveformSampleTimer = nil
+    private func ensureListeningShaderHost() {
+        guard listeningShaderHost == nil else {
+            if let shaderView = listeningShaderHost?.view {
+                actionButton.bringSubviewToFront(shaderView)
+            }
+            return
+        }
 
+        let host = UIHostingController(
+            rootView: makeListeningShader(level: latestVolume, isPaused: false)
+        )
+        addChild(host)
+        host.view.translatesAutoresizingMaskIntoConstraints = false
+        host.view.backgroundColor = .clear
+        host.view.isOpaque = false
+        host.view.isUserInteractionEnabled = false
+        host.view.accessibilityElementsHidden = true
+        actionButton.addSubview(host.view)
+        NSLayoutConstraint.activate([
+            host.view.leadingAnchor.constraint(equalTo: actionButton.leadingAnchor),
+            host.view.trailingAnchor.constraint(equalTo: actionButton.trailingAnchor),
+            host.view.topAnchor.constraint(equalTo: actionButton.topAnchor),
+            host.view.bottomAnchor.constraint(equalTo: actionButton.bottomAnchor),
+        ])
+        host.didMove(toParent: self)
+        listeningShaderHost = host
+    }
+
+    private func updateListeningShader(level: Double, isPaused: Bool) {
+        listeningShaderHost?.rootView = makeListeningShader(level: level, isPaused: isPaused)
+    }
+
+    private func removeListeningShaderHost() {
+        guard let host = listeningShaderHost else {
+            latestVolume = 0
+            return
+        }
+        host.willMove(toParent: nil)
+        host.view.removeFromSuperview()
+        host.removeFromParent()
+        listeningShaderHost = nil
         latestVolume = 0
-        waveformView.reset()
     }
 
-    private func drawLatestVolume() {
-        guard buttonState == .recording else { return }
-        waveformView.update(level: latestVolume)
+    private func makeListeningShader(level: Double, isPaused: Bool) -> DictationLevelShaderView {
+        DictationLevelShaderView(
+            level: level,
+            diameter: Layout.actionDiameter,
+            preferredFramesPerSecond: 40,
+            isPaused: isPaused
+        )
     }
 
     private func tick() {
@@ -556,7 +580,7 @@ final class KeyboardViewController: UIInputViewController {
     private func publishState(_ state: KeyboardButtonState) {
         guard buttonState != state else {
             if state == .recording {
-                startWaveformUpdates()
+                startListeningShaderUpdates()
             }
             return
         }
@@ -598,17 +622,5 @@ final class KeyboardViewController: UIInputViewController {
         }
         SharedDictationManager.shared.updateVolume(0)
         SharedDictationManager.shared.clearPendingKeyboardSessionId(ifMatching: sessionId)
-    }
-}
-
-private final class DisplayLinkTarget {
-    private let action: () -> Void
-
-    init(action: @escaping () -> Void) {
-        self.action = action
-    }
-
-    @objc func tick(_: CADisplayLink) {
-        action()
     }
 }
