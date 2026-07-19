@@ -27,8 +27,7 @@
                     frameInterval: shaderFrameInterval,
                     signals: signals,
                     colors: colors,
-                    isPaused: isPaused,
-                    motionGain: 1.55
+                    isPaused: isPaused
                 )
                 .frame(width: mainWidth, height: controlHeight)
                 .clipShape(Capsule())

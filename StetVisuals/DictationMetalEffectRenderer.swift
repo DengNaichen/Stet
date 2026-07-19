@@ -10,7 +10,6 @@ struct DictationMetalEffectConfiguration {
     var signals: MacDictationCapsuleVisualSignals
     var colors: (cottonFoam: SIMD3<Float>, waveTop: SIMD3<Float>, deepSea: SIMD3<Float>)
     var isPaused: Bool
-    var motionGain: Float
 }
 
 final class DictationMetalEffectCoordinator {
@@ -47,26 +46,25 @@ final class DictationMetalEffectCoordinator {
 private final class StetVisualsMetalBundleToken {}
 
 private struct AudioFieldComputeUniformsGPU {
-    var motionGain: Float
     var deltaTime: Float
     var inputLevel: Float
-    var padding: Float = 0
-    var inputGroupedBands: SIMD4<Float>
+    var padding: SIMD2<Float> = .zero
 }
 
 private struct AudioFieldSummaryGPU {
-    var level: Float
-    var flowX: Float
-    var flowY: Float
+    var energy: Float
+    var slowEnergy: Float
+    var onset: Float
+    var phase: Float
+    var amplitude: Float
+    var warp: Float
+    var light: Float
     var padding: Float
-    var groupedBands: SIMD4<Float>
-    var transport: SIMD2<Float>
-    var padding2: SIMD2<Float> = .zero
 }
 
 private struct AudioFieldRenderUniformsGPU {
     var size: SIMD2<Float>
-    var time: Float
+    var paddingTime: Float = 0
     var cottonFoam: SIMD3<Float>
     var padding0: Float = 0
     var waveTop: SIMD3<Float>
@@ -91,19 +89,15 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
         frameInterval: 1.0 / 40.0,
         signals: .zero,
         colors: (.zero, .zero, .zero),
-        isPaused: false,
-        motionGain: 1
+        isPaused: false
     )
     private var lastKnownStartDate = Date.distantPast
-    private var accumulatedPauseDuration: TimeInterval = 0
-    private var pauseStartedAt: Date?
     private var previousPaused = false
-    private var pausedElapsed: TimeInterval = 0
     private var lastFrameUptime: TimeInterval?
 
     init?(device: MTLDevice, view: MTKView) {
-        assert(MemoryLayout<AudioFieldComputeUniformsGPU>.stride == 32)
-        assert(MemoryLayout<AudioFieldSummaryGPU>.stride == 48)
+        assert(MemoryLayout<AudioFieldComputeUniformsGPU>.stride == 16)
+        assert(MemoryLayout<AudioFieldSummaryGPU>.stride == 32)
         assert(MemoryLayout<AudioFieldRenderUniformsGPU>.stride == 112)
 
         guard let commandQueue = device.makeCommandQueue(),
@@ -144,8 +138,6 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
     }
 
     func update(configuration: DictationMetalEffectConfiguration, view: MTKView) {
-        let isEnteringPause = configuration.isPaused && !previousPaused
-
         view.preferredFramesPerSecond = max(
             Int(round(1.0 / max(configuration.frameInterval, 1.0 / 120.0))),
             1
@@ -154,11 +146,6 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
             width: max(configuration.size.width, 1) * displayScale(for: view),
             height: max(configuration.size.height, 1) * displayScale(for: view)
         )
-
-        if isEnteringPause {
-            pauseStartedAt = Date()
-            pausedElapsed = currentElapsed(now: pauseStartedAt ?? Date())
-        }
 
         // Keep the listening configuration and its buffers untouched while paused.
         // Dictation resets its scalar level as it enters processing, but the final
@@ -170,11 +157,6 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
             return
         }
 
-        if previousPaused, let pauseStartedAt {
-            accumulatedPauseDuration += Date().timeIntervalSince(pauseStartedAt)
-            self.pauseStartedAt = nil
-        }
-
         if previousPaused {
             lastFrameUptime = nil
         }
@@ -184,9 +166,6 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
 
         if configuration.startDate != lastKnownStartDate {
             lastKnownStartDate = configuration.startDate
-            accumulatedPauseDuration = 0
-            pauseStartedAt = nil
-            pausedElapsed = 0
             lastFrameUptime = nil
             summaryBufferIndex = 0
             resetSummaryBuffers()
@@ -232,10 +211,8 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
             capacity: 1
         )
         computePointer.pointee = AudioFieldComputeUniformsGPU(
-            motionGain: configuration.motionGain,
             deltaTime: deltaTime,
-            inputLevel: configuration.signals.estimatedSummary.level,
-            inputGroupedBands: configuration.signals.estimatedSummary.groupedBands
+            inputLevel: configuration.signals.estimatedSummary.level
         )
 
         let renderPointer = renderUniformBuffer.contents().bindMemory(
@@ -244,7 +221,6 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
         )
         renderPointer.pointee = AudioFieldRenderUniformsGPU(
             size: SIMD2<Float>(Float(configuration.size.width), Float(configuration.size.height)),
-            time: Float(configuration.isPaused ? pausedElapsed : currentElapsed(now: Date())),
             cottonFoam: configuration.colors.cottonFoam,
             waveTop: configuration.colors.waveTop,
             deepSea: configuration.colors.deepSea
@@ -262,13 +238,6 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
         )
     }
 
-    private func currentElapsed(now: Date) -> TimeInterval {
-        let pauseDuration =
-            accumulatedPauseDuration
-            + (configuration.isPaused ? now.timeIntervalSince(pauseStartedAt ?? now) : 0)
-        return max(0, now.timeIntervalSince(configuration.startDate) - pauseDuration)
-    }
-
     private func nextFrameInterval() -> Float {
         let now = ProcessInfo.processInfo.systemUptime
         defer { lastFrameUptime = now }
@@ -280,12 +249,14 @@ private final class DictationMetalEffectRenderer: NSObject, MTKViewDelegate {
 
     private func resetSummaryBuffers() {
         let initialSummary = AudioFieldSummaryGPU(
-            level: 0,
-            flowX: 0.055,
-            flowY: 0,
-            padding: 0,
-            groupedBands: .zero,
-            transport: .zero
+            energy: 0,
+            slowEnergy: 0,
+            onset: 0,
+            phase: 0,
+            amplitude: 1.22,
+            warp: 0,
+            light: 0,
+            padding: 0
         )
         for buffer in summaryBuffers {
             buffer.contents().bindMemory(to: AudioFieldSummaryGPU.self, capacity: 1).pointee = initialSummary

@@ -11,7 +11,6 @@
         let signals: MacDictationCapsuleVisualSignals
         let colors: (cottonFoam: Color, waveTop: Color, deepSea: Color)
         let isPaused: Bool
-        var motionGain: Float = 1
 
         func makeCoordinator() -> DictationMetalEffectCoordinator {
             DictationMetalEffectCoordinator()
@@ -42,8 +41,7 @@
                     waveTop: colors.waveTop.simdRGB,
                     deepSea: colors.deepSea.simdRGB
                 ),
-                isPaused: isPaused,
-                motionGain: motionGain
+                isPaused: isPaused
             )
             coordinator.update(view: nsView, configuration: configuration)
         }

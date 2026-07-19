@@ -47,8 +47,7 @@ public struct DictationLevelShaderView: View {
             frameInterval: 1.0 / Double(max(preferredFramesPerSecond, 1)),
             signals: DictationLevelShaderSignalMapper.signals(level: level),
             colors: Self.eggSpeakingColors,
-            isPaused: isPaused,
-            motionGain: 1.55
+            isPaused: isPaused
         )
     }
 
