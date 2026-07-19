@@ -31,7 +31,6 @@
         @State private var hexA = "#F2F4FA"
         @State private var hexB = "#7AAEFF"
         @State private var hexC = "#0A3CA9"
-        @State private var motionGain = 1.0
         @StateObject private var microphoneMonitor = MacDictationShaderWorkbenchMicrophoneMonitor()
 
         public init() {}
@@ -171,7 +170,6 @@
 
                 Toggle("Pause timeline", isOn: $isPaused)
 
-                labeledSlider(title: "Motion gain", value: $motionGain, range: 0.2...2.0)
                 labeledSlider(title: "Width", value: $surfaceWidth, range: 480...1200)
                 labeledSlider(title: "Height", value: $surfaceHeight, range: 300...900)
 
@@ -275,8 +273,7 @@
                     frameInterval: 1.0 / 40.0,
                     signals: resolvedSignals,
                     colors: colors,
-                    isPaused: isPaused,
-                    motionGain: Float(motionGain)
+                    isPaused: isPaused
                 )
                 .frame(width: size.width, height: size.height)
             }
