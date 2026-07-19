@@ -32,6 +32,7 @@ stet_funasr_status stet_funasr_transcribe(
     stet_funasr_context *context,
     const char *audio_path,
     int maximum_tokens,
+    const char *hotwords,
     char **output_text,
     char *error_buffer,
     size_t error_buffer_size

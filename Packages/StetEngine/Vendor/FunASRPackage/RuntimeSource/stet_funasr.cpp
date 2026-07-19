@@ -206,6 +206,15 @@ static std::vector<llama_token> tokenize(const llama_vocab*vocab,const char*text
     return tokens;
 }
 
+static std::vector<llama_token> prompt_tokens(const stet_funasr_context*context,const char*hotwords){
+    if(hotwords==nullptr||hotwords[0]=='\0')return context->prefix;
+    std::string prompt="<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n";
+    prompt+="请结合上下文信息，更加准确地完成语音转写任务。如果没有相关信息，我们会留空。\n\n\n**上下文信息：**\n\n\n热词列表：[";
+    prompt+=hotwords;
+    prompt+="]\n语音转写：";
+    return tokenize(context->vocab,prompt.c_str());
+}
+
 static void destroy_context(stet_funasr_context*context){
     if(context==nullptr)return;
     if(context->sampler)llama_sampler_free(context->sampler);
@@ -230,7 +239,6 @@ extern "C" stet_funasr_context *stet_funasr_create(
         ggml_time_init();
         llama_log_set(runtime_log_callback,nullptr);
         if(!load_enc(encoder_path,context->encoder))throw std::runtime_error("encoder model could not be loaded");
-        ggml_backend_load_all();
         llama_model_params mp=llama_model_default_params(); mp.n_gpu_layers=0;
         context->model=llama_model_load_from_file(language_model_path,mp);
         if(!context->model)throw std::runtime_error("language model could not be loaded");
@@ -255,7 +263,7 @@ extern "C" stet_funasr_context *stet_funasr_create(
 
 extern "C" stet_funasr_status stet_funasr_transcribe(
     stet_funasr_context *context,const char *audio_path,int maximum_tokens,
-    char **output_text,char *error_buffer,size_t error_buffer_size){
+    const char *hotwords,char **output_text,char *error_buffer,size_t error_buffer_size){
     if(!context||!audio_path||!output_text){
         set_error(error_buffer,error_buffer_size,"runtime, audio path, and output are required");
         return STET_FUNASR_INVALID_ARGUMENT;
@@ -273,6 +281,7 @@ extern "C" stet_funasr_status stet_funasr_transcribe(
             return STET_FUNASR_VAD_FAILED;
         }
         std::string full;
+        std::vector<llama_token>prefix=prompt_tokens(context,hotwords);
         const int token_limit=maximum_tokens>0?maximum_tokens:512;
         for(auto&segment:segments){
             int off=(int)((int64_t)segment.first*FS/1000);
@@ -286,7 +295,7 @@ extern "C" stet_funasr_status stet_funasr_transcribe(
             llama_memory_clear(llama_get_memory(context->llama),true);
             llama_sampler_reset(context->sampler);
             int n_past=0;
-            if(decode_batch(context->llama,(int)context->prefix.size(),context->prefix.data(),nullptr,0,n_past,false)!=0||
+            if(decode_batch(context->llama,(int)prefix.size(),prefix.data(),nullptr,0,n_past,false)!=0||
                decode_batch(context->llama,n_audio,nullptr,adaptor.data(),D,n_past,false)!=0||
                decode_batch(context->llama,(int)context->suffix.size(),context->suffix.data(),nullptr,0,n_past,true)!=0)
                 throw std::runtime_error("language model prompt evaluation failed");

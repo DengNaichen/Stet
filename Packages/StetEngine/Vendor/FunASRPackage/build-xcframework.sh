@@ -8,6 +8,7 @@ OUTPUT_XCFRAMEWORK="$OUTPUT_DIR/FunASRRuntime.xcframework"
 FUNASR_COMMIT=9474bdbffc349e96a4c9807a42a62309f4f02dc4
 LLAMA_COMMIT=8086439a4cea94c71a5dfb8fe4ad1546aebd640f
 BUILD_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/stet-funasr-build.XXXXXX")
+SDK_VERSION=$(xcrun --sdk macosx --show-sdk-version)
 trap 'rm -rf "$BUILD_ROOT"' EXIT
 
 git clone --filter=blob:none --no-checkout https://github.com/modelscope/FunASR.git "$BUILD_ROOT/FunASR"
@@ -32,14 +33,22 @@ for ARCHITECTURE in arm64 x86_64; do
         -DLLAMA_SOURCE_DIR="$BUILD_ROOT/llama.cpp"
     cmake --build "$ARCH_BUILD_DIR" --target StetFunASRRuntime --parallel
 
-    COMBINED_LIBRARY="$BUILD_ROOT/libFunASRRuntime-$ARCHITECTURE.a"
-    libtool -static -o "$COMBINED_LIBRARY" \
+    COMBINED_OBJECT="$BUILD_ROOT/FunASRRuntime-$ARCHITECTURE.o"
+    ld -r \
+        -arch "$ARCHITECTURE" \
+        -platform_version macos 14.0 "$SDK_VERSION" \
+        -o "$COMBINED_OBJECT" \
+        -all_load \
         "$ARCH_BUILD_DIR/libStetFunASRRuntime.a" \
         "$ARCH_BUILD_DIR/llama/src/libllama.a" \
         "$ARCH_BUILD_DIR/llama/ggml/src/libggml.a" \
         "$ARCH_BUILD_DIR/llama/ggml/src/libggml-base.a" \
         "$ARCH_BUILD_DIR/llama/ggml/src/libggml-cpu.a" \
         "$ARCH_BUILD_DIR/llama/ggml/src/ggml-blas/libggml-blas.a"
+    nmedit -s "$RUNTIME_DIR/exported_symbols.txt" "$COMBINED_OBJECT"
+
+    COMBINED_LIBRARY="$BUILD_ROOT/libFunASRRuntime-$ARCHITECTURE.a"
+    libtool -static -o "$COMBINED_LIBRARY" "$COMBINED_OBJECT"
     ARCH_LIBRARIES+=("$COMBINED_LIBRARY")
 done
 

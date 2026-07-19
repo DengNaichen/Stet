@@ -37,6 +37,16 @@ As a Mac user, repeated dictations should not reload the encoder and language mo
 2. **Given** no prewarmed runtime exists, **When** one transcription runs, **Then** a transient runtime is released afterward.
 3. **Given** concurrent requests reach the runtime, **When** inference runs, **Then** native context access is serialized.
 
+### User Story 4 - Use Personal Dictionary Hotwords (Priority: P1)
+
+As a Mac user, my enabled personal dictionary entries should guide Fun-ASR Nano during recognition, before optional transcript cleanup runs.
+
+**Acceptance Scenarios**:
+
+1. **Given** personal dictionary entries are enabled, **When** Fun-ASR Nano transcribes audio, **Then** the entries are included in the model's official hotword prompt format.
+2. **Given** the personal dictionary is empty or disabled, **When** Fun-ASR Nano transcribes audio, **Then** the original prompt remains unchanged.
+3. **Given** the loaded runtime is reused, **When** two transcriptions use different dictionaries, **Then** each request uses its own hotword prompt without reloading the model.
+
 ## Requirements
 
 - **FR-001**: The feature MUST be available only on macOS.
@@ -47,6 +57,7 @@ As a Mac user, repeated dictations should not reload the encoder and language mo
 - **FR-006**: The loaded native model state MUST have a single serialized owner.
 - **FR-007**: Missing or invalid model assets MUST fail with actionable errors.
 - **FR-008**: The settings UI MUST identify Nano's supported languages as Chinese, English, and Japanese.
+- **FR-009**: The runtime MUST pass enabled personal dictionary entries into Fun-ASR Nano using the upstream hotword prompt contract.
 
 ## Success Criteria
 
@@ -54,9 +65,10 @@ As a Mac user, repeated dictations should not reload the encoder and language mo
 - **SC-002**: Model-manager tests cover full installation, idempotent installation, and HTTP failure.
 - **SC-003**: Service tests prove prewarmed reuse and transient cleanup.
 - **SC-004**: A real GGUF smoke test produces non-empty text from the official FunASR sample audio.
+- **SC-005**: Service tests prove personal dictionary prompts reach the native engine and empty dictionaries remain absent.
 
 ## Assumptions
 
 - Fun-ASR Nano performs its own language recognition; Stet does not force a language token.
-- Prompt-based preferred spelling is not supported by the upstream Nano prompt contract in this version.
+- Personal dictionary entries are supplied as recognition hotwords and remain available to the optional rewrite cleanup stage.
 - The default decoder is `qwen3-0.6b-q4km.gguf` to keep the total download and memory footprint practical.

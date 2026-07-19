@@ -85,7 +85,11 @@
             context = loadedContext
         }
 
-        public func transcribe(audioFileURL: URL, maximumTokens: Int = 512) throws -> String {
+        public func transcribe(
+            audioFileURL: URL,
+            maximumTokens: Int = 512,
+            hotwords: String? = nil
+        ) throws -> String {
             try prepare()
             guard let context else {
                 throw FunASRNanoRecognizerError.modelLoadFailed("runtime context is unavailable")
@@ -93,17 +97,26 @@
 
             var output: UnsafeMutablePointer<CChar>?
             var errorBuffer = [CChar](repeating: 0, count: 512)
+            let normalizedHotwords = hotwords?.trimmingCharacters(in: .whitespacesAndNewlines)
             let status = audioFileURL.path.withCString { audioPath in
-                errorBuffer.withUnsafeMutableBufferPointer { buffer in
-                    stet_funasr_transcribe(
-                        context,
-                        audioPath,
-                        Int32(max(1, maximumTokens)),
-                        &output,
-                        buffer.baseAddress,
-                        buffer.count
-                    )
+                func transcribe(hotwords: UnsafePointer<CChar>?) -> stet_funasr_status {
+                    errorBuffer.withUnsafeMutableBufferPointer { buffer in
+                        stet_funasr_transcribe(
+                            context,
+                            audioPath,
+                            Int32(max(1, maximumTokens)),
+                            hotwords,
+                            &output,
+                            buffer.baseAddress,
+                            buffer.count
+                        )
+                    }
                 }
+
+                if let normalizedHotwords, !normalizedHotwords.isEmpty {
+                    return normalizedHotwords.withCString { transcribe(hotwords: $0) }
+                }
+                return transcribe(hotwords: nil)
             }
 
             guard status == STET_FUNASR_OK, let output else {

@@ -1,0 +1,5 @@
+_stet_funasr_create
+_stet_funasr_transcribe
+_stet_funasr_free_text
+_stet_funasr_destroy
+_stet_funasr_version

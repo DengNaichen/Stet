@@ -36,6 +36,7 @@
             let engine = try #require(engines.snapshot().first)
             #expect(await engine.prepareCallCount == 1)
             #expect(await engine.transcribeCallCount == 1)
+            #expect(await engine.receivedHotwords == ["Stet"])
             #expect(await engine.releaseCallCount == 0)
             await contextManager.cleanupResources()
             #expect(await engine.releaseCallCount == 1)
@@ -65,7 +66,29 @@
             let engine = try #require(engines.snapshot().first)
             #expect(await engine.prepareCallCount == 1)
             #expect(await engine.transcribeCallCount == 1)
+            #expect(await engine.receivedHotwords == [nil])
             #expect(await engine.releaseCallCount == 1)
+        }
+
+        @Test func transcribesRealGGUFAudioWithHotwordsWhenOptedIn() async throws {
+            let audioPath =
+                ProcessInfo.processInfo.environment["STET_FUNASR_E2E_AUDIO_PATH"]
+                ?? "/private/tmp/stet-funasr-e2e.mp3"
+            guard FileManager.default.fileExists(atPath: audioPath) else {
+                return
+            }
+
+            let service = try FunASRNanoTranscriptionService(
+                contextManager: FunASRNanoContextManager()
+            )
+            let result = try await service.transcribe(
+                audioFileAt: URL(fileURLWithPath: audioPath),
+                languageCode: nil,
+                prompt: "滨海新区, Stet",
+                audioDurationSeconds: nil
+            )
+
+            #expect(!result.text.isEmpty)
         }
 
         private func makeModelManager() throws -> FunASRNanoModelManager {
@@ -90,6 +113,7 @@
         private(set) var prepareCallCount = 0
         private(set) var transcribeCallCount = 0
         private(set) var releaseCallCount = 0
+        private(set) var receivedHotwords: [String?] = []
 
         init(text: String) {
             self.text = text
@@ -99,8 +123,9 @@
             prepareCallCount += 1
         }
 
-        func transcribe(audioFileURL _: URL) async throws -> String {
+        func transcribe(audioFileURL _: URL, hotwords: String?) async throws -> String {
             transcribeCallCount += 1
+            receivedHotwords.append(hotwords)
             return text
         }
 

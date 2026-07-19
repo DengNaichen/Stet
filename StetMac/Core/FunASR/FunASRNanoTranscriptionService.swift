@@ -6,13 +6,13 @@
 
     protocol FunASRNanoEngine: Sendable {
         func prepare() async throws
-        func transcribe(audioFileURL: URL) async throws -> String
+        func transcribe(audioFileURL: URL, hotwords: String?) async throws -> String
         func releaseResources() async
     }
 
     extension FunASRNanoRecognizer: FunASRNanoEngine {
-        func transcribe(audioFileURL: URL) async throws -> String {
-            try transcribe(audioFileURL: audioFileURL, maximumTokens: 512)
+        func transcribe(audioFileURL: URL, hotwords: String?) async throws -> String {
+            try transcribe(audioFileURL: audioFileURL, maximumTokens: 512, hotwords: hotwords)
         }
     }
 
@@ -107,7 +107,7 @@
             }
 
             do {
-                let text = try await engine.transcribe(audioFileURL: fileURL)
+                let text = try await engine.transcribe(audioFileURL: fileURL, hotwords: prompt)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !text.isEmpty else {
                     throw SpeechServiceError.emptyTranscription

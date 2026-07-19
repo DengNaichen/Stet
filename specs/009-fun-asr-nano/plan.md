@@ -59,7 +59,9 @@ StetMacTests/Features/MacShell/AudioSetting/MacAudioSettingsViewModelTests.swift
 
 The C++ layer keeps the SAN-M encoder, Qwen model, llama context, sampler, and tokenized prompt alive behind an opaque pointer. Each transcription still invokes FSMN-VAD and creates per-segment encoder compute buffers. The Swift actor is the sole owner of that pointer and serializes prepare, transcribe, and teardown operations.
 
-`FunASRNanoModelManager` treats the encoder, decoder, and VAD files as one logical model. `FunASRNanoContextManager` retains one prepared engine for dictation prewarming. `FunASRNanoTranscriptionService` adapts the file-based native API to Stet's `AudioFileTranscriptionService` contract.
+`FunASRNanoModelManager` treats the encoder, decoder, and VAD files as one logical model. `FunASRNanoContextManager` retains one prepared engine for dictation prewarming. `FunASRNanoTranscriptionService` adapts the file-based native API to Stet's `AudioFileTranscriptionService` contract and forwards its preferred-spelling prompt as Fun-ASR hotwords.
+
+The native wrapper tokenizes the prompt per transcription because personal dictionary entries can change while the encoder and language model remain loaded. Empty hotwords retain the original `语音转写：` prompt. Non-empty hotwords use the upstream Nano context template and comma-separated list before the audio embeddings.
 
 The dependency from `StetASR` to `FunASRRuntime` is conditional on macOS, which keeps the existing multi-platform StetEngine package resolvable on iOS.
 
@@ -74,6 +76,6 @@ The dependency from `StetASR` to `FunASRRuntime` is conditional on macOS, which 
 ## Implementation Observations
 
 - Fun-ASR Nano is not Whisper-compatible and cannot reuse Stet's whisper.cpp or Sherpa ONNX runtime.
-- The upstream Nano prompt supports automatic Chinese, English, and Japanese transcription; Stet's language hint and preferred-spelling prompt are intentionally ignored.
-- CPU-only compilation avoids Metal runtime/JIT concerns. Accelerate remains enabled for matrix operations.
+- The upstream Nano prompt supports automatic Chinese, English, and Japanese transcription. Stet does not force its language hint, while preferred spellings are forwarded through Nano's official hotword prompt format.
+- CPU-only compilation avoids Metal runtime/JIT concerns. The wrapper does not perform process-wide dynamic backend discovery, and the generated archive localizes every Fun-ASR, llama.cpp, and GGML symbol except the five `stet_funasr_*` C entry points. This boundary prevents collisions with other GGML runtimes linked by Stet. Accelerate remains enabled for matrix operations.
 - The binary artifact contains code only. GGUF model licensing and download remain upstream concerns at installation time.
