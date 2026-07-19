@@ -3,7 +3,6 @@ import Foundation
 
 enum MobileDictationEngine: String, CaseIterable, Identifiable, Sendable {
     case senseVoice
-    case whisperLargeV3Turbo
     case funASRRealtime
 
     var id: Self { self }
@@ -12,8 +11,6 @@ enum MobileDictationEngine: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .senseVoice:
             "SenseVoice"
-        case .whisperLargeV3Turbo:
-            "Whisper large-v3-turbo"
         case .funASRRealtime:
             "FunASR Realtime"
         }
@@ -54,7 +51,27 @@ final class MobileDictationSettingsStore: ObservableObject {
             defaults.set(legacyEngine.rawValue, forKey: Self.selectedEngineKey)
         } else {
             selectedEngine = .senseVoice
+            defaults.set(selectedEngine.rawValue, forKey: Self.selectedEngineKey)
         }
+    }
+}
+
+enum RetiredDictationModelCleanup {
+    static func removeWhisperModel(
+        from applicationSupportDirectory: URL? = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first,
+        fileManager: FileManager = .default
+    ) {
+        guard let applicationSupportDirectory else { return }
+        let modelDirectory =
+            applicationSupportDirectory
+            .appendingPathComponent("Stet", isDirectory: true)
+            .appendingPathComponent("Models", isDirectory: true)
+            .appendingPathComponent("Whisper", isDirectory: true)
+        guard fileManager.fileExists(atPath: modelDirectory.path) else { return }
+        try? fileManager.removeItem(at: modelDirectory)
     }
 }
 
@@ -77,22 +94,6 @@ struct SenseVoiceLocalDictationModelManager: LocalDictationModelManaging {
 
     func delete() async throws {
         try await modelManager.deleteModel(for: SenseVoiceModelManager.modelName)
-    }
-}
-
-struct WhisperLocalDictationModelManager: LocalDictationModelManaging {
-    let modelManager: WhisperModelManager
-
-    func status() async -> ASRModelStatus {
-        await modelManager.status(for: WhisperModelManager.modelName)
-    }
-
-    func download() async throws {
-        try await modelManager.downloadIfNeeded(for: WhisperModelManager.modelName)
-    }
-
-    func delete() async throws {
-        try await modelManager.deleteModel(for: WhisperModelManager.modelName)
     }
 }
 

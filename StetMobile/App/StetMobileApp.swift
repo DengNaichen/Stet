@@ -12,6 +12,7 @@ struct StetMobileApp: App {
     @StateObject private var viewModel: SenseVoiceViewModel
 
     init() {
+        RetiredDictationModelCleanup.removeWhisperModel()
         let store = RewriteSettingsStore()
         let dictationSettingsStore = MobileDictationSettingsStore()
         let funASRSettingsStore = FunASRSettingsStore()
@@ -77,7 +78,6 @@ private enum StetMobileComposition {
         selectedDictationEngine: MobileDictationEngine
     ) -> Dependencies {
         let senseVoiceModelManager = try? SenseVoiceModelManager()
-        let whisperModelManager = try? WhisperModelManager()
         let sessionStore = SharedDictationManager.shared
         let coordinator = SelectableDictationSessionCoordinator(
             selectedEngine: selectedDictationEngine
@@ -100,22 +100,6 @@ private enum StetMobileComposition {
                 prepareResources = {
                     try await senseVoiceModelManager.downloadIfNeeded(
                         for: SenseVoiceModelManager.modelName
-                    )
-                }
-            case .whisperLargeV3Turbo:
-                guard let whisperModelManager else {
-                    return UnavailableDictationSessionCoordinator(
-                        message: "Whisper large-v3-turbo is unavailable on this device."
-                    )
-                }
-                let whisperEngine = WhisperASREngine(modelManager: whisperModelManager)
-                whisperEngine.onVolumeUpdate = { level in
-                    SharedDictationManager.shared.updateVolume(level)
-                }
-                engine = whisperEngine
-                prepareResources = {
-                    try await whisperModelManager.downloadIfNeeded(
-                        for: WhisperModelManager.modelName
                     )
                 }
             case .funASRRealtime:
@@ -146,16 +130,10 @@ private enum StetMobileComposition {
             senseVoiceModelManager.map {
                 SenseVoiceLocalDictationModelManager(modelManager: $0)
             } ?? unavailable
-        let whisperLocalManager: any LocalDictationModelManaging =
-            whisperModelManager.map {
-                WhisperLocalDictationModelManager(modelManager: $0)
-            } ?? unavailable
-
         return Dependencies(
             dictationCoordinator: coordinator,
             localModelManagers: [
-                .senseVoice: senseVoiceLocalManager,
-                .whisperLargeV3Turbo: whisperLocalManager,
+                .senseVoice: senseVoiceLocalManager
             ],
             selectDictationEngine: { engine in
                 coordinator.selectEngine(engine)
