@@ -13,7 +13,7 @@ final class FunASRRealtimeEngine: @MainActor ASREngine, MobileASREngineFailureRe
     private let resultContinuation: AsyncStream<ASRResult>.Continuation
     private let failureContinuation: AsyncStream<MobileASREngineFailure>.Continuation
     private let configurationProvider: ConfigurationProvider
-    private let audioCapture: any FunASRAudioCapturing
+    private let audioCapture: any ASRAudioCapturing
     private let client: FunASRWebSocketClient
     private let startupBackgroundActivity: any FunASRStartupBackgroundActivityManaging
 
@@ -29,12 +29,13 @@ final class FunASRRealtimeEngine: @MainActor ASREngine, MobileASREngineFailureRe
 
     init(
         configurationProvider: @escaping ConfigurationProvider,
-        audioCapture: (any FunASRAudioCapturing)? = nil,
+        audioCapture: (any ASRAudioCapturing)? = nil,
         transportFactory: FunASRWebSocketClient.TransportFactory? = nil,
         startupBackgroundActivity: (any FunASRStartupBackgroundActivityManaging)? = nil
     ) {
         self.configurationProvider = configurationProvider
-        self.audioCapture = audioCapture ?? AVAudioEngineFunASRAudioCapture()
+        self.audioCapture =
+            audioCapture ?? PersistentASRAudioCapture(strategy: .builtInPreferred)
         self.startupBackgroundActivity =
             startupBackgroundActivity ?? SystemFunASRStartupBackgroundActivityManager()
         self.client = FunASRWebSocketClient(
@@ -89,13 +90,14 @@ final class FunASRRealtimeEngine: @MainActor ASREngine, MobileASREngineFailureRe
         do {
             try await audioCapture.start { [weak self, queue] result in
                 switch result {
-                case .success(let packet):
+                case .success(let frame):
+                    let pcm16Data = FunASRPCM16Encoder.encode(samples: frame.samples)
                     do {
-                        try queue.enqueue(packet.pcm16Data)
+                        try queue.enqueue(pcm16Data)
                         Task { @MainActor [weak self] in
                             guard let self, self.activeSessionId == sessionId else { return }
-                            self.audioByteCount += packet.pcm16Data.count
-                            self.onVolumeUpdate?(packet.level)
+                            self.audioByteCount += pcm16Data.count
+                            self.onVolumeUpdate?(frame.level)
                         }
                     } catch let error as FunASRError {
                         Task { @MainActor [weak self] in
@@ -106,9 +108,9 @@ final class FunASRRealtimeEngine: @MainActor ASREngine, MobileASREngineFailureRe
                             await self?.handleRuntimeFailure(.audioQueueOverflow, sessionId: sessionId)
                         }
                     }
-                case .failure(let error):
+                case .failure:
                     Task { @MainActor [weak self] in
-                        await self?.handleRuntimeFailure(error, sessionId: sessionId)
+                        await self?.handleRuntimeFailure(.audioUnavailable, sessionId: sessionId)
                     }
                 }
             }
@@ -248,9 +250,10 @@ final class FunASRRealtimeEngine: @MainActor ASREngine, MobileASREngineFailureRe
 
     private func completeSession(sessionId: String) {
         guard activeSessionId == sessionId else { return }
-        let wallDuration = sessionStartedAt.map {
-            ProcessInfo.processInfo.systemUptime - $0
-        } ?? 0
+        let wallDuration =
+            sessionStartedAt.map {
+                ProcessInfo.processInfo.systemUptime - $0
+            } ?? 0
         let audioDuration = Double(audioByteCount) / 2 / Double(FunASRProtocol.sampleRate)
 
         audioCapture.stop()

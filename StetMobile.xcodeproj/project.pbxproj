@@ -19,6 +19,7 @@
 		C10000012FA6000000000004 /* SenseVoiceModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000004 /* SenseVoiceModelManager.swift */; };
 		C10000012FA6000000000005 /* SherpaOnnx.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000005 /* SherpaOnnx.swift */; };
 		C10000012FA6000000000006 /* SherpaOnnxASREngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000006 /* SherpaOnnxASREngine.swift */; };
+		C10000012FA6000000000007 /* ASRAudioCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000007 /* ASRAudioCapture.swift */; };
 		D100000A2FB000000000000A /* StetLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D10000022FB0000000000002 /* StetLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D100000E2FB000000000000E /* StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D100000D2FB000000000000D /* StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift */; };
 		F10000012FD0000000000001 /* DictationLevelShaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000012FD0000000000001 /* DictationLevelShaderView.swift */; };
@@ -90,6 +91,7 @@
 		C20000012FA6000000000004 /* SenseVoiceModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SenseVoiceModelManager.swift; sourceTree = "<group>"; };
 		C20000012FA6000000000005 /* SherpaOnnx.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SherpaOnnx.swift; sourceTree = "<group>"; };
 		C20000012FA6000000000006 /* SherpaOnnxASREngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SherpaOnnxASREngine.swift; sourceTree = "<group>"; };
+		C20000012FA6000000000007 /* ASRAudioCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASRAudioCapture.swift; sourceTree = "<group>"; };
 		D10000022FB0000000000002 /* StetLiveActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StetLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D100000D2FB000000000000D /* StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StetMobile/Core/LiveActivity/StetMicrophoneActivityAttributes.swift; sourceTree = SOURCE_ROOT; };
 		F20000012FD0000000000001 /* DictationLevelShaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationLevelShaderView.swift; sourceTree = "<group>"; };
@@ -255,6 +257,7 @@
 				C20000012FA6000000000004 /* SenseVoiceModelManager.swift */,
 				C20000012FA6000000000005 /* SherpaOnnx.swift */,
 				C20000012FA6000000000006 /* SherpaOnnxASREngine.swift */,
+				C20000012FA6000000000007 /* ASRAudioCapture.swift */,
 			);
 			name = "Shared StetASR";
 			path = ../Packages/StetEngine/Sources/StetASR;
@@ -498,6 +501,7 @@
 				C10000012FA6000000000004 /* SenseVoiceModelManager.swift in Sources */,
 				C10000012FA6000000000005 /* SherpaOnnx.swift in Sources */,
 				C10000012FA6000000000006 /* SherpaOnnxASREngine.swift in Sources */,
+				C10000012FA6000000000007 /* ASRAudioCapture.swift in Sources */,
 				F10000012FD0000000000001 /* DictationLevelShaderView.swift in Sources */,
 				F10000022FD0000000000002 /* DictationMetalEffectRenderer.swift in Sources */,
 				F10000032FD0000000000003 /* MacDictationAudioFeatures.swift in Sources */,

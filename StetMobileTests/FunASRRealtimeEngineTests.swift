@@ -40,9 +40,10 @@ struct FunASRRealtimeEngineTests {
         #expect(backgroundActivity.endCallCount == 1)
         #expect(capture.startCount == 1)
 
-        let audioFrame = Data(repeating: 7, count: FunASRProtocol.audioFrameBytes)
-        capture.emit(audioFrame)
-        #expect(await dataSends.next() == audioFrame)
+        let audioSamples = Array(repeating: Float(0.25), count: 1_600)
+        let encodedAudioFrame = FunASRPCM16Encoder.encode(samples: audioSamples)
+        capture.emit(samples: audioSamples)
+        #expect(await dataSends.next() == encodedAudioFrame)
 
         await transport.emit(
             text:
@@ -157,8 +158,8 @@ private final class TestFunASRStartupBackgroundActivityManager:
     }
 }
 
-private final class TestFunASRAudioCapture: FunASRAudioCapturing, @unchecked Sendable {
-    private var handler: (@Sendable (Result<FunASRAudioPacket, FunASRError>) -> Void)?
+private final class TestFunASRAudioCapture: ASRAudioCapturing, @unchecked Sendable {
+    private var handler: ASRAudioFrameHandler?
     private(set) var prepareCount = 0
     private(set) var startCount = 0
     private(set) var stopCount = 0
@@ -170,7 +171,7 @@ private final class TestFunASRAudioCapture: FunASRAudioCapturing, @unchecked Sen
     }
 
     func start(
-        handler: @escaping @Sendable (Result<FunASRAudioPacket, FunASRError>) -> Void
+        handler: @escaping ASRAudioFrameHandler
     ) async throws {
         guard isPrepared else { throw FunASRError.audioUnavailable }
         startCount += 1
@@ -189,8 +190,8 @@ private final class TestFunASRAudioCapture: FunASRAudioCapturing, @unchecked Sen
         isPrepared = false
     }
 
-    func emit(_ data: Data) {
-        handler?(.success(FunASRAudioPacket(pcm16Data: data, level: 0.5)))
+    func emit(samples: [Float]) {
+        handler?(.success(ASRAudioFrame(samples: samples, level: 0.5)))
     }
 }
 

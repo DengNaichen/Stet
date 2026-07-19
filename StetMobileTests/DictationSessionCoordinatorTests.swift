@@ -26,8 +26,30 @@ struct DictationSessionCoordinatorTests {
 
     @Test
     func selectableCoordinatorSwitchesToTheChosenIdleModel() async throws {
-        let senseVoice = SwitchingChildCoordinator(engineName: "SenseVoice")
-        let funASR = SwitchingChildCoordinator(engineName: "FunASR Realtime")
+        var lifecycle: [String] = []
+        let captureResource = SwitchingCaptureResource()
+        let senseVoice = SwitchingChildCoordinator(
+            engineName: "SenseVoice",
+            onStart: {
+                lifecycle.append("sensevoice-start")
+                captureResource.acquire()
+            },
+            onShutdown: {
+                lifecycle.append("sensevoice-shutdown")
+                captureResource.release()
+            }
+        )
+        let funASR = SwitchingChildCoordinator(
+            engineName: "FunASR Realtime",
+            onStart: {
+                lifecycle.append("funasr-start")
+                captureResource.acquire()
+            },
+            onShutdown: {
+                lifecycle.append("funasr-shutdown")
+                captureResource.release()
+            }
+        )
         let subject = SelectableDictationSessionCoordinator(selectedEngine: .senseVoice) { engine in
             switch engine {
             case .senseVoice: senseVoice
@@ -46,8 +68,18 @@ struct DictationSessionCoordinatorTests {
 
         #expect(senseVoice.shutdownCallCount == 1)
         #expect(funASR.startCallCount == 1)
+        #expect(
+            lifecycle == [
+                "sensevoice-start",
+                "sensevoice-shutdown",
+                "funasr-start",
+            ]
+        )
+        #expect(captureResource.activeCount == 1)
+        #expect(captureResource.maximumActiveCount == 1)
         #expect(subject.phase == .idle)
         await subject.shutdown()
+        #expect(captureResource.activeCount == 0)
     }
 
     @Test
@@ -515,14 +547,23 @@ private final class SwitchingChildCoordinator: DictationSessionCoordinating {
 
     private let continuation: AsyncStream<DictationCoordinatorEvent>.Continuation
     private let engineName: String
+    private let onStart: @MainActor () -> Void
+    private let onShutdown: @MainActor () -> Void
 
-    init(engineName: String) {
+    init(
+        engineName: String,
+        onStart: @escaping @MainActor () -> Void = {},
+        onShutdown: @escaping @MainActor () -> Void = {}
+    ) {
         self.engineName = engineName
+        self.onStart = onStart
+        self.onShutdown = onShutdown
         (events, continuation) = AsyncStream.makeStream()
     }
 
     func start() {
         startCallCount += 1
+        onStart()
         phase = .idle
         continuation.yield(.ready(engineName: engineName))
     }
@@ -535,8 +576,24 @@ private final class SwitchingChildCoordinator: DictationSessionCoordinating {
 
     func shutdown() async {
         shutdownCallCount += 1
+        onShutdown()
         phase = .inactive
         continuation.finish()
+    }
+}
+
+@MainActor
+private final class SwitchingCaptureResource {
+    private(set) var activeCount = 0
+    private(set) var maximumActiveCount = 0
+
+    func acquire() {
+        activeCount += 1
+        maximumActiveCount = max(maximumActiveCount, activeCount)
+    }
+
+    func release() {
+        activeCount -= 1
     }
 }
 

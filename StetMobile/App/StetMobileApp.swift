@@ -79,6 +79,7 @@ private enum StetMobileComposition {
     ) -> Dependencies {
         let senseVoiceModelManager = try? SenseVoiceModelManager()
         let sessionStore = SharedDictationManager.shared
+        let audioCapture = PersistentASRAudioCapture(strategy: .builtInPreferred)
         let coordinator = SelectableDictationSessionCoordinator(
             selectedEngine: selectedDictationEngine
         ) { selectedEngine in
@@ -92,7 +93,10 @@ private enum StetMobileComposition {
                         message: "SenseVoice is unavailable on this device."
                     )
                 }
-                let senseVoiceEngine = SherpaOnnxASREngine(modelManager: senseVoiceModelManager)
+                let senseVoiceEngine = SherpaOnnxASREngine(
+                    modelManager: senseVoiceModelManager,
+                    audioCapture: audioCapture
+                )
                 senseVoiceEngine.onVolumeUpdate = { level in
                     SharedDictationManager.shared.updateVolume(level)
                 }
@@ -103,9 +107,12 @@ private enum StetMobileComposition {
                     )
                 }
             case .funASRRealtime:
-                let funASREngine = FunASRRealtimeEngine {
-                    try funASRSettingsStore.configuration()
-                }
+                let funASREngine = FunASRRealtimeEngine(
+                    configurationProvider: {
+                        try funASRSettingsStore.configuration()
+                    },
+                    audioCapture: audioCapture
+                )
                 funASREngine.onVolumeUpdate = { level in
                     SharedDictationManager.shared.updateVolume(level)
                 }
