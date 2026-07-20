@@ -1,4 +1,12 @@
-.PHONY: help swiftlint format format-lint lint whisper-deps build ci-build test doctor clean-derived-data release-github notary-setup
+PUBLIC_STET_DIR := Public/Stet
+PRIVATE_STET_MOBILE_DIR := Private/StetMobile
+IOS_DEVELOPER_DIR ?= /Applications/Xcode-beta.app/Contents/Developer
+IOS_XCODEBUILD := $(IOS_DEVELOPER_DIR)/usr/bin/xcodebuild
+
+PUBLIC_SWIFT_DIRS := $(PUBLIC_STET_DIR)/StetMac $(PUBLIC_STET_DIR)/StetMacTests $(PUBLIC_STET_DIR)/StetMacUITests $(PUBLIC_STET_DIR)/StetVisuals
+PRIVATE_SWIFT_DIRS := $(PRIVATE_STET_MOBILE_DIR)/StetKeyboard $(PRIVATE_STET_MOBILE_DIR)/StetLiveActivity $(PRIVATE_STET_MOBILE_DIR)/StetMobile $(PRIVATE_STET_MOBILE_DIR)/StetMobileTests $(PRIVATE_STET_MOBILE_DIR)/StetMobileUITests
+
+.PHONY: help verify-public public-export swiftlint format format-lint lint whisper-deps build ci-build test ios-bootstrap ios-build doctor clean-derived-data release-github notary-setup
 
 help:
 	@echo "Available targets:"
@@ -9,20 +17,30 @@ help:
 	@echo "  build           Build the macOS app"
 	@echo "  ci-build        Build without code signing for CI"
 	@echo "  test            Run StetTests on macOS"
+	@echo "  ios-bootstrap   Download the ignored iOS runtime frameworks"
+	@echo "  ios-build       Build the private iOS app for the simulator"
+	@echo "  verify-public   Verify the public projection boundary"
+	@echo "  public-export   Print the commit that can be pushed to the public repo"
 	@echo "  doctor          Report Xcode and project build-cache usage"
 	@echo "  clean-derived-data  Remove only Stet/StetMobile build caches"
 	@echo "  release-github  Build signed GitHub release artifacts"
 	# @echo "  publish-github  Publish GitHub release artifacts"
 	@echo "  notary-setup    Configure notarytool profile"
 
+verify-public:
+	./scripts/verify-public-boundary.sh
+
+public-export: verify-public
+	./scripts/publish-public.sh
+
 swiftlint:
 	swiftlint lint --config .swiftlint.yml --strict --no-cache
 
 format:
-	xcrun swift-format format --in-place --recursive --parallel --configuration .swift-format StetMac StetMacTests StetMacUITests StetVisuals
+	xcrun swift-format format --in-place --recursive --parallel --configuration .swift-format $(PUBLIC_SWIFT_DIRS) $(PRIVATE_SWIFT_DIRS)
 
 format-lint:
-	xcrun swift-format lint --strict --recursive --parallel --configuration .swift-format StetMac StetMacTests StetMacUITests StetVisuals
+	xcrun swift-format lint --strict --recursive --parallel --configuration .swift-format $(PUBLIC_SWIFT_DIRS) $(PRIVATE_SWIFT_DIRS)
 
 lint: swiftlint format-lint
 
@@ -30,25 +48,31 @@ whisper-deps:
 	@echo "whisper is resolved through Swift Package Manager; no local dependency preparation is required."
 
 build:
-	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' build
+	$(MAKE) -C $(PUBLIC_STET_DIR) build
 
 ci-build:
-	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' build
+	$(MAKE) -C $(PUBLIC_STET_DIR) ci-build
 
 test:
-	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' -only-testing:StetTests test
+	$(MAKE) -C $(PUBLIC_STET_DIR) test
+
+ios-bootstrap:
+	$(PRIVATE_STET_MOBILE_DIR)/scripts/bootstrap-sherpa-runtime.sh
+
+ios-build: ios-bootstrap
+	DEVELOPER_DIR=$(IOS_DEVELOPER_DIR) $(IOS_XCODEBUILD) -project $(PRIVATE_STET_MOBILE_DIR)/StetMobile.xcodeproj -scheme StetMobile -sdk iphonesimulator27.0 -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 
 doctor:
-	./scripts/xcode-storage.sh doctor
+	$(MAKE) -C $(PUBLIC_STET_DIR) doctor
 
 clean-derived-data:
-	./scripts/xcode-storage.sh clean-project
+	$(MAKE) -C $(PUBLIC_STET_DIR) clean-derived-data
 
 release-github:
-	./scripts/release-macos-github.sh
+	$(MAKE) -C $(PUBLIC_STET_DIR) release-github
 
 # publish-github:
 # 	./scripts/publish-github-release.sh
 
 notary-setup:
-	./scripts/setup-notarytool-profile.sh
+	$(MAKE) -C $(PUBLIC_STET_DIR) notary-setup

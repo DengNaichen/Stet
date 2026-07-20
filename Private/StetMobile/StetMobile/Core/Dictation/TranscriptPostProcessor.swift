@@ -30,8 +30,9 @@ final class SettingsTranscriptPostProcessor: TranscriptPostProcessing {
         }
 
         let preferredSpellings = dictionary.loadIsEnabled() ? dictionary.loadEntries() : []
-        return (try? await rewriteService.rewrite(
-            .cleanup(transcript, audience: .human, preferredSpellings: preferredSpellings)
-        )) ?? transcript
+        return
+            (try? await rewriteService.rewrite(
+                .cleanup(transcript, audience: .human, preferredSpellings: preferredSpellings)
+            )) ?? transcript
     }
 }

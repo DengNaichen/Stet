@@ -31,18 +31,20 @@ final class RewriteSettingsStore: ObservableObject {
 
     init() {
         self.isRewriteEnabled = defaults.bool(forKey: Keys.rewriteEnabled)
-        
+
         let provider: DictationProvider
         if let raw = defaults.string(forKey: Keys.selectedProvider),
-           let p = DictationProvider(rawValue: raw) {
+            let p = DictationProvider(rawValue: raw)
+        {
             provider = p
         } else {
             provider = .openAI
         }
         self.selectedProvider = provider
-        
+
         if let raw = defaults.string(forKey: Keys.selectedModel),
-           let model = RewriteModel(rawValue: raw) {
+            let model = RewriteModel(rawValue: raw)
+        {
             self.selectedModel = model
         } else {
             self.selectedModel = RewriteModel.default(for: provider)
@@ -111,7 +113,7 @@ final class RewriteSettingsStore: ObservableObject {
         case .google(let key):
             return GoogleRewriteService(apiKey: key, model: config.model)
         case .appleIntelligence:
-            return nil // Not available on iOS through this path
+            return nil  // Not available on iOS through this path
         }
     }
 }

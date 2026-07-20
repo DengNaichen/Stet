@@ -112,15 +112,16 @@ final class RewriteSettingsViewModel: ObservableObject {
     }
 
     func sanitizeFunASRWorkspaceID() {
-        let sanitized = String(funASRSettingsStore.workspaceID.filter { character in
-            character.unicodeScalars.count == 1
-                && character.unicodeScalars.allSatisfy {
-                    (65...90).contains($0.value)
-                        || (97...122).contains($0.value)
-                        || (48...57).contains($0.value)
-                        || $0.value == 45
-                }
-        })
+        let sanitized = String(
+            funASRSettingsStore.workspaceID.filter { character in
+                character.unicodeScalars.count == 1
+                    && character.unicodeScalars.allSatisfy {
+                        (65...90).contains($0.value)
+                            || (97...122).contains($0.value)
+                            || (48...57).contains($0.value)
+                            || $0.value == 45
+                    }
+            })
         if sanitized != funASRSettingsStore.workspaceID {
             funASRSettingsStore.workspaceID = sanitized
         }

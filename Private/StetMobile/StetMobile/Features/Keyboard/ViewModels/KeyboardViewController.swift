@@ -2,14 +2,14 @@ import UIKit
 import SwiftUI
 
 class KeyboardViewController: UIInputViewController {
-    
+
     override func updateViewConstraints() {
         super.updateViewConstraints()
     }
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+
         let keyboardView = KeyboardView(
             onMicDown: { [weak self] in
                 self?.openMainApp()
@@ -27,24 +27,24 @@ class KeyboardViewController: UIInputViewController {
                 self?.advanceToNextInputMode()
             }
         )
-        
+
         let hostingController = UIHostingController(rootView: keyboardView)
         addChild(hostingController)
         view.addSubview(hostingController.view)
         hostingController.view.translatesAutoresizingMaskIntoConstraints = false
-        
+
         NSLayoutConstraint.activate([
             hostingController.view.leftAnchor.constraint(equalTo: view.leftAnchor),
             hostingController.view.rightAnchor.constraint(equalTo: view.rightAnchor),
             hostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
-            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
     }
-    
+
     private func openMainApp() {
         // 通过 URL Scheme 唤起主 App
         let url = URL(string: "stetmobile://dictate")!
-        
+
         // UIInputViewController 跳转 URL 的特殊处理方式
         var responder: UIResponder? = self
         while responder != nil {
@@ -54,16 +54,16 @@ class KeyboardViewController: UIInputViewController {
             }
             responder = responder?.next
         }
-        
+
         // 备选方案（iOS 14+）
         extensionContext?.open(url, completionHandler: nil)
     }
-    
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         checkSharedData()
     }
-    
+
     private func checkSharedData() {
         // 这里检测 App Group (UserDefaults) 中是否有主 App 识别完回传的文本
         // let sharedDefaults = UserDefaults(suiteName: "group.NaichengDeng.StetMobile")

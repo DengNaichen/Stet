@@ -55,7 +55,7 @@ struct ASRAudioCaptureTests {
         hardware.emit(.success(ASRAudioFrame(samples: [0.1], level: 0.2)))
         #expect(hardware.prepareCount == 1)
         #expect(hardware.isRunning)
-        #expect(receivedFrames.count == 0)
+        #expect(receivedFrames.isEmpty)
 
         try await capture.start { result in
             if case .success = result {
@@ -174,6 +174,10 @@ nonisolated private final class LockedFrameCounter: @unchecked Sendable {
 
     var count: Int {
         lock.withLock { value }
+    }
+
+    var isEmpty: Bool {
+        lock.withLock { value == 0 }
     }
 
     func increment() {

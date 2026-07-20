@@ -198,7 +198,8 @@ final class FunASRSettingsStore: ObservableObject {
     ) {
         self.defaults = defaults
         self.credentialStore = credentialStore ?? FunASRKeychainCredentialStore()
-        region = defaults.string(forKey: Self.regionKey)
+        region =
+            defaults.string(forKey: Self.regionKey)
             .flatMap(FunASRRegion.init(rawValue:)) ?? .beijing
         workspaceID = defaults.string(forKey: Self.workspaceIDKey) ?? ""
     }

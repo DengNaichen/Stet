@@ -1,4 +1,0 @@
-module FunASRRuntime {
-    header "stet_funasr.h"
-    export *
-}

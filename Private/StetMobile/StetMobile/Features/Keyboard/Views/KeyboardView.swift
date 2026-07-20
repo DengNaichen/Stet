@@ -6,9 +6,9 @@ struct KeyboardView: View {
     var onBackspace: () -> Void
     var onReturn: () -> Void
     var onNextKeyboard: () -> Void
-    
+
     @State private var isPressing = false
-    
+
     var body: some View {
         ZStack {
             VStack(spacing: 20) {
@@ -47,8 +47,8 @@ struct KeyboardView: View {
             .offset(y: 4)
 
             KeyboardButton(icon: "delete.left.fill", size: 52, iconSize: 20, action: onBackspace)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-            .padding(.trailing, 20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                .padding(.trailing, 20)
 
             Button(action: onNextKeyboard) {
                 Image(systemName: "globe")
@@ -63,7 +63,7 @@ struct KeyboardView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(.systemGray6))
     }
-    
+
     struct KeyboardButton: View {
         let icon: String
         let size: CGFloat
@@ -76,7 +76,7 @@ struct KeyboardView: View {
             self.iconSize = iconSize
             self.action = action
         }
-        
+
         var body: some View {
             Button(action: action) {
                 Image(systemName: icon)

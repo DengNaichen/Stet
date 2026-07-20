@@ -51,3 +51,7 @@ supabase/...temp/
 **/*.xcframework/
 sherpa-onnx/
 /StetMobile/
+
+# Private mobile runtime and model payloads stay local-only.
+/Private/StetMobile/.runtime/
+/Private/StetMobile/**/*.onnx
