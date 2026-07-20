@@ -1,0 +1,573 @@
+import Foundation
+import StetCore
+import OSLog
+
+private let subsystem = "com.openwhispr.Stet"
+
+struct DictationTranscriptComparison: Codable, Sendable {
+    enum Outcome: String, Codable, Sendable {
+        case rewritten
+        case fallbackAfterRewriteFailure = "fallback_after_rewrite_failure"
+    }
+
+    let timestamp: Date
+    let provider: String
+    let outcome: Outcome
+    let changed: Bool
+    let inputCharacterCount: Int
+    let outputCharacterCount: Int
+    let commonPrefixCharacterCount: Int
+    let commonSuffixCharacterCount: Int
+    let removedSegment: String
+    let addedSegment: String
+    let rawTranscript: String
+    let finalTranscript: String
+    let languageCode: String?
+    let errorDescription: String?
+
+    init(
+        provider: DictationProvider,
+        outcome: Outcome,
+        rawTranscript: String,
+        finalTranscript: String,
+        languageCode: String? = nil,
+        errorDescription: String? = nil,
+        timestamp: Date = Date()
+    ) {
+        let inputCharacters = Array(rawTranscript)
+        let outputCharacters = Array(finalTranscript)
+        let sharedPrefix = Self.sharedPrefixLength(lhs: inputCharacters, rhs: outputCharacters)
+        let sharedSuffix = Self.sharedSuffixLength(
+            lhs: inputCharacters,
+            rhs: outputCharacters,
+            excludingSharedPrefix: sharedPrefix
+        )
+
+        self.timestamp = timestamp
+        self.provider = provider.rawValue
+        self.outcome = outcome
+        self.changed = rawTranscript != finalTranscript
+        self.inputCharacterCount = inputCharacters.count
+        self.outputCharacterCount = outputCharacters.count
+        self.commonPrefixCharacterCount = sharedPrefix
+        self.commonSuffixCharacterCount = sharedSuffix
+        self.removedSegment = Self.middleSegment(
+            in: inputCharacters,
+            sharedPrefix: sharedPrefix,
+            sharedSuffix: sharedSuffix
+        )
+        self.addedSegment = Self.middleSegment(
+            in: outputCharacters,
+            sharedPrefix: sharedPrefix,
+            sharedSuffix: sharedSuffix
+        )
+        self.rawTranscript = rawTranscript
+        self.finalTranscript = finalTranscript
+        self.languageCode = languageCode
+        self.errorDescription = errorDescription
+    }
+
+    private static func sharedPrefixLength(lhs: [Character], rhs: [Character]) -> Int {
+        let sharedLength = min(lhs.count, rhs.count)
+        var index = 0
+        while index < sharedLength, lhs[index] == rhs[index] {
+            index += 1
+        }
+        return index
+    }
+
+    private static func sharedSuffixLength(
+        lhs: [Character],
+        rhs: [Character],
+        excludingSharedPrefix sharedPrefix: Int
+    ) -> Int {
+        let remainingSharedLength = min(lhs.count, rhs.count) - sharedPrefix
+        guard remainingSharedLength > 0 else { return 0 }
+
+        var index = 0
+        while index < remainingSharedLength,
+            lhs[lhs.count - 1 - index] == rhs[rhs.count - 1 - index]
+        {
+            index += 1
+        }
+        return index
+    }
+
+    private static func middleSegment(
+        in characters: [Character],
+        sharedPrefix: Int,
+        sharedSuffix: Int
+    ) -> String {
+        let startIndex = sharedPrefix
+        let endIndex = characters.count - sharedSuffix
+        guard startIndex < endIndex else { return "" }
+        return String(characters[startIndex..<endIndex])
+    }
+}
+
+actor DictationTranscriptTrace {
+    static let shared = DictationTranscriptTrace()
+    private let logger = Logger(subsystem: subsystem, category: "transcript-trace")
+
+    func record(
+        provider: DictationProvider,
+        outcome: DictationTranscriptComparison.Outcome,
+        rawTranscript: String,
+        finalTranscript: String,
+        languageCode: String? = nil,
+        errorDescription: String? = nil
+    ) {
+        let comparison = DictationTranscriptComparison(
+            provider: provider,
+            outcome: outcome,
+            rawTranscript: rawTranscript,
+            finalTranscript: finalTranscript,
+            languageCode: languageCode,
+            errorDescription: errorDescription
+        )
+        logger.info("\(self.formattedLine(for: comparison), privacy: .public)")
+    }
+
+    func resetTraceFile() {}
+
+    func traceFilePath() -> String {
+        "stdout"
+    }
+
+    private func formattedLine(for comparison: DictationTranscriptComparison) -> String {
+        let emoji: String =
+            switch comparison.outcome {
+            case .rewritten:
+                comparison.changed ? "🟢 ✨" : "⚪️ 🟰"
+            case .fallbackAfterRewriteFailure:
+                "🔴 🚨"
+            }
+
+        var parts = [
+            "\(emoji) TranscriptTrace",
+            "provider=\(comparison.provider)",
+            "outcome=\(comparison.outcome.rawValue)",
+            "changed=\(comparison.changed)",
+            "lang=\(comparison.languageCode ?? "unknown")",
+            "raw=\(String(reflecting: comparison.rawTranscript))",
+            "final=\(String(reflecting: comparison.finalTranscript))",
+        ]
+
+        if let errorDescription = comparison.errorDescription, !errorDescription.isEmpty {
+            parts.append("error=\(String(reflecting: errorDescription))")
+        }
+
+        return parts.joined(separator: " ")
+    }
+}
+
+actor DictationLatencyProbe {
+    enum Stage: String, Hashable {
+        case recordingFinished = "recording_finished"
+        case transcriptionStarted = "transcription_started"
+        case transcriptionCompleted = "transcription_completed"
+        case transcriptionFailed = "transcription_failed"
+        case systemWriteCompleted = "system_write_completed"
+        case systemWriteSkipped = "system_write_skipped"
+        case systemWriteFailed = "system_write_failed"
+    }
+
+    private struct Session {
+        let id: String
+        let recordingFinishedAt: TimeInterval
+        var lastStageAt: TimeInterval
+        var reachedStages: Set<Stage> = []
+    }
+
+    static let shared = DictationLatencyProbe()
+    private let logger = Logger(subsystem: subsystem, category: "dictation")
+
+    private var activeSession: Session?
+
+    func beginSession(audioDurationSeconds: TimeInterval?) {
+        let now = ProcessInfo.processInfo.systemUptime
+        let id = String(UUID().uuidString.prefix(8))
+        activeSession = Session(
+            id: id,
+            recordingFinishedAt: now,
+            lastStageAt: now,
+            reachedStages: [.recordingFinished]
+        )
+
+        let audioDurationDescription: String
+        if let audioDurationSeconds, audioDurationSeconds.isFinite, audioDurationSeconds >= 0 {
+            audioDurationDescription = String(format: "%.3f", audioDurationSeconds)
+        } else {
+            audioDurationDescription = "unknown"
+        }
+
+        logger.info(
+            "LatencyTrace id=\(id) stage=\(Stage.recordingFinished.rawValue) sinceRecordingFinishedMs=0 sincePreviousStageMs=0 audioDurationSeconds=\(audioDurationDescription)"
+        )
+    }
+
+    func record(_ stage: Stage, note: String? = nil) {
+        guard var session = activeSession else { return }
+        guard !session.reachedStages.contains(stage) else { return }
+
+        let now = ProcessInfo.processInfo.systemUptime
+        let sinceRecordingFinishedMs = (now - session.recordingFinishedAt) * 1_000
+        let sincePreviousStageMs = (now - session.lastStageAt) * 1_000
+
+        session.lastStageAt = now
+        session.reachedStages.insert(stage)
+        activeSession = session
+
+        let roundedSinceRecordingFinished = String(format: "%.1f", sinceRecordingFinishedMs)
+        let roundedSincePreviousStage = String(format: "%.1f", sincePreviousStageMs)
+        let noteSuffix = note.map { " note=\($0)" } ?? ""
+
+        logger.info(
+            "LatencyTrace id=\(session.id) stage=\(stage.rawValue) sinceRecordingFinishedMs=\(roundedSinceRecordingFinished) sincePreviousStageMs=\(roundedSincePreviousStage)\(noteSuffix)"
+        )
+
+        if Self.terminalStages.contains(stage) {
+            activeSession = nil
+        }
+    }
+
+    private static let terminalStages: Set<Stage> = [
+        .transcriptionFailed,
+        .systemWriteCompleted,
+        .systemWriteSkipped,
+        .systemWriteFailed,
+    ]
+}
+
+actor DictationStartupProbe {
+    enum Trigger: String {
+        case hotkey
+        case interface
+    }
+
+    enum Stage: String, Hashable {
+        case triggerReceived = "trigger_received"
+        case permissionsVerified = "permissions_verified"
+        case panelShown = "panel_shown"
+        case pipelineReady = "pipeline_ready"
+        case microphonePermissionResolved = "microphone_permission_resolved"
+        case audioCaptureStarted = "audio_capture_started"
+        case firstBufferWritten = "first_buffer_written"
+        case listeningStateEntered = "listening_state_entered"
+        case failed = "failed"
+        case cancelled = "cancelled"
+    }
+
+    private struct Session {
+        let id: String
+        let trigger: Trigger
+        let startedAt: TimeInterval
+        var lastStageAt: TimeInterval
+        var reachedStages: Set<Stage> = []
+    }
+
+    static let shared = DictationStartupProbe()
+    private let logger = Logger(subsystem: subsystem, category: "dictation")
+
+    private var activeSession: Session?
+    private let traceFileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("stet-startup-trace")
+        .appendingPathExtension("log")
+
+    func begin(trigger: Trigger) {
+        let now = ProcessInfo.processInfo.systemUptime
+        let id = String(UUID().uuidString.prefix(8))
+        activeSession = Session(
+            id: id,
+            trigger: trigger,
+            startedAt: now,
+            lastStageAt: now,
+            reachedStages: [.triggerReceived]
+        )
+
+        emitTraceLine(
+            "StartupTrace id=\(id) trigger=\(trigger.rawValue) stage=\(Stage.triggerReceived.rawValue) sinceStartMs=0 sincePreviousStageMs=0"
+        )
+    }
+
+    func record(_ stage: Stage, note: String? = nil) {
+        guard var session = activeSession else { return }
+        guard !session.reachedStages.contains(stage) else { return }
+
+        let now = ProcessInfo.processInfo.systemUptime
+        let sinceStartMs = (now - session.startedAt) * 1_000
+        let sincePreviousStageMs = (now - session.lastStageAt) * 1_000
+
+        session.lastStageAt = now
+        session.reachedStages.insert(stage)
+        activeSession = session
+
+        let roundedSinceStart = String(format: "%.1f", sinceStartMs)
+        let roundedSincePreviousStage = String(format: "%.1f", sincePreviousStageMs)
+        let noteSuffix = note.map { " note=\($0)" } ?? ""
+
+        emitTraceLine(
+            "StartupTrace id=\(session.id) trigger=\(session.trigger.rawValue) stage=\(stage.rawValue) sinceStartMs=\(roundedSinceStart) sincePreviousStageMs=\(roundedSincePreviousStage)\(noteSuffix)"
+        )
+
+        if Self.shouldEndSession(afterRecording: stage, reachedStages: session.reachedStages) {
+            activeSession = nil
+        }
+    }
+
+    func resetTraceFile() {
+        try? FileManager.default.removeItem(at: traceFileURL)
+    }
+
+    func traceFilePath() -> String {
+        traceFileURL.path
+    }
+
+    private func emitTraceLine(_ line: String) {
+        logger.info("\(line, privacy: .public)")
+        appendTraceLine(line)
+    }
+
+    private func appendTraceLine(_ line: String) {
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let payload = "\(timestamp) \(line)\n"
+
+        if !FileManager.default.fileExists(atPath: traceFileURL.path) {
+            FileManager.default.createFile(atPath: traceFileURL.path, contents: nil)
+        }
+
+        guard let data = payload.data(using: .utf8) else { return }
+
+        do {
+            let handle = try FileHandle(forWritingTo: traceFileURL)
+            defer { try? handle.close() }
+            try handle.seekToEnd()
+            try handle.write(contentsOf: data)
+        } catch {
+            logger.error("Failed to append startup trace file: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private static func shouldEndSession(afterRecording stage: Stage, reachedStages: Set<Stage>) -> Bool {
+        if stage == .failed || stage == .cancelled {
+            return true
+        }
+
+        let completedSuccessStages: Set<Stage> = [
+            .firstBufferWritten,
+            .listeningStateEntered,
+        ]
+
+        return completedSuccessStages.isSubset(of: reachedStages)
+    }
+}
+
+actor DictationRuntimeProbe {
+    enum Stage: String, Hashable {
+        case runBegan = "run_began"
+        case runEnded = "run_ended"
+        case appStateChange = "app_state_change"
+        case actionDispatched = "action_dispatched"
+        case stateTransition = "state_transition"
+        case resultHandled = "result_handled"
+        case panelShown = "panel_shown"
+        case panelHidden = "panel_hidden"
+        case pendingCopyDismissed = "pending_copy_dismissed"
+        case pendingCopyCommitted = "pending_copy_committed"
+        case captureStartRequested = "capture_start_requested"
+        case captureStopRequested = "capture_stop_requested"
+        case captureStarted = "capture_started"
+        case captureStopped = "capture_stopped"
+        case captureCancelled = "capture_cancelled"
+        case captureStartError = "capture_start_error"
+        case audioStopRequested = "audio_stop_requested"
+        case meteringStarted = "metering_started"
+        case meteringStopped = "metering_stopped"
+    }
+
+    private struct Run {
+        let id: String
+        let trigger: String
+        let source: String
+        let panelWasVisibleAtStart: Bool
+        var startedAt: TimeInterval
+        var lastEventAt: TimeInterval
+    }
+
+    private static let maxAdditionalLength = 180
+    private var activeRun: Run?
+    private var runCounter = 0
+
+    static let shared = DictationRuntimeProbe()
+    private let logger = Logger(subsystem: subsystem, category: "perftrace")
+
+    func beginRun(trigger: String, source: String, panelVisible: Bool) {
+        guard activeRun == nil else { return }
+
+        let now = ProcessInfo.processInfo.systemUptime
+        runCounter += 1
+        let id = String(format: "run_%04d_%d", runCounter, Int(now))
+        activeRun = Run(
+            id: id,
+            trigger: trigger,
+            source: source,
+            panelWasVisibleAtStart: panelVisible,
+            startedAt: now,
+            lastEventAt: now
+        )
+
+        emit(
+            runId: id,
+            stage: .runBegan,
+            at: now,
+            details: "trigger=\(trigger) source=\(source) panelVisible=\(panelVisible)"
+        )
+    }
+
+    func endRun(reason: String, details: String? = nil) {
+        guard let run = activeRun else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        emit(
+            runId: run.id,
+            stage: .runEnded,
+            at: now,
+            details: self.joinDetails(["reason=\(reason)", details])
+        )
+        activeRun = nil
+    }
+
+    func markAppStateChange(from: String, to: String) {
+        Task {
+            await log(.appStateChange, details: "from=\(from) to=\(to)")
+        }
+    }
+
+    func markAction(_ action: String, details: String? = nil) {
+        Task {
+            await log(.actionDispatched, details: "action=\(action)\(details.map { " \($0)" } ?? "")")
+        }
+    }
+
+    func markPanelShown() {
+        Task { await log(.panelShown) }
+    }
+
+    func markPanelHidden() {
+        Task { await log(.panelHidden) }
+    }
+
+    func markPendingCopyDismissed() {
+        Task { await log(.pendingCopyDismissed) }
+    }
+
+    func markPendingCopyCommitted() {
+        Task { await log(.pendingCopyCommitted) }
+    }
+
+    func markStateTransition(from: DictationState, to: DictationState) {
+        let fromLabel = "\(from)"
+        let toLabel = "\(to)"
+        Task {
+            await log(.stateTransition, details: "from=\(fromLabel) to=\(toLabel)")
+        }
+    }
+
+    func markResultHandled(clipboardPending: Bool, textLength: Int) {
+        Task {
+            await log(
+                .resultHandled,
+                details: "clipboardPending=\(clipboardPending) textLength=\(textLength)"
+            )
+        }
+    }
+
+    func markCaptureStartRequested() {
+        Task { await log(.captureStartRequested) }
+    }
+
+    func markCaptureStopRequested() {
+        Task { await log(.captureStopRequested) }
+    }
+
+    func markCaptureStarted() {
+        Task { await log(.captureStarted) }
+    }
+
+    func markCaptureStopped() {
+        Task { await log(.captureStopped) }
+    }
+
+    func markCaptureCancelled() {
+        Task { await log(.captureCancelled) }
+    }
+
+    func markCaptureStartError(_ message: String) {
+        Task {
+            await log(.captureStartError, details: message)
+        }
+    }
+
+    func markAudioStopRequested() {
+        Task { await log(.audioStopRequested) }
+    }
+
+    func markMeteringStarted() {
+        Task { await log(.meteringStarted) }
+    }
+
+    func markMeteringStopped() {
+        Task { await log(.meteringStopped) }
+    }
+
+    private func log(_ stage: Stage, details: String? = nil) async {
+        guard var run = activeRun else { return }
+
+        let now = ProcessInfo.processInfo.systemUptime
+        emit(
+            runId: run.id,
+            stage: stage,
+            at: now,
+            details: details.map { self.clamp($0) }
+        )
+        run.lastEventAt = now
+        activeRun = run
+    }
+
+    private func emit(
+        runId: String,
+        stage: Stage,
+        at now: TimeInterval,
+        details: String? = nil
+    ) {
+        guard let run = activeRun else {
+            return
+        }
+
+        let sinceRunMs = (now - run.startedAt) * 1_000
+        let sinceLastMs = (now - run.lastEventAt) * 1_000
+        let detailsSuffix = details.map { " \(self.clamp($0))" } ?? ""
+
+        logger.info(
+            """
+            RuntimeTrace id=\(runId) stage=\(stage.rawValue) \
+            sinceRunMs=\(String(format: "%.1f", sinceRunMs)) \
+            sincePrevMs=\(String(format: "%.1f", sinceLastMs)) \
+            source=\(run.source) panelAtStart=\(run.panelWasVisibleAtStart)\(detailsSuffix)
+            """
+        )
+    }
+
+    private func clamp(_ value: String) -> String {
+        if value.count <= Self.maxAdditionalLength {
+            return value
+        }
+
+        let prefix = value.startIndex
+        let suffix = value.index(prefix, offsetBy: Self.maxAdditionalLength)
+        return String(value[prefix..<suffix]) + "…"
+    }
+
+    private func joinDetails(_ values: [String?]) -> String {
+        values.compactMap { $0 }.joined(separator: " ")
+    }
+}

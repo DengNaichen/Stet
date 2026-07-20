@@ -1,0 +1,210 @@
+/* App/Navigation */
+"%@ Settings" = "%@ の設定";
+"Settings…" = "設定…";
+"Select Microphone" = "マイクを選択";
+"Quit" = "終了";
+"OK" = "OK";
+"Dismiss" = "閉じる";
+"Cancel" = "キャンセル";
+"Add" = "追加";
+"Continue" = "続ける";
+"Reset" = "リセット";
+"Allow" = "許可";
+"Open Settings" = "設定を開く";
+
+/* Updates */
+"Check for Updates" = "アップデートを確認";
+"Check for Updates…" = "アップデートを確認…";
+"Checking for Updates…" = "アップデートを確認中…";
+"Updates Unavailable" = "アップデートはありません";
+"Update Available (%@)" = "アップデートが利用可能 (%@)";
+"Updates" = "アップデート";
+
+/* Settings tabs */
+"General" = "一般";
+"Audio" = "オーディオ";
+"Theme" = "テーマ";
+"Hotkey" = "ホットキー";
+"Refine" = "改善";
+"Dictionary" = "辞書";
+"Debug" = "デバッグ";
+
+/* Settings tab subtitles */
+"Behavior, updates, and shell preferences." = "動作、アップデート、およびシェルの環境設定。";
+"Microphone selection and recording test." = "マイクの選択と録音テスト。";
+"Dictation capsule theme and color palette." = "音声入力カプセルのテーマとカラーパレット。";
+"Global keyboard shortcuts for starting dictation." = "音声入力を開始するためのグローバルキーボードショートカット。";
+"AI service, transcript improvement, and account access." = "AIサービス、文字起こしの改善、およびアカウントアクセス。";
+"Personal dictionary entries used during transcription and transcript cleanup." = "文字起こしやテキストの整形時に使用される個人用辞書のエントリ。";
+"Large shader preview and color input controls." = "大きなシェーダープレビューとカラー入力コントロール。";
+
+/* Settings search */
+"Search settings" = "設定を検索";
+"No Results" = "結果なし";
+"Try a different keyword." = "別のキーワードを試してください。";
+"Select a Section" = "セクションを選択";
+"Choose a destination from the sidebar." = "サイドバーから移動先を選択してください。";
+
+/* General settings */
+"Application" = "アプリケーション";
+"Dictation" = "音声入力";
+"Launch at Login" = "ログイン時に開く";
+"Show in Dock" = "Dockに表示";
+"Interaction sounds" = "操作音";
+"Mute background audio" = "バックグラウンドオーディオをミュート";
+"Stet can provide feedback and limit distractions while you are speaking." = "Stetは、話している間にフィードバックを提供し、気を散らすものを減らすことができます。";
+"Always show onboarding while debugging" = "デバッグ中は常にオンボーディングを表示";
+"Restart Onboarding Now" = "今すぐオンボーディングを再開";
+"You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "`--force-onboarding` または `STET_FORCE_ONBOARDING=1` を使用して起動することもできます。";
+
+/* Audio settings */
+"Audio Input Device" = "オーディオ入力デバイス";
+"Microphone" = "マイク";
+"Default (Built-in Microphone)" = "デフォルト（内蔵マイク）";
+"Start Recording" = "録音開始";
+"Stop Recording" = "録音停止";
+"Play Recording" = "録音を再生";
+"Stop Playback" = "再生停止";
+"Recording..." = "録音中...";
+"Recording saved - click Play to hear it" = "録音が保存されました - 再生をクリックして聞く";
+"Microphone input level" = "マイクの入力レベル";
+
+/* Theme settings */
+"Choose the color palette used by the dictation capsule." = "音声入力カプセルで使用するカラーパレットを選択してください。";
+
+/* Hotkey settings */
+"Shortcut Engine" = "ショートカットエンジン";
+"Shortcut configured" = "ショートカット設定済み";
+
+/* Refine / AI settings */
+"Transcript improvement" = "文字起こしの改善";
+"Stet can refine and improve the precision of your transcriptions using AI." = "Stetは、AIを使用して文字起こしの精度を最適化し、向上させることができます。";
+"Refine Model" = "改善モデル";
+"Refine" = "改善";
+"Apple Intelligence" = "Apple Intelligence";
+"Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac." = "デバイス上のApple Intelligenceモデルを使用してローカルで文字起こしを改善します。このMacでApple Intelligenceが有効になり、準備ができているかどうかに依存します。";
+"Provide your API key to use %@ directly." = "%@ を直接使用するにはAPIキーを提供してください。";
+"Save Key" = "キーを保存";
+"Remove Key" = "キーを削除";
+"Choose which on-device model handles transcription." = "文字起こしを処理するオンデバイスモデルを選択してください。";
+"Engine" = "エンジン";
+"Parakeet model isn't downloaded yet. Stet will fall back to Whisper until you download it below." = "Parakeetモデルがまだダウンロードされていません。下からダウンロードするまで、StetはWhisperにフォールバックします。";
+"Reveal Whisper Folder in Finder" = "FinderでWhisperフォルダを表示";
+"Downloaded" = "ダウンロード済み";
+"Not downloaded" = "未ダウンロード";
+"Download" = "ダウンロード";
+"On-device Transcription" = "オンデバイス文字起こし";
+
+/* Dictionary settings */
+"Enable Personal Dictionary" = "個人用辞書を有効にする";
+"Add names, brands, jargon, or phrases" = "名前、ブランド、専門用語、またはフレーズを追加";
+"Personal Dictionary" = "個人用辞書";
+"Once you add words here, Stet will reuse them in transcription and rewrite." = "ここに単語を追加すると、Stetは文字起こしや書き換えの際にそれらを再利用します。";
+"Current Entries" = "現在のエントリ";
+"Clear Dictionary" = "辞書をクリア";
+"Clear All" = "すべてクリア";
+"This action cannot be undone." = "この操作は取り消せません。";
+
+/* Debug settings */
+"Shader Debug Window" = "シェーダーデバッグウィンドウ";
+"Open Shader Debug Window" = "シェーダーデバッグウィンドウを開く";
+
+/* Permissions */
+"Permissions Required" = "権限が必要です";
+"Stet can't start this action because microphone and input control permissions are required." = "マイクと入力制御の権限が必要なため、Stetはこのアクションを開始できません。";
+"Grant Input Control" = "入力制御を許可";
+
+/* Dictation view */
+"Tap Start to begin dictation." = "開始をタップして音声入力を始めます。";
+"Speak naturally, then tap Stop when you are ready to finalize the transcript." = "自然に話し、文字起こしを確定する準備ができたら停止をタップします。";
+
+/* Model download */
+"Downloading" = "ダウンロード中";
+"Downloading..." = "ダウンロード中...";
+"Downloading %d%%" = "ダウンロード中 %d%%";
+"Downloading %d%% (%.1f MB / %.1f MB)" = "ダウンロード中 %d%% (%.1f MB / %.1f MB)";
+"Downloading (%.1f MB)" = "ダウンロード中 (%.1f MB)";
+"Checking..." = "確認中...";
+"Working..." = "処理中...";
+"Preparing" = "準備中";
+"Ready to download" = "ダウンロードの準備完了";
+"Ready" = "準備完了";
+"Done" = "完了";
+"Failed" = "失敗";
+"Get ready" = "準備をする";
+"One click gets you ready." = "ワンクリックで準備が整います。";
+"You're set." = "準備が完了しました。";
+"Unable to resolve Local Whisper model path." = "ローカルのWhisperモデルのパスを解決できません。";
+
+/* API key */
+"Verify Key" = "キーを検証";
+"Validating..." = "検証中...";
+"Please enter API Key." = "APIキーを入力してください。";
+"API Key verified." = "APIキーが検証されました。";
+"Invalid Key format." = "キーのフォーマットが無効です。";
+"Verification failed, please check if it was copied completely." = "検証に失敗しました。完全にコピーされているか確認してください。";
+"Provider is temporarily unavailable." = "プロバイダーは一時的に利用できません。";
+"Network connection error." = "ネットワーク接続エラー。";
+
+/* Onboarding step titles */
+"Get started" = "はじめに";
+"AI Configuration" = "AI設定";
+"One more step to get started" = "始める前にもう一つ";
+"Set your speaking shortcut" = "話すためのショートカットを設定";
+"Try saying something" = "何か話してみてください";
+"Choose your theme" = "テーマを選択";
+"You're all set" = "準備完了";
+
+/* Onboarding step subtitles */
+"One click gets you into the app." = "ワンクリックでアプリに入ります。";
+"Select your preferred AI provider to handle transcription and cleanup." = "文字起こしとテキストの整理を処理するAIプロバイダーを選択してください。";
+"Grant microphone and input control permissions so Stet can record and type text back into your apps." = "Stetが録音し、アプリにテキストを入力できるように、マイクと入力制御の権限を付与してください。";
+"Choose the shortcut you want to use for dictation." = "音声入力に使用するショートカットを選択してください。";
+"Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "ショートカットを押したまま自然に話してください。意図を保ちつつ必要な整理を行います。";
+"Browse themes on the right, then apply and finish." = "右側のテーマを閲覧し、適用して完了します。";
+"Hold your shortcut and start speaking anywhere you can type text." = "テキストを入力できる場所ならどこでも、ショートカットを押したまま話し始めてください。";
+
+/* Onboarding steps */
+"Download the model to process your voice locally" = "音声をローカルで処理するためにモデルをダウンロードします";
+"Provider" = "プロバイダー";
+"Microphone" = "マイク";
+"Used to receive voice input" = "音声入力を受信するために使用されます";
+"Accessibility / Input Control" = "アクセシビリティ / 入力制御";
+"Used to insert text into active apps" = "アクティブなアプリにテキストを挿入するために使用されます";
+"Permissions not yet detected. Please authorize in System Settings and return." = "権限がまだ検出されていません。システム設定で承認して戻ってください。";
+"We've set Command + . as your default shortcut. Try pressing it now to see it in action." = "デフォルトのショートカットとして Command + . を設定しました。今すぐ押して動作を確認してください。";
+"Click into the text box on the right, then use your hotkey to test voice input." = "右側のテキストボックスをクリックし、ホットキーを使用して音声入力をテストしてください。";
+"Browse themes on the right. The capsule shows a live preview." = "右側のテーマを閲覧してください。カプセルにライブプレビューが表示されます。";
+"Apply & Finish" = "適用して完了";
+"Choose your preferred theme" = "お好みのテーマを選択してください";
+"Appearance" = "外観";
+"When pressed, do you see the button turn black?" = "押したときにボタンが黒くなるのが見えますか？";
+"Press your hotkey" = "ホットキーを押してください";
+"Try saying:" = "試してみてください：";
+"I am now using this app to dictate this sentence" = "私は今、このアプリを使ってこの文を音声入力しています";
+
+/* Hotkey Settings Extension */
+"Start Dictation" = "音声入力を開始";
+"Use a modifier-plus-key shortcut, for example Control + Space or Command + K. Two plain character keys will not register here." = "修飾キーとキーの組み合わせのショートカット（例: Control + Space または Command + K）を使用してください。2つの通常の文字キーは登録できません。";
+
+/* General Settings Extension */
+"Check for updates automatically" = "アップデートを自動的に確認する";
+"Stet stays in the menu bar for quick access even when the dock icon is hidden." = "Dockアイコンが隠れていても、Stetはメニューバーに留まり、すばやくアクセスできます。";
+
+/* History settings */
+"History" = "履歴";
+"Searchable log of every dictation session." = "すべてのディクテーションセッションの検索可能なログ。";
+"Search History" = "履歴を検索";
+"Export JSON" = "JSONをエクスポート";
+"Clear all history?" = "すべての履歴を削除しますか？";
+"Could not load history" = "履歴を読み込めませんでした";
+"No History" = "履歴なし";
+"Dictation sessions will appear here." = "ディクテーションセッションがここに表示されます。";
+"Try a different search term." = "別の検索語句を試してください。";
+"Sent" = "送信済み";
+"Clipboard" = "クリップボード";
+"Partial" = "文字起こし済み";
+"Raw ASR" = "文字起こし";
+"LLM Refined" = "AI最適化";
+"Final Sent" = "配信済み";
+"Target App" = "ターゲットアプリ";

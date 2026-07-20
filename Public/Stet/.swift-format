@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "indentation": {
+    "spaces": 4
+  },
+  "tabWidth": 8,
+  "lineLength": 120,
+  "maximumBlankLines": 1,
+  "spacesBeforeEndOfLineComments": 2,
+  "multiElementCollectionTrailingCommas": true,
+  "reflowMultilineStringLiterals": "never",
+  "respectsExistingLineBreaks": true,
+  "indentSwitchCaseLabels": false,
+  "rules": {
+    "AllPublicDeclarationsHaveDocumentation": false,
+    "AlwaysUseLiteralForEmptyCollectionInit": false,
+    "BeginDocumentationCommentWithOneLineSummary": false,
+    "FullyIndirectEnum": false,
+    "GroupNumericLiterals": false,
+    "NoBlockComments": false,
+    "OmitExplicitReturns": false,
+    "ReplaceForEachWithForLoop": false,
+    "UseEarlyExits": false,
+    "UseSynthesizedInitializer": false,
+    "ValidateDocumentationComments": false
+  }
+}

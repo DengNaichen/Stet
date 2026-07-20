@@ -1,0 +1,210 @@
+/* App/Navigation */
+"%@ Settings" = "%@ 設定";
+"Settings…" = "設定…";
+"Select Microphone" = "選擇麥克風";
+"Quit" = "退出";
+"OK" = "好";
+"Dismiss" = "關閉";
+"Cancel" = "取消";
+"Add" = "添加";
+"Continue" = "繼續";
+"Reset" = "重置";
+"Allow" = "允許";
+"Open Settings" = "打開設定";
+
+/* Updates */
+"Check for Updates" = "檢查更新";
+"Check for Updates…" = "檢查更新…";
+"Checking for Updates…" = "正在檢查更新…";
+"Updates Unavailable" = "更新不可用";
+"Update Available (%@)" = "有可用更新 (%@)";
+"Updates" = "更新";
+
+/* Settings tabs */
+"General" = "通用";
+"Audio" = "音訊";
+"Theme" = "主題";
+"Hotkey" = "快捷鍵";
+"Refine" = "最佳化";
+"Dictionary" = "詞典";
+"Debug" = "除錯";
+
+/* Settings tab subtitles */
+"Behavior, updates, and shell preferences." = "行為、更新和系統偏好設定。";
+"Microphone selection and recording test." = "麥克風選擇與錄音測試。";
+"Dictation capsule theme and color palette." = "聽寫膠囊主題與配色方案。";
+"Global keyboard shortcuts for starting dictation." = "用於啟動聽寫的全域鍵盤快捷鍵。";
+"AI service, transcript improvement, and account access." = "AI 服務、轉錄最佳化與帳戶存取。";
+"Personal dictionary entries used during transcription and transcript cleanup." = "轉錄和文本整理時使用的個人詞典詞條。";
+"Large shader preview and color input controls." = "大型著色器預覽和顏色輸入控制。";
+
+/* Settings search */
+"Search settings" = "搜尋設定";
+"No Results" = "無結果";
+"Try a different keyword." = "請嘗試其他關鍵字。";
+"Select a Section" = "選擇一個分類";
+"Choose a destination from the sidebar." = "從側邊欄選擇一個目標。";
+
+/* General settings */
+"Application" = "應用程式";
+"Dictation" = "聽寫";
+"Launch at Login" = "登入時啟動";
+"Show in Dock" = "在 Dock 中顯示";
+"Interaction sounds" = "互動音效";
+"Mute background audio" = "靜音背景音訊";
+"Stet can provide feedback and limit distractions while you are speaking." = "Stet 可以在您說話時提供回饋並減少干擾。";
+"Always show onboarding while debugging" = "除錯時始終顯示導引";
+"Restart Onboarding Now" = "立即重新開始導引";
+"You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "您也可以使用 `--force-onboarding` 或 `STET_FORCE_ONBOARDING=1` 啟動。";
+
+/* Audio settings */
+"Audio Input Device" = "音訊輸入設備";
+"Microphone" = "麥克風";
+"Default (Built-in Microphone)" = "預設（內建麥克風）";
+"Start Recording" = "開始錄音";
+"Stop Recording" = "停止錄音";
+"Play Recording" = "播放錄音";
+"Stop Playback" = "停止播放";
+"Recording..." = "正在錄音...";
+"Recording saved - click Play to hear it" = "錄音已保存 — 點擊播放收聽";
+"Microphone input level" = "麥克風輸入電平";
+
+/* Theme settings */
+"Choose the color palette used by the dictation capsule." = "選擇聽寫膠囊使用的配色方案。";
+
+/* Hotkey settings */
+"Shortcut Engine" = "快捷鍵引擎";
+"Shortcut configured" = "快捷鍵已配置";
+
+/* Refine / AI settings */
+"Transcript improvement" = "轉錄改進";
+"Stet can refine and improve the precision of your transcriptions using AI." = "Stet 可以使用 AI 最佳化並提高轉錄精度。";
+"Refine Model" = "最佳化模型";
+"Refine" = "最佳化";
+"Apple Intelligence" = "Apple Intelligence";
+"Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac." = "使用設備端 Apple Intelligence 模型本地最佳化轉錄。可用性取決於此 Mac 上的 Apple Intelligence 是否已啟用並就緒。";
+"Provide your API key to use %@ directly." = "請提供 API 金鑰以直接使用 %@。";
+"Save Key" = "保存金鑰";
+"Remove Key" = "刪除金鑰";
+"Choose which on-device model handles transcription." = "選擇處理轉錄的本地模型。";
+"Engine" = "引擎";
+"Parakeet model isn't downloaded yet. Stet will fall back to Whisper until you download it below." = "Parakeet 模型尚未下載。在您下載之前，Stet 將使用 Whisper。";
+"Reveal Whisper Folder in Finder" = "在 Finder 中顯示 Whisper 資料夾";
+"Downloaded" = "已下載";
+"Not downloaded" = "未下載";
+"Download" = "下載";
+"On-device Transcription" = "本地轉錄";
+
+/* Dictionary settings */
+"Enable Personal Dictionary" = "啟用個人詞典";
+"Add names, brands, jargon, or phrases" = "添加姓名、品牌、術語或短語";
+"Personal Dictionary" = "個人詞典";
+"Once you add words here, Stet will reuse them in transcription and rewrite." = "添加詞條後，Stet 將在轉錄和改寫時使用它們。";
+"Current Entries" = "當前詞條";
+"Clear Dictionary" = "清除詞典";
+"Clear All" = "全部清除";
+"This action cannot be undone." = "此操作無法撤銷。";
+
+/* Debug settings */
+"Shader Debug Window" = "著色器除錯視窗";
+"Open Shader Debug Window" = "打開著色器除錯視窗";
+
+/* Permissions */
+"Permissions Required" = "需要權限";
+"Stet can't start this action because microphone and input control permissions are required." = "Stet 無法執行此操作，需要麥克風和輸入控制權限。";
+"Grant Input Control" = "授權輸入控制";
+
+/* Dictation view */
+"Tap Start to begin dictation." = "點擊開始以進行聽寫。";
+"Speak naturally, then tap Stop when you are ready to finalize the transcript." = "自然說話，準備好完成轉錄時點擊停止。";
+
+/* Model download */
+"Downloading" = "正在下載";
+"Downloading..." = "正在下載...";
+"Downloading %d%%" = "正在下載 %d%%";
+"Downloading %d%% (%.1f MB / %.1f MB)" = "正在下載 %d%% (%.1f MB / %.1f MB)";
+"Downloading (%.1f MB)" = "正在下載 (%.1f MB)";
+"Checking..." = "正在檢查...";
+"Working..." = "處理中...";
+"Preparing" = "準備中";
+"Ready to download" = "準備下載";
+"Ready" = "就緒";
+"Done" = "完成";
+"Failed" = "失敗";
+"Get ready" = "準備就緒";
+"One click gets you ready." = "一鍵即可準備就緒。";
+"You're set." = "已就緒。";
+"Unable to resolve Local Whisper model path." = "無法解析本地 Whisper 模型路徑。";
+
+/* API key */
+"Verify Key" = "驗證金鑰";
+"Validating..." = "正在驗證...";
+"Please enter API Key." = "請輸入 API 金鑰。";
+"API Key verified." = "API 金鑰已驗證。";
+"Invalid Key format." = "金鑰格式無效。";
+"Verification failed, please check if it was copied completely." = "驗證失敗，請檢查是否完整複製。";
+"Provider is temporarily unavailable." = "服務暫時不可用。";
+"Network connection error." = "網路連接錯誤。";
+
+/* Onboarding step titles */
+"Get started" = "開始使用";
+"AI Configuration" = "AI 配置";
+"One more step to get started" = "還有一步即可開始";
+"Set your speaking shortcut" = "設置語音快捷鍵";
+"Try saying something" = "試著說些什麼";
+"Choose your theme" = "選擇主題";
+"You're all set" = "一切就緒";
+
+/* Onboarding step subtitles */
+"One click gets you into the app." = "一鍵進入應用。";
+"Select your preferred AI provider to handle transcription and cleanup." = "選擇您偏好的 AI 服務商來處理轉錄和文本整理。";
+"Grant microphone and input control permissions so Stet can record and type text back into your apps." = "授予麥克風和輸入控制權限，以便 Stet 能夠錄音並將文字輸入您的應用。";
+"Choose the shortcut you want to use for dictation." = "選擇您用於聽寫的快捷鍵。";
+"Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "按住快捷鍵自然說話。我們會保留您的意圖並進行必要的整理。";
+"Browse themes on the right, then apply and finish." = "在右側瀏覽主題，然後應用並完成。";
+"Hold your shortcut and start speaking anywhere you can type text." = "按住快捷鍵，在任何可以輸入文字的地方開始說話。";
+
+/* Onboarding steps */
+"Download the model to process your voice locally" = "下載模型以在本地處理您的語音";
+"Provider" = "服務商";
+"Microphone" = "麥克風";
+"Used to receive voice input" = "用於接收語音輸入";
+"Accessibility / Input Control" = "輔助功能 / 輸入控制";
+"Used to insert text into active apps" = "用於向當前應用插入文本";
+"Permissions not yet detected. Please authorize in System Settings and return." = "尚未檢測到權限。請在系統設定中授權後返回。";
+"We've set Command + . as your default shortcut. Try pressing it now to see it in action." = "我們已將 Command + . 設置為預設快捷鍵。現在試試看效果。";
+"Click into the text box on the right, then use your hotkey to test voice input." = "點擊右側文本框，然後使用您的快捷鍵測試語音輸入。";
+"Browse themes on the right. The capsule shows a live preview." = "在右側瀏覽主題。膠囊顯示即時預覽。";
+"Apply & Finish" = "應用並完成";
+"Choose your preferred theme" = "選擇您喜歡的主題";
+"Appearance" = "外觀";
+"When pressed, do you see the button turn black?" = "按下後，您是否看到按鈕變黑？";
+"Press your hotkey" = "按下您的快捷鍵";
+"Try saying:" = "試著說：";
+"I am now using this app to dictate this sentence" = "我現在正在使用這個應用程式來聽寫這句話";
+
+/* Hotkey Settings Extension */
+"Start Dictation" = "開始聽寫";
+"Use a modifier-plus-key shortcut, for example Control + Space or Command + K. Two plain character keys will not register here." = "請使用修飾鍵組合快捷鍵，例如 Control + Space 或 Command + K。無法在此處註冊兩個普通的字元鍵。";
+
+/* General Settings Extension */
+"Check for updates automatically" = "自動檢查更新";
+"Stet stays in the menu bar for quick access even when the dock icon is hidden." = "即使隱藏了 Dock 圖標，Stet 也會保留在菜單欄以便快速訪問。";
+
+/* History settings */
+"History" = "歷史記錄";
+"Searchable log of every dictation session." = "每次聽寫工作階段的可搜尋記錄。";
+"Search History" = "搜尋歷史記錄";
+"Export JSON" = "匯出 JSON";
+"Clear all history?" = "清除所有歷史記錄？";
+"Could not load history" = "無法載入歷史記錄";
+"No History" = "暫無歷史記錄";
+"Dictation sessions will appear here." = "聽寫工作階段將顯示於此。";
+"Try a different search term." = "請嘗試其他搜尋詞。";
+"Sent" = "已傳送";
+"Clipboard" = "剪貼簿";
+"Partial" = "已轉錄";
+"Raw ASR" = "轉錄";
+"LLM Refined" = "AI 優化";
+"Final Sent" = "已投遞";
+"Target App" = "目標應用程式";

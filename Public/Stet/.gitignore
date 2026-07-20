@@ -1,0 +1,53 @@
+# macOS / Xcode
+.DS_Store
+Thumbs.db
+DerivedData/
+.derivedData/
+build/
+.build/
+.deps/
+dist/
+VoiceInk/
+# Packages/
+# Allow tracking local source packages while keeping .build/ ignored globally.
+*.swiftpm/
+*.xcuserstate
+xcuserdata/
+*.profraw
+*.tmp
+*.swp
+
+# Local environment and secrets
+.env
+.env.release
+.env.local
+.env.*.local
+.env.keys
+sparkle-private-key
+
+# Editor / local tooling
+.vscode/
+.idea/
+
+# Node / web
+node_modules/
+.next/
+.svelte-kit/
+.turbo/
+.vercel/
+coverage/
+out/
+*.tsbuildinfo
+*.log
+.wrangler/
+
+# Supabase local state
+supabase/.branches/
+supabase/...temp/
+.supabase/
+*.p8
+
+# Vendor binaries
+**/*.xcframework/
+sherpa-onnx/
+StetMobile/

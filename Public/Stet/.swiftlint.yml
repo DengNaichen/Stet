@@ -1,0 +1,16 @@
+included:
+  - StetMac
+  - StetTests
+  - StetUITests
+  - StetVisuals
+
+excluded:
+  - build
+  - .derivedData
+
+only_rules:
+  - empty_count
+  - force_cast
+  - force_try
+
+reporter: github-actions-logging

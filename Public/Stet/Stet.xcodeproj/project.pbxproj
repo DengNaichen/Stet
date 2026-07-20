@@ -1,0 +1,1067 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0B4E0F6F7A5B4D88A1C9E113 /* whisper in Frameworks */ = {isa = PBXBuildFile; productRef = 0B4E0F6F7A5B4D88A1C9E112 /* whisper */; };
+		A1C000010000000000000001 /* MCP in Frameworks */ = {isa = PBXBuildFile; productRef = A1C000030000000000000001 /* MCP */; };
+		A1C000010000000000000002 /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1C000030000000000000002 /* NIOCore */; };
+		A1C000010000000000000003 /* NIOPosix in Frameworks */ = {isa = PBXBuildFile; productRef = A1C000030000000000000003 /* NIOPosix */; };
+		A1C000010000000000000004 /* NIOHTTP1 in Frameworks */ = {isa = PBXBuildFile; productRef = A1C000030000000000000004 /* NIOHTTP1 */; };
+		6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 6D3A1A982F675F44005DA839 /* KeyboardShortcuts */; };
+		6D483F322F9C186400BF3105 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */; };
+		6DC0CD032F9DD8BE00696D0F /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = 6DC0CD022F9DD8BE00696D0F /* TelemetryDeck */; };
+		6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 6DCB53142F6DB36500358FE5 /* FluidAudio */; };
+		C80A4F64301851B7005C2101 /* OpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = C80A4F66301851B7005C2101 /* OpenAI */; };
+		E5E0E5E0E5E0E5E0E5E00005 /* StetCore in Frameworks */ = {isa = PBXBuildFile; productRef = E5E0E5E0E5E0E5E0E5E00002 /* StetCore */; };
+		E5E0E5E0E5E0E5E0E5E00006 /* StetAI in Frameworks */ = {isa = PBXBuildFile; productRef = E5E0E5E0E5E0E5E0E5E00003 /* StetAI */; };
+		E5E0E5E0E5E0E5E0E5E00007 /* StetRewrite in Frameworks */ = {isa = PBXBuildFile; productRef = E5E0E5E0E5E0E5E0E5E00004 /* StetRewrite */; };
+		E5E0E5E0E5E0E5E0E5E00009 /* StetASR in Frameworks */ = {isa = PBXBuildFile; productRef = E5E0E5E0E5E0E5E0E5E00008 /* StetASR */; };
+		F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; };
+		F1A0B001000000000000000E /* StetVisuals.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6D29DC8D2F5FA23100267DEA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6D29DC752F5FA23000267DEA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6D29DC7C2F5FA23000267DEA;
+			remoteInfo = Stet;
+		};
+		6D29DC972F5FA23100267DEA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6D29DC752F5FA23000267DEA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6D29DC7C2F5FA23000267DEA;
+			remoteInfo = Stet;
+		};
+		F1A0B0010000000000000002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6D29DC752F5FA23000267DEA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F1A0B0010000000000000007;
+			remoteInfo = StetVisuals;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		F1A0B001000000000000000F /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				F1A0B001000000000000000E /* StetVisuals.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		6D29DC7D2F5FA23000267DEA /* Stet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = Stet.app; path = "Stet Debug.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		6D29DC8C2F5FA23100267DEA /* StetTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StetTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6D29DC962F5FA23100267DEA /* StetUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StetUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F1A0B0010000000000000003 /* StetVisuals.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = StetVisuals.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		6D2A00012FA1111100000001 /* Exceptions for "Stet" folder in "Stet" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				App/Windowing/MacPaywallWindowController.swift,
+			);
+			target = 6D29DC7C2F5FA23000267DEA /* Stet */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		6D29DC7F2F5FA23000267DEA /* Stet */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				6D2A00012FA1111100000001 /* Exceptions for "Stet" folder in "Stet" target */,
+			);
+			path = StetMac;
+			sourceTree = "<group>";
+		};
+		6D29DC8F2F5FA23100267DEA /* StetTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = StetMacTests;
+			sourceTree = "<group>";
+		};
+		6D29DC992F5FA23100267DEA /* StetUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = StetMacUITests;
+			sourceTree = "<group>";
+		};
+		F1A0B0010000000000000004 /* StetVisuals */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = StetVisuals;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6D29DC7A2F5FA23000267DEA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1C000010000000000000001 /* MCP in Frameworks */,
+				A1C000010000000000000002 /* NIOCore in Frameworks */,
+				A1C000010000000000000003 /* NIOPosix in Frameworks */,
+				A1C000010000000000000004 /* NIOHTTP1 in Frameworks */,
+				6D483F322F9C186400BF3105 /* Sparkle in Frameworks */,
+				F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */,
+				6DCB53152F6DB36500358FE5 /* FluidAudio in Frameworks */,
+				C80A4F64301851B7005C2101 /* OpenAI in Frameworks */,
+				6D3A1A992F675F44005DA839 /* KeyboardShortcuts in Frameworks */,
+				0B4E0F6F7A5B4D88A1C9E113 /* whisper in Frameworks */,
+				6DC0CD032F9DD8BE00696D0F /* TelemetryDeck in Frameworks */,
+				E5E0E5E0E5E0E5E0E5E00005 /* StetCore in Frameworks */,
+				E5E0E5E0E5E0E5E0E5E00006 /* StetAI in Frameworks */,
+				E5E0E5E0E5E0E5E0E5E00007 /* StetRewrite in Frameworks */,
+				E5E0E5E0E5E0E5E0E5E00009 /* StetASR in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6D29DC892F5FA23100267DEA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6D29DC932F5FA23100267DEA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F1A0B0010000000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		6D29DC742F5FA23000267DEA = {
+			isa = PBXGroup;
+			children = (
+				6D29DC7F2F5FA23000267DEA /* Stet */,
+				F1A0B0010000000000000004 /* StetVisuals */,
+				6D29DC8F2F5FA23100267DEA /* StetTests */,
+				6D29DC992F5FA23100267DEA /* StetUITests */,
+				6D29DC7E2F5FA23000267DEA /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		6D29DC7E2F5FA23000267DEA /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				6D29DC7D2F5FA23000267DEA /* Stet.app */,
+				F1A0B0010000000000000003 /* StetVisuals.framework */,
+				6D29DC8C2F5FA23100267DEA /* StetTests.xctest */,
+				6D29DC962F5FA23100267DEA /* StetUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		F1A0B0010000000000000006 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		6D29DC7C2F5FA23000267DEA /* Stet */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6D29DCA02F5FA23100267DEA /* Build configuration list for PBXNativeTarget "Stet" */;
+			buildPhases = (
+				6D29DC792F5FA23000267DEA /* Sources */,
+				6D6F8A002F9F9C0100B10001 /* Normalize Binary Frameworks */,
+				6D29DC7A2F5FA23000267DEA /* Frameworks */,
+				6D29DC7B2F5FA23000267DEA /* Resources */,
+				F1A0B001000000000000000F /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F1A0B001000000000000000A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6D29DC7F2F5FA23000267DEA /* Stet */,
+			);
+			name = Stet;
+			packageProductDependencies = (
+				A1C000030000000000000001 /* MCP */,
+				A1C000030000000000000002 /* NIOCore */,
+				A1C000030000000000000003 /* NIOPosix */,
+				A1C000030000000000000004 /* NIOHTTP1 */,
+				C80A4F66301851B7005C2101 /* OpenAI */,
+				A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */,
+				6D3A1A982F675F44005DA839 /* KeyboardShortcuts */,
+				6DCB53142F6DB36500358FE5 /* FluidAudio */,
+				0B4E0F6F7A5B4D88A1C9E112 /* whisper */,
+				6DC0CD022F9DD8BE00696D0F /* TelemetryDeck */,
+				E5E0E5E0E5E0E5E0E5E00002 /* StetCore */,
+				E5E0E5E0E5E0E5E0E5E00003 /* StetAI */,
+				E5E0E5E0E5E0E5E0E5E00004 /* StetRewrite */,
+				E5E0E5E0E5E0E5E0E5E00008 /* StetASR */,
+			);
+			productName = Stet;
+			productReference = 6D29DC7D2F5FA23000267DEA /* Stet.app */;
+			productType = "com.apple.product-type.application";
+		};
+		6D29DC8B2F5FA23100267DEA /* StetTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6D29DCA32F5FA23100267DEA /* Build configuration list for PBXNativeTarget "StetTests" */;
+			buildPhases = (
+				6D29DC882F5FA23100267DEA /* Sources */,
+				6D29DC892F5FA23100267DEA /* Frameworks */,
+				6D29DC8A2F5FA23100267DEA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6D29DC8E2F5FA23100267DEA /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6D29DC8F2F5FA23100267DEA /* StetTests */,
+			);
+			name = StetTests;
+			productName = StetTests;
+			productReference = 6D29DC8C2F5FA23100267DEA /* StetTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		6D29DC952F5FA23100267DEA /* StetUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6D29DCA62F5FA23100267DEA /* Build configuration list for PBXNativeTarget "StetUITests" */;
+			buildPhases = (
+				6D29DC922F5FA23100267DEA /* Sources */,
+				6D29DC932F5FA23100267DEA /* Frameworks */,
+				6D29DC942F5FA23100267DEA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6D29DC982F5FA23100267DEA /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6D29DC992F5FA23100267DEA /* StetUITests */,
+			);
+			name = StetUITests;
+			productName = StetUITests;
+			productReference = 6D29DC962F5FA23100267DEA /* StetUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		F1A0B0010000000000000007 /* StetVisuals */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F1A0B001000000000000000D /* Build configuration list for PBXNativeTarget "StetVisuals" */;
+			buildPhases = (
+				F1A0B0010000000000000009 /* Sources */,
+				F1A0B0010000000000000005 /* Frameworks */,
+				F1A0B0010000000000000006 /* Headers */,
+				F1A0B0010000000000000008 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F1A0B0010000000000000004 /* StetVisuals */,
+			);
+			name = StetVisuals;
+			productName = StetVisuals;
+			productReference = F1A0B0010000000000000003 /* StetVisuals.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		6D29DC752F5FA23000267DEA /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2630;
+				LastUpgradeCheck = 2630;
+				TargetAttributes = {
+					6D29DC7C2F5FA23000267DEA = {
+						CreatedOnToolsVersion = 26.3;
+					};
+					6D29DC8B2F5FA23100267DEA = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = 6D29DC7C2F5FA23000267DEA;
+					};
+					6D29DC952F5FA23100267DEA = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = 6D29DC7C2F5FA23000267DEA;
+					};
+					F1A0B0010000000000000007 = {
+						CreatedOnToolsVersion = 26.3;
+					};
+				};
+			};
+			buildConfigurationList = 6D29DC782F5FA23000267DEA /* Build configuration list for PBXProject "Stet" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				"zh-Hans",
+				ja,
+				es,
+				"zh-Hant",
+				de,
+				fr,
+				ko,
+				"pt-BR",
+				it,
+			);
+			mainGroup = 6D29DC742F5FA23000267DEA;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				0B4E0F6F7A5B4D88A1C9E111 /* XCLocalSwiftPackageReference "Vendor/WhisperPackage" */,
+				A1C000020000000000000001 /* XCRemoteSwiftPackageReference "mcp-swift-sdk" */,
+				A1C000020000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */,
+				C80A4F65301851B7005C2101 /* XCRemoteSwiftPackageReference "OpenAI" */,
+				A7D90C1E4B4D4E5F8A1B2C32 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+				6DCB53132F6DB36500358FE5 /* XCRemoteSwiftPackageReference "FluidAudio" */,
+				6DC0CD012F9DD8BE00696D0F /* XCRemoteSwiftPackageReference "SwiftSDK" */,
+				E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 6D29DC7E2F5FA23000267DEA /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				6D29DC7C2F5FA23000267DEA /* Stet */,
+				F1A0B0010000000000000007 /* StetVisuals */,
+				6D29DC8B2F5FA23100267DEA /* StetTests */,
+				6D29DC952F5FA23100267DEA /* StetUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		6D29DC7B2F5FA23000267DEA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6D29DC8A2F5FA23100267DEA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6D29DC942F5FA23100267DEA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F1A0B0010000000000000008 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		6D6F8A002F9F9C0100B10001 /* Normalize Binary Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/scripts/normalize-binary-frameworks.sh",
+			);
+			name = "Normalize Binary Frameworks";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/zsh;
+			shellScript = "\"$SRCROOT/scripts/normalize-binary-frameworks.sh\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		6D29DC792F5FA23000267DEA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6D29DC882F5FA23100267DEA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6D29DC922F5FA23100267DEA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F1A0B0010000000000000009 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6D29DC8E2F5FA23100267DEA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6D29DC7C2F5FA23000267DEA /* Stet */;
+			targetProxy = 6D29DC8D2F5FA23100267DEA /* PBXContainerItemProxy */;
+		};
+		6D29DC982F5FA23100267DEA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6D29DC7C2F5FA23000267DEA /* Stet */;
+			targetProxy = 6D29DC972F5FA23100267DEA /* PBXContainerItemProxy */;
+		};
+		F1A0B001000000000000000A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F1A0B0010000000000000007 /* StetVisuals */;
+			targetProxy = F1A0B0010000000000000002 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		6D29DC9E2F5FA23100267DEA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 67BL3M4FPS;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		6D29DC9F2F5FA23100267DEA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 67BL3M4FPS;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		6D29DCA12F5FA23100267DEA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APP_URL_SCHEME = naichengdeng.stet.debug;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				AUTOMATION_APPLE_EVENTS = NO;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = StetMac/Stet.entitlements;
+				CURRENT_PROJECT_VERSION = 5003;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 67BL3M4FPS;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.5.3;
+				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.Stet.Debug;
+				PRODUCT_MODULE_NAME = Stet;
+				PRODUCT_NAME = "Stet Debug";
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
+				SDKROOT = auto;
+				SPARKLE_FEED_URL = "";
+				SPARKLE_PUBLIC_ED_KEY = "";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		6D29DCA22F5FA23100267DEA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APP_URL_SCHEME = naichengdeng.stet;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				AUTOMATION_APPLE_EVENTS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = StetMac/Stet.entitlements;
+				CURRENT_PROJECT_VERSION = 5003;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 67BL3M4FPS;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.5.3;
+				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.Stet;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "$(STET_RELEASE_PROVISIONING_PROFILE_SPECIFIER)";
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
+				SDKROOT = auto;
+				SPARKLE_FEED_URL = "";
+				SPARKLE_PUBLIC_ED_KEY = "";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		6D29DCA42F5FA23100267DEA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5003;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 67BL3M4FPS;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 0.5.3;
+				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/$(TEST_HOST_APP_NAME).app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/$(TEST_HOST_APP_NAME)";
+				TEST_HOST_APP_NAME = "Stet Debug";
+			};
+			name = Debug;
+		};
+		6D29DCA52F5FA23100267DEA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5003;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 67BL3M4FPS;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 0.5.3;
+				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/$(TEST_HOST_APP_NAME).app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/$(TEST_HOST_APP_NAME)";
+				TEST_HOST_APP_NAME = Stet;
+			};
+			name = Release;
+		};
+		6D29DCA72F5FA23100267DEA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5003;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 67BL3M4FPS;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.5.3;
+				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Stet;
+			};
+			name = Debug;
+		};
+		6D29DCA82F5FA23100267DEA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5003;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 67BL3M4FPS;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.5.3;
+				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Stet;
+			};
+			name = Release;
+		};
+		F1A0B001000000000000000B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5003;
+				DEAD_CODE_STRIPPING = YES;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = 67BL3M4FPS;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				ENABLE_PREVIEWS = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.5.3;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetVisuals;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F1A0B001000000000000000C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5003;
+				DEAD_CODE_STRIPPING = YES;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = 67BL3M4FPS;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				ENABLE_PREVIEWS = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.5.3;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetVisuals;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		6D29DC782F5FA23000267DEA /* Build configuration list for PBXProject "Stet" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6D29DC9E2F5FA23100267DEA /* Debug */,
+				6D29DC9F2F5FA23100267DEA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6D29DCA02F5FA23100267DEA /* Build configuration list for PBXNativeTarget "Stet" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6D29DCA12F5FA23100267DEA /* Debug */,
+				6D29DCA22F5FA23100267DEA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6D29DCA32F5FA23100267DEA /* Build configuration list for PBXNativeTarget "StetTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6D29DCA42F5FA23100267DEA /* Debug */,
+				6D29DCA52F5FA23100267DEA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6D29DCA62F5FA23100267DEA /* Build configuration list for PBXNativeTarget "StetUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6D29DCA72F5FA23100267DEA /* Debug */,
+				6D29DCA82F5FA23100267DEA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F1A0B001000000000000000D /* Build configuration list for PBXNativeTarget "StetVisuals" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F1A0B001000000000000000B /* Debug */,
+				F1A0B001000000000000000C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		0B4E0F6F7A5B4D88A1C9E111 /* XCLocalSwiftPackageReference "Vendor/WhisperPackage" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/StetEngine/Vendor/WhisperPackage;
+		};
+		E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/StetEngine;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A1C000020000000000000001 /* XCRemoteSwiftPackageReference "mcp-swift-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/modelcontextprotocol/swift-sdk.git";
+			requirement = {
+				kind = exactVersion;
+				version = 0.12.1;
+			};
+		};
+		A1C000020000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-nio.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.65.0;
+			};
+		};
+		6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.4.0;
+			};
+		};
+		6DC0CD012F9DD8BE00696D0F /* XCRemoteSwiftPackageReference "SwiftSDK" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/TelemetryDeck/SwiftSDK";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.12.0;
+			};
+		};
+		6DCB53132F6DB36500358FE5 /* XCRemoteSwiftPackageReference "FluidAudio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/FluidInference/FluidAudio.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+		A7D90C1E4B4D4E5F8A1B2C32 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.8.1;
+			};
+		};
+		C80A4F65301851B7005C2101 /* XCRemoteSwiftPackageReference "OpenAI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/MacPaw/OpenAI.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.4.7;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0B4E0F6F7A5B4D88A1C9E112 /* whisper */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0B4E0F6F7A5B4D88A1C9E111 /* XCLocalSwiftPackageReference "Vendor/WhisperPackage" */;
+			productName = whisper;
+		};
+		A1C000030000000000000001 /* MCP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C000020000000000000001 /* XCRemoteSwiftPackageReference "mcp-swift-sdk" */;
+			productName = MCP;
+		};
+		A1C000030000000000000002 /* NIOCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C000020000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOCore;
+		};
+		A1C000030000000000000003 /* NIOPosix */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C000020000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOPosix;
+		};
+		A1C000030000000000000004 /* NIOHTTP1 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C000020000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOHTTP1;
+		};
+		6D3A1A982F675F44005DA839 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6D3A1A972F675F44005DA839 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
+		};
+		6DC0CD022F9DD8BE00696D0F /* TelemetryDeck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6DC0CD012F9DD8BE00696D0F /* XCRemoteSwiftPackageReference "SwiftSDK" */;
+			productName = TelemetryDeck;
+		};
+		6DCB53142F6DB36500358FE5 /* FluidAudio */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6DCB53132F6DB36500358FE5 /* XCRemoteSwiftPackageReference "FluidAudio" */;
+			productName = FluidAudio;
+		};
+		A7D90C1E4B4D4E5F8A1B2C31 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A7D90C1E4B4D4E5F8A1B2C32 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+		C80A4F66301851B7005C2101 /* OpenAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C80A4F65301851B7005C2101 /* XCRemoteSwiftPackageReference "OpenAI" */;
+			productName = OpenAI;
+		};
+		E5E0E5E0E5E0E5E0E5E00002 /* StetCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */;
+			productName = StetCore;
+		};
+		E5E0E5E0E5E0E5E0E5E00003 /* StetAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */;
+			productName = StetAI;
+		};
+		E5E0E5E0E5E0E5E0E5E00004 /* StetRewrite */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */;
+			productName = StetRewrite;
+		};
+		E5E0E5E0E5E0E5E0E5E00008 /* StetASR */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */;
+			productName = StetASR;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 6D29DC752F5FA23000267DEA /* Project object */;
+}
