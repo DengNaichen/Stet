@@ -1,0 +1,17 @@
+# Xcode
+build/
+DerivedData/
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+.DS_Store
+
+# Swift
+.swiftpm/
+.build/
+.runtime
+
+# Large Models (Optional - depends on if user wants them in git)
+# StetMobile/SenseVoice/
+# StetMobile/Vad/*.onnx
+*.onnx
