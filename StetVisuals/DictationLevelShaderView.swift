@@ -19,6 +19,7 @@ public struct DictationLevelShaderView: View {
     private let diameter: CGFloat
     private let preferredFramesPerSecond: Int
     private let isPaused: Bool
+    private let theme: MacDictationShaderTheme
 
     @State private var startDate = Date()
 
@@ -26,12 +27,14 @@ public struct DictationLevelShaderView: View {
         level: Double,
         diameter: CGFloat,
         preferredFramesPerSecond: Int,
-        isPaused: Bool
+        isPaused: Bool,
+        theme: MacDictationShaderTheme = .egg
     ) {
         self.level = level
         self.diameter = diameter
         self.preferredFramesPerSecond = preferredFramesPerSecond
         self.isPaused = isPaused
+        self.theme = theme
     }
 
     public var body: some View {
@@ -46,26 +49,32 @@ public struct DictationLevelShaderView: View {
             startDate: startDate,
             frameInterval: 1.0 / Double(max(preferredFramesPerSecond, 1)),
             signals: DictationLevelShaderSignalMapper.signals(level: level),
-            colors: Self.eggSpeakingColors,
+            colors: Self.colors(for: theme),
             isPaused: isPaused
         )
     }
 
-    private static let eggSpeakingColors:
-        (
-            cottonFoam: SIMD3<Float>,
-            waveTop: SIMD3<Float>,
-            deepSea: SIMD3<Float>
-        ) = {
-            let shell = SIMD3<Float>(202.0 / 255.0, 202.0 / 255.0, 191.0 / 255.0)
-            let sky = SIMD3<Float>(94.0 / 255.0, 141.0 / 255.0, 167.0 / 255.0)
-            let yolk = SIMD3<Float>(220.0 / 255.0, 152.0 / 255.0, 3.0 / 255.0)
-            return (
-                cottonFoam: shell + (SIMD3<Float>(repeating: 1) - shell) * 0.28,
-                waveTop: sky,
-                deepSea: yolk * 0.86
-            )
-        }()
+    private static func colors(for theme: MacDictationShaderTheme) -> (
+        cottonFoam: SIMD3<Float>,
+        waveTop: SIMD3<Float>,
+        deepSea: SIMD3<Float>
+    ) {
+        let palette = theme.palette.speaking
+        let colorA = simdColor(palette.a)
+        let colorB = simdColor(palette.b)
+        let colorC = simdColor(palette.c)
+        return (
+            cottonFoam: colorA + (SIMD3<Float>(repeating: 1) - colorA) * 0.28,
+            waveTop: colorB,
+            deepSea: colorC * 0.86
+        )
+    }
+
+    private static func simdColor(
+        _ components: (Double, Double, Double)
+    ) -> SIMD3<Float> {
+        SIMD3(Float(components.0), Float(components.1), Float(components.2))
+    }
 }
 
 #if os(macOS)

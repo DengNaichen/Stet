@@ -1,5 +1,5 @@
-#if os(macOS)
-    import SwiftUI
+#if os(macOS) || os(iOS)
+    import Foundation
 
     public enum MacDictationShaderTheme: String, CaseIterable, Identifiable, Hashable {
         case blossom
@@ -202,4 +202,19 @@
         let b: (Double, Double, Double)
         let c: (Double, Double, Double)
     }
+
+    #if os(iOS)
+        public typealias MobileDictationVisualTheme = MacDictationShaderTheme
+
+        extension MacDictationShaderTheme {
+            static let mobileStorageKey = "mobile.dictationVisualTheme"
+            static let mobileDefaults = UserDefaults(
+                suiteName: "group.NaichengDeng.StetMobile"
+            )!
+
+            static var storedMobileTheme: Self {
+                Self(rawValue: mobileDefaults.string(forKey: mobileStorageKey) ?? "") ?? .egg
+            }
+        }
+    #endif
 #endif
