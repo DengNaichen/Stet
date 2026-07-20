@@ -39,6 +39,7 @@ final class KeyboardViewController: UIInputViewController {
     private var deleteRepeatTimer: Timer?
     private var shaderSampleTimer: DispatchSourceTimer?
     private var latestVolume: Double = 0
+    private var selectedTheme = MobileDictationVisualTheme.storedMobileTheme
     private var lastProcessedSessionId: String?
     private var pendingSessionId: String?
     private var isWakingMainApp = false
@@ -61,6 +62,12 @@ final class KeyboardViewController: UIInputViewController {
     override func viewWillLayoutSubviews() {
         super.viewWillLayoutSubviews()
         nextKeyboardButton.isHidden = !needsInputModeSwitchKey
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        selectedTheme = MobileDictationVisualTheme.storedMobileTheme
+        updateActionButton()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -509,7 +516,8 @@ final class KeyboardViewController: UIInputViewController {
             level: level,
             diameter: Layout.actionDiameter,
             preferredFramesPerSecond: 40,
-            isPaused: isPaused
+            isPaused: isPaused,
+            theme: selectedTheme
         )
     }
 

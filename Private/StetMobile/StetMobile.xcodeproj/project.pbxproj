@@ -26,10 +26,12 @@
 		F10000022FD0000000000002 /* DictationMetalEffectRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000022FD0000000000002 /* DictationMetalEffectRenderer.swift */; };
 		F10000032FD0000000000003 /* MacDictationAudioFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000032FD0000000000003 /* MacDictationAudioFeatures.swift */; };
 		F10000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal in Sources */ = {isa = PBXBuildFile; fileRef = F20000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal */; };
+		F10000052FD0000000000005 /* MacDictationShaderTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000052FD0000000000005 /* MacDictationShaderTheme.swift */; };
 		F11000012FD0000000000001 /* DictationLevelShaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000012FD0000000000001 /* DictationLevelShaderView.swift */; };
 		F11000022FD0000000000002 /* DictationMetalEffectRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000022FD0000000000002 /* DictationMetalEffectRenderer.swift */; };
 		F11000032FD0000000000003 /* MacDictationAudioFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000032FD0000000000003 /* MacDictationAudioFeatures.swift */; };
 		F11000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal in Sources */ = {isa = PBXBuildFile; fileRef = F20000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal */; };
+		F11000052FD0000000000005 /* MacDictationShaderTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000052FD0000000000005 /* MacDictationShaderTheme.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -98,6 +100,7 @@
 		F20000022FD0000000000002 /* DictationMetalEffectRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationMetalEffectRenderer.swift; sourceTree = "<group>"; };
 		F20000032FD0000000000003 /* MacDictationAudioFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacDictationAudioFeatures.swift; sourceTree = "<group>"; };
 		F20000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = MacDictationAudioReactiveOrb.metal; sourceTree = "<group>"; };
+		F20000052FD0000000000005 /* MacDictationShaderTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacDictationShaderTheme.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -270,6 +273,7 @@
 				F20000022FD0000000000002 /* DictationMetalEffectRenderer.swift */,
 				F20000032FD0000000000003 /* MacDictationAudioFeatures.swift */,
 				F20000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal */,
+				F20000052FD0000000000005 /* MacDictationShaderTheme.swift */,
 			);
 			name = "Shared StetVisuals";
 			path = ../StetVisuals;
@@ -506,6 +510,7 @@
 				F10000022FD0000000000002 /* DictationMetalEffectRenderer.swift in Sources */,
 				F10000032FD0000000000003 /* MacDictationAudioFeatures.swift in Sources */,
 				F10000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal in Sources */,
+				F10000052FD0000000000005 /* MacDictationShaderTheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -531,6 +536,7 @@
 				F11000022FD0000000000002 /* DictationMetalEffectRenderer.swift in Sources */,
 				F11000032FD0000000000003 /* MacDictationAudioFeatures.swift in Sources */,
 				F11000042FD0000000000004 /* MacDictationAudioReactiveOrb.metal in Sources */,
+				F11000052FD0000000000005 /* MacDictationShaderTheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

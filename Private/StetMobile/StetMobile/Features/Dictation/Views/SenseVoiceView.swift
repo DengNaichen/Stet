@@ -2,6 +2,10 @@ import SwiftUI
 
 struct SenseVoiceView: View {
     @ObservedObject var viewModel: SenseVoiceViewModel
+    @AppStorage(
+        MobileDictationVisualTheme.mobileStorageKey,
+        store: MobileDictationVisualTheme.mobileDefaults
+    ) private var themeRawValue = MobileDictationVisualTheme.egg.rawValue
 
     var body: some View {
         NavigationStack {
@@ -31,10 +35,20 @@ struct SenseVoiceView: View {
             .navigationTitle("Dictation")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                if !viewModel.transcript.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    if !viewModel.transcript.isEmpty {
                         Button("Clear", action: viewModel.clearTranscript)
                     }
+
+                    Picker(selection: themeSelection) {
+                        ForEach(MobileDictationVisualTheme.allCases) { theme in
+                            Text(theme.title)
+                                .tag(theme)
+                        }
+                    } label: {
+                        Label("Theme", systemImage: "paintpalette")
+                    }
+                    .pickerStyle(.menu)
                 }
             }
         }
@@ -47,7 +61,8 @@ struct SenseVoiceView: View {
                 level: viewModel.recordingLevel,
                 diameter: 120,
                 preferredFramesPerSecond: 40,
-                isPaused: isListeningShaderPaused
+                isPaused: isListeningShaderPaused,
+                theme: selectedTheme
             )
             .overlay {
                 if viewModel.state == .recording {
@@ -114,5 +129,16 @@ struct SenseVoiceView: View {
             return .red
         }
         return .secondary
+    }
+
+    private var selectedTheme: MobileDictationVisualTheme {
+        MobileDictationVisualTheme(rawValue: themeRawValue) ?? .egg
+    }
+
+    private var themeSelection: Binding<MobileDictationVisualTheme> {
+        Binding(
+            get: { selectedTheme },
+            set: { themeRawValue = $0.rawValue }
+        )
     }
 }
