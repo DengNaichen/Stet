@@ -1,0 +1,80 @@
+{
+  "schema_version": 4,
+  "artifact": "docs/rules/RELIABILITY.md",
+  "items": [
+    {
+      "id": "RELIABILITY-0001",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/Core/Speech/ConfigurableSpeechService.swift",
+          "sha256": "29ede3780aeb3668c83ff2d6556718af1360200e031b7fd2394a0334bd7a459d"
+        }
+      ]
+    },
+    {
+      "id": "RELIABILITY-0002",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/App/Workflows/MacDictationCaptureCoordinator.swift",
+          "sha256": "6804c1a85e0b817e552f2d799381d968056c2ba9186358f46d7f457158ab2a33"
+        },
+        {
+          "path": "StetMac/Core/Clipboard/PasteboardRestoreCoordinator.swift",
+          "sha256": "6bc76708210b08b3ef8cc57f4a32b153f60fdb2efe887eac02c419a2bc088401"
+        }
+      ]
+    },
+    {
+      "id": "RELIABILITY-0003",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/Core/DictationPipeline/DictationPipelineFactory.swift",
+          "sha256": "585b047ae5a8369b8401c1652e047d86d12e011544421593b955492d73f61e9a"
+        },
+        {
+          "path": "StetMac/Core/Speech/ConfigurableSpeechService.swift",
+          "sha256": "29ede3780aeb3668c83ff2d6556718af1360200e031b7fd2394a0334bd7a459d"
+        }
+      ]
+    },
+    {
+      "id": "RELIABILITY-0004",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Packages/StetEngine/Sources/StetCore/DictationHistoryService.swift",
+          "sha256": "ad64598c781267c63a685a1e333a6e49f837afb1205a99056a729b8329844b9d"
+        },
+        {
+          "path": "StetMac/Shared/Models/DictationStatsModel.swift",
+          "sha256": "6d8fdde0fd8a0fff3c0aaf325bcc4fa503d2df535c8f2e230cbb43ac25828474"
+        },
+        {
+          "path": "StetMac/Shared/Models/LegacyDictionaryMigration.swift",
+          "sha256": "1e4b7af81445621c1852d920265c6984bb742c8d43f09aa3301578e077105054"
+        }
+      ]
+    },
+    {
+      "id": "RELIABILITY-0005",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": ".github/workflows/macos-release.yml",
+          "sha256": "f1738179487db9a183acfb4351ccf921f93f05f2a468d4d89816658efbcfb6b7"
+        },
+        {
+          "path": "scripts/publish-github-release.sh",
+          "sha256": "07dffdea94ce3d40322d9b9ad9d9c200643da0433ef4b80375a563beeff45858"
+        },
+        {
+          "path": "scripts/release-macos-github.sh",
+          "sha256": "8a459f86040ddc830159dd2ba039e726010fa186954085c728382cea9cee4929"
+        }
+      ]
+    }
+  ]
+}

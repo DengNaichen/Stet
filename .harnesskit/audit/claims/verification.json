@@ -1,0 +1,78 @@
+{
+  "schema_version": 4,
+  "artifact": "docs/VALIDATION.md",
+  "items": [
+    {
+      "id": "VALIDATION-0001",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Makefile",
+          "sha256": "bc6dcf50930d0cbf780d0020a2426ff6b3a22527db5fc6db7e06ef10ab60e467"
+        }
+      ]
+    },
+    {
+      "id": "VALIDATION-0002",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Makefile",
+          "sha256": "bc6dcf50930d0cbf780d0020a2426ff6b3a22527db5fc6db7e06ef10ab60e467"
+        }
+      ]
+    },
+    {
+      "id": "VALIDATION-0003",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Makefile",
+          "sha256": "bc6dcf50930d0cbf780d0020a2426ff6b3a22527db5fc6db7e06ef10ab60e467"
+        }
+      ]
+    },
+    {
+      "id": "VALIDATION-0004",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": ".github/workflows/macos-ci.yml",
+          "sha256": "912a3c34b3898d29ea3ab6578798393d1f10f2fe9b3f07d0d08266810144c77d"
+        }
+      ]
+    },
+    {
+      "id": "VALIDATION-0005",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": ".githooks/pre-commit",
+          "sha256": "91b1eee580ab7eea2a1e3a5f8aa2bf70ea5b5d8443001afb4511197acd9f4b6e"
+        },
+        {
+          "path": "Makefile",
+          "sha256": "bc6dcf50930d0cbf780d0020a2426ff6b3a22527db5fc6db7e06ef10ab60e467"
+        }
+      ]
+    },
+    {
+      "id": "VALIDATION-0006",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": ".github/workflows/macos-ci.yml",
+          "sha256": "912a3c34b3898d29ea3ab6578798393d1f10f2fe9b3f07d0d08266810144c77d"
+        },
+        {
+          "path": "StetMacTests/Support/TestSupport.swift",
+          "sha256": "1081a655afdddc74223f8afbcd782fdbefe2dc86b9c81cefd512820ac1b9b211"
+        },
+        {
+          "path": "StetMacUITests/StetUITests.swift",
+          "sha256": "abbceeb031608c44e461012fe9a06d0e62a379cebe422e6ee6bab094b6007b53"
+        }
+      ]
+    }
+  ]
+}

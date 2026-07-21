@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "source_commit": "90f58d2e008aae25087484832b32d73b6823e9f1",
+  "completed_at": "2026-07-21T15:26:59.356Z",
+  "harness_snapshot": [
+    {
+      "path": ".harnesskit/audit/artifact-manifest.json",
+      "sha256": "5a0eef462bd900b2e12d61c0346573fefaaa4021eb83103869f36b5f966543a9"
+    },
+    {
+      "path": ".harnesskit/audit/claims/AGENTS.json",
+      "sha256": "f8a3730ba14c5845e00840195cee55929c9402e448443da66d3c123eba9b8f3b"
+    },
+    {
+      "path": ".harnesskit/audit/claims/ARCHITECTURE.json",
+      "sha256": "61f64bee2c86c4e3571434db96aef069bfd0c2df1bdb658854839ecf1f0c4c1f"
+    },
+    {
+      "path": ".harnesskit/audit/claims/docs-DEVELOPMENT.json",
+      "sha256": "776b9233e2bd734d6cfc2940377887d95c24d2fa4a1cb18996ac53a828dfbaf7"
+    },
+    {
+      "path": ".harnesskit/audit/claims/docs-rules-CODING.json",
+      "sha256": "483b45fb3b50f29c11c8999e7cabdbf655eede8564df29044766ab059933a67a"
+    },
+    {
+      "path": ".harnesskit/audit/claims/docs-rules-PRODUCT_SENSE.json",
+      "sha256": "aa741e35f2ca2d55226fff3ec70b265cf03cab3afafdc6fe1879bfb512652389"
+    },
+    {
+      "path": ".harnesskit/audit/claims/docs-rules-RELIABILITY.json",
+      "sha256": "11f9298e988a231df2d78374e6287f8ac91c02fc5535e21e846fe1fe7f19b122"
+    },
+    {
+      "path": ".harnesskit/audit/claims/docs-rules-SECURITY.json",
+      "sha256": "b04b9c81036ca786522b1ed18055e66a41a30b5dd43ee7ac54c6dd5865bfbda8"
+    },
+    {
+      "path": ".harnesskit/audit/claims/verification.json",
+      "sha256": "7aef76b25e38194c3e1a25cefa39da0af2825fe4d05da89bf0474c46cdf2b397"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "8cbe44795d208dcfd09d8f37a2528c84f016a9a3573aa6a27e8d11f0def98fa7"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "sha256": "36520707c58d24eee74307f1e1c323e6534137477c6035b77bc9ebcf84f17221"
+    },
+    {
+      "path": "docs/DEVELOPMENT.md",
+      "sha256": "c8e5588c8a722b1d328428a98105381244968f73f0001b34b9251ce2669b1e80"
+    },
+    {
+      "path": "docs/VALIDATION.md",
+      "sha256": "174236bbed6af276fb951ad988b5a044913b62dfd9944a9958d40686b15005cd"
+    },
+    {
+      "path": "docs/rules/CODING.md",
+      "sha256": "1cf57c0b7d4d51d0837e318de4d41777aafe0f4e0f0543bcc10453c1da42f505"
+    },
+    {
+      "path": "docs/rules/PRODUCT_SENSE.md",
+      "sha256": "0daa988f7361a28ecefde8903e1dec20bf3140f8249ee2225bcb2360981d200d"
+    },
+    {
+      "path": "docs/rules/RELIABILITY.md",
+      "sha256": "c349a1e7a91f02045d250b44cba55aef22efdfbc36d089655c5cf8b01e63c5e9"
+    },
+    {
+      "path": "docs/rules/SECURITY.md",
+      "sha256": "a7364435fbbe6f12be8557a926f29a7e5953bbeca881bb4a4c2c2a434979f69a"
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "schema_version": 4,
+  "artifact": "docs/rules/SECURITY.md",
+  "items": [
+    {
+      "id": "SECURITY-0001",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/Core/Security/KeychainSecretStore.swift",
+          "sha256": "50e99cbc61ce4e5682e865f5ad9fc35564924ab4ee6da343a626f187678213cb"
+        },
+        {
+          "path": "StetMac/Shared/Utilities/DictationSettingsStore.swift",
+          "sha256": "f98638f37f78ff1c886f6d5863d868229ac63284881ecbdc164fbdc9e4bd6545"
+        }
+      ]
+    },
+    {
+      "id": "SECURITY-0002",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/App/Workflows/MacDictationCaptureCoordinator.swift",
+          "sha256": "6804c1a85e0b817e552f2d799381d968056c2ba9186358f46d7f457158ab2a33"
+        },
+        {
+          "path": "StetMac/Core/TextInput/TextInjectionService.swift",
+          "sha256": "68f1cafff1b75de32d8e74a623443b01c03a7f9dab59560539fbc75b7621a4e5"
+        }
+      ]
+    },
+    {
+      "id": "SECURITY-0003",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/Core/MCP/MCPTranscriptionCoordinator.swift",
+          "sha256": "674ff8a8f52df65baf45c9d26bec7bc39fb7390cbd34aa05bbe77932e13cbe6f"
+        },
+        {
+          "path": "StetMac/Core/MCP/StetMCPHTTPServer.swift",
+          "sha256": "3a66957fd2b5c12e4b945a9af7c70c49c9665e4a32ef38069985f11fbf0664e2"
+        },
+        {
+          "path": "StetMac/Core/MCP/StetMCPProtocolServer.swift",
+          "sha256": "8c5a71cac393deea1e305d7e817f5ffdeb2b8f37291f2d5125f10d69c095c7ab"
+        }
+      ]
+    },
+    {
+      "id": "SECURITY-0004",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Packages/StetEngine/Sources/StetASR/SenseVoiceModelManager.swift",
+          "sha256": "e5aa70be42481d14c508144d101cb31a69f5948f2241c9927b7c1c0902f5b6e9"
+        },
+        {
+          "path": "StetMac/Core/FunASR/FunASRNanoModelManager.swift",
+          "sha256": "91c46dc611a2c68edb71fad734d7be78773e12ec75c0055232a22dc594946ef6"
+        }
+      ]
+    },
+    {
+      "id": "SECURITY-0005",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Packages/StetEngine/Sources/StetAI/OpenAICompatibleProviderConfiguration.swift",
+          "sha256": "5f84a4aca1022c37c013a902f7f8155b17399e21d2dda48465ec53cf5cb20a42"
+        },
+        {
+          "path": "Packages/StetEngine/Sources/StetRewrite/TextRewriteService.swift",
+          "sha256": "b8916abeea29335f3ddb3fbf52b58491807532f46e4d4d4caa4045728e8f7e5f"
+        },
+        {
+          "path": "StetMac/Core/MCP/MCPTranscriptionCoordinator.swift",
+          "sha256": "674ff8a8f52df65baf45c9d26bec7bc39fb7390cbd34aa05bbe77932e13cbe6f"
+        },
+        {
+          "path": "StetMac/Core/Speech/ConfigurableSpeechService.swift",
+          "sha256": "29ede3780aeb3668c83ff2d6556718af1360200e031b7fd2394a0334bd7a459d"
+        }
+      ]
+    },
+    {
+      "id": "SECURITY-0006",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/Core/Speech/ConfigurableSpeechService.swift",
+          "sha256": "29ede3780aeb3668c83ff2d6556718af1360200e031b7fd2394a0334bd7a459d"
+        },
+        {
+          "path": "StetMac/Shared/Utilities/MacPreferences.swift",
+          "sha256": "fe1654dfbd9a15e29db68a269ee8dd2dfb626860c8c499ed982cf819faff3c4f"
+        },
+        {
+          "path": "StetMac/Shared/Utilities/Probes.swift",
+          "sha256": "873d5bfc08b8e4a9789f2c7141c4932e06cf94edf8a3931b94b762405248a0a5"
+        }
+      ]
+    }
+  ]
+}

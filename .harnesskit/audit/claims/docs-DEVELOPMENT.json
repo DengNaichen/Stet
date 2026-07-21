@@ -1,0 +1,98 @@
+{
+  "schema_version": 4,
+  "artifact": "docs/DEVELOPMENT.md",
+  "items": [
+    {
+      "id": "DEVELOPMENT-0001",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        }
+      ]
+    },
+    {
+      "id": "DEVELOPMENT-0002",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Makefile",
+          "sha256": "bc6dcf50930d0cbf780d0020a2426ff6b3a22527db5fc6db7e06ef10ab60e467"
+        },
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        }
+      ]
+    },
+    {
+      "id": "DEVELOPMENT-0003",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        },
+        {
+          "path": "StetMac/Shared/Utilities/DictationSettingsStore.swift",
+          "sha256": "f98638f37f78ff1c886f6d5863d868229ac63284881ecbdc164fbdc9e4bd6545"
+        },
+        {
+          "path": "scripts/deepseek_smoke.py",
+          "sha256": "04c550b084da9ee0234acee0fed8bb0aff71db9a48052e8d9d6e83e3c9c153eb"
+        },
+        {
+          "path": "scripts/release-macos-github.sh",
+          "sha256": "8a459f86040ddc830159dd2ba039e726010fa186954085c728382cea9cee4929"
+        }
+      ]
+    },
+    {
+      "id": "DEVELOPMENT-0004",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        },
+        {
+          "path": "Stet.xcodeproj/project.pbxproj",
+          "sha256": "fe5c3b2237d69e4a29a7eca6f8f2b7200eb7ed637bbf173d193e52ae243d544d"
+        }
+      ]
+    },
+    {
+      "id": "DEVELOPMENT-0005",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        },
+        {
+          "path": "scripts/xcode-storage.sh",
+          "sha256": "b4ad88972b6cb39c18a2ac0b161cecdb4c40b3364d5dc49c3f8bc916dcfa7772"
+        }
+      ]
+    },
+    {
+      "id": "DEVELOPMENT-0006",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Info.plist",
+          "sha256": "208812bed20a24d1cf7205e7f64f6bc2a71e79ad361a2c9b2b9fa7851d2fbd9f"
+        },
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        },
+        {
+          "path": "Stet.xcodeproj/project.pbxproj",
+          "sha256": "fe5c3b2237d69e4a29a7eca6f8f2b7200eb7ed637bbf173d193e52ae243d544d"
+        }
+      ]
+    }
+  ]
+}

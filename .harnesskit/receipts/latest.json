@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "run_id": "20260721-152636851",
+  "trigger": "manual",
+  "mode": "full",
+  "status": "passed",
+  "config_path": ".harnesskit/validation.json",
+  "started_at": "2026-07-21T15:26:36.851Z",
+  "finished_at": "2026-07-21T15:26:36.906Z",
+  "checks": [
+    {
+      "name": "claims-verify",
+      "command": "harnesskit verify",
+      "status": "passed",
+      "exit_code": 0,
+      "started_at": "2026-07-21T15:26:36.852Z",
+      "finished_at": "2026-07-21T15:26:36.906Z",
+      "duration_ms": 54
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "schema_version": 4,
+  "artifact": "docs/rules/CODING.md",
+  "items": [
+    {
+      "id": "CODING-0001",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": ".swift-format",
+          "sha256": "9d927770f5adc16419c07dc03a3e2303373c9cd557deefe7ec0af569c5255468"
+        },
+        {
+          "path": "Makefile",
+          "sha256": "bc6dcf50930d0cbf780d0020a2426ff6b3a22527db5fc6db7e06ef10ab60e467"
+        }
+      ]
+    },
+    {
+      "id": "CODING-0002",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": ".swiftlint.yml",
+          "sha256": "708b5186e8e96218986d4cee627fe609dd69d4d7446977dad3741e9384926047"
+        },
+        {
+          "path": "Makefile",
+          "sha256": "bc6dcf50930d0cbf780d0020a2426ff6b3a22527db5fc6db7e06ef10ab60e467"
+        },
+        {
+          "path": "StetMacTests/Support/TestSupport.swift",
+          "sha256": "1081a655afdddc74223f8afbcd782fdbefe2dc86b9c81cefd512820ac1b9b211"
+        },
+        {
+          "path": "StetMacUITests/StetUITests.swift",
+          "sha256": "abbceeb031608c44e461012fe9a06d0e62a379cebe422e6ee6bab094b6007b53"
+        }
+      ]
+    },
+    {
+      "id": "CODING-0003",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Packages/StetEngine/Tests/StetCoreTests/DictionaryModelTests.swift",
+          "sha256": "21a5624cad5d0dc8cf63ecded23d78e3179375b23a7c97eb36048a1ca0f5365b"
+        },
+        {
+          "path": "StetMacTests/StetVisuals/DictationLevelShaderSignalMapperTests.swift",
+          "sha256": "9e6dcd9afac9c8d25188d73cf718308e707df26a41b78ded7a9fa7b5fa83d4bb"
+        },
+        {
+          "path": "StetMacTests/Support/TestSupport.swift",
+          "sha256": "1081a655afdddc74223f8afbcd782fdbefe2dc86b9c81cefd512820ac1b9b211"
+        },
+        {
+          "path": "StetMacUITests/StetUITests.swift",
+          "sha256": "abbceeb031608c44e461012fe9a06d0e62a379cebe422e6ee6bab094b6007b53"
+        }
+      ]
+    },
+    {
+      "id": "CODING-0004",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Packages/StetEngine/Sources/StetASR/SherpaOnnxASREngine.swift",
+          "sha256": "aa8bf2d615f16d5f277438c8f69297a463642216124b21d8d274a1fb8702758b"
+        },
+        {
+          "path": "StetMac/App/Lifecycle/MacAppModel.swift",
+          "sha256": "6d7d7ca555eaad469e28ec7cb757c354a4c20c05433ec43c515b76fe55ed9c1b"
+        },
+        {
+          "path": "StetMac/Core/Speech/ConfigurableSpeechService.swift",
+          "sha256": "29ede3780aeb3668c83ff2d6556718af1360200e031b7fd2394a0334bd7a459d"
+        },
+        {
+          "path": "StetMacTests/Support/TestSupport.swift",
+          "sha256": "1081a655afdddc74223f8afbcd782fdbefe2dc86b9c81cefd512820ac1b9b211"
+        }
+      ]
+    }
+  ]
+}

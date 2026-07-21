@@ -1,0 +1,70 @@
+{
+  "schema_version": 4,
+  "artifact": "docs/rules/PRODUCT_SENSE.md",
+  "items": [
+    {
+      "id": "PRODUCT-0001",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        }
+      ]
+    },
+    {
+      "id": "PRODUCT-0002",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        },
+        {
+          "path": "StetMac/App/Workflows/MacDictationWorkflowController.swift",
+          "sha256": "caccfa8c2cd7f25c51d4b03154b2a103cce546c1a649fcb37d187e81cdbfed94"
+        },
+        {
+          "path": "StetMac/Core/TextInput/TextInjectionService.swift",
+          "sha256": "68f1cafff1b75de32d8e74a623443b01c03a7f9dab59560539fbc75b7621a4e5"
+        }
+      ]
+    },
+    {
+      "id": "PRODUCT-0003",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        },
+        {
+          "path": "StetMac/Shared/Utilities/DictationSettingsStore.swift",
+          "sha256": "f98638f37f78ff1c886f6d5863d868229ac63284881ecbdc164fbdc9e4bd6545"
+        }
+      ]
+    },
+    {
+      "id": "PRODUCT-0004",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        },
+        {
+          "path": "StetMac/App/Windowing/MacShellPresentationController.swift",
+          "sha256": "bd9ac4a8dc56079bb2c185f1309daff4e530dfcb204ba1a99c3cf50f9919df82"
+        },
+        {
+          "path": "StetMac/Features/MacShell/Setting/MacSettingsView.swift",
+          "sha256": "5493ac36cadcb974b8e3ad5e0df89f934697114dd2eff4aa7ee21d7aac3566ff"
+        },
+        {
+          "path": "StetMac/Features/Onboarding/OnboardingViewModel.swift",
+          "sha256": "8caf07741be382517078f012475c4e968691843823996a765bc9a1f2c4e80778"
+        }
+      ]
+    }
+  ]
+}

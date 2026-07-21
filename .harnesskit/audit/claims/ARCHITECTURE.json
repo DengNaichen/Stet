@@ -1,0 +1,166 @@
+{
+  "schema_version": 4,
+  "artifact": "docs/ARCHITECTURE.md",
+  "items": [
+    {
+      "id": "ARCHITECTURE-0009",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Packages/StetEngine/Package.swift",
+          "sha256": "5a6cbb8a68a0a23b66b524d26017f6fc84c7051409b7918b148f14a153b3436e"
+        },
+        {
+          "path": "Stet.xcodeproj/project.pbxproj",
+          "sha256": "fe5c3b2237d69e4a29a7eca6f8f2b7200eb7ed637bbf173d193e52ae243d544d"
+        },
+        {
+          "path": "Stet.xcodeproj/xcshareddata/xcschemes/Stet.xcscheme",
+          "sha256": "882a22a67c5a8c3eec43788d81b26b7149ab028a335d387ebe96f4d39ee87593"
+        }
+      ]
+    },
+    {
+      "id": "ARCHITECTURE-0010",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/App/Lifecycle/MacAppModel.swift",
+          "sha256": "6d7d7ca555eaad469e28ec7cb757c354a4c20c05433ec43c515b76fe55ed9c1b"
+        },
+        {
+          "path": "StetMac/App/Lifecycle/MacPermissionManager.swift",
+          "sha256": "83e67302650de41f709526ab065daf3a8d8fc89b363c71187253dd88cee22b31"
+        },
+        {
+          "path": "StetMac/Core/Speech/ConfigurableSpeechService.swift",
+          "sha256": "29ede3780aeb3668c83ff2d6556718af1360200e031b7fd2394a0334bd7a459d"
+        },
+        {
+          "path": "StetMac/Features/MacShell/Setting/MacSettingsView.swift",
+          "sha256": "5493ac36cadcb974b8e3ad5e0df89f934697114dd2eff4aa7ee21d7aac3566ff"
+        },
+        {
+          "path": "StetMac/Shared/Utilities/DictationSettingsStore.swift",
+          "sha256": "f98638f37f78ff1c886f6d5863d868229ac63284881ecbdc164fbdc9e4bd6545"
+        }
+      ]
+    },
+    {
+      "id": "ARCHITECTURE-0011",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Packages/StetEngine/Package.swift",
+          "sha256": "5a6cbb8a68a0a23b66b524d26017f6fc84c7051409b7918b148f14a153b3436e"
+        }
+      ]
+    },
+    {
+      "id": "ARCHITECTURE-0012",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/App/Lifecycle/MacAppModel.swift",
+          "sha256": "6d7d7ca555eaad469e28ec7cb757c354a4c20c05433ec43c515b76fe55ed9c1b"
+        },
+        {
+          "path": "StetMac/App/Workflows/MacAppSessionController.swift",
+          "sha256": "41b3785353b741dcbb4373b7102ad0b9e8ec69e2a8d15264dea591209de8605e"
+        },
+        {
+          "path": "StetMac/App/Workflows/MacDictationWorkflowController.swift",
+          "sha256": "caccfa8c2cd7f25c51d4b03154b2a103cce546c1a649fcb37d187e81cdbfed94"
+        },
+        {
+          "path": "StetMac/StetApp.swift",
+          "sha256": "3cf2ad9235ca43d6b8a2f76682f6cc1f8f58874dd67b1ec2977a8e5d0c291c51"
+        }
+      ]
+    },
+    {
+      "id": "ARCHITECTURE-0013",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/App/Workflows/MacDictationCaptureCoordinator.swift",
+          "sha256": "6804c1a85e0b817e552f2d799381d968056c2ba9186358f46d7f457158ab2a33"
+        },
+        {
+          "path": "StetMac/Core/DictationPipeline/DictationPipelineFactory.swift",
+          "sha256": "585b047ae5a8369b8401c1652e047d86d12e011544421593b955492d73f61e9a"
+        },
+        {
+          "path": "StetMac/Core/Speech/ConfigurableSpeechService.swift",
+          "sha256": "29ede3780aeb3668c83ff2d6556718af1360200e031b7fd2394a0334bd7a459d"
+        }
+      ]
+    },
+    {
+      "id": "ARCHITECTURE-0014",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Packages/StetEngine/Sources/StetCore/DictationHistoryService.swift",
+          "sha256": "ad64598c781267c63a685a1e333a6e49f837afb1205a99056a729b8329844b9d"
+        },
+        {
+          "path": "StetMac/Core/FunASR/FunASRNanoModelManager.swift",
+          "sha256": "91c46dc611a2c68edb71fad734d7be78773e12ec75c0055232a22dc594946ef6"
+        },
+        {
+          "path": "StetMac/Core/Speech/MacAudioCaptureService.swift",
+          "sha256": "458f08bf4e3ae88aa553321f929e1e80a830176a956ef284f89d6cc26a5d57e7"
+        },
+        {
+          "path": "StetMac/Shared/Models/DictationStatsModel.swift",
+          "sha256": "6d8fdde0fd8a0fff3c0aaf325bcc4fa503d2df535c8f2e230cbb43ac25828474"
+        },
+        {
+          "path": "StetMac/Shared/Utilities/DictationSettingsStore.swift",
+          "sha256": "f98638f37f78ff1c886f6d5863d868229ac63284881ecbdc164fbdc9e4bd6545"
+        }
+      ]
+    },
+    {
+      "id": "ARCHITECTURE-0015",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": ".github/workflows/macos-release-candidate.yml",
+          "sha256": "23a077789a9aa39fc3226c7d4f69c52237445c6e3e49163dab2ccbe74d73f977"
+        },
+        {
+          "path": ".github/workflows/macos-release.yml",
+          "sha256": "f1738179487db9a183acfb4351ccf921f93f05f2a468d4d89816658efbcfb6b7"
+        },
+        {
+          "path": ".gitignore",
+          "sha256": "552a5ff46b38b2c1efad77c328b06562a8285507347d00ccd2e77726e37aa030"
+        },
+        {
+          "path": "scripts/release-macos-github.sh",
+          "sha256": "8a459f86040ddc830159dd2ba039e726010fa186954085c728382cea9cee4929"
+        }
+      ]
+    },
+    {
+      "id": "ARCHITECTURE-0016",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Stet.xcodeproj/project.pbxproj",
+          "sha256": "fe5c3b2237d69e4a29a7eca6f8f2b7200eb7ed637bbf173d193e52ae243d544d"
+        },
+        {
+          "path": "StetVisuals/DictationMetalEffectRenderer.swift",
+          "sha256": "41dc468f9e57c81883972f12bef0d9dbe63b85da3329e5fb25fe095834c98695"
+        },
+        {
+          "path": "StetVisuals/MacDictationCapsuleVisualModel.swift",
+          "sha256": "2ef3cef8589a3905f0e7a801d96f21e89b232bbf6885b90a6a700429419dbf95"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "schema_version": 4,
+  "artifact": "AGENTS.md",
+  "items": [
+    {
+      "id": "AGENT-0001",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Packages/StetEngine/Package.swift",
+          "sha256": "5a6cbb8a68a0a23b66b524d26017f6fc84c7051409b7918b148f14a153b3436e"
+        },
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        },
+        {
+          "path": "Stet.xcodeproj/project.pbxproj",
+          "sha256": "fe5c3b2237d69e4a29a7eca6f8f2b7200eb7ed637bbf173d193e52ae243d544d"
+        }
+      ]
+    },
+    {
+      "id": "AGENT-0002",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "docs/ARCHITECTURE.md",
+          "sha256": "36520707c58d24eee74307f1e1c323e6534137477c6035b77bc9ebcf84f17221"
+        }
+      ]
+    },
+    {
+      "id": "AGENT-0003",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "docs/DEVELOPMENT.md",
+          "sha256": "c8e5588c8a722b1d328428a98105381244968f73f0001b34b9251ce2669b1e80"
+        }
+      ]
+    },
+    {
+      "id": "AGENT-0004",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "docs/VALIDATION.md",
+          "sha256": "174236bbed6af276fb951ad988b5a044913b62dfd9944a9958d40686b15005cd"
+        }
+      ]
+    },
+    {
+      "id": "AGENT-0005",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "docs/rules/CODING.md",
+          "sha256": "1cf57c0b7d4d51d0837e318de4d41777aafe0f4e0f0543bcc10453c1da42f505"
+        },
+        {
+          "path": "docs/rules/PRODUCT_SENSE.md",
+          "sha256": "0daa988f7361a28ecefde8903e1dec20bf3140f8249ee2225bcb2360981d200d"
+        },
+        {
+          "path": "docs/rules/RELIABILITY.md",
+          "sha256": "c349a1e7a91f02045d250b44cba55aef22efdfbc36d089655c5cf8b01e63c5e9"
+        },
+        {
+          "path": "docs/rules/SECURITY.md",
+          "sha256": "a7364435fbbe6f12be8557a926f29a7e5953bbeca881bb4a4c2c2a434979f69a"
+        }
+      ]
+    },
+    {
+      "id": "AGENT-0006",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        },
+        {
+          "path": "docs/rules/PRODUCT_SENSE.md",
+          "sha256": "0daa988f7361a28ecefde8903e1dec20bf3140f8249ee2225bcb2360981d200d"
+        }
+      ]
+    }
+  ]
+}
