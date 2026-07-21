@@ -1,0 +1,77 @@
+{
+  "schema_version": 4,
+  "artifact": "docs/ARCHITECTURE.md",
+  "items": [
+    {
+      "id": "ARCHITECTURE-0001",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/App/Lifecycle/MacAppModel.swift",
+          "sha256": "6d7d7ca555eaad469e28ec7cb757c354a4c20c05433ec43c515b76fe55ed9c1b"
+        },
+        {
+          "path": "StetMac/StetApp.swift",
+          "sha256": "3cf2ad9235ca43d6b8a2f76682f6cc1f8f58874dd67b1ec2977a8e5d0c291c51"
+        }
+      ]
+    },
+    {
+      "id": "ARCHITECTURE-0002",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Packages/StetEngine/Package.swift",
+          "sha256": "5a6cbb8a68a0a23b66b524d26017f6fc84c7051409b7918b148f14a153b3436e"
+        }
+      ]
+    },
+    {
+      "id": "ARCHITECTURE-0003",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Stet.xcodeproj/project.pbxproj",
+          "sha256": "fe5c3b2237d69e4a29a7eca6f8f2b7200eb7ed637bbf173d193e52ae243d544d"
+        }
+      ]
+    },
+    {
+      "id": "ARCHITECTURE-0004",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/Shared/Utilities/DictationSettingsStore.swift",
+          "sha256": "f98638f37f78ff1c886f6d5863d868229ac63284881ecbdc164fbdc9e4bd6545"
+        }
+      ]
+    },
+    {
+      "id": "ARCHITECTURE-0005",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/App/Lifecycle/MacAppModel.swift",
+          "sha256": "6d7d7ca555eaad469e28ec7cb757c354a4c20c05433ec43c515b76fe55ed9c1b"
+        },
+        {
+          "path": "StetMac/Core/DictationPipeline/DictationPipelineFactory.swift",
+          "sha256": "585b047ae5a8369b8401c1652e047d86d12e011544421593b955492d73f61e9a"
+        },
+        {
+          "path": "StetMac/Shared/Utilities/UserDefaultsModelStorage.swift",
+          "sha256": "f70e7b3d73ab49f52a6c01f9f5b0eee3009719bded1e9a9d69e84d148a857763"
+        }
+      ]
+    },
+    {
+      "id": "ARCHITECTURE-0006",
+      "kind": "intent",
+      "confirmed_by": {
+        "type": "user",
+        "ref": ".harnesskit/audit/transcript/confirmations/2026-07-21-architecture-0006.json",
+        "date": "2026-07-21"
+      }
+    }
+  ]
+}

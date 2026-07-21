@@ -1,0 +1,46 @@
+{
+  "schema_version": 4,
+  "artifact": "docs/rules/RELIABILITY.md",
+  "items": [
+    {
+      "id": "RELIABILITY-0001",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/Core/DictationPipeline/DictationPipelineFactory.swift",
+          "sha256": "585b047ae5a8369b8401c1652e047d86d12e011544421593b955492d73f61e9a"
+        }
+      ]
+    },
+    {
+      "id": "RELIABILITY-0002",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/App/Workflows/MacDictationWorkflowController.swift",
+          "sha256": "caccfa8c2cd7f25c51d4b03154b2a103cce546c1a649fcb37d187e81cdbfed94"
+        }
+      ]
+    },
+    {
+      "id": "RELIABILITY-0003",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/App/Workflows/MacDictationCaptureCoordinator.swift",
+          "sha256": "6804c1a85e0b817e552f2d799381d968056c2ba9186358f46d7f457158ab2a33"
+        }
+      ]
+    },
+    {
+      "id": "RELIABILITY-0004",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/App/Workflows/MacDictationCaptureCoordinator.swift",
+          "sha256": "6804c1a85e0b817e552f2d799381d968056c2ba9186358f46d7f457158ab2a33"
+        }
+      ]
+    }
+  ]
+}

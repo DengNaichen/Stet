@@ -1,0 +1,45 @@
+{
+  "schema_version": 4,
+  "artifact": "docs/rules/PRODUCT_SENSE.md",
+  "items": [
+    {
+      "id": "PRODUCT-0001",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        }
+      ]
+    },
+    {
+      "id": "PRODUCT-0002",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        }
+      ]
+    },
+    {
+      "id": "PRODUCT-0003",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        }
+      ]
+    },
+    {
+      "id": "PRODUCT-0004",
+      "kind": "intent",
+      "confirmed_by": {
+        "type": "user",
+        "ref": ".harnesskit/audit/transcript/confirmations/2026-07-21-product-0004.json",
+        "date": "2026-07-21"
+      }
+    }
+  ]
+}

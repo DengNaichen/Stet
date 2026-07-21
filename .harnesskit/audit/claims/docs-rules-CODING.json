@@ -1,0 +1,55 @@
+{
+  "schema_version": 4,
+  "artifact": "docs/rules/CODING.md",
+  "items": [
+    {
+      "id": "CODING-0001",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": ".swift-format",
+          "sha256": "9d927770f5adc16419c07dc03a3e2303373c9cd557deefe7ec0af569c5255468"
+        }
+      ]
+    },
+    {
+      "id": "CODING-0002",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": ".swiftlint.yml",
+          "sha256": "708b5186e8e96218986d4cee627fe609dd69d4d7446977dad3741e9384926047"
+        }
+      ]
+    },
+    {
+      "id": "CODING-0003",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": ".swiftlint.yml",
+          "sha256": "708b5186e8e96218986d4cee627fe609dd69d4d7446977dad3741e9384926047"
+        }
+      ]
+    },
+    {
+      "id": "CODING-0004",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Packages/StetEngine/Package.swift",
+          "sha256": "5a6cbb8a68a0a23b66b524d26017f6fc84c7051409b7918b148f14a153b3436e"
+        }
+      ]
+    },
+    {
+      "id": "CODING-0005",
+      "kind": "intent",
+      "confirmed_by": {
+        "type": "user",
+        "ref": ".harnesskit/audit/transcript/confirmations/2026-07-21-coding-0005.json",
+        "date": "2026-07-21"
+      }
+    }
+  ]
+}

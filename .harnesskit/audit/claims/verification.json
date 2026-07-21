@@ -1,0 +1,59 @@
+{
+  "schema_version": 4,
+  "artifact": "docs/VALIDATION.md",
+  "items": [
+    {
+      "id": "VALIDATION-0001",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Makefile",
+          "sha256": "bc6dcf50930d0cbf780d0020a2426ff6b3a22527db5fc6db7e06ef10ab60e467"
+        }
+      ]
+    },
+    {
+      "id": "VALIDATION-0002",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Makefile",
+          "sha256": "bc6dcf50930d0cbf780d0020a2426ff6b3a22527db5fc6db7e06ef10ab60e467"
+        }
+      ]
+    },
+    {
+      "id": "VALIDATION-0003",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Makefile",
+          "sha256": "bc6dcf50930d0cbf780d0020a2426ff6b3a22527db5fc6db7e06ef10ab60e467"
+        },
+        {
+          "path": "Stet.xcodeproj/xcshareddata/xcschemes/Stet.xcscheme",
+          "sha256": "882a22a67c5a8c3eec43788d81b26b7149ab028a335d387ebe96f4d39ee87593"
+        }
+      ]
+    },
+    {
+      "id": "VALIDATION-0004",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": ".github/workflows/macos-ci.yml",
+          "sha256": "912a3c34b3898d29ea3ab6578798393d1f10f2fe9b3f07d0d08266810144c77d"
+        }
+      ]
+    },
+    {
+      "id": "VALIDATION-0005",
+      "kind": "intent",
+      "confirmed_by": {
+        "type": "user",
+        "ref": ".harnesskit/audit/transcript/confirmations/2026-07-21-validation-0005.json",
+        "date": "2026-07-21"
+      }
+    }
+  ]
+}

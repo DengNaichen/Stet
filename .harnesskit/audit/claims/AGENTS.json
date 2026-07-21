@@ -1,0 +1,35 @@
+{
+  "schema_version": 4,
+  "artifact": "AGENTS.md",
+  "items": [
+    {
+      "id": "AGENT-0001",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "README.md",
+          "sha256": "f873a1a5a4831d508c10694cc2e58e7e93c269fc3f6cfada760c99a18b2ebd25"
+        }
+      ]
+    },
+    {
+      "id": "AGENT-0002",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "Makefile",
+          "sha256": "bc6dcf50930d0cbf780d0020a2426ff6b3a22527db5fc6db7e06ef10ab60e467"
+        }
+      ]
+    },
+    {
+      "id": "AGENT-0003",
+      "kind": "intent",
+      "confirmed_by": {
+        "type": "user",
+        "ref": ".harnesskit/audit/transcript/confirmations/2026-07-21-agent-0003.json",
+        "date": "2026-07-21"
+      }
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "schema_version": 4,
+  "artifact": "docs/rules/SECURITY.md",
+  "items": [
+    {
+      "id": "SECURITY-0001",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/Core/Security/KeychainSecretStore.swift",
+          "sha256": "50e99cbc61ce4e5682e865f5ad9fc35564924ab4ee6da343a626f187678213cb"
+        },
+        {
+          "path": "StetMac/Shared/Utilities/DictationSettingsStore.swift",
+          "sha256": "f98638f37f78ff1c886f6d5863d868229ac63284881ecbdc164fbdc9e4bd6545"
+        }
+      ]
+    },
+    {
+      "id": "SECURITY-0002",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/Core/TextInput/TextInjectionService.swift",
+          "sha256": "68f1cafff1b75de32d8e74a623443b01c03a7f9dab59560539fbc75b7621a4e5"
+        }
+      ]
+    },
+    {
+      "id": "SECURITY-0003",
+      "kind": "observed",
+      "sources": [
+        {
+          "path": "StetMac/Core/MCP/StetMCPHTTPServer.swift",
+          "sha256": "3a66957fd2b5c12e4b945a9af7c70c49c9665e4a32ef38069985f11fbf0664e2"
+        },
+        {
+          "path": "StetMac/Core/MCP/StetMCPServerController.swift",
+          "sha256": "9363e09bfa59b30030308b459ecd7fb520c244a9dce8449c67fc7bbe7c241936"
+        }
+      ]
+    },
+    {
+      "id": "SECURITY-0004",
+      "kind": "intent",
+      "confirmed_by": {
+        "type": "user",
+        "ref": ".harnesskit/audit/transcript/confirmations/2026-07-21-security-0004.json",
+        "date": "2026-07-21"
+      }
+    },
+    {
+      "id": "SECURITY-0005",
+      "kind": "intent",
+      "confirmed_by": {
+        "type": "user",
+        "ref": ".harnesskit/audit/transcript/confirmations/2026-07-21-security-0005.json",
+        "date": "2026-07-21"
+      }
+    }
+  ]
+}
