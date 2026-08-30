@@ -30,7 +30,7 @@
             }
         }
 
-        @Published private(set) var transcriptionEngine: TranscriptionEngine = .localWhisper(languageHint: nil)
+        @Published private(set) var transcriptionEngine: TranscriptionEngine = .funASRNano
 
         @Published private(set) var shortcutSummaryText = "Shortcut configured"
         @Published private(set) var onboardingPreviewTheme: MacDictationVisualTheme = .egg
@@ -44,7 +44,7 @@
         private let credentialValidationService: any ProviderCredentialValidating
         private let localWhisperModelManager: LocalWhisperModelManager
         private let fluidAudioModelManager: FluidAudioModelManager
-        private let sherpaOnnxSenseVoiceModelManager: SherpaOnnxSenseVoiceModelManager
+        private let funASRNanoModelManager: FunASRNanoModelManager
         private var cancellables = Set<AnyCancellable>()
 
         init(
@@ -53,14 +53,14 @@
             credentialValidationService: (any ProviderCredentialValidating)? = nil,
             localWhisperModelManager: LocalWhisperModelManager = LocalWhisperModelManager(),
             fluidAudioModelManager: FluidAudioModelManager = FluidAudioModelManager(),
-            sherpaOnnxSenseVoiceModelManager: SherpaOnnxSenseVoiceModelManager = SherpaOnnxSenseVoiceModelManager()
+            funASRNanoModelManager: FunASRNanoModelManager = FunASRNanoModelManager()
         ) {
             self.coordinator = coordinator
             self.settingsStore = settingsStore
             self.credentialValidationService = credentialValidationService ?? ProviderCredentialValidationService()
             self.localWhisperModelManager = localWhisperModelManager
             self.fluidAudioModelManager = fluidAudioModelManager
-            self.sherpaOnnxSenseVoiceModelManager = sherpaOnnxSenseVoiceModelManager
+            self.funASRNanoModelManager = funASRNanoModelManager
 
             self.transcriptionPrimaryLanguage = settingsStore.loadTranscriptionPrimaryLanguage()
             self.transcriptionSecondaryLanguage = settingsStore.loadTranscriptionSecondaryLanguage()
@@ -364,28 +364,20 @@
                         try? await LocalWhisperWarmupCoordinator.shared.warmup()
                     }
 
-                case .sherpaOnnxSenseVoice:
-                    if sherpaOnnxSenseVoiceModelManager.isModelDownloaded() {
+                case .funASRNano:
+                    if funASRNanoModelManager.isModelDownloaded() {
                         engineDownloadFraction = 1
                         engineDownloadState = .ready
-                        settingsStore.saveTranscriptionEngine(.sherpaOnnxSenseVoice)
+                        settingsStore.saveTranscriptionEngine(.funASRNano)
                         return
                     }
 
-                    engineDownloadState = .running(stageText: "Downloading SenseVoice...")
-                    try await sherpaOnnxSenseVoiceModelManager.installDefaultModel(
-                        downloadProgress: { [weak self] fraction, completed, total in
-                            Task { @MainActor [weak self, fraction, completed, total] in
-                                self?.engineDownloadFraction = fraction
-                                self?.engineBytesCompleted = completed
-                                self?.engineBytesTotal = total
-                            }
-                        }
-                    )
+                    engineDownloadState = .running(stageText: "Downloading Fun-ASR Nano...")
+                    try await funASRNanoModelManager.installDefaultModel()
 
                     engineDownloadFraction = 1
                     engineDownloadState = .ready
-                    settingsStore.saveTranscriptionEngine(.sherpaOnnxSenseVoice)
+                    settingsStore.saveTranscriptionEngine(.funASRNano)
                 }
             } catch {
                 engineDownloadFraction = 0

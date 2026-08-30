@@ -347,6 +347,7 @@ struct ConfigurableSpeechServiceTests {
         let direct = TestTranscriptionService(result: "source transcript")
         let rewrite = RecordingRewriteService()
         let (store, _, _) = try makeSettingsStore()
+        store.saveTranscriptionEngine(.fluidAudio)
         let capture = TestAudioCaptureService(audioFileURL: sourceAudioURL)
         let eventLog = EventLog()
         let postProcessor = TestAudioPostProcessor(
@@ -376,6 +377,123 @@ struct ConfigurableSpeechServiceTests {
         await eventLog.append("stopCompleted")
 
         #expect(await eventLog.snapshot() == ["captureStopped", "postProcess", "stopCompleted"])
+    }
+
+    @Test func activeOwnershipResumesPassiveImmediatelyAfterCaptureStops() async throws {
+        let sourceAudioURL = makeAudioFileURL()
+        let processedAudioURL = TestSupport.temporaryFileURL("processed-speech", ext: "wav")
+        defer {
+            try? FileManager.default.removeItem(at: sourceAudioURL)
+            try? FileManager.default.removeItem(at: processedAudioURL)
+        }
+        let eventLog = EventLog()
+        let (store, _, _) = try makeSettingsStore()
+        store.saveTranscriptionEngine(.fluidAudio)
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                makeLocalTranscriptionService: { TestTranscriptionService(result: "complete interval") },
+                makeRewriteService: { _, _ in RecordingRewriteService() }
+            ),
+            audioPostProcessor: TestAudioPostProcessor(
+                result: makeProcessedAudioResult(
+                    processedURL: processedAudioURL,
+                    sourceURL: sourceAudioURL
+                ),
+                onProcessAudioFile: { await eventLog.append("postProcess") }
+            ),
+            captureService: TestAudioCaptureService(audioFileURL: sourceAudioURL),
+            beginActiveCapture: { await eventLog.append("active") },
+            resumePassiveCapture: { await eventLog.append("passive") }
+        )
+
+        try await service.startRecording()
+        _ = try await service.stopRecording(onCaptureStopped: {
+            await eventLog.append("captureStoppedHook")
+        })
+
+        #expect(
+            await eventLog.snapshot()
+                == ["active", "passive", "captureStoppedHook", "postProcess"]
+        )
+    }
+
+    @Test func activeOwnershipResumesPassiveAfterStartFailureAndCancellation() async throws {
+        let eventLog = EventLog()
+        let (store, _, _) = try makeSettingsStore()
+        let failingSourceURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: failingSourceURL) }
+        let failing = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                makeLocalTranscriptionService: { throw TestError.expected },
+                makeRewriteService: { _, _ in RecordingRewriteService() }
+            ),
+            captureService: TestAudioCaptureService(audioFileURL: failingSourceURL),
+            beginActiveCapture: { await eventLog.append("active") },
+            resumePassiveCapture: { await eventLog.append("passive") }
+        )
+        await #expect(throws: TestError.expected) {
+            try await failing.startRecording()
+        }
+
+        let cancellationLog = EventLog()
+        let sourceURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: sourceURL) }
+        let cancellableWithOwnership = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                makeLocalTranscriptionService: { TestTranscriptionService(result: "unused") },
+                makeRewriteService: { _, _ in RecordingRewriteService() }
+            ),
+            captureService: TestAudioCaptureService(audioFileURL: sourceURL),
+            beginActiveCapture: { await cancellationLog.append("active") },
+            resumePassiveCapture: { await cancellationLog.append("passive") }
+        )
+        try await cancellableWithOwnership.startRecording()
+        await cancellableWithOwnership.cancelRecording()
+
+        #expect(await eventLog.snapshot() == ["active", "passive"])
+        #expect(await cancellationLog.snapshot() == ["active", "passive"])
+    }
+
+    @Test func funASRNanoKeepsFullCaptureAndSkipsPrecisePostProcessing() async throws {
+        let sourceAudioURL = makeAudioFileURL()
+        let processedAudioURL = makeAudioFileURL()
+        defer {
+            try? FileManager.default.removeItem(at: sourceAudioURL)
+            try? FileManager.default.removeItem(at: processedAudioURL)
+        }
+        let direct = TestTranscriptionService(result: "full interval")
+        let (store, _, _) = try makeSettingsStore()
+        store.saveTranscriptionEngine(.funASRNano)
+        let postProcessor = TestAudioPostProcessor(
+            result: makeProcessedAudioResult(
+                processedURL: processedAudioURL,
+                sourceURL: sourceAudioURL,
+                duration: 0.4
+            )
+        )
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                makeLocalTranscriptionService: { direct },
+                makeRewriteService: { _, _ in RecordingRewriteService() }
+            ),
+            audioPostProcessor: postProcessor,
+            captureService: TestAudioCaptureService(
+                audioFileURL: sourceAudioURL,
+                audioDurationSeconds: 1.2
+            )
+        )
+
+        try await service.startRecording()
+        let result = try await service.stopRecording()
+
+        #expect(result == "full interval")
+        #expect(await postProcessor.lastInvocation() == nil)
+        #expect(await direct.lastInvocation()?.fileURL == sourceAudioURL)
+        #expect(await direct.lastInvocation()?.duration == 1.2)
     }
 
     @Test func byokUsesDirectPathAndLocalRewrite() async throws {
@@ -654,6 +772,7 @@ struct ConfigurableSpeechServiceTests {
         let rewrite = RecordingRewriteService()
         await rewrite.setResult("processed transcript")
         let (store, _, _) = try makeSettingsStore()
+        store.saveTranscriptionEngine(.fluidAudio)
         let postProcessor = TestAudioPostProcessor(
             result: makeProcessedAudioResult(
                 processedURL: processedAudioURL,
@@ -853,6 +972,7 @@ struct ConfigurableSpeechServiceTests {
         let direct = TestTranscriptionService(result: "should not be used")
         let rewrite = RecordingRewriteService()
         let (store, _, _) = try makeSettingsStore()
+        store.saveTranscriptionEngine(.fluidAudio)
         let capture = TestAudioCaptureService(audioFileURL: audioFileURL, audioDurationSeconds: 1)
         let service = ConfigurableSpeechService(
             settingsStore: store,

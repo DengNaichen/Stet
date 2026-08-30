@@ -48,6 +48,10 @@ public final class DictationHistoryService {
         }
     }
 
+    init(container: ModelContainer?) {
+        self.container = container
+    }
+
     // MARK: - Pipeline recording API
 
     /// Called when raw ASR text is available. Opens a new pending session.
@@ -90,7 +94,8 @@ public final class DictationHistoryService {
     ) {
         guard let id = pending?.persistedEntryID else { return }
         pending = nil
-        updateEntry(id: id, finalText: text, targetBundleID: targetBundleID, targetAppName: targetAppName, status: status)
+        updateEntry(
+            id: id, finalText: text, targetBundleID: targetBundleID, targetAppName: targetAppName, status: status)
     }
 
     /// Discards the current pending session without saving.
@@ -118,6 +123,81 @@ public final class DictationHistoryService {
         let context = ModelContext(container)
         try context.delete(model: HistoryEntry.self)
         try context.save()
+    }
+
+    // MARK: - Passive capture API
+
+    @discardableResult
+    public func createPassiveCapture(id: UUID, startedAt: Date) throws -> UUID {
+        let context = try persistenceContext()
+        if try entry(id: id, in: context) != nil {
+            return id
+        }
+
+        context.insert(
+            HistoryEntry(
+                id: id,
+                timestamp: startedAt,
+                rawText: "",
+                status: .notDelivered,
+                captureMode: .passive,
+                captureStartedAt: startedAt,
+                processingState: .processing
+            )
+        )
+        try save(context)
+        return id
+    }
+
+    public func updatePassiveCapture(
+        id: UUID,
+        rawText: String,
+        speakerRegions: [CapturedSpeakerRegion]
+    ) throws {
+        let context = try persistenceContext()
+        let entry = try requiredEntry(id: id, in: context)
+        try Self.validate(speakerRegions: speakerRegions, durationMilliseconds: nil)
+        try entry.updatePassiveFields(
+            endedAt: nil,
+            processingState: .processing,
+            failureCode: nil,
+            rawText: rawText,
+            speakerRegions: speakerRegions
+        )
+        try save(context)
+    }
+
+    public func finishPassiveCapture(
+        id: UUID,
+        endedAt: Date,
+        rawText: String,
+        speakerRegions: [CapturedSpeakerRegion]
+    ) throws {
+        try completePassiveCapture(
+            id: id,
+            endedAt: endedAt,
+            rawText: rawText,
+            speakerRegions: speakerRegions,
+            state: .completed,
+            failureCode: nil
+        )
+    }
+
+    public func failPassiveCapture(
+        id: UUID,
+        endedAt: Date,
+        failureCode: String,
+        retainedText: String,
+        speakerRegions: [CapturedSpeakerRegion]
+    ) throws {
+        try completePassiveCapture(
+            id: id,
+            endedAt: endedAt,
+            rawText: retainedText,
+            speakerRegions: speakerRegions,
+            state: .failed,
+            failureCode: failureCode
+        )
     }
 
     // MARK: - Private helpers
@@ -164,6 +244,93 @@ public final class DictationHistoryService {
             entry.targetAppName = targetAppName
             entry.status = status
             try? context.save()
+        }
+    }
+
+    private func completePassiveCapture(
+        id: UUID,
+        endedAt: Date,
+        rawText: String,
+        speakerRegions: [CapturedSpeakerRegion],
+        state: TranscriptProcessingState,
+        failureCode: String?
+    ) throws {
+        let context = try persistenceContext()
+        let entry = try requiredEntry(id: id, in: context)
+        guard endedAt >= entry.captureStartedAt else {
+            throw PassiveHistoryError.invalidInterval
+        }
+
+        let durationMilliseconds = Int(
+            (endedAt.timeIntervalSince(entry.captureStartedAt) * 1_000).rounded()
+        )
+        try Self.validate(
+            speakerRegions: speakerRegions,
+            durationMilliseconds: durationMilliseconds
+        )
+        try entry.updatePassiveFields(
+            endedAt: endedAt,
+            processingState: state,
+            failureCode: failureCode,
+            rawText: rawText,
+            speakerRegions: speakerRegions
+        )
+        try save(context)
+    }
+
+    private func persistenceContext() throws -> ModelContext {
+        guard let container else {
+            throw PassiveHistoryError.persistenceUnavailable
+        }
+        return ModelContext(container)
+    }
+
+    private func requiredEntry(id: UUID, in context: ModelContext) throws -> HistoryEntry {
+        guard let entry = try entry(id: id, in: context) else {
+            throw PassiveHistoryError.entryNotFound
+        }
+        return entry
+    }
+
+    private func entry(id: UUID, in context: ModelContext) throws -> HistoryEntry? {
+        var descriptor = FetchDescriptor<HistoryEntry>(
+            predicate: #Predicate { $0.id == id }
+        )
+        descriptor.fetchLimit = 1
+        do {
+            return try context.fetch(descriptor).first
+        } catch {
+            throw PassiveHistoryError.persistenceUnavailable
+        }
+    }
+
+    private func save(_ context: ModelContext) throws {
+        do {
+            try context.save()
+        } catch {
+            throw PassiveHistoryError.persistenceUnavailable
+        }
+    }
+
+    private static func validate(
+        speakerRegions: [CapturedSpeakerRegion],
+        durationMilliseconds: Int?
+    ) throws {
+        var previousEnd = 0
+        for (index, region) in speakerRegions.enumerated() {
+            guard region.startMilliseconds >= 0,
+                region.endMilliseconds >= region.startMilliseconds,
+                index == 0 || region.startMilliseconds >= previousEnd
+            else {
+                throw PassiveHistoryError.invalidRegionOrder
+            }
+            if region.isOverlap, region.speaker != .unresolved {
+                throw PassiveHistoryError.invalidOverlapIdentity
+            }
+            if let durationMilliseconds, region.endMilliseconds > durationMilliseconds {
+                throw PassiveHistoryError.regionOutsideCapture
+            }
+            previousEnd = region.endMilliseconds
         }
     }
 }

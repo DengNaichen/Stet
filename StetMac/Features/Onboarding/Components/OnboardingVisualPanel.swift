@@ -290,9 +290,7 @@
                             systemImage: "character.bubble.fill", tint: .blue),
                         .init(
                             title: "Engine",
-                            value: viewModel.transcriptionEngine == .fluidAudio
-                                ? "Parakeet"
-                                : (viewModel.transcriptionEngine == .sherpaOnnxSenseVoice ? "SenseVoice" : "Whisper"),
+                            value: viewModel.transcriptionEngine.displayName,
                             systemImage: "cpu", tint: .green),
                     ]
                 )
@@ -382,9 +380,7 @@
                             tint: .purple),
                         .init(
                             title: "Engine",
-                            value: viewModel.transcriptionEngine == .fluidAudio
-                                ? "Parakeet"
-                                : (viewModel.transcriptionEngine == .sherpaOnnxSenseVoice ? "SenseVoice" : "Whisper"),
+                            value: viewModel.transcriptionEngine.displayName,
                             systemImage: "cpu", tint: .blue),
                         .init(
                             title: "Permissions",

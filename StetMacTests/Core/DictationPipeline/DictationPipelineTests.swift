@@ -24,7 +24,7 @@ private func makeSnapshot(
     personalDictionary: [String] = [],
     transcriptionPrimaryLanguage: String = "en",
     transcriptionSecondaryLanguage: String? = nil,
-    transcriptionEngine: StoredTranscriptionEngine = .sherpaOnnxSenseVoice
+    transcriptionEngine: StoredTranscriptionEngine = .funASRNano
 ) -> DictationSettingsSnapshot {
     DictationSettingsSnapshot(
         transcriptionProvider: transcriptionProvider,
@@ -386,39 +386,27 @@ struct LogicPrimitiveTests {
 
 @Suite("TranscriptionLanguageRouting")
 struct TranscriptionLanguageRoutingTests {
-    @Test func asianLanguagesRouteToSenseVoice() {
-        #expect(TranscriptionLanguageRouting.resolveEngine(primary: "zh", secondary: nil) == .sherpaOnnxSenseVoice)
-        #expect(TranscriptionLanguageRouting.resolveEngine(primary: "ja", secondary: "ko") == .sherpaOnnxSenseVoice)
-    }
-
-    @Test func parakeetLanguagesRouteToFluidAudio() {
-        #expect(TranscriptionLanguageRouting.resolveEngine(primary: "en", secondary: nil) == .fluidAudio)
-        #expect(TranscriptionLanguageRouting.resolveEngine(primary: "en", secondary: "fr") == .fluidAudio)
-    }
-
-    @Test func mixedOrUnsupportedLanguagesRouteToWhisperWithoutHint() {
-        for engine in [
-            TranscriptionLanguageRouting.resolveEngine(primary: "vi", secondary: nil),
-            TranscriptionLanguageRouting.resolveEngine(primary: "en", secondary: "zh"),
-        ] {
-            guard case .localWhisper(let hint) = engine else {
-                Issue.record("Expected Local Whisper routing")
-                continue
-            }
-            #expect(hint == nil)
+    @Test func onboardingLanguagesAlwaysRouteToNano() {
+        for languages in [("zh", nil), ("ja", "ko"), ("en", "fr"), ("vi", nil), ("en", "zh")] {
+            #expect(
+                TranscriptionLanguageRouting.resolveEngine(
+                    primary: languages.0,
+                    secondary: languages.1
+                ) == .funASRNano
+            )
         }
     }
 }
 
 @Suite("DictationPipelineFactory – selected engine language forwarding")
 struct EngineSelectionRegressionTests {
-    @Test func makePipelinePassesPrimaryLanguageToSenseVoiceAndParakeet() async throws {
+    @Test func makePipelinePassesPrimaryLanguageToNanoAndParakeet() async throws {
         let local = RecordingTranscriptionService(result: "ok")
         let factory = DictationPipelineFactory(
             makeLocalTranscriptionService: { local },
             makeRewriteService: { _, _ in RecordingRewriteService() }
         )
-        for engine in [StoredTranscriptionEngine.sherpaOnnxSenseVoice, .fluidAudio] {
+        for engine in [StoredTranscriptionEngine.funASRNano, .fluidAudio] {
             let snapshot = makeSnapshot(
                 transcriptionPrimaryLanguage: "zh",
                 transcriptionSecondaryLanguage: nil,
@@ -429,6 +417,15 @@ struct EngineSelectionRegressionTests {
 
             #expect(pipeline.transcriptionLanguageCode == "zh")
         }
+    }
+
+    @Test func retiredStoredEngineMigratesToNano() {
+        let defaults = TestSupport.makeUserDefaults()
+        defaults.set("sherpaOnnxSenseVoice", forKey: MacPreferences.transcriptionEngine)
+        let storage = UserDefaultsModelStorage(defaults: defaults)
+
+        #expect(storage.transcriptionEngine == .funASRNano)
+        #expect(defaults.string(forKey: MacPreferences.transcriptionEngine) == "funASRNano")
     }
 
     @Test func makePipelinePassesNilLanguageCodeToWhisper() async throws {

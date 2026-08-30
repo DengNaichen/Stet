@@ -20,23 +20,14 @@ struct UserDefaultsModelStorage: ModelStorageConfiguration {
         }
     }
 
-    nonisolated var sherpaOnnxSenseVoiceModelPath: String? {
-        defaults.string(forKey: MacPreferences.sherpaOnnxSenseVoiceModelPath)
-    }
-
-    nonisolated func saveSherpaOnnxSenseVoiceModelPath(_ path: String?) {
-        if let path {
-            defaults.set(path, forKey: MacPreferences.sherpaOnnxSenseVoiceModelPath)
-        } else {
-            defaults.removeObject(forKey: MacPreferences.sherpaOnnxSenseVoiceModelPath)
-        }
-    }
-
     nonisolated var transcriptionEngine: StoredTranscriptionEngine {
-        guard let raw = defaults.string(forKey: MacPreferences.transcriptionEngine) else {
-            return .default
+        if let raw = defaults.string(forKey: MacPreferences.transcriptionEngine),
+            let engine = StoredTranscriptionEngine(rawValue: raw)
+        {
+            return engine
         }
-        return StoredTranscriptionEngine(rawValue: raw) ?? .default
+        defaults.set(StoredTranscriptionEngine.default.rawValue, forKey: MacPreferences.transcriptionEngine)
+        return .default
     }
 
     nonisolated func saveTranscriptionEngine(_ engine: StoredTranscriptionEngine) {

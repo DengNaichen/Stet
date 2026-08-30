@@ -84,6 +84,55 @@
             #expect(outcome.captureDiagnosticsSummary?.contains("fallbackReason=unsupported route") == true)
         }
 
+        @Test func preActivationBufferRetainsExactBoundedSuffix() throws {
+            let outputFormat = try #require(TranscriptionUploadAudioFormat.makeMacOutputFormat())
+            let fileURL = TestSupport.temporaryFileURL(ext: "wav")
+            try? FileManager.default.removeItem(at: fileURL)
+            defer { try? FileManager.default.removeItem(at: fileURL) }
+
+            var recordingFile: AVAudioFile? = try AVAudioFile(
+                forWriting: fileURL,
+                settings: outputFormat.settings,
+                commonFormat: outputFormat.commonFormat,
+                interleaved: outputFormat.isInterleaved
+            )
+            let session = MacAudioFileRecordingSession(
+                recordingFile: try #require(recordingFile),
+                outputFormat: outputFormat,
+                voiceProcessingEnabled: false,
+                voiceProcessingFallbackReason: nil
+            )
+
+            for value in [Int16(1), 2, 3] {
+                let buffer = try #require(Self.makeOutputBuffer(format: outputFormat, frameCount: 10_000, value: value))
+                _ = try session.ingestConvertedBuffer(buffer)
+            }
+            try session.activateRecordingWindow()
+            let outcome = session.recordingOutcome()
+            session.close()
+            recordingFile = nil
+
+            #expect(outcome.writtenFrameCount == 24_000)
+            let file = try AVAudioFile(forReading: fileURL)
+            #expect(file.length == 24_000)
+        }
+
+        @Test func boundedFramesTrimAndSplitAtExactSampleBoundary() {
+            var buffer = BoundedAudioFrameBuffer(capacitySamples: 6)
+            buffer.append(AudioCaptureFrame(epoch: 4, startSample: 0, samples: [0, 1, 2, 3]))
+            buffer.append(AudioCaptureFrame(epoch: 4, startSample: 4, samples: [4, 5, 6, 7]))
+
+            #expect(buffer.frames.map(\.startSample) == [2, 4])
+            #expect(buffer.frames.flatMap(\.samples) == [2, 3, 4, 5, 6, 7])
+
+            let split = buffer.split(at: 5)
+            #expect(split.before.flatMap(\.samples) == [2, 3, 4])
+            #expect(split.after.flatMap(\.samples) == [5, 6, 7])
+            #expect(split.before.last?.endSample == 5)
+            #expect(split.after.first?.startSample == 5)
+            #expect(Set(split.before.map(\.id)).isDisjoint(with: Set(split.after.map(\.id))))
+        }
+
         @Test func recordingFileStabilizerWaitsUntilFileBecomesReadable() async throws {
             let outputFormat = try #require(TranscriptionUploadAudioFormat.makeMacOutputFormat())
             let fileURL = TestSupport.temporaryFileURL(ext: "wav")
@@ -128,8 +177,11 @@
             return buffer
         }
 
-        private static func makeOutputBuffer(format: AVAudioFormat) -> AVAudioPCMBuffer? {
-            let frameCount: AVAudioFrameCount = 1_600
+        private static func makeOutputBuffer(
+            format: AVAudioFormat,
+            frameCount: AVAudioFrameCount = 1_600,
+            value: Int16? = nil
+        ) -> AVAudioPCMBuffer? {
             guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount),
                 let channelData = buffer.int16ChannelData
             else {
@@ -139,7 +191,7 @@
             buffer.frameLength = frameCount
 
             for index in 0..<Int(frameCount) {
-                channelData[0][index] = Int16((index % 200) - 100)
+                channelData[0][index] = value ?? Int16((index % 200) - 100)
             }
 
             return buffer

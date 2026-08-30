@@ -37,6 +37,48 @@
             #expect(outcome.captureDiagnosticsSummary == nil)
         }
 
+        @Test func captureFrameBridgeNormalizesAndDeliversMonotonicRanges() async throws {
+            let bridge = AudioCaptureEventBridge(initialEpoch: 7)
+            let stream = bridge.makeStream()
+            let received = Task { () -> [AudioCaptureFrame] in
+                var iterator = stream.makeAsyncIterator()
+                return [await iterator.next(), await iterator.next()].compactMap { $0 }
+            }
+
+            bridge.emit(samples: [0.25, -0.5])
+            bridge.emit(samples: [1, -1, 0])
+
+            let frames = await received.value
+            #expect(frames.count == 2)
+            #expect(frames[0].epoch == 7)
+            #expect(frames[0].startSample == 0)
+            #expect(frames[0].endSample == 2)
+            #expect(frames[0].samples == [0.25, -0.5])
+            #expect(frames[1].startSample == 2)
+            #expect(frames[1].endSample == 5)
+            #expect(frames[1].samples == [1, -1, 0])
+            #expect(frames[0].id != frames[1].id)
+        }
+
+        @Test func captureFrameBridgeChangesEpochAtExactSampleBoundary() async throws {
+            let bridge = AudioCaptureEventBridge(initialEpoch: 1)
+            let stream = bridge.makeStream()
+            let received = Task { () -> [AudioCaptureFrame] in
+                var iterator = stream.makeAsyncIterator()
+                return [await iterator.next(), await iterator.next()].compactMap { $0 }
+            }
+
+            bridge.emit(samples: [0, 0, 0])
+            let boundary = bridge.beginNextEpoch()
+            bridge.emit(samples: [0, 0])
+
+            let frames = await received.value
+            #expect(boundary == 3)
+            #expect(frames.map(\.epoch) == [1, 2])
+            #expect(frames[0].endSample == boundary)
+            #expect(frames[1].startSample == boundary)
+        }
+
         @Test func startRecordingWithUnavailableSelectedDeviceThrowsFailedToStartWithoutCreatingFile() throws {
             let recorder = MacCaptureAudioFileRecorder()
             let outputFormat = try #require(TranscriptionUploadAudioFormat.makeMacOutputFormat())

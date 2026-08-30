@@ -78,7 +78,7 @@ actor StetMCPProtocolServer {
             name: toolName,
             title: "Transcribe audio with Stet",
             description:
-                "Transcribes an absolute local audio file path with Stet SenseVoice and applies Stet's current rewrite settings. Use the returned text as the final transcript.",
+                "Transcribes an absolute local audio file path with Stet's selected engine and applies the current rewrite settings. Use the returned text as the final transcript.",
             inputSchema: .object([
                 "type": .string("object"),
                 "properties": .object([

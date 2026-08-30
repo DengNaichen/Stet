@@ -167,6 +167,7 @@
             workflow: MacDictationWorkflowController,
             shell: FakeShellPresenter,
             permissionGate: FakePermissionGatePresenter,
+            speechService: ControllableSpeechService,
             clipboardService: TestClipboardService,
             textInjectionService: TestTextInjectionService
         ) {
@@ -220,8 +221,28 @@
                 workflow: workflow,
                 shell: shell,
                 permissionGate: permissionGate,
+                speechService: speechService,
                 clipboardService: clipboardService,
                 textInjectionService: textInjectionService
+            )
+        }
+
+        @Test func hotkeyActionsStartAndStopExactlyOneActiveCapture() async {
+            let subject = makeSubject()
+
+            subject.session.startDictationCapture(from: .hotkey)
+            #expect(
+                await TestSupport.eventually {
+                    subject.workflow.dictationViewModel.state == .listening
+                }
+            )
+            #expect(await subject.speechService.counts().start == 1)
+
+            subject.session.requestDictationCaptureStopIfNeeded()
+            #expect(
+                await TestSupport.eventuallyAsync {
+                    await subject.speechService.counts().stop == 1
+                }
             )
         }
 

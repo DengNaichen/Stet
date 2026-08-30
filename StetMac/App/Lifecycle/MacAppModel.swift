@@ -18,11 +18,17 @@
         private let interactionSoundPlayer: InteractionSoundPlayer
         private let appearanceSettingsViewModel: MacAppearanceSettingsViewModel
         private let mcpServerController: StetMCPServerController?
+        private var passiveListeningRuntime: MacPassiveListeningRuntime?
+
+        @Published private(set) var passiveListeningState: MacPassiveListeningState =
+            .unavailable("Preparing passive listening")
 
         private var cancellables = Set<AnyCancellable>()
 
         convenience init() {
             let settingsStore = DictationSettingsStore()
+            let captureService = MacAudioCaptureService()
+            let passiveListeningRuntime = MacPassiveListeningRuntime(captureService: captureService)
             let pasteboardRestoreCoordinator = PasteboardRestoreCoordinator()
             let clipboardService = SystemClipboardService()
             let textInjectionService = SystemTextInjectionService(
@@ -30,7 +36,12 @@
                 pasteboardRestoreCoordinator: pasteboardRestoreCoordinator
             )
             self.init(
-                speechService: ConfigurableSpeechService.live(settingsStore: settingsStore),
+                speechService: ConfigurableSpeechService.live(
+                    settingsStore: settingsStore,
+                    captureService: captureService,
+                    beginActiveCapture: { await passiveListeningRuntime.beginActive() },
+                    resumePassiveCapture: { await passiveListeningRuntime.resumePassive() }
+                ),
                 clipboardService: clipboardService,
                 textInjectionService: textInjectionService,
                 mediaPlaybackController: MacMediaPlaybackController(),
@@ -41,7 +52,8 @@
                     textInjectionService: textInjectionService,
                     pasteboardRestoreCoordinator: pasteboardRestoreCoordinator
                 ),
-                mcpServerController: StetMCPServerController.live(settingsStore: settingsStore)
+                mcpServerController: StetMCPServerController.live(settingsStore: settingsStore),
+                passiveListeningRuntime: passiveListeningRuntime
             )
         }
 
@@ -53,7 +65,8 @@
             systemAudioMuting: (any SystemAudioMuting)? = nil,
             settingsStore: DictationSettingsStore = DictationSettingsStore(),
             captureCoordinator: MacDictationCaptureCoordinator? = nil,
-            mcpServerController: StetMCPServerController? = nil
+            mcpServerController: StetMCPServerController? = nil,
+            passiveListeningRuntime: MacPassiveListeningRuntime? = nil
         ) {
             let bootstrapper = MacAppBootstrapper(settingsStore: settingsStore)
             let captureCoordinator =
@@ -94,6 +107,42 @@
                 .store(in: &cancellables)
             sessionController.activate(presentationModel: self, showInDock: launchConfiguration.showInDock)
             mcpServerController?.startIfEnabled()
+
+            if let passiveListeningRuntime {
+                self.passiveListeningRuntime = passiveListeningRuntime
+                Task { [weak self] in
+                    await passiveListeningRuntime.setStateHandler { [weak self] state in
+                        self?.passiveListeningState = state
+                    }
+                    guard self != nil else { return }
+                    await passiveListeningRuntime.start()
+                }
+                NotificationCenter.default.publisher(for: .speakerProfilesDidChange)
+                    .receive(on: DispatchQueue.main)
+                    .sink { _ in
+                        Task { await passiveListeningRuntime.restart() }
+                    }
+                    .store(in: &cancellables)
+                NotificationCenter.default.publisher(
+                    for: AudioDeviceChangeMonitor.devicesDidChangeNotification
+                )
+                .receive(on: DispatchQueue.main)
+                .sink { _ in
+                    Task { await passiveListeningRuntime.restart() }
+                }
+                .store(in: &cancellables)
+                NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+                    .receive(on: DispatchQueue.main)
+                    .sink { _ in
+                        Task { await passiveListeningRuntime.revalidatePermission() }
+                    }
+                    .store(in: &cancellables)
+            }
+        }
+
+        deinit {
+            let passiveListeningRuntime = passiveListeningRuntime
+            Task { await passiveListeningRuntime?.stop() }
         }
 
         var updates: AnyPublisher<Void, Never> {
@@ -232,6 +281,30 @@
 
         var menuBarSymbolName: String {
             return "mic"
+        }
+
+        var passiveListeningStatusText: String {
+            switch passiveListeningState {
+            case .unavailable(let reason):
+                return "Passive unavailable: \(reason)"
+            case .passiveArmed:
+                return "Passive microphone active"
+            case .passivePending:
+                return "Checking nearby speech"
+            case .passiveRelevant:
+                return "Recording relevant conversation"
+            case .active:
+                return "Active dictation"
+            }
+        }
+
+        var isPassiveMicrophoneActive: Bool {
+            switch passiveListeningState {
+            case .passiveArmed, .passivePending, .passiveRelevant:
+                true
+            case .unavailable, .active:
+                false
+            }
         }
 
         var stateAccentName: String {

@@ -147,20 +147,6 @@ struct DictationPipelineFactory: Sendable {
                 return try LocalWhisperTranscriptionService(
                     modelManager: LocalWhisperModelManager(configuration: configuration)
                 )
-            case .sherpaOnnxSenseVoice:
-                do {
-                    return try SherpaOnnxSenseVoiceTranscriptionService()
-                } catch {
-                    Logger(
-                        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
-                        category: "PipelineFactory"
-                    ).warning(
-                        "SenseVoice engine unavailable (\(error.localizedDescription)); falling back to local whisper."
-                    )
-                    return try LocalWhisperTranscriptionService(
-                        modelManager: LocalWhisperModelManager(configuration: configuration)
-                    )
-                }
             }
         #else
             return try LocalWhisperTranscriptionService(

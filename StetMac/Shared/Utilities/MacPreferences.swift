@@ -33,8 +33,6 @@ enum MacPreferences {
 
     nonisolated static let senseVoiceModelPath = "mac.senseVoiceModelPath"
 
-    nonisolated static let sherpaOnnxSenseVoiceModelPath = "mac.sherpaOnnxSenseVoiceModelPath"
-
     /// BCP-47 code for the primary dictation language.
     nonisolated static let transcriptionPrimaryLanguage = "mac.transcriptionPrimaryLanguage"
 

@@ -34,6 +34,7 @@ struct StetApp: App {
         #if os(macOS)
             MenuBarExtra("", image: "menuBarIcon") {
                 MacMenuBarView()
+                    .environmentObject(appModel)
                     .environmentObject(settingsShellViewModel)
                     .environmentObject(appUpdateManager)
                     .onOpenURL { url in
