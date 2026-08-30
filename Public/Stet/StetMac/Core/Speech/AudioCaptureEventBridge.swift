@@ -49,6 +49,10 @@ nonisolated final class AudioCaptureEventBridge: @unchecked Sendable {
         lock.withLock { epoch }
     }
 
+    nonisolated func currentSamplePosition() -> Int64 {
+        lock.withLock { nextSample }
+    }
+
     nonisolated func finish() {
         let continuation = lock.withLock {
             defer { self.continuation = nil }

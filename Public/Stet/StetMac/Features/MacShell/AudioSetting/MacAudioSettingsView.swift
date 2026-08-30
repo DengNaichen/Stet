@@ -86,6 +86,18 @@
                     Text("Local Transcription")
                 }
 
+                Section("Passive Transcription") {
+                    VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
+                        Toggle("Enable passive transcription", isOn: $viewModel.isPassiveListeningEnabled)
+
+                        Text(
+                            "When enabled, Stet listens locally for conversations that include your enrolled voice. Turning it off stops passive microphone capture; active hotkey dictation remains available."
+                        )
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    }
+                }
+
                 Section("Speaker Profiles") {
                     VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
                         Text(MacAudioSettingsViewModel.speakerEnrollmentConsentCopy)
@@ -128,8 +140,18 @@
                         .pickerStyle(.segmented)
                         .disabled(viewModel.enrollmentClipCount > 0 || viewModel.isRecordingEnrollment)
 
-                        TextField("Speaker name", text: $viewModel.enrollmentName)
+                        MacSettingsValueRow(
+                            title: viewModel.enrollmentRole == .owner ? "Your name" : "Speaker name"
+                        ) {
+                            TextField(
+                                viewModel.enrollmentRole == .owner ? "Me" : "Name",
+                                text: $viewModel.enrollmentName
+                            )
+                            .labelsHidden()
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 240)
                             .disabled(viewModel.enrollmentClipCount > 0 || viewModel.isRecordingEnrollment)
+                        }
 
                         if viewModel.enrollmentRole == .known {
                             Toggle(

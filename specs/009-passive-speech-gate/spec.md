@@ -24,6 +24,7 @@ As a Mac user, passive listening remains available whenever active capture is no
 5. **Given** the enrolled user initiates speech while passive listening is available, **When** the user's voice is verified, **Then** a relevant conversation opens immediately and produces a faithful transcript without losing opening words or rewriting the result.
 6. **Given** a relevant conversation is open, **When** another person continues speaking without the user appearing in every individual speech segment, **Then** those turns remain part of the relevant conversation until its relevance deadline expires.
 7. **Given** an accepted passive conversation contains the enrolled user, an explicitly enrolled known speaker, and an unknown speaker, **When** transcription completes, **Then** distinguishable speech regions are labeled as self, that known speaker, or other with confidence, while uncertain or overlapping regions remain explicitly unresolved.
+8. **Given** passive listening is enabled, **When** the user turns its independent setting off, **Then** passive capture stops without disabling hotkey-controlled active dictation; the setting persists and turning it back on restores passive listening when its prerequisites are available.
 
 ---
 
@@ -79,7 +80,7 @@ As a user of both Stet applications, I encounter the same active-capture semanti
 
 ### Functional Requirements
 
-- **FR-001**: On Mac, passive listening MUST be the default state whenever the application is running with microphone permission and active capture is not in progress.
+- **FR-001**: On Mac, passive listening MUST be enabled by default and, while enabled, MUST be the default state whenever the application is running with microphone permission and active capture is not in progress.
 - **FR-002**: The system MUST visibly indicate when passive listening or active capture is using the microphone.
 - **FR-003**: During Mac passive listening, the system MUST continuously perform only low-cost speech-presence detection until candidate speech is found.
 - **FR-004**: Detected passive speech MUST enter a bounded transient pending-context buffer rather than being immediately transcribed, persisted, or discarded.
@@ -108,6 +109,7 @@ As a user of both Stet applications, I encounter the same active-capture semanti
 - **FR-027**: A failure while evaluating pending context or processing an accepted conversation MUST NOT terminate passive listening.
 - **FR-028**: The user MUST be able to keep one owner voice profile and MAY enroll named profiles for people whose consented reference speech is available; unknown speakers MUST remain open-set `other` rather than being forced to the closest enrolled profile.
 - **FR-029**: Deleting an enrolled speaker profile MUST remove its retained reference voice data, and future regions for that person MUST be treated as unknown unless the profile is enrolled again.
+- **FR-030**: The user MUST be able to enable or disable passive listening independently of active dictation; disabling it MUST stop and clear passive capture without interrupting an active capture, and the preference MUST persist across launches.
 
 ### Scope Boundaries
 

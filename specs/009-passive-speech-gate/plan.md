@@ -70,6 +70,8 @@ The five states are:
 
 `hotkeyDown` is an atomic sample-boundary transition. Pending audio is discarded; an already relevant passive conversation is sealed immediately before the boundary; crossing buffers are split; the new epoch belongs exclusively to active capture. `hotkeyUp` seals active capture, increments the epoch, clears prior context, and immediately returns to `passiveArmed`. Active-start failure also returns to `passiveArmed` when capture remains healthy.
 
+Passive listening has one persisted, default-on setting in the existing audio settings store. Turning it off stops and clears only passive ownership. If active capture owns the shared microphone when the setting or audio-device list changes, teardown is deferred until the active interval has finished so the active recording window cannot be invalidated.
+
 ### VAD and buffering
 
 Use FluidAudio's existing `VadManager.makeStreamState()` and `processStreamingChunk` APIs. The initial internal configuration is:

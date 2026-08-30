@@ -72,6 +72,10 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             audioCaptureEventBridge.currentEpoch()
         }
 
+        func currentAudioCaptureSamplePosition() -> Int64 {
+            audioCaptureEventBridge.currentSamplePosition()
+        }
+
         func startContinuousCapture() async throws {
             guard await requestMicrophonePermission() else {
                 throw SpeechServiceError.microphonePermissionDenied

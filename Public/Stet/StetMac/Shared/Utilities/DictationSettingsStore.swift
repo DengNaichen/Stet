@@ -2,6 +2,10 @@ import Foundation
 import StetAI
 import StetCore
 
+extension Notification.Name {
+    static let passiveListeningPreferenceDidChange = Notification.Name("passiveListeningPreferenceDidChange")
+}
+
 protocol DictationSecretStore: Sendable {
     nonisolated func loadString(forAccount account: String) throws -> String?
     nonisolated func saveString(_ value: String, forAccount account: String) throws
@@ -233,6 +237,18 @@ struct DictationSettingsStore: Sendable {
 
     nonisolated func saveHotkeyDistinguishModifierSides(_ enabled: Bool) {
         defaultsStore.set(enabled, forKey: MacPreferences.hotkeyDistinguishModifierSides)
+    }
+
+    nonisolated func loadPassiveListeningEnabled() -> Bool {
+        defaultsStore.object(forKey: MacPreferences.passiveListeningEnabled) as? Bool ?? true
+    }
+
+    nonisolated func savePassiveListeningEnabled(_ enabled: Bool) {
+        defaultsStore.set(enabled, forKey: MacPreferences.passiveListeningEnabled)
+        NotificationCenter.default.post(
+            name: .passiveListeningPreferenceDidChange,
+            object: nil
+        )
     }
 
     nonisolated func loadSelectedModel(for provider: DictationProvider) -> RewriteModel? {

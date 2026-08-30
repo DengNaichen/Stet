@@ -7,6 +7,32 @@
 
     @Suite("Mac Passive Listening Coordinator", .serialized)
     struct MacPassiveListeningCoordinatorTests {
+        @Test func activeCaptureDefersAndCoalescesPassiveRestarts() {
+            var gate = MacPassiveListeningRestartGate()
+
+            let idleRestart = gate.requestRestart()
+            let overlappingIdleRestart = gate.requestRestart()
+            let restartWasInFlight = gate.isRestartInFlight
+            gate.finishRestart()
+
+            gate.beginActiveCapture()
+            let firstRestart = gate.requestRestart()
+            let secondRestart = gate.requestRestart()
+            let restartAfterActive = gate.finishActiveCapture()
+            let secondFinish = gate.finishActiveCapture()
+            let restartAfterFinish = gate.requestRestart()
+
+            #expect(idleRestart == .start)
+            #expect(overlappingIdleRestart == .coalesced)
+            #expect(restartWasInFlight)
+            #expect(!gate.isActiveCaptureInProgress)
+            #expect(firstRestart == .deferred)
+            #expect(secondRestart == .deferred)
+            #expect(restartAfterActive)
+            #expect(!secondFinish)
+            #expect(restartAfterFinish == .start)
+        }
+
         @Test func sixtyMinutesOfSilenceKeepsOnlyPreRollAndSkipsInference() async {
             let verifier = TestPassiveVerifier(similarities: [])
             let diarizer = TestPassiveDiarizer(results: [])
@@ -83,12 +109,21 @@
         }
 
         @Test func relevantConversationClosesOnInactivityOrOwnerAbsence() async {
+            let region = PassiveDiarizedRegion(
+                speakerTrack: 0,
+                startSample: 0,
+                endSample: 1_600,
+                activityConfidence: 0.9,
+                isOverlap: false
+            )
             let inactivityHistory = TestPassiveHistory()
             let inactivity = MacPassiveListeningCoordinator(
                 configuration: .init(minimumVoicedSeconds: 0.1, ownerVerificationHopSeconds: 0.1),
                 dependencies: dependencies(
                     verifier: TestPassiveVerifier(similarities: [0.9]),
-                    history: inactivityHistory
+                    nano: TestPassiveNano(results: [.success("inactivity")]),
+                    history: inactivityHistory,
+                    diarizedRegions: [region]
                 )
             )
             await inactivity.arm(epoch: 1)
@@ -105,7 +140,12 @@
             let absenceVerifier = TestPassiveVerifier(similarities: [0.9] + Array(repeating: 0.2, count: 6))
             let absence = MacPassiveListeningCoordinator(
                 configuration: .init(minimumVoicedSeconds: 0.1, ownerVerificationHopSeconds: 0.1),
-                dependencies: dependencies(verifier: absenceVerifier, history: absenceHistory)
+                dependencies: dependencies(
+                    verifier: absenceVerifier,
+                    nano: TestPassiveNano(results: [.success("absence")]),
+                    history: absenceHistory,
+                    diarizedRegions: [region]
+                )
             )
             await absence.arm(epoch: 2)
             await absence.ingest(frame(epoch: 2, start: 0, count: 1_600, value: 0.25))
@@ -196,6 +236,107 @@
             #expect(regions.filter(\.isOverlap).map(\.speaker) == [.unresolved])
         }
 
+        @Test func emptyNanoTurnKeepsCompletedTextAndContinuesWithLaterTurns() async throws {
+            let history = TestPassiveHistory()
+            let nano = TestPassiveNano(results: [
+                .success("first"),
+                .success("   "),
+                .success("third"),
+            ])
+            let identity = TestPassiveIdentityMatcher(matches: [
+                PassiveSpeakerMatch(identity: .self, similarity: 0.92),
+                PassiveSpeakerMatch(identity: .other, similarity: 0.31),
+                PassiveSpeakerMatch(identity: .self, similarity: 0.91),
+            ])
+            let regions = [
+                PassiveDiarizedRegion(
+                    speakerTrack: 0, startSample: 0, endSample: 1_600,
+                    activityConfidence: 0.9, isOverlap: false),
+                PassiveDiarizedRegion(
+                    speakerTrack: 1, startSample: 1_600, endSample: 3_200,
+                    activityConfidence: 0.8, isOverlap: false),
+                PassiveDiarizedRegion(
+                    speakerTrack: 0, startSample: 3_200, endSample: 4_800,
+                    activityConfidence: 0.9, isOverlap: false),
+            ]
+            let coordinator = MacPassiveListeningCoordinator(
+                configuration: .init(minimumVoicedSeconds: 0.1, ownerVerificationHopSeconds: 0.1),
+                dependencies: dependencies(
+                    verifier: TestPassiveVerifier(similarities: [0.9, 0.9, 0.9]),
+                    nano: nano,
+                    history: history,
+                    identity: identity,
+                    diarizedRegions: regions
+                )
+            )
+            await coordinator.arm(epoch: 1)
+            await coordinator.ingest(frame(epoch: 1, start: 0, count: 1_600, value: 0.25))
+            await coordinator.ingest(frame(epoch: 1, start: 1_600, count: 1_600, value: 0.25))
+            await coordinator.ingest(frame(epoch: 1, start: 3_200, count: 1_600, value: 0.25))
+            await coordinator.ingest(frame(epoch: 1, start: 4_800, count: 1, value: -1))
+            await coordinator.advance(toSample: 164_801)
+
+            #expect(await nano.fileSampleCounts.count == 3)
+            let calls = await history.calls
+            #expect(!calls.contains { if case .fail = $0 { true } else { false } })
+            let finish = try #require(calls.last { if case .finish = $0 { true } else { false } })
+            guard case .finish(_, let text, let completedRegions) = finish else {
+                Issue.record("Expected completed passive history")
+                return
+            }
+            #expect(text == "first third")
+            #expect(completedRegions.map(\.text) == ["first", "third"])
+        }
+
+        @Test func allEmptyNanoConversationFailsThenNextConversationRecovers() async {
+            let history = TestPassiveHistory()
+            let nano = TestPassiveNano(results: [.success("   "), .success("recovered")])
+            let region = PassiveDiarizedRegion(
+                speakerTrack: 0,
+                startSample: 0,
+                endSample: 1_600,
+                activityConfidence: 0.9,
+                isOverlap: false
+            )
+            let coordinator = MacPassiveListeningCoordinator(
+                configuration: .init(minimumVoicedSeconds: 0.1, ownerVerificationHopSeconds: 0.1),
+                dependencies: dependencies(
+                    verifier: TestPassiveVerifier(similarities: [0.9, 0.9]),
+                    nano: nano,
+                    history: history,
+                    diarizedRegions: [region]
+                )
+            )
+            await coordinator.arm(epoch: 1)
+            await coordinator.ingest(frame(epoch: 1, start: 0, count: 1_600, value: 0.25))
+            await coordinator.ingest(frame(epoch: 1, start: 1_600, count: 1, value: -1))
+            await coordinator.advance(toSample: 161_601)
+
+            #expect(await coordinator.snapshot().state == .passiveArmed)
+            #expect(
+                await history.calls.contains { call in
+                    if case .fail(_, "transcription_failed", let regions) = call {
+                        regions.isEmpty
+                    } else {
+                        false
+                    }
+                })
+
+            await coordinator.ingest(frame(epoch: 1, start: 200_000, count: 1_600, value: 0.25))
+            await coordinator.ingest(frame(epoch: 1, start: 201_600, count: 1, value: -1))
+            await coordinator.advance(toSample: 361_601)
+
+            #expect(await coordinator.snapshot().state == .passiveArmed)
+            #expect(
+                await history.calls.contains { call in
+                    if case .finish(_, "recovered", let regions) = call {
+                        regions.map(\.text) == ["recovered"]
+                    } else {
+                        false
+                    }
+                })
+        }
+
         @Test func staleVerifierResultCannotOpenConversationAfterEpochChange() async {
             let verifier = SuspendedOwnerVerifier()
             let history = TestPassiveHistory()
@@ -252,7 +393,17 @@
                 configuration: .init(minimumVoicedSeconds: 0.1, ownerVerificationHopSeconds: 0.1),
                 dependencies: dependencies(
                     verifier: TestPassiveVerifier(similarities: [0.9]),
-                    history: relevantHistory
+                    nano: TestPassiveNano(results: [.success("relevant")]),
+                    history: relevantHistory,
+                    diarizedRegions: [
+                        PassiveDiarizedRegion(
+                            speakerTrack: 0,
+                            startSample: 0,
+                            endSample: 1_600,
+                            activityConfidence: 0.9,
+                            isOverlap: false
+                        )
+                    ]
                 )
             )
             await relevant.arm(epoch: 5)

@@ -56,6 +56,8 @@ Then run these manual Mac scenarios:
 | Two people overlap | One unresolved overlap region; no duplicated text/audio |
 | Hold hotkey during pending/relevant speech | Active accepts every voice; no duplicate passive interval |
 | Release hotkey | Fresh passive epoch starts immediately with no old context |
+| Turn passive listening off | Passive microphone use stops; hotkey dictation still records and transcribes |
+| Relaunch while passive is off, then turn it on | The off preference persists; enabling restores passive listening when the owner profile and models are ready |
 
 ## Long-run and privacy checks
 
