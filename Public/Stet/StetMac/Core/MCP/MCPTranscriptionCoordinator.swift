@@ -41,7 +41,7 @@ enum MCPTranscriptionError: LocalizedError, Sendable {
         case .audioFileIsNotReadable(let path):
             return "Audio file is not readable: \(path)"
         case .emptyTranscription:
-            return "SenseVoice returned an empty transcription."
+            return "The transcription engine returned an empty transcription."
         case .emptyRewrite:
             return "The configured rewrite provider returned empty text."
         }

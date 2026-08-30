@@ -13,6 +13,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     private let audienceProvider: @Sendable () -> AppAudience
     private let captureServiceFactory: @Sendable () -> any AudioCaptureService
     private let audioPostProcessor: any AudioPostProcessing
+    private let beginActiveCapture: (@Sendable () async -> Void)?
+    private let resumePassiveCapture: (@Sendable () async -> Void)?
     private let audioLevelBridge = AudioLevelBridge()
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "SpeechService")
@@ -29,6 +31,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         private var audioFeatureTask: Task<Void, Never>?
     #endif
     private var reusableCaptureService: (any AudioCaptureService)?
+    private var ownsActiveCapture = false
 
     init(
         settingsStore: DictationSettingsStore = DictationSettingsStore(),
@@ -37,7 +40,9 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         audienceProvider: (@Sendable () -> AppAudience)? = nil,
         audioPostProcessor: (any AudioPostProcessing)? = nil,
         captureService: (any AudioCaptureService)? = nil,
-        captureServiceFactory: (@Sendable () -> any AudioCaptureService)? = nil
+        captureServiceFactory: (@Sendable () -> any AudioCaptureService)? = nil,
+        beginActiveCapture: (@Sendable () async -> Void)? = nil,
+        resumePassiveCapture: (@Sendable () async -> Void)? = nil
     ) {
         precondition(
             captureService == nil || captureServiceFactory == nil,
@@ -52,6 +57,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 AppBranchMonitor.shared.currentApp?.audience ?? .ai
             }
         self.audioPostProcessor = audioPostProcessor ?? DefaultAudioPostProcessor()
+        self.beginActiveCapture = beginActiveCapture
+        self.resumePassiveCapture = resumePassiveCapture
         if let captureService {
             self.captureServiceFactory = { captureService }
             self.reusableCaptureService = captureService
@@ -87,9 +94,19 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             throw SpeechServiceError.alreadyRecording
         }
 
+        if let beginActiveCapture {
+            await beginActiveCapture()
+            ownsActiveCapture = true
+        }
         let snapshot = settingsStore.loadSnapshot()
         let pipelineStartedAt = ProcessInfo.processInfo.systemUptime
-        let pipeline = try await pipelineFactory.makePipeline(from: snapshot)
+        let pipeline: DictationPipeline
+        do {
+            pipeline = try await pipelineFactory.makePipeline(from: snapshot)
+        } catch {
+            await resumePassiveCaptureIfNeeded()
+            throw error
+        }
         activePipeline = pipeline
         let pipelineFactoryMs = Self.elapsedMilliseconds(since: pipelineStartedAt)
         Self.logStartupTiming("pipelineFactoryMs=\(Self.formatMilliseconds(pipelineFactoryMs))")
@@ -136,6 +153,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 stopAudioFeatureForwarding()
             #endif
             await DictationStartupProbe.shared.record(.cancelled)
+            await resumePassiveCaptureIfNeeded()
             throw CancellationError()
         } catch {
             activePipeline = nil
@@ -147,6 +165,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 stopAudioFeatureForwarding()
             #endif
             await DictationStartupProbe.shared.record(.failed, note: error.localizedDescription)
+            await resumePassiveCaptureIfNeeded()
             throw error
         }
     }
@@ -187,14 +206,29 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             #endif
         }
 
-        let captureResult = try await captureService.stopRecording()
+        let captureResult: (url: URL, duration: TimeInterval?)
+        do {
+            captureResult = try await captureService.stopRecording()
+        } catch {
+            await resumePassiveCaptureIfNeeded()
+            throw error
+        }
+        await resumePassiveCaptureIfNeeded()
         if let onCaptureStopped {
             await onCaptureStopped()
         }
-        let processedCaptureResult = try await audioPostProcessor.processAudioFile(
-            at: captureResult.url,
-            duration: captureResult.duration
-        )
+        let processedCaptureResult =
+            if settingsStore.loadSnapshot().transcriptionEngine == .funASRNano {
+                AudioPostProcessingResult.passthrough(
+                    url: captureResult.url,
+                    duration: captureResult.duration
+                )
+            } else {
+                try await audioPostProcessor.processAudioFile(
+                    at: captureResult.url,
+                    duration: captureResult.duration
+                )
+            }
 
         defer {
             let cleanupURLs = Set(processedCaptureResult.cleanupURLs)
@@ -340,6 +374,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         if let captureService {
             await captureService.cancelRecording()
         }
+        await resumePassiveCaptureIfNeeded()
         // Match VoiceInk's cleanupResources() in the cancel branch of toggleRecord:
         // a prewarm task may have loaded the model already, so release it here too.
         #if os(macOS)
@@ -347,6 +382,12 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             await LocalParakeetContextManager.shared.cleanupResources()
             await FunASRNanoContextManager.shared.cleanupResources()
         #endif
+    }
+
+    private func resumePassiveCaptureIfNeeded() async {
+        guard ownsActiveCapture else { return }
+        ownsActiveCapture = false
+        await resumePassiveCapture?()
     }
 
     func prewarm() async {
@@ -559,10 +600,18 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 }
 
 extension ConfigurableSpeechService {
-    static func live(settingsStore: DictationSettingsStore = DictationSettingsStore()) -> ConfigurableSpeechService {
+    static func live(
+        settingsStore: DictationSettingsStore = DictationSettingsStore(),
+        captureService: MacAudioCaptureService? = nil,
+        beginActiveCapture: (@Sendable () async -> Void)? = nil,
+        resumePassiveCapture: (@Sendable () async -> Void)? = nil
+    ) -> ConfigurableSpeechService {
         ConfigurableSpeechService(
             settingsStore: settingsStore,
-            pipelineFactory: .live()
+            pipelineFactory: .live(),
+            captureService: captureService,
+            beginActiveCapture: beginActiveCapture,
+            resumePassiveCapture: resumePassiveCapture
         )
     }
 }

@@ -22,7 +22,7 @@ struct FunASRSettingsTests {
     }
 
     @Test(arguments: ["dictation.engine", "dictation.localModel"])
-    func retiredWhisperSelectionFallsBackToSenseVoice(selectionKey: String) {
+    func newAndRetiredSelectionsResolveToRealtime(selectionKey: String) {
         let isolatedDefaults = makeDefaults()
         defer { isolatedDefaults.clear() }
         let defaults = isolatedDefaults.value
@@ -30,8 +30,9 @@ struct FunASRSettingsTests {
 
         let store = MobileDictationSettingsStore(defaults: defaults)
 
-        #expect(store.selectedEngine == .senseVoice)
-        #expect(defaults.string(forKey: "dictation.engine") == "senseVoice")
+        #expect(store.selectedEngine == .funASRRealtime)
+        #expect(defaults.string(forKey: "dictation.engine") == "funASRRealtime")
+        #expect(defaults.string(forKey: "dictation.localModel") == nil)
     }
 
     @Test func credentialStoreRoundTripFeedsConfiguration() throws {
@@ -104,10 +105,8 @@ struct FunASRSettingsTests {
         let validator = TestFunASRConnectionValidator()
         let viewModel = RewriteSettingsViewModel(
             settingsStore: RewriteSettingsStore(),
-            dictationSettingsStore: dictationSettings,
             funASRSettingsStore: funSettings,
-            funASRConnectionValidator: validator,
-            localModelManagers: [:]
+            funASRConnectionValidator: validator
         )
         viewModel.funASRAPIKeyInput = "api-key"
 
@@ -132,8 +131,7 @@ struct FunASRSettingsTests {
         let viewModel = RewriteSettingsViewModel(
             settingsStore: RewriteSettingsStore(),
             funASRSettingsStore: funSettings,
-            funASRConnectionValidator: validator,
-            localModelManagers: [:]
+            funASRConnectionValidator: validator
         )
         viewModel.funASRAPIKeyInput = "wrong-key"
 

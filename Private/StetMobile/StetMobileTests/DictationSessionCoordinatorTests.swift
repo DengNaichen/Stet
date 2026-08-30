@@ -25,64 +25,6 @@ struct DictationSessionCoordinatorTests {
     }
 
     @Test
-    func selectableCoordinatorSwitchesToTheChosenIdleModel() async throws {
-        var lifecycle: [String] = []
-        let captureResource = SwitchingCaptureResource()
-        let senseVoice = SwitchingChildCoordinator(
-            engineName: "SenseVoice",
-            onStart: {
-                lifecycle.append("sensevoice-start")
-                captureResource.acquire()
-            },
-            onShutdown: {
-                lifecycle.append("sensevoice-shutdown")
-                captureResource.release()
-            }
-        )
-        let funASR = SwitchingChildCoordinator(
-            engineName: "FunASR Realtime",
-            onStart: {
-                lifecycle.append("funasr-start")
-                captureResource.acquire()
-            },
-            onShutdown: {
-                lifecycle.append("funasr-shutdown")
-                captureResource.release()
-            }
-        )
-        let subject = SelectableDictationSessionCoordinator(selectedEngine: .senseVoice) { engine in
-            switch engine {
-            case .senseVoice: senseVoice
-            case .funASRRealtime: funASR
-            }
-        }
-        var events = subject.events.makeAsyncIterator()
-
-        subject.start()
-        expectLoading(try await nextEvent(&events))
-        expectReady(try await nextEvent(&events), engineName: "SenseVoice")
-
-        subject.selectEngine(.funASRRealtime)
-        expectLoading(try await nextEvent(&events))
-        expectReady(try await nextEvent(&events), engineName: "FunASR Realtime")
-
-        #expect(senseVoice.shutdownCallCount == 1)
-        #expect(funASR.startCallCount == 1)
-        #expect(
-            lifecycle == [
-                "sensevoice-start",
-                "sensevoice-shutdown",
-                "funasr-start",
-            ]
-        )
-        #expect(captureResource.activeCount == 1)
-        #expect(captureResource.maximumActiveCount == 1)
-        #expect(subject.phase == .idle)
-        await subject.shutdown()
-        #expect(captureResource.activeCount == 0)
-    }
-
-    @Test
     func cloudEngineBootstrapDoesNotRequireModelPreparation() async throws {
         let engine = FakeASREngine()
         let permission = FakeMicrophonePermissionProvider()
@@ -283,7 +225,7 @@ struct DictationSessionCoordinatorTests {
 
     @Test
     func latestStopDuringSuspendedBootstrapSettlesSharedSession() async throws {
-        let modelManager = FakeASRModelManager(downloadMode: .suspended)
+        let modelManager = FakeResourcePreparer(downloadMode: .suspended)
         let fixture = makeFixture(
             engine: FakeASREngine(),
             modelManager: modelManager,
@@ -329,7 +271,7 @@ struct DictationSessionCoordinatorTests {
         let commandMonitor = FakeKeyboardCommandMonitor(replaysLatestCommandOnForcedPoll: true)
         let fixture = makeFixture(
             engine: engine,
-            modelManager: FakeASRModelManager(),
+            modelManager: FakeResourcePreparer(),
             commandMonitor: commandMonitor
         )
         var events = fixture.coordinator.events.makeAsyncIterator()
@@ -484,7 +426,7 @@ private func makeFixture(
 ) -> CoordinatorFixture {
     makeFixture(
         engine: engine,
-        modelManager: FakeASRModelManager(),
+        modelManager: FakeResourcePreparer(),
         commandMonitor: FakeKeyboardCommandMonitor()
     )
 }
@@ -492,7 +434,7 @@ private func makeFixture(
 @MainActor
 private func makeFixture(
     engine: FakeASREngine,
-    modelManager: FakeASRModelManager,
+    modelManager: FakeResourcePreparer,
     commandMonitor: FakeKeyboardCommandMonitor
 ) -> CoordinatorFixture {
     let permission = FakeMicrophonePermissionProvider()
@@ -531,7 +473,7 @@ private func makeFixture() -> CoordinatorFixture {
 private struct CoordinatorFixture {
     let coordinator: DictationSessionCoordinator
     let engine: FakeASREngine
-    let modelManager: FakeASRModelManager
+    let modelManager: FakeResourcePreparer
     let permission: FakeMicrophonePermissionProvider
     let sessionStore: InMemoryDictationSessionStore
     let commandMonitor: FakeKeyboardCommandMonitor
@@ -811,7 +753,7 @@ private final class FakeASREngine: ASREngine, MobileASREngineFailureReporting {
 }
 
 @MainActor
-private final class FakeASRModelManager: ASRModelManager {
+private final class FakeResourcePreparer {
     enum DownloadMode {
         case immediate
         case suspended
@@ -827,14 +769,6 @@ private final class FakeASRModelManager: ASRModelManager {
     init(downloadMode: DownloadMode = .immediate) {
         self.downloadMode = downloadMode
         (downloadCalls, downloadCallContinuation) = AsyncStream.makeStream()
-    }
-
-    func status(for _: String) async -> ASRModelStatus {
-        .notDownloaded
-    }
-
-    func resolveModelURLs(for _: String) async throws -> [String: URL] {
-        [:]
     }
 
     func downloadIfNeeded(for modelName: String) async throws {

@@ -199,6 +199,8 @@
                     return (LocalizedStringKey("Clipboard"), .orange)
                 case .processing:
                     return (LocalizedStringKey("Transcribed"), .secondary)
+                case .notDelivered:
+                    return (LocalizedStringKey("Transcribed"), .secondary)
                 }
             }()
             Text(label)

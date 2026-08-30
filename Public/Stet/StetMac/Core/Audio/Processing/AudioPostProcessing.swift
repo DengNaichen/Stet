@@ -10,7 +10,7 @@ struct AudioPostProcessingResult: Sendable {
     let cleanupURLs: [URL]
     let shouldDiscardAsNoSpeech: Bool
 
-    static func passthrough(url: URL, duration: TimeInterval?) -> Self {
+    nonisolated static func passthrough(url: URL, duration: TimeInterval?) -> Self {
         Self(
             url: url,
             duration: duration,
@@ -19,7 +19,7 @@ struct AudioPostProcessingResult: Sendable {
         )
     }
 
-    static func discard(url: URL, duration: TimeInterval?) -> Self {
+    nonisolated static func discard(url: URL, duration: TimeInterval?) -> Self {
         Self(
             url: url,
             duration: duration,
@@ -28,7 +28,7 @@ struct AudioPostProcessingResult: Sendable {
         )
     }
 
-    static func rewritten(
+    nonisolated static func rewritten(
         sourceURL: URL,
         rewrittenURL: URL,
         duration: TimeInterval?

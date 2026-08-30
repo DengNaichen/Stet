@@ -10,6 +10,66 @@ public enum HistoryEntryStatus: String, Codable, Sendable {
     case completed
     /// Text is waiting in the clipboard for the user to manually paste (Enter not yet pressed).
     case clipboardPending
+    /// Transcript is stored in history and was intentionally not delivered to another app.
+    case notDelivered
+}
+
+public enum CaptureMode: String, Codable, Sendable {
+    case active
+    case passive
+}
+
+public enum TranscriptProcessingState: String, Codable, Sendable {
+    case processing
+    case completed
+    case failed
+}
+
+public enum CapturedSpeakerIdentity: Codable, Equatable, Sendable {
+    case `self`
+    case known(profileID: UUID, displayName: String)
+    case other
+    case unresolved
+}
+
+public struct CapturedSpeakerRegion: Codable, Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public let startMilliseconds: Int
+    public let endMilliseconds: Int
+    public let speaker: CapturedSpeakerIdentity
+    public let text: String
+    public let identitySimilarity: Double?
+    public let activityConfidence: Double?
+    public let isOverlap: Bool
+
+    public init(
+        id: UUID,
+        startMilliseconds: Int,
+        endMilliseconds: Int,
+        speaker: CapturedSpeakerIdentity,
+        text: String,
+        identitySimilarity: Double?,
+        activityConfidence: Double?,
+        isOverlap: Bool
+    ) {
+        self.id = id
+        self.startMilliseconds = startMilliseconds
+        self.endMilliseconds = endMilliseconds
+        self.speaker = speaker
+        self.text = text
+        self.identitySimilarity = identitySimilarity
+        self.activityConfidence = activityConfidence
+        self.isOverlap = isOverlap
+    }
+}
+
+public enum PassiveHistoryError: Error, Equatable, Sendable {
+    case invalidInterval
+    case invalidRegionOrder
+    case regionOutsideCapture
+    case invalidOverlapIdentity
+    case entryNotFound
+    case persistenceUnavailable
 }
 
 // MARK: - HistoryEntry
@@ -21,7 +81,7 @@ public final class HistoryEntry {
     public var id: UUID
     public var timestamp: Date
 
-    /// Raw transcript from the ASR engine (Whisper / SenseVoice / etc.).
+    /// Raw transcript from the selected ASR engine.
     public var rawText: String
 
     /// LLM-refined text, if a rewrite transformer was active. Nil when rewrite is off.
@@ -40,6 +100,29 @@ public final class HistoryEntry {
 
     public var status: HistoryEntryStatus
 
+    var captureModeRawValue: String = CaptureMode.active.rawValue
+    var captureStartedAtStorage: Date?
+    public var captureEndedAt: Date?
+    var processingStateRawValue: String = TranscriptProcessingState.completed.rawValue
+    public var processingFailureCode: String?
+    public var speakerRegionsData: Data = Data()
+
+    public var captureMode: CaptureMode {
+        CaptureMode(rawValue: captureModeRawValue) ?? .active
+    }
+
+    public var captureStartedAt: Date {
+        captureStartedAtStorage ?? timestamp
+    }
+
+    public var processingState: TranscriptProcessingState {
+        TranscriptProcessingState(rawValue: processingStateRawValue) ?? .completed
+    }
+
+    public var speakerRegions: [CapturedSpeakerRegion] {
+        (try? JSONDecoder().decode([CapturedSpeakerRegion].self, from: speakerRegionsData)) ?? []
+    }
+
     public init(
         id: UUID = UUID(),
         timestamp: Date = Date(),
@@ -48,7 +131,13 @@ public final class HistoryEntry {
         finalText: String? = nil,
         targetBundleID: String? = nil,
         targetAppName: String? = nil,
-        status: HistoryEntryStatus = .processing
+        status: HistoryEntryStatus = .processing,
+        captureMode: CaptureMode = .active,
+        captureStartedAt: Date? = nil,
+        captureEndedAt: Date? = nil,
+        processingState: TranscriptProcessingState = .completed,
+        processingFailureCode: String? = nil,
+        speakerRegions: [CapturedSpeakerRegion] = []
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -58,6 +147,26 @@ public final class HistoryEntry {
         self.targetBundleID = targetBundleID
         self.targetAppName = targetAppName
         self.status = status
+        self.captureModeRawValue = captureMode.rawValue
+        self.captureStartedAtStorage = captureStartedAt
+        self.captureEndedAt = captureEndedAt
+        self.processingStateRawValue = processingState.rawValue
+        self.processingFailureCode = processingFailureCode
+        self.speakerRegionsData = (try? JSONEncoder().encode(speakerRegions)) ?? Data()
+    }
+
+    func updatePassiveFields(
+        endedAt: Date?,
+        processingState: TranscriptProcessingState,
+        failureCode: String?,
+        rawText: String,
+        speakerRegions: [CapturedSpeakerRegion]
+    ) throws {
+        captureEndedAt = endedAt
+        processingStateRawValue = processingState.rawValue
+        processingFailureCode = failureCode
+        self.rawText = rawText
+        speakerRegionsData = try JSONEncoder().encode(speakerRegions)
     }
 }
 
@@ -73,6 +182,12 @@ extension HistoryEntry {
         public let targetBundleID: String?
         public let targetAppName: String?
         public let status: String
+        public let captureMode: String
+        public let captureStartedAt: Date
+        public let captureEndedAt: Date?
+        public let processingState: String
+        public let processingFailureCode: String?
+        public let speakerRegions: [CapturedSpeakerRegion]
 
         public init(from entry: HistoryEntry) {
             self.id = entry.id
@@ -83,6 +198,12 @@ extension HistoryEntry {
             self.targetBundleID = entry.targetBundleID
             self.targetAppName = entry.targetAppName
             self.status = entry.status.rawValue
+            self.captureMode = entry.captureMode.rawValue
+            self.captureStartedAt = entry.captureStartedAt
+            self.captureEndedAt = entry.captureEndedAt
+            self.processingState = entry.processingState.rawValue
+            self.processingFailureCode = entry.processingFailureCode
+            self.speakerRegions = entry.speakerRegions
         }
     }
 }

@@ -20,18 +20,17 @@
                 settingsStore: settingsStore
             )
 
-            // The three-model router selects the engine from the active language combination.
             #expect(viewModel.transcriptionPrimaryLanguage == "en")
-            #expect(viewModel.transcriptionEngine == .fluidAudio)
+            #expect(viewModel.transcriptionEngine == .funASRNano)
 
             viewModel.transcriptionPrimaryLanguage = "is"
-            #expect(viewModel.transcriptionEngine == .localWhisper(languageHint: nil))
+            #expect(viewModel.transcriptionEngine == .funASRNano)
 
             viewModel.transcriptionSecondaryLanguage = "zh-Hans"
-            #expect(viewModel.transcriptionEngine == .localWhisper(languageHint: nil))
+            #expect(viewModel.transcriptionEngine == .funASRNano)
 
             viewModel.transcriptionPrimaryLanguage = "en"
-            #expect(viewModel.transcriptionEngine == .localWhisper(languageHint: nil))
+            #expect(viewModel.transcriptionEngine == .funASRNano)
         }
 
         @Test func testEnginePreparationFlow() async throws {
@@ -39,21 +38,26 @@
             let secretStore = TestSecretStore()
             let settingsStore = DictationSettingsStore(defaults: defaults, secretStore: secretStore)
             let coordinator = MockOnboardingCoordinator(step: .language)
+            let modelsDirectory = TestSupport.temporaryDirectoryURL()
+            try FileManager.default.createDirectory(at: modelsDirectory, withIntermediateDirectories: true)
+            for asset in FunASRNanoModelAsset.allCases {
+                try Data("model".utf8).write(to: modelsDirectory.appendingPathComponent(asset.fileName))
+            }
 
-            // We'll use the real managers but they'll likely hit mockable paths or we check the state machine
             let viewModel = OnboardingViewModel(
                 coordinator: coordinator,
-                settingsStore: settingsStore
+                settingsStore: settingsStore,
+                funASRNanoModelManager: FunASRNanoModelManager(
+                    modelsDirectoryProvider: { modelsDirectory }
+                )
             )
 
             #expect(viewModel.engineDownloadState == .idle)
 
-            // Start preparation
             await viewModel.handleEngineDownloadPrimaryAction()
 
-            // Since we can't easily mock the internal downloaders without more refactoring,
-            // we at least check that it's no longer idle or has reached a state.
-            #expect(viewModel.engineDownloadState != .idle)
+            #expect(viewModel.engineDownloadState == .ready)
+            #expect(settingsStore.loadTranscriptionEngine() == .funASRNano)
         }
     }
 

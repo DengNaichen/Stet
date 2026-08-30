@@ -9,69 +9,47 @@ struct RewriteSettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Picker(
-                        "Engine",
-                        selection: $viewModel.dictationSettingsStore.selectedEngine
-                    ) {
-                        ForEach(viewModel.availableDictationEngines) { engine in
-                            Text(engine.displayName).tag(engine)
+                    Picker("Region", selection: $viewModel.funASRSettingsStore.region) {
+                        ForEach(FunASRRegion.allCases) { region in
+                            Text(region.displayName).tag(region)
                         }
                     }
-                    .onChange(of: viewModel.dictationSettingsStore.selectedEngine) {
-                        viewModel.onDictationEngineSelected()
+
+                    TextField(
+                        "Workspace ID",
+                        text: $viewModel.funASRSettingsStore.workspaceID
+                    )
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .onChange(of: viewModel.funASRSettingsStore.workspaceID) {
+                        viewModel.sanitizeFunASRWorkspaceID()
                     }
-                } header: {
-                    Text("Dictation Engine")
-                } footer: {
-                    Text("FunASR Realtime sends live microphone audio to Alibaba Cloud.")
-                }
 
-                if viewModel.dictationSettingsStore.selectedEngine == .funASRRealtime {
-                    Section("FunASR Realtime") {
-                        Picker("Region", selection: $viewModel.funASRSettingsStore.region) {
-                            ForEach(FunASRRegion.allCases) { region in
-                                Text(region.displayName).tag(region)
-                            }
-                        }
-
-                        TextField(
-                            "Workspace ID",
-                            text: $viewModel.funASRSettingsStore.workspaceID
-                        )
+                    SecureField("API Key", text: $viewModel.funASRAPIKeyInput)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .onChange(of: viewModel.funASRSettingsStore.workspaceID) {
-                            viewModel.sanitizeFunASRWorkspaceID()
-                        }
+                        .onSubmit { viewModel.saveFunASRAPIKey() }
 
-                        SecureField("API Key", text: $viewModel.funASRAPIKeyInput)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .onSubmit { viewModel.saveFunASRAPIKey() }
-
-                        Button {
-                            Task { await viewModel.validateFunASRConnection() }
-                        } label: {
-                            HStack {
-                                Text("Validate Connection")
-                                Spacer()
-                                validationIndicator(viewModel.funASRValidationState)
-                            }
-                        }
-                        .disabled(viewModel.funASRValidationState == .validating)
-
-                        if case .failed(let message) = viewModel.funASRValidationState {
-                            Text(message)
-                                .font(.caption)
-                                .foregroundStyle(.red)
+                    Button {
+                        Task { await viewModel.validateFunASRConnection() }
+                    } label: {
+                        HStack {
+                            Text("Validate Connection")
+                            Spacer()
+                            validationIndicator(viewModel.funASRValidationState)
                         }
                     }
-                }
+                    .disabled(viewModel.funASRValidationState == .validating)
 
-                Section("Local Models") {
-                    ForEach(viewModel.availableLocalDictationEngines) { engine in
-                        localModelRow(engine)
+                    if case .failed(let message) = viewModel.funASRValidationState {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.red)
                     }
+                } header: {
+                    Text("FunASR Realtime")
+                } footer: {
+                    Text("Live microphone audio is sent to Alibaba Cloud for transcription.")
                 }
 
                 Section {
@@ -135,97 +113,7 @@ struct RewriteSettingsView: View {
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
-            .task {
-                await viewModel.refreshLocalModelStatuses()
-            }
         }
-    }
-
-    @ViewBuilder
-    private func localModelRow(_ model: MobileDictationEngine) -> some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 16) {
-                localModelSummary(model)
-                Spacer(minLength: 8)
-                localModelAction(model)
-            }
-
-            VStack(alignment: .leading, spacing: 12) {
-                localModelSummary(model)
-                localModelAction(model)
-            }
-        }
-        .buttonStyle(.borderless)
-    }
-
-    @ViewBuilder
-    private func localModelSummary(_ model: MobileDictationEngine) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(model.displayName)
-            localModelStatus(model)
-        }
-    }
-
-    @ViewBuilder
-    private func localModelStatus(_ model: MobileDictationEngine) -> some View {
-        switch viewModel.localModelState(for: model) {
-        case .checking:
-            statusProgress("Checking…")
-        case .notDownloaded:
-            Text("Not Downloaded")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        case .downloading:
-            statusProgress("Downloading…")
-        case .downloaded:
-            Label("Downloaded", systemImage: "checkmark.circle.fill")
-                .font(.footnote)
-                .foregroundStyle(.green)
-        case .deleting:
-            statusProgress("Deleting…")
-        case .downloadFailed:
-            Text("Download Failed")
-                .font(.footnote)
-                .foregroundStyle(.red)
-        case .deletionFailed:
-            Text("Delete Failed")
-                .font(.footnote)
-                .foregroundStyle(.red)
-        }
-    }
-
-    @ViewBuilder
-    private func localModelAction(_ model: MobileDictationEngine) -> some View {
-        switch viewModel.localModelState(for: model) {
-        case .notDownloaded:
-            Button("Download") {
-                Task { await viewModel.downloadLocalModel(model) }
-            }
-        case .downloadFailed:
-            Button("Try Again") {
-                Task { await viewModel.downloadLocalModel(model) }
-            }
-        case .downloaded:
-            Button("Delete", role: .destructive) {
-                Task { await viewModel.deleteLocalModel(model) }
-            }
-        case .deletionFailed:
-            Button("Try Again", role: .destructive) {
-                Task { await viewModel.deleteLocalModel(model) }
-            }
-        case .checking, .downloading, .deleting:
-            EmptyView()
-        }
-    }
-
-    private func statusProgress(_ title: String) -> some View {
-        HStack(spacing: 8) {
-            ProgressView()
-                .controlSize(.small)
-            Text(title)
-                .foregroundStyle(.secondary)
-        }
-        .font(.footnote)
     }
 
     @ViewBuilder

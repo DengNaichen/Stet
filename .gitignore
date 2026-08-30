@@ -17,6 +17,21 @@ xcuserdata/
 *.tmp
 *.swp
 
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# C / C++
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
 # Local environment and secrets
 .env
 .env.release

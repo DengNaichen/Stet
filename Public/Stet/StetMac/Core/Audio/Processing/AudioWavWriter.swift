@@ -2,7 +2,7 @@
 import Foundation
 
 enum AudioWavWriter {
-    static func writePCM16MonoWav(
+    nonisolated static func writePCM16MonoWav(
         samples: [Float],
         filePrefix: String
     ) throws -> URL {

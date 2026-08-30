@@ -237,7 +237,7 @@ private func makeMCPSnapshot(
         interactionSoundPreset: .soft,
         transcriptionPrimaryLanguage: primaryLanguage,
         transcriptionSecondaryLanguage: nil,
-        transcriptionEngine: .sherpaOnnxSenseVoice
+        transcriptionEngine: .funASRNano
     )
 }
 

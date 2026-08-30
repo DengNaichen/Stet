@@ -48,7 +48,7 @@ struct AppViewModelTests {
         coordinator.emit(
             .failed(
                 sessionId: nil,
-                message: "Unsupported ASR model: SenseVoice. HTTP 500."
+                message: "FunASR Realtime authentication failed. HTTP 500."
             )
         )
 
@@ -75,12 +75,12 @@ struct AppViewModelTests {
         _ = await states.next()
         subject.start()
 
-        coordinator.emit(.ready(engineName: "SenseVoice"))
+        coordinator.emit(.ready(engineName: "FunASR Realtime"))
         #expect(await states.next() == .idle)
         #expect(await liveActivityCalls.next() == .ensureActive)
         #expect(liveActivityManager.ensureActiveCallCount == 1)
 
-        coordinator.emit(.ready(engineName: "SenseVoice"))
+        coordinator.emit(.ready(engineName: "FunASR Realtime"))
         #expect(await states.next() == .idle)
         #expect(await liveActivityCalls.next() == .ensureActive)
         #expect(liveActivityManager.ensureActiveCallCount == 2)
@@ -105,7 +105,7 @@ struct AppViewModelTests {
         _ = await states.next()
         subject.start()
 
-        coordinator.emit(.ready(engineName: "SenseVoice"))
+        coordinator.emit(.ready(engineName: "FunASR Realtime"))
 
         #expect(await states.next() == .idle)
         #expect(liveActivityManager.ensureActiveCallCount == 1)

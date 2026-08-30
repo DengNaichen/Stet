@@ -42,6 +42,16 @@ if [[ -n "${sensitive_paths}" ]]; then
     exit 1
 fi
 
+private_speech_payloads="$(
+    git ls-tree -r --name-only "${split_commit}" |
+        grep -Ei '\.(onnx|gguf|safetensors|mlmodel|mlmodelc)$|(^|/)(enrollment|pending|stet-passive-turn)[^/]*\.(wav|caf|m4a)$' || true
+)"
+if [[ -n "${private_speech_payloads}" ]]; then
+    echo "Private speech or model payloads found in public projection:" >&2
+    printf '%s\n' "${private_speech_payloads}" >&2
+    exit 1
+fi
+
 oversized_blobs="$(
     git ls-tree -rl "${split_commit}" |
         awk -v limit="${github_blob_limit}" '$2 == "blob" && $4 >= limit { print $4, $5 }'

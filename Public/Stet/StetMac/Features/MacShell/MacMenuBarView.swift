@@ -3,12 +3,21 @@
     import SwiftUI
 
     struct MacMenuBarView: View {
+        @EnvironmentObject private var appModel: MacAppModel
         @EnvironmentObject private var settingsShellViewModel: MacSettingsShellViewModel
         @EnvironmentObject private var appUpdateManager: AppUpdateManager
         @Environment(\.openWindow) private var openWindow
 
         var body: some View {
             Group {
+                Label(
+                    appModel.passiveListeningStatusText,
+                    systemImage: appModel.isPassiveMicrophoneActive ? "mic.fill" : "mic.slash"
+                )
+                .disabled(true)
+
+                Divider()
+
                 Button("Settings…") {
                     settingsShellViewModel.openSettings {
                         openWindow(id: MacWindowSceneID.preferences)

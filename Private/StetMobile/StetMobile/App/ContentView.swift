@@ -94,12 +94,7 @@ struct ContentView: View {
             appViewModel: AppViewModel(dictationViewModel: dictationViewModel),
             viewModel: dictationViewModel,
             rewriteSettingsViewModel: RewriteSettingsViewModel(
-                settingsStore: store,
-                localModelManagers: [
-                    .senseVoice: UnavailableLocalDictationModelManager(
-                        currentStatus: .notDownloaded
-                    )
-                ]
+                settingsStore: store
             )
         )
     }
@@ -116,7 +111,7 @@ struct ContentView: View {
         }
 
         func start() {
-            continuation.yield(.ready(engineName: "SenseVoice Preview"))
+            continuation.yield(.ready(engineName: "FunASR Realtime Preview"))
         }
 
         func recoverAudioSession() {}

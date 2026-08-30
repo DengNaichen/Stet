@@ -45,7 +45,7 @@ let package = Package(
         .target(
             name: "StetRewrite",
             dependencies: [
-                "StetCore",
+                "StetCore"
             ],
             path: "Sources/StetRewrite"
         ),
@@ -62,14 +62,21 @@ let package = Package(
         .testTarget(
             name: "StetCoreTests",
             dependencies: [
-                "StetCore",
+                "StetCore"
             ],
             path: "Tests/StetCoreTests"
         ),
         .testTarget(
+            name: "StetASRTests",
+            dependencies: [
+                "StetASR"
+            ],
+            path: "Tests/StetASRTests"
+        ),
+        .testTarget(
             name: "StetRewriteTests",
             dependencies: [
-                "StetRewrite",
+                "StetRewrite"
             ],
             path: "Tests/StetRewriteTests"
         ),

@@ -4,105 +4,15 @@ import Testing
 
 struct RewriteSettingsViewModelTests {
     @MainActor
-    @Test func reportsAnExistingLocalModel() async {
-        let manager = TestLocalDictationModelManager(
-            status: .ready(localURL: URL(fileURLWithPath: "/tmp/model.onnx"))
-        )
-        let viewModel = RewriteSettingsViewModel(
-            settingsStore: RewriteSettingsStore(),
-            localModelManagers: [.senseVoice: manager]
-        )
-
-        await viewModel.refreshLocalModelStatus(for: .senseVoice)
-
-        #expect(viewModel.localModelState(for: .senseVoice) == .downloaded)
-    }
-
-    @MainActor
-    @Test func failedDownloadCanBeRetried() async {
-        let manager = TestLocalDictationModelManager(status: .notDownloaded, failingDownloads: 1)
-        var didNotifyDictation = false
-        let viewModel = RewriteSettingsViewModel(
-            settingsStore: RewriteSettingsStore(),
-            localModelManagers: [.senseVoice: manager],
-            onLocalModelReady: { model in
-                didNotifyDictation = model == .senseVoice
-            }
-        )
-
-        await viewModel.downloadLocalModel(.senseVoice)
-        #expect(viewModel.localModelState(for: .senseVoice) == .downloadFailed)
-        #expect(!didNotifyDictation)
-
-        await viewModel.downloadLocalModel(.senseVoice)
-        #expect(viewModel.localModelState(for: .senseVoice) == .downloaded)
-        #expect(didNotifyDictation)
-    }
-
-    @MainActor
-    @Test func downloadedModelCanBeDeleted() async {
-        let manager = TestLocalDictationModelManager(
-            status: .ready(localURL: URL(fileURLWithPath: "/tmp/model.onnx"))
-        )
-        let viewModel = RewriteSettingsViewModel(
-            settingsStore: RewriteSettingsStore(),
-            localModelManagers: [.senseVoice: manager]
-        )
-
-        await viewModel.deleteLocalModel(.senseVoice)
-
-        #expect(viewModel.localModelState(for: .senseVoice) == .notDownloaded)
-        #expect(manager.deleteCount == 1)
-    }
-
-    @MainActor
-    @Test func selectedDictationEngineIsPersistedAndForwarded() {
+    @Test func dictationEngineIsRealtimeOnly() {
         let suiteName = "MobileDictationSettingsStoreTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let dictationSettings = MobileDictationSettingsStore(defaults: defaults)
-        var selectedEngine: MobileDictationEngine?
-        let viewModel = RewriteSettingsViewModel(
-            settingsStore: RewriteSettingsStore(),
-            dictationSettingsStore: dictationSettings,
-            localModelManagers: [:],
-            onDictationEngineSelected: { selectedEngine = $0 }
-        )
+        defaults.set("senseVoice", forKey: "dictation.engine")
 
-        dictationSettings.selectedEngine = .funASRRealtime
-        viewModel.onDictationEngineSelected()
-
-        #expect(selectedEngine == .funASRRealtime)
-        #expect(
-            MobileDictationSettingsStore(defaults: defaults).selectedEngine
-                == .funASRRealtime
-        )
-    }
-
-    @MainActor
-    @Test func senseVoiceModelManagerDeletesDownloadedAssets() async throws {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("StetModelDeletionTests", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: directory) }
-
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        for asset in SenseVoiceModelAsset.allCases {
-            let url = directory.appendingPathComponent(asset.fileName, isDirectory: false)
-            try Data([1]).write(to: url)
-        }
-
-        let manager = try SenseVoiceModelManager(modelsDirectory: directory)
-        #expect(
-            await manager.status(for: SenseVoiceModelManager.modelName)
-                == .ready(
-                    localURL: directory.appendingPathComponent(SenseVoiceModelAsset.model.fileName)
-                ))
-
-        try await manager.deleteModel(for: SenseVoiceModelManager.modelName)
-
-        #expect(await manager.status(for: SenseVoiceModelManager.modelName) == .notDownloaded)
-        #expect(!FileManager.default.fileExists(atPath: directory.path))
+        #expect(MobileDictationEngine.allCases == [.funASRRealtime])
+        #expect(MobileDictationSettingsStore(defaults: defaults).selectedEngine == .funASRRealtime)
+        #expect(defaults.string(forKey: "dictation.engine") == "funASRRealtime")
     }
 
     @MainActor
@@ -132,38 +42,4 @@ struct RewriteSettingsViewModelTests {
         #expect(!FileManager.default.fileExists(atPath: modelDirectory.path))
         #expect(FileManager.default.fileExists(atPath: directory.path))
     }
-}
-
-@MainActor
-private final class TestLocalDictationModelManager: LocalDictationModelManaging {
-    private var currentStatus: ASRModelStatus
-    private var failingDownloads: Int
-    private(set) var deleteCount = 0
-
-    init(status: ASRModelStatus, failingDownloads: Int = 0) {
-        self.currentStatus = status
-        self.failingDownloads = failingDownloads
-    }
-
-    func status() async -> ASRModelStatus {
-        currentStatus
-    }
-
-    func download() async throws {
-        if failingDownloads > 0 {
-            failingDownloads -= 1
-            currentStatus = .error(message: "internal download failure")
-            throw TestLocalModelError.downloadFailed
-        }
-        currentStatus = .ready(localURL: URL(fileURLWithPath: "/tmp/model.onnx"))
-    }
-
-    func delete() async throws {
-        deleteCount += 1
-        currentStatus = .notDownloaded
-    }
-}
-
-private enum TestLocalModelError: Error {
-    case downloadFailed
 }
