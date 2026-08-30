@@ -22,6 +22,7 @@
 
         @Published private(set) var passiveListeningState: MacPassiveListeningState =
             .unavailable("Preparing passive listening")
+        @Published private(set) var isPassiveListeningEnabled = true
 
         private var cancellables = Set<AnyCancellable>()
 
@@ -95,6 +96,7 @@
             self.interactionSoundPlayer = interactionSoundPlayer
             self.appearanceSettingsViewModel = .shared
             self.mcpServerController = mcpServerController
+            self.isPassiveListeningEnabled = settingsStore.loadPassiveListeningEnabled()
             let launchConfiguration = bootstrapper.prepareForLaunch()
             sessionController.onChange = { [weak self] in
                 self?.objectWillChange.send()
@@ -114,12 +116,13 @@
                     await passiveListeningRuntime.setStateHandler { [weak self] state in
                         self?.passiveListeningState = state
                     }
-                    guard self != nil else { return }
-                    await passiveListeningRuntime.start()
+                    guard let self else { return }
+                    await passiveListeningRuntime.setEnabled(self.isPassiveListeningEnabled)
                 }
                 NotificationCenter.default.publisher(for: .speakerProfilesDidChange)
                     .receive(on: DispatchQueue.main)
-                    .sink { _ in
+                    .sink { [weak self] _ in
+                        guard self?.isPassiveListeningEnabled == true else { return }
                         Task { await passiveListeningRuntime.restart() }
                     }
                     .store(in: &cancellables)
@@ -127,14 +130,25 @@
                     for: AudioDeviceChangeMonitor.devicesDidChangeNotification
                 )
                 .receive(on: DispatchQueue.main)
-                .sink { _ in
+                .sink { [weak self] _ in
+                    guard self?.isPassiveListeningEnabled == true else { return }
                     Task { await passiveListeningRuntime.restart() }
                 }
                 .store(in: &cancellables)
                 NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
                     .receive(on: DispatchQueue.main)
-                    .sink { _ in
+                    .sink { [weak self] _ in
+                        guard self?.isPassiveListeningEnabled == true else { return }
                         Task { await passiveListeningRuntime.revalidatePermission() }
+                    }
+                    .store(in: &cancellables)
+                NotificationCenter.default.publisher(for: .passiveListeningPreferenceDidChange)
+                    .receive(on: DispatchQueue.main)
+                    .sink { [weak self] _ in
+                        guard let self else { return }
+                        let isEnabled = self.settingsStore.loadPassiveListeningEnabled()
+                        self.isPassiveListeningEnabled = isEnabled
+                        Task { await passiveListeningRuntime.setEnabled(isEnabled) }
                     }
                     .store(in: &cancellables)
             }
@@ -284,6 +298,10 @@
         }
 
         var passiveListeningStatusText: String {
+            guard isPassiveListeningEnabled else {
+                return "Passive listening off"
+            }
+
             switch passiveListeningState {
             case .unavailable(let reason):
                 return "Passive unavailable: \(reason)"
@@ -299,11 +317,13 @@
         }
 
         var isPassiveMicrophoneActive: Bool {
+            guard isPassiveListeningEnabled else { return false }
+
             switch passiveListeningState {
             case .passiveArmed, .passivePending, .passiveRelevant:
-                true
+                return true
             case .unavailable, .active:
-                false
+                return false
             }
         }
 

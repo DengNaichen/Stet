@@ -112,7 +112,10 @@
             case .general:
                 return ["updates", "dock", "launch at login", "sounds", "capture", "behavior"]
             case .audio:
-                return ["microphone", "input device", "recording", "audio", "test"]
+                return [
+                    "microphone", "input device", "recording", "audio", "test", "passive transcription",
+                    "speaker profile", "speaker name",
+                ]
             case .appearance:
                 return ["theme", "colors", "shader", "capsule", "visual"]
             case .hotkey:

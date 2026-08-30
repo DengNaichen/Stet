@@ -15,6 +15,54 @@
         }
     }
 
+    nonisolated enum MacPassiveListeningRestartRequest: Equatable, Sendable {
+        case start
+        case coalesced
+        case deferred
+    }
+
+    nonisolated struct MacPassiveListeningRestartGate {
+        private(set) var isActiveCaptureInProgress = false
+        private(set) var isRestartInFlight = false
+        private var hasDeferredRestart = false
+
+        mutating func beginActiveCapture() {
+            isActiveCaptureInProgress = true
+        }
+
+        mutating func requestRestart() -> MacPassiveListeningRestartRequest {
+            guard !isActiveCaptureInProgress else {
+                hasDeferredRestart = true
+                return .deferred
+            }
+            guard !isRestartInFlight else { return .coalesced }
+            isRestartInFlight = true
+            return .start
+        }
+
+        mutating func finishRestart() {
+            isRestartInFlight = false
+        }
+
+        mutating func finishActiveCapture() -> Bool {
+            isActiveCaptureInProgress = false
+            defer { hasDeferredRestart = false }
+            return hasDeferredRestart
+        }
+
+        mutating func reset() {
+            isActiveCaptureInProgress = false
+            isRestartInFlight = false
+            hasDeferredRestart = false
+        }
+    }
+
+    private nonisolated enum MacPassiveListeningLifecycleOperation: Equatable, Sendable {
+        case start
+        case stop
+        case restart
+    }
+
     private actor MacPassiveAnalysisRuntime {
         let analyzer: FluidAudioPassiveSpeechAnalyzer
         private var speechIsActive = false
@@ -233,6 +281,13 @@
         private var stateHandler: StateHandler
         private var coordinator: MacPassiveListeningCoordinator?
         private var frameTask: Task<Void, Never>?
+        private var captureLiveness = MacPassiveCaptureLivenessMonitor()
+        private var captureLivenessTask: Task<Void, Never>?
+        private var restartGate = MacPassiveListeningRestartGate()
+        private var isEnabled = true
+        private var lifecycleTask: Task<Void, Never>?
+        private var lifecycleOperation: MacPassiveListeningLifecycleOperation?
+        private var lifecycleGeneration = 0
 
         init(
             captureService: MacAudioCaptureService,
@@ -251,28 +306,57 @@
         }
 
         func start() async {
+            guard isEnabled else { return }
+            await lifecycleTask(for: .start).value
+        }
+
+        func setEnabled(_ enabled: Bool) async {
+            isEnabled = enabled
+            guard !restartGate.isActiveCaptureInProgress else { return }
+
+            if enabled {
+                await lifecycleTask(for: .start).value
+            } else {
+                await lifecycleTask(for: .stop).value
+                guard !isEnabled else { return }
+                await stateHandler(.unavailable("Passive listening is off"))
+            }
+        }
+
+        private func startRuntime() async {
             guard frameTask == nil else { return }
+            guard isEnabled, !restartGate.isActiveCaptureInProgress else { return }
             guard AVAudioApplication.shared.recordPermission == .granted else {
                 await stateHandler(.unavailable("Microphone permission is not granted"))
                 return
             }
+            await stateHandler(.unavailable("Waiting for microphone audio"))
             MacPassiveListeningCoordinator.cleanupOrphanedTemporaryAudio()
             do {
                 let coordinator = try await makeCoordinator()
+                guard isEnabled, !restartGate.isActiveCaptureInProgress else { return }
                 let stream = await captureService.makeAudioCaptureFrameStream()
+                let captureStartSample = await captureService.currentAudioCaptureSamplePosition()
                 try await captureService.startContinuousCapture()
+                guard isEnabled, !restartGate.isActiveCaptureInProgress else {
+                    await captureService.stopContinuousCapture()
+                    return
+                }
                 _ = await captureService.beginNextAudioCaptureEpoch()
                 let epoch = await captureService.currentAudioCaptureEpoch()
                 await coordinator.arm(epoch: epoch)
                 self.coordinator = coordinator
-                await stateHandler(.passiveArmed)
+                captureLiveness.start(
+                    at: ProcessInfo.processInfo.systemUptime,
+                    samplePosition: captureStartSample
+                )
                 frameTask = Task { [weak self] in
                     for await frame in stream {
                         guard !Task.isCancelled else { break }
-                        await coordinator.ingest(frame)
-                        await self?.publishState()
+                        await self?.ingest(frame, with: coordinator)
                     }
                 }
+                startCaptureLivenessWatchdog()
             } catch {
                 coordinator = nil
                 await stateHandler(.unavailable(error.localizedDescription))
@@ -280,29 +364,43 @@
         }
 
         func restart() async {
-            await stop()
-            await start()
+            guard isEnabled else { return }
+            switch restartGate.requestRestart() {
+            case .start:
+                await lifecycleTask(for: .restart).value
+            case .coalesced:
+                await waitForLifecycleDrain()
+            case .deferred:
+                return
+            }
         }
 
         func revalidatePermission() async {
+            guard isEnabled else {
+                await stateHandler(.unavailable("Passive listening is off"))
+                return
+            }
             if AVAudioApplication.shared.recordPermission == .granted {
                 if frameTask == nil {
                     await start()
                 }
             } else {
-                frameTask?.cancel()
-                frameTask = nil
+                guard !restartGate.isActiveCaptureInProgress else { return }
                 if let coordinator {
                     await coordinator.setUnavailable("Microphone permission is not granted")
                 }
-                coordinator = nil
-                await captureService.stopContinuousCapture()
+                await lifecycleTask(for: .stop).value
                 await stateHandler(.unavailable("Microphone permission is not granted"))
             }
         }
 
         func beginActive() async {
-            guard let coordinator else { return }
+            await waitForLifecycleDrain()
+            restartGate.beginActiveCapture()
+            guard let coordinator else {
+                await stateHandler(.active)
+                return
+            }
             _ = await captureService.beginNextAudioCaptureEpoch()
             let epoch = await captureService.currentAudioCaptureEpoch()
             await coordinator.hotkeyDown(newEpoch: epoch)
@@ -310,14 +408,50 @@
         }
 
         func resumePassive() async {
-            guard let coordinator else { return }
-            _ = await captureService.beginNextAudioCaptureEpoch()
-            let epoch = await captureService.currentAudioCaptureEpoch()
-            await coordinator.hotkeyUp(newEpoch: epoch)
-            await stateHandler(.passiveArmed)
+            if isEnabled, AVAudioApplication.shared.recordPermission == .granted, let coordinator {
+                _ = await captureService.beginNextAudioCaptureEpoch()
+                let epoch = await captureService.currentAudioCaptureEpoch()
+                await coordinator.hotkeyUp(newEpoch: epoch)
+            }
+
+            let shouldRestart = restartGate.finishActiveCapture()
+            guard AVAudioApplication.shared.recordPermission == .granted else {
+                await lifecycleTask(for: .stop).value
+                await stateHandler(.unavailable("Microphone permission is not granted"))
+                return
+            }
+            guard isEnabled else {
+                await lifecycleTask(for: .stop).value
+                guard !isEnabled else {
+                    await start()
+                    return
+                }
+                await stateHandler(.unavailable("Passive listening is off"))
+                return
+            }
+
+            if shouldRestart {
+                await restart()
+            } else if frameTask == nil {
+                await start()
+            } else if captureLiveness.hasReceivedFrame {
+                await stateHandler(.passiveArmed)
+            } else {
+                await stateHandler(.unavailable("Waiting for microphone audio"))
+            }
         }
 
         func stop() async {
+            isEnabled = false
+            guard !restartGate.isActiveCaptureInProgress else { return }
+            restartGate.reset()
+            await lifecycleTask(for: .stop).value
+        }
+
+        private func stopRuntime() async {
+            captureLivenessTask?.cancel()
+            captureLivenessTask = nil
+            captureLiveness.stop()
             frameTask?.cancel()
             frameTask = nil
             if let coordinator {
@@ -327,9 +461,101 @@
             await captureService.stopContinuousCapture()
         }
 
-        private func publishState() async {
-            guard let coordinator else { return }
+        private func lifecycleTask(
+            for operation: MacPassiveListeningLifecycleOperation
+        ) -> Task<Void, Never> {
+            if lifecycleOperation == operation, let lifecycleTask {
+                return lifecycleTask
+            }
+
+            lifecycleGeneration += 1
+            let generation = lifecycleGeneration
+            let precedingTask = lifecycleTask
+            let task = Task { [weak self] in
+                if let precedingTask {
+                    await precedingTask.value
+                }
+                guard let self else { return }
+                await self.performLifecycle(operation)
+                await self.lifecycleDidFinish(generation: generation, operation: operation)
+            }
+            lifecycleOperation = operation
+            lifecycleTask = task
+            return task
+        }
+
+        private func performLifecycle(_ operation: MacPassiveListeningLifecycleOperation) async {
+            switch operation {
+            case .start:
+                await startRuntime()
+            case .stop:
+                await stopRuntime()
+            case .restart:
+                await stopRuntime()
+                await startRuntime()
+            }
+        }
+
+        private func lifecycleDidFinish(
+            generation: Int,
+            operation: MacPassiveListeningLifecycleOperation
+        ) {
+            if operation == .restart {
+                restartGate.finishRestart()
+            }
+            guard generation == lifecycleGeneration else { return }
+            lifecycleOperation = nil
+            lifecycleTask = nil
+        }
+
+        private func waitForLifecycleDrain() async {
+            while let lifecycleTask {
+                await lifecycleTask.value
+            }
+        }
+
+        private func ingest(
+            _ frame: AudioCaptureFrame,
+            with coordinator: MacPassiveListeningCoordinator
+        ) async {
+            guard self.coordinator === coordinator else { return }
+            let receivedFirstFrame = !captureLiveness.hasReceivedFrame
+            captureLiveness.recordFrame(at: ProcessInfo.processInfo.systemUptime)
+            if receivedFirstFrame, !restartGate.isActiveCaptureInProgress {
+                await stateHandler(.passiveArmed)
+            }
+            await coordinator.ingest(frame)
+            guard self.coordinator === coordinator else { return }
             await stateHandler(await coordinator.snapshot().state)
+        }
+
+        private func startCaptureLivenessWatchdog() {
+            captureLivenessTask?.cancel()
+            captureLivenessTask = Task { [weak self] in
+                while !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    guard !Task.isCancelled else { return }
+                    await self?.recoverIfCaptureTimedOut()
+                }
+            }
+        }
+
+        private func recoverIfCaptureTimedOut() async {
+            guard isEnabled else { return }
+
+            let uptime = ProcessInfo.processInfo.systemUptime
+            let capturedThroughSample = await captureService.currentAudioCaptureSamplePosition()
+            captureLiveness.recordCaptureProgress(
+                through: capturedThroughSample,
+                at: uptime
+            )
+            guard captureLiveness.isTimedOut(at: uptime) else { return }
+
+            captureLiveness.stop()
+            if !restartGate.isActiveCaptureInProgress {
+                await stateHandler(.unavailable("Microphone capture stopped"))
+            }
+            await restart()
         }
     }
 #endif

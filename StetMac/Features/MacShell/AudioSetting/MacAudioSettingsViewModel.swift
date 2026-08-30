@@ -19,6 +19,12 @@
                 settingsStore.saveTranscriptionEngine(localTranscriptionEngine)
             }
         }
+        @Published var isPassiveListeningEnabled = true {
+            didSet {
+                guard hasLoadedState, oldValue != isPassiveListeningEnabled else { return }
+                settingsStore.savePassiveListeningEnabled(isPassiveListeningEnabled)
+            }
+        }
 
         @Published private(set) var isWhisperDownloaded = false
         @Published private(set) var isWhisperDownloading = false
@@ -85,6 +91,7 @@
             isParakeetDownloaded = fluidAudioModelManager.isModelDownloaded()
             isFunASRNanoDownloaded = funASRNanoModelManager.isModelDownloaded()
             localTranscriptionEngine = settingsStore.loadTranscriptionEngine()
+            isPassiveListeningEnabled = settingsStore.loadPassiveListeningEnabled()
             hasLoadedState = true
         }
 

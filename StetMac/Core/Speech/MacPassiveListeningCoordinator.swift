@@ -561,10 +561,14 @@
                     } catch {
                         throw ProcessingFailure.transcription
                     }
-                    guard !text.isEmpty else { throw ProcessingFailure.transcription }
                     guard self.conversation?.id == conversation.id,
                         self.conversation?.epoch == conversation.epoch
                     else { return }
+                    conversation.processedThroughSample = chunkEnd
+                    guard !text.isEmpty else {
+                        chunkStart = chunkEnd
+                        continue
+                    }
 
                     conversation.completedRegions.append(
                         CapturedSpeakerRegion(
@@ -578,7 +582,6 @@
                             isOverlap: turn.isOverlap
                         )
                     )
-                    conversation.processedThroughSample = chunkEnd
                     do {
                         try await dependencies.historyUpdate(
                             conversation.id,
@@ -647,6 +650,16 @@
             } catch {
                 conversation.isProcessingTurns = false
                 await failConversation(code: "transcription_failed", at: sample, terminalState: terminalState)
+                return false
+            }
+            guard self.conversation?.id == conversation.id else { return false }
+            guard !conversation.completedRegions.isEmpty else {
+                conversation.isProcessingTurns = false
+                await failConversation(
+                    code: ProcessingFailure.transcription.code,
+                    at: sample,
+                    terminalState: terminalState
+                )
                 return false
             }
 
