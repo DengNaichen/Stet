@@ -43,6 +43,7 @@ sparkle-private-key
 # Editor / local tooling
 .vscode/
 .idea/
+/HANDOFF.md
 
 # Node / web
 node_modules/
