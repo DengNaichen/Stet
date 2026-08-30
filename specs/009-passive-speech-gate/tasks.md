@@ -144,7 +144,7 @@
 - [X] T049 Add regressions for deferred/coalesced passive restarts, producer-side capture liveness, and recovery after empty Nano turns in `Public/Stet/StetMacTests/Core/Speech/`
 - [X] T050 Serialize passive start/stop/restart, defer teardown during active capture, gate readiness on the first frame, and recover stalled capture in `Public/Stet/StetMac/Core/Speech/`
 - [X] T051 Add a persisted default-on passive transcription switch and a visible known-speaker name field in `Public/Stet/StetMac/Features/MacShell/AudioSetting/`
-- [ ] T052 Run the release gates, bump to v0.5.5 (5005), publish the public projection, and verify the GitHub release assets
+- [X] T052 Run the release gates, bump to v0.5.5 (5005), publish the public projection, and verify the GitHub release assets
 
 ---
 
