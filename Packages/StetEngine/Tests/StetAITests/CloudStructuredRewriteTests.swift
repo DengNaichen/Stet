@@ -170,6 +170,60 @@ struct CloudStructuredRewriteTests {
         #expect(RewriteModel.availableModels(for: .groq).isEmpty)
         #expect(RewriteModel.availableModels(for: .doubao).isEmpty)
         #expect(RewriteModel.availableModels(for: .anthropic).isEmpty)
+        #expect(RewriteModel.availableModels(for: .custom).isEmpty)
+        #expect(DictationProviderDefaults.rewriteModel(for: .custom).isEmpty)
+    }
+
+    @Test func customEndpointRequestsJSONObjectWithoutThinking() async throws {
+        let session = TestHTTP.makeSession { request in
+            #expect(request.url?.absoluteString == "http://127.0.0.1:11434/v1/chat/completions")
+            #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+            let body = try TestHTTP.jsonBody(from: request)
+            #expect(body["model"] as? String == "llama3.1")
+            #expect(body["thinking"] == nil)
+            #expect(body["reasoning_effort"] == nil)
+            let responseFormat = try #require(body["response_format"] as? [String: Any])
+            #expect(responseFormat["type"] as? String == "json_object")
+
+            return try TestHTTP.response(
+                for: request,
+                body: #"{"choices":[{"message":{"content":"{\"text\":\"Custom rewrite\"}"}}]}"#
+            )
+        }
+        let service = OpenAIRewriteService(
+            configuration: DictationProviderConfigurationResolver.rewriteConfiguration(
+                provider: .custom,
+                apiKey: "",
+                customModel: "llama3.1",
+                baseURL: URL(string: "http://127.0.0.1:11434/v1")!
+            ),
+            session: session
+        )
+
+        let text = try await service.rewrite(.cleanup("hello"))
+
+        #expect(text == "Custom rewrite")
+    }
+
+    @Test func customModelProbeListsModelsWithoutRequiringAPIKey() async throws {
+        let session = TestHTTP.makeSession { request in
+            #expect(request.httpMethod == "GET")
+            #expect(request.url?.absoluteString == "https://openrouter.ai/api/v1/models")
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer sk-live")
+
+            return try TestHTTP.response(
+                for: request,
+                body: #"{"data":[{"id":"openrouter/auto"},{"id":"gpt-4o-mini"}]}"#
+            )
+        }
+        let probe = OpenAICompatibleModelProbe(session: session)
+
+        let models = try await probe.listModels(
+            baseURL: URL(string: "https://openrouter.ai/api/v1")!,
+            apiKey: "sk-live"
+        )
+
+        #expect(models == ["gpt-4o-mini", "openrouter/auto"])
     }
 
     private func makeConfiguration(provider: DictationProvider) -> RewriteProviderConfiguration {

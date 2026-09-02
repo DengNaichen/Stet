@@ -43,7 +43,7 @@ public enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
             return [.gemini37Flash]
         case .anthropic:
             return []
-        case .appleIntelligence:
+        case .appleIntelligence, .custom:
             return []
         }
     }
@@ -58,7 +58,7 @@ public enum RewriteModel: String, CaseIterable, Identifiable, Sendable {
         case .doubao: return .doubaoSeed20Mini
         case .google: return .gemini37Flash
         case .anthropic: return .claudeHaiku45
-        case .appleIntelligence: return .gpt56Luna
+        case .appleIntelligence, .custom: return .gpt56Luna
         }
     }
 }

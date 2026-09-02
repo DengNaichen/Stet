@@ -43,7 +43,7 @@ public struct ProviderCredentialValidationService: ProviderCredentialValidating,
             try await performValidationRequest(try makeGoogleModelsRequest(apiKey: apiKey), provider: provider)
         case .anthropic:
             try await performValidationRequest(try makeAnthropicModelsRequest(apiKey: apiKey), provider: provider)
-        case .appleIntelligence:
+        case .custom, .appleIntelligence:
             return
         }
     }

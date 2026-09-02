@@ -10,6 +10,7 @@ public enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
     case qwen = "qwen"
     case glm = "glm"
     case doubao = "doubao"
+    case custom = "custom"
 
     public nonisolated var id: Self { self }
 
@@ -33,6 +34,8 @@ public enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
             return NSLocalizedString("GLM", comment: "")
         case .doubao:
             return NSLocalizedString("Doubao", comment: "")
+        case .custom:
+            return NSLocalizedString("Custom", comment: "")
         }
     }
 
@@ -56,18 +59,25 @@ public enum DictationProvider: String, CaseIterable, Identifiable, Sendable {
             return NSLocalizedString("Audio capture + GLM transcription", comment: "")
         case .doubao:
             return NSLocalizedString("Audio capture + Doubao transcription", comment: "")
+        case .custom:
+            return NSLocalizedString("Audio capture + OpenAI-compatible refine", comment: "")
         }
     }
 
     public nonisolated var apiKeyPlaceholder: String {
-        NSLocalizedString("Enter your access key", comment: "")
+        switch self {
+        case .custom:
+            return NSLocalizedString("API key (optional)", comment: "")
+        case .openAI, .google, .anthropic, .appleIntelligence, .groq, .deepSeek, .qwen, .glm, .doubao:
+            return NSLocalizedString("Enter your access key", comment: "")
+        }
     }
 
     public nonisolated var requiresAPIKey: Bool {
         switch self {
         case .openAI, .groq, .deepSeek, .qwen, .glm, .doubao, .google, .anthropic:
             return true
-        case .appleIntelligence:
+        case .appleIntelligence, .custom:
             return false
         }
     }

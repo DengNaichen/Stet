@@ -97,6 +97,15 @@
 "Apple Intelligence" = "Apple Intelligence";
 "Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac." = "Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac.";
 "Provide your API key to use %@ directly." = "Provide your API key to use %@ directly.";
+"Custom" = "Custom";
+"Custom Endpoint" = "Custom Endpoint";
+"Base URL" = "Base URL";
+"API key (optional)" = "API key (optional)";
+"Load Models" = "Load Models";
+"Model ID" = "Model ID";
+"Use any OpenAI-compatible API. Stet lists models from GET /models, or you can type a model ID." = "Use any OpenAI-compatible API. Stet lists models from GET /models, or you can type a model ID.";
+"No models were returned. Enter a model ID below." = "No models were returned. Enter a model ID below.";
+"%d models found." = "%d models found.";
 "Save Key" = "Save Key";
 "Remove Key" = "Remove Key";
 "Choose which on-device model handles transcription." = "Choose which on-device model handles transcription.";

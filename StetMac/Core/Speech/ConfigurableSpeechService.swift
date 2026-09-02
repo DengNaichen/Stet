@@ -568,7 +568,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         rewriteProvider: DictationProvider?
     ) -> Bool {
         switch rewriteProvider {
-        case .openAI, .groq, .deepSeek, .qwen, .glm, .doubao, .google, .anthropic:
+        case .openAI, .groq, .deepSeek, .qwen, .glm, .doubao, .google, .anthropic, .custom:
             return false
         case .appleIntelligence, nil:
             return true
