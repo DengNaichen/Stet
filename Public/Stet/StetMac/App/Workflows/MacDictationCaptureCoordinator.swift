@@ -413,7 +413,31 @@
                 "com.openai.codex",
                 "com.google.antigravity",
                 "dev.zed.app",
-                "dev.zed.zed":
+                "dev.zed.zed",
+                "com.todesktop.230313mzl4w4u92",
+                "co.anysphere.cursor.nightly",
+                "com.tencent.xinwechat",
+                "com.mitchellh.ghostty",
+                "com.electron.lark",
+                "com.bytedance.macos.feishu",
+                "com.larksuite.larkapp",
+                "com.anthropic.claudefordesktop",
+                "cn.trae.app",
+                "now.typeless.desktop",
+                "app.motrix.native",
+                "com.1password.1password",
+                "com.alibaba.dingtalkmac",
+                "com.tencent.weworkmac",
+                "com.tencent.qq",
+                "com.tencent.meeting",
+                "com.bot.pc.doubao",
+                "com.alibaba.tongyi",
+                "com.moonshot.kimichat",
+                "com.yuque.app",
+                "com.tencent.mac.tdappdesktop",
+                "com.shimo.desktop.main",
+                "com.kingsoft.wpsoffice.mac",
+                "com.kingsoft.wpsoffice.mac.global":
                 return .optimisticVerificationBlind(recoveryWindow: .seconds(10))
             default:
                 return nil

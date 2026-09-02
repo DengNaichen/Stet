@@ -346,6 +346,30 @@
                 "com.google.antigravity",
                 "dev.zed.app",
                 "dev.zed.Zed",
+                "com.todesktop.230313mzl4w4u92",
+                "co.anysphere.cursor.nightly",
+                "com.tencent.xinWeChat",
+                "com.mitchellh.ghostty",
+                "com.electron.lark",
+                "com.bytedance.macos.feishu",
+                "com.larksuite.larkApp",
+                "com.anthropic.claudefordesktop",
+                "cn.trae.app",
+                "now.typeless.desktop",
+                "app.motrix.native",
+                "com.1password.1password",
+                "com.alibaba.DingTalkMac",
+                "com.tencent.WeWorkMac",
+                "com.tencent.qq",
+                "com.tencent.meeting",
+                "com.bot.pc.doubao",
+                "com.alibaba.tongyi",
+                "com.moonshot.kimichat",
+                "com.yuque.app",
+                "com.tencent.mac.tdappdesktop",
+                "com.shimo.desktop.main",
+                "com.kingsoft.wpsoffice.mac",
+                "com.kingsoft.wpsoffice.mac.global",
             ]
 
             for bundleIdentifier in bundleIdentifiers {
@@ -378,6 +402,89 @@
                     textInjection.didRequestAccessIfNeeded == false,
                     "Expected \(bundleIdentifier) not to request access")
                 #expect(revealCount == 0, "Expected \(bundleIdentifier) not to reveal panel")
+            }
+        }
+
+        @Test func unverifiablePasteAppsCompleteWithoutClipboardRecovery() async {
+            let bundleIdentifiers = [
+                "com.todesktop.230313mzl4w4u92",
+                "co.anysphere.cursor.nightly",
+                "com.tencent.xinWeChat",
+                "com.mitchellh.ghostty",
+                "com.electron.lark",
+                "com.bytedance.macos.feishu",
+                "com.larksuite.larkApp",
+                "com.anthropic.claudefordesktop",
+                "cn.trae.app",
+                "now.typeless.desktop",
+                "app.motrix.native",
+                "com.1password.1password",
+                "com.alibaba.DingTalkMac",
+                "com.tencent.WeWorkMac",
+                "com.tencent.qq",
+                "com.tencent.meeting",
+                "com.bot.pc.doubao",
+                "com.alibaba.tongyi",
+                "com.moonshot.kimichat",
+                "com.yuque.app",
+                "com.tencent.mac.tdappdesktop",
+                "com.shimo.desktop.main",
+                "com.kingsoft.wpsoffice.mac",
+                "com.kingsoft.wpsoffice.mac.global",
+            ]
+            let pasteOutcomes: [TextInjectionOutcome] = [
+                .eventPostedVerificationUnavailable,
+                .verificationFailed,
+            ]
+
+            for bundleIdentifier in bundleIdentifiers {
+                for pasteOutcome in pasteOutcomes {
+                    let clipboard = TestClipboardService()
+                    let textInjection = TestTextInjectionService()
+                    textInjection.pasteOutcome = pasteOutcome
+                    let coordinator = makeCoordinator(
+                        clipboard: clipboard,
+                        textInjection: textInjection,
+                        frontmostBundleIdentifier: bundleIdentifier
+                    )
+                    var revealCount = 0
+
+                    let outcome = await coordinator.handleCompletedCapture(
+                        text: "hello",
+                        targetApplication: nil,
+                        settings: .init(
+                            shouldCopyToClipboard: false,
+                            shouldAutoPaste: true,
+                            shouldRevealPanelOnCapture: true
+                        ),
+                        showPanel: { revealCount += 1 }
+                    )
+
+                    #expect(
+                        outcome == .completed,
+                        "Expected \(bundleIdentifier) \(String(describing: pasteOutcome)) to complete"
+                    )
+                    #expect(
+                        clipboard.copiedTexts == ["hello"],
+                        "Expected \(bundleIdentifier) to copy once"
+                    )
+                    #expect(
+                        clipboard.transientFlags == [true],
+                        "Expected \(bundleIdentifier) to use transient copy"
+                    )
+                    #expect(
+                        textInjection.pasteTargets.count == 1,
+                        "Expected \(bundleIdentifier) to attempt one paste"
+                    )
+                    #expect(
+                        textInjection.didRequestAccessIfNeeded == false,
+                        "Expected \(bundleIdentifier) not to request access"
+                    )
+                    #expect(
+                        revealCount == 0,
+                        "Expected \(bundleIdentifier) not to reveal panel"
+                    )
+                }
             }
         }
 
