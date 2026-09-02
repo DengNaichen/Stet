@@ -103,8 +103,11 @@
 
         func handlePanelAndIdleLifecycle(for state: DictationState) {
             switch state {
-            case .starting, .listening, .error, .clipboardPending:
+            case .starting, .listening, .error:
                 showTransientPanelIfNeeded()
+            case .clipboardPending:
+                showTransientPanelIfNeeded()
+                scheduleClipboardPendingAutoDismiss()
             case .idle:
                 guard workflowController.activeRecordingSource == nil else { return }
                 workflowController.resetWorkflowIfNeeded()
@@ -178,7 +181,24 @@
         func cancelPendingStateTasks() {
             completionHandlingTask?.cancel()
             completionHandlingTask = nil
+            clipboardPendingDismissTask?.cancel()
+            clipboardPendingDismissTask = nil
             shellPresentationController.cancelScheduledPanelHide()
+        }
+
+        // The recovered text is already on the clipboard by the time the panel
+        // reaches `.clipboardPending`, so the surface only needs to stay long
+        // enough to be read before the workflow returns to idle.
+        func scheduleClipboardPendingAutoDismiss() {
+            clipboardPendingDismissTask?.cancel()
+            clipboardPendingDismissTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                try? await Task.sleep(for: clipboardPendingAutoDismissDelay)
+                guard !Task.isCancelled else { return }
+                guard case .clipboardPending = dictationState else { return }
+                clipboardPendingDismissTask = nil
+                dismissPendingCopy()
+            }
         }
 
         func scheduleTransientPanelHideIfNeeded() {
@@ -249,7 +269,13 @@
             case .result, .error:
                 workflowController.dictationViewModel.send(.resetTapped)
                 startDictationCapture(from: source)
-            case .clipboardPending, .starting, .listening, .processing:
+            case .clipboardPending:
+                Task {
+                    await DictationRuntimeProbe.shared.markPendingCopyDismissed()
+                }
+                workflowController.dictationViewModel.send(.resetTapped)
+                startDictationCapture(from: source)
+            case .starting, .listening, .processing:
                 break
             }
         }

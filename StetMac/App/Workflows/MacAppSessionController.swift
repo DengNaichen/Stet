@@ -31,6 +31,8 @@
         let hotkeyRegistrar: any MacDictationHotkeyRegistering
         var cancellables = Set<AnyCancellable>()
         var completionHandlingTask: Task<Void, Never>?
+        var clipboardPendingDismissTask: Task<Void, Never>?
+        var clipboardPendingAutoDismissDelay: Duration = .seconds(4)
         var hotkeyInteraction = MacDictationHotkeyInteraction()
         var previousDictationState: DictationState = .idle
         weak var presentationModel: (any MacAppPresentationModeling)?
