@@ -1,6 +1,7 @@
 #if os(macOS)
     @preconcurrency import AVFoundation
     import CryptoKit
+    import FluidAudio
     import Foundation
     import StetASR
 
@@ -101,14 +102,33 @@
 
         func extract(from recordingURL: URL) async throws -> SpeakerEnrollmentEmbedding {
             let samples = try Self.readNormalizedSamples(from: recordingURL)
+            let segmentation = try await AudioSignalAnalyzer.segmentSpeechForVad(
+                samples: samples,
+                sampleRate: 16_000
+            )
+            let voicedSamples = Self.voicedSamples(from: segmentation)
+            guard voicedSamples.count >= 19_200 else {
+                throw SpeakerEmbeddingModelManagerError.invalidAudio
+            }
             let recognizer = try await modelManager.recognizer()
             do {
                 return SpeakerEnrollmentEmbedding(
                     model: recognizer.model,
-                    normalizedVector: try await recognizer.extractEmbedding(from: samples)
+                    normalizedVector: try await recognizer.extractEmbedding(from: voicedSamples)
                 )
             } catch SpeakerEmbeddingRecognizerError.invalidEmbedding {
                 throw SpeakerEmbeddingModelManagerError.invalidAudio
+            }
+        }
+
+        nonisolated static func voicedSamples(
+            from segmentation: AudioSignalAnalyzer.VadSegmentation
+        ) -> [Float] {
+            let sampleRate = Int(segmentation.sampleRate.rounded())
+            return segmentation.segments.flatMap { segment -> ArraySlice<Float> in
+                let start = max(0, min(segment.startSample(sampleRate: sampleRate), segmentation.samples.count))
+                let end = max(start, min(segment.endSample(sampleRate: sampleRate), segmentation.samples.count))
+                return segmentation.samples[start..<end]
             }
         }
 

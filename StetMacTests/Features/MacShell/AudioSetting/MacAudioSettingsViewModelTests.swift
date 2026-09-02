@@ -1,4 +1,5 @@
 #if os(macOS)
+    import FluidAudio
     import Foundation
     import StetASR
     import StetCore
@@ -96,6 +97,7 @@
             #expect(viewModel.speakerProfiles.count == 1)
             #expect(viewModel.speakerProfiles[0].role == .owner)
             #expect(viewModel.speakerProfiles[0].enrollmentSampleCount == 3)
+            #expect(viewModel.speakerProfiles[0].matchThreshold == SpeakerProfile.defaultMatchThreshold)
 
             viewModel.enrollmentRole = .known
             viewModel.enrollmentName = "  Alice  "
@@ -141,6 +143,21 @@
 
             #expect(microphone.startCallCount == 0)
             #expect(viewModel.enrollmentErrorMessage?.contains("permission") == true)
+        }
+
+        @Test func enrollmentEmbeddingUsesOnlyVADApprovedSamples() {
+            let segmentation = AudioSignalAnalyzer.VadSegmentation(
+                samples: (0..<10).map(Float.init),
+                sampleRate: 10,
+                segments: [
+                    VadSegment(startTime: 0.2, endTime: 0.5),
+                    VadSegment(startTime: 0.7, endTime: 0.9),
+                ]
+            )
+
+            let samples = SpeakerEnrollmentEmbeddingService.voicedSamples(from: segmentation)
+
+            #expect(samples == [2, 3, 4, 7, 8])
         }
 
         @Test func enforcesOneOwnerAndThreeKnownProfileCapBeforeRecording() async throws {

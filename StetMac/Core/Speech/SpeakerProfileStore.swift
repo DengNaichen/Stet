@@ -17,6 +17,9 @@ nonisolated enum SpeakerProfileStatus: String, Codable, Sendable {
 }
 
 nonisolated struct SpeakerProfile: Codable, Equatable, Identifiable, Sendable {
+    static let defaultMatchThreshold = 0.60
+    static let legacyUncalibratedMatchThreshold = 0.70
+
     let id: UUID
     let displayName: String
     let role: SpeakerProfileRole
@@ -106,7 +109,9 @@ actor SpeakerProfileStore {
 
         var changed = false
         for index in profiles.indices where profiles[index].status == .ready {
-            if profiles[index].model != currentModel {
+            if profiles[index].model != currentModel
+                || profiles[index].matchThreshold == SpeakerProfile.legacyUncalibratedMatchThreshold
+            {
                 profiles[index].status = .requiresReenrollment
                 changed = true
             }
