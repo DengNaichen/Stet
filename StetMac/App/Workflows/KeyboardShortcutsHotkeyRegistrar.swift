@@ -15,14 +15,6 @@
             }
         }
 
-        func registerDictationKeyUp(_ handler: @escaping () -> Void) {
-            KeyboardShortcuts.onKeyUp(for: .dictationHotkey) {
-                Task { @MainActor in
-                    handler()
-                }
-            }
-        }
-
         func clearMeetingHandlers() {
             KeyboardShortcuts.removeHandler(for: .meetingRecordingHotkey)
         }

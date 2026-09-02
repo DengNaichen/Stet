@@ -92,7 +92,6 @@
     private final class FakeHotkeyRegistrar: MacDictationHotkeyRegistering {
         private(set) var clearDictationHandlersCallCount = 0
         private(set) var registerKeyDownCallCount = 0
-        private(set) var registerKeyUpCallCount = 0
 
         func clearDictationHandlers() {
             clearDictationHandlersCallCount += 1
@@ -100,10 +99,6 @@
 
         func registerDictationKeyDown(_ handler: @escaping () -> Void) {
             registerKeyDownCallCount += 1
-        }
-
-        func registerDictationKeyUp(_ handler: @escaping () -> Void) {
-            registerKeyUpCallCount += 1
         }
     }
 
