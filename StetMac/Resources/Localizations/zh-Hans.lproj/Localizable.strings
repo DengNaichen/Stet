@@ -175,9 +175,9 @@
 "Select your preferred AI provider to handle transcription and cleanup." = "选择您偏好的 AI 服务商来处理转录和文本整理。";
 "Grant microphone and input control permissions so Stet can record and type text back into your apps." = "授予麦克风和输入控制权限，以便 Stet 能够录音并将文字输入您的应用。";
 "Choose the shortcut you want to use for dictation." = "选择您用于听写的快捷键。";
-"Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "按住快捷键自然说话。我们会保留您的意图并进行必要的整理。";
+"Press the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "按下快捷键自然说话。我们会保留您的意图并进行必要的整理。";
 "Browse themes on the right, then apply and finish." = "在右侧浏览主题，然后应用并完成。";
-"Hold your shortcut and start speaking anywhere you can type text." = "按住快捷键，在任何可以输入文字的地方开始说话。";
+"Press your shortcut and start speaking anywhere you can type text." = "按下快捷键，在任何可以输入文字的地方开始说话。";
 
 /* Onboarding steps */
 "Download the model to process your voice locally" = "下载模型以在本地处理您的语音";

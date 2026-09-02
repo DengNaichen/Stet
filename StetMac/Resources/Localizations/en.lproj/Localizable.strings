@@ -169,9 +169,9 @@
 "Select your preferred AI provider to handle transcription and cleanup." = "Select your preferred AI provider to handle transcription and cleanup.";
 "Grant microphone and input control permissions so Stet can record and type text back into your apps." = "Grant microphone and input control permissions so Stet can record and type text back into your apps.";
 "Choose the shortcut you want to use for dictation." = "Choose the shortcut you want to use for dictation.";
-"Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup.";
+"Press the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "Press the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup.";
 "Browse themes on the right, then apply and finish." = "Browse themes on the right, then apply and finish.";
-"Hold your shortcut and start speaking anywhere you can type text." = "Hold your shortcut and start speaking anywhere you can type text.";
+"Press your shortcut and start speaking anywhere you can type text." = "Press your shortcut and start speaking anywhere you can type text.";
 
 /* Onboarding steps */
 "Download the model to process your voice locally" = "Download the model to process your voice locally";

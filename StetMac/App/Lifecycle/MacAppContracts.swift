@@ -117,7 +117,6 @@
     protocol MacDictationHotkeyRegistering {
         func clearDictationHandlers()
         func registerDictationKeyDown(_ handler: @escaping () -> Void)
-        func registerDictationKeyUp(_ handler: @escaping () -> Void)
     }
 #endif
 
