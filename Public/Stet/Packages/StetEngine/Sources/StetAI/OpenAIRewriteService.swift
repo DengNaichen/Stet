@@ -21,6 +21,15 @@ public struct OpenAIRewriteService: TextRewriteService {
             case reasoningEffort = "reasoning_effort"
             case responseFormat = "response_format"
         }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(model, forKey: .model)
+            try container.encode(messages, forKey: .messages)
+            try container.encodeIfPresent(thinking, forKey: .thinking)
+            try container.encodeIfPresent(reasoningEffort, forKey: .reasoningEffort)
+            try container.encode(responseFormat, forKey: .responseFormat)
+        }
     }
 
     private struct ChatCompletionThinking: Encodable {
@@ -193,7 +202,7 @@ public struct OpenAIRewriteService: TextRewriteService {
         prepared: PreparedCloudRewritePayload
     ) throws -> URLRequest {
         let trimmedKey = endpoint.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedKey.isEmpty else {
+        if trimmedKey.isEmpty && endpoint.provider != .custom {
             throw OpenAIError.missingAPIKey(provider: endpoint.provider)
         }
 
@@ -201,7 +210,9 @@ public struct OpenAIRewriteService: TextRewriteService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 60
-        request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
+        if !trimmedKey.isEmpty {
+            request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
+        }
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(

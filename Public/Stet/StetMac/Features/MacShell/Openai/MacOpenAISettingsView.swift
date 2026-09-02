@@ -73,6 +73,101 @@
                     }
                 }
 
+                if viewModel.isRewriteEnabled, viewModel.unifiedProvider == .custom {
+                    Section {
+                        VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
+                            Text(
+                                NSLocalizedString(
+                                    "Use any OpenAI-compatible API. Stet lists models from GET /models, or you can type a model ID.",
+                                    comment: "")
+                            )
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+
+                            MacSettingsValueRow(title: NSLocalizedString("Base URL", comment: "")) {
+                                TextField(
+                                    "https://api.example.com/v1",
+                                    text: $viewModel.customBaseURL
+                                )
+                                .textFieldStyle(.roundedBorder)
+                                .font(.system(.body, design: .monospaced))
+                                .frame(width: controlWidth, alignment: .trailing)
+                            }
+
+                            SecureField(
+                                viewModel.credentialPlaceholder(for: .custom),
+                                text: $viewModel.customAPIKey
+                            )
+                            .labelsHidden()
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(.body, design: .monospaced))
+
+                            if !viewModel.discoveredCustomModels.isEmpty {
+                                MacSettingsValueRow(title: NSLocalizedString("Preferred Model", comment: "")) {
+                                    Picker("", selection: $viewModel.customModelID) {
+                                        ForEach(viewModel.discoveredCustomModels, id: \.self) { modelID in
+                                            Text(modelID).tag(modelID)
+                                        }
+                                        if !viewModel.discoveredCustomModels.contains(viewModel.customModelID),
+                                            !viewModel.customModelID.isEmpty
+                                        {
+                                            Text(viewModel.customModelID).tag(viewModel.customModelID)
+                                        }
+                                    }
+                                    .labelsHidden()
+                                    .pickerStyle(.menu)
+                                    .frame(width: controlWidth, alignment: .trailing)
+                                }
+                            }
+
+                            MacSettingsValueRow(title: NSLocalizedString("Model ID", comment: "")) {
+                                TextField("llama3.1", text: $viewModel.customModelID)
+                                    .textFieldStyle(.roundedBorder)
+                                    .font(.system(.body, design: .monospaced))
+                                    .frame(width: controlWidth, alignment: .trailing)
+                            }
+
+                            HStack(spacing: 12) {
+                                Button(NSLocalizedString("Load Models", comment: "")) {
+                                    Task { await viewModel.loadCustomModels() }
+                                }
+                                .disabled(viewModel.customModelProbeState == .loading)
+
+                                Button(NSLocalizedString("Save Key", comment: "")) {
+                                    viewModel.saveCustomEndpoint()
+                                }
+
+                                Button(NSLocalizedString("Remove Key", comment: ""), role: .destructive) {
+                                    viewModel.clearCredential(for: .custom)
+                                }
+                                .foregroundStyle(.red)
+                            }
+
+                            switch viewModel.customModelProbeState {
+                            case .idle, .loading:
+                                EmptyView()
+                            case .loaded(let count):
+                                Text(
+                                    count == 0
+                                        ? NSLocalizedString(
+                                            "No models were returned. Enter a model ID below.", comment: "")
+                                        : String(
+                                            format: NSLocalizedString("%d models found.", comment: ""),
+                                            count)
+                                )
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                            case .failed(let message):
+                                Text(message)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.red)
+                            }
+                        }
+                    } header: {
+                        Text(NSLocalizedString("Custom Endpoint", comment: ""))
+                    }
+                }
+
                 ForEach(viewModel.visibleCredentialProviders) { provider in
                     Section {
                         VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {

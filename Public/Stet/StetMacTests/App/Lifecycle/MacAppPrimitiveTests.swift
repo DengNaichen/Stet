@@ -30,6 +30,8 @@
             #expect(DictationProvider.openAI.apiKeyPlaceholder == "Enter your access key")
             #expect(DictationProvider.groq.apiKeyPlaceholder == "Enter your access key")
             #expect(!DictationProvider.appleIntelligence.requiresAPIKey)
+            #expect(!DictationProvider.custom.requiresAPIKey)
+            #expect(DictationProvider.custom.apiKeyPlaceholder == "API key (optional)")
         }
 
         @Test(arguments: [

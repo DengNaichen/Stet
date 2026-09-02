@@ -68,18 +68,51 @@ struct RewriteSettingsView: View {
                         viewModel.onProviderChanged()
                     }
 
-                    Picker("Model", selection: $viewModel.settingsStore.selectedModel) {
-                        ForEach(RewriteModel.availableModels(for: viewModel.settingsStore.selectedProvider)) { model in
-                            Text(model.displayName).tag(model)
+                    if viewModel.settingsStore.selectedProvider == .custom {
+                        TextField(
+                            "https://api.example.com/v1",
+                            text: $viewModel.settingsStore.customBaseURL
+                        )
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.URL)
+
+                        if !viewModel.settingsStore.discoveredCustomModels.isEmpty {
+                            Picker("Model", selection: $viewModel.settingsStore.customModelID) {
+                                ForEach(viewModel.settingsStore.discoveredCustomModels, id: \.self) { modelID in
+                                    Text(modelID).tag(modelID)
+                                }
+                                if !viewModel.settingsStore.discoveredCustomModels.contains(
+                                    viewModel.settingsStore.customModelID),
+                                    !viewModel.settingsStore.customModelID.isEmpty
+                                {
+                                    Text(viewModel.settingsStore.customModelID).tag(
+                                        viewModel.settingsStore.customModelID)
+                                }
+                            }
+                        }
+
+                        TextField("Model ID", text: $viewModel.settingsStore.customModelID)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    } else {
+                        Picker("Model", selection: $viewModel.settingsStore.selectedModel) {
+                            ForEach(RewriteModel.availableModels(for: viewModel.settingsStore.selectedProvider)) {
+                                model in
+                                Text(model.displayName).tag(model)
+                            }
                         }
                     }
                 }
 
                 Section("API Key") {
-                    SecureField("Enter API key", text: $viewModel.apiKeyInput)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .onSubmit { viewModel.saveAPIKey() }
+                    SecureField(
+                        viewModel.settingsStore.selectedProvider.apiKeyPlaceholder,
+                        text: $viewModel.apiKeyInput
+                    )
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .onSubmit { viewModel.saveAPIKey() }
 
                     Button {
                         Task { await viewModel.validateCredential() }

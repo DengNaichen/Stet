@@ -15,6 +15,9 @@ final class RewriteSettingsStore: ObservableObject {
         static let rewriteEnabled = "rewrite.enabled"
         static let selectedProvider = "rewrite.provider"
         static let selectedModel = "rewrite.model"
+        static let customBaseURL = "rewrite.customBaseURL"
+        static let customModelID = "rewrite.customModelID"
+        static let customDiscoveredModels = "rewrite.customDiscoveredModels"
     }
 
     @Published var isRewriteEnabled: Bool {
@@ -27,6 +30,18 @@ final class RewriteSettingsStore: ObservableObject {
 
     @Published var selectedModel: RewriteModel {
         didSet { defaults.set(selectedModel.rawValue, forKey: Keys.selectedModel) }
+    }
+
+    @Published var customBaseURL: String {
+        didSet { defaults.set(customBaseURL, forKey: Keys.customBaseURL) }
+    }
+
+    @Published var customModelID: String {
+        didSet { defaults.set(customModelID, forKey: Keys.customModelID) }
+    }
+
+    @Published var discoveredCustomModels: [String] {
+        didSet { defaults.set(discoveredCustomModels, forKey: Keys.customDiscoveredModels) }
     }
 
     init() {
@@ -51,6 +66,10 @@ final class RewriteSettingsStore: ObservableObject {
         } else {
             self.selectedModel = RewriteModel.default(for: provider)
         }
+
+        self.customBaseURL = defaults.string(forKey: Keys.customBaseURL) ?? ""
+        self.customModelID = defaults.string(forKey: Keys.customModelID) ?? ""
+        self.discoveredCustomModels = defaults.stringArray(forKey: Keys.customDiscoveredModels) ?? []
     }
 
     // MARK: - Keychain API Key Storage
@@ -96,9 +115,23 @@ final class RewriteSettingsStore: ObservableObject {
 
     // MARK: - Service Factory
 
-    /// Build a `TextRewriteService` if rewrite is enabled and API key is present.
+    /// Build a `TextRewriteService` if rewrite is enabled and the selected provider is ready.
     func makeRewriteServiceIfEnabled() -> (any TextRewriteService)? {
         guard isRewriteEnabled else { return nil }
+
+        if selectedProvider == .custom {
+            guard let baseURL = try? OpenAICompatibleBaseURL.normalize(customBaseURL) else { return nil }
+            let modelID = customModelID.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !modelID.isEmpty else { return nil }
+            let config = DictationProviderConfigurationResolver.rewriteConfiguration(
+                provider: .custom,
+                apiKey: loadAPIKey(for: .custom) ?? "",
+                customModel: modelID,
+                baseURL: baseURL
+            )
+            return OpenAIRewriteService(configuration: config, session: .shared)
+        }
+
         guard let apiKey = loadAPIKey(for: selectedProvider), !apiKey.isEmpty else { return nil }
 
         let config = DictationProviderConfigurationResolver.rewriteConfiguration(

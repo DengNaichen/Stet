@@ -8,6 +8,7 @@ final class RewriteSettingsViewModel: ObservableObject {
     var settingsStore: RewriteSettingsStore
     var funASRSettingsStore: FunASRSettingsStore
     private let validationService: ProviderCredentialValidationService
+    private let modelProbe: any OpenAICompatibleModelProbing
     private let funASRConnectionValidator: any FunASRConnectionValidating
 
     @Published var apiKeyInput: String = ""
@@ -25,12 +26,14 @@ final class RewriteSettingsViewModel: ObservableObject {
     init(
         settingsStore: RewriteSettingsStore,
         funASRSettingsStore: FunASRSettingsStore? = nil,
-        funASRConnectionValidator: (any FunASRConnectionValidating)? = nil
+        funASRConnectionValidator: (any FunASRConnectionValidating)? = nil,
+        modelProbe: (any OpenAICompatibleModelProbing)? = nil
     ) {
         self.settingsStore = settingsStore
         self.funASRSettingsStore = funASRSettingsStore ?? FunASRSettingsStore()
         self.validationService = ProviderCredentialValidationService()
         self.funASRConnectionValidator = funASRConnectionValidator ?? FunASRConnectionValidator()
+        self.modelProbe = modelProbe ?? OpenAICompatibleModelProbe()
         self.apiKeyInput = settingsStore.loadAPIKey(for: settingsStore.selectedProvider) ?? ""
         self.funASRAPIKeyInput = (try? self.funASRSettingsStore.loadAPIKey()) ?? ""
     }
@@ -52,6 +55,11 @@ final class RewriteSettingsViewModel: ObservableObject {
     }
 
     func validateCredential() async {
+        if settingsStore.selectedProvider == .custom {
+            await validateCustomEndpoint()
+            return
+        }
+
         guard !apiKeyInput.isEmpty else {
             validationState = .failed("Enter an API key first.")
             return
@@ -66,6 +74,24 @@ final class RewriteSettingsViewModel: ObservableObject {
             validationState = .success
         } catch {
             validationState = .failed("The API key couldn't be validated. Check it and try again.")
+        }
+    }
+
+    private func validateCustomEndpoint() async {
+        validationState = .validating
+        do {
+            let url = try OpenAICompatibleBaseURL.normalize(settingsStore.customBaseURL)
+            let models = try await modelProbe.listModels(baseURL: url, apiKey: apiKeyInput)
+            settingsStore.discoveredCustomModels = models
+            settingsStore.saveAPIKey(apiKeyInput, for: .custom)
+            if settingsStore.customModelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                let first = models.first
+            {
+                settingsStore.customModelID = first
+            }
+            validationState = .success
+        } catch {
+            validationState = .failed(error.localizedDescription)
         }
     }
 

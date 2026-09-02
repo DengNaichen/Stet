@@ -99,6 +99,15 @@
 "Apple Intelligence" = "Apple Intelligence（测试版, 表现可能不及预期）";
 "Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac." = "使用设备端 Apple Intelligence 模型本地优化转录。可用性取决于此 Mac 上的 Apple Intelligence 是否已启用并就绪。（此功能是测试版并不是很好用）";
 "Provide your API key to use %@ directly." = "请提供 API 密钥以直接使用 %@。";
+"Custom" = "自定义";
+"Custom Endpoint" = "自定义接口";
+"Base URL" = "接口地址";
+"API key (optional)" = "API 密钥（可选）";
+"Load Models" = "加载模型";
+"Model ID" = "模型 ID";
+"Use any OpenAI-compatible API. Stet lists models from GET /models, or you can type a model ID." = "可接入任何 OpenAI 兼容接口。Stet 会从 GET /models 列出模型，也可以直接填写模型 ID。";
+"No models were returned. Enter a model ID below." = "没有返回模型列表，请在下方填写模型 ID。";
+"%d models found." = "找到 %d 个模型。";
 "Save Key" = "保存密钥";
 "Remove Key" = "删除密钥";
 "Choose which on-device model handles transcription." = "选择处理转录的本地模型。";

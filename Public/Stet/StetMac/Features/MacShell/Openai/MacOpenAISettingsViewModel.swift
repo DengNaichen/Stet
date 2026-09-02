@@ -1,11 +1,19 @@
 #if os(macOS)
     import AppKit
+    import StetAI
     import StetCore
     import Combine
     import Foundation
 
     @MainActor
     final class MacOpenAISettingsViewModel: ObservableObject {
+        enum ModelProbeState: Equatable {
+            case idle
+            case loading
+            case loaded(Int)
+            case failed(String)
+        }
+
         @Published var isRewriteEnabled = true {
             didSet {
                 guard hasLoadedState else { return }
@@ -33,19 +41,41 @@
         @Published var qwenAPIKey = ""
         @Published var glmAPIKey = ""
         @Published var doubaoAPIKey = ""
+        @Published var customAPIKey = ""
+        @Published var customBaseURL = "" {
+            didSet {
+                guard hasLoadedState else { return }
+                settingsStore.saveCustomRewriteBaseURL(customBaseURL)
+            }
+        }
+        @Published var customModelID = "" {
+            didSet {
+                guard hasLoadedState else { return }
+                settingsStore.saveCustomRewriteModelID(customModelID)
+            }
+        }
+        @Published var discoveredCustomModels: [String] = []
+        @Published var customModelProbeState: ModelProbeState = .idle
         @Published var selectedModel: RewriteModel = .gpt56Luna
 
         private let settingsStore: DictationSettingsStore
+        private let modelProbe: any OpenAICompatibleModelProbing
         private var hasLoadedState = false
 
         init(
-            settingsStore: DictationSettingsStore = DictationSettingsStore()
+            settingsStore: DictationSettingsStore = DictationSettingsStore(),
+            modelProbe: any OpenAICompatibleModelProbing = OpenAICompatibleModelProbe()
         ) {
             self.settingsStore = settingsStore
+            self.modelProbe = modelProbe
         }
 
         var connectionNeedsAttention: Bool {
-            isRewriteEnabled && !missingRequiredProviders.isEmpty
+            guard isRewriteEnabled else { return false }
+            if rewriteProvider == .custom {
+                return !hasUsableCustomEndpoint
+            }
+            return !missingRequiredProviders.isEmpty
         }
 
         func load() {
@@ -60,6 +90,10 @@
             qwenAPIKey = settingsStore.loadAPIKey(for: .qwen)
             glmAPIKey = settingsStore.loadAPIKey(for: .glm)
             doubaoAPIKey = settingsStore.loadAPIKey(for: .doubao)
+            customAPIKey = settingsStore.loadAPIKey(for: .custom)
+            customBaseURL = settingsStore.loadCustomRewriteBaseURL()
+            customModelID = settingsStore.loadCustomRewriteModelID()
+            discoveredCustomModels = settingsStore.loadCustomRewriteDiscoveredModels()
             selectedModel = settingsStore.loadSelectedModel(for: rewriteProvider) ?? .default(for: rewriteProvider)
 
             // Safety check: If the loaded provider is disabled (e.g. Apple Intelligence on old macOS)
@@ -73,6 +107,39 @@
             }
 
             hasLoadedState = true
+        }
+
+        func saveCustomEndpoint() {
+            settingsStore.saveCustomRewriteBaseURL(customBaseURL)
+            settingsStore.saveCustomRewriteModelID(customModelID)
+            settingsStore.saveCustomRewriteDiscoveredModels(discoveredCustomModels)
+            saveCredential(for: .custom)
+        }
+
+        func loadCustomModels() async {
+            customModelProbeState = .loading
+            do {
+                let url = try OpenAICompatibleBaseURL.normalize(customBaseURL)
+                let models = try await modelProbe.listModels(
+                    baseURL: url,
+                    apiKey: apiKey(for: .custom)
+                )
+                discoveredCustomModels = models
+                settingsStore.saveCustomRewriteBaseURL(customBaseURL)
+                settingsStore.saveCustomRewriteDiscoveredModels(models)
+                if customModelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                    let first = models.first
+                {
+                    customModelID = first
+                }
+                try settingsStore.saveAPIKey(
+                    apiKey(for: .custom).trimmingCharacters(in: .whitespacesAndNewlines),
+                    for: .custom
+                )
+                customModelProbeState = .loaded(models.count)
+            } catch {
+                customModelProbeState = .failed(error.localizedDescription)
+            }
         }
 
         func saveCredential(for provider: DictationProvider) {
@@ -108,6 +175,8 @@
                 return glmAPIKey
             case .doubao:
                 return doubaoAPIKey
+            case .custom:
+                return customAPIKey
             case .appleIntelligence:
                 return ""
             }
@@ -131,6 +200,8 @@
                 glmAPIKey = apiKey
             case .doubao:
                 doubaoAPIKey = apiKey
+            case .custom:
+                customAPIKey = apiKey
             case .appleIntelligence:
                 break
             }
@@ -143,6 +214,7 @@
             case deepSeek
             case qwen
             case glm
+            case custom
 
             var id: String { rawValue }
             var displayName: String {
@@ -153,6 +225,7 @@
                 case .deepSeek: return "DeepSeek"
                 case .qwen: return "Qwen"
                 case .glm: return "GLM"
+                case .custom: return NSLocalizedString("Custom", comment: "")
                 }
             }
 
@@ -165,7 +238,7 @@
                     } else {
                         return true
                     }
-                case .openAI, .google, .deepSeek:
+                case .openAI, .google, .deepSeek, .custom:
                     return false
                 case .qwen, .glm:
                     // These are placeholders for now
@@ -183,6 +256,7 @@
                 case .deepSeek: return .deepSeek
                 case .qwen: return .qwen
                 case .glm: return .glm
+                case .custom: return .custom
                 case .groq, .doubao, .anthropic: return .openAI
                 }
             }
@@ -201,6 +275,8 @@
                     rewriteProvider = .qwen
                 case .glm:
                     rewriteProvider = .glm
+                case .custom:
+                    rewriteProvider = .custom
                 }
                 selectedModel = settingsStore.loadSelectedModel(for: rewriteProvider) ?? .default(for: rewriteProvider)
             }
@@ -226,10 +302,19 @@
 
         var missingCredentialMessage: String? {
             guard isRewriteEnabled else { return nil }
+            if rewriteProvider == .custom {
+                guard !hasUsableCustomEndpoint else { return nil }
+                return "Add a base URL and model ID before using transcript improvement."
+            }
             let providerList = missingRequiredProviders.map(\.displayName).joined(separator: " and ")
             guard !providerList.isEmpty else { return nil }
             return
                 "Add \(providerList) API key\(missingRequiredProviders.count == 1 ? "" : "s") before using transcript improvement."
+        }
+
+        private var hasUsableCustomEndpoint: Bool {
+            let modelID = customModelID.trimmingCharacters(in: .whitespacesAndNewlines)
+            return (try? OpenAICompatibleBaseURL.normalize(customBaseURL)) != nil && !modelID.isEmpty
         }
 
         private var missingRequiredProviders: [DictationProvider] {

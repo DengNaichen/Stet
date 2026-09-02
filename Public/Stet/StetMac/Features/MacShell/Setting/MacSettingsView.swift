@@ -123,7 +123,8 @@
             case .openAI:
                 return [
                     "service", "access key", "sign in", "transcript", "improve", "rewrite", "openai",
-                    "apple intelligence", "foundation models", "local refine",
+                    "apple intelligence", "foundation models", "local refine", "custom", "base url",
+                    "openai compatible",
                 ]
             case .dictionary:
                 return ["entries", "personal dictionary", "names", "brands"]

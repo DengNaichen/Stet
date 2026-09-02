@@ -45,6 +45,11 @@
 	<string>Stet uses the microphone to capture your dictation.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Stet uses on-device speech recognition to turn your voice into text.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>SUAutomaticallyUpdate</key>
 	<false/>
 	<key>SUEnableAutomaticChecks</key>
