@@ -13,10 +13,12 @@ public struct OpenAIRewriteService: TextRewriteService {
         let model: String
         let messages: [ChatCompletionMessage]
         let thinking: ChatCompletionThinking?
+        let reasoningEffort: String?
         let responseFormat: ChatCompletionResponseFormat
 
         enum CodingKeys: String, CodingKey {
             case model, messages, thinking
+            case reasoningEffort = "reasoning_effort"
             case responseFormat = "response_format"
         }
     }
@@ -108,6 +110,7 @@ public struct OpenAIRewriteService: TextRewriteService {
                 query: CreateModelResponseQuery(
                     input: .inputItemList(messages),
                     model: request.model ?? defaultModel,
+                    reasoning: .init(effort: .medium),
                     store: supportsResponsesStore ? false : nil,
                     text: .jsonSchema(
                         .init(
@@ -209,6 +212,7 @@ public struct OpenAIRewriteService: TextRewriteService {
                     ChatCompletionMessage(role: "user", content: prepared.userPrompt),
                 ],
                 thinking: Self.thinkingConfiguration(for: endpoint.provider),
+                reasoningEffort: Self.reasoningEffort(for: endpoint.provider),
                 responseFormat: .configuration(provider: endpoint.provider, model: model)
             )
         )
@@ -217,7 +221,12 @@ public struct OpenAIRewriteService: TextRewriteService {
 
     private static func thinkingConfiguration(for provider: DictationProvider) -> ChatCompletionThinking? {
         guard provider == .deepSeek else { return nil }
-        return ChatCompletionThinking(type: "disabled")
+        return ChatCompletionThinking(type: "enabled")
+    }
+
+    private static func reasoningEffort(for provider: DictationProvider) -> String? {
+        guard provider == .deepSeek else { return nil }
+        return "low"
     }
 
     private func makeMessages(

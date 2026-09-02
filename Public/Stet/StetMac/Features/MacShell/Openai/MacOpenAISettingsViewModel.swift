@@ -33,7 +33,7 @@
         @Published var qwenAPIKey = ""
         @Published var glmAPIKey = ""
         @Published var doubaoAPIKey = ""
-        @Published var selectedModel: RewriteModel = .gpt54Nano
+        @Published var selectedModel: RewriteModel = .gpt56Luna
 
         private let settingsStore: DictationSettingsStore
         private var hasLoadedState = false
@@ -62,11 +62,13 @@
             doubaoAPIKey = settingsStore.loadAPIKey(for: .doubao)
             selectedModel = settingsStore.loadSelectedModel(for: rewriteProvider) ?? .default(for: rewriteProvider)
 
-            // Safety check: If the loaded provider is disabled (e.g. Apple Intelligence on old macOS),
-            // fallback to OpenAI to prevent UI/pipeline issues.
-            if unifiedProvider.isDisabled {
+            // Safety check: If the loaded provider is disabled (e.g. Apple Intelligence on old macOS)
+            // or retired from rewrite (Groq, Doubao, Anthropic), fallback to OpenAI.
+            if rewriteProvider == .groq || rewriteProvider == .doubao || rewriteProvider == .anthropic
+                || unifiedProvider.isDisabled
+            {
                 rewriteProvider = .openAI
-                selectedModel = .gpt54Nano
+                selectedModel = .gpt56Luna
                 settingsStore.saveRewriteProvider(.openAI)
             }
 
@@ -137,26 +139,20 @@
         enum UnifiedAIProvider: String, CaseIterable, Identifiable {
             case openAI
             case google
-            case anthropic
             case appleIntelligence
-            case groq
             case deepSeek
             case qwen
             case glm
-            case doubao
 
             var id: String { rawValue }
             var displayName: String {
                 switch self {
                 case .openAI: return "OpenAI"
                 case .google: return "Google"
-                case .anthropic: return "Anthropic"
                 case .appleIntelligence: return "Apple Intelligence (Beta)"
-                case .groq: return "Groq"
                 case .deepSeek: return "DeepSeek"
                 case .qwen: return "Qwen"
                 case .glm: return "GLM"
-                case .doubao: return "Doubao"
                 }
             }
 
@@ -169,9 +165,9 @@
                     } else {
                         return true
                     }
-                case .openAI, .google, .anthropic, .groq, .deepSeek:
+                case .openAI, .google, .deepSeek:
                     return false
-                case .qwen, .glm, .doubao:
+                case .qwen, .glm:
                     // These are placeholders for now
                     return true
                 }
@@ -183,13 +179,11 @@
                 switch rewriteProvider {
                 case .openAI: return .openAI
                 case .google: return .google
-                case .anthropic: return .anthropic
                 case .appleIntelligence: return .appleIntelligence
-                case .groq: return .groq
                 case .deepSeek: return .deepSeek
                 case .qwen: return .qwen
                 case .glm: return .glm
-                case .doubao: return .doubao
+                case .groq, .doubao, .anthropic: return .openAI
                 }
             }
             set {
@@ -199,20 +193,14 @@
                     rewriteProvider = .openAI
                 case .google:
                     rewriteProvider = .google
-                case .anthropic:
-                    rewriteProvider = .anthropic
                 case .appleIntelligence:
                     rewriteProvider = .appleIntelligence
-                case .groq:
-                    rewriteProvider = .groq
                 case .deepSeek:
                     rewriteProvider = .deepSeek
                 case .qwen:
                     rewriteProvider = .qwen
                 case .glm:
                     rewriteProvider = .glm
-                case .doubao:
-                    rewriteProvider = .doubao
                 }
                 selectedModel = settingsStore.loadSelectedModel(for: rewriteProvider) ?? .default(for: rewriteProvider)
             }

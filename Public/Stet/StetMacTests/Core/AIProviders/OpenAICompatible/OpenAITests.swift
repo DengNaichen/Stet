@@ -234,7 +234,8 @@ struct OpenAITests {
                 try JSONSerialization.jsonObject(with: TestSupport.requestBodyData(from: request)) as? [String: Any]
             #expect(body?["model"] as? String == "deepseek-v4-flash")
             let thinking = try #require(body?["thinking"] as? [String: Any])
-            #expect(thinking["type"] as? String == "disabled")
+            #expect(thinking["type"] as? String == "enabled")
+            #expect(body?["reasoning_effort"] as? String == "low")
             let responseFormat = try #require(body?["response_format"] as? [String: Any])
             #expect(responseFormat["type"] as? String == "json_object")
             let messages = try #require(body?["messages"] as? [[String: Any]])

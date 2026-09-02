@@ -36,7 +36,9 @@ final class RewriteSettingsViewModel: ObservableObject {
     }
 
     var availableProviders: [DictationProvider] {
-        DictationProvider.allCases.filter { $0 != .appleIntelligence }
+        DictationProvider.allCases.filter {
+            $0 != .appleIntelligence && $0 != .groq && $0 != .doubao && $0 != .anthropic
+        }
     }
 
     func onProviderChanged() {

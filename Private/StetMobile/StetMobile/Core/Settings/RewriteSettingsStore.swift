@@ -34,7 +34,8 @@ final class RewriteSettingsStore: ObservableObject {
 
         let provider: DictationProvider
         if let raw = defaults.string(forKey: Keys.selectedProvider),
-            let p = DictationProvider(rawValue: raw)
+            let p = DictationProvider(rawValue: raw),
+            p != .groq, p != .doubao, p != .anthropic
         {
             provider = p
         } else {
@@ -43,7 +44,8 @@ final class RewriteSettingsStore: ObservableObject {
         self.selectedProvider = provider
 
         if let raw = defaults.string(forKey: Keys.selectedModel),
-            let model = RewriteModel(rawValue: raw)
+            let model = RewriteModel(rawValue: raw),
+            RewriteModel.availableModels(for: provider).contains(model)
         {
             self.selectedModel = model
         } else {

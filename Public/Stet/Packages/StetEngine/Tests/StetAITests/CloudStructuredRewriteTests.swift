@@ -17,6 +17,8 @@ struct CloudStructuredRewriteTests {
             let schema = try #require(format["schema"] as? [String: Any])
             #expect(schema["required"] as? [String] == ["text"])
             #expect(schema["additionalProperties"] as? Bool == false)
+            let reasoning = try #require(body["reasoning"] as? [String: Any])
+            #expect(reasoning["effort"] as? String == "medium")
 
             return try TestHTTP.response(
                 for: request,
@@ -38,6 +40,9 @@ struct CloudStructuredRewriteTests {
             let body = try TestHTTP.jsonBody(from: request)
             let responseFormat = try #require(body["response_format"] as? [String: Any])
             #expect(responseFormat["type"] as? String == "json_object")
+            let thinking = try #require(body["thinking"] as? [String: Any])
+            #expect(thinking["type"] as? String == "enabled")
+            #expect(body["reasoning_effort"] as? String == "low")
             let messages = try #require(body["messages"] as? [[String: Any]])
             #expect((messages.last?["content"] as? String)?.contains("Return exactly one JSON object") == true)
 
@@ -145,6 +150,26 @@ struct CloudStructuredRewriteTests {
         await #expect(throws: OpenAIError.invalidResponse(provider: .deepSeek)) {
             try await service.rewrite(.cleanup("hello"))
         }
+    }
+
+    @Test func rewriteCatalogUsesCurrentFastTierModels() {
+        let expected: [(DictationProvider, String)] = [
+            (.openAI, "gpt-5.6-luna"),
+            (.google, "gemini-3.7-flash"),
+            (.deepSeek, "deepseek-v4-flash"),
+            (.qwen, "qwen3.5-flash"),
+            (.glm, "glm-4.7-flash"),
+        ]
+
+        for (provider, modelID) in expected {
+            #expect(RewriteModel.default(for: provider).rawValue == modelID)
+            #expect(DictationProviderDefaults.rewriteModel(for: provider) == modelID)
+            #expect(RewriteModel.availableModels(for: provider) == [RewriteModel.default(for: provider)])
+        }
+
+        #expect(RewriteModel.availableModels(for: .groq).isEmpty)
+        #expect(RewriteModel.availableModels(for: .doubao).isEmpty)
+        #expect(RewriteModel.availableModels(for: .anthropic).isEmpty)
     }
 
     private func makeConfiguration(provider: DictationProvider) -> RewriteProviderConfiguration {
