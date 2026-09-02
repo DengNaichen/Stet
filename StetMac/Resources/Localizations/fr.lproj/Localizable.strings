@@ -160,9 +160,9 @@
 "Select your preferred AI provider to handle transcription and cleanup." = "Sélectionnez votre fournisseur d'IA préféré pour gérer la transcription et le nettoyage.";
 "Grant microphone and input control permissions so Stet can record and type text back into your apps." = "Accordez les autorisations de microphone et de contrôle de saisie pour que Stet puisse enregistrer et insérer du texte dans vos applications.";
 "Choose the shortcut you want to use for dictation." = "Choisissez le raccourci que vous souhaitez utiliser pour la dictée.";
-"Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "Maintenez le raccourci et parlez naturellement. Nous préserverons votre intention tout en effectuant les corrections nécessaires.";
+"Press the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "Appuyez sur le raccourci et parlez naturellement. Nous préserverons votre intention tout en effectuant les corrections nécessaires.";
 "Browse themes on the right, then apply and finish." = "Parcourez les thèmes à droite, puis appliquez et terminez.";
-"Hold your shortcut and start speaking anywhere you can type text." = "Maintenez votre raccourci et commencez à parler partout où vous pouvez écrire du texte.";
+"Press your shortcut and start speaking anywhere you can type text." = "Appuyez sur votre raccourci et commencez à parler partout où vous pouvez écrire du texte.";
 
 /* Onboarding steps */
 "Download the model to process your voice locally" = "Téléchargez le modèle pour traiter votre voix localement";

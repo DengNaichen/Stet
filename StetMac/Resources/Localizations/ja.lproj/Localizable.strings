@@ -160,9 +160,9 @@
 "Select your preferred AI provider to handle transcription and cleanup." = "文字起こしとテキストの整理を処理するAIプロバイダーを選択してください。";
 "Grant microphone and input control permissions so Stet can record and type text back into your apps." = "Stetが録音し、アプリにテキストを入力できるように、マイクと入力制御の権限を付与してください。";
 "Choose the shortcut you want to use for dictation." = "音声入力に使用するショートカットを選択してください。";
-"Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "ショートカットを押したまま自然に話してください。意図を保ちつつ必要な整理を行います。";
+"Press the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "ショートカットを押して自然に話してください。意図を保ちつつ必要な整理を行います。";
 "Browse themes on the right, then apply and finish." = "右側のテーマを閲覧し、適用して完了します。";
-"Hold your shortcut and start speaking anywhere you can type text." = "テキストを入力できる場所ならどこでも、ショートカットを押したまま話し始めてください。";
+"Press your shortcut and start speaking anywhere you can type text." = "テキストを入力できる場所ならどこでも、ショートカットを押して話し始めてください。";
 
 /* Onboarding steps */
 "Download the model to process your voice locally" = "音声をローカルで処理するためにモデルをダウンロードします";
