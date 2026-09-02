@@ -57,11 +57,12 @@ struct MacDictationHotkeyInteractionTests {
         #expect(interaction.state == .idle)
     }
 
-    @Test func startActionsRemainAvailableAfterIdleResultAndError() {
+    @Test func startActionsRemainAvailableAfterIdleResultErrorAndClipboardPending() {
         for state in [
             DictationState.idle,
             .result("previous"),
             .error(.failedToStart),
+            .clipboardPending("previous"),
         ] {
             var interaction = MacDictationHotkeyInteraction()
             #expect(interaction.handleKeyDown(for: state, now: 60) == .startCapture)
