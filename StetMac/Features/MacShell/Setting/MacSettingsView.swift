@@ -122,7 +122,7 @@
                 return ["shortcut", "keyboard", "recorder", "dictation"]
             case .openAI:
                 return [
-                    "service", "access key", "sign in", "transcript", "improve", "rewrite", "groq", "openai",
+                    "service", "access key", "sign in", "transcript", "improve", "rewrite", "openai",
                     "apple intelligence", "foundation models", "local refine",
                 ]
             case .dictionary:

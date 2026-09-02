@@ -94,6 +94,59 @@
             #expect(viewModel.missingCredentialMessage == nil)
         }
 
+        @Test func groqIsHiddenFromRewritePickerAndMigratesToOpenAI() {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(DictationProvider.groq.rawValue, forKey: MacPreferences.rewriteProvider)
+            defaults.set(true, forKey: MacPreferences.rewriteEnabled)
+
+            let viewModel = MacOpenAISettingsViewModel(
+                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
+            )
+
+            viewModel.load()
+
+            #expect(viewModel.rewriteProvider == .openAI)
+            #expect(viewModel.selectedModel == .gpt56Luna)
+            #expect(!MacOpenAISettingsViewModel.UnifiedAIProvider.allCases.map(\.rawValue).contains("groq"))
+            #expect(!MacOpenAISettingsViewModel.UnifiedAIProvider.allCases.map(\.rawValue).contains("doubao"))
+            #expect(!MacOpenAISettingsViewModel.UnifiedAIProvider.allCases.map(\.rawValue).contains("anthropic"))
+            #expect(defaults.string(forKey: MacPreferences.rewriteProvider) == DictationProvider.openAI.rawValue)
+        }
+
+        @Test func anthropicIsHiddenFromRewritePickerAndMigratesToOpenAI() {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(DictationProvider.anthropic.rawValue, forKey: MacPreferences.rewriteProvider)
+            defaults.set(true, forKey: MacPreferences.rewriteEnabled)
+
+            let viewModel = MacOpenAISettingsViewModel(
+                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
+            )
+
+            viewModel.load()
+
+            #expect(viewModel.rewriteProvider == .openAI)
+            #expect(viewModel.selectedModel == .gpt56Luna)
+            #expect(!MacOpenAISettingsViewModel.UnifiedAIProvider.allCases.map(\.rawValue).contains("anthropic"))
+            #expect(defaults.string(forKey: MacPreferences.rewriteProvider) == DictationProvider.openAI.rawValue)
+        }
+
+        @Test func doubaoIsHiddenFromRewritePickerAndMigratesToOpenAI() {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(DictationProvider.doubao.rawValue, forKey: MacPreferences.rewriteProvider)
+            defaults.set(true, forKey: MacPreferences.rewriteEnabled)
+
+            let viewModel = MacOpenAISettingsViewModel(
+                settingsStore: DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
+            )
+
+            viewModel.load()
+
+            #expect(viewModel.rewriteProvider == .openAI)
+            #expect(viewModel.selectedModel == .gpt56Luna)
+            #expect(!MacOpenAISettingsViewModel.UnifiedAIProvider.allCases.map(\.rawValue).contains("doubao"))
+            #expect(defaults.string(forKey: MacPreferences.rewriteProvider) == DictationProvider.openAI.rawValue)
+        }
+
         @Test func deepSeekRewriteIsSelectableAndUsesV4Models() {
             let defaults = TestSupport.makeUserDefaults()
             let viewModel = MacOpenAISettingsViewModel(
@@ -106,7 +159,7 @@
             #expect(viewModel.rewriteProvider == .deepSeek)
             #expect(viewModel.unifiedProvider == .deepSeek)
             #expect(viewModel.selectedModel == .deepseekV4Flash)
-            #expect(viewModel.availableModels == [.deepseekV4Flash, .deepseekV4Pro])
+            #expect(viewModel.availableModels == [.deepseekV4Flash])
             #expect(viewModel.visibleCredentialProviders == [.deepSeek])
         }
 
