@@ -95,6 +95,17 @@
             #expect(try await store.loadProfiles().map(\.status) == [.requiresReenrollment])
         }
 
+        @Test func marksLegacyUncalibratedProfilesForReenrollment() async throws {
+            let persistence = InMemorySpeakerProfilePersistence()
+            let store = persistence.makeStore()
+            try await store.save(profile(role: .owner, name: "Me", model: model))
+
+            let profiles = try await store.loadProfiles(currentModel: model)
+
+            #expect(profiles.map(\.status) == [.requiresReenrollment])
+            #expect(try await store.loadProfiles().map(\.status) == [.requiresReenrollment])
+        }
+
         @Test func rejectsInvalidCentroidMetadata() async {
             let persistence = InMemorySpeakerProfilePersistence()
             let store = persistence.makeStore()

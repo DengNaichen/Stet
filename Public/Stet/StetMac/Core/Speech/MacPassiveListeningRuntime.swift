@@ -1,6 +1,7 @@
 #if os(macOS)
     @preconcurrency import AVFoundation
     import Foundation
+    import os
     import StetASR
     import StetCore
 
@@ -108,6 +109,10 @@
     private actor MacPassiveSpeakerIdentityRuntime {
         private let profileStore: SpeakerProfileStore
         private let modelManager: SpeakerEmbeddingModelManager
+        private let logger = Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
+            category: "PassiveListening"
+        )
 
         init(
             profileStore: SpeakerProfileStore,
@@ -135,12 +140,19 @@
             guard let owner = profiles.first(where: { $0.role == .owner && $0.status == .ready }) else {
                 return PassiveSpeakerMatch(identity: .other, similarity: nil)
             }
-            return try await match(
+            let match = try await match(
                 samples,
                 profiles: [owner],
                 recognizer: recognizer,
                 runnerUpMargin: 0
             )
+            let accepted = match.identity == .self
+            let similarity = match.similarity.map { String(format: "%.3f", $0) } ?? "none"
+            let threshold = String(format: "%.3f", owner.matchThreshold)
+            logger.info(
+                "Owner verification result. accepted=\(accepted, privacy: .public) similarity=\(similarity, privacy: .public) threshold=\(threshold, privacy: .public)"
+            )
+            return match
         }
 
         func identify(_ samples: [Float]) async throws -> PassiveSpeakerMatch {

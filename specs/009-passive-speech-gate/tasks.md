@@ -148,6 +148,15 @@
 
 ---
 
+## Phase 8: v0.5.6 Speaker Gate Recalibration
+
+**Purpose**: Reduce owner false rejects by extracting enrollment embeddings from VAD-voiced audio only, lowering the default match threshold, and forcing re-enrollment of legacy 0.70 profiles.
+
+- [X] T053 Restrict enrollment embeddings to VAD-approved speech, default the owner match threshold to 0.60, mark 0.70 profiles for reenrollment, and log owner verification results
+- [ ] T054 Run the release gates, bump to v0.5.6 (5006), publish the public projection, and verify the GitHub release assets
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
