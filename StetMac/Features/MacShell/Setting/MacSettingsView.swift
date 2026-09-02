@@ -6,6 +6,7 @@
         case audio
         case appearance
         case hotkey
+        case meetings
         case openAI
         case dictionary
         case history
@@ -25,6 +26,8 @@
                 return "Theme"
             case .hotkey:
                 return "Hotkey"
+            case .meetings:
+                return "Meetings"
             case .openAI:
                 return "Refine"
             case .dictionary:
@@ -48,6 +51,8 @@
                 return "Dictation capsule theme and color palette."
             case .hotkey:
                 return "Global keyboard shortcuts for starting dictation."
+            case .meetings:
+                return "Record in-room conversations and open saved meeting folders."
             case .openAI:
                 return "AI service, transcript improvement, and account access."
             case .dictionary:
@@ -71,6 +76,8 @@
                 return "circle.lefthalf.filled"
             case .hotkey:
                 return "command"
+            case .meetings:
+                return "person.3.fill"
             case .openAI:
                 return "pencil"
             case .dictionary:
@@ -94,6 +101,8 @@
                 return Color(nsColor: .systemBlue)
             case .hotkey:
                 return Color(nsColor: .systemGray)
+            case .meetings:
+                return Color(nsColor: .systemOrange)
             case .openAI:
                 return Color(nsColor: .systemGreen)
             case .dictionary:
@@ -120,6 +129,8 @@
                 return ["theme", "colors", "shader", "capsule", "visual"]
             case .hotkey:
                 return ["shortcut", "keyboard", "recorder", "dictation"]
+            case .meetings:
+                return ["meeting", "record", "transcript", "folder", "shortcut", "speaker"]
             case .openAI:
                 return [
                     "service", "access key", "sign in", "transcript", "improve", "rewrite", "groq", "openai",
@@ -264,6 +275,8 @@
                 MacAppearanceSettingsView()
             case .hotkey:
                 MacHotkeySettingsView()
+            case .meetings:
+                MacMeetingSettingsView()
             case .openAI:
                 MacOpenAISettingsView(viewModel: openAISettingsViewModel)
             case .dictionary:

@@ -194,11 +194,15 @@
 
         func registerHotkeys() {
             hotkeyRegistrar.clearDictationHandlers()
+            hotkeyRegistrar.clearMeetingHandlers()
             hotkeyRegistrar.registerDictationKeyDown { [weak self] in
                 self?.handleHotkeyPressed()
             }
             hotkeyRegistrar.registerDictationKeyUp { [weak self] in
                 self?.handleHotkeyReleased()
+            }
+            hotkeyRegistrar.registerMeetingKeyDown { [weak self] in
+                self?.handleMeetingHotkeyPressed()
             }
         }
 
@@ -214,6 +218,9 @@
         }
 
         func requestDictationCaptureStart(from source: PrimaryActionSource) {
+            if isMeetingSessionBusy() {
+                return
+            }
 
             if requiresOnboarding && !onboardingStepState.allowsAudioCapture {
                 Task {

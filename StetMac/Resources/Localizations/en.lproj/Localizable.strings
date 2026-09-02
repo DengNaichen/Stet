@@ -25,6 +25,7 @@
 "Audio" = "Audio";
 "Theme" = "Theme";
 "Hotkey" = "Hotkey";
+"Meetings" = "Meetings";
 "Refine" = "Refine";
 "Dictionary" = "Dictionary";
 "Debug" = "Debug";
@@ -34,6 +35,7 @@
 "Microphone selection and recording test." = "Microphone selection and recording test.";
 "Dictation capsule theme and color palette." = "Dictation capsule theme and color palette.";
 "Global keyboard shortcuts for starting dictation." = "Global keyboard shortcuts for starting dictation.";
+"Record in-room conversations and open saved meeting folders." = "Record in-room conversations and open saved meeting folders.";
 "AI service, transcript improvement, and account access." = "AI service, transcript improvement, and account access.";
 "Personal dictionary entries used during transcription and transcript cleanup." = "Personal dictionary entries used during transcription and transcript cleanup.";
 "Large shader preview and color input controls." = "Large shader preview and color input controls.";
@@ -217,3 +219,15 @@
 "LLM Refined" = "LLM Refined";
 "Final Sent" = "Delivered";
 "Target App" = "Target App";
+
+/* Meetings settings */
+"Record Meeting" = "Record Meeting";
+"Shortcut" = "Shortcut";
+"Control-Option-Command-M is the default. The shortcut toggles recording on key down; it is not hold-to-talk." = "Control-Option-Command-M is the default. The shortcut toggles recording on key down; it is not hold-to-talk.";
+"Meetings Folder" = "Meetings Folder";
+"Reveal Meetings Folder" = "Reveal Meetings Folder";
+"Each recording is saved as a folder named with the local start time." = "Each recording is saved as a folder named with the local start time.";
+"What's in a meeting folder" = "What's in a meeting folder";
+"Speaker labels are Me when your enrolled voice matches a track, Speaker 1–4 for other people, and Unresolved when people talk over each other. Meetings are not rewritten, pasted, or added to History." = "Speaker labels are Me when your enrolled voice matches a track, Speaker 1–4 for other people, and Unresolved when people talk over each other. Meetings are not rewritten, pasted, or added to History.";
+"Recent" = "Recent";
+"Location" = "Location";

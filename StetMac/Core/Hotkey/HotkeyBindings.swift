@@ -15,11 +15,21 @@ struct HotkeyBinding: Hashable, Sendable {
         preference: .dictation,
         name: .dictationHotkey
     )
+
+    static let meeting = Self(
+        preference: .meeting,
+        name: .meetingRecordingHotkey
+    )
 }
 
 extension KeyboardShortcuts.Name {
     static let dictationHotkey = Self(
         "\(HotkeyPreference.dictation.id)Hotkey",
         default: .init(.period, modifiers: [.command])
+    )
+
+    static let meetingRecordingHotkey = Self(
+        "\(HotkeyPreference.meeting.id)Hotkey",
+        default: .init(.m, modifiers: [.control, .option, .command])
     )
 }

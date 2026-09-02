@@ -25,6 +25,7 @@
 "Audio" = "音频";
 "Theme" = "主题";
 "Hotkey" = "快捷键";
+"Meetings" = "会议";
 "Refine" = "优化";
 "Dictionary" = "词典";
 "Debug" = "调试";
@@ -34,6 +35,7 @@
 "Microphone selection and recording test." = "麦克风选择与录音测试。";
 "Dictation capsule theme and color palette." = "听写胶囊主题与配色方案。";
 "Global keyboard shortcuts for starting dictation." = "用于启动听写的全局键盘快捷键。";
+"Record in-room conversations and open saved meeting folders." = "录制面对面谈话，并打开已保存的会议文件夹。";
 "AI service, transcript improvement, and account access." = "AI 服务、转录优化与账户访问。";
 "Personal dictionary entries used during transcription and transcript cleanup." = "转录和文本整理时使用的个人词典词条。";
 "Large shader preview and color input controls." = "大型着色器预览和颜色输入控制。";
@@ -223,3 +225,15 @@
 "LLM Refined" = "AI 优化";
 "Final Sent" = "已投递";
 "Target App" = "目标应用";
+
+/* Meetings settings */
+"Record Meeting" = "录制会议";
+"Shortcut" = "快捷键";
+"Control-Option-Command-M is the default. The shortcut toggles recording on key down; it is not hold-to-talk." = "默认快捷键是 Control-Option-Command-M。按下即开始或停止录音，不是按住说话。";
+"Meetings Folder" = "会议文件夹";
+"Reveal Meetings Folder" = "在访达中显示会议文件夹";
+"Each recording is saved as a folder named with the local start time." = "每次录音都会保存为一个以本地开始时间命名的文件夹。";
+"What's in a meeting folder" = "会议文件夹里有什么";
+"Speaker labels are Me when your enrolled voice matches a track, Speaker 1–4 for other people, and Unresolved when people talk over each other. Meetings are not rewritten, pasted, or added to History." = "说话人标签：注册过的本人声音匹配为「我」，其他人是 Speaker 1–4，重叠说话则为 Unresolved。会议不会改写、粘贴，也不会写入听写历史。";
+"Recent" = "最近";
+"Location" = "位置";
