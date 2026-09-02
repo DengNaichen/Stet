@@ -83,6 +83,8 @@ struct DictationSettingsStore: Sendable {
                 return "anthropic.api_key"
             case .appleIntelligence:
                 return "apple_intelligence.local"
+            case .custom:
+                return "custom.api_key"
             }
         }
     }
@@ -134,6 +136,20 @@ struct DictationSettingsStore: Sendable {
                 apiKey: "",
                 customModel: selectedModel?.rawValue
             )
+        } else if rewriteProvider == .custom {
+            let modelID = loadCustomRewriteModelID()
+            if let baseURL = try? OpenAICompatibleBaseURL.normalize(loadCustomRewriteBaseURL()),
+                !modelID.isEmpty
+            {
+                rewriteConfiguration = DictationProviderConfigurationResolver.rewriteConfiguration(
+                    provider: .custom,
+                    apiKey: rewriteAPIKey,
+                    customModel: modelID,
+                    baseURL: baseURL
+                )
+            } else {
+                rewriteConfiguration = nil
+            }
         } else {
             rewriteConfiguration =
                 rewriteAPIKey.isEmpty
@@ -264,6 +280,31 @@ struct DictationSettingsStore: Sendable {
         } else {
             defaultsStore.removeObject(forKey: key)
         }
+    }
+
+    nonisolated func loadCustomRewriteBaseURL() -> String {
+        defaultsStore.string(forKey: MacPreferences.customRewriteBaseURL) ?? ""
+    }
+
+    nonisolated func saveCustomRewriteBaseURL(_ rawValue: String) {
+        defaultsStore.set(rawValue, forKey: MacPreferences.customRewriteBaseURL)
+    }
+
+    nonisolated func loadCustomRewriteModelID() -> String {
+        defaultsStore.string(forKey: MacPreferences.customRewriteModelID)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    nonisolated func saveCustomRewriteModelID(_ modelID: String) {
+        defaultsStore.set(modelID, forKey: MacPreferences.customRewriteModelID)
+    }
+
+    nonisolated func loadCustomRewriteDiscoveredModels() -> [String] {
+        defaultsStore.stringArray(forKey: MacPreferences.customRewriteDiscoveredModels) ?? []
+    }
+
+    nonisolated func saveCustomRewriteDiscoveredModels(_ modelIDs: [String]) {
+        defaultsStore.set(modelIDs, forKey: MacPreferences.customRewriteDiscoveredModels)
     }
 
     nonisolated static func words(from rawInput: String) -> [String] {

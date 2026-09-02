@@ -144,12 +144,7 @@
             Task {
                 await DictationRuntimeProbe.shared.markAction("stopActiveCapture")
             }
-            let settings = settingsSnapshot
-
-            dictationViewModel.stopCapture(onCaptureStopped: { [weak self] in
-                guard settings.interactionSoundsEnabled else { return }
-                self?.interactionSoundPlayer.playFinish(preset: settings.interactionSoundPreset)
-            })
+            dictationViewModel.stopCapture()
         }
 
         func cancelActiveCapture() {
@@ -216,12 +211,17 @@
 
             }
 
-            return await captureCoordinator.handleCompletedCapture(
+            let outcome = await captureCoordinator.handleCompletedCapture(
                 text: text,
                 targetApplication: lastTargetApplication,
                 settings: captureSettings,
                 showPanel: showTransientPanel
             )
+            let settings = settingsSnapshot
+            if outcome == .completed, settings.interactionSoundsEnabled {
+                interactionSoundPlayer.playFinish(preset: settings.interactionSoundPreset)
+            }
+            return outcome
         }
 
         func copyPendingResultToClipboard(_ text: String) -> Bool {

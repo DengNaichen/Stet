@@ -117,6 +117,13 @@
     protocol MacDictationHotkeyRegistering {
         func clearDictationHandlers()
         func registerDictationKeyDown(_ handler: @escaping () -> Void)
+        func clearMeetingHandlers()
+        func registerMeetingKeyDown(_ handler: @escaping () -> Void)
+    }
+
+    extension MacDictationHotkeyRegistering {
+        func clearMeetingHandlers() {}
+        func registerMeetingKeyDown(_ handler: @escaping () -> Void) {}
     }
 #endif
 

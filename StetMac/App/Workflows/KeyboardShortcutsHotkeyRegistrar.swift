@@ -14,5 +14,17 @@
                 }
             }
         }
+
+        func clearMeetingHandlers() {
+            KeyboardShortcuts.removeHandler(for: .meetingRecordingHotkey)
+        }
+
+        func registerMeetingKeyDown(_ handler: @escaping () -> Void) {
+            KeyboardShortcuts.onKeyDown(for: .meetingRecordingHotkey) {
+                Task { @MainActor in
+                    handler()
+                }
+            }
+        }
     }
 #endif

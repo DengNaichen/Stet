@@ -10,6 +10,16 @@
 
         var body: some View {
             Group {
+                if appModel.isMeetingBusy {
+                    Label(
+                        appModel.meetingStatusText,
+                        systemImage: appModel.meetingMenuSymbolName
+                    )
+                    .disabled(true)
+
+                    Divider()
+                }
+
                 Label(
                     appModel.passiveListeningStatusText,
                     systemImage: appModel.isPassiveMicrophoneActive ? "mic.fill" : "mic.slash"
