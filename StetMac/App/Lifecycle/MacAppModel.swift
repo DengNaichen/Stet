@@ -367,6 +367,13 @@
             }
         }
 
+        var isMeetingRecording: Bool {
+            if case .recording = meetingRecordingPhase {
+                return true
+            }
+            return false
+        }
+
         var meetingStatusText: String {
             switch meetingRecordingPhase {
             case .idle:

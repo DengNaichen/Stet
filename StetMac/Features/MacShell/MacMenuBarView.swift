@@ -11,11 +11,22 @@
         var body: some View {
             Group {
                 if appModel.isMeetingBusy {
-                    Label(
-                        appModel.meetingStatusText,
-                        systemImage: appModel.meetingMenuSymbolName
-                    )
-                    .disabled(true)
+                    if appModel.isMeetingRecording {
+                        Button {
+                            appModel.toggleMeetingRecording()
+                        } label: {
+                            Label(
+                                appModel.meetingStatusText,
+                                systemImage: appModel.meetingMenuSymbolName
+                            )
+                        }
+                    } else {
+                        Label(
+                            appModel.meetingStatusText,
+                            systemImage: appModel.meetingMenuSymbolName
+                        )
+                        .disabled(true)
+                    }
 
                     Divider()
                 }

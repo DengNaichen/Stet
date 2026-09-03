@@ -28,6 +28,7 @@
         )
         private var phase: MacMeetingRecordingPhase = .idle
         private var frameTask: Task<Void, Never>?
+        private var processingTask: Task<Void, Never>?
         private var session: ActiveSession?
         private var phaseHandler: @MainActor @Sendable (MacMeetingRecordingPhase) -> Void = { _ in }
 
@@ -66,7 +67,7 @@
         func toggle() async {
             switch phase {
             case .recording:
-                await stop()
+                await requestStop()
             case .processing:
                 break
             case .idle, .failed:
@@ -109,30 +110,50 @@
         }
 
         func stop() async {
-            guard case .recording = phase, session != nil else { return }
-            frameTask?.cancel()
-            await frameTask?.value
-            frameTask = nil
-            guard let active = session else { return }
-            session = nil
-            await setPhase(.processing)
+            await requestStop()
+            if let processingTask {
+                await processingTask.value
+            }
+        }
 
-            let endedAt = dependencies.now()
+        private func requestStop() async {
+            guard case .recording = phase, let active = session else { return }
+            session = nil
+            frameTask?.cancel()
+            frameTask = nil
+            logger.info("Meeting stop requested")
+            await setPhase(.processing)
             let samples = active.samples
             let directory = active.directory
+            let startedAt = active.startedAt
+            processingTask = Task {
+                await self.completeStoppedSession(
+                    samples: samples,
+                    directory: directory,
+                    startedAt: startedAt
+                )
+            }
+        }
+
+        private func completeStoppedSession(
+            samples: [Float],
+            directory: MeetingSessionDirectory,
+            startedAt: Date
+        ) async {
+            let endedAt = dependencies.now()
 
             do {
                 let turns = try await dependencies.processor.process(samples: samples)
                 let markdown = MeetingTranscriptDocument.markdown(
-                    startedAt: active.startedAt,
+                    startedAt: startedAt,
                     endedAt: endedAt,
                     turns: turns
                 )
                 try markdown.write(to: directory.transcriptURL, atomically: true, encoding: .utf8)
                 let record = MeetingSessionRecord(
-                    startedAt: active.startedAt,
+                    startedAt: startedAt,
                     endedAt: endedAt,
-                    durationSeconds: endedAt.timeIntervalSince(active.startedAt),
+                    durationSeconds: endedAt.timeIntervalSince(startedAt),
                     status: "completed",
                     failureMessage: nil,
                     speakerCount: Set(turns.map(\.speakerLabel)).count
@@ -142,16 +163,16 @@
             } catch {
                 logger.error("Meeting processing failed: \(error.localizedDescription, privacy: .public)")
                 let markdown = MeetingTranscriptDocument.markdown(
-                    startedAt: active.startedAt,
+                    startedAt: startedAt,
                     endedAt: endedAt,
                     turns: [],
                     note: "Processing failed: \(error.localizedDescription). The audio file was kept."
                 )
                 try? markdown.write(to: directory.transcriptURL, atomically: true, encoding: .utf8)
                 let record = MeetingSessionRecord(
-                    startedAt: active.startedAt,
+                    startedAt: startedAt,
                     endedAt: endedAt,
-                    durationSeconds: endedAt.timeIntervalSince(active.startedAt),
+                    durationSeconds: endedAt.timeIntervalSince(startedAt),
                     status: "failed",
                     failureMessage: error.localizedDescription,
                     speakerCount: 0
@@ -160,6 +181,7 @@
                 await setPhase(.failed(error.localizedDescription))
             }
 
+            processingTask = nil
             await dependencies.endExclusiveCapture()
         }
 
