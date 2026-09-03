@@ -21,6 +21,12 @@ docs/rules/PRODUCT_SENSE.md
 AGENTS.md
 reference/README.md
 reference/apple-platform/index.md
+CLAUDE.md
+.cursor/README.md
+.cursor/worktrees.json
+.claude/README.md
+.codex/README.md
+scripts/setup-worktree
 "
 
 missing=0

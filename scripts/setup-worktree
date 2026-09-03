@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+# Worktree setup entrypoint for Cursor, Claude, and Codex adapters.
+# Skeleton only — extend when worktree isolation is needed.
+set -eu
+
+if [ "${1:-}" = "--if-needed" ]; then
+  exit 0
+fi
+
+printf 'setup-worktree: skeleton (no-op)\n'

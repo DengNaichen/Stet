@@ -15,6 +15,7 @@
 
 ## Where To Start
 
+- [`CLAUDE.md`](CLAUDE.md) symlinks to this file for Claude Code; it is not a separate guide.
 - Project start: begin with monorepo [`docs/HARNESS.md`](../../docs/HARNESS.md) and [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md), then use `StetMac/StetApp.swift`, `StetMac/App/`, and `StetMac/Features/` as the main repository-level entry points.
 - Apple platform API guidance: read [`reference/apple-platform/index.md`](../../reference/apple-platform/index.md) on demand; open only the matching topic file.
 - Feature start: locate the active entry under [`docs/specs/`](../../docs/specs/index.md), then read the matching Technical Plan under [`docs/exec-plans/active/`](../../docs/exec-plans/README.md) when present.

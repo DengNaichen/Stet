@@ -8,6 +8,8 @@ public subtree and never push a monorepo commit directly to the public remote.
 
 ## Entry points
 
+- [`CLAUDE.md`](CLAUDE.md) symlinks to this file for Claude Code; it is not a separate guide.
+- Tool adapters (no agent knowledge): [`.cursor/`](.cursor/README.md), [`.claude/`](.claude/README.md), [`.codex/`](.codex/README.md).
 - Harness and durable docs: [`docs/HARNESS.md`](docs/HARNESS.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/specs/`](docs/specs/index.md), [`docs/exec-plans/`](docs/exec-plans/README.md).
 - Apple platform reference (read on demand): [`reference/apple-platform/index.md`](reference/apple-platform/index.md).
 - For macOS or shared public code, read `Public/Stet/AGENTS.md` and work from `Public/Stet/`.
