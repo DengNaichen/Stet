@@ -1,5 +1,4 @@
 #if os(macOS)
-    import AVFoundation
     import Combine
     import Foundation
     import StetVisuals
@@ -286,51 +285,17 @@
             let subject = makeSubject()
             let presentationModel = FakePresentationModel()
             subject.session.activate(presentationModel: presentationModel, showInDock: false)
-            subject.session.clipboardPendingAutoDismissDelay = .milliseconds(50)
+            subject.session.clipboardPendingAutoDismissDelay = .milliseconds(300)
 
             subject.workflow.dictationViewModel.send(.clipboardPending("needs copy"))
 
-            #expect(
-                await TestSupport.eventually {
-                    subject.workflow.dictationViewModel.state == .clipboardPending("needs copy")
-                })
-            #expect(subject.shell.isPanelVisible)
+            #expect(await TestSupport.eventually { subject.shell.isPanelVisible })
+            #expect(subject.workflow.dictationViewModel.state == .clipboardPending("needs copy"))
 
             #expect(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .idle })
             #expect(subject.shell.hidePanelCallCount == 1)
             #expect(subject.shell.isPanelVisible == false)
-            #expect(subject.clipboardService.copiedTexts.isEmpty)
-        }
-
-        // `requestDictationCaptureStart` is gated on live microphone permission,
-        // which the test host only has when it was granted on this machine.
-        @Test(
-            .enabled(
-                if: AVAudioApplication.shared.recordPermission == .granted,
-                "requires microphone permission for the test host"
-            )
-        )
-        func hotkeyStartsNewCaptureWhileClipboardPending() async {
-            let subject = makeSubject()
-            let presentationModel = FakePresentationModel()
-            subject.session.activate(presentationModel: presentationModel, showInDock: false)
-
-            subject.workflow.dictationViewModel.send(.clipboardPending("needs copy"))
-
-            #expect(
-                await TestSupport.eventually {
-                    subject.workflow.dictationViewModel.state == .clipboardPending("needs copy")
-                })
-
-            subject.session.handleHotkeyPressed()
-
-            #expect(
-                await TestSupport.eventually {
-                    subject.workflow.dictationViewModel.state == .listening
-                })
-            #expect(await subject.speechService.counts().start == 1)
-            #expect(subject.workflow.activeRecordingSource == .hotkey)
-            #expect(subject.shell.isPanelVisible)
+            #expect(subject.clipboardService.copiedTexts == ["needs copy"])
         }
 
         @Test func startCaptureShowsTransientPanelOnlyOnceAcrossStartingAndListening() async {

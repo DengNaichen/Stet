@@ -187,17 +187,18 @@
         }
 
         // The recovered text is already on the clipboard by the time the panel
-        // reaches `.clipboardPending`, so the surface only needs to stay long
-        // enough to be read before the workflow returns to idle.
+        // reaches `.clipboardPending`, so the surface is informational. Time it
+        // out the same way the confirm button resolves it, which also finalizes
+        // the history entry instead of leaving it stuck in `.processing`.
         func scheduleClipboardPendingAutoDismiss() {
             clipboardPendingDismissTask?.cancel()
             clipboardPendingDismissTask = Task { @MainActor [weak self] in
                 guard let self else { return }
                 try? await Task.sleep(for: clipboardPendingAutoDismissDelay)
                 guard !Task.isCancelled else { return }
-                guard case .clipboardPending = dictationState else { return }
+                guard case .clipboardPending(let text) = dictationState else { return }
                 clipboardPendingDismissTask = nil
-                dismissPendingCopy()
+                commitPendingCopy(text)
             }
         }
 
@@ -269,10 +270,11 @@
             case .result, .error:
                 workflowController.dictationViewModel.send(.resetTapped)
                 startDictationCapture(from: source)
-            case .clipboardPending:
-                Task {
-                    await DictationRuntimeProbe.shared.markPendingCopyDismissed()
-                }
+            case .clipboardPending(let text):
+                // The text is already on the clipboard; finalize the history
+                // entry so starting a new capture does not leave the previous
+                // one stuck in `.processing`.
+                _ = workflowController.copyPendingResultToClipboard(text)
                 workflowController.dictationViewModel.send(.resetTapped)
                 startDictationCapture(from: source)
             case .starting, .listening, .processing:
