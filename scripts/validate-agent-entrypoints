@@ -47,7 +47,33 @@ if [ ! -d "$repo_root/docs/exec-plans/completed" ]; then
   missing=1
 fi
 
-# TODO: add link/reference checks once docs are populated
+scan_paths='docs AGENTS.md README.md .github/README.md'
+grep_scan='grep -R --exclude-dir=.git --exclude-dir=archive'
+
+check_retired() {
+  pattern=$1
+  if $grep_scan -l -F "$pattern" $scan_paths 2>/dev/null | grep -q .; then
+    printf 'retired CI reference found (%s); use monorepo-ci.yml instead\n' "$pattern" >&2
+    $grep_scan -n -F "$pattern" $scan_paths 2>/dev/null >&2 || true
+    missing=1
+  fi
+}
+
+check_retired 'verify-public'
+check_retired 'publish-public'
+check_retired 'make verify-public'
+
+macos_ci_hits=$(
+  $grep_scan -n 'macos-ci\.yml' docs AGENTS.md README.md 2>/dev/null \
+    | grep -v 'Public/Stet/docs/release.md' \
+    | grep -v 'Public/Stet/.github/' \
+    || true
+)
+if [ -n "$macos_ci_hits" ]; then
+  printf 'legacy macos-ci.yml reference found; use monorepo-ci.yml instead\n' >&2
+  printf '%s\n' "$macos_ci_hits" >&2
+  missing=1
+fi
 
 if [ "$missing" -ne 0 ]; then
   exit 1

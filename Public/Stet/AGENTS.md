@@ -1,5 +1,11 @@
 # AGENTS.md
 
+## Repository context
+
+This directory is the macOS app subtree in the unified Stet monorepo. Harness docs,
+specs, and exec-plans live at repository root [`docs/`](../../docs/index.md). iOS
+code lives in [`Private/StetMobile/`](../../Private/StetMobile/).
+
 ## Tech Stack
 
 - Language: Swift
@@ -32,27 +38,26 @@
 - For feature work, start with the tests listed in the target feature's `plan.md` under `Relevant Tests`, then expand only as needed.
 - If a change affects platform-heavy flows that are not well covered by automation, call out the manual validation that was performed or still needed.
 - Release entry points are `scripts/release-macos-github.sh` and `scripts/publish-github-release.sh`.
-- Release process and GitHub Actions behavior are documented in `docs/release.md` and `.github/workflows/`.
+- Release process and GitHub Actions behavior are documented in `docs/release.md` and repository root [`../../.github/workflows/`](../../.github/workflows/) (see [`../../.github/README.md`](../../.github/README.md)).
 - Do not change release scripts, signing, notarization, Sparkle, or GitHub release automation unless the task is explicitly about release infrastructure.
 
 ### Local Xcode Selection
 
 - This machine intentionally has two Xcode installations. Use stable Xcode at `/Applications/Xcode.app` for the macOS `Stet.xcodeproj`; keep `/usr/bin/xcode-select -p` pointing to `/Applications/Xcode.app/Contents/Developer`.
-- Use Xcode 27 Beta at `/Applications/Xcode-beta.app` only for the iOS `StetMobile.xcodeproj`. Select it per command with `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer`; do not switch the global `xcode-select` path to Beta.
-- The current iOS worktree is `StetMobile-remove-whisper/StetMobile.xcodeproj`. If that worktree moves, locate it with `rg --files -g 'project.pbxproj' | rg 'StetMobile\.xcodeproj'` before building.
-- Stable macOS build: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make build`.
-- iOS 27 simulator build: `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer /Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild -project StetMobile-remove-whisper/StetMobile.xcodeproj -scheme StetMobile -sdk iphonesimulator27.0 -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`.
+- Use Xcode 27 Beta at `/Applications/Xcode-beta.app` only for the iOS app in `Private/StetMobile/`. Select it per command with `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer`; do not switch the global `xcode-select` path to Beta.
+- Stable macOS build: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make build` (from repo root or this directory).
+- iOS 27 simulator build: `make ios-build` from the repo root (bootstraps ignored runtime and uses Beta per-command).
 - `StetVisuals/MacDictationAudioReactiveOrb.metal` makes the macOS build depend on the Metal Toolchain matching stable Xcode. Diagnose with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -showComponent MetalToolchain -json`; install with the same `DEVELOPER_DIR` and `xcodebuild -downloadComponent MetalToolchain`. Never substitute the Beta or an older Metal toolchain for the stable build.
 - Local state verified on 2026-07-19: Xcode 27 Beta and Metal Toolchain `27A5218h` are installed and functional, while stable Xcode 26.6 expects Metal Toolchain `17F109`, which its Apple component catalog currently fails to install. Recheck component status before attributing a Metal build failure to source code.
 
 ## Documentation Entry Points
 
-- Use `README.md` for repository-level setup, local build, and baseline test commands.
+- Use root [`../../README.md`](../../README.md) and [`../../docs/HARNESS.md`](../../docs/HARNESS.md) for monorepo setup; this directory's `README.md` for macOS-only details.
 - Use [`docs/specs/`](../../docs/specs/index.md) as the source of truth for feature behavior and implementation boundaries.
 - Use each feature's `quickstart.md` as the preferred module-level entry point when present.
 - Use `docs/release.md` for the detailed release process, environments, signing, notarization, and publishing flow.
 - Assume detailed testing, validation, and operation guides may live under `docs/` and should be preferred over duplicating long procedures in this file.
-- Keep this root `AGENTS.md` short. Add durable entry points and decision rules here; put long-form workflows and checklists in dedicated docs.
+- Keep this subtree `AGENTS.md` short. Add durable entry points and decision rules here; put long-form workflows and checklists in dedicated docs.
 
 ## Editing Rules
 
@@ -111,7 +116,7 @@
 ├── Stet.xcodeproj/        # Xcode project
 ├── docs/                  # Human-oriented project docs (release, roadmap)
 ├── scripts/               # Utility and automation scripts
-├── .github/               # CI workflows and GitHub config
+├── .github/               # legacy reference copies; canonical CI at repo root .github/
 └── dist/                  # Build/release artifacts
 ```
 

@@ -1,47 +1,42 @@
-# Stet Internal Monorepo
+# Stet
 
-This private repository is the canonical development repository for Stet.
+The public canonical monorepo for Stet — macOS dictation app, iOS app, shared
+Swift packages, and agent harness docs in one repository.
 
 ## Layout
 
-- `Public/Stet/` is the complete public macOS repository. It is exported to
-  `DengNaichen/Stet` with `git subtree split`.
-- `Private/StetMobile/` is the private iOS application and its imported history.
-- Root-level files are internal monorepo governance and CI only.
-
-The private repository remote is named `origin`. The public projection remote is
-named `public`. Normal development branches and pushes go to `origin`; never push
-the monorepo branch itself to `public`.
-
-After cloning the private repository, configure the public projection remote once:
-
-```bash
-git remote add public https://github.com/DengNaichen/Stet.git
-```
+- `Public/Stet/` — macOS app (`Stet.xcodeproj`, `StetMac/`, `StetVisuals/`, release scripts)
+- `Private/StetMobile/` — iOS app (`StetMobile.xcodeproj`, keyboard extension, Live Activity)
+- `Public/Stet/Packages/` — shared Swift packages (`StetEngine`, etc.)
+- `docs/` — harness docs (architecture, specs, exec-plans, validation)
+- `reference/` — Apple platform reference library (read on demand)
+- Root `Makefile` — orchestrates build, test, lint, and iOS simulator build across subtrees
 
 ## Common commands
 
-```bash
-make build          # public macOS app
-make test           # public macOS tests
-make ios-build      # private iOS simulator build (bootstraps ignored runtime)
-make lint           # public and private Swift sources
-make verify-public  # public-boundary and GitHub-size checks
-make public-export  # print the public projection commit; does not push
-```
-
-To publish the public projection after review:
+From the repository root:
 
 ```bash
-./scripts/publish-public.sh --push
+make build          # macOS app
+make test           # macOS tests
+make ios-build      # iOS simulator build (bootstraps ignored runtime)
+make lint           # SwiftLint and swift-format across macOS and iOS sources
 ```
 
-The publish script only pushes the history derived from `Public/Stet/`. Files
-under `Private/`, local model payloads, and ignored runtime frameworks are not
-part of that commit.
+For macOS-only targets (release, doctor, etc.), see [`Public/Stet/Makefile`](Public/Stet/Makefile) and [`Public/Stet/README.md`](Public/Stet/README.md).
+
+## Agent entry
+
+Start with [`AGENTS.md`](AGENTS.md) and [`docs/HARNESS.md`](docs/HARNESS.md).
+
+## Visibility
+
+The full repository — including `Private/StetMobile/` — is intended to be
+public. The `Private/` directory name is historical layout, not an access-control
+boundary. API keys, signing material, and provider credentials belong in GitHub
+Environment secrets or local Keychain, never in tracked files.
 
 ## Runtime policy
 
-Model payloads, downloaded iOS runtime frameworks, Xcode build products, and the
-retired root-level `StetMobile/` checkout are local-only. They are not mirrored
-or backed up into GitHub by this repository.
+Model payloads, downloaded iOS runtime frameworks, Xcode build products, and
+local-only checkouts are not tracked in Git.

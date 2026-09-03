@@ -8,7 +8,7 @@ English | [中文](docs/README.zh-CN.md)
 
 Stet is a macOS menu bar dictation app that turns speech into usable text with minimal rewriting.
 
-This repository is the macOS app repository for Stet.
+This directory is the macOS app subtree in the unified Stet monorepo. See [`../../README.md`](../../README.md) for monorepo layout and cross-platform commands.
 
 ## About
 

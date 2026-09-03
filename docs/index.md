@@ -16,12 +16,12 @@
 
 ## 端内地图
 
-<!-- TODO: 登记 macOS、iOS、共享包等端内 ARCHITECTURE 链接 -->
+端内细节见 [ARCHITECTURE.md](ARCHITECTURE.md) 仓库地图；各端 agent 入口如下。
 
-- macOS：<!-- TODO: 例如 Public/Stet/StetMac/ 或统一后的路径 -->
-- iOS：<!-- TODO: 例如 Private/StetMobile/ 或统一后的路径 -->
-- 共享包：<!-- TODO: 例如 Public/Stet/Packages/ -->
+- macOS：`Public/Stet/` — 入口 [`Public/Stet/AGENTS.md`](../Public/Stet/AGENTS.md)
+- iOS：`Private/StetMobile/` — 入口 [`Private/StetMobile/AGENTS.md`](../Private/StetMobile/AGENTS.md)
+- 共享包：`Public/Stet/Packages/`（StetEngine 等；iOS 通过相对路径引用）
 
 ## 其他文档
 
-<!-- TODO: 登记 release、roadmap 等已有或待迁移文档链接 -->
+- macOS release 流程：[`Public/Stet/docs/release.md`](../Public/Stet/docs/release.md)

@@ -6,7 +6,7 @@ IOS_XCODEBUILD := $(IOS_DEVELOPER_DIR)/usr/bin/xcodebuild
 PUBLIC_SWIFT_DIRS := $(PUBLIC_STET_DIR)/StetMac $(PUBLIC_STET_DIR)/StetMacTests $(PUBLIC_STET_DIR)/StetMacUITests $(PUBLIC_STET_DIR)/StetVisuals
 PRIVATE_SWIFT_DIRS := $(PRIVATE_STET_MOBILE_DIR)/StetKeyboard $(PRIVATE_STET_MOBILE_DIR)/StetLiveActivity $(PRIVATE_STET_MOBILE_DIR)/StetMobile $(PRIVATE_STET_MOBILE_DIR)/StetMobileTests $(PRIVATE_STET_MOBILE_DIR)/StetMobileUITests
 
-.PHONY: help verify-public public-export swiftlint format format-lint lint whisper-deps build ci-build test ios-bootstrap ios-build doctor clean-derived-data release-github notary-setup
+.PHONY: help swiftlint format format-lint lint whisper-deps build ci-build test ios-bootstrap ios-build doctor clean-derived-data release-github notary-setup
 
 help:
 	@echo "Available targets:"
@@ -16,22 +16,14 @@ help:
 	@echo "  lint            Run SwiftLint and swift-format lint"
 	@echo "  build           Build the macOS app"
 	@echo "  ci-build        Build without code signing for CI"
-	@echo "  test            Run StetTests on macOS"
+	@echo "  test            Run macOS tests"
 	@echo "  ios-bootstrap   Download the ignored iOS runtime frameworks"
-	@echo "  ios-build       Build the private iOS app for the simulator"
-	@echo "  verify-public   Verify the public projection boundary"
-	@echo "  public-export   Print the commit that can be pushed to the public repo"
+	@echo "  ios-build       Build the iOS app for the simulator"
 	@echo "  doctor          Report Xcode and project build-cache usage"
 	@echo "  clean-derived-data  Remove only Stet/StetMobile build caches"
 	@echo "  release-github  Build signed GitHub release artifacts"
 	# @echo "  publish-github  Publish GitHub release artifacts"
 	@echo "  notary-setup    Configure notarytool profile"
-
-verify-public:
-	./scripts/verify-public-boundary.sh
-
-public-export: verify-public
-	./scripts/publish-public.sh
 
 swiftlint:
 	swiftlint lint --config .swiftlint.yml --strict --no-cache

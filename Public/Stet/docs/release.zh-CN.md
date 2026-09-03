@@ -4,24 +4,30 @@
 
 ## 总览
 
-Stet 现在有三条 GitHub Actions workflow：
+Stet 在**仓库根目录**（`.github/workflows/`）使用三条 GitHub Actions workflow。GitHub 只会执行根目录 workflow；完整列表见 [`.github/README.md`](../../../.github/README.md)。
 
-- `macOS CI`
-  - 文件：`.github/workflows/macos-ci.yml`
-  - 触发：PR 和普通 CI push
-  - 用途：lint、build、test
+- `Monorepo CI`
+  - 文件：`.github/workflows/monorepo-ci.yml`
+  - 触发：PR，以及对 `main`、`migration/**` 的 push
+  - 用途：lint、build、test（`make lint`、`make ci-build`、`make test`）
 
 - `macOS Release Candidate`
   - 文件：`.github/workflows/macos-release-candidate.yml`
   - 触发：`workflow_dispatch`
   - environment：`release-candidate`
+  - 工作目录：`Public/Stet`（发布脚本和 Xcode 工程位于该子树）
   - 用途：生成签名并公证过的候选发布产物，但不创建 GitHub Release
 
 - `macOS Release`
   - 文件：`.github/workflows/macos-release.yml`
   - 触发：`v*` tag 的 `push`，以及用于安全手测的 `workflow_dispatch`
   - environment：`production`
+  - 工作目录：`Public/Stet`
   - 用途：在 GitHub Actions 中构建、签名、公证、生成 Sparkle appcast、发布 GitHub Release，并上传发布产物
+
+### 旧版 workflow 副本
+
+`Public/Stet/.github/workflows/` 下的副本**不会**被 GitHub 执行，仅作为统一 monorepo 迁移期间的参考保留。
 
 ## 日常发布流程
 
@@ -30,7 +36,7 @@ Stet 现在有三条 GitHub Actions workflow：
 日常开发：
 
 1. 开分支并提 PR。
-2. 等 `macOS CI` 通过。
+2. 等 `Monorepo CI` 通过。
 3. 合并到 `main`。
 
 发布前验证：

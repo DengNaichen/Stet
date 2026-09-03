@@ -2,9 +2,14 @@
 
 ## Repository model
 
-This is the private canonical monorepo. `Public/Stet/` is the allowlisted public
-projection and `Private/StetMobile/` is private. Never copy private files into the
-public subtree and never push a monorepo commit directly to the public remote.
+This is the public canonical monorepo for Stet. macOS and iOS apps live in the
+same repository as first-class subtrees:
+
+- `Public/Stet/` — macOS app (`Stet.xcodeproj`, `StetMac/`, `StetVisuals/`, shared packages)
+- `Private/StetMobile/` — iOS app (`StetMobile.xcodeproj`, keyboard extension, Live Activity)
+
+Shared Swift packages (`StetEngine`, etc.) live under `Public/Stet/Packages/` and
+are referenced by both platforms.
 
 ## Entry points
 
@@ -12,9 +17,8 @@ public subtree and never push a monorepo commit directly to the public remote.
 - Tool adapters (no agent knowledge): [`.cursor/`](.cursor/README.md), [`.claude/`](.claude/README.md), [`.codex/`](.codex/README.md).
 - Harness and durable docs: [`docs/HARNESS.md`](docs/HARNESS.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/specs/`](docs/specs/index.md), [`docs/exec-plans/`](docs/exec-plans/README.md).
 - Apple platform reference (read on demand): [`reference/apple-platform/index.md`](reference/apple-platform/index.md).
-- For macOS or shared public code, read `Public/Stet/AGENTS.md` and work from `Public/Stet/`.
-- For iOS code, work from `Private/StetMobile/`. Shared sources are referenced
-  from `Public/Stet/Packages/StetEngine` and `Public/Stet/StetVisuals`.
+- For macOS or shared code, read [`Public/Stet/AGENTS.md`](Public/Stet/AGENTS.md) and work from `Public/Stet/`.
+- For iOS code, read [`Private/StetMobile/AGENTS.md`](Private/StetMobile/AGENTS.md) and work from `Private/StetMobile/`.
 - Keep root-level changes limited to monorepo governance, CI, and orchestration.
 
 ## Build and validation
@@ -24,11 +28,10 @@ public subtree and never push a monorepo commit directly to the public remote.
 - iOS 27 simulator build: `make ios-build`; it uses Xcode Beta per-command and
   does not change the global Xcode selection.
 - Formatting and lint: `make lint`
-- Public boundary: `make verify-public`
 
-Do not add model payloads or downloaded runtime frameworks to Git. Do not change
-public release automation from the monorepo root; release changes belong inside
-`Public/Stet/`.
+Do not add model payloads or downloaded runtime frameworks to Git. Release
+scripts and signing config live under `Public/Stet/`; canonical GitHub Actions
+workflows live at repository root `.github/workflows/` (see `.github/README.md`).
 
 Do not run Git index-writing commands in parallel. Preserve unrelated user
 changes and use small, verifiable commits.

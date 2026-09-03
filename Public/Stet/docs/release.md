@@ -4,24 +4,30 @@ This document records the release flow that is currently working for Stet.
 
 ## Overview
 
-Stet now uses three GitHub Actions workflows:
+Stet uses three GitHub Actions workflows at the **repository root** (`.github/workflows/`). GitHub only executes root workflows; see [`.github/README.md`](../../../.github/README.md) for the canonical list.
 
-- `macOS CI`
-  - file: `.github/workflows/macos-ci.yml`
-  - trigger: pull requests and normal CI pushes
-  - purpose: lint, build, test
+- `Monorepo CI`
+  - file: `.github/workflows/monorepo-ci.yml`
+  - trigger: pull requests and pushes to `main` and `migration/**`
+  - purpose: lint, build, test (`make lint`, `make ci-build`, `make test`)
 
 - `macOS Release Candidate`
   - file: `.github/workflows/macos-release-candidate.yml`
   - trigger: `workflow_dispatch`
   - environment: `release-candidate`
+  - working directory: `Public/Stet` (release scripts and the Xcode project live in that subtree)
   - purpose: build a signed and notarized release candidate artifact without publishing a GitHub Release
 
 - `macOS Release`
   - file: `.github/workflows/macos-release.yml`
   - trigger: `push` on `v*` tags, plus `workflow_dispatch` for safe manual testing
   - environment: `production`
+  - working directory: `Public/Stet`
   - purpose: build, sign, notarize, generate Sparkle appcast, publish the GitHub Release, and upload release artifacts from GitHub Actions
+
+### Legacy workflow copies
+
+Copies under `Public/Stet/.github/workflows/` are **not executed** by GitHub. They are kept as reference only during the unified monorepo migration.
 
 ## Daily Release Flow
 
@@ -30,7 +36,7 @@ The standard release path is GitHub Actions only. Do not create or upload formal
 Normal development:
 
 1. Open a branch and submit a PR.
-2. Let `macOS CI` pass.
+2. Let `Monorepo CI` pass.
 3. Merge into `main`.
 
 Release validation:

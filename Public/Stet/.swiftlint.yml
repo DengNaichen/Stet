@@ -1,7 +1,7 @@
 included:
   - StetMac
-  - StetTests
-  - StetUITests
+  - StetMacTests
+  - StetMacUITests
   - StetVisuals
 
 excluded:

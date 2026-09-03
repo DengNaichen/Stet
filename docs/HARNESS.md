@@ -25,6 +25,13 @@ Workflow skills（若存在）放在 `.agents/skills/`。平台参考库在 [`re
 
 旧 specs 已移至 `docs/archive/specs-legacy/`（gitignored）。说明见 [archive/README.md](archive/README.md)。
 
+## CI 与 release
+
+Plan A 迁移后，可执行的 workflow 均在仓库根 [`.github/workflows/`](../.github/workflows/)。[`Public/Stet/.github/workflows/`](../Public/Stet/.github/workflows/) 下保留的副本仅供对照，GitHub 不会执行。
+
+- CI 与验证映射：[`.github/README.md`](../.github/README.md)、[VALIDATION.md](VALIDATION.md)
+- macOS release 流程：[`Public/Stet/docs/release.md`](../Public/Stet/docs/release.md)
+
 ## 漂移处理
 
 若 AGENTS、架构地图、rules、VALIDATION 或代码互相冲突，不要 silent pick 一边；先核对真实文件，再同步修复 owner artifact。

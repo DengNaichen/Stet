@@ -8,15 +8,37 @@
 
 | 范围 | 直接命令 | 详细入口 |
 |------|----------|----------|
-| macOS build | <!-- TODO --> | <!-- TODO --> |
-| macOS test | <!-- TODO --> | <!-- TODO --> |
-| iOS build | <!-- TODO --> | <!-- TODO --> |
-| lint / format | <!-- TODO --> | <!-- TODO --> |
+| macOS build | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make build` | [`Public/Stet/AGENTS.md`](../Public/Stet/AGENTS.md) |
+| macOS test | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make test` | [`Public/Stet/AGENTS.md`](../Public/Stet/AGENTS.md) |
+| iOS build | `make ios-build` | [`Private/StetMobile/AGENTS.md`](../Private/StetMobile/AGENTS.md) |
+| lint / format | `make lint` | 根 [`Makefile`](../Makefile) |
 | Harness 入口检查 | `scripts/validate-agent-entrypoints` | 本文件 |
+
+macOS-only 目标（`ci-build`、`release-github`、`doctor` 等）见 [`Public/Stet/Makefile`](../Public/Stet/Makefile)。
 
 ## Hook 与 CI
 
-<!-- TODO: pre-commit、GitHub Actions、Makefile 目标与绑定关系 -->
+- Pre-commit：`.githooks/`（若已安装）。
+- GitHub Actions 总览：[`.github/README.md`](../.github/README.md)。
+- 根 `Makefile` 将 macOS 目标委托给 `Public/Stet/Makefile`，iOS 目标直接构建 `Private/StetMobile/StetMobile.xcodeproj`。
+
+### monorepo-ci.yml
+
+仓库根 [`.github/workflows/monorepo-ci.yml`](../.github/workflows/monorepo-ci.yml) 在 PR 与 push 到 `main`、`migration/**` 时运行：
+
+| CI job | 本地等价命令 |
+|--------|--------------|
+| Swift Quality | `make lint` |
+| macOS Build | `make ci-build` |
+| macOS Tests | `make test` |
+
+### Release workflows
+
+签名 release 与 RC 构建在根 [`.github/workflows/`](../.github/workflows/)（`macos-release.yml`、`macos-release-candidate.yml`），job 使用 `working-directory: Public/Stet`，因 Xcode 工程与 release 脚本位于该子树。
+
+### 本地-only
+
+`make ios-build` 目前不在 CI 中；本地验证 iOS 时使用，详见 [`Private/StetMobile/AGENTS.md`](../Private/StetMobile/AGENTS.md)。
 
 ## 执行与报告
 
