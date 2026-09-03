@@ -1,3 +1,0 @@
-interface:
-  display_name: "UIKit"
-  short_description: "Bridging UIKit and SwiftUI, modernizing UIKit apps (scene lifecycle, resizability), debugging Auto Layout, Combine, T..."

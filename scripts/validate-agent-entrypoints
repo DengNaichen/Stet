@@ -1,0 +1,50 @@
+#!/usr/bin/env sh
+# Validates that harness entrypoint docs exist and cross-references resolve.
+# Template only — extend checks as docs are filled in.
+set -eu
+
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+repo_root=$(dirname -- "$script_dir")
+
+required_files="
+docs/index.md
+docs/HARNESS.md
+docs/ARCHITECTURE.md
+docs/VALIDATION.md
+docs/GLOSSARY.md
+docs/specs/index.md
+docs/exec-plans/README.md
+docs/rules/index.md
+docs/rules/CODING.md
+docs/rules/SECURITY.md
+docs/rules/PRODUCT_SENSE.md
+AGENTS.md
+reference/README.md
+reference/apple-platform/index.md
+"
+
+missing=0
+for rel_path in $required_files; do
+  if [ ! -f "$repo_root/$rel_path" ]; then
+    printf 'missing required entrypoint: %s\n' "$rel_path" >&2
+    missing=1
+  fi
+done
+
+if [ ! -d "$repo_root/docs/exec-plans/active" ]; then
+  printf 'missing directory: docs/exec-plans/active\n' >&2
+  missing=1
+fi
+
+if [ ! -d "$repo_root/docs/exec-plans/completed" ]; then
+  printf 'missing directory: docs/exec-plans/completed\n' >&2
+  missing=1
+fi
+
+# TODO: add link/reference checks once docs are populated
+
+if [ "$missing" -ne 0 ]; then
+  exit 1
+fi
+
+printf 'validate-agent-entrypoints: all required harness entrypoints present\n'

@@ -71,3 +71,6 @@ sherpa-onnx/
 # Private mobile runtime and model payloads stay local-only.
 /Private/StetMobile/.runtime/
 /Private/StetMobile/**/*.onnx
+
+# Legacy feature specs archived locally; harness uses docs/specs/ instead.
+/docs/archive/specs-legacy/

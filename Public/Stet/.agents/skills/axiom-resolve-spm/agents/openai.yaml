@@ -1,3 +1,0 @@
-interface:
-  display_name: "Resolve Spm"
-  short_description: "The user mentions SPM resolution failures, \"no such module\" errors, duplicate symbol linker errors, version conflicts..."

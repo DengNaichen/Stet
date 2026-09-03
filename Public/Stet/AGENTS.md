@@ -15,9 +15,10 @@
 
 ## Where To Start
 
-- Project start: begin with this `AGENTS.md`, then locate the relevant feature under `specs/`, and use `StetMac/StetApp.swift`, `StetMac/App/`, and `StetMac/Features/` as the main repository-level entry points.
-- Feature start: after identifying the target `specs/<id>-<feature>/` directory, read `quickstart.md` first when present, then `spec.md`, then `plan.md`.
-- If a feature's `quickstart.md` is missing or stale, fall back to `plan.md` and use its `Project Structure` section to find the right source files and tests.
+- Project start: begin with monorepo [`docs/HARNESS.md`](../../docs/HARNESS.md) and [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md), then use `StetMac/StetApp.swift`, `StetMac/App/`, and `StetMac/Features/` as the main repository-level entry points.
+- Apple platform API guidance: read [`reference/apple-platform/index.md`](../../reference/apple-platform/index.md) on demand; open only the matching topic file.
+- Feature start: locate the active entry under [`docs/specs/`](../../docs/specs/index.md), then read the matching Technical Plan under [`docs/exec-plans/active/`](../../docs/exec-plans/README.md) when present.
+- Legacy `specs/001–010` and archived feature folders are retired; do not read `docs/archive/specs-legacy/` as current truth.
 
 ## Build, Test, and Release
 
@@ -46,7 +47,7 @@
 ## Documentation Entry Points
 
 - Use `README.md` for repository-level setup, local build, and baseline test commands.
-- Use feature docs under `specs/<id>-<feature>/` as the source of truth for feature behavior and implementation boundaries.
+- Use [`docs/specs/`](../../docs/specs/index.md) as the source of truth for feature behavior and implementation boundaries.
 - Use each feature's `quickstart.md` as the preferred module-level entry point when present.
 - Use `docs/release.md` for the detailed release process, environments, signing, notarization, and publishing flow.
 - Assume detailed testing, validation, and operation guides may live under `docs/` and should be preferred over duplicating long procedures in this file.
@@ -56,7 +57,7 @@
 
 - Keep changes scoped to the target feature's `Relevant Source Code` unless the task clearly requires a broader cross-feature edit.
 - Prefer small, verifiable patches over speculative refactors or broad architectural cleanup.
-- Do not silently introduce behavior that is outside the target `spec.md` and `plan.md`; if implementation and docs conflict, call out the conflict before broadening scope.
+- Do not silently introduce behavior that is outside the active spec and Technical Plan; if implementation and docs conflict, call out the conflict before broadening scope.
 - Do not add extra fallback paths, defensive branches, or alternative UX flows by default. Only add fallback behavior when the spec, plan, existing architecture, or the task explicitly calls for it.
 - Reuse the existing app structure: keep app lifecycle and windowing logic in `StetMac/App/`, core services in `StetMac/Core/`, feature UI and view models in `StetMac/Features/`, and shared types in `StetMac/Shared/`.
 - Preserve the current SwiftUI + AppKit integration patterns instead of introducing a parallel UI or state-management approach without a strong reason.
@@ -107,30 +108,20 @@
 ├── StetMacUITests/        # macOS UI tests
 ├── StetVisuals/           # Visual components and shader workbench
 ├── Stet.xcodeproj/        # Xcode project
-├── docs/                  # Human-oriented project docs
+├── docs/                  # Human-oriented project docs (release, roadmap)
 ├── scripts/               # Utility and automation scripts
-├── specs/                 # Feature specs and implementation planning artifacts
-│   ├── 001-audio-device-management/
-│   ├── 002-permission-management/
-│   ├── 003-audio-capture-pipeline/
-│   ├── 004-audio-post-processing/
-│   ├── 005-transcribe-details/
-│   ├── 006-text-output-handling/
-│   └── 007-app-branch/
 ├── .github/               # CI workflows and GitHub config
-├── .specify/              # Specification tooling
-├── .agents/               # Local agent skills and support files
 └── dist/                  # Build/release artifacts
 ```
 
+Monorepo harness docs (specs, exec-plans, architecture, validation) live at repository root [`docs/`](../../docs/index.md).
+
 ## Spec Workflow
 
-- Before starting feature work, first identify which module and which `specs/<id>-<feature>/` directory the request belongs to.
-- If the request maps to an existing spec, read `spec.md` before making code changes.
-- Read `plan.md` next to understand implementation decisions, tradeoffs, and any documented deviations from older docs or drafts.
-- Treat `plan.md` as a structured design document. Across this repository, the stable high-value sections are usually `Summary`, `Technical Context`, `Constitution Check`, `Project Structure`, `Implementation Observations`, and `Complexity Tracking`, with some features also including `Design Overview` or `Design`.
-- In `plan.md`, use the `Project Structure` section as the default task boundary. Start from its documented `Relevant Source Code` / `Source Code` and `Relevant Tests` when present before scanning broadly through the repository.
-- Expect feature-level variation. Not every plan includes every section, and some plans use slightly different headings such as `Documentation (this feature)`, `Source Code (repository root)`, `Design`, or `Design Overview`.
-- If `tasks.md` exists, treat it as the execution checklist, not the source of truth for feature behavior.
-- If the request does not clearly map to a spec, pause and clarify the target spec or propose the most likely candidate before making broad changes.
-- If a request spans multiple specs, identify the primary spec and call out affected secondary specs before implementation.
+- Before starting feature work, identify the module and the active entry under [`docs/specs/`](../../docs/specs/index.md).
+- If the request maps to an active spec, read it before making code changes.
+- Read the matching Technical Plan under [`docs/exec-plans/active/`](../../docs/exec-plans/README.md) next for implementation decisions, tradeoffs, and documented deviations.
+- Treat Technical Plans as frozen design records for one implementation cycle; current behavior truth is code plus [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md).
+- If the request does not clearly map to an active spec, pause and clarify the target spec or propose the most likely candidate before making broad changes.
+- If a request spans multiple features, identify the primary spec and call out affected secondary specs before implementation.
+- Do not read [`docs/archive/specs-legacy/`](../../docs/archive/README.md); it is gitignored local history only.

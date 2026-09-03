@@ -1,3 +1,0 @@
-interface:
-  display_name: "Graphics"
-  short_description: "Working with ANY GPU rendering, Metal, OpenGL migration, shaders, 3D content, RealityKit, AR, USD/USDZ files, or disp..."

@@ -1,3 +1,0 @@
-interface:
-  display_name: "Security"
-  short_description: "Storing credentials securely, encrypting data, implementing passkeys, securing AI/agentic features against prompt inj..."

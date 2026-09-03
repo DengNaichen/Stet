@@ -1,3 +1,0 @@
-interface:
-  display_name: "Audit SwiftUI Architecture"
-  short_description: "The user mentions SwiftUI architecture review, separation of concerns, testability issues, or \"logic in view\" problems."
