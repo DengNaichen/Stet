@@ -119,7 +119,7 @@
         var searchTokens: [String] {
             switch self {
             case .general:
-                return ["updates", "dock", "launch at login", "sounds", "capture", "behavior"]
+                return ["updates", "dock", "launch at login", "sounds", "notification", "capture", "behavior"]
             case .audio:
                 return [
                     "microphone", "input device", "recording", "audio", "test", "passive transcription",

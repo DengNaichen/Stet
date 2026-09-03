@@ -35,6 +35,7 @@ private func makeSnapshot(
         rewriteProviderConfiguration: rewriteProviderConfiguration,
         personalDictionary: personalDictionary,
         interactionSoundsEnabled: true,
+        dictationCompletionNotificationsEnabled: true,
         interactionSoundPreset: .soft,
         transcriptionPrimaryLanguage: transcriptionPrimaryLanguage,
         transcriptionSecondaryLanguage: transcriptionSecondaryLanguage,

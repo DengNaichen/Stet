@@ -80,6 +80,130 @@
             )
             #expect(record.status == "completed")
         }
+
+        @Test func stopCompletesWhileCaptureStreamKeepsProducing() async throws {
+            let root = TestSupport.temporaryDirectoryURL()
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            let (stream, continuation) = AsyncStream<AudioCaptureFrame>.makeStream()
+            let exclusive = CallCounter()
+            let runtime = MacMeetingRecordingRuntime(
+                dependencies: MacMeetingRecordingRuntime.Dependencies(
+                    store: MeetingRecordingStore(rootDirectory: root),
+                    ensureCaptureRunning: {},
+                    beginExclusiveCapture: { exclusive.increment() },
+                    endExclusiveCapture: { exclusive.increment() },
+                    makeFrameStream: { stream },
+                    processor: MeetingSessionProcessor(
+                        sampleRate: 16_000,
+                        diarize: { _ in [] },
+                        transcribe: { _ in "kept going" },
+                        identify: { _ in PassiveSpeakerMatch(identity: .other, similarity: nil) }
+                    ),
+                    now: { Date(timeIntervalSince1970: 1_704_067_200) }
+                )
+            )
+
+            await runtime.start()
+            continuation.yield(
+                AudioCaptureFrame(epoch: 1, startSample: 0, samples: [0.1, -0.1])
+            )
+            #expect(
+                await TestSupport.eventuallyAsync {
+                    await runtime.recordedSampleCount() == 2
+                }
+            )
+
+            await runtime.stop()
+
+            #expect(await runtime.currentPhase() == .idle)
+            #expect(exclusive.value == 2)
+            continuation.finish()
+        }
+
+        @Test func toggleDuringProcessingDoesNotStartAnotherMeeting() async throws {
+            let root = TestSupport.temporaryDirectoryURL()
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            let (stream, continuation) = AsyncStream<AudioCaptureFrame>.makeStream()
+            let exclusive = CallCounter()
+            let hold = AsyncHold()
+            let runtime = MacMeetingRecordingRuntime(
+                dependencies: MacMeetingRecordingRuntime.Dependencies(
+                    store: MeetingRecordingStore(rootDirectory: root),
+                    ensureCaptureRunning: {},
+                    beginExclusiveCapture: { exclusive.increment() },
+                    endExclusiveCapture: { exclusive.increment() },
+                    makeFrameStream: { stream },
+                    processor: MeetingSessionProcessor(
+                        sampleRate: 16_000,
+                        diarize: { _ in
+                            await hold.wait()
+                            return [
+                                PassiveDiarizedRegion(
+                                    speakerTrack: 0,
+                                    startSample: 0,
+                                    endSample: 2,
+                                    activityConfidence: 1,
+                                    isOverlap: false
+                                )
+                            ]
+                        },
+                        transcribe: { _ in "held" },
+                        identify: { _ in PassiveSpeakerMatch(identity: .self, similarity: 0.9) }
+                    ),
+                    now: { Date(timeIntervalSince1970: 1_704_067_200) }
+                )
+            )
+
+            await runtime.start()
+            continuation.yield(
+                AudioCaptureFrame(epoch: 1, startSample: 0, samples: [0.2, -0.2])
+            )
+            #expect(
+                await TestSupport.eventuallyAsync {
+                    await runtime.recordedSampleCount() == 2
+                }
+            )
+
+            let firstToggle = Task { await runtime.toggle() }
+            #expect(
+                await TestSupport.eventuallyAsync {
+                    await runtime.currentPhase() == .processing
+                }
+            )
+
+            await runtime.toggle()
+            await hold.resume()
+            await firstToggle.value
+
+            #expect(
+                await TestSupport.eventuallyAsync {
+                    await runtime.currentPhase() == .idle
+                }
+            )
+            #expect(exclusive.value == 2)
+
+            let folders = try FileManager.default.contentsOfDirectory(
+                at: root,
+                includingPropertiesForKeys: nil
+            ).filter(\.hasDirectoryPath)
+            #expect(folders.count == 1)
+            continuation.finish()
+        }
+    }
+
+    private actor AsyncHold {
+        private var continuation: CheckedContinuation<Void, Never>?
+
+        func wait() async {
+            await withCheckedContinuation { continuation in
+                self.continuation = continuation
+            }
+        }
+
+        func resume() {
+            continuation?.resume()
+            continuation = nil
+        }
     }
 
     private final class CallCounter: @unchecked Sendable {

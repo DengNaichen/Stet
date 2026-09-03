@@ -20,6 +20,7 @@
         private let systemAudioMuting: (any SystemAudioMuting)?
         private let settingsStore: DictationSettingsStore
         private let interactionSoundPlayer: any InteractionSoundPlaying
+        private let completionNotifier: (any MacDictationCompletionNotifying)?
         private let mediaResumeDelay: Duration
         private let startPromptActivationDeadline: Duration
 
@@ -38,6 +39,7 @@
             systemAudioMuting: (any SystemAudioMuting)? = nil,
             settingsStore: DictationSettingsStore,
             interactionSoundPlayer: any InteractionSoundPlaying,
+            completionNotifier: (any MacDictationCompletionNotifying)? = nil,
             statsModel: DictationStatsModel? = nil,
             mediaResumeDelay: Duration = .seconds(1),
             startPromptActivationDeadline: Duration = .milliseconds(350)
@@ -48,6 +50,7 @@
             self.systemAudioMuting = systemAudioMuting
             self.settingsStore = settingsStore
             self.interactionSoundPlayer = interactionSoundPlayer
+            self.completionNotifier = completionNotifier
             self.statsModel = statsModel
             self.mediaResumeDelay = mediaResumeDelay
             self.startPromptActivationDeadline = startPromptActivationDeadline
@@ -220,6 +223,9 @@
             let settings = settingsSnapshot
             if outcome == .completed, settings.interactionSoundsEnabled {
                 interactionSoundPlayer.playFinish(preset: settings.interactionSoundPreset)
+            }
+            if outcome == .completed, settings.dictationCompletionNotificationsEnabled {
+                await completionNotifier?.notifyDictationCompleted()
             }
             return outcome
         }

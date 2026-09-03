@@ -40,11 +40,17 @@
         private var dictationSection: some View {
             Section {
                 Toggle("Interaction sounds", isOn: $viewModel.interactionSoundsEnabled)
+                Toggle(
+                    "Notify when dictation completes",
+                    isOn: $viewModel.dictationCompletionNotificationsEnabled
+                )
                 Toggle("Mute background audio", isOn: $viewModel.pauseMediaDuringDictation)
             } header: {
                 Text("Dictation")
             } footer: {
-                Text("Stet can provide feedback and limit distractions while you are speaking.")
+                Text(
+                    "Stet can play a sound and show a notification after your words are inserted."
+                )
             }
         }
 

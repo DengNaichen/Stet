@@ -51,8 +51,11 @@
 "Launch at Login" = "登入時啟動";
 "Show in Dock" = "在 Dock 中顯示";
 "Interaction sounds" = "互動音效";
+"Notify when dictation completes" = "聽寫完成後通知";
 "Mute background audio" = "靜音背景音訊";
 "Stet can provide feedback and limit distractions while you are speaking." = "Stet 可以在您說話時提供回饋並減少干擾。";
+"Stet can play a sound and show a notification after your words are inserted." = "文字插入後，Stet 可以播放提示音並顯示通知。";
+"Dictation complete" = "聽寫完成";
 "Always show onboarding while debugging" = "除錯時始終顯示導引";
 "Restart Onboarding Now" = "立即重新開始導引";
 "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "您也可以使用 `--force-onboarding` 或 `STET_FORCE_ONBOARDING=1` 啟動。";
