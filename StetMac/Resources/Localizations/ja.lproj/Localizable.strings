@@ -51,8 +51,11 @@
 "Launch at Login" = "ログイン時に開く";
 "Show in Dock" = "Dockに表示";
 "Interaction sounds" = "操作音";
+"Notify when dictation completes" = "入力完了時に通知";
 "Mute background audio" = "バックグラウンドオーディオをミュート";
 "Stet can provide feedback and limit distractions while you are speaking." = "Stetは、話している間にフィードバックを提供し、気を散らすものを減らすことができます。";
+"Stet can play a sound and show a notification after your words are inserted." = "文字の挿入後、Stetはサウンドを再生し、通知を表示できます。";
+"Dictation complete" = "入力が完了しました";
 "Always show onboarding while debugging" = "デバッグ中は常にオンボーディングを表示";
 "Restart Onboarding Now" = "今すぐオンボーディングを再開";
 "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "`--force-onboarding` または `STET_FORCE_ONBOARDING=1` を使用して起動することもできます。";

@@ -43,6 +43,7 @@ struct DictationSettingsSnapshot: Sendable {
     let rewriteProviderConfiguration: RewriteProviderConfiguration?
     let personalDictionary: [String]
     let interactionSoundsEnabled: Bool
+    let dictationCompletionNotificationsEnabled: Bool
     let interactionSoundPreset: InteractionSoundPreset
     let transcriptionPrimaryLanguage: String
     let transcriptionSecondaryLanguage: String?
@@ -127,6 +128,9 @@ struct DictationSettingsStore: Sendable {
         let personalDictionary = loadPersonalDictionaryEnabled() ? loadPersonalDictionary() : []
         let interactionSoundsEnabled =
             defaultsStore.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
+        let dictationCompletionNotificationsEnabled =
+            defaultsStore.object(forKey: MacPreferences.dictationCompletionNotificationsEnabled) as? Bool
+            ?? true
         let interactionSoundPreset = loadInteractionSoundPreset()
 
         let rewriteConfiguration: RewriteProviderConfiguration?
@@ -175,6 +179,7 @@ struct DictationSettingsStore: Sendable {
             rewriteProviderConfiguration: rewriteConfiguration,
             personalDictionary: personalDictionary,
             interactionSoundsEnabled: interactionSoundsEnabled,
+            dictationCompletionNotificationsEnabled: dictationCompletionNotificationsEnabled,
             interactionSoundPreset: interactionSoundPreset,
             transcriptionPrimaryLanguage: transcriptionPrimaryLanguage,
             transcriptionSecondaryLanguage: transcriptionSecondaryLanguage,

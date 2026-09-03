@@ -49,6 +49,20 @@
                 defaults.set(interactionSoundsEnabled, forKey: MacPreferences.interactionSoundsEnabled)
             }
         }
+        @Published var dictationCompletionNotificationsEnabled = true {
+            didSet {
+                guard hasLoadedPreferences else { return }
+                defaults.set(
+                    dictationCompletionNotificationsEnabled,
+                    forKey: MacPreferences.dictationCompletionNotificationsEnabled
+                )
+                if dictationCompletionNotificationsEnabled {
+                    Task {
+                        await MacDictationCompletionNotificationService.shared.requestAuthorizationIfNeeded()
+                    }
+                }
+            }
+        }
         @Published var managedSettings = ManagedSettingsState() {
             didSet {
                 guard hasLoadedManagedSettings else { return }
@@ -109,6 +123,8 @@
             pauseMediaDuringDictation =
                 defaults.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
             interactionSoundsEnabled = defaults.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
+            dictationCompletionNotificationsEnabled =
+                defaults.object(forKey: MacPreferences.dictationCompletionNotificationsEnabled) as? Bool ?? true
             hasLoadedPreferences = true
 
             hasLoadedManagedSettings = false

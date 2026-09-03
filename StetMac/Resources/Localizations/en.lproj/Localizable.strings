@@ -53,8 +53,11 @@
 "Launch at Login" = "Launch at Login";
 "Show in Dock" = "Show in Dock";
 "Interaction sounds" = "Interaction sounds";
+"Notify when dictation completes" = "Notify when dictation completes";
 "Mute background audio" = "Mute background audio";
 "Stet can provide feedback and limit distractions while you are speaking." = "Stet can provide feedback and limit distractions while you are speaking.";
+"Stet can play a sound and show a notification after your words are inserted." = "Stet can play a sound and show a notification after your words are inserted.";
+"Dictation complete" = "Dictation complete";
 "Always show onboarding while debugging" = "Always show onboarding while debugging";
 "Restart Onboarding Now" = "Restart Onboarding Now";
 "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`.";

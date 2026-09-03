@@ -106,5 +106,17 @@
             #expect(viewModel.feedback?.message == "Dock icon enabled.")
             #expect(viewModel.feedback?.isError == false)
         }
+
+        @Test func dictationCompletionNotificationTogglePersists() {
+            let defaults = TestSupport.makeUserDefaults()
+            let viewModel = makeViewModel(defaults: defaults)
+
+            viewModel.load()
+            viewModel.dictationCompletionNotificationsEnabled = false
+
+            #expect(
+                defaults.object(forKey: MacPreferences.dictationCompletionNotificationsEnabled) as? Bool
+                    == false)
+        }
     }
 #endif

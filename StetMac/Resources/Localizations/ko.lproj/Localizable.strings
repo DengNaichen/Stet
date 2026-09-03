@@ -51,8 +51,11 @@
 "Launch at Login" = "로그인 시 실행";
 "Show in Dock" = "Dock에 표시";
 "Interaction sounds" = "상호작용 사운드";
+"Notify when dictation completes" = "받아쓰기 완료 시 알림";
 "Mute background audio" = "백그라운드 오디오 음소거";
 "Stet can provide feedback and limit distractions while you are speaking." = "Stet은 말하는 동안 피드백을 제공하고 주의 산만을 줄일 수 있습니다.";
+"Stet can play a sound and show a notification after your words are inserted." = "텍스트가 삽입된 후 Stet이 소리를 재생하고 알림을 표시할 수 있습니다.";
+"Dictation complete" = "받아쓰기 완료";
 "Always show onboarding while debugging" = "디버깅 시 항상 온보딩 표시";
 "Restart Onboarding Now" = "지금 온보딩 다시 시작";
 "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "`--force-onboarding` 또는 `STET_FORCE_ONBOARDING=1`로 시작할 수도 있습니다.";

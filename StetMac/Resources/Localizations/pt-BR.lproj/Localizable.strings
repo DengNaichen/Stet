@@ -51,8 +51,11 @@
 "Launch at Login" = "Abrir ao iniciar sessão";
 "Show in Dock" = "Mostrar no Dock";
 "Interaction sounds" = "Sons de interação";
+"Notify when dictation completes" = "Notificar ao concluir o ditado";
 "Mute background audio" = "Silenciar áudio de fundo";
 "Stet can provide feedback and limit distractions while you are speaking." = "O Stet pode fornecer feedback e limitar distrações enquanto você fala.";
+"Stet can play a sound and show a notification after your words are inserted." = "O Stet pode reproduzir um som e mostrar uma notificação depois que suas palavras forem inseridas.";
+"Dictation complete" = "Ditado concluído";
 "Always show onboarding while debugging" = "Sempre mostrar guia inicial ao depurar";
 "Restart Onboarding Now" = "Reiniciar guia inicial agora";
 "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "Você também pode iniciar com `--force-onboarding` ou `STET_FORCE_ONBOARDING=1`.";

@@ -86,6 +86,7 @@
                     textInjectionService: textInjectionService
                 )
             let interactionSoundPlayer = InteractionSoundPlayer()
+            MacDictationCompletionNotificationService.shared.installDelegateIfNeeded()
             let workflowController = MacDictationWorkflowController(
                 dictationViewModel: DictationViewModel(speechService: speechService),
                 captureCoordinator: captureCoordinator,
@@ -93,6 +94,7 @@
                 systemAudioMuting: systemAudioMuting,
                 settingsStore: settingsStore,
                 interactionSoundPlayer: interactionSoundPlayer,
+                completionNotifier: MacDictationCompletionNotificationService.shared,
                 statsModel: .shared
             )
             let sessionController = MacAppSessionController(
