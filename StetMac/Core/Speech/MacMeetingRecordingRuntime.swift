@@ -159,6 +159,7 @@
                     speakerCount: Set(turns.map(\.speakerLabel)).count
                 )
                 try writeRecord(record, to: directory.sessionURL)
+                await dependencies.endExclusiveCapture()
                 await setPhase(.idle)
             } catch {
                 logger.error("Meeting processing failed: \(error.localizedDescription, privacy: .public)")
@@ -178,11 +179,11 @@
                     speakerCount: 0
                 )
                 try? writeRecord(record, to: directory.sessionURL)
+                await dependencies.endExclusiveCapture()
                 await setPhase(.failed(error.localizedDescription))
             }
 
             processingTask = nil
-            await dependencies.endExclusiveCapture()
         }
 
         private func append(_ samples: [Float]) {
