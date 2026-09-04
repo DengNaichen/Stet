@@ -133,4 +133,4 @@ Release artifacts are written to `dist/github-release/<tag>/`.
 
 ## License
 
-GPL-3.0-only
+[GNU General Public License v3.0 (GPL-3.0-only)](../../LICENSE)

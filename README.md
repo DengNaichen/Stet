@@ -39,4 +39,20 @@ Environment secrets or local Keychain, never in tracked files.
 ## Runtime policy
 
 Model payloads, downloaded iOS runtime frameworks, Xcode build products, and
-local-only checkouts are not tracked in Git.
+local-only checkouts are not tracked in Git. Ignore rules live in the repository
+root [`.gitignore`](.gitignore) only (no per-subtree copies).
+
+## Git remotes
+
+Canonical remote (releases, stars, CI secrets): **`origin`** → `github.com/DengNaichen/Stet`
+
+Legacy development mirror: **`stet-internal`** → `github.com/DengNaichen/Stet-internal`
+
+After the unified-monorepo migration, push to `origin` only. Prune stale
+remote-tracking branches with `git remote prune origin` (and `stet-internal` if
+kept).
+
+## License
+
+Stet is licensed under [GNU General Public License v3.0 (GPL-3.0-only)](LICENSE).
+See [`Public/Stet/README.md`](Public/Stet/README.md) for macOS-specific notes.
