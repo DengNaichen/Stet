@@ -36,4 +36,5 @@ struct MacDictationHotkeyInteractionTests {
             #expect(interaction.handleKeyDown(for: state) == .startCapture)
         }
     }
+
 }

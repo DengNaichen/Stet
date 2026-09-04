@@ -27,6 +27,8 @@ jobs:
   release:
     name: Build And Publish macOS Release
     runs-on: macos-26
+    defaults:
+      run:
     environment: production
     env:
       APPLE_ID: ${{ secrets.APPLE_ID }}
