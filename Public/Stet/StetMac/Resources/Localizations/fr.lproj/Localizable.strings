@@ -51,8 +51,11 @@
 "Launch at Login" = "Ouvrir à la connexion";
 "Show in Dock" = "Afficher dans le Dock";
 "Interaction sounds" = "Sons d'interaction";
+"Notify when dictation completes" = "Notifier à la fin de la dictée";
 "Mute background audio" = "Désactiver le son en arrière-plan";
 "Stet can provide feedback and limit distractions while you are speaking." = "Stet peut fournir des retours et limiter les distractions pendant que vous parlez.";
+"Stet can play a sound and show a notification after your words are inserted." = "Stet peut jouer un son et afficher une notification une fois vos mots insérés.";
+"Dictation complete" = "Dictée terminée";
 "Always show onboarding while debugging" = "Toujours afficher la présentation lors du débogage";
 "Restart Onboarding Now" = "Redémarrer la présentation maintenant";
 "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "Vous pouvez également lancer avec `--force-onboarding` ou `STET_FORCE_ONBOARDING=1`.";
@@ -160,9 +163,9 @@
 "Select your preferred AI provider to handle transcription and cleanup." = "Sélectionnez votre fournisseur d'IA préféré pour gérer la transcription et le nettoyage.";
 "Grant microphone and input control permissions so Stet can record and type text back into your apps." = "Accordez les autorisations de microphone et de contrôle de saisie pour que Stet puisse enregistrer et insérer du texte dans vos applications.";
 "Choose the shortcut you want to use for dictation." = "Choisissez le raccourci que vous souhaitez utiliser pour la dictée.";
-"Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "Maintenez le raccourci et parlez naturellement. Nous préserverons votre intention tout en effectuant les corrections nécessaires.";
+"Press the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "Appuyez sur le raccourci et parlez naturellement. Nous préserverons votre intention tout en effectuant les corrections nécessaires.";
 "Browse themes on the right, then apply and finish." = "Parcourez les thèmes à droite, puis appliquez et terminez.";
-"Hold your shortcut and start speaking anywhere you can type text." = "Maintenez votre raccourci et commencez à parler partout où vous pouvez écrire du texte.";
+"Press your shortcut and start speaking anywhere you can type text." = "Appuyez sur votre raccourci et commencez à parler partout où vous pouvez écrire du texte.";
 
 /* Onboarding steps */
 "Download the model to process your voice locally" = "Téléchargez le modèle pour traiter votre voix localement";

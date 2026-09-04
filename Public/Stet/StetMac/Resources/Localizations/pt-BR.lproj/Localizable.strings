@@ -51,8 +51,11 @@
 "Launch at Login" = "Abrir ao iniciar sessão";
 "Show in Dock" = "Mostrar no Dock";
 "Interaction sounds" = "Sons de interação";
+"Notify when dictation completes" = "Notificar ao concluir o ditado";
 "Mute background audio" = "Silenciar áudio de fundo";
 "Stet can provide feedback and limit distractions while you are speaking." = "O Stet pode fornecer feedback e limitar distrações enquanto você fala.";
+"Stet can play a sound and show a notification after your words are inserted." = "O Stet pode reproduzir um som e mostrar uma notificação depois que suas palavras forem inseridas.";
+"Dictation complete" = "Ditado concluído";
 "Always show onboarding while debugging" = "Sempre mostrar guia inicial ao depurar";
 "Restart Onboarding Now" = "Reiniciar guia inicial agora";
 "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "Você também pode iniciar com `--force-onboarding` ou `STET_FORCE_ONBOARDING=1`.";
@@ -160,9 +163,9 @@
 "Select your preferred AI provider to handle transcription and cleanup." = "Selecione seu provedor de IA preferido para lidar com a transcrição e limpeza.";
 "Grant microphone and input control permissions so Stet can record and type text back into your apps." = "Conceda permissões de microfone e controle de entrada para que o Stet possa gravar e inserir texto em seus aplicativos.";
 "Choose the shortcut you want to use for dictation." = "Escolha o atalho que deseja usar para o ditado.";
-"Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "Mantenha o atalho pressionado e fale naturalmente. Preservaremos sua intenção ao realizar a limpeza necessária.";
+"Press the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "Pressione o atalho e fale naturalmente. Preservaremos sua intenção ao realizar a limpeza necessária.";
 "Browse themes on the right, then apply and finish." = "Navegue pelos temas à direita, depois aplique e termine.";
-"Hold your shortcut and start speaking anywhere you can type text." = "Mantenha o atalho pressionado e comece a falar onde puder digitar texto.";
+"Press your shortcut and start speaking anywhere you can type text." = "Pressione o atalho e comece a falar onde puder digitar texto.";
 
 /* Onboarding steps */
 "Download the model to process your voice locally" = "Baixe o modelo para processar sua voz localmente";

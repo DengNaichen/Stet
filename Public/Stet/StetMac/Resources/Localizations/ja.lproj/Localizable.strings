@@ -51,8 +51,11 @@
 "Launch at Login" = "ログイン時に開く";
 "Show in Dock" = "Dockに表示";
 "Interaction sounds" = "操作音";
+"Notify when dictation completes" = "入力完了時に通知";
 "Mute background audio" = "バックグラウンドオーディオをミュート";
 "Stet can provide feedback and limit distractions while you are speaking." = "Stetは、話している間にフィードバックを提供し、気を散らすものを減らすことができます。";
+"Stet can play a sound and show a notification after your words are inserted." = "文字の挿入後、Stetはサウンドを再生し、通知を表示できます。";
+"Dictation complete" = "入力が完了しました";
 "Always show onboarding while debugging" = "デバッグ中は常にオンボーディングを表示";
 "Restart Onboarding Now" = "今すぐオンボーディングを再開";
 "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "`--force-onboarding` または `STET_FORCE_ONBOARDING=1` を使用して起動することもできます。";
@@ -160,9 +163,9 @@
 "Select your preferred AI provider to handle transcription and cleanup." = "文字起こしとテキストの整理を処理するAIプロバイダーを選択してください。";
 "Grant microphone and input control permissions so Stet can record and type text back into your apps." = "Stetが録音し、アプリにテキストを入力できるように、マイクと入力制御の権限を付与してください。";
 "Choose the shortcut you want to use for dictation." = "音声入力に使用するショートカットを選択してください。";
-"Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "ショートカットを押したまま自然に話してください。意図を保ちつつ必要な整理を行います。";
+"Press the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "ショートカットを押して自然に話してください。意図を保ちつつ必要な整理を行います。";
 "Browse themes on the right, then apply and finish." = "右側のテーマを閲覧し、適用して完了します。";
-"Hold your shortcut and start speaking anywhere you can type text." = "テキストを入力できる場所ならどこでも、ショートカットを押したまま話し始めてください。";
+"Press your shortcut and start speaking anywhere you can type text." = "テキストを入力できる場所ならどこでも、ショートカットを押して話し始めてください。";
 
 /* Onboarding steps */
 "Download the model to process your voice locally" = "音声をローカルで処理するためにモデルをダウンロードします";

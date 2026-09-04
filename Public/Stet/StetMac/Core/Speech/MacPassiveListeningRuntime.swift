@@ -106,7 +106,7 @@
         }
     }
 
-    private actor MacPassiveSpeakerIdentityRuntime {
+    actor MacPassiveSpeakerIdentityRuntime {
         private let profileStore: SpeakerProfileStore
         private let modelManager: SpeakerEmbeddingModelManager
         private let logger = Logger(

@@ -92,7 +92,6 @@
     private final class FakeHotkeyRegistrar: MacDictationHotkeyRegistering {
         private(set) var clearDictationHandlersCallCount = 0
         private(set) var registerKeyDownCallCount = 0
-        private(set) var registerKeyUpCallCount = 0
 
         func clearDictationHandlers() {
             clearDictationHandlersCallCount += 1
@@ -100,10 +99,6 @@
 
         func registerDictationKeyDown(_ handler: @escaping () -> Void) {
             registerKeyDownCallCount += 1
-        }
-
-        func registerDictationKeyUp(_ handler: @escaping () -> Void) {
-            registerKeyUpCallCount += 1
         }
     }
 
@@ -584,6 +579,37 @@
             #expect(clipboardService.copiedTexts == ["transcript", "transcript"])
             #expect(textInjectionService.didRequestAccessIfNeeded == false)
             #expect(shell.isPanelVisible)
+        }
+
+        @Test func meetingSessionBlocksDictationCaptureStart() async {
+            let subject = makeSubject()
+            var meetingToggleCount = 0
+            subject.session.isMeetingSessionBusy = { true }
+            subject.session.onMeetingHotkey = { meetingToggleCount += 1 }
+
+            subject.session.requestDictationCaptureStart(from: .hotkey)
+
+            #expect(subject.workflow.dictationViewModel.state == .idle)
+            #expect(await subject.speechService.counts().start == 0)
+            #expect(meetingToggleCount == 0)
+        }
+
+        @Test func dictationCaptureBlocksMeetingHotkey() async {
+            let subject = makeSubject()
+            var meetingToggleCount = 0
+            subject.session.onMeetingHotkey = { meetingToggleCount += 1 }
+
+            subject.session.startDictationCapture(from: .hotkey)
+            #expect(
+                await TestSupport.eventually {
+                    subject.workflow.dictationViewModel.state == .listening
+                }
+            )
+
+            subject.session.handleMeetingHotkeyPressed()
+
+            #expect(meetingToggleCount == 0)
+            #expect(subject.session.isDictationBlockingMeeting)
         }
     }
 

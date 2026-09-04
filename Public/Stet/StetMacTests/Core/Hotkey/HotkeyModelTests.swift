@@ -72,5 +72,25 @@
             #expect(KeyboardShortcuts.isEnabled(for: name))
             #expect(triggerCount == 0)
         }
+
+        @Test func meetingHotkeyDefaultsToControlOptionCommandM() {
+            let name = KeyboardShortcuts.Name.meetingRecordingHotkey
+            let originalShortcut = KeyboardShortcuts.getShortcut(for: name)
+            defer {
+                KeyboardShortcuts.removeHandler(for: name)
+                if let originalShortcut {
+                    KeyboardShortcuts.setShortcut(originalShortcut, for: name)
+                } else {
+                    KeyboardShortcuts.reset(name)
+                }
+            }
+
+            KeyboardShortcuts.reset(name)
+            #expect(
+                KeyboardShortcuts.getShortcut(for: name)
+                    == KeyboardShortcuts.Shortcut(.m, modifiers: [.control, .option, .command])
+            )
+            #expect(HotkeyBinding.meeting.title == "Record Meeting")
+        }
     }
 #endif

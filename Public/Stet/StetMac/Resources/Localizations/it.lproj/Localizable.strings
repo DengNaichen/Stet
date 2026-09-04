@@ -51,8 +51,11 @@
 "Launch at Login" = "Apri al login";
 "Show in Dock" = "Mostra nel Dock";
 "Interaction sounds" = "Suoni di interazione";
+"Notify when dictation completes" = "Notifica al termine della dettatura";
 "Mute background audio" = "Disattiva audio in background";
 "Stet can provide feedback and limit distractions while you are speaking." = "Stet può fornire un feedback e limitare le distrazioni mentre parli.";
+"Stet can play a sound and show a notification after your words are inserted." = "Stet può riprodurre un suono e mostrare una notifica dopo l'inserimento delle parole.";
+"Dictation complete" = "Dettatura completata";
 "Always show onboarding while debugging" = "Mostra sempre la guida iniziale durante il debug";
 "Restart Onboarding Now" = "Riavvia guida iniziale adesso";
 "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "Puoi avviare anche con `--force-onboarding` o `STET_FORCE_ONBOARDING=1`.";
@@ -160,9 +163,9 @@
 "Select your preferred AI provider to handle transcription and cleanup." = "Seleziona il tuo provider AI preferito per gestire la trascrizione e la pulizia.";
 "Grant microphone and input control permissions so Stet can record and type text back into your apps." = "Concedi le autorizzazioni al microfono e al controllo dell'input affinché Stet possa registrare e inserire il testo nelle tue app.";
 "Choose the shortcut you want to use for dictation." = "Scegli la scorciatoia che desideri utilizzare per la dettatura.";
-"Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "Tieni premuta la scorciatoia e parla in modo naturale. Conserveremo le tue intenzioni eseguendo la pulizia necessaria.";
+"Press the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "Premi la scorciatoia e parla in modo naturale. Conserveremo le tue intenzioni eseguendo la pulizia necessaria.";
 "Browse themes on the right, then apply and finish." = "Esplora i temi sulla destra, poi applica e termina.";
-"Hold your shortcut and start speaking anywhere you can type text." = "Tieni premuta la tua scorciatoia e inizia a parlare ovunque tu possa inserire del testo.";
+"Press your shortcut and start speaking anywhere you can type text." = "Premi la tua scorciatoia e inizia a parlare ovunque tu possa inserire del testo.";
 
 /* Onboarding steps */
 "Download the model to process your voice locally" = "Scarica il modello per elaborare la tua voce localmente";

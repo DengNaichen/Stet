@@ -38,23 +38,12 @@
         }
 
         func handleHotkeyPressed() {
-            let action = hotkeyInteraction.handleKeyDown(
-                for: dictationState,
-                now: ProcessInfo.processInfo.systemUptime
-            )
+            let action = hotkeyInteraction.handleKeyDown(for: dictationState)
             if action == .startCapture {
                 Task {
                     await DictationStartupProbe.shared.begin(trigger: .hotkey)
                 }
             }
-            performHotkeyAction(action)
-        }
-
-        func handleHotkeyReleased() {
-            let action = hotkeyInteraction.handleKeyUp(
-                for: dictationState,
-                now: ProcessInfo.processInfo.systemUptime
-            )
             performHotkeyAction(action)
         }
 
@@ -88,7 +77,6 @@
         func handleStateTransitionObservation(for state: DictationState) {
             let previousState = previousDictationState
             previousDictationState = state
-            hotkeyInteraction.sync(with: state)
             Task {
                 await DictationRuntimeProbe.shared.markStateTransition(from: previousState, to: state)
                 if state == .idle, previousState != .idle {
@@ -194,11 +182,12 @@
 
         func registerHotkeys() {
             hotkeyRegistrar.clearDictationHandlers()
+            hotkeyRegistrar.clearMeetingHandlers()
             hotkeyRegistrar.registerDictationKeyDown { [weak self] in
                 self?.handleHotkeyPressed()
             }
-            hotkeyRegistrar.registerDictationKeyUp { [weak self] in
-                self?.handleHotkeyReleased()
+            hotkeyRegistrar.registerMeetingKeyDown { [weak self] in
+                self?.handleMeetingHotkeyPressed()
             }
         }
 
@@ -214,6 +203,9 @@
         }
 
         func requestDictationCaptureStart(from source: PrimaryActionSource) {
+            if isMeetingSessionBusy() {
+                return
+            }
 
             if requiresOnboarding && !onboardingStepState.allowsAudioCapture {
                 Task {

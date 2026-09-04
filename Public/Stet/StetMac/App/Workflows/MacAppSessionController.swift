@@ -29,9 +29,11 @@
         let defaults: UserDefaults
         let notificationCenter: NotificationCenter
         let hotkeyRegistrar: any MacDictationHotkeyRegistering
+        var isMeetingSessionBusy: () -> Bool = { false }
+        var onMeetingHotkey: () -> Void = {}
         var cancellables = Set<AnyCancellable>()
         var completionHandlingTask: Task<Void, Never>?
-        var hotkeyInteraction = MacDictationHotkeyInteraction()
+        let hotkeyInteraction = MacDictationHotkeyInteraction()
         var previousDictationState: DictationState = .idle
         weak var presentationModel: (any MacAppPresentationModeling)?
         var onboardingStepState: MacOnboardingStep
