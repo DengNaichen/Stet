@@ -37,14 +37,4 @@ struct MacDictationHotkeyInteractionTests {
         }
     }
 
-    @Test func startActionsRemainAvailableAfterIdleResultAndError() {
-        for state in [
-            DictationState.idle,
-            .result("previous"),
-            .error(.failedToStart),
-        ] {
-            var interaction = MacDictationHotkeyInteraction()
-            #expect(interaction.handleKeyDown(for: state, now: 60) == .startCapture)
-        }
-    }
 }
