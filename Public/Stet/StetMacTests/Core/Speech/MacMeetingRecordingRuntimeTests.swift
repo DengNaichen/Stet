@@ -172,6 +172,7 @@
             )
 
             await runtime.toggle()
+            await hold.waitUntilWaiting()
             await hold.resume()
             await firstToggle.value
 
@@ -193,16 +194,26 @@
 
     private actor AsyncHold {
         private var continuation: CheckedContinuation<Void, Never>?
+        private var isWaiting = false
 
         func wait() async {
             await withCheckedContinuation { continuation in
                 self.continuation = continuation
+                self.isWaiting = true
+            }
+        }
+
+        func waitUntilWaiting() async {
+            while !isWaiting {
+                await Task.yield()
             }
         }
 
         func resume() {
-            continuation?.resume()
-            continuation = nil
+            guard let continuation else { return }
+            self.continuation = nil
+            isWaiting = false
+            continuation.resume()
         }
     }
 
