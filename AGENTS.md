@@ -5,10 +5,10 @@
 This is the public canonical monorepo for Stet. macOS and iOS apps live in the
 same repository as first-class subtrees:
 
-- `Public/Stet/` — macOS app (`Stet.xcodeproj`, `StetMac/`, `StetVisuals/`, shared packages)
-- `Private/StetMobile/` — iOS app (`StetMobile.xcodeproj`, keyboard extension, Live Activity)
+- `Stet.xcodeproj`, `StetMac/`, `StetVisuals/`, and shared packages — macOS app
+- `StetMobile/` — iOS app, keyboard extension, and Live Activity
 
-Shared Swift packages (`StetEngine`, etc.) live under `Public/Stet/Packages/` and
+Shared Swift packages (`StetEngine`, etc.) live under `Packages/` and
 are referenced by both platforms.
 
 ## Entry points
@@ -17,9 +17,8 @@ are referenced by both platforms.
 - Tool adapters (no agent knowledge): [`.cursor/`](.cursor/README.md), [`.claude/`](.claude/README.md), [`.codex/`](.codex/README.md).
 - Harness and durable docs: [`docs/HARNESS.md`](docs/HARNESS.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/specs/`](docs/specs/index.md), [`docs/exec-plans/`](docs/exec-plans/README.md).
 - Apple platform reference (read on demand): [`reference/apple-platform/index.md`](reference/apple-platform/index.md).
-- For macOS or shared code, read [`Public/Stet/AGENTS.md`](Public/Stet/AGENTS.md) and work from `Public/Stet/`.
-- For iOS code, read [`Private/StetMobile/AGENTS.md`](Private/StetMobile/AGENTS.md) and work from `Private/StetMobile/`.
-- Keep root-level changes limited to monorepo governance, CI, and orchestration.
+- For macOS or shared code, work from the repository root and read the relevant module docs under `docs/`.
+- For iOS code, read [`StetMobile/AGENTS.md`](StetMobile/AGENTS.md) and work from `StetMobile/`.
 
 ## Build and validation
 
@@ -30,7 +29,7 @@ are referenced by both platforms.
 - Formatting and lint: `make lint`
 
 Do not add model payloads or downloaded runtime frameworks to Git. Release
-scripts and signing config live under `Public/Stet/`; canonical GitHub Actions
+scripts and signing config live under `scripts/`; canonical GitHub Actions
 workflows live at repository root `.github/workflows/` (see `.github/README.md`).
 
 Do not run Git index-writing commands in parallel. Preserve unrelated user

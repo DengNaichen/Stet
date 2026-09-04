@@ -5,13 +5,7 @@
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | `monorepo-ci.yml` | PR + push to `main`, `migration/**` | Swift lint/format, macOS build, macOS tests |
-| `macos-release.yml` | Tags `v*` + manual | Signed macOS release (runs in `Public/Stet/`) |
-| `macos-release-candidate.yml` | Manual | Release candidate build (runs in `Public/Stet/`) |
+| `macos-release.yml` | Tags `v*` + manual | Signed macOS release (runs at repository root) |
+| `macos-release-candidate.yml` | Manual | Release candidate build (runs at repository root) |
 
-Release jobs use `working-directory: Public/Stet` because scripts and Xcode project paths
-live under that subtree.
-
-## Legacy copies under `Public/Stet/.github/workflows/`
-
-Kept as reference during the unified-repo migration. GitHub only executes workflows from
-the repository root `.github/workflows/` directory.
+Release jobs run at the repository root, where the scripts and Xcode project now live.

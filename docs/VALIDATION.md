@@ -8,19 +8,19 @@
 
 | 范围 | 直接命令 | 详细入口 |
 |------|----------|----------|
-| macOS build | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make build` | [`Public/Stet/AGENTS.md`](../Public/Stet/AGENTS.md) |
-| macOS test | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make test` | [`Public/Stet/AGENTS.md`](../Public/Stet/AGENTS.md) |
-| iOS build | `make ios-build` | [`Private/StetMobile/AGENTS.md`](../Private/StetMobile/AGENTS.md) |
+| macOS build | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make build` | [`AGENTS.md`](../AGENTS.md) |
+| macOS test | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make test` | [`AGENTS.md`](../AGENTS.md) |
+| iOS build | `make ios-build` | [`StetMobile/AGENTS.md`](../StetMobile/AGENTS.md) |
 | lint / format | `make lint` | 根 [`Makefile`](../Makefile) |
 | Harness 入口检查 | `scripts/validate-agent-entrypoints` | 本文件 |
 
-macOS-only 目标（`ci-build`、`release-github`、`doctor` 等）见 [`Public/Stet/Makefile`](../Public/Stet/Makefile)。
+macOS-only 目标（`ci-build`、`release-github`、`doctor` 等）见根 [`Makefile`](../Makefile)。
 
 ## Hook 与 CI
 
 - Pre-commit：`.githooks/`（若已安装）。
 - GitHub Actions 总览：[`.github/README.md`](../.github/README.md)。
-- 根 `Makefile` 将 macOS 目标委托给 `Public/Stet/Makefile`，iOS 目标直接构建 `Private/StetMobile/StetMobile.xcodeproj`。
+- 根 `Makefile` 直接构建根 `Stet.xcodeproj`，iOS 目标构建 `StetMobile/StetMobile.xcodeproj`。
 
 ### monorepo-ci.yml
 
@@ -34,11 +34,11 @@ macOS-only 目标（`ci-build`、`release-github`、`doctor` 等）见 [`Public/
 
 ### Release workflows
 
-签名 release 与 RC 构建在根 [`.github/workflows/`](../.github/workflows/)（`macos-release.yml`、`macos-release-candidate.yml`），job 使用 `working-directory: Public/Stet`，因 Xcode 工程与 release 脚本位于该子树。
+签名 release 与 RC 构建在根 [`.github/workflows/`](../.github/workflows/)（`macos-release.yml`、`macos-release-candidate.yml`），job 在仓库根执行。
 
 ### 本地-only
 
-`make ios-build` 目前不在 CI 中；本地验证 iOS 时使用，详见 [`Private/StetMobile/AGENTS.md`](../Private/StetMobile/AGENTS.md)。
+`make ios-build` 目前不在 CI 中；本地验证 iOS 时使用，详见 [`StetMobile/AGENTS.md`](../StetMobile/AGENTS.md)。
 
 ## 执行与报告
 

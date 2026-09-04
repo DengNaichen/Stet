@@ -254,7 +254,7 @@
 				C20000012FA6000000000007 /* ASRAudioCapture.swift */,
 			);
 			name = "Shared StetASR";
-			path = ../../Public/Stet/Packages/StetEngine/Sources/StetASR;
+			path = ../Packages/StetEngine/Sources/StetASR;
 			sourceTree = SOURCE_ROOT;
 		};
 		F30000012FD0000000000001 /* Shared StetVisuals */ = {
@@ -267,7 +267,7 @@
 				F20000052FD0000000000005 /* MacDictationShaderTheme.swift */,
 			);
 			name = "Shared StetVisuals";
-			path = ../../Public/Stet/StetVisuals;
+			path = ../StetVisuals;
 			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXGroup section */
@@ -431,7 +431,7 @@
 			mainGroup = 6DD04D432FA3B64B004D9143;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				B10000072FA5000000000007 /* XCLocalSwiftPackageReference "../../Public/Stet/Packages/StetEngine" */,
+				B10000072FA5000000000007 /* XCLocalSwiftPackageReference "../Packages/StetEngine" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6DD04D4D2FA3B64B004D9143 /* Products */;
@@ -1053,9 +1053,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		B10000072FA5000000000007 /* XCLocalSwiftPackageReference "../../Public/Stet/Packages/StetEngine" */ = {
+		B10000072FA5000000000007 /* XCLocalSwiftPackageReference "../Packages/StetEngine" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../Public/Stet/Packages/StetEngine;
+			relativePath = ../Packages/StetEngine;
 		};
 /* End XCLocalSwiftPackageReference section */
 

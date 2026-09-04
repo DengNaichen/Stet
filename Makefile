@@ -1,10 +1,8 @@
-PUBLIC_STET_DIR := Public/Stet
-PRIVATE_STET_MOBILE_DIR := Private/StetMobile
 IOS_DEVELOPER_DIR ?= /Applications/Xcode-beta.app/Contents/Developer
 IOS_XCODEBUILD := $(IOS_DEVELOPER_DIR)/usr/bin/xcodebuild
 
-PUBLIC_SWIFT_DIRS := $(PUBLIC_STET_DIR)/StetMac $(PUBLIC_STET_DIR)/StetMacTests $(PUBLIC_STET_DIR)/StetMacUITests $(PUBLIC_STET_DIR)/StetVisuals
-PRIVATE_SWIFT_DIRS := $(PRIVATE_STET_MOBILE_DIR)/StetKeyboard $(PRIVATE_STET_MOBILE_DIR)/StetLiveActivity $(PRIVATE_STET_MOBILE_DIR)/StetMobile $(PRIVATE_STET_MOBILE_DIR)/StetMobileTests $(PRIVATE_STET_MOBILE_DIR)/StetMobileUITests
+MACOS_SWIFT_DIRS := StetMac StetMacTests StetMacUITests StetVisuals
+IOS_SWIFT_DIRS := StetMobile/StetKeyboard StetMobile/StetLiveActivity StetMobile/StetMobile StetMobile/StetMobileTests StetMobile/StetMobileUITests
 
 .PHONY: help swiftlint format format-lint lint whisper-deps build ci-build test ios-bootstrap ios-build doctor clean-derived-data release-github notary-setup
 
@@ -29,10 +27,10 @@ swiftlint:
 	swiftlint lint --config .swiftlint.yml --strict --no-cache
 
 format:
-	xcrun swift-format format --in-place --recursive --parallel --configuration .swift-format $(PUBLIC_SWIFT_DIRS) $(PRIVATE_SWIFT_DIRS)
+	xcrun swift-format format --in-place --recursive --parallel --configuration .swift-format $(MACOS_SWIFT_DIRS) $(IOS_SWIFT_DIRS)
 
 format-lint:
-	xcrun swift-format lint --strict --recursive --parallel --configuration .swift-format $(PUBLIC_SWIFT_DIRS) $(PRIVATE_SWIFT_DIRS)
+	xcrun swift-format lint --strict --recursive --parallel --configuration .swift-format $(MACOS_SWIFT_DIRS) $(IOS_SWIFT_DIRS)
 
 lint: swiftlint format-lint
 
@@ -40,31 +38,31 @@ whisper-deps:
 	@echo "whisper is resolved through Swift Package Manager; no local dependency preparation is required."
 
 build:
-	$(MAKE) -C $(PUBLIC_STET_DIR) build
+	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' build
 
 ci-build:
-	$(MAKE) -C $(PUBLIC_STET_DIR) ci-build
+	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' build
 
 test:
-	$(MAKE) -C $(PUBLIC_STET_DIR) test
+	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' -only-testing:StetTests test
 
 ios-bootstrap:
-	$(PRIVATE_STET_MOBILE_DIR)/scripts/bootstrap-sherpa-runtime.sh
+	StetMobile/scripts/bootstrap-sherpa-runtime.sh
 
 ios-build: ios-bootstrap
-	DEVELOPER_DIR=$(IOS_DEVELOPER_DIR) $(IOS_XCODEBUILD) -project $(PRIVATE_STET_MOBILE_DIR)/StetMobile.xcodeproj -scheme StetMobile -sdk iphonesimulator27.0 -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+	DEVELOPER_DIR=$(IOS_DEVELOPER_DIR) $(IOS_XCODEBUILD) -project StetMobile/StetMobile.xcodeproj -scheme StetMobile -sdk iphonesimulator27.0 -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 
 doctor:
-	$(MAKE) -C $(PUBLIC_STET_DIR) doctor
+	./scripts/xcode-storage.sh doctor
 
 clean-derived-data:
-	$(MAKE) -C $(PUBLIC_STET_DIR) clean-derived-data
+	./scripts/xcode-storage.sh clean-project
 
 release-github:
-	$(MAKE) -C $(PUBLIC_STET_DIR) release-github
+	./scripts/release-macos-github.sh
 
 # publish-github:
 # 	./scripts/publish-github-release.sh
 
 notary-setup:
-	$(MAKE) -C $(PUBLIC_STET_DIR) notary-setup
+	./scripts/setup-notarytool-profile.sh

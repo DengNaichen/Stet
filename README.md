@@ -1,13 +1,14 @@
 # Stet
 
-The public canonical monorepo for Stet — macOS dictation app, iOS app, shared
-Swift packages, and agent harness docs in one repository.
+The open-source repository for Stet — macOS and iOS dictation apps, shared
+Swift packages, and agent harness docs in one repository. All source is public;
+the former `Public/` and `Private/` wrappers have been removed.
 
 ## Layout
 
-- `Public/Stet/` — macOS app (`Stet.xcodeproj`, `StetMac/`, `StetVisuals/`, release scripts)
-- `Private/StetMobile/` — iOS app (`StetMobile.xcodeproj`, keyboard extension, Live Activity)
-- `Public/Stet/Packages/` — shared Swift packages (`StetEngine`, etc.)
+- `Stet.xcodeproj`, `StetMac/`, `StetMacTests/`, `StetMacUITests/`, and `StetVisuals/` — macOS app and tests
+- `StetMobile/` — iOS app, keyboard extension, Live Activity, and tests
+- `Packages/StetEngine/` — shared Swift package
 - `docs/` — harness docs (architecture, specs, exec-plans, validation)
 - `reference/` — Apple platform reference library (read on demand)
 - Root `Makefile` — orchestrates build, test, lint, and iOS simulator build across subtrees
@@ -23,7 +24,7 @@ make ios-build      # iOS simulator build (bootstraps ignored runtime)
 make lint           # SwiftLint and swift-format across macOS and iOS sources
 ```
 
-For macOS-only targets (release, doctor, etc.), see [`Public/Stet/Makefile`](Public/Stet/Makefile) and [`Public/Stet/README.md`](Public/Stet/README.md).
+For macOS-only targets (release, doctor, etc.), see [`Makefile`](Makefile) and [`docs/release.md`](docs/release.md).
 
 ## Agent entry
 
@@ -31,10 +32,9 @@ Start with [`AGENTS.md`](AGENTS.md) and [`docs/HARNESS.md`](docs/HARNESS.md).
 
 ## Visibility
 
-The full repository — including `Private/StetMobile/` — is intended to be
-public. The `Private/` directory name is historical layout, not an access-control
-boundary. API keys, signing material, and provider credentials belong in GitHub
-Environment secrets or local Keychain, never in tracked files.
+The full repository is public. API keys, signing material, and provider
+credentials belong in GitHub Environment secrets or local Keychain, never in
+tracked files.
 
 ## Runtime policy
 
@@ -55,4 +55,4 @@ kept).
 ## License
 
 Stet is licensed under [GNU General Public License v3.0 (GPL-3.0-only)](LICENSE).
-See [`Public/Stet/README.md`](Public/Stet/README.md) for macOS-specific notes.
+See [`docs/release.md`](docs/release.md) for macOS-specific release notes.

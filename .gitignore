@@ -77,13 +77,10 @@ supabase/...temp/
 sherpa-onnx/
 .runtime/
 **/.runtime/
-/Private/StetMobile/.runtime
+/StetMobile/.runtime
 
 # iOS model payloads (never commit ONNX weights)
-/Private/StetMobile/**/*.onnx
-
-# Legacy layout paths (pre-unified monorepo)
-/StetMobile/
+/StetMobile/**/*.onnx
 
 # Harness archive (local-only legacy specs)
 /docs/archive/specs-legacy/

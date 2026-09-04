@@ -6,7 +6,7 @@
 
 `specs-legacy/` 已从 Git 跟踪中移除（见根 `.gitignore`）。其中包含：
 
-- 原 `Public/Stet/specs/`（001–010）
+- 原 macOS `specs/`（001–010）
 - 原 monorepo 根 `specs/009-passive-speech-gate/`
 
 **Agent 不得**把 `specs-legacy/` 当作当前产品或实现边界。新的软件需求登记见 [../specs/index.md](../specs/index.md)。

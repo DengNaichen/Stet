@@ -12,15 +12,12 @@
 ├── reference/                # Apple 平台参考库（按需读，非项目真相）
 ├── scripts/                  # 根级校验与编排脚本
 ├── .github/                  # CI workflows
-├── Public/Stet/              # macOS 子树
-│   ├── Stet.xcodeproj
-│   ├── StetMac/              # macOS app（App / Core / Features / Shared）
-│   ├── StetMacTests/ / StetMacUITests/
-│   ├── StetVisuals/          # 共享视觉与 Metal shader
-│   ├── Packages/StetEngine/  # 共享 Swift 包（StetCore、StetASR 等）
-│   ├── scripts/              # macOS release、notarization 等
-│   └── docs/                 # macOS 端内文档（release 等）
-└── Private/StetMobile/       # iOS 子树
+├── Stet.xcodeproj            # macOS project
+├── StetMac/                  # macOS app（App / Core / Features / Shared）
+├── StetMacTests/ / StetMacUITests/
+├── StetVisuals/              # 共享视觉与 Metal shader
+├── Packages/StetEngine/      # 共享 Swift 包（StetCore、StetASR 等）
+└── StetMobile/               # iOS app and extensions
     ├── StetMobile.xcodeproj
     ├── StetMobile/           # iOS app
     ├── StetKeyboard/         # 键盘扩展
@@ -32,9 +29,9 @@
 | 路径 | 职责 |
 |------|------|
 | 根 `docs/` | 跨端 harness：架构、specs、exec-plans、验证口径 |
-| `Public/Stet/` | macOS 应用、共享包、macOS release |
-| `Private/StetMobile/` | iOS 应用及扩展 |
-| `Public/Stet/Packages/` | 跨端共享 Swift 包（iOS 通过相对路径引用） |
+| 根 macOS 文件夹 | macOS 应用、共享包、macOS release |
+| `StetMobile/` | iOS 应用及扩展 |
+| `Packages/` | 跨端共享 Swift 包（iOS 通过相对路径引用） |
 | `reference/` | Apple API 参考，按需打开 topic 文件 |
 
 ## 核心领域
@@ -60,12 +57,12 @@
 
 ## 放置规则
 
-- macOS app 逻辑：`Public/Stet/StetMac/`（`App/`、`Core/`、`Features/`、`Shared/`）。
-- iOS app 逻辑：`Private/StetMobile/StetMobile/`。
-- 跨端共享类型与 ASR：`Public/Stet/Packages/StetEngine/Sources/`。
-- 共享视觉：`Public/Stet/StetVisuals/`。
+- macOS app 逻辑：`StetMac/`（`App/`、`Core/`、`Features/`、`Shared/`）。
+- iOS app 逻辑：`StetMobile/StetMobile/`。
+- 跨端共享类型与 ASR：`Packages/StetEngine/Sources/`。
+- 共享视觉：`StetVisuals/`。
 - 新 feature spec：`docs/specs/`；实现方案：`docs/exec-plans/active/`。
-- 根目录仅放 monorepo 治理、CI、跨端 Makefile；不要在此放 app 源码。
+- 根目录承载 macOS 源码、共享包与跨端治理文件；iOS 代码位于 `StetMobile/`。
 
 ## 硬约束
 

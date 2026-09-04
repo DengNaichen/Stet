@@ -4,7 +4,7 @@
 
 ## 跨端规则
 
-<!-- TODO: 生成源头、Swift 包边界、Public/Private 合并后的统一约定等 -->
+<!-- TODO: 生成源头与 Swift 包边界约定 -->
 
 ## 硬约束
 

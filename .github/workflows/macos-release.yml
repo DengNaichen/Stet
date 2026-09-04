@@ -29,7 +29,6 @@ jobs:
     runs-on: macos-26
     defaults:
       run:
-        working-directory: Public/Stet
     environment: production
     env:
       APPLE_ID: ${{ secrets.APPLE_ID }}

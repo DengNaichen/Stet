@@ -18,10 +18,10 @@
 
 端内细节见 [ARCHITECTURE.md](ARCHITECTURE.md) 仓库地图；各端 agent 入口如下。
 
-- macOS：`Public/Stet/` — 入口 [`Public/Stet/AGENTS.md`](../Public/Stet/AGENTS.md)
-- iOS：`Private/StetMobile/` — 入口 [`Private/StetMobile/AGENTS.md`](../Private/StetMobile/AGENTS.md)
-- 共享包：`Public/Stet/Packages/`（StetEngine 等；iOS 通过相对路径引用）
+- macOS：仓库根目录 — 入口 [`../AGENTS.md`](../AGENTS.md)
+- iOS：`StetMobile/` — 入口 [`StetMobile/AGENTS.md`](../StetMobile/AGENTS.md)
+- 共享包：`Packages/`（StetEngine 等；iOS 通过相对路径引用）
 
 ## 其他文档
 
-- macOS release 流程：[`Public/Stet/docs/release.md`](../Public/Stet/docs/release.md)
+- macOS release 流程：[`release.md`](release.md)

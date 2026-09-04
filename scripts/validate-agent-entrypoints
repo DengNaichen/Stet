@@ -65,8 +65,6 @@ check_retired 'make verify-public'
 
 macos_ci_hits=$(
   $grep_scan -n 'macos-ci\.yml' docs AGENTS.md README.md 2>/dev/null \
-    | grep -v 'Public/Stet/docs/release.md' \
-    | grep -v 'Public/Stet/.github/' \
     || true
 )
 if [ -n "$macos_ci_hits" ]; then

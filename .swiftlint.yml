@@ -1,21 +1,20 @@
 included:
-  - Public/Stet/StetMac
-  - Public/Stet/StetMacTests
-  - Public/Stet/StetMacUITests
-  - Public/Stet/StetVisuals
-  - Private/StetMobile/StetKeyboard
-  - Private/StetMobile/StetLiveActivity
-  - Private/StetMobile/StetMobile
-  - Private/StetMobile/StetMobileTests
-  - Private/StetMobile/StetMobileUITests
+  - StetMac
+  - StetMacTests
+  - StetMacUITests
+  - StetVisuals
+  - StetMobile/StetKeyboard
+  - StetMobile/StetLiveActivity
+  - StetMobile/StetMobile
+  - StetMobile/StetMobileTests
+  - StetMobile/StetMobileUITests
 
 excluded:
-  - Public/Stet/build
-  - Public/Stet/.derivedData
-  - Private/StetMobile/build
-  - Private/StetMobile/.build
-  - Private/StetMobile/.runtime
-  - StetMobile
+  - build
+  - .derivedData
+  - StetMobile/build
+  - StetMobile/.build
+  - StetMobile/.runtime
 
 only_rules:
   - empty_count
