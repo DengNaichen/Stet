@@ -42,7 +42,7 @@
                     }
                 }
             }
-            .formStyle(.grouped)
+            .macSettingsFormStyle()
             .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
                 reloadRecentFolders()

@@ -82,6 +82,43 @@
         }
     }
 
+    extension View {
+        /// Keep grouped Settings rows, but sit them on the paper instead of a card.
+        func macSettingsFormStyle() -> some View {
+            formStyle(.grouped)
+                .scrollContentBackground(.hidden)
+                .backgroundStyle(MacUI.Surfaces.paper)
+                .macSettingsTracksTitleScroll()
+        }
+
+        func macSettingsTracksTitleScroll() -> some View {
+            modifier(MacSettingsTitleScrollModifier())
+        }
+    }
+
+    private struct MacSettingsScrollOffsetKey: EnvironmentKey {
+        static let defaultValue: Binding<CGFloat> = .constant(0)
+    }
+
+    extension EnvironmentValues {
+        var macSettingsTitleScrollOffset: Binding<CGFloat> {
+            get { self[MacSettingsScrollOffsetKey.self] }
+            set { self[MacSettingsScrollOffsetKey.self] = newValue }
+        }
+    }
+
+    private struct MacSettingsTitleScrollModifier: ViewModifier {
+        @Environment(\.macSettingsTitleScrollOffset) private var scrollOffset
+
+        func body(content: Content) -> some View {
+            content.onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top
+            } action: { _, offset in
+                scrollOffset.wrappedValue = max(0, offset)
+            }
+        }
+    }
+
     struct MacSettingsWindowChrome: NSViewRepresentable {
         var trafficLightLeading: CGFloat
         var trafficLightTop: CGFloat
@@ -170,9 +207,62 @@
             guard let view else { return }
             if let scrollView = view as? NSScrollView {
                 MacThinOverlayScroller.install(on: scrollView)
+                MacSettingsFormChrome.flattenGroupedCard(in: scrollView)
             }
             for subview in view.subviews {
                 configureScrollers(in: subview)
+            }
+        }
+    }
+
+    /// Grouped Form keeps Settings row layout. Strip the inset card so it sits on paper.
+    private enum MacSettingsFormChrome {
+        static func flattenGroupedCard(in scrollView: NSScrollView) {
+            guard isDetailScrollView(scrollView) else { return }
+            guard let document = scrollView.documentView else { return }
+
+            scrollView.drawsBackground = false
+            scrollView.backgroundColor = .clear
+            document.wantsLayer = true
+            document.layer?.backgroundColor = NSColor.clear.cgColor
+
+            flatten(document, contentWidth: max(document.bounds.width, scrollView.bounds.width))
+        }
+
+        private static func isDetailScrollView(_ scrollView: NSScrollView) -> Bool {
+            guard let window = scrollView.window else { return false }
+            let x = scrollView.convert(scrollView.bounds.origin, to: window.contentView).x
+            return x >= MacUI.SettingsViewMetrics.sidebarWidth - 8
+        }
+
+        private static func flatten(_ view: NSView, contentWidth: CGFloat) {
+            if !(view is NSControl || view is NSScroller) {
+                let isWideChrome =
+                    view.bounds.width >= max(contentWidth - 56, 280)
+                    && view.bounds.height >= 40
+
+                if isWideChrome {
+                    if let box = view as? NSBox {
+                        box.boxType = .custom
+                        box.isTransparent = true
+                        box.fillColor = .clear
+                        box.borderColor = .clear
+                        box.borderWidth = 0
+                        box.cornerRadius = 0
+                    }
+
+                    view.wantsLayer = true
+                    if (view.layer?.cornerRadius ?? 0) >= 6 {
+                        view.layer?.cornerRadius = 0
+                    }
+                    view.layer?.backgroundColor = NSColor.clear.cgColor
+                    view.layer?.borderWidth = 0
+                    view.layer?.shadowOpacity = 0
+                }
+            }
+
+            for subview in view.subviews {
+                flatten(subview, contentWidth: contentWidth)
             }
         }
     }

@@ -42,6 +42,7 @@
                 .padding(.vertical, 20)
                 .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             }
+            .macSettingsTracksTitleScroll()
             .task {
                 viewModel.load()
             }

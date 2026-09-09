@@ -68,6 +68,9 @@
             static let sidebarAccountRowVerticalPadding: CGFloat = 12
             static let overlayScrollerWidth: CGFloat = 12
             static let overlayScrollerKnobWidth: CGFloat = 7
+            static let detailTitleExpandedSize: CGFloat = 24
+            static let detailTitleCollapsedSize: CGFloat = 15
+            static let detailTitleCollapseDistance: CGFloat = 32
         }
 
         enum DictionaryViewMetrics {

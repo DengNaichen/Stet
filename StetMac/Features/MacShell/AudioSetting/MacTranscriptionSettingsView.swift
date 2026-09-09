@@ -81,7 +81,7 @@
                     Text("Local Transcription")
                 }
             }
-            .formStyle(.grouped)
+            .macSettingsFormStyle()
             .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
                 viewModel.onAppear()
