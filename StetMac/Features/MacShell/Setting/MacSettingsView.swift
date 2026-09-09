@@ -117,8 +117,7 @@
             .background {
                 MacSettingsWindowChrome(
                     trafficLightLeading: MacUI.SettingsViewMetrics.trafficLightLeading,
-                    trafficLightTop: MacUI.SettingsViewMetrics.trafficLightTop,
-                    scrollerRevision: selectedTab.id
+                    trafficLightTop: MacUI.SettingsViewMetrics.trafficLightTop
                 )
                 .frame(width: 0, height: 0)
                 .allowsHitTesting(false)
@@ -193,6 +192,7 @@
                 .padding(.bottom, 20)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .macSettingsScrollIndicator()
         }
 
         private func sidebarRow(for tab: MacSettingsTab) -> some View {
@@ -225,8 +225,9 @@
                 MacSettingsCollapsingTitle(title: activeTab.title, store: titleScrollStore)
 
                 selectedContent(for: activeTab)
-                    .id(activeTab.id)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .macSettingsScrollIndicator()
+                    .id(activeTab.id)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(MacUI.Surfaces.paper.ignoresSafeArea())
