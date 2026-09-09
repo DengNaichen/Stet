@@ -130,7 +130,8 @@
             .background {
                 MacSettingsWindowChrome(
                     trafficLightLeading: MacUI.SettingsViewMetrics.trafficLightLeading,
-                    trafficLightTop: MacUI.SettingsViewMetrics.trafficLightTop
+                    trafficLightTop: MacUI.SettingsViewMetrics.trafficLightTop,
+                    scrollerRevision: selectedTab.id
                 )
                 .frame(width: 0, height: 0)
                 .allowsHitTesting(false)
