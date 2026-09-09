@@ -107,7 +107,7 @@
         @StateObject private var dictionaryViewModel = DictionaryViewModel()
         @StateObject private var openAISettingsViewModel = MacOpenAISettingsViewModel()
         @State private var selectedTab: MacSettingsTab = .general
-        @State private var titleScrollOffset: CGFloat = 0
+        @State private var titleScrollStore = MacSettingsTitleScrollStore()
 
         var body: some View {
             HStack(spacing: 0) {
@@ -136,9 +136,9 @@
                 settingsShellViewModel.settingsDidDisappear()
             }
             .onChange(of: selectedTab) { _, _ in
-                titleScrollOffset = 0
+                titleScrollStore.reset()
             }
-            .environment(\.macSettingsTitleScrollOffset, $titleScrollOffset)
+            .environment(\.macSettingsTitleScrollStore, titleScrollStore)
         }
 
         private var sidebarColumn: some View {
@@ -220,36 +220,14 @@
             .buttonStyle(.plain)
         }
 
-        private var titleCollapseProgress: CGFloat {
-            min(1, titleScrollOffset / MacUI.SettingsViewMetrics.detailTitleCollapseDistance)
-        }
-
         private var detailColumn: some View {
             VStack(alignment: .leading, spacing: 0) {
-                Text(LocalizedStringKey(activeTab.title))
-                    .font(
-                        .system(
-                            size: MacUI.SettingsViewMetrics.detailTitleExpandedSize
-                                - (MacUI.SettingsViewMetrics.detailTitleExpandedSize
-                                    - MacUI.SettingsViewMetrics.detailTitleCollapsedSize)
-                                    * titleCollapseProgress,
-                            weight: .semibold
-                        )
-                    )
-                    .foregroundStyle(MacUI.Surfaces.ink)
-                    .frame(
-                        maxWidth: .infinity,
-                        minHeight: MacUI.SettingsViewMetrics.headerHeight
-                            - (12 * titleCollapseProgress),
-                        alignment: .leading
-                    )
-                    .padding(.bottom, 20 - (12 * titleCollapseProgress))
+                MacSettingsCollapsingTitle(title: activeTab.title, store: titleScrollStore)
 
                 selectedContent(for: activeTab)
                     .id(activeTab.id)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .padding(.horizontal, MacUI.SettingsViewMetrics.detailHorizontalPadding)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(MacUI.Surfaces.paper.ignoresSafeArea())
         }

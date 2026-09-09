@@ -1,5 +1,6 @@
 #if os(macOS)
     import AppKit
+    import Combine
     import SwiftUI
 
     struct MacSettingsCard<Content: View>: View {
@@ -83,7 +84,7 @@
     }
 
     extension View {
-        /// Keep grouped Settings rows, but sit them on the paper instead of a card.
+        /// Standard grouped Settings rows on the document paper.
         func macSettingsFormStyle() -> some View {
             formStyle(.grouped)
                 .scrollContentBackground(.hidden)
@@ -96,26 +97,76 @@
         }
     }
 
-    private struct MacSettingsScrollOffsetKey: EnvironmentKey {
-        static let defaultValue: Binding<CGFloat> = .constant(0)
+    final class MacSettingsTitleScrollStore: ObservableObject {
+        @Published var offset: CGFloat = 0
+
+        func update(_ newValue: CGFloat) {
+            let clamped = max(0, newValue)
+            guard abs(offset - clamped) >= 0.5 else { return }
+            offset = clamped
+        }
+
+        func reset() {
+            guard offset != 0 else { return }
+            offset = 0
+        }
+    }
+
+    private struct MacSettingsTitleScrollStoreKey: EnvironmentKey {
+        static let defaultValue: MacSettingsTitleScrollStore? = nil
     }
 
     extension EnvironmentValues {
-        var macSettingsTitleScrollOffset: Binding<CGFloat> {
-            get { self[MacSettingsScrollOffsetKey.self] }
-            set { self[MacSettingsScrollOffsetKey.self] = newValue }
+        var macSettingsTitleScrollStore: MacSettingsTitleScrollStore? {
+            get { self[MacSettingsTitleScrollStoreKey.self] }
+            set { self[MacSettingsTitleScrollStoreKey.self] = newValue }
+        }
+    }
+
+    struct MacSettingsCollapsingTitle: View {
+        let title: String
+        @ObservedObject var store: MacSettingsTitleScrollStore
+
+        var body: some View {
+            let progress = min(1, store.offset / MacUI.SettingsViewMetrics.detailTitleCollapseDistance)
+            let collapsedScale =
+                MacUI.SettingsViewMetrics.detailTitleCollapsedSize
+                / MacUI.SettingsViewMetrics.detailTitleExpandedSize
+
+            Text(LocalizedStringKey(title))
+                .font(
+                    .system(
+                        size: MacUI.SettingsViewMetrics.detailTitleExpandedSize,
+                        weight: .semibold
+                    )
+                )
+                .foregroundStyle(MacUI.Surfaces.ink)
+                .scaleEffect(1 - ((1 - collapsedScale) * progress), anchor: .leading)
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: MacUI.SettingsViewMetrics.headerHeight,
+                    alignment: .leading
+                )
+                .padding(.bottom, 20)
+                .padding(.horizontal, MacUI.SettingsViewMetrics.detailHorizontalPadding)
         }
     }
 
     private struct MacSettingsTitleScrollModifier: ViewModifier {
-        @Environment(\.macSettingsTitleScrollOffset) private var scrollOffset
+        @Environment(\.macSettingsTitleScrollStore) private var store
 
         func body(content: Content) -> some View {
-            content.onScrollGeometryChange(for: CGFloat.self) { geometry in
-                geometry.contentOffset.y + geometry.contentInsets.top
-            } action: { _, offset in
-                scrollOffset.wrappedValue = max(0, offset)
-            }
+            content
+                .contentMargins(
+                    .horizontal,
+                    MacUI.SettingsViewMetrics.detailHorizontalPadding,
+                    for: .scrollContent
+                )
+                .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                    geometry.contentOffset.y + geometry.contentInsets.top
+                } action: { _, offset in
+                    store?.update(offset)
+                }
         }
     }
 
@@ -207,62 +258,9 @@
             guard let view else { return }
             if let scrollView = view as? NSScrollView {
                 MacThinOverlayScroller.install(on: scrollView)
-                MacSettingsFormChrome.flattenGroupedCard(in: scrollView)
             }
             for subview in view.subviews {
                 configureScrollers(in: subview)
-            }
-        }
-    }
-
-    /// Grouped Form keeps Settings row layout. Strip the inset card so it sits on paper.
-    private enum MacSettingsFormChrome {
-        static func flattenGroupedCard(in scrollView: NSScrollView) {
-            guard isDetailScrollView(scrollView) else { return }
-            guard let document = scrollView.documentView else { return }
-
-            scrollView.drawsBackground = false
-            scrollView.backgroundColor = .clear
-            document.wantsLayer = true
-            document.layer?.backgroundColor = NSColor.clear.cgColor
-
-            flatten(document, contentWidth: max(document.bounds.width, scrollView.bounds.width))
-        }
-
-        private static func isDetailScrollView(_ scrollView: NSScrollView) -> Bool {
-            guard let window = scrollView.window else { return false }
-            let x = scrollView.convert(scrollView.bounds.origin, to: window.contentView).x
-            return x >= MacUI.SettingsViewMetrics.sidebarWidth - 8
-        }
-
-        private static func flatten(_ view: NSView, contentWidth: CGFloat) {
-            if !(view is NSControl || view is NSScroller) {
-                let isWideChrome =
-                    view.bounds.width >= max(contentWidth - 56, 280)
-                    && view.bounds.height >= 40
-
-                if isWideChrome {
-                    if let box = view as? NSBox {
-                        box.boxType = .custom
-                        box.isTransparent = true
-                        box.fillColor = .clear
-                        box.borderColor = .clear
-                        box.borderWidth = 0
-                        box.cornerRadius = 0
-                    }
-
-                    view.wantsLayer = true
-                    if (view.layer?.cornerRadius ?? 0) >= 6 {
-                        view.layer?.cornerRadius = 0
-                    }
-                    view.layer?.backgroundColor = NSColor.clear.cgColor
-                    view.layer?.borderWidth = 0
-                    view.layer?.shadowOpacity = 0
-                }
-            }
-
-            for subview in view.subviews {
-                flatten(subview, contentWidth: contentWidth)
             }
         }
     }
@@ -283,8 +281,11 @@
             scrollView.scrollerStyle = .overlay
             scrollView.hasVerticalScroller = true
             scrollView.hasHorizontalScroller = false
-            scrollView.autohidesScrollers = false
+            scrollView.autohidesScrollers = true
             scrollView.horizontalScrollElasticity = .none
+            scrollView.scrollerInsets = NSEdgeInsets()
+            scrollView.drawsBackground = false
+            scrollView.backgroundColor = .clear
 
             if !(scrollView.verticalScroller is MacThinOverlayScroller) {
                 let scroller = MacThinOverlayScroller()
@@ -297,6 +298,7 @@
         }
 
         override func draw(_ dirtyRect: NSRect) {
+            guard alphaValue > 0.01 else { return }
             drawKnob()
         }
 
