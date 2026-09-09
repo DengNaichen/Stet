@@ -64,25 +64,6 @@
         }
     }
 
-    struct StetWaveMark: Shape {
-        func path(in rect: CGRect) -> Path {
-            let sx = rect.width / 16
-            let sy = rect.height / 10
-            func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-                CGPoint(x: x * sx, y: y * sy)
-            }
-
-            var path = Path()
-            path.move(to: point(1, 6.5))
-            path.addCurve(to: point(3.6, 3.2), control1: point(2.2, 6.5), control2: point(2.4, 3.2))
-            path.addCurve(to: point(6.4, 8.2), control1: point(4.8, 3.2), control2: point(5, 8.2))
-            path.addCurve(to: point(9.6, 1.8), control1: point(7.8, 8.2), control2: point(8, 1.8))
-            path.addCurve(to: point(13, 6), control1: point(11.2, 1.8), control2: point(11.4, 6))
-            path.addCurve(to: point(15.2, 5.2), control1: point(13.8, 6), control2: point(14.4, 5.2))
-            return path
-        }
-    }
-
     extension View {
         /// Standard grouped Settings rows on the document paper.
         func macSettingsFormStyle() -> some View {
@@ -334,6 +315,27 @@
 
             for type: NSWindow.ButtonType in [.closeButton, .miniaturizeButton, .zoomButton] {
                 window.standardWindowButton(type)?.isHidden = false
+            }
+
+            hideNativeScrollers(in: window.contentView)
+            DispatchQueue.main.async { [weak self] in
+                self?.hideNativeScrollers(in: self?.window?.contentView)
+            }
+        }
+
+        private func hideNativeScrollers(in view: NSView?) {
+            guard let view else { return }
+            if let scrollView = view as? NSScrollView {
+                scrollView.hasVerticalScroller = false
+                scrollView.hasHorizontalScroller = false
+                scrollView.autohidesScrollers = true
+                scrollView.verticalScroller?.isHidden = true
+                scrollView.horizontalScroller?.isHidden = true
+                scrollView.verticalScroller?.alphaValue = 0
+                scrollView.horizontalScroller?.alphaValue = 0
+            }
+            for subview in view.subviews {
+                hideNativeScrollers(in: subview)
             }
         }
     }

@@ -166,12 +166,12 @@
 
         private var brandHeader: some View {
             HStack(spacing: 8) {
-                StetWaveMark()
-                    .stroke(
-                        MacUI.Brand.orange,
-                        style: StrokeStyle(lineWidth: 1.7, lineCap: .round, lineJoin: .round)
-                    )
-                    .frame(width: 16, height: 10)
+                Image("stetMark")
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(height: 14)
+                    .accessibilityHidden(true)
                 Text("Stet")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(MacUI.Surfaces.ink)
@@ -205,7 +205,7 @@
                 .padding(.bottom, 20)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .macSettingsScrollIndicator()
+            .scrollIndicators(.hidden)
         }
 
         private func sidebarRow(for tab: MacSettingsTab) -> some View {
