@@ -100,6 +100,125 @@ private func makeProcessedAudioResult(
 
 @Suite("Configurable Speech Service", .serialized)
 struct ConfigurableSpeechServiceTests {
+    @Test(arguments: [false, true])
+    func cancelledTranscriptionCannotClearRestartedCapture(fails: Bool) async throws {
+        let (store, _, _) = try makeSettingsStore()
+        let gate = TestSuspensionGate()
+        let direct = TestTranscriptionService(result: "old")
+        await direct.setGate(gate)
+        let capture = TestAudioCaptureService(audioFileURL: makeAudioFileURL())
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                makeLocalTranscriptionService: { direct },
+                makeRewriteService: { _, _ in RecordingRewriteService() }
+            ),
+            captureService: capture
+        )
+        try await service.startRecordingAndActivate()
+        let oldStop = Task { try await service.stopRecording() }
+        #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+        await service.cancelRecording()
+        // ASR is still blocked; starting the next microphone must not wait for it.
+        try await service.startRecordingAndActivate()
+        if fails { await direct.setOutcome(.failure(TestError.expected)) }
+        await gate.open()
+        do {
+            _ = try await oldStop.value
+            Issue.record("Cancelled processing returned a transcript")
+        } catch {}
+        await direct.setOutcome(.success("new"))
+        let result = try await service.stopRecording()
+        #expect(result.text == "new")
+        #expect(await capture.counts().start == 2)
+    }
+
+    @Test func restartWaitsForCancelledMicrophoneStartupAndTeardown() async throws {
+        let (store, _, _) = try makeSettingsStore()
+        let startGate = TestSuspensionGate()
+        let cancelGate = TestSuspensionGate()
+        let capture = TestAudioCaptureService(
+            audioFileURL: makeAudioFileURL(), startGate: startGate, cancelGate: cancelGate
+        )
+        let direct = TestTranscriptionService(result: "new")
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                makeLocalTranscriptionService: { direct },
+                makeRewriteService: { _, _ in RecordingRewriteService() }
+            ),
+            captureService: capture
+        )
+        let first = Task { try await service.startRecordingAndActivate() }
+        #require(await TestSupport.eventuallyAsync { await startGate.hasWaiter })
+        let cancel = Task { await service.cancelRecording() }
+        #require(await TestSupport.eventuallyAsync { await startGate.observedCancellation })
+        let second = Task { try await service.startRecordingAndActivate() }
+        await startGate.open()
+        #require(await TestSupport.eventuallyAsync { await cancelGate.hasWaiter })
+        #expect(await capture.counts().start == 1)
+        await cancelGate.open()
+        await cancel.value
+        await #expect(throws: CancellationError.self) { try await first.value }
+        try await second.value
+        #expect(await capture.counts().start == 2)
+        #expect(await capture.counts().activate == 1)
+        #expect(try await service.stopRecording().text == "new")
+    }
+
+    @Test func cancelDuringPostProcessingDeletesAllOwnedAudio() async throws {
+        let (store, _, _) = try makeSettingsStore()
+        store.saveTranscriptionEngine(.fluidAudio)
+        let source = makeAudioFileURL()
+        let processed = makeAudioFileURL()
+        let gate = TestSuspensionGate()
+        let direct = TestTranscriptionService(result: "unused")
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                makeLocalTranscriptionService: { direct },
+                makeRewriteService: { _, _ in RecordingRewriteService() }
+            ),
+            audioPostProcessor: TestAudioPostProcessor(
+                result: .rewritten(sourceURL: source, rewrittenURL: processed, duration: 1),
+                onProcessAudioFile: { await gate.wait() }
+            ),
+            captureService: TestAudioCaptureService(audioFileURL: source)
+        )
+        try await service.startRecordingAndActivate()
+        let stop = Task { try await service.stopRecording() }
+        #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+        await service.cancelRecording()
+        await gate.open()
+        await #expect(throws: CancellationError.self) { try await stop.value }
+        #expect(!FileManager.default.fileExists(atPath: source.path))
+        #expect(!FileManager.default.fileExists(atPath: processed.path))
+        #expect(await direct.callCount() == 0)
+    }
+
+    @Test func cancelDuringCaptureStoppedCallbackDeletesSourceAudio() async throws {
+        let (store, _, _) = try makeSettingsStore()
+        let source = makeAudioFileURL()
+        let gate = TestSuspensionGate()
+        let direct = TestTranscriptionService(result: "unused")
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                makeLocalTranscriptionService: { direct },
+                makeRewriteService: { _, _ in RecordingRewriteService() }
+            ),
+            captureService: TestAudioCaptureService(audioFileURL: source)
+        )
+        try await service.startRecordingAndActivate()
+        let stop = Task { try await service.stopRecording(onCaptureStopped: { await gate.wait() }) }
+        #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+        await service.cancelRecording()
+        await gate.open()
+        await #expect(throws: CancellationError.self) { try await stop.value }
+        #expect(!FileManager.default.fileExists(atPath: source.path))
+        #expect(await direct.callCount() == 0)
+    }
+
     private actor LevelLog {
         private var levels: [Double] = []
 
@@ -1351,14 +1470,22 @@ private actor TestAudioCaptureService: AudioCaptureService, AudioLevelSource {
     private var stopCount = 0
     private var cancelCount = 0
     private let audioDurationSeconds: TimeInterval?
+    private let startGate: TestSuspensionGate?
+    private let cancelGate: TestSuspensionGate?
 
-    init(audioFileURL: URL, audioDurationSeconds: TimeInterval? = 1.2) {
+    init(
+        audioFileURL: URL, audioDurationSeconds: TimeInterval? = 1.2,
+        startGate: TestSuspensionGate? = nil, cancelGate: TestSuspensionGate? = nil
+    ) {
+        self.startGate = startGate
+        self.cancelGate = cancelGate
         self.audioFileURL = audioFileURL
         self.audioDurationSeconds = audioDurationSeconds
     }
 
     func startRecording() async throws {
         startCount += 1
+        await startGate?.wait()
     }
 
     func activateRecordingWindow() async throws {
@@ -1372,6 +1499,7 @@ private actor TestAudioCaptureService: AudioCaptureService, AudioLevelSource {
 
     func cancelRecording() async {
         cancelCount += 1
+        await cancelGate?.wait()
     }
 
     func prewarm() async {}
@@ -1419,6 +1547,9 @@ private actor TestTranscriptionService: AudioFileTranscriptionService {
     }
 
     private(set) var outcome: Outcome
+    private var gate: TestSuspensionGate?
+
+    func setGate(_ gate: TestSuspensionGate) { self.gate = gate }
     private var callCountValue = 0
     private var lastInvocationValue: (fileURL: URL, languageCode: String?, prompt: String?, duration: TimeInterval?)?
 
@@ -1445,6 +1576,7 @@ private actor TestTranscriptionService: AudioFileTranscriptionService {
             fileURL: fileURL, languageCode: languageCode, prompt: prompt, duration: audioDurationSeconds
         )
         #expect(!fileURL.path.isEmpty)
+        await gate?.wait()
 
         switch outcome {
         case .success(let value):

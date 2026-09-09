@@ -584,6 +584,31 @@
             #expect(textInjection.pasteTargets.isEmpty)
         }
 
+        @Test func cancellationDuringInjectionDoesNotFallbackToClipboard() async throws {
+            let clipboard = TestClipboardService()
+            let injection = TestTextInjectionService()
+            let gate = TestSuspensionGate()
+            injection.pasteGate = gate
+            injection.pasteOutcome = .eventPostFailed
+            let coordinator = makeCoordinator(clipboard: clipboard, textInjection: injection)
+            let task = Task { @MainActor in
+                await coordinator.handleCompletedCapture(
+                    text: "cancelled",
+                    targetApplication: nil,
+                    settings: .init(
+                        shouldCopyToClipboard: false, shouldAutoPaste: true, shouldRevealPanelOnCapture: false
+                    ),
+                    showPanel: { Issue.record("Cancelled output revealed the panel") }
+                )
+            }
+            #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+            task.cancel()
+            await gate.open()
+            #expect(await task.value == .cancelled)
+            // Only the initial temporary copy is allowed; no recovery copy after cancellation.
+            #expect(clipboard.copiedTexts == ["cancelled"])
+        }
+
         @Test func cancelledTaskDoesNotAutoPaste() async {
             let clipboard = TestClipboardService()
             let textInjection = TestTextInjectionService()

@@ -10,6 +10,82 @@ import Testing
 struct DictationViewModelTests {
     private let fallbackDelay: Duration = .milliseconds(20)
 
+    @Test(arguments: [0, 1, 2])
+    func lateProcessingFailureDoesNotResetNewRecording(failureKind: Int) async throws {
+        let speech = ControllableSpeechService()
+        await speech.setStopBehavior(.suspended)
+        await speech.setCancelFailsPendingStop(false)
+        let history = HistoryRecordingSpy()
+        let viewModel = DictationViewModel(speechService: speech, historyService: history)
+        viewModel.startCapture()
+        #require(await TestSupport.eventually { viewModel.state == .listening })
+        viewModel.stopCapture()
+        #require(await TestSupport.eventuallyAsync { await speech.counts().stop == 1 })
+        viewModel.send(.resetTapped)
+        // Deliberately restart in the same main-actor turn as reset.
+        viewModel.startCapture { $0.uppercased() }
+        #require(await TestSupport.eventually { viewModel.state == .listening })
+        switch failureKind {
+        case 0: await speech.failStop(with: CancellationError())
+        case 1: await speech.failStop(with: SpeechServiceError.emptyTranscription)
+        default: await speech.failStop(with: TestError.expected)
+        }
+        // Let the old task's catch run before testing the new session's stop path.
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(viewModel.state == .listening)
+        await speech.setStopBehavior(.immediate("new"))
+        viewModel.stopCapture()
+        #expect(await TestSupport.eventually { viewModel.state == .result("NEW") })
+        #expect(history.rawTexts == ["new"])
+        #expect(history.llmTexts == ["NEW"])
+    }
+
+    @Test func cancelledTransformerCannotWriteIntoNewHistory() async throws {
+        let speech = ControllableSpeechService()
+        await speech.setStopBehavior(.immediate("old"))
+        let gate = TestSuspensionGate()
+        let history = HistoryRecordingSpy()
+        let viewModel = DictationViewModel(speechService: speech, historyService: history)
+        viewModel.startCapture { _ in
+            await gate.wait()
+            return "OLD"
+        }
+        #require(await TestSupport.eventually { viewModel.state == .listening })
+        viewModel.stopCapture()
+        #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+        viewModel.send(.resetTapped)
+        viewModel.startCapture()
+        #require(await TestSupport.eventually { viewModel.state == .listening })
+        await gate.open()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(viewModel.state == .listening)
+        #expect(history.rawTexts.isEmpty)
+        #expect(history.llmTexts.isEmpty)
+        await speech.setStopBehavior(.immediate("new"))
+        viewModel.stopCapture()
+        #expect(await TestSupport.eventually { viewModel.state == .result("new") })
+        #expect(history.rawTexts == ["new"])
+    }
+
+    @Test func lateExternalOperationFailureDoesNotResetNewRecording() async throws {
+        let speech = ControllableSpeechService()
+        let gate = TestSuspensionGate()
+        let viewModel = DictationViewModel(speechService: speech)
+        viewModel.runProcessingOperation {
+            await gate.wait()
+            throw CancellationError()
+        }
+        #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+        viewModel.send(.resetTapped)
+        viewModel.startCapture()
+        #require(await TestSupport.eventually { viewModel.state == .listening })
+        await gate.open()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(viewModel.state == .listening)
+        viewModel.stopCapture()
+        #expect(await TestSupport.eventually { viewModel.state == .result("transcript") })
+    }
+
     @Test func startAndStopCaptureProducesResult() async throws {
         let speechService = ControllableSpeechService()
         await speechService.setStopBehavior(.immediate("hello world"))

@@ -325,6 +325,7 @@
         }
 
         private func selectedTextBySimulatedCopy() -> String? {
+            guard !Task.isCancelled else { return .eventPostFailed }
             guard accessState.canSimulateInput else { return nil }
 
             let snapshot = PasteboardSnapshot.capture(from: pasteboard)
@@ -390,6 +391,7 @@
                     "target=\(applicationSummary(application)) frontmost=\(frontmostApplicationSummary()) accessibility=\(accessState.hasAccessibilityAccess) postEvent=\(accessState.hasPostEventAccess)"
             )
 
+            guard !Task.isCancelled else { return .eventPostFailed }
             guard accessState.canSimulateInput else {
                 emitTextInjectionTrace(
                     traceID,
@@ -433,6 +435,8 @@
                 traceID: traceID
             )
 
+            // Cancellation during focus activation or baseline polling must not post Cmd-V.
+            guard !Task.isCancelled else { return .eventPostFailed }
             let pasteCommandPosted = simulatePasteCommand()
             emitTextInjectionTrace(
                 traceID,

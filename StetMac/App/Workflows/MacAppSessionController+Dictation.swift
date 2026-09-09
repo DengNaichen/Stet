@@ -61,9 +61,13 @@
         func bindState() {
             workflowController.dictationViewModel.$state
                 .dropFirst()
+                .map { [weak self] state in
+                    (state, self?.workflowController.dictationViewModel.captureSessionID)
+                }
                 .receive(on: DispatchQueue.main)
-                .sink { [weak self] state in
-                    self?.handleDictationStateChange(state)
+                .sink { [weak self] state, sessionID in
+                    guard let self, sessionID == workflowController.dictationViewModel.captureSessionID else { return }
+                    handleDictationStateChange(state)
                 }
                 .store(in: &cancellables)
         }
@@ -258,6 +262,7 @@
         }
 
         func startDictationCapture(from source: PrimaryActionSource) {
+            cancelPendingStateTasks()
             workflowController.startDictationCapture(
                 source: source,
                 allowCurrentAppTarget: requiresOnboarding && onboardingStepState == .firstSuccess,

@@ -29,6 +29,7 @@
             let shouldRevealPanelOnCapture: Bool
         }
 
+        private var completionID: UInt64 = 0
         private let clipboardService: any ClipboardService
         private let textInjectionService: any TextInjectionService
         private let pasteboard: NSPasteboard
@@ -77,6 +78,8 @@
                 return .completed
             }
 
+            completionID += 1
+            let outputID = completionID
             let shouldRestoreClipboardAfterSuccessfulPaste =
                 settings.shouldAutoPaste && !settings.shouldCopyToClipboard
 
@@ -183,6 +186,13 @@
                 }
 
                 let pasteOutcome = await textInjectionService.pasteClipboard(into: targetApplication)
+                guard outputID == completionID else { return .cancelled }
+                guard !Task.isCancelled else {
+                    if shouldRestoreClipboardAfterSuccessfulPaste {
+                        pasteboardRestoreCoordinator.restoreImmediatelyIfNeeded(on: pasteboard)
+                    }
+                    return .cancelled
+                }
                 let targetAppProfile = resolveTargetAppOutputProfile(targetApplication: targetApplication)
                 emitOutputTrace(
                     traceID,
@@ -217,6 +227,7 @@
                     )
                     AnalyticsService.track("output_success", parameters: ["method": "auto_paste"])
                     // [History point C] Optimistic delivery confirmed.
+                    guard !Task.isCancelled, outputID == completionID else { return .cancelled }
                     DictationHistoryService.shared.updateFinal(
                         text,
                         targetBundleID: targetApplication?.bundleIdentifier,
@@ -234,6 +245,7 @@
                     emitOutputTrace(traceID, stage: "completion", details: "outcome=completed")
                     AnalyticsService.track("output_success", parameters: ["method": "auto_paste"])
                     // [History point C] Verified delivery.
+                    guard !Task.isCancelled, outputID == completionID else { return .cancelled }
                     DictationHistoryService.shared.updateFinal(
                         text,
                         targetBundleID: targetApplication?.bundleIdentifier,
@@ -327,6 +339,7 @@
             if outcome == .completed {
                 AnalyticsService.track("output_success", parameters: ["method": "clipboard"])
                 // [History point C] Copied directly to clipboard, no paste step.
+                guard !Task.isCancelled, outputID == completionID else { return .cancelled }
                 DictationHistoryService.shared.updateFinal(
                     text,
                     targetBundleID: targetApplication?.bundleIdentifier,
