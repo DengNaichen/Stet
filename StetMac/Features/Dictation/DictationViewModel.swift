@@ -11,6 +11,7 @@ final class DictationViewModel: ObservableObject {
     typealias ExternalOperation = @MainActor @Sendable () async throws -> String
 
     private let speechService: any SpeechService
+    private let historyService: any DictationHistoryRecording
     private let manualActivationFallbackDelay: Duration
     private var activeTask: Task<Void, Never>?
     private var captureStartupTask: Task<Void, Error>?
@@ -36,10 +37,12 @@ final class DictationViewModel: ObservableObject {
 
     init(
         speechService: any SpeechService,
-        manualActivationFallbackDelay: Duration = .seconds(1)
+        manualActivationFallbackDelay: Duration = .seconds(1),
+        historyService: any DictationHistoryRecording = DictationHistoryService.shared
     ) {
         self.speechService = speechService
         self.manualActivationFallbackDelay = manualActivationFallbackDelay
+        self.historyService = historyService
     }
 
     func send(_ action: DictationAction) {
@@ -316,7 +319,7 @@ final class DictationViewModel: ObservableObject {
 
         activeTask = Task {
             do {
-                let text = try await speechService.stopRecording(
+                let transcription = try await speechService.stopRecording(
                     onCaptureStopped: {
                         guard let captureStoppedHandler else { return }
                         await MainActor.run {
@@ -325,19 +328,22 @@ final class DictationViewModel: ObservableObject {
                     }
                 )
                 if Task.isCancelled { return }
-                // [History point A] Record raw ASR output.
-                DictationHistoryService.shared.recordRaw(text)
+                // [History point A] Record raw ASR output, not the post-rewrite string.
+                historyService.recordRaw(transcription.rawText)
                 let finalText: String
                 if let resultTransformer {
-                    finalText = try await resultTransformer(text)
+                    finalText = try await resultTransformer(transcription.text)
                     // [History point B] Record LLM-refined output.
-                    DictationHistoryService.shared.recordLLM(finalText)
+                    historyService.recordLLM(finalText)
+                } else if transcription.wasRewritten {
+                    finalText = transcription.text
+                    historyService.recordLLM(transcription.text)
                 } else {
-                    finalText = text
+                    finalText = transcription.text
                 }
                 // Persist immediately — every transcription is recorded whether or
                 // not the text is ultimately delivered to a target app.
-                DictationHistoryService.shared.commitPending()
+                historyService.commitPending()
                 self.resultTransformer = nil
                 send(.transcriptionSucceeded(finalText))
             } catch is CancellationError {

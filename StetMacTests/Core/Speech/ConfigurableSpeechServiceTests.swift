@@ -490,7 +490,9 @@ struct ConfigurableSpeechServiceTests {
         try await service.startRecording()
         let result = try await service.stopRecording()
 
-        #expect(result == "full interval")
+        #expect(result.text == "full interval")
+        #expect(result.rawText == "full interval")
+        #expect(!result.wasRewritten)
         #expect(await postProcessor.lastInvocation() == nil)
         #expect(await direct.lastInvocation()?.fileURL == sourceAudioURL)
         #expect(await direct.lastInvocation()?.duration == 1.2)
@@ -523,7 +525,9 @@ struct ConfigurableSpeechServiceTests {
         let rewriteRequests = await rewrite.recordedRequests()
         let directInvocation = await direct.lastInvocation()
 
-        #expect(transcript == "rewritten transcript")
+        #expect(transcript.rawText == "source transcript")
+        #expect(transcript.text == "rewritten transcript")
+        #expect(transcript.wasRewritten)
         #expect(directInvocation?.prompt?.contains("OpenAI, Groq") == true)
         #expect(directInvocation?.languageCode == "en")
         #expect(await direct.callCount() == 1)
@@ -645,7 +649,9 @@ struct ConfigurableSpeechServiceTests {
         try await service.startRecording()
         let result = try await service.stopRecording()
 
-        #expect(result == "rewritten transcript")
+        #expect(result.rawText == "raw transcript")
+        #expect(result.text == "rewritten transcript")
+        #expect(result.wasRewritten)
         #expect(await direct.callCount() == 1)
         #expect(await rewrite.recordedRequests().count == 1)
     }
@@ -673,7 +679,9 @@ struct ConfigurableSpeechServiceTests {
         try await service.startRecording()
         let result = try await service.stopRecording()
 
-        #expect(result == "云端模型已经处理好这个句号。")
+        #expect(result.rawText == "raw transcript")
+        #expect(result.text == "云端模型已经处理好这个句号。")
+        #expect(result.wasRewritten)
     }
 
     @Test func appleIntelligenceRewriteKeepsManualPunctuationCleanup() async throws {
@@ -699,7 +707,9 @@ struct ConfigurableSpeechServiceTests {
         try await service.startRecording()
         let result = try await service.stopRecording()
 
-        #expect(result == "Apple Intelligence 仍然需要这层清理")
+        #expect(result.rawText == "raw transcript")
+        #expect(result.text == "Apple Intelligence 仍然需要这层清理")
+        #expect(result.wasRewritten)
     }
 
     @Test func byokGroqToGroqUsesSingleProviderForBothRemoteSteps() async throws {
@@ -726,7 +736,9 @@ struct ConfigurableSpeechServiceTests {
         let result = try await service.stopRecording()
         let request = try #require(await rewrite.recordedRequests().first)
 
-        #expect(result == "groq rewrite")
+        #expect(result.rawText == "groq transcript")
+        #expect(result.text == "groq rewrite")
+        #expect(result.wasRewritten)
         #expect(request.text == "groq transcript")
         #expect(await direct.callCount() == 1)
     }
@@ -756,10 +768,106 @@ struct ConfigurableSpeechServiceTests {
         let result = try await service.stopRecording()
         let request = try #require(await rewrite.recordedRequests().first)
 
-        #expect(result == "mixed provider rewrite")
+        #expect(result.rawText == "mixed provider transcript")
+        #expect(result.text == "mixed provider rewrite")
+        #expect(result.wasRewritten)
         #expect(request.text == "mixed provider transcript")
         #expect(request.audience == .ai)
         #expect(await direct.callCount() == 1)
+    }
+
+    @Test func stopRecordingKeepsRawASRSeparateFromRewrittenText() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: " um hello world ")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setResult("Hello world.")
+        let (store, _, _) = try makeSettingsStore(rewriteEnabled: true)
+        let service = makeDictationService(
+            settingsStore: store,
+            directTranscriptionService: direct,
+            rewriteService: rewrite
+        )
+
+        try await service.startRecording()
+        let result = try await service.stopRecording()
+
+        #expect(result.rawText == "um hello world")
+        #expect(result.text == "Hello world.")
+        #expect(result.wasRewritten)
+    }
+
+    @Test func stopRecordingDoesNotMarkRewriteWhenRewriteIsDisabled() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: "raw asr text")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setResult("should not be used")
+        let (store, _, _) = try makeSettingsStore(rewriteEnabled: false)
+        let service = makeDictationService(
+            settingsStore: store,
+            directTranscriptionService: direct,
+            rewriteService: rewrite
+        )
+
+        try await service.startRecording()
+        let result = try await service.stopRecording()
+
+        #expect(result.rawText == "raw asr text")
+        #expect(result.text == "raw asr text")
+        #expect(!result.wasRewritten)
+        #expect(await rewrite.recordedRequests().isEmpty)
+    }
+
+    @Test func stopRecordingUsesCleanedTextAsRawWhenRewriteIsDisabled() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: "hello.")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setResult("should not be used")
+        let (store, _, _) = try makeSettingsStore(rewriteEnabled: false)
+        let service = makeDictationService(
+            settingsStore: store,
+            directTranscriptionService: direct,
+            rewriteService: rewrite
+        )
+
+        try await service.startRecording()
+        let result = try await service.stopRecording()
+
+        #expect(result.rawText == "hello")
+        #expect(result.text == "hello")
+        #expect(!result.wasRewritten)
+    }
+
+    @Test func stopRecordingUsesCleanedTextAsRawAfterRewriteFailure() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: "hello.")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setError(TestError.expected)
+        let (store, _, _) = try makeSettingsStore(
+            rewriteProvider: .appleIntelligence,
+            rewriteEnabled: true,
+            apiKey: nil
+        )
+        let service = makeDictationService(
+            settingsStore: store,
+            directTranscriptionService: direct,
+            rewriteService: rewrite
+        )
+
+        try await service.startRecording()
+        let result = try await service.stopRecording()
+
+        #expect(result.rawText == "hello")
+        #expect(result.text == "hello")
+        #expect(!result.wasRewritten)
+        #expect(await rewrite.recordedRequests().count == 1)
     }
 
     @Test func stopRecordingUsesProcessedAudioURLForTranscription() async throws {
@@ -797,7 +905,7 @@ struct ConfigurableSpeechServiceTests {
         let postProcessorInvocation = await postProcessor.lastInvocation()
         let directInvocation = await direct.lastInvocation()
 
-        #expect(transcript == "processed transcript")
+        #expect(transcript.text == "processed transcript")
         #expect(postProcessorInvocation?.sourceURL == sourceAudioURL)
         #expect(postProcessorInvocation?.duration == 1.2)
         #expect(directInvocation?.fileURL == processedAudioURL)
@@ -905,7 +1013,9 @@ struct ConfigurableSpeechServiceTests {
 
         let result = try await service.stopRecording()
 
-        #expect(result == "processed transcript")
+        #expect(result.rawText == "processed transcript")
+        #expect(result.text == "processed transcript")
+        #expect(!result.wasRewritten)
         #expect(!FileManager.default.fileExists(atPath: processedAudioURL.path))
         #expect(await direct.callCount() == 1)
         #expect(await rewrite.recordedRequests().count == 1)
@@ -1014,7 +1124,7 @@ struct ConfigurableSpeechServiceTests {
 
         let result = try await service.stopRecording()
 
-        #expect(result == "source")
+        #expect(result.text == "source")
         #expect(await direct.callCount() == 1)
         #expect(await rewrite.recordedRequests().count == 1)
     }

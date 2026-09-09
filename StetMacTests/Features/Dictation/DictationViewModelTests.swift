@@ -73,6 +73,75 @@ struct DictationViewModelTests {
         #expect(viewModel.state == .result("DRAFT"))
     }
 
+    @Test func recordsRawASRAndRewrittenTextSeparatelyInHistory() async throws {
+        let speechService = ControllableSpeechService()
+        await speechService.setStopBehavior(
+            .immediate(
+                SpeechTranscriptionResult(
+                    rawText: "um hello world",
+                    text: "Hello world.",
+                    wasRewritten: true
+                )
+            )
+        )
+        let history = HistoryRecordingSpy()
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay,
+            historyService: history
+        )
+
+        viewModel.startCapture()
+        #expect(await TestSupport.eventually { viewModel.state == .listening })
+        viewModel.stopCapture()
+        #expect(await TestSupport.eventually { viewModel.state == .result("Hello world.") })
+
+        #expect(history.rawTexts == ["um hello world"])
+        #expect(history.llmTexts == ["Hello world."])
+        #expect(history.commitCount == 1)
+    }
+
+    @Test func doesNotRecordLLMHistoryWhenRewriteDidNotRun() async throws {
+        let speechService = ControllableSpeechService()
+        await speechService.setStopBehavior(.immediate("plain transcript"))
+        let history = HistoryRecordingSpy()
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay,
+            historyService: history
+        )
+
+        viewModel.startCapture()
+        #expect(await TestSupport.eventually { viewModel.state == .listening })
+        viewModel.stopCapture()
+        #expect(await TestSupport.eventually { viewModel.state == .result("plain transcript") })
+
+        #expect(history.rawTexts == ["plain transcript"])
+        #expect(history.llmTexts.isEmpty)
+        #expect(history.commitCount == 1)
+    }
+
+    @Test func transformIsRecordedAsLLMHistoryEvenWithoutSpeechRewrite() async throws {
+        let speechService = ControllableSpeechService()
+        await speechService.setStopBehavior(.immediate("draft"))
+        let history = HistoryRecordingSpy()
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay,
+            historyService: history
+        )
+
+        viewModel.startCapture { text in
+            text.uppercased()
+        }
+        viewModel.stopCapture()
+        #expect(await TestSupport.eventually { viewModel.state == .result("DRAFT") })
+
+        #expect(history.rawTexts == ["draft"])
+        #expect(history.llmTexts == ["DRAFT"])
+        #expect(history.commitCount == 1)
+    }
+
     @Test func resetCancelsActiveRecordingAndReturnsToIdle() async {
         let speechService = ControllableSpeechService()
         await speechService.setStartBehavior(.suspended)
@@ -307,4 +376,24 @@ struct DictationViewModelTests {
         #expect(await TestSupport.eventually { viewModel.state == .idle })
     }
 
+}
+
+@MainActor
+private final class HistoryRecordingSpy: DictationHistoryRecording {
+    var rawTexts: [String] = []
+    var llmTexts: [String] = []
+    var commitCount = 0
+
+    func recordRaw(_ text: String) {
+        rawTexts.append(text)
+    }
+
+    func recordLLM(_ text: String) {
+        llmTexts.append(text)
+    }
+
+    func commitPending() -> UUID? {
+        commitCount += 1
+        return UUID()
+    }
 }

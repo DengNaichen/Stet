@@ -213,7 +213,7 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
     }
 
     enum StopBehavior: Sendable {
-        case immediate(String)
+        case immediate(SpeechTranscriptionResult)
         case suspended
         case fail(any Error & Sendable)
     }
@@ -221,7 +221,7 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
     private let audioLevelBridge = AudioLevelBridge()
     private var startContinuation: CheckedContinuation<Void, Error>?
     private var activationContinuation: CheckedContinuation<Void, Error>?
-    private var stopContinuation: CheckedContinuation<String, Error>?
+    private var stopContinuation: CheckedContinuation<SpeechTranscriptionResult, Error>?
 
     private var startBehavior: StartBehavior = .immediate
     private var activationBehavior: ActivationBehavior = .immediate
@@ -284,15 +284,15 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
 
     func stopRecording(
         onCaptureStopped: (@Sendable () async -> Void)? = nil
-    ) async throws -> String {
+    ) async throws -> SpeechTranscriptionResult {
         stopCallCount += 1
 
         switch stopBehavior {
-        case .immediate(let text):
+        case .immediate(let result):
             if let onCaptureStopped {
                 await onCaptureStopped()
             }
-            return text
+            return result
         case .suspended:
             if let onCaptureStopped {
                 await onCaptureStopped()
@@ -328,7 +328,11 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
     }
 
     func finishStop(with text: String) {
-        stopContinuation?.resume(returning: text)
+        finishStop(with: SpeechTranscriptionResult(text))
+    }
+
+    func finishStop(with result: SpeechTranscriptionResult) {
+        stopContinuation?.resume(returning: result)
         stopContinuation = nil
     }
 
