@@ -87,6 +87,7 @@
         /// Standard grouped Settings rows on the document paper.
         func macSettingsFormStyle() -> some View {
             formStyle(.grouped)
+                .groupBoxStyle(MacSettingsPaperGroupBoxStyle())
                 .scrollContentBackground(.hidden)
                 .backgroundStyle(MacUI.Surfaces.paper)
                 .macSettingsTracksTitleScroll()
@@ -94,6 +95,17 @@
 
         func macSettingsTracksTitleScroll() -> some View {
             modifier(MacSettingsTitleScrollModifier())
+        }
+    }
+
+    /// Grouped Form uses GroupBox for its section surfaces. Remove only that
+    /// chrome so the native grouped rows, switches, and separators stay intact.
+    private struct MacSettingsPaperGroupBoxStyle: GroupBoxStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            VStack(alignment: .leading) {
+                configuration.label
+                configuration.content
+            }
         }
     }
 
