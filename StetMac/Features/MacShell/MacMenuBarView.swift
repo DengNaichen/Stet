@@ -31,13 +31,15 @@
                     Divider()
                 }
 
-                Label(
-                    appModel.passiveListeningStatusText,
-                    systemImage: appModel.isPassiveMicrophoneActive ? "mic.fill" : "mic.slash"
-                )
-                .disabled(true)
+                if MacFeatureAvailability.isPassiveListeningVisible {
+                    Label(
+                        appModel.passiveListeningStatusText,
+                        systemImage: appModel.isPassiveMicrophoneActive ? "mic.fill" : "mic.slash"
+                    )
+                    .disabled(true)
 
-                Divider()
+                    Divider()
+                }
 
                 Button("Settings…") {
                     settingsShellViewModel.openSettings {
