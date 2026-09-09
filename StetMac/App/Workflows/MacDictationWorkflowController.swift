@@ -125,7 +125,9 @@
 
             startActivationTask = Task { @MainActor [weak self] in
                 guard let self else { return }
-                defer { startActivationTask = nil }
+                defer {
+                    if !Task.isCancelled { startActivationTask = nil }
+                }
 
                 await awaitStartPromptBeforeActivation(preset: settings.interactionSoundPreset)
 
@@ -197,6 +199,11 @@
                 return .failed(.emptyTranscription)
             }
 
+            guard !Task.isCancelled else {
+                pendingSessionDuration = nil
+                return .cancelled
+            }
+
             if let duration = pendingSessionDuration {
                 let wordCount = Self.countWords(in: text)
                 statsModel?.record(
@@ -220,6 +227,7 @@
                 settings: captureSettings,
                 showPanel: showTransientPanel
             )
+            guard !Task.isCancelled else { return .cancelled }
             let settings = settingsSnapshot
             if outcome == .completed, settings.interactionSoundsEnabled {
                 interactionSoundPlayer.playFinish(preset: settings.interactionSoundPreset)

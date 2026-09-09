@@ -17,6 +17,7 @@
         }
 
         func cancelActiveCapture() {
+            cancelPendingStateTasks()
             workflowController.cancelActiveCapture()
             hidePanel()
         }
