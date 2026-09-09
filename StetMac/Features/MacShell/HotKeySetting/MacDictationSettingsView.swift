@@ -38,7 +38,7 @@
                 }
             }
             .formStyle(.grouped)
-            .padding(.leading, MacUI.SettingsViewMetrics.formHorizontalPadding)
+            .scrollIndicators(.never)
             .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
                 viewModel.load()

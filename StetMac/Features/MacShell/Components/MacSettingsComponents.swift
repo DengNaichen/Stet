@@ -1,4 +1,5 @@
 #if os(macOS)
+    import AppKit
     import SwiftUI
 
     struct MacSettingsCard<Content: View>: View {
@@ -58,6 +59,108 @@
                 Spacer()
 
                 value()
+            }
+        }
+    }
+
+    struct StetWaveMark: Shape {
+        func path(in rect: CGRect) -> Path {
+            let sx = rect.width / 16
+            let sy = rect.height / 10
+            func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+                CGPoint(x: x * sx, y: y * sy)
+            }
+
+            var path = Path()
+            path.move(to: point(1, 6.5))
+            path.addCurve(to: point(3.6, 3.2), control1: point(2.2, 6.5), control2: point(2.4, 3.2))
+            path.addCurve(to: point(6.4, 8.2), control1: point(4.8, 3.2), control2: point(5, 8.2))
+            path.addCurve(to: point(9.6, 1.8), control1: point(7.8, 8.2), control2: point(8, 1.8))
+            path.addCurve(to: point(13, 6), control1: point(11.2, 1.8), control2: point(11.4, 6))
+            path.addCurve(to: point(15.2, 5.2), control1: point(13.8, 6), control2: point(14.4, 5.2))
+            return path
+        }
+    }
+
+    struct MacSettingsWindowChrome: NSViewRepresentable {
+        var trafficLightLeading: CGFloat
+        var trafficLightTop: CGFloat
+
+        func makeNSView(context: Context) -> NSView {
+            MacSettingsWindowChromeView(
+                trafficLightLeading: trafficLightLeading,
+                trafficLightTop: trafficLightTop
+            )
+        }
+
+        func updateNSView(_ nsView: NSView, context: Context) {
+            guard let view = nsView as? MacSettingsWindowChromeView else { return }
+            view.trafficLightLeading = trafficLightLeading
+            view.trafficLightTop = trafficLightTop
+            view.applyWindowChrome()
+        }
+    }
+
+    private final class MacSettingsWindowChromeView: NSView {
+        var trafficLightLeading: CGFloat
+        var trafficLightTop: CGFloat
+
+        init(trafficLightLeading: CGFloat, trafficLightTop: CGFloat) {
+            self.trafficLightLeading = trafficLightLeading
+            self.trafficLightTop = trafficLightTop
+            super.init(frame: .zero)
+            isHidden = true
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            NotificationCenter.default.removeObserver(self)
+            if let window {
+                NotificationCenter.default.addObserver(
+                    self,
+                    selector: #selector(windowDidChange),
+                    name: NSWindow.didResizeNotification,
+                    object: window
+                )
+            }
+            DispatchQueue.main.async { [weak self] in
+                self?.applyWindowChrome()
+            }
+        }
+
+        deinit {
+            NotificationCenter.default.removeObserver(self)
+        }
+
+        @objc private func windowDidChange() {
+            applyWindowChrome()
+        }
+
+        func applyWindowChrome() {
+            guard let window else { return }
+            window.titlebarAppearsTransparent = true
+            window.backgroundColor = MacUI.Surfaces.hubFill
+            configureScrollers(in: window.contentView)
+
+            for type: NSWindow.ButtonType in [.closeButton, .miniaturizeButton, .zoomButton] {
+                window.standardWindowButton(type)?.isHidden = false
+            }
+        }
+
+        private func configureScrollers(in view: NSView?) {
+            guard let view else { return }
+            if let scrollView = view as? NSScrollView {
+                scrollView.scrollerStyle = .overlay
+                scrollView.autohidesScrollers = true
+                scrollView.hasHorizontalScroller = false
+            }
+            for subview in view.subviews {
+                configureScrollers(in: subview)
             }
         }
     }

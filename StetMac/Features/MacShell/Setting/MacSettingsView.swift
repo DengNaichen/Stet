@@ -103,134 +103,30 @@
         var subtitle: String {
             switch self {
             case .general:
-                return "Launch at login, Dock, and updates."
+                return "How Stet lives on this Mac."
             case .appearance:
-                return "Dictation capsule theme and color palette."
+                return "The capsule is the product. Everything else stays quiet."
             case .dictation:
-                return "Global shortcut and dictation feedback."
+                return "One shortcut to speak. Then the words land."
             case .microphone:
-                return "Microphone selection and recording test."
+                return "Choose the input. Test it before you need it."
             case .transcription:
-                return "On-device transcription engine and models."
+                return "On-device engines. Download what you actually use."
             case .voice:
                 return "Passive listening and speaker profiles."
             case .meetings:
-                return "Record in-room conversations and open saved meeting folders."
+                return "Record the room. Open the folder when you need it."
             case .openAI:
-                return "AI service, transcript improvement, and account access."
+                return "Optional pass after transcription. Off is a valid choice."
             case .dictionary:
-                return "Personal dictionary entries used during transcription and transcript cleanup."
+                return "Names and terms the engine should already know."
             case .history:
-                return "Searchable log of every dictation session."
+                return "Past dictations. Not a preference — a library."
             #if DEBUG
                 case .shaderDebug:
                     return "Large shader preview and color input controls."
             #endif
             }
-        }
-
-        var iconName: String {
-            switch self {
-            case .general:
-                return "gearshape.fill"
-            case .appearance:
-                return "circle.lefthalf.filled"
-            case .dictation:
-                return "command"
-            case .microphone:
-                return "mic.fill"
-            case .transcription:
-                return "waveform"
-            case .voice:
-                return "person.wave.2.fill"
-            case .meetings:
-                return "person.3.fill"
-            case .openAI:
-                return "pencil"
-            case .dictionary:
-                return "text.book.closed.fill"
-            case .history:
-                return "clock.arrow.circlepath"
-            #if DEBUG
-                case .shaderDebug:
-                    return "hammer.fill"
-            #endif
-            }
-        }
-
-        var iconColor: Color {
-            switch self {
-            case .general:
-                return Color(nsColor: .systemGray)
-            case .appearance:
-                return Color(nsColor: .systemBlue)
-            case .dictation:
-                return Color(nsColor: .systemGray)
-            case .microphone:
-                return Color(nsColor: .systemRed)
-            case .transcription:
-                return Color(nsColor: .systemPurple)
-            case .voice:
-                return Color(nsColor: .systemTeal)
-            case .meetings:
-                return Color(nsColor: .systemOrange)
-            case .openAI:
-                return Color(nsColor: .systemGreen)
-            case .dictionary:
-                return Color(nsColor: .systemGray)
-            case .history:
-                return Color(nsColor: .systemIndigo)
-            #if DEBUG
-                case .shaderDebug:
-                    return Color(nsColor: .systemBrown)
-            #endif
-            }
-        }
-
-        var searchTokens: [String] {
-            switch self {
-            case .general:
-                return ["updates", "dock", "launch at login", "behavior"]
-            case .appearance:
-                return ["theme", "colors", "shader", "capsule", "visual"]
-            case .dictation:
-                return [
-                    "shortcut", "keyboard", "recorder", "dictation", "sounds", "notification", "capture",
-                    "mute", "feedback",
-                ]
-            case .microphone:
-                return ["microphone", "input device", "recording", "audio", "test"]
-            case .transcription:
-                return ["whisper", "parakeet", "nano", "engine", "model", "transcription", "download"]
-            case .voice:
-                return [
-                    "passive transcription", "speaker profile", "speaker name", "enrollment", "listening",
-                ]
-            case .meetings:
-                return ["meeting", "record", "transcript", "folder", "shortcut", "speaker"]
-            case .openAI:
-                return [
-                    "service", "access key", "sign in", "transcript", "improve", "rewrite", "openai",
-                    "apple intelligence", "foundation models", "local refine", "custom", "base url",
-                    "openai compatible",
-                ]
-            case .dictionary:
-                return ["entries", "personal dictionary", "names", "brands"]
-            case .history:
-                return ["log", "history", "sessions", "transcription", "export", "json", "past"]
-            #if DEBUG
-                case .shaderDebug:
-                    return ["shader", "preview", "debug", "window", "colors"]
-            #endif
-            }
-        }
-
-        func matches(searchText: String) -> Bool {
-            let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !query.isEmpty else { return true }
-
-            let terms = [title, subtitle] + searchTokens
-            return terms.contains { $0.localizedCaseInsensitiveContains(query) }
         }
     }
 
@@ -239,25 +135,26 @@
 
         @StateObject private var dictionaryViewModel = DictionaryViewModel()
         @StateObject private var openAISettingsViewModel = MacOpenAISettingsViewModel()
-        @State private var selectedTab: MacSettingsTab? = .general
-        @State private var searchText = ""
-        @State private var columnVisibility: NavigationSplitViewVisibility = .all
+        @State private var selectedTab: MacSettingsTab = .general
 
         var body: some View {
-            NavigationSplitView(columnVisibility: $columnVisibility) {
-                sidebar
-            } detail: {
-                detail
+            HStack(spacing: 0) {
+                sidebarColumn
+                detailColumn
             }
-            .searchable(text: $searchText, prompt: "Search settings")
-            .frame(minWidth: 644, minHeight: 490)
+            .background {
+                MacSettingsWindowChrome(
+                    trafficLightLeading: MacUI.SettingsViewMetrics.trafficLightLeading,
+                    trafficLightTop: MacUI.SettingsViewMetrics.trafficLightTop
+                )
+                .frame(width: 0, height: 0)
+                .allowsHitTesting(false)
+            }
+            .containerBackground(MacUI.Surfaces.hub, for: .window)
+            .frame(minWidth: 720, minHeight: 520)
             .task {
                 reloadStateFromPreferences()
-                synchronizeSelectionWithFilter()
-            }
-
-            .onChange(of: searchText) { _, _ in
-                synchronizeSelectionWithFilter()
+                synchronizeSelection()
             }
             .onAppear {
                 settingsShellViewModel.settingsDidAppear()
@@ -267,86 +164,110 @@
             }
         }
 
-        private var sidebar: some View {
-            VStack(spacing: 0) {
-                List(selection: $selectedTab) {
-                    if filteredTabs.isEmpty {
-                        ContentUnavailableView(
-                            "No Results",
-                            systemImage: "magnifyingglass",
-                            description: Text("Try a different keyword.")
-                        )
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                        .tag(Optional<MacSettingsTab>.none)
-                    } else {
-                        ForEach(MacSettingsSection.allCases) { section in
-                            let tabs = filteredTabs.filter { $0.section == section }
-                            if !tabs.isEmpty {
-                                Section(section.title) {
+        private var sidebarColumn: some View {
+            VStack(alignment: .leading, spacing: 0) {
+                brandHeader
+                    .frame(height: MacUI.SettingsViewMetrics.headerHeight, alignment: .leading)
+                sidebarNav
+            }
+            .frame(width: MacUI.SettingsViewMetrics.sidebarWidth)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .background(MacUI.Surfaces.hub.ignoresSafeArea())
+        }
+
+        private var brandHeader: some View {
+            HStack(spacing: 8) {
+                StetWaveMark()
+                    .stroke(
+                        MacUI.Brand.orange,
+                        style: StrokeStyle(lineWidth: 1.7, lineCap: .round, lineJoin: .round)
+                    )
+                    .frame(width: 16, height: 10)
+                Text("Stet")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(MacUI.Surfaces.ink)
+            }
+            .padding(.horizontal, MacUI.SettingsViewMetrics.sidebarHeaderHorizontalPadding)
+        }
+
+        private var sidebarNav: some View {
+            ScrollView {
+                VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.sidebarSectionSpacing) {
+                    ForEach(MacSettingsSection.allCases) { section in
+                        let tabs = visibleTabs.filter { $0.section == section }
+                        if !tabs.isEmpty {
+                            VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.sidebarSectionItemSpacing) {
+                                Text(LocalizedStringKey(section.title))
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(MacUI.Surfaces.ink)
+                                    .padding(.horizontal, MacUI.SettingsViewMetrics.sidebarItemInset)
+
+                                VStack(spacing: 2) {
                                     ForEach(tabs) { tab in
-                                        NavigationLink(value: tab) {
-                                            sidebarRow(for: tab)
-                                        }
+                                        sidebarRow(for: tab)
                                     }
                                 }
                             }
                         }
                     }
                 }
-                .environment(\.sidebarRowSize, .large)
-                .listStyle(.sidebar)
-
+                .padding(.top, 20)
+                .padding(.horizontal, MacUI.SettingsViewMetrics.sidebarNavHorizontalPadding)
+                .padding(.bottom, 20)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .navigationSplitViewColumnWidth(min: 144, ideal: 176, max: 240)
+            .scrollIndicators(.never)
         }
 
-        @ViewBuilder
-        private var detail: some View {
-            if let activeTab {
-                selectedContent(for: activeTab)
-                    .navigationTitle(LocalizedStringKey(activeTab.title))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            } else {
-                ContentUnavailableView(
-                    "Select a Section",
-                    systemImage: "sidebar.left",
-                    description: Text("Choose a destination from the sidebar.")
-                )
-            }
-        }
-
-        @ViewBuilder
         private func sidebarRow(for tab: MacSettingsTab) -> some View {
-            HStack(spacing: 8) {
-                ZStack {
-                    // 1. Shadow anchoring
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(Color.black.opacity(0.1))
-                        .offset(y: 0.5)
-                        .blur(radius: 0.5)
-
-                    // 2. Main color tile
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(tab.iconColor.gradient)
-
-                    // 3. Highlight border
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
-
-                    // 4. Smaller symbol for a more delicate look
-                    Image(systemName: tab.iconName)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.white)
-                        .shadow(color: Color.black.opacity(0.05), radius: 0, x: 0, y: 0.5)
+            let selected = tab == activeTab
+            return Button {
+                selectedTab = tab
+            } label: {
+                HStack(spacing: 0) {
+                    Text(LocalizedStringKey(tab.title))
+                        .font(.system(size: 13, weight: selected ? .medium : .regular))
+                        .foregroundStyle(selected ? MacUI.Surfaces.ink : MacUI.Surfaces.ink.opacity(0.72))
+                    Spacer(minLength: 0)
                 }
-                .frame(width: 20, height: 20)
-
-                Text(LocalizedStringKey(tab.title))
-                    .font(.system(size: 13))
-                    .foregroundStyle(.primary)
+                .padding(.horizontal, MacUI.SettingsViewMetrics.sidebarItemInset)
+                .padding(.vertical, MacUI.SettingsViewMetrics.sidebarRowVerticalPadding)
+                .background {
+                    RoundedRectangle(
+                        cornerRadius: MacUI.SettingsViewMetrics.sidebarRowCornerRadius,
+                        style: .continuous
+                    )
+                    .fill(selected ? MacUI.Surfaces.selection : Color.clear)
+                }
+                .contentShape(Rectangle())
             }
-            .padding(.vertical, 3)
+            .buttonStyle(.plain)
+        }
+
+        private var detailColumn: some View {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(LocalizedStringKey(activeTab.title))
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(MacUI.Surfaces.ink)
+                    .frame(
+                        maxWidth: .infinity,
+                        minHeight: MacUI.SettingsViewMetrics.headerHeight,
+                        alignment: .leading
+                    )
+
+                Text(LocalizedStringKey(activeTab.subtitle))
+                    .font(.system(size: 13))
+                    .foregroundStyle(MacUI.Surfaces.mute)
+                    .padding(.top, 8)
+                    .padding(.bottom, 28)
+
+                selectedContent(for: activeTab)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .scrollIndicators(.never)
+            }
+            .padding(.horizontal, MacUI.SettingsViewMetrics.detailHorizontalPadding)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(MacUI.Surfaces.paper.ignoresSafeArea())
         }
 
         @ViewBuilder
@@ -380,16 +301,15 @@
             }
         }
 
-        private var activeTab: MacSettingsTab? {
-            if let selectedTab, filteredTabs.contains(selectedTab) {
-                return selectedTab
-            }
-
-            return filteredTabs.first
+        private var visibleTabs: [MacSettingsTab] {
+            MacSettingsTab.allCases.filter(\.isAvailable)
         }
 
-        private var filteredTabs: [MacSettingsTab] {
-            MacSettingsTab.allCases.filter { $0.isAvailable && $0.matches(searchText: searchText) }
+        private var activeTab: MacSettingsTab {
+            if visibleTabs.contains(selectedTab) {
+                return selectedTab
+            }
+            return visibleTabs.first ?? .general
         }
 
         private func reloadStateFromPreferences() {
@@ -397,13 +317,11 @@
             dictionaryViewModel.load()
         }
 
-        private func synchronizeSelectionWithFilter() {
-            if let selectedTab, filteredTabs.contains(selectedTab) {
+        private func synchronizeSelection() {
+            if visibleTabs.contains(selectedTab) {
                 return
             }
-
-            selectedTab = filteredTabs.first
+            selectedTab = visibleTabs.first ?? .general
         }
-
     }
 #endif

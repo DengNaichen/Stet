@@ -78,7 +78,7 @@
                 }
             }
             .formStyle(.grouped)
-            .padding(.leading, MacUI.SettingsViewMetrics.formHorizontalPadding)
+            .scrollIndicators(.never)
             .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .confirmationDialog(
                 "Are you sure you want to clear your personal dictionary?",

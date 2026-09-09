@@ -167,7 +167,7 @@ struct AppForm<Content: View>: View {
     var body: some View {
         Form { content() }
             .formStyle(.grouped)
-            .padding(.leading, 24)
+            .scrollIndicators(.never)
             .padding(.bottom, 32)
     }
 }
