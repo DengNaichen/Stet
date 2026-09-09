@@ -49,7 +49,7 @@
         enum SettingsViewMetrics {
             static let sidebarWidth: CGFloat = 192
             static let headerHeight: CGFloat = 40
-            static let sidebarHeaderHorizontalPadding: CGFloat = 16
+            static let sidebarHeaderHorizontalPadding: CGFloat = 24
             static let sidebarItemInset: CGFloat = 12
             static let sidebarNavHorizontalPadding: CGFloat = 12
             static let sidebarSectionSpacing: CGFloat = 28
@@ -59,6 +59,8 @@
             static let trafficLightLeading: CGFloat = 20
             static let trafficLightTop: CGFloat = 18
             static let detailHorizontalPadding: CGFloat = 36
+            // Grouped Form adds 20pt section and 10pt row insets inside its content margin.
+            static let groupedFormTitleHorizontalPadding: CGFloat = detailHorizontalPadding + 30
             static let formHorizontalPadding: CGFloat = 24
             static let formBottomPadding: CGFloat = 32
             static let cardContentSpacing: CGFloat = 16
@@ -66,8 +68,8 @@
             static let valueRowSpacing: CGFloat = 16
             static let sidebarAccountRowHorizontalPadding: CGFloat = 16
             static let sidebarAccountRowVerticalPadding: CGFloat = 12
-            static let overlayScrollerWidth: CGFloat = 12
-            static let overlayScrollerKnobWidth: CGFloat = 7
+            static let overlayScrollerWidth: CGFloat = 15
+            static let overlayScrollerKnobWidth: CGFloat = 10
             static let detailTitleExpandedSize: CGFloat = 24
             static let detailTitleCollapsedSize: CGFloat = 15
             static let detailTitleCollapseDistance: CGFloat = 32

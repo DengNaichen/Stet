@@ -142,6 +142,7 @@
     struct MacSettingsCollapsingTitle: View {
         let title: String
         @ObservedObject var store: MacSettingsTitleScrollStore
+        var horizontalPadding: CGFloat = MacUI.SettingsViewMetrics.detailHorizontalPadding
 
         var body: some View {
             let progress = min(1, store.offset / MacUI.SettingsViewMetrics.detailTitleCollapseDistance)
@@ -164,7 +165,7 @@
                     alignment: .leading
                 )
                 .padding(.bottom, 20)
-                .padding(.horizontal, MacUI.SettingsViewMetrics.detailHorizontalPadding)
+                .padding(.horizontal, horizontalPadding)
         }
     }
 

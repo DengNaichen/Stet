@@ -52,6 +52,19 @@
             }
         }
 
+        var titleHorizontalPadding: CGFloat {
+            switch self {
+            case .general, .dictation, .microphone, .transcription, .voice, .meetings, .openAI, .dictionary:
+                return MacUI.SettingsViewMetrics.groupedFormTitleHorizontalPadding
+            case .appearance, .history:
+                return MacUI.SettingsViewMetrics.detailHorizontalPadding
+            #if DEBUG
+                case .shaderDebug:
+                    return MacUI.SettingsViewMetrics.detailHorizontalPadding
+            #endif
+            }
+        }
+
         var section: MacSettingsSection {
             switch self {
             case .general, .appearance:
@@ -222,7 +235,11 @@
 
         private var detailColumn: some View {
             VStack(alignment: .leading, spacing: 0) {
-                MacSettingsCollapsingTitle(title: activeTab.title, store: titleScrollStore)
+                MacSettingsCollapsingTitle(
+                    title: activeTab.title,
+                    store: titleScrollStore,
+                    horizontalPadding: activeTab.titleHorizontalPadding
+                )
 
                 selectedContent(for: activeTab)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
