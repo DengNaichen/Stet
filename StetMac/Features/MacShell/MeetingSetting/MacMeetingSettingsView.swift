@@ -15,18 +15,10 @@
                 } header: {
                     Text("Shortcut")
                 } footer: {
-                    Text(
-                        "Control-Option-Command-M is the default. The shortcut toggles recording on key down; it is not hold-to-talk."
-                    )
+                    Text("Toggles recording. It is not hold-to-talk.")
                 }
 
                 Section {
-                    LabeledContent("Location") {
-                        Text(store.rootDirectory.path)
-                            .textSelection(.enabled)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
                     Button("Reveal Meetings Folder") {
                         revealMeetingsFolder()
                     }
@@ -35,26 +27,7 @@
                             .foregroundStyle(.secondary)
                     }
                 } header: {
-                    Text("Meetings Folder")
-                } footer: {
-                    Text("Each recording is saved as a folder named with the local start time.")
-                }
-
-                Section {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("yyyy-MM-dd HH-mm-ss/")
-                        Text("  audio.wav")
-                        Text("  transcript.md")
-                        Text("  session.json")
-                    }
-                    .font(.system(.body, design: .monospaced))
-
-                    Text(
-                        "Speaker labels are Me when your enrolled voice matches a track, Speaker 1–4 for other people, and Unresolved when people talk over each other. Meetings are not rewritten, pasted, or added to History."
-                    )
-                    .foregroundStyle(.secondary)
-                } header: {
-                    Text("What's in a meeting folder")
+                    Text("Recordings")
                 }
 
                 if !recentFolders.isEmpty {

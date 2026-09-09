@@ -107,7 +107,9 @@
             self.interactionSoundPlayer = interactionSoundPlayer
             self.appearanceSettingsViewModel = .shared
             self.mcpServerController = mcpServerController
-            self.isPassiveListeningEnabled = settingsStore.loadPassiveListeningEnabled()
+            self.isPassiveListeningEnabled = MacFeatureAvailability.isPassiveListeningEnabled(
+                preference: settingsStore.loadPassiveListeningEnabled()
+            )
             let launchConfiguration = bootstrapper.prepareForLaunch()
             sessionController.onChange = { [weak self] in
                 self?.objectWillChange.send()
@@ -173,7 +175,9 @@
                     .receive(on: DispatchQueue.main)
                     .sink { [weak self] _ in
                         guard let self else { return }
-                        let isEnabled = self.settingsStore.loadPassiveListeningEnabled()
+                        let isEnabled = MacFeatureAvailability.isPassiveListeningEnabled(
+                            preference: self.settingsStore.loadPassiveListeningEnabled()
+                        )
                         self.isPassiveListeningEnabled = isEnabled
                         Task { await passiveListeningRuntime.setEnabled(isEnabled) }
                     }

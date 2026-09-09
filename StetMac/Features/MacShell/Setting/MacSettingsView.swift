@@ -1,11 +1,38 @@
 #if os(macOS)
     import SwiftUI
 
+    private enum MacSettingsSection: String, CaseIterable, Identifiable {
+        case app
+        case dictation
+        case listening
+        case text
+        case library
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .app:
+                return "App"
+            case .dictation:
+                return "Dictation"
+            case .listening:
+                return "Listening"
+            case .text:
+                return "Text"
+            case .library:
+                return "Library"
+            }
+        }
+    }
+
     private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
         case general
-        case audio
         case appearance
-        case hotkey
+        case dictation
+        case microphone
+        case transcription
+        case voice
         case meetings
         case openAI
         case dictionary
@@ -16,16 +43,48 @@
 
         var id: String { rawValue }
 
+        var isAvailable: Bool {
+            switch self {
+            case .voice:
+                return MacFeatureAvailability.isPassiveListeningVisible
+            default:
+                return true
+            }
+        }
+
+        var section: MacSettingsSection {
+            switch self {
+            case .general, .appearance:
+                return .app
+            case .dictation, .microphone, .transcription:
+                return .dictation
+            case .voice, .meetings:
+                return .listening
+            case .openAI, .dictionary:
+                return .text
+            case .history:
+                return .library
+            #if DEBUG
+                case .shaderDebug:
+                    return .library
+            #endif
+            }
+        }
+
         var title: String {
             switch self {
             case .general:
                 return "General"
-            case .audio:
-                return "Audio"
             case .appearance:
                 return "Theme"
-            case .hotkey:
-                return "Hotkey"
+            case .dictation:
+                return "Dictation"
+            case .microphone:
+                return "Microphone"
+            case .transcription:
+                return "Transcription"
+            case .voice:
+                return "Voice"
             case .meetings:
                 return "Meetings"
             case .openAI:
@@ -44,13 +103,17 @@
         var subtitle: String {
             switch self {
             case .general:
-                return "Behavior, updates, and shell preferences."
-            case .audio:
-                return "Microphone selection and recording test."
+                return "Launch at login, Dock, and updates."
             case .appearance:
                 return "Dictation capsule theme and color palette."
-            case .hotkey:
-                return "Global keyboard shortcuts for starting dictation."
+            case .dictation:
+                return "Global shortcut and dictation feedback."
+            case .microphone:
+                return "Microphone selection and recording test."
+            case .transcription:
+                return "On-device transcription engine and models."
+            case .voice:
+                return "Passive listening and speaker profiles."
             case .meetings:
                 return "Record in-room conversations and open saved meeting folders."
             case .openAI:
@@ -70,12 +133,16 @@
             switch self {
             case .general:
                 return "gearshape.fill"
-            case .audio:
-                return "speaker.wave.3.fill"
             case .appearance:
                 return "circle.lefthalf.filled"
-            case .hotkey:
+            case .dictation:
                 return "command"
+            case .microphone:
+                return "mic.fill"
+            case .transcription:
+                return "waveform"
+            case .voice:
+                return "person.wave.2.fill"
             case .meetings:
                 return "person.3.fill"
             case .openAI:
@@ -95,12 +162,16 @@
             switch self {
             case .general:
                 return Color(nsColor: .systemGray)
-            case .audio:
-                return Color(nsColor: .systemRed)
             case .appearance:
                 return Color(nsColor: .systemBlue)
-            case .hotkey:
+            case .dictation:
                 return Color(nsColor: .systemGray)
+            case .microphone:
+                return Color(nsColor: .systemRed)
+            case .transcription:
+                return Color(nsColor: .systemPurple)
+            case .voice:
+                return Color(nsColor: .systemTeal)
             case .meetings:
                 return Color(nsColor: .systemOrange)
             case .openAI:
@@ -119,16 +190,22 @@
         var searchTokens: [String] {
             switch self {
             case .general:
-                return ["updates", "dock", "launch at login", "sounds", "notification", "capture", "behavior"]
-            case .audio:
-                return [
-                    "microphone", "input device", "recording", "audio", "test", "passive transcription",
-                    "speaker profile", "speaker name",
-                ]
+                return ["updates", "dock", "launch at login", "behavior"]
             case .appearance:
                 return ["theme", "colors", "shader", "capsule", "visual"]
-            case .hotkey:
-                return ["shortcut", "keyboard", "recorder", "dictation"]
+            case .dictation:
+                return [
+                    "shortcut", "keyboard", "recorder", "dictation", "sounds", "notification", "capture",
+                    "mute", "feedback",
+                ]
+            case .microphone:
+                return ["microphone", "input device", "recording", "audio", "test"]
+            case .transcription:
+                return ["whisper", "parakeet", "nano", "engine", "model", "transcription", "download"]
+            case .voice:
+                return [
+                    "passive transcription", "speaker profile", "speaker name", "enrollment", "listening",
+                ]
             case .meetings:
                 return ["meeting", "record", "transcript", "folder", "shortcut", "speaker"]
             case .openAI:
@@ -203,9 +280,16 @@
                         .listRowBackground(Color.clear)
                         .tag(Optional<MacSettingsTab>.none)
                     } else {
-                        ForEach(filteredTabs) { tab in
-                            NavigationLink(value: tab) {
-                                sidebarRow(for: tab)
+                        ForEach(MacSettingsSection.allCases) { section in
+                            let tabs = filteredTabs.filter { $0.section == section }
+                            if !tabs.isEmpty {
+                                Section(section.title) {
+                                    ForEach(tabs) { tab in
+                                        NavigationLink(value: tab) {
+                                            sidebarRow(for: tab)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -270,12 +354,16 @@
             switch tab {
             case .general:
                 MacGeneralSettingsView()
-            case .audio:
-                MacAudioSettingsView()
             case .appearance:
                 MacAppearanceSettingsView()
-            case .hotkey:
-                MacHotkeySettingsView()
+            case .dictation:
+                MacDictationSettingsView()
+            case .microphone:
+                MacMicrophoneSettingsView()
+            case .transcription:
+                MacTranscriptionSettingsView()
+            case .voice:
+                MacVoiceSettingsView()
             case .meetings:
                 MacMeetingSettingsView()
             case .openAI:
@@ -301,7 +389,7 @@
         }
 
         private var filteredTabs: [MacSettingsTab] {
-            MacSettingsTab.allCases.filter { $0.matches(searchText: searchText) }
+            MacSettingsTab.allCases.filter { $0.isAvailable && $0.matches(searchText: searchText) }
         }
 
         private func reloadStateFromPreferences() {
