@@ -3,7 +3,8 @@ import Foundation
 /// Outcome of a completed capture: raw ASR text plus the post-rewrite string that
 /// should be delivered. History needs both; callers that only paste text use `text`.
 struct SpeechTranscriptionResult: Equatable, Sendable, ExpressibleByStringLiteral {
-    /// Trimmed ASR output, before rewrite.
+    /// ASR output before rewrite. When rewrite did not run (or failed), this is the
+    /// delivered text after local punctuation cleanup, so it matches `text`.
     let rawText: String
     /// Text after rewrite and any local punctuation cleanup. Same as `rawText` when rewrite did not run.
     let text: String

@@ -821,6 +821,55 @@ struct ConfigurableSpeechServiceTests {
         #expect(await rewrite.recordedRequests().isEmpty)
     }
 
+    @Test func stopRecordingUsesCleanedTextAsRawWhenRewriteIsDisabled() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: "hello.")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setResult("should not be used")
+        let (store, _, _) = try makeSettingsStore(rewriteEnabled: false)
+        let service = makeDictationService(
+            settingsStore: store,
+            directTranscriptionService: direct,
+            rewriteService: rewrite
+        )
+
+        try await service.startRecording()
+        let result = try await service.stopRecording()
+
+        #expect(result.rawText == "hello")
+        #expect(result.text == "hello")
+        #expect(!result.wasRewritten)
+    }
+
+    @Test func stopRecordingUsesCleanedTextAsRawAfterRewriteFailure() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: "hello.")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setError(TestError.expected)
+        let (store, _, _) = try makeSettingsStore(
+            rewriteProvider: .appleIntelligence,
+            rewriteEnabled: true,
+            apiKey: nil
+        )
+        let service = makeDictationService(
+            settingsStore: store,
+            directTranscriptionService: direct,
+            rewriteService: rewrite
+        )
+
+        try await service.startRecording()
+        let result = try await service.stopRecording()
+
+        #expect(result.rawText == "hello")
+        #expect(result.text == "hello")
+        #expect(!result.wasRewritten)
+        #expect(await rewrite.recordedRequests().count == 1)
+    }
+
     @Test func stopRecordingUsesProcessedAudioURLForTranscription() async throws {
         let sourceAudioURL = makeAudioFileURL()
         let processedAudioURL = makeAudioFileURL()

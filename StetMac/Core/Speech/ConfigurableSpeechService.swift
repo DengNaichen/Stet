@@ -354,7 +354,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
             await releaseContextOnExit()
             return SpeechTranscriptionResult(
-                rawText: intermediateTranscript,
+                rawText: wasRewritten ? intermediateTranscript : trimmedTranscript,
                 text: trimmedTranscript,
                 wasRewritten: wasRewritten
             )
