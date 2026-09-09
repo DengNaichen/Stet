@@ -583,5 +583,30 @@
             #expect(clipboard.copiedTexts.isEmpty)
             #expect(textInjection.pasteTargets.isEmpty)
         }
+
+        @Test func cancelledTaskDoesNotAutoPaste() async {
+            let clipboard = TestClipboardService()
+            let textInjection = TestTextInjectionService()
+            let coordinator = makeCoordinator(clipboard: clipboard, textInjection: textInjection)
+
+            let task = Task { @MainActor in
+                withUnsafeCurrentTask { $0?.cancel() }
+                return await coordinator.handleCompletedCapture(
+                    text: "hello",
+                    targetApplication: nil,
+                    settings: .init(
+                        shouldCopyToClipboard: false,
+                        shouldAutoPaste: true,
+                        shouldRevealPanelOnCapture: false
+                    ),
+                    showPanel: {}
+                )
+            }
+
+            let outcome = await task.value
+            #expect(outcome == .cancelled)
+            #expect(clipboard.copiedTexts.isEmpty)
+            #expect(textInjection.pasteTargets.isEmpty)
+        }
     }
 #endif

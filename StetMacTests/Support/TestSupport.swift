@@ -226,6 +226,7 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
     private var startBehavior: StartBehavior = .immediate
     private var activationBehavior: ActivationBehavior = .immediate
     private var stopBehavior: StopBehavior = .immediate("transcript")
+    private var cancelFailsPendingStop = true
     private(set) var startCallCount = 0
     private(set) var activationCallCount = 0
     private(set) var stopCallCount = 0
@@ -241,6 +242,10 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
 
     func setStopBehavior(_ behavior: StopBehavior) {
         stopBehavior = behavior
+    }
+
+    func setCancelFailsPendingStop(_ shouldFail: Bool) {
+        cancelFailsPendingStop = shouldFail
     }
 
     func counts() -> (start: Int, activate: Int, stop: Int, cancel: Int) {
@@ -311,6 +316,7 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
         startContinuation = nil
         activationContinuation?.resume(throwing: CancellationError())
         activationContinuation = nil
+        guard cancelFailsPendingStop else { return }
         stopContinuation?.resume(throwing: CancellationError())
         stopContinuation = nil
     }

@@ -197,6 +197,11 @@
                 return .failed(.emptyTranscription)
             }
 
+            guard !Task.isCancelled else {
+                pendingSessionDuration = nil
+                return .cancelled
+            }
+
             if let duration = pendingSessionDuration {
                 let wordCount = Self.countWords(in: text)
                 statsModel?.record(

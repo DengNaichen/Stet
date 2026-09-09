@@ -23,18 +23,35 @@
         }
 
         private func dismissAction() {
-            switch viewModel.state {
-            case .listening, .starting:
+            switch MacDictationCapsuleDismissBehavior.forState(viewModel.state) {
+            case .cancelActiveCapture:
                 viewModel.cancelActiveCapture()
-            case .idle, .error(_):
+            case .hidePanel:
                 viewModel.hidePanel()
-            default:
+            case .ignore:
                 break
             }
         }
 
         private var shaderTheme: MacDictationVisualTheme {
             MacDictationVisualTheme.fromStoredValue(shaderThemeRawValue)
+        }
+    }
+
+    enum MacDictationCapsuleDismissBehavior: Equatable {
+        case cancelActiveCapture
+        case hidePanel
+        case ignore
+
+        static func forState(_ state: DictationState) -> Self {
+            switch state {
+            case .starting, .listening, .processing:
+                return .cancelActiveCapture
+            case .idle, .error:
+                return .hidePanel
+            case .result, .clipboardPending:
+                return .ignore
+            }
         }
     }
 #endif

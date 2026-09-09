@@ -32,6 +32,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     #endif
     private var reusableCaptureService: (any AudioCaptureService)?
     private var ownsActiveCapture = false
+    private var nextCaptureSessionID: UInt64 = 0
+    private var invalidatedThroughCaptureSessionID: UInt64 = 0
 
     init(
         settingsStore: DictationSettingsStore = DictationSettingsStore(),
@@ -94,15 +96,23 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             throw SpeechServiceError.alreadyRecording
         }
 
+        let sessionID = try beginCaptureSession()
         if let beginActiveCapture {
             await beginActiveCapture()
             ownsActiveCapture = true
+            do {
+                try ensureCaptureSessionIsActive(sessionID)
+            } catch {
+                await resumePassiveCaptureIfNeeded()
+                throw error
+            }
         }
         let snapshot = settingsStore.loadSnapshot()
         let pipelineStartedAt = ProcessInfo.processInfo.systemUptime
         let pipeline: DictationPipeline
         do {
             pipeline = try await pipelineFactory.makePipeline(from: snapshot)
+            try ensureCaptureSessionIsActive(sessionID)
         } catch {
             await resumePassiveCaptureIfNeeded()
             throw error
@@ -125,14 +135,17 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         activeCaptureService = captureService
 
         do {
+            try ensureCaptureSessionIsActive(sessionID)
             let captureServiceStartedAt = ProcessInfo.processInfo.systemUptime
             try await captureService.startRecording()
+            try ensureCaptureSessionIsActive(sessionID)
             let captureServiceStartMs = Self.elapsedMilliseconds(since: captureServiceStartedAt)
             Self.logStartupTiming("captureServiceStartMs=\(Self.formatMilliseconds(captureServiceStartMs))")
 
             if activateRecordingWindow {
                 let captureWindowStartedAt = ProcessInfo.processInfo.systemUptime
                 try await captureService.activateRecordingWindow()
+                try ensureCaptureSessionIsActive(sessionID)
                 let captureWindowActivationMs = Self.elapsedMilliseconds(since: captureWindowStartedAt)
                 Self.logStartupTiming("captureWindowActivationMs=\(Self.formatMilliseconds(captureWindowActivationMs))")
             }
@@ -186,6 +199,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         else {
             throw SpeechServiceError.notRecording
         }
+        let sessionID = nextCaptureSessionID
+        try ensureCaptureSessionIsActive(sessionID)
 
         defer {
             self.activePipeline = nil
@@ -209,6 +224,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         let captureResult: (url: URL, duration: TimeInterval?)
         do {
             captureResult = try await captureService.stopRecording()
+            try ensureCaptureSessionIsActive(sessionID)
         } catch {
             await resumePassiveCaptureIfNeeded()
             throw error
@@ -216,6 +232,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         await resumePassiveCaptureIfNeeded()
         if let onCaptureStopped {
             await onCaptureStopped()
+            try ensureCaptureSessionIsActive(sessionID)
         }
         let processedCaptureResult =
             if settingsStore.loadSnapshot().transcriptionEngine == .funASRNano {
@@ -229,6 +246,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                     duration: captureResult.duration
                 )
             }
+        try ensureCaptureSessionIsActive(sessionID)
 
         defer {
             let cleanupURLs = Set(processedCaptureResult.cleanupURLs)
@@ -249,6 +267,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         var transcriptionPrompt: String? = nil
         if let provider = pipeline.promptProvider {
             transcriptionPrompt = await provider()
+            try ensureCaptureSessionIsActive(sessionID)
         }
 
         logger.info("Submitting transcription request.")
@@ -258,6 +277,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         let transcriptionResult: TranscriptionResult
         do {
             await waitForTranscriptionPrewarm()
+            try ensureCaptureSessionIsActive(sessionID)
             await DictationLatencyProbe.shared.record(.transcriptionStarted)
             transcriptionResult = try await pipeline.transcriptionService.transcribe(
                 audioFileAt: processedCaptureResult.url,
@@ -265,6 +285,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 prompt: transcriptionPrompt,
                 audioDurationSeconds: processedCaptureResult.duration
             )
+            try ensureCaptureSessionIsActive(sessionID)
             let trimmedTranscript = transcriptionResult.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmedTranscript.isEmpty else {
                 throw SpeechServiceError.emptyTranscription
@@ -274,6 +295,9 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             logger.info(
                 "DictationStage transcriptionMs=\(Self.formatMilliseconds(transcriptionStageMs)) audioDurationSeconds=\(Self.formatDurationSeconds(processedCaptureResult.duration)) transcriptChars=\(trimmedTranscript.count) rewriteEnabled=\(pipeline.rewriteService != nil) detectedLanguage=\(transcriptionResult.languageCode ?? "unknown")"
             )
+        } catch is CancellationError {
+            await releaseContextOnExit()
+            throw CancellationError()
         } catch {
             await DictationLatencyProbe.shared.record(.transcriptionFailed, note: error.localizedDescription)
             logger.error("Transcription failed: \(error.localizedDescription)")
@@ -297,6 +321,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                         appName: appName
                     )
                     let rewrittenTranscript = try await rewriteService.rewrite(request)
+                    try ensureCaptureSessionIsActive(sessionID)
 
                     finalTranscript = rewrittenTranscript
                     wasRewritten = true
@@ -316,6 +341,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                         "DictationStage rewriteSkipped inputChars=\(intermediateTranscript.count)"
                     )
                 }
+            } catch is CancellationError {
+                throw CancellationError()
             } catch {
                 logger.error("Rewrite failed: \(error.localizedDescription). Falling back to raw transcript.")
                 if let rewriteProvider = pipeline.rewriteProvider {
@@ -342,6 +369,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             } else {
                 trimmedTranscript = trimmedFinalTranscript
             }
+            try ensureCaptureSessionIsActive(sessionID)
             guard !trimmedTranscript.isEmpty else {
                 await releaseContextOnExit()
                 throw SpeechServiceError.emptyTranscription
@@ -358,6 +386,9 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 text: trimmedTranscript,
                 wasRewritten: wasRewritten
             )
+        } catch is CancellationError {
+            await releaseContextOnExit()
+            throw CancellationError()
         } catch {
             await DictationLatencyProbe.shared.record(.transcriptionFailed, note: error.localizedDescription)
             logger.error("Post-transcription processing failed: \(error.localizedDescription)")
@@ -367,7 +398,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     }
 
     func cancelRecording() async {
-        guard activePipeline != nil else { return }
+        invalidateActiveCaptureSession()
+        guard activePipeline != nil || activeCaptureService != nil else { return }
         self.activePipeline = nil
         stopTranscriptionPrewarm()
         stopRewritePrewarm()
@@ -394,6 +426,28 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         guard ownsActiveCapture else { return }
         ownsActiveCapture = false
         await resumePassiveCapture?()
+    }
+
+    private func beginCaptureSession() throws -> UInt64 {
+        try Task.checkCancellation()
+        nextCaptureSessionID += 1
+        let sessionID = nextCaptureSessionID
+        try ensureCaptureSessionIsActive(sessionID)
+        return sessionID
+    }
+
+    private func invalidateActiveCaptureSession() {
+        invalidatedThroughCaptureSessionID = max(
+            invalidatedThroughCaptureSessionID,
+            nextCaptureSessionID
+        )
+    }
+
+    private func ensureCaptureSessionIsActive(_ sessionID: UInt64) throws {
+        try Task.checkCancellation()
+        guard sessionID > invalidatedThroughCaptureSessionID else {
+            throw CancellationError()
+        }
     }
 
     func prewarm() async {

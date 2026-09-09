@@ -258,6 +258,53 @@
             #expect(subject.shell.isPanelVisible == false)
         }
 
+        @Test func cancelDuringProcessingDoesNotPasteLateTranscript() async {
+            let subject = makeSubject()
+            let presentationModel = FakePresentationModel()
+            subject.session.activate(presentationModel: presentationModel, showInDock: false)
+            await subject.speechService.setStopBehavior(.suspended)
+            await subject.speechService.setCancelFailsPendingStop(false)
+
+            subject.session.startDictationCapture(from: .interface)
+            #expect(
+                await TestSupport.eventually {
+                    subject.workflow.dictationViewModel.state == .listening
+                }
+            )
+
+            subject.session.requestDictationCaptureStopIfNeeded()
+            #expect(
+                await TestSupport.eventually {
+                    subject.workflow.dictationViewModel.state == .processing
+                }
+            )
+            #expect(
+                await TestSupport.eventuallyAsync {
+                    await subject.speechService.counts().stop == 1
+                }
+            )
+
+            subject.session.cancelActiveCapture()
+            #expect(subject.workflow.dictationViewModel.state == .idle)
+            #expect(
+                await TestSupport.eventuallyAsync {
+                    await subject.speechService.counts().cancel == 1
+                }
+            )
+
+            await subject.speechService.finishStop(with: "late transcript")
+            #expect(
+                await TestSupport.eventually {
+                    subject.workflow.dictationViewModel.state == .idle
+                }
+            )
+            try? await Task.sleep(for: .milliseconds(80))
+
+            #expect(subject.workflow.dictationViewModel.state == .idle)
+            #expect(subject.textInjectionService.pasteTargets.isEmpty)
+            #expect(subject.clipboardService.copiedTexts.isEmpty)
+        }
+
         @Test func dismissPendingCopyHidesPanelAndResetsClipboardPendingState() async {
             let subject = makeSubject()
 

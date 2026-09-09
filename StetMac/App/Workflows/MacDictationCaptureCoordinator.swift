@@ -19,6 +19,7 @@
         enum CompletionOutcome: Equatable {
             case completed
             case clipboardPending
+            case cancelled
             case failed(DictationFailure)
         }
 
@@ -64,6 +65,11 @@
                 details:
                     "textLength=\(text.count) target=\(applicationSummary(targetApplication)) shouldCopyToClipboard=\(settings.shouldCopyToClipboard) shouldAutoPaste=\(settings.shouldAutoPaste) shouldRevealPanel=\(settings.shouldRevealPanelOnCapture)"
             )
+
+            guard !Task.isCancelled else {
+                emitOutputTrace(traceID, stage: "completion", details: "outcome=cancelled reason=task_cancelled")
+                return .cancelled
+            }
 
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 emitOutputTrace(traceID, stage: "completion", details: "outcome=completed reason=empty_text")
@@ -115,6 +121,14 @@
             }
 
             if settings.shouldAutoPaste {
+                guard !Task.isCancelled else {
+                    if shouldRestoreClipboardAfterSuccessfulPaste {
+                        pasteboardRestoreCoordinator.restoreImmediatelyIfNeeded(on: pasteboard)
+                    }
+                    emitOutputTrace(
+                        traceID, stage: "completion", details: "outcome=cancelled reason=task_cancelled_before_paste")
+                    return .cancelled
+                }
                 if !textInjectionService.isAvailable {
                     let accessState = textInjectionService.accessState
                     emitOutputTrace(
@@ -370,6 +384,8 @@
                 return "completed"
             case .clipboardPending:
                 return "clipboardPending"
+            case .cancelled:
+                return "cancelled"
             case .failed(let failure):
                 return "failed:\(failureLabel(failure))"
             }

@@ -107,6 +107,12 @@
 
             completionHandlingTask = Task { @MainActor [weak self] in
                 guard let self else { return }
+                guard !Task.isCancelled, case .result = dictationState else {
+                    Self.logger.info(
+                        "OutputTrace stage=session_result_mapping_skipped reason=cancelled_or_state_changed currentState=\(self.stateLabel(self.dictationState))"
+                    )
+                    return
+                }
                 let outcome = await workflowController.handleCompletedResult(
                     text: text,
                     showTransientPanel: showTransientPanel
@@ -150,6 +156,11 @@
                         showTransientPanel()
                     }
                     workflowController.dictationViewModel.send(.clipboardPending(text))
+                case .cancelled:
+                    hidePanel()
+                    if case .result = dictationState {
+                        workflowController.dictationViewModel.send(.resetTapped)
+                    }
                 case .failed(let failure):
                     if failure.preservesRecoveredTextInClipboard {
                         if !isPanelVisible {
@@ -307,6 +318,8 @@
                 return "completed"
             case .clipboardPending:
                 return "clipboardPending"
+            case .cancelled:
+                return "cancelled"
             case .failed(let failure):
                 return "failed:\(failureLabel(failure))"
             }

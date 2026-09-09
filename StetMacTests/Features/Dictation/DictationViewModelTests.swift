@@ -158,6 +158,32 @@ struct DictationViewModelTests {
         #expect(await speechService.counts().cancel == 1)
     }
 
+    @Test func resetDuringProcessingDiscardsLateTranscriptionResult() async throws {
+        let speechService = ControllableSpeechService()
+        await speechService.setStopBehavior(.suspended)
+        await speechService.setCancelFailsPendingStop(false)
+        let viewModel = DictationViewModel(
+            speechService: speechService,
+            manualActivationFallbackDelay: fallbackDelay
+        )
+
+        viewModel.startCapture()
+        #expect(await TestSupport.eventually { viewModel.state == .listening })
+
+        viewModel.stopCapture()
+        #expect(await TestSupport.eventually { viewModel.state == .processing })
+        #expect(await TestSupport.eventuallyAsync { await speechService.counts().stop == 1 })
+
+        viewModel.send(.resetTapped)
+        #expect(viewModel.state == .idle)
+        #expect(await TestSupport.eventuallyAsync { await speechService.counts().cancel == 1 })
+
+        await speechService.finishStop(with: "should not be delivered")
+        try await Task.sleep(for: .milliseconds(50))
+
+        #expect(viewModel.state == .idle)
+    }
+
     @Test func explicitActivationKeepsViewModelStartingUntilActivated() async throws {
         let speechService = ControllableSpeechService()
         await speechService.setActivationBehavior(.suspended)

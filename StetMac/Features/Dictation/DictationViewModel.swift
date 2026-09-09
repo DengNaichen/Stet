@@ -28,6 +28,7 @@ final class DictationViewModel: ObservableObject {
     private var pendingActivationAfterStart = false
     private var pendingCaptureStoppedHandler: (@MainActor @Sendable () -> Void)?
     private var resultTransformer: ResultTransformer?
+    private var captureSessionID: UInt64 = 0
 
     @Published private(set) var state: DictationState = .idle
     @Published private(set) var recordingLevel = 0.0
@@ -97,6 +98,7 @@ final class DictationViewModel: ObservableObject {
         #if os(macOS)
             audioFeatureTask?.cancel()
         #endif
+        let sessionID = beginCaptureSession()
         isStartingRecording = true
         isActivatingRecordingWindow = false
         hasPreparedCapture = false
@@ -122,7 +124,7 @@ final class DictationViewModel: ObservableObject {
             do {
                 try await captureStartupTask.value
                 self.captureStartupTask = nil
-                if Task.isCancelled { return }
+                guard isCurrentCaptureSession(sessionID) else { return }
 
                 isStartingRecording = false
                 hasPreparedCapture = true
@@ -313,6 +315,7 @@ final class DictationViewModel: ObservableObject {
         state = .processing
         let captureStoppedHandler = pendingCaptureStoppedHandler
         pendingCaptureStoppedHandler = nil
+        let sessionID = captureSessionID
         Task {
             await DictationRuntimeProbe.shared.markAction("processingFromStopCapture")
         }
@@ -327,12 +330,13 @@ final class DictationViewModel: ObservableObject {
                         }
                     }
                 )
-                if Task.isCancelled { return }
+                guard isCurrentCaptureSession(sessionID) else { return }
                 // [History point A] Record raw ASR output, not the post-rewrite string.
                 historyService.recordRaw(transcription.rawText)
                 let finalText: String
                 if let resultTransformer {
                     finalText = try await resultTransformer(transcription.text)
+                    guard isCurrentCaptureSession(sessionID) else { return }
                     // [History point B] Record LLM-refined output.
                     historyService.recordLLM(finalText)
                 } else if transcription.wasRewritten {
@@ -341,6 +345,7 @@ final class DictationViewModel: ObservableObject {
                 } else {
                     finalText = transcription.text
                 }
+                guard isCurrentCaptureSession(sessionID) else { return }
                 // Persist immediately — every transcription is recorded whether or
                 // not the text is ultimately delivered to a target app.
                 historyService.commitPending()
@@ -413,12 +418,13 @@ final class DictationViewModel: ObservableObject {
         pendingActivationAfterStart = false
         pendingCaptureStoppedHandler = nil
         resultTransformer = nil
+        let sessionID = beginCaptureSession()
         state = .processing
 
         activeTask = Task {
             do {
                 let text = try await operation()
-                if Task.isCancelled { return }
+                guard isCurrentCaptureSession(sessionID) else { return }
                 send(.transcriptionSucceeded(text))
             } catch is CancellationError {
                 finishLevelMonitoring()
@@ -443,6 +449,7 @@ final class DictationViewModel: ObservableObject {
         Task {
             await DictationRuntimeProbe.shared.markAction("reset")
         }
+        invalidateCaptureSession()
         activeTask?.cancel()
         captureStartupTask?.cancel()
         captureStartupTask = nil
@@ -463,6 +470,19 @@ final class DictationViewModel: ObservableObject {
             await speechService.cancelRecording()
         }
         state = .idle
+    }
+
+    private func beginCaptureSession() -> UInt64 {
+        captureSessionID += 1
+        return captureSessionID
+    }
+
+    private func invalidateCaptureSession() {
+        captureSessionID += 1
+    }
+
+    private func isCurrentCaptureSession(_ sessionID: UInt64) -> Bool {
+        !Task.isCancelled && sessionID == captureSessionID
     }
 
     private func scheduleActivationFallbackIfNeeded() {
