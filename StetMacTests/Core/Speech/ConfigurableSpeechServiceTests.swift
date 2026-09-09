@@ -117,7 +117,7 @@ struct ConfigurableSpeechServiceTests {
         )
         try await service.startRecordingAndActivate()
         let oldStop = Task { try await service.stopRecording() }
-        try #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+        try #require(await TestSupport.eventuallyAsync(timeout: .seconds(3)) { await gate.hasWaiter })
         await service.cancelRecording()
         // ASR is still blocked; starting the next microphone must not wait for it.
         try await service.startRecordingAndActivate()
@@ -187,7 +187,7 @@ struct ConfigurableSpeechServiceTests {
         )
         try await service.startRecordingAndActivate()
         let stop = Task { try await service.stopRecording() }
-        try #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+        try #require(await TestSupport.eventuallyAsync(timeout: .seconds(3)) { await gate.hasWaiter })
         await service.cancelRecording()
         await gate.open()
         await #expect(throws: CancellationError.self) { try await stop.value }
@@ -211,7 +211,7 @@ struct ConfigurableSpeechServiceTests {
         )
         try await service.startRecordingAndActivate()
         let stop = Task { try await service.stopRecording(onCaptureStopped: { await gate.wait() }) }
-        try #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+        try #require(await TestSupport.eventuallyAsync(timeout: .seconds(3)) { await gate.hasWaiter })
         await service.cancelRecording()
         await gate.open()
         await #expect(throws: CancellationError.self) { try await stop.value }

@@ -1,4 +1,5 @@
 #if os(macOS)
+    import AppKit
     import Foundation
     import Testing
 
@@ -582,6 +583,39 @@
             #expect(outcome == .completed)
             #expect(clipboard.copiedTexts.isEmpty)
             #expect(textInjection.pasteTargets.isEmpty)
+        }
+
+        @Test(arguments: [false, true])
+        func cancelledPasteRestoresOnlyItsOwnClipboardOverride(userCopied: Bool) async throws {
+            let pasteboard = NSPasteboard(name: .init("StetTests.\(UUID().uuidString)"))
+            defer { pasteboard.releaseGlobally() }
+            pasteboard.setString("original", forType: .string)
+            let injection = TestTextInjectionService()
+            let gate = TestSuspensionGate()
+            injection.pasteGate = gate
+            let coordinator = MacDictationCaptureCoordinator(
+                clipboardService: SystemClipboardService(pasteboard: pasteboard),
+                textInjectionService: injection,
+                pasteboard: pasteboard
+            )
+            let task = Task { @MainActor in
+                await coordinator.handleCompletedCapture(
+                    text: "cancelled", targetApplication: nil,
+                    settings: .init(
+                        shouldCopyToClipboard: false, shouldAutoPaste: true, shouldRevealPanelOnCapture: false
+                    ), showPanel: {}
+                )
+            }
+            try #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+            #expect(pasteboard.string(forType: .string) == "cancelled")
+            if userCopied {
+                pasteboard.clearContents()
+                pasteboard.setString("user copy", forType: .string)
+            }
+            task.cancel()
+            await gate.open()
+            #expect(await task.value == .cancelled)
+            #expect(pasteboard.string(forType: .string) == (userCopied ? "user copy" : "original"))
         }
 
         @Test func cancellationDuringInjectionDoesNotFallbackToClipboard() async throws {

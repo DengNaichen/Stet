@@ -185,11 +185,17 @@
                     return .failed(.autoPastePermissionMissing)
                 }
 
+                let temporaryChangeCount = pasteboard.changeCount
                 let pasteOutcome = await textInjectionService.pasteClipboard(into: targetApplication)
                 guard outputID == completionID else { return .cancelled }
                 guard !Task.isCancelled else {
                     if shouldRestoreClipboardAfterSuccessfulPaste {
-                        pasteboardRestoreCoordinator.restoreImmediatelyIfNeeded(on: pasteboard)
+                        if pasteboard.changeCount == temporaryChangeCount {
+                            pasteboardRestoreCoordinator.restoreImmediatelyIfNeeded(on: pasteboard)
+                        } else {
+                            // Preserve anything the user copied during the cancelled paste.
+                            pasteboardRestoreCoordinator.discardPendingRestore()
+                        }
                     }
                     return .cancelled
                 }

@@ -325,7 +325,6 @@
         }
 
         private func selectedTextBySimulatedCopy() -> String? {
-            guard !Task.isCancelled else { return .eventPostFailed }
             guard accessState.canSimulateInput else { return nil }
 
             let snapshot = PasteboardSnapshot.capture(from: pasteboard)
