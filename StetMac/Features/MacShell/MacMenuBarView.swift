@@ -10,26 +10,22 @@
 
         var body: some View {
             Group {
-                if appModel.isMeetingBusy {
-                    if appModel.isMeetingRecording {
-                        Button {
-                            appModel.toggleMeetingRecording()
-                        } label: {
-                            Label(
-                                appModel.meetingStatusText,
-                                systemImage: appModel.meetingMenuSymbolName
-                            )
-                        }
-                    } else {
-                        Label(
-                            appModel.meetingStatusText,
-                            systemImage: appModel.meetingMenuSymbolName
-                        )
-                        .disabled(true)
-                    }
-
-                    Divider()
+                Button {
+                    appModel.toggleMeetingRecording()
+                } label: {
+                    Label(
+                        appModel.meetingToggleTitle,
+                        systemImage: appModel.meetingMenuSymbolName
+                    )
                 }
+                .disabled(!appModel.canToggleMeetingRecording)
+
+                if appModel.isMeetingBusy {
+                    Text(appModel.meetingStatusText)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
 
                 if MacFeatureAvailability.isPassiveListeningVisible {
                     Label(

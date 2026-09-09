@@ -211,3 +211,15 @@
 "LLM Refined" = "AI 정제";
 "Final Sent" = "전달됨";
 "Target App" = "대상 앱";
+
+/* Meetings */
+"Record Meeting" = "회의 녹음";
+"Start Meeting Recording" = "회의 녹음 시작";
+"Stop Meeting Recording" = "회의 녹음 중지";
+"Recording" = "녹음";
+"Recording meeting" = "회의 녹음 중";
+"Press the shortcut again to stop." = "바로 가기를 다시 누르면 중지됩니다.";
+"Meeting recording stopped" = "회의 녹음이 중지됨";
+"The microphone is off. The transcript will be saved when it is ready." = "마이크가 꺼졌습니다. 기록이 준비되면 저장됩니다.";
+"Meeting saved" = "회의가 저장됨";
+"Meeting failed" = "회의에 실패함";

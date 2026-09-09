@@ -122,6 +122,7 @@
             frameTask?.cancel()
             frameTask = nil
             logger.info("Meeting stop requested")
+            await dependencies.endExclusiveCapture()
             await setPhase(.processing)
             let samples = active.samples
             let directory = active.directory
@@ -159,7 +160,6 @@
                     speakerCount: Set(turns.map(\.speakerLabel)).count
                 )
                 try writeRecord(record, to: directory.sessionURL)
-                await dependencies.endExclusiveCapture()
                 await setPhase(.idle)
             } catch {
                 logger.error("Meeting processing failed: \(error.localizedDescription, privacy: .public)")
@@ -179,7 +179,6 @@
                     speakerCount: 0
                 )
                 try? writeRecord(record, to: directory.sessionURL)
-                await dependencies.endExclusiveCapture()
                 await setPhase(.failed(error.localizedDescription))
             }
 

@@ -3,6 +3,7 @@
     import SwiftUI
 
     struct MacMeetingSettingsView: View {
+        @EnvironmentObject private var appModel: MacAppModel
         @State private var recentFolders: [URL] = []
         @State private var revealMessage: String?
 
@@ -10,6 +11,23 @@
 
         var body: some View {
             Form {
+                Section {
+                    Button {
+                        appModel.toggleMeetingRecording()
+                    } label: {
+                        Label(
+                            LocalizedStringKey(appModel.meetingToggleTitle),
+                            systemImage: appModel.meetingMenuSymbolName
+                        )
+                    }
+                    .disabled(!appModel.canToggleMeetingRecording)
+
+                    Text(appModel.meetingStatusText)
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text("Recording")
+                }
+
                 Section {
                     MacHotKeySettingsSectionView(hotkey: .meeting)
                 } header: {
@@ -46,6 +64,9 @@
             .padding(.leading, MacUI.SettingsViewMetrics.formHorizontalPadding)
             .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
+                reloadRecentFolders()
+            }
+            .onChange(of: appModel.meetingRecordingPhase) { _, _ in
                 reloadRecentFolders()
             }
         }

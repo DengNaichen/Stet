@@ -241,6 +241,15 @@
 
 /* Meetings settings */
 "Record Meeting" = "录制会议";
+"Start Meeting Recording" = "开始录制会议";
+"Stop Meeting Recording" = "停止录制会议";
+"Recording" = "录音";
+"Recording meeting" = "正在录制会议";
+"Press the shortcut again to stop." = "再按一次快捷键即可停止。";
+"Meeting recording stopped" = "会议录音已停止";
+"The microphone is off. The transcript will be saved when it is ready." = "麦克风已关闭。转录完成后会保存文稿。";
+"Meeting saved" = "会议已保存";
+"Meeting failed" = "会议失败";
 "Shortcut" = "快捷键";
 "Control-Option-Command-M is the default. The shortcut toggles recording on key down; it is not hold-to-talk." = "默认快捷键是 Control-Option-Command-M。按下即开始或停止录音，不是按住说话。";
 "Meetings Folder" = "会议文件夹";

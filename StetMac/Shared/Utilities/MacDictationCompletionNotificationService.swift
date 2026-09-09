@@ -35,6 +35,28 @@
         }
 
         func notifyDictationCompleted() async {
+            let content = UNMutableNotificationContent()
+            content.title = String(localized: "Dictation complete")
+            await post(content, identifier: Self.requestIdentifier)
+        }
+
+        func notifyMeetingPhase(
+            from previous: MacMeetingRecordingPhase,
+            to phase: MacMeetingRecordingPhase
+        ) async {
+            guard
+                let payload = MacMeetingRecordingNotification.payload(from: previous, to: phase)
+            else { return }
+
+            let content = UNMutableNotificationContent()
+            content.title = payload.title
+            if let body = payload.body {
+                content.body = body
+            }
+            await post(content, identifier: MacMeetingRecordingNotification.requestIdentifier)
+        }
+
+        private func post(_ content: UNMutableNotificationContent, identifier: String) async {
             await requestAuthorizationIfNeeded()
             let settings = await center.notificationSettings()
             switch settings.authorizationStatus {
@@ -44,10 +66,8 @@
                 return
             }
 
-            let content = UNMutableNotificationContent()
-            content.title = String(localized: "Dictation complete")
             let request = UNNotificationRequest(
-                identifier: Self.requestIdentifier,
+                identifier: identifier,
                 content: content,
                 trigger: nil
             )
@@ -60,6 +80,41 @@
             withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
         ) {
             completionHandler([.banner, .list])
+        }
+    }
+
+    enum MacMeetingRecordingNotification {
+        static let requestIdentifier = "stet.meeting.recording"
+
+        struct Payload: Equatable, Sendable {
+            var title: String
+            var body: String?
+        }
+
+        static func payload(
+            from previous: MacMeetingRecordingPhase,
+            to phase: MacMeetingRecordingPhase
+        ) -> Payload? {
+            switch (previous, phase) {
+            case (.recording, .processing):
+                return Payload(
+                    title: String(localized: "Meeting recording stopped"),
+                    body: String(
+                        localized: "The microphone is off. The transcript will be saved when it is ready."
+                    )
+                )
+            case (_, .recording):
+                return Payload(
+                    title: String(localized: "Recording meeting"),
+                    body: String(localized: "Press the shortcut again to stop.")
+                )
+            case (.processing, .idle):
+                return Payload(title: String(localized: "Meeting saved"), body: nil)
+            case (_, .failed(let message)):
+                return Payload(title: String(localized: "Meeting failed"), body: message)
+            default:
+                return nil
+            }
         }
     }
 #endif

@@ -211,3 +211,15 @@
 "LLM Refined" = "AI最適化";
 "Final Sent" = "配信済み";
 "Target App" = "ターゲットアプリ";
+
+/* Meetings */
+"Record Meeting" = "会議を録音";
+"Start Meeting Recording" = "会議の録音を開始";
+"Stop Meeting Recording" = "会議の録音を停止";
+"Recording" = "録音";
+"Recording meeting" = "会議を録音中";
+"Press the shortcut again to stop." = "もう一度ショートカットを押すと停止します。";
+"Meeting recording stopped" = "会議の録音を停止しました";
+"The microphone is off. The transcript will be saved when it is ready." = "マイクはオフです。書き起こしの準備ができ次第保存されます。";
+"Meeting saved" = "会議を保存しました";
+"Meeting failed" = "会議に失敗しました";
