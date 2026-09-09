@@ -17,7 +17,6 @@
                 feedbackSection
             }
             .formStyle(.grouped)
-            .scrollIndicators(.never)
             .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
                 viewModel.configure(appModel: settingsShellViewModel, appUpdateManager: appUpdateManager)

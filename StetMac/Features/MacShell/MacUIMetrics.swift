@@ -13,13 +13,11 @@
             static let hubLight = NSColor(srgbRed: 245 / 255, green: 246 / 255, blue: 248 / 255, alpha: 1)
             static let paperLight = NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 1)
             static let inkLight = NSColor(srgbRed: 28 / 255, green: 28 / 255, blue: 30 / 255, alpha: 1)
-            static let muteLight = NSColor(srgbRed: 142 / 255, green: 142 / 255, blue: 147 / 255, alpha: 1)
             static let selectionLight = NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.055)
 
             static let hubDark = NSColor(srgbRed: 44 / 255, green: 44 / 255, blue: 46 / 255, alpha: 1)
             static let paperDark = NSColor(srgbRed: 28 / 255, green: 28 / 255, blue: 30 / 255, alpha: 1)
             static let inkDark = NSColor(srgbRed: 245 / 255, green: 245 / 255, blue: 247 / 255, alpha: 1)
-            static let muteDark = NSColor(srgbRed: 142 / 255, green: 142 / 255, blue: 147 / 255, alpha: 1)
             static let selectionDark = NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.10)
 
             static func adaptive(light: NSColor, dark: NSColor) -> NSColor {
@@ -42,9 +40,6 @@
             static var paper: Color { Color(nsColor: paperFill) }
             static var ink: Color {
                 Color(nsColor: Palette.adaptive(light: Palette.inkLight, dark: Palette.inkDark))
-            }
-            static var mute: Color {
-                Color(nsColor: Palette.adaptive(light: Palette.muteLight, dark: Palette.muteDark))
             }
             static var selection: Color {
                 Color(nsColor: Palette.adaptive(light: Palette.selectionLight, dark: Palette.selectionDark))
@@ -71,6 +66,8 @@
             static let valueRowSpacing: CGFloat = 16
             static let sidebarAccountRowHorizontalPadding: CGFloat = 16
             static let sidebarAccountRowVerticalPadding: CGFloat = 12
+            static let overlayScrollerWidth: CGFloat = 12
+            static let overlayScrollerKnobWidth: CGFloat = 7
         }
 
         enum DictionaryViewMetrics {

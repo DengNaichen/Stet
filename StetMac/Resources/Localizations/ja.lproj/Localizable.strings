@@ -29,15 +29,6 @@
 "Dictionary" = "辞書";
 "Debug" = "デバッグ";
 
-/* Settings tab subtitles */
-"Behavior, updates, and shell preferences." = "動作、アップデート、およびシェルの環境設定。";
-"Microphone selection and recording test." = "マイクの選択と録音テスト。";
-"Dictation capsule theme and color palette." = "音声入力カプセルのテーマとカラーパレット。";
-"Global keyboard shortcuts for starting dictation." = "音声入力を開始するためのグローバルキーボードショートカット。";
-"AI service, transcript improvement, and account access." = "AIサービス、文字起こしの改善、およびアカウントアクセス。";
-"Personal dictionary entries used during transcription and transcript cleanup." = "文字起こしやテキストの整形時に使用される個人用辞書のエントリ。";
-"Large shader preview and color input controls." = "大きなシェーダープレビューとカラー入力コントロール。";
-
 /* Settings search */
 "Search settings" = "設定を検索";
 "No Results" = "結果なし";

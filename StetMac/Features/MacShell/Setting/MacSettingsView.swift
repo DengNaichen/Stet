@@ -99,35 +99,6 @@
             #endif
             }
         }
-
-        var subtitle: String {
-            switch self {
-            case .general:
-                return "How Stet lives on this Mac."
-            case .appearance:
-                return "The capsule is the product. Everything else stays quiet."
-            case .dictation:
-                return "One shortcut to speak. Then the words land."
-            case .microphone:
-                return "Choose the input. Test it before you need it."
-            case .transcription:
-                return "On-device engines. Download what you actually use."
-            case .voice:
-                return "Passive listening and speaker profiles."
-            case .meetings:
-                return "Record the room. Open the folder when you need it."
-            case .openAI:
-                return "Optional pass after transcription. Off is a valid choice."
-            case .dictionary:
-                return "Names and terms the engine should already know."
-            case .history:
-                return "Past dictations. Not a preference — a library."
-            #if DEBUG
-                case .shaderDebug:
-                    return "Large shader preview and color input controls."
-            #endif
-            }
-        }
     }
 
     struct MacSettingsView: View {
@@ -145,7 +116,8 @@
             .background {
                 MacSettingsWindowChrome(
                     trafficLightLeading: MacUI.SettingsViewMetrics.trafficLightLeading,
-                    trafficLightTop: MacUI.SettingsViewMetrics.trafficLightTop
+                    trafficLightTop: MacUI.SettingsViewMetrics.trafficLightTop,
+                    scrollerRevision: selectedTab.id
                 )
                 .frame(width: 0, height: 0)
                 .allowsHitTesting(false)
@@ -216,7 +188,6 @@
                 .padding(.bottom, 20)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .scrollIndicators(.never)
         }
 
         private func sidebarRow(for tab: MacSettingsTab) -> some View {
@@ -254,16 +225,10 @@
                         minHeight: MacUI.SettingsViewMetrics.headerHeight,
                         alignment: .leading
                     )
-
-                Text(LocalizedStringKey(activeTab.subtitle))
-                    .font(.system(size: 13))
-                    .foregroundStyle(MacUI.Surfaces.mute)
-                    .padding(.top, 8)
-                    .padding(.bottom, 28)
+                    .padding(.bottom, 20)
 
                 selectedContent(for: activeTab)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .scrollIndicators(.never)
             }
             .padding(.horizontal, MacUI.SettingsViewMetrics.detailHorizontalPadding)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

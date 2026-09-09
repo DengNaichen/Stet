@@ -12,7 +12,6 @@
                 )
             }
             .formStyle(.grouped)
-            .scrollIndicators(.never)
             .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
                 viewModel.onAppear()

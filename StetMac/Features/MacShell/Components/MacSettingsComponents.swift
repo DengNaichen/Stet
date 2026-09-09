@@ -85,6 +85,7 @@
     struct MacSettingsWindowChrome: NSViewRepresentable {
         var trafficLightLeading: CGFloat
         var trafficLightTop: CGFloat
+        var scrollerRevision: String
 
         func makeNSView(context: Context) -> NSView {
             MacSettingsWindowChromeView(
@@ -94,6 +95,7 @@
         }
 
         func updateNSView(_ nsView: NSView, context: Context) {
+            _ = scrollerRevision
             guard let view = nsView as? MacSettingsWindowChromeView else { return }
             view.trafficLightLeading = trafficLightLeading
             view.trafficLightTop = trafficLightTop
@@ -150,18 +152,89 @@
             for type: NSWindow.ButtonType in [.closeButton, .miniaturizeButton, .zoomButton] {
                 window.standardWindowButton(type)?.isHidden = false
             }
+
+            DispatchQueue.main.async { [weak self] in
+                self?.reinstallScrollers()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                self?.reinstallScrollers()
+            }
+        }
+
+        private func reinstallScrollers() {
+            guard let contentView = window?.contentView else { return }
+            configureScrollers(in: contentView)
         }
 
         private func configureScrollers(in view: NSView?) {
             guard let view else { return }
             if let scrollView = view as? NSScrollView {
-                scrollView.scrollerStyle = .overlay
-                scrollView.autohidesScrollers = true
-                scrollView.hasHorizontalScroller = false
+                MacThinOverlayScroller.install(on: scrollView)
             }
             for subview in view.subviews {
                 configureScrollers(in: subview)
             }
+        }
+    }
+
+    /// Overlay thumb only: no track/gutter, so content stays centered and the
+    /// scroller never reads as a column divider.
+    private final class MacThinOverlayScroller: NSScroller {
+        override class var isCompatibleWithOverlayScrollers: Bool { true }
+
+        override class func scrollerWidth(
+            for controlSize: NSControl.ControlSize,
+            scrollerStyle: NSScroller.Style
+        ) -> CGFloat {
+            MacUI.SettingsViewMetrics.overlayScrollerWidth
+        }
+
+        static func install(on scrollView: NSScrollView) {
+            scrollView.scrollerStyle = .overlay
+            scrollView.hasVerticalScroller = true
+            scrollView.hasHorizontalScroller = false
+            scrollView.autohidesScrollers = false
+            scrollView.horizontalScrollElasticity = .none
+
+            if !(scrollView.verticalScroller is MacThinOverlayScroller) {
+                let scroller = MacThinOverlayScroller()
+                scroller.controlSize = .mini
+                scroller.scrollerStyle = .overlay
+                scrollView.verticalScroller = scroller
+            }
+
+            scrollView.verticalScroller?.scrollerStyle = .overlay
+        }
+
+        override func draw(_ dirtyRect: NSRect) {
+            drawKnob()
+        }
+
+        override func drawKnobSlot(in slotRect: NSRect, highlight flag: Bool) {}
+
+        override func drawArrow(_ arrow: NSScroller.Arrow, highlight flag: Bool) {}
+
+        override func drawKnob() {
+            guard knobProportion < 0.999 else { return }
+
+            let knob = rect(for: .knob)
+            guard knob.height > 1, knob.width > 0 else { return }
+
+            let width = MacUI.SettingsViewMetrics.overlayScrollerKnobWidth
+            let rect = NSRect(
+                x: knob.midX - (width / 2),
+                y: knob.minY,
+                width: width,
+                height: knob.height
+            )
+            let path = NSBezierPath(roundedRect: rect, xRadius: width / 2, yRadius: width / 2)
+            knobFillColor.setFill()
+            path.fill()
+        }
+
+        private var knobFillColor: NSColor {
+            let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return NSColor(white: isDark ? 1 : 0, alpha: isDark ? 0.32 : 0.22)
         }
     }
 

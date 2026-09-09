@@ -42,7 +42,6 @@
                 .padding(.vertical, 20)
                 .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             }
-            .scrollIndicators(.never)
             .task {
                 viewModel.load()
             }
