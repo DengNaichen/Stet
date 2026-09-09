@@ -6,6 +6,7 @@
         @ObservedObject var viewModel: MacOpenAISettingsViewModel
         var onManageAccount: (() -> Void)? = nil
         private let controlWidth: CGFloat = 240
+        @State private var apiKeySheet: APIKeySheetItem?
 
         var body: some View {
             AppForm {
@@ -94,13 +95,7 @@
                                 .frame(width: controlWidth, alignment: .trailing)
                             }
 
-                            SecureField(
-                                viewModel.credentialPlaceholder(for: .custom),
-                                text: $viewModel.customAPIKey
-                            )
-                            .labelsHidden()
-                            .textFieldStyle(.roundedBorder)
-                            .font(.system(.body, design: .monospaced))
+                            apiKeyStatusRow(for: .custom)
 
                             if !viewModel.discoveredCustomModels.isEmpty {
                                 MacSettingsValueRow(title: NSLocalizedString("Preferred Model", comment: "")) {
@@ -133,14 +128,7 @@
                                 }
                                 .disabled(viewModel.customModelProbeState == .loading)
 
-                                Button(NSLocalizedString("Save Key", comment: "")) {
-                                    viewModel.saveCustomEndpoint()
-                                }
-
-                                Button(NSLocalizedString("Remove Key", comment: ""), role: .destructive) {
-                                    viewModel.clearCredential(for: .custom)
-                                }
-                                .foregroundStyle(.red)
+                                apiKeyActions(for: .custom)
                             }
 
                             switch viewModel.customModelProbeState {
@@ -171,34 +159,10 @@
                 ForEach(viewModel.visibleCredentialProviders) { provider in
                     Section {
                         VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
-                            Text(
-                                String(
-                                    format: NSLocalizedString("Provide your API key to use %@ directly.", comment: ""),
-                                    provider.displayName)
-                            )
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-
-                            SecureField(
-                                viewModel.credentialPlaceholder(for: provider),
-                                text: Binding(
-                                    get: { viewModel.apiKey(for: provider) },
-                                    set: { viewModel.setAPIKey($0, for: provider) }
-                                )
-                            )
-                            .labelsHidden()
-                            .textFieldStyle(.roundedBorder)
-                            .font(.system(.body, design: .monospaced))
+                            apiKeyStatusRow(for: provider)
 
                             HStack(spacing: 12) {
-                                Button(NSLocalizedString("Save Key", comment: "")) {
-                                    viewModel.saveCredential(for: provider)
-                                }
-
-                                Button(NSLocalizedString("Remove Key", comment: ""), role: .destructive) {
-                                    viewModel.clearCredential(for: provider)
-                                }
-                                .foregroundStyle(.red)
+                                apiKeyActions(for: provider)
                             }
                         }
                     } header: {
@@ -206,8 +170,100 @@
                     }
                 }
             }
+            .sheet(item: $apiKeySheet) { item in
+                MacAPIKeySheet(
+                    placeholder: viewModel.credentialPlaceholder(for: item.provider),
+                    onCancel: { apiKeySheet = nil },
+                    onSave: { key in
+                        viewModel.setAPIKey(key, for: item.provider)
+                        if item.provider == .custom {
+                            viewModel.saveCustomEndpoint()
+                        } else {
+                            viewModel.saveCredential(for: item.provider)
+                        }
+                        apiKeySheet = nil
+                    }
+                )
+            }
             .onAppear {
                 viewModel.load()
+            }
+        }
+
+        private func apiKeyStatusRow(for provider: DictationProvider) -> some View {
+            MacSettingsValueRow(title: NSLocalizedString("API key", comment: "")) {
+                Text(
+                    viewModel.hasAPIKey(for: provider)
+                        ? NSLocalizedString("Set", comment: "")
+                        : NSLocalizedString("Not set", comment: "")
+                )
+                .foregroundStyle(.secondary)
+                .frame(width: controlWidth, alignment: .trailing)
+            }
+        }
+
+        @ViewBuilder
+        private func apiKeyActions(for provider: DictationProvider) -> some View {
+            Button(
+                viewModel.hasAPIKey(for: provider)
+                    ? NSLocalizedString("Change…", comment: "")
+                    : NSLocalizedString("Set…", comment: "")
+            ) {
+                apiKeySheet = APIKeySheetItem(provider: provider)
+            }
+
+            if viewModel.hasAPIKey(for: provider) {
+                Button(NSLocalizedString("Remove", comment: ""), role: .destructive) {
+                    viewModel.clearCredential(for: provider)
+                }
+                .foregroundStyle(.red)
+            }
+        }
+    }
+
+    private struct APIKeySheetItem: Identifiable {
+        let provider: DictationProvider
+        var id: String { provider.rawValue }
+    }
+
+    private struct MacAPIKeySheet: View {
+        let placeholder: String
+        let onCancel: () -> Void
+        let onSave: (String) -> Void
+
+        @State private var draft = ""
+        @FocusState private var isFieldFocused: Bool
+
+        private var canSave: Bool {
+            !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(NSLocalizedString("API key", comment: ""))
+                    .font(.headline)
+
+                SecureField(placeholder, text: $draft)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
+                    .focused($isFieldFocused)
+
+                HStack {
+                    Spacer()
+                    Button(NSLocalizedString("Cancel", comment: ""), action: onCancel)
+                        .keyboardShortcut(.cancelAction)
+                    Button(NSLocalizedString("Save", comment: "")) {
+                        onSave(draft)
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!canSave)
+                }
+            }
+            .padding(20)
+            .frame(width: 380)
+            .onAppear {
+                draft = ""
+                isFieldFocused = true
             }
         }
     }
