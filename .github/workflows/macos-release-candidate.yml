@@ -24,8 +24,6 @@ jobs:
   release-candidate:
     name: Build Signed And Notarized Release Candidate
     runs-on: macos-26
-    defaults:
-      run:
     environment: release-candidate
     env:
       APPLE_ID: ${{ secrets.APPLE_ID }}
