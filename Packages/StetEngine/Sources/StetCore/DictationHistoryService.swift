@@ -1,6 +1,14 @@
 import Foundation
 import SwiftData
 
+@MainActor
+public protocol DictationHistoryRecording: AnyObject {
+    func recordRaw(_ text: String)
+    func recordLLM(_ text: String)
+    @discardableResult
+    func commitPending() -> UUID?
+}
+
 // MARK: - DictationHistoryService
 
 /// Manages the persistent history of dictation sessions.
@@ -9,7 +17,7 @@ import SwiftData
 /// Persistence writes are dispatched to a background `ModelContext` so they never
 /// block the main thread or the audio/transcription pipeline.
 @MainActor
-public final class DictationHistoryService {
+public final class DictationHistoryService: DictationHistoryRecording {
     public static let shared = DictationHistoryService()
 
     // MARK: - Internal session accumulator

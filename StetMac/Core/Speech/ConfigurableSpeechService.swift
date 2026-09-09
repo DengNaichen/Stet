@@ -180,7 +180,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
     func stopRecording(
         onCaptureStopped: (@Sendable () async -> Void)? = nil
-    ) async throws -> String {
+    ) async throws -> SpeechTranscriptionResult {
         guard let pipeline = activePipeline,
             let captureService = activeCaptureService
         else {
@@ -283,6 +283,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
         do {
             let finalTranscript: String
+            var wasRewritten = false
             let rewriteStartedAt = ProcessInfo.processInfo.systemUptime
             do {
                 if let rewriteService = pipeline.rewriteService {
@@ -298,6 +299,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                     let rewrittenTranscript = try await rewriteService.rewrite(request)
 
                     finalTranscript = rewrittenTranscript
+                    wasRewritten = true
                     if let rewriteProvider = pipeline.rewriteProvider {
                         await DictationTranscriptTrace.shared.record(
                             provider: rewriteProvider,
@@ -351,7 +353,11 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             )
 
             await releaseContextOnExit()
-            return trimmedTranscript
+            return SpeechTranscriptionResult(
+                rawText: intermediateTranscript,
+                text: trimmedTranscript,
+                wasRewritten: wasRewritten
+            )
         } catch {
             await DictationLatencyProbe.shared.record(.transcriptionFailed, note: error.localizedDescription)
             logger.error("Post-transcription processing failed: \(error.localizedDescription)")

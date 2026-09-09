@@ -14,12 +14,12 @@ struct MockSpeechService: SpeechService {
 
     func stopRecording(
         onCaptureStopped: (@Sendable () async -> Void)? = nil
-    ) async throws -> String {
+    ) async throws -> SpeechTranscriptionResult {
         if let onCaptureStopped {
             await onCaptureStopped()
         }
         try await Task.sleep(nanoseconds: 900_000_000)
-        return "This is a mock transcription from the speech service."
+        return SpeechTranscriptionResult("This is a mock transcription from the speech service.")
     }
 
     func cancelRecording() async {
