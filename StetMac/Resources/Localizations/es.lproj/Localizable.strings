@@ -211,3 +211,15 @@
 "LLM Refined" = "Refinado por IA";
 "Final Sent" = "Entregado";
 "Target App" = "App de destino";
+
+/* Meetings */
+"Record Meeting" = "Grabar reunión";
+"Start Meeting Recording" = "Iniciar grabación de reunión";
+"Stop Meeting Recording" = "Detener grabación de reunión";
+"Recording" = "Grabación";
+"Recording meeting" = "Grabando reunión";
+"Press the shortcut again to stop." = "Vuelve a pulsar el atajo para detener.";
+"Meeting recording stopped" = "Grabación de reunión detenida";
+"The microphone is off. The transcript will be saved when it is ready." = "El micrófono está apagado. La transcripción se guardará cuando esté lista.";
+"Meeting saved" = "Reunión guardada";
+"Meeting failed" = "Error en la reunión";

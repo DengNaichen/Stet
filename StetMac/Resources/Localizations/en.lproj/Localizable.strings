@@ -239,6 +239,15 @@
 
 /* Meetings settings */
 "Record Meeting" = "Record Meeting";
+"Start Meeting Recording" = "Start Meeting Recording";
+"Stop Meeting Recording" = "Stop Meeting Recording";
+"Recording" = "Recording";
+"Recording meeting" = "Recording meeting";
+"Press the shortcut again to stop." = "Press the shortcut again to stop.";
+"Meeting recording stopped" = "Meeting recording stopped";
+"The microphone is off. The transcript will be saved when it is ready." = "The microphone is off. The transcript will be saved when it is ready.";
+"Meeting saved" = "Meeting saved";
+"Meeting failed" = "Meeting failed";
 "Shortcut" = "Shortcut";
 "Control-Option-Command-M is the default. The shortcut toggles recording on key down; it is not hold-to-talk." = "Control-Option-Command-M is the default. The shortcut toggles recording on key down; it is not hold-to-talk.";
 "Meetings Folder" = "Meetings Folder";

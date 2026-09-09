@@ -134,7 +134,15 @@
                 self.meetingRecordingRuntime = meetingRecordingRuntime
                 Task { [weak self] in
                     await meetingRecordingRuntime.setPhaseHandler { [weak self] phase in
-                        self?.meetingRecordingPhase = phase
+                        guard let self else { return }
+                        let previous = self.meetingRecordingPhase
+                        self.meetingRecordingPhase = phase
+                        Task {
+                            await MacDictationCompletionNotificationService.shared.notifyMeetingPhase(
+                                from: previous,
+                                to: phase
+                            )
+                        }
                     }
                 }
             }
@@ -401,6 +409,26 @@
                 return "exclamationmark.triangle"
             case .idle:
                 return "record.circle"
+            }
+        }
+
+        var meetingToggleTitle: String {
+            switch meetingRecordingPhase {
+            case .idle, .failed:
+                return "Start Meeting Recording"
+            case .recording:
+                return "Stop Meeting Recording"
+            case .processing:
+                return "Processing meeting"
+            }
+        }
+
+        var canToggleMeetingRecording: Bool {
+            switch meetingRecordingPhase {
+            case .processing:
+                return false
+            case .idle, .recording, .failed:
+                return true
             }
         }
 

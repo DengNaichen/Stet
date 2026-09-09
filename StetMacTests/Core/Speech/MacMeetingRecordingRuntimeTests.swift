@@ -190,6 +190,61 @@
             #expect(folders.count == 1)
             continuation.finish()
         }
+
+        @Test func stopReleasesExclusiveCaptureBeforeProcessingFinishes() async throws {
+            let root = TestSupport.temporaryDirectoryURL()
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            let (stream, continuation) = AsyncStream<AudioCaptureFrame>.makeStream()
+            let exclusive = CallCounter()
+            let hold = AsyncHold()
+            let runtime = MacMeetingRecordingRuntime(
+                dependencies: MacMeetingRecordingRuntime.Dependencies(
+                    store: MeetingRecordingStore(rootDirectory: root),
+                    ensureCaptureRunning: {},
+                    beginExclusiveCapture: { exclusive.increment() },
+                    endExclusiveCapture: { exclusive.increment() },
+                    makeFrameStream: { stream },
+                    processor: MeetingSessionProcessor(
+                        sampleRate: 16_000,
+                        diarize: { _ in
+                            await hold.wait()
+                            return []
+                        },
+                        transcribe: { _ in "held" },
+                        identify: { _ in PassiveSpeakerMatch(identity: .other, similarity: nil) }
+                    ),
+                    now: { Date(timeIntervalSince1970: 1_704_067_200) }
+                )
+            )
+
+            await runtime.start()
+            continuation.yield(
+                AudioCaptureFrame(epoch: 1, startSample: 0, samples: [0.2, -0.2])
+            )
+            #expect(
+                await TestSupport.eventuallyAsync {
+                    await runtime.recordedSampleCount() == 2
+                }
+            )
+
+            let stopTask = Task { await runtime.toggle() }
+            #expect(
+                await TestSupport.eventuallyAsync {
+                    await runtime.currentPhase() == .processing
+                }
+            )
+            #expect(exclusive.value == 2)
+
+            await hold.waitUntilWaiting()
+            await hold.resume()
+            await stopTask.value
+            #expect(
+                await TestSupport.eventuallyAsync {
+                    await runtime.currentPhase() == .idle
+                }
+            )
+            continuation.finish()
+        }
     }
 
     private actor AsyncHold {
