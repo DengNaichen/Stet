@@ -66,6 +66,7 @@ struct StetApp: App {
                     .environmentObject(settingsShellViewModel)
                     .environmentObject(appUpdateManager)
             }
+            .windowStyle(.hiddenTitleBar)
             .defaultLaunchBehavior(.suppressed)
             .restorationBehavior(.disabled)
             .defaultSize(

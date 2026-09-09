@@ -77,8 +77,7 @@
                     Text("Current Entries")
                 }
             }
-            .formStyle(.grouped)
-            .padding(.leading, MacUI.SettingsViewMetrics.formHorizontalPadding)
+            .macSettingsFormStyle()
             .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .confirmationDialog(
                 "Are you sure you want to clear your personal dictionary?",

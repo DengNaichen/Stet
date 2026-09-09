@@ -41,6 +41,26 @@
             #expect(defaults.string(forKey: MacPreferences.rewriteProvider) == DictationProvider.openAI.rawValue)
         }
 
+        @Test func hasAPIKeyReflectsTrimmedStoredCredential() throws {
+            let viewModel = MacOpenAISettingsViewModel(
+                settingsStore: DictationSettingsStore(
+                    defaults: TestSupport.makeUserDefaults(),
+                    secretStore: TestSecretStore()
+                )
+            )
+
+            viewModel.load()
+            #expect(!viewModel.hasAPIKey(for: .openAI))
+            #expect(!viewModel.hasAPIKey(for: .custom))
+
+            viewModel.setAPIKey("  sk-live  ", for: .openAI)
+            #expect(viewModel.hasAPIKey(for: .openAI))
+
+            viewModel.clearCredential(for: .openAI)
+            #expect(!viewModel.hasAPIKey(for: .openAI))
+            #expect(viewModel.openAIAPIKey.isEmpty)
+        }
+
         @Test func saveCredentialTrimsAndPersistsKeyPerProvider() throws {
             let defaults = TestSupport.makeUserDefaults()
             let secretStore = TestSecretStore()

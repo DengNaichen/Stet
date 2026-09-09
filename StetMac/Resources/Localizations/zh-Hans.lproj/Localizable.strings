@@ -30,16 +30,6 @@
 "Dictionary" = "词典";
 "Debug" = "调试";
 
-/* Settings tab subtitles */
-"Behavior, updates, and shell preferences." = "行为、更新和系统偏好设置。";
-"Microphone selection and recording test." = "麦克风选择与录音测试。";
-"Dictation capsule theme and color palette." = "听写胶囊主题与配色方案。";
-"Global keyboard shortcuts for starting dictation." = "用于启动听写的全局键盘快捷键。";
-"Record in-room conversations and open saved meeting folders." = "录制面对面谈话，并打开已保存的会议文件夹。";
-"AI service, transcript improvement, and account access." = "AI 服务、转录优化与账户访问。";
-"Personal dictionary entries used during transcription and transcript cleanup." = "转录和文本整理时使用的个人词典词条。";
-"Large shader preview and color input controls." = "大型着色器预览和颜色输入控制。";
-
 /* Settings search */
 "Search settings" = "搜索设置";
 "No Results" = "无结果";

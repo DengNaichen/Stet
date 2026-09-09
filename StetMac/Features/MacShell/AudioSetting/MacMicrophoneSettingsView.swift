@@ -11,8 +11,7 @@
                     microphoneTestViewModel: viewModel.microphoneTestViewModel
                 )
             }
-            .formStyle(.grouped)
-            .padding(.leading, MacUI.SettingsViewMetrics.formHorizontalPadding)
+            .macSettingsFormStyle()
             .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
                 viewModel.onAppear()

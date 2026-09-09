@@ -30,16 +30,6 @@
 "Dictionary" = "Dictionary";
 "Debug" = "Debug";
 
-/* Settings tab subtitles */
-"Behavior, updates, and shell preferences." = "Behavior, updates, and shell preferences.";
-"Microphone selection and recording test." = "Microphone selection and recording test.";
-"Dictation capsule theme and color palette." = "Dictation capsule theme and color palette.";
-"Global keyboard shortcuts for starting dictation." = "Global keyboard shortcuts for starting dictation.";
-"Record in-room conversations and open saved meeting folders." = "Record in-room conversations and open saved meeting folders.";
-"AI service, transcript improvement, and account access." = "AI service, transcript improvement, and account access.";
-"Personal dictionary entries used during transcription and transcript cleanup." = "Personal dictionary entries used during transcription and transcript cleanup.";
-"Large shader preview and color input controls." = "Large shader preview and color input controls.";
-
 /* Settings search */
 "Search settings" = "Search settings";
 "No Results" = "No Results";

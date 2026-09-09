@@ -29,15 +29,6 @@
 "Dictionary" = "사전";
 "Debug" = "디버그";
 
-/* Settings tab subtitles */
-"Behavior, updates, and shell preferences." = "동작, 업데이트 및 시스템 환경설정.";
-"Microphone selection and recording test." = "마이크 선택 및 녹음 테스트.";
-"Dictation capsule theme and color palette." = "받아쓰기 캡슐 테마 및 색상 팔레트.";
-"Global keyboard shortcuts for starting dictation." = "받아쓰기 시작을 위한 전역 키보드 단축키.";
-"AI service, transcript improvement, and account access." = "AI 서비스, 전사 텍스트 개선 및 계정 접근.";
-"Personal dictionary entries used during transcription and transcript cleanup." = "전사 및 텍스트 정리 중 사용되는 개인 사전 항목.";
-"Large shader preview and color input controls." = "대형 셰이더 미리보기 및 색상 입력 제어.";
-
 /* Settings search */
 "Search settings" = "설정 검색";
 "No Results" = "결과 없음";

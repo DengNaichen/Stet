@@ -292,6 +292,10 @@
             RewriteModel.availableModels(for: rewriteProvider)
         }
 
+        func hasAPIKey(for provider: DictationProvider) -> Bool {
+            !apiKey(for: provider).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+
         func credentialFieldTitle(for provider: DictationProvider) -> String {
             "\(provider.displayName) access key"
         }

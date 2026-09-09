@@ -39,10 +39,10 @@
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 4)
                 }
-                .padding(.horizontal, MacUI.SettingsViewMetrics.formHorizontalPadding)
                 .padding(.vertical, 20)
                 .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             }
+            .macSettingsTracksTitleScroll()
             .task {
                 viewModel.load()
             }

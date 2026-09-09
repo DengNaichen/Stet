@@ -29,15 +29,6 @@
 "Dictionary" = "詞典";
 "Debug" = "除錯";
 
-/* Settings tab subtitles */
-"Behavior, updates, and shell preferences." = "行為、更新和系統偏好設定。";
-"Microphone selection and recording test." = "麥克風選擇與錄音測試。";
-"Dictation capsule theme and color palette." = "聽寫膠囊主題與配色方案。";
-"Global keyboard shortcuts for starting dictation." = "用於啟動聽寫的全域鍵盤快捷鍵。";
-"AI service, transcript improvement, and account access." = "AI 服務、轉錄最佳化與帳戶存取。";
-"Personal dictionary entries used during transcription and transcript cleanup." = "轉錄和文本整理時使用的個人詞典詞條。";
-"Large shader preview and color input controls." = "大型著色器預覽和顏色輸入控制。";
-
 /* Settings search */
 "Search settings" = "搜尋設定";
 "No Results" = "無結果";

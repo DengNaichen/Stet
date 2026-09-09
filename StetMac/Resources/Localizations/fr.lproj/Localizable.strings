@@ -29,15 +29,6 @@
 "Dictionary" = "Dictionnaire";
 "Debug" = "Débogage";
 
-/* Settings tab subtitles */
-"Behavior, updates, and shell preferences." = "Comportement, mises à jour et préférences du système.";
-"Microphone selection and recording test." = "Sélection du microphone et test d'enregistrement.";
-"Dictation capsule theme and color palette." = "Thème de la capsule de dictée et palette de couleurs.";
-"Global keyboard shortcuts for starting dictation." = "Raccourcis clavier globaux pour lancer la dictée.";
-"AI service, transcript improvement, and account access." = "Service d'IA, amélioration de la transcription et accès au compte.";
-"Personal dictionary entries used during transcription and transcript cleanup." = "Entrées du dictionnaire personnel utilisées lors de la transcription et de la correction.";
-"Large shader preview and color input controls." = "Grand aperçu des shaders et contrôles de couleur.";
-
 /* Settings search */
 "Search settings" = "Rechercher dans les réglages";
 "No Results" = "Aucun résultat";
