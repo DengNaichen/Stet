@@ -18,13 +18,13 @@ struct DictationViewModelTests {
         let history = HistoryRecordingSpy()
         let viewModel = DictationViewModel(speechService: speech, historyService: history)
         viewModel.startCapture()
-        #require(await TestSupport.eventually { viewModel.state == .listening })
+        try #require(await TestSupport.eventually { viewModel.state == .listening })
         viewModel.stopCapture()
-        #require(await TestSupport.eventuallyAsync { await speech.counts().stop == 1 })
+        try #require(await TestSupport.eventuallyAsync { await speech.counts().stop == 1 })
         viewModel.send(.resetTapped)
         // Deliberately restart in the same main-actor turn as reset.
         viewModel.startCapture { $0.uppercased() }
-        #require(await TestSupport.eventually { viewModel.state == .listening })
+        try #require(await TestSupport.eventually { viewModel.state == .listening })
         switch failureKind {
         case 0: await speech.failStop(with: CancellationError())
         case 1: await speech.failStop(with: SpeechServiceError.emptyTranscription)
@@ -50,12 +50,12 @@ struct DictationViewModelTests {
             await gate.wait()
             return "OLD"
         }
-        #require(await TestSupport.eventually { viewModel.state == .listening })
+        try #require(await TestSupport.eventually { viewModel.state == .listening })
         viewModel.stopCapture()
-        #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+        try #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
         viewModel.send(.resetTapped)
         viewModel.startCapture()
-        #require(await TestSupport.eventually { viewModel.state == .listening })
+        try #require(await TestSupport.eventually { viewModel.state == .listening })
         await gate.open()
         try await Task.sleep(for: .milliseconds(50))
         #expect(viewModel.state == .listening)
@@ -75,10 +75,10 @@ struct DictationViewModelTests {
             await gate.wait()
             throw CancellationError()
         }
-        #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+        try #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
         viewModel.send(.resetTapped)
         viewModel.startCapture()
-        #require(await TestSupport.eventually { viewModel.state == .listening })
+        try #require(await TestSupport.eventually { viewModel.state == .listening })
         await gate.open()
         try await Task.sleep(for: .milliseconds(50))
         #expect(viewModel.state == .listening)

@@ -24,7 +24,7 @@
                     sleep: { _ in await gate.wait() }
                 )
             }
-            #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+            try #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
             task.cancel()
             await gate.open()
             #expect(await task.value == .eventPostFailed)

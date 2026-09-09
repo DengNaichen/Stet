@@ -601,7 +601,7 @@
                     showPanel: { Issue.record("Cancelled output revealed the panel") }
                 )
             }
-            #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+            try #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
             task.cancel()
             await gate.open()
             #expect(await task.value == .cancelled)
