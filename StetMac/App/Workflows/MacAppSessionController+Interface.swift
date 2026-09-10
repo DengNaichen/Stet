@@ -17,7 +17,7 @@
         }
 
         func cancelActiveCapture() {
-            hotkeyInteraction.reset()
+            cancelPendingStateTasks()
             workflowController.cancelActiveCapture()
             hidePanel()
         }

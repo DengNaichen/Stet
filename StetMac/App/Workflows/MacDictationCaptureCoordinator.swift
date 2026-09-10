@@ -19,6 +19,7 @@
         enum CompletionOutcome: Equatable {
             case completed
             case clipboardPending
+            case cancelled
             case failed(DictationFailure)
         }
 
@@ -28,6 +29,7 @@
             let shouldRevealPanelOnCapture: Bool
         }
 
+        private var completionID: UInt64 = 0
         private let clipboardService: any ClipboardService
         private let textInjectionService: any TextInjectionService
         private let pasteboard: NSPasteboard
@@ -65,12 +67,19 @@
                     "textLength=\(text.count) target=\(applicationSummary(targetApplication)) shouldCopyToClipboard=\(settings.shouldCopyToClipboard) shouldAutoPaste=\(settings.shouldAutoPaste) shouldRevealPanel=\(settings.shouldRevealPanelOnCapture)"
             )
 
+            guard !Task.isCancelled else {
+                emitOutputTrace(traceID, stage: "completion", details: "outcome=cancelled reason=task_cancelled")
+                return .cancelled
+            }
+
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 emitOutputTrace(traceID, stage: "completion", details: "outcome=completed reason=empty_text")
                 await DictationLatencyProbe.shared.record(.systemWriteSkipped, note: "empty_text")
                 return .completed
             }
 
+            completionID += 1
+            let outputID = completionID
             let shouldRestoreClipboardAfterSuccessfulPaste =
                 settings.shouldAutoPaste && !settings.shouldCopyToClipboard
 
@@ -115,6 +124,14 @@
             }
 
             if settings.shouldAutoPaste {
+                guard !Task.isCancelled else {
+                    if shouldRestoreClipboardAfterSuccessfulPaste {
+                        pasteboardRestoreCoordinator.restoreImmediatelyIfNeeded(on: pasteboard)
+                    }
+                    emitOutputTrace(
+                        traceID, stage: "completion", details: "outcome=cancelled reason=task_cancelled_before_paste")
+                    return .cancelled
+                }
                 if !textInjectionService.isAvailable {
                     let accessState = textInjectionService.accessState
                     emitOutputTrace(
@@ -168,7 +185,20 @@
                     return .failed(.autoPastePermissionMissing)
                 }
 
+                let temporaryChangeCount = pasteboard.changeCount
                 let pasteOutcome = await textInjectionService.pasteClipboard(into: targetApplication)
+                guard outputID == completionID else { return .cancelled }
+                guard !Task.isCancelled else {
+                    if shouldRestoreClipboardAfterSuccessfulPaste {
+                        if pasteboard.changeCount == temporaryChangeCount {
+                            pasteboardRestoreCoordinator.restoreImmediatelyIfNeeded(on: pasteboard)
+                        } else {
+                            // Preserve anything the user copied during the cancelled paste.
+                            pasteboardRestoreCoordinator.discardPendingRestore()
+                        }
+                    }
+                    return .cancelled
+                }
                 let targetAppProfile = resolveTargetAppOutputProfile(targetApplication: targetApplication)
                 emitOutputTrace(
                     traceID,
@@ -203,6 +233,7 @@
                     )
                     AnalyticsService.track("output_success", parameters: ["method": "auto_paste"])
                     // [History point C] Optimistic delivery confirmed.
+                    guard !Task.isCancelled, outputID == completionID else { return .cancelled }
                     DictationHistoryService.shared.updateFinal(
                         text,
                         targetBundleID: targetApplication?.bundleIdentifier,
@@ -220,6 +251,7 @@
                     emitOutputTrace(traceID, stage: "completion", details: "outcome=completed")
                     AnalyticsService.track("output_success", parameters: ["method": "auto_paste"])
                     // [History point C] Verified delivery.
+                    guard !Task.isCancelled, outputID == completionID else { return .cancelled }
                     DictationHistoryService.shared.updateFinal(
                         text,
                         targetBundleID: targetApplication?.bundleIdentifier,
@@ -313,6 +345,7 @@
             if outcome == .completed {
                 AnalyticsService.track("output_success", parameters: ["method": "clipboard"])
                 // [History point C] Copied directly to clipboard, no paste step.
+                guard !Task.isCancelled, outputID == completionID else { return .cancelled }
                 DictationHistoryService.shared.updateFinal(
                     text,
                     targetBundleID: targetApplication?.bundleIdentifier,
@@ -370,6 +403,8 @@
                 return "completed"
             case .clipboardPending:
                 return "clipboardPending"
+            case .cancelled:
+                return "cancelled"
             case .failed(let failure):
                 return "failed:\(failureLabel(failure))"
             }
@@ -413,7 +448,31 @@
                 "com.openai.codex",
                 "com.google.antigravity",
                 "dev.zed.app",
-                "dev.zed.zed":
+                "dev.zed.zed",
+                "com.todesktop.230313mzl4w4u92",
+                "co.anysphere.cursor.nightly",
+                "com.tencent.xinwechat",
+                "com.mitchellh.ghostty",
+                "com.electron.lark",
+                "com.bytedance.macos.feishu",
+                "com.larksuite.larkapp",
+                "com.anthropic.claudefordesktop",
+                "cn.trae.app",
+                "now.typeless.desktop",
+                "app.motrix.native",
+                "com.1password.1password",
+                "com.alibaba.dingtalkmac",
+                "com.tencent.weworkmac",
+                "com.tencent.qq",
+                "com.tencent.meeting",
+                "com.bot.pc.doubao",
+                "com.alibaba.tongyi",
+                "com.moonshot.kimichat",
+                "com.yuque.app",
+                "com.tencent.mac.tdappdesktop",
+                "com.shimo.desktop.main",
+                "com.kingsoft.wpsoffice.mac",
+                "com.kingsoft.wpsoffice.mac.global":
                 return .optimisticVerificationBlind(recoveryWindow: .seconds(10))
             default:
                 return nil

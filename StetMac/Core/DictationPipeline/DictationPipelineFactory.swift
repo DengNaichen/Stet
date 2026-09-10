@@ -2,7 +2,6 @@ import Foundation
 import StetAI
 import StetCore
 import StetRewrite
-import os
 
 struct DictationPipeline: Sendable {
     let transcriptionService: any AudioFileTranscriptionService
@@ -102,56 +101,11 @@ struct DictationPipelineFactory: Sendable {
         )
     }
 
-    /// Instantiates the local engine selected in settings. Alternative local
-    /// engines retain the established Whisper fallback when they cannot be prepared.
+    /// Instantiates the local engine selected in settings.
     nonisolated static func makeLiveLocalTranscriptionService(
         configuration: any ModelStorageConfiguration = UserDefaultsModelStorage()
     ) throws -> any AudioFileTranscriptionService {
-        #if os(macOS)
-            let stored = configuration.transcriptionEngine
-
-            Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "PipelineFactory").info(
-                "DictationPipelineFactory selected local engine=\(stored.rawValue)"
-            )
-
-            switch stored {
-            case .fluidAudio:
-                do {
-                    return try FluidAudioTranscriptionService()
-                } catch {
-                    Logger(
-                        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
-                        category: "PipelineFactory"
-                    ).warning(
-                        "Parakeet engine unavailable (\(error.localizedDescription)); falling back to local whisper."
-                    )
-                    return try LocalWhisperTranscriptionService(
-                        modelManager: LocalWhisperModelManager(configuration: configuration)
-                    )
-                }
-            case .funASRNano:
-                do {
-                    return try FunASRNanoTranscriptionService()
-                } catch {
-                    Logger(
-                        subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
-                        category: "PipelineFactory"
-                    ).warning(
-                        "Fun-ASR Nano unavailable (\(error.localizedDescription)); falling back to local whisper."
-                    )
-                    return try LocalWhisperTranscriptionService(
-                        modelManager: LocalWhisperModelManager(configuration: configuration)
-                    )
-                }
-            case .localWhisper:
-                return try LocalWhisperTranscriptionService(
-                    modelManager: LocalWhisperModelManager(configuration: configuration)
-                )
-            }
-        #else
-            return try LocalWhisperTranscriptionService(
-                modelManager: LocalWhisperModelManager(configuration: configuration))
-        #endif
+        try LocalTranscriptionServiceFactory.make(configuration: configuration)
     }
 
     nonisolated static func makeTranscriptionPrompt(

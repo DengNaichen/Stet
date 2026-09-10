@@ -1,3 +1,7 @@
+# =============================================================================
+# Stet monorepo — canonical ignore rules (repository root only)
+# =============================================================================
+
 # macOS / Xcode
 .DS_Store
 Thumbs.db
@@ -8,14 +12,33 @@ build/
 .deps/
 dist/
 VoiceInk/
-# Packages/
 # Allow tracking local source packages while keeping .build/ ignored globally.
+# Packages/
 *.swiftpm/
 *.xcuserstate
 xcuserdata/
+**/*.xcodeproj/project.xcworkspace/
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcworkspace/xcuserdata/
 *.profraw
 *.tmp
 *.swp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# C / C++
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
 
 # Local environment and secrets
 .env
@@ -25,9 +48,11 @@ xcuserdata/
 .env.keys
 sparkle-private-key
 
-# Editor / local tooling
+# Editor / agent local tooling
+.claude/settings.json
 .vscode/
 .idea/
+/HANDOFF.md
 
 # Node / web
 node_modules/
@@ -47,7 +72,15 @@ supabase/...temp/
 .supabase/
 *.p8
 
-# Vendor binaries
+# Vendor binaries and downloaded runtimes
 **/*.xcframework/
 sherpa-onnx/
-StetMobile/
+.runtime/
+**/.runtime/
+/StetMobile/.runtime
+
+# iOS model payloads (never commit ONNX weights)
+/StetMobile/**/*.onnx
+
+# Harness archive (local-only legacy specs)
+/docs/archive/specs-legacy/

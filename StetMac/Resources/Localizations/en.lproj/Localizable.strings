@@ -25,18 +25,10 @@
 "Audio" = "Audio";
 "Theme" = "Theme";
 "Hotkey" = "Hotkey";
+"Meetings" = "Meetings";
 "Refine" = "Refine";
 "Dictionary" = "Dictionary";
 "Debug" = "Debug";
-
-/* Settings tab subtitles */
-"Behavior, updates, and shell preferences." = "Behavior, updates, and shell preferences.";
-"Microphone selection and recording test." = "Microphone selection and recording test.";
-"Dictation capsule theme and color palette." = "Dictation capsule theme and color palette.";
-"Global keyboard shortcuts for starting dictation." = "Global keyboard shortcuts for starting dictation.";
-"AI service, transcript improvement, and account access." = "AI service, transcript improvement, and account access.";
-"Personal dictionary entries used during transcription and transcript cleanup." = "Personal dictionary entries used during transcription and transcript cleanup.";
-"Large shader preview and color input controls." = "Large shader preview and color input controls.";
 
 /* Settings search */
 "Search settings" = "Search settings";
@@ -51,8 +43,11 @@
 "Launch at Login" = "Launch at Login";
 "Show in Dock" = "Show in Dock";
 "Interaction sounds" = "Interaction sounds";
+"Notify when dictation completes" = "Notify when dictation completes";
 "Mute background audio" = "Mute background audio";
 "Stet can provide feedback and limit distractions while you are speaking." = "Stet can provide feedback and limit distractions while you are speaking.";
+"Stet can play a sound and show a notification after your words are inserted." = "Stet can play a sound and show a notification after your words are inserted.";
+"Dictation complete" = "Dictation complete";
 "Always show onboarding while debugging" = "Always show onboarding while debugging";
 "Restart Onboarding Now" = "Restart Onboarding Now";
 "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`.";
@@ -82,16 +77,30 @@
 "Refine Model" = "Refine Model";
 "Preferred Model" = "Preferred Model";
 "Refine" = "Refine";
-"GPT-5.4 Nano (Default)" = "GPT-5.4 Nano (Default)";
-"GPT-5.4 Mini" = "GPT-5.4 Mini";
+"GPT-5.6 Luna" = "GPT-5.6 Luna";
 "DeepSeek" = "DeepSeek";
 "Qwen" = "Qwen";
 "GLM" = "GLM";
 "Doubao" = "Doubao";
-"GPT-OSS 20B (Default)" = "GPT-OSS 20B (Default)";
+"GPT-OSS 20B" = "GPT-OSS 20B";
+"DeepSeek V4 Flash" = "DeepSeek V4 Flash";
+"Qwen 3.5 Flash" = "Qwen 3.5 Flash";
+"GLM-4.7 Flash" = "GLM-4.7 Flash";
+"Doubao Seed 2.0 Mini" = "Doubao Seed 2.0 Mini";
+"Gemini 3.7 Flash" = "Gemini 3.7 Flash";
+"Claude Haiku 4.5" = "Claude Haiku 4.5";
 "Apple Intelligence" = "Apple Intelligence";
 "Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac." = "Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac.";
 "Provide your API key to use %@ directly." = "Provide your API key to use %@ directly.";
+"Custom" = "Custom";
+"Custom Endpoint" = "Custom Endpoint";
+"Base URL" = "Base URL";
+"API key (optional)" = "API key (optional)";
+"Load Models" = "Load Models";
+"Model ID" = "Model ID";
+"Use any OpenAI-compatible API. Stet lists models from GET /models, or you can type a model ID." = "Use any OpenAI-compatible API. Stet lists models from GET /models, or you can type a model ID.";
+"No models were returned. Enter a model ID below." = "No models were returned. Enter a model ID below.";
+"%d models found." = "%d models found.";
 "Save Key" = "Save Key";
 "Remove Key" = "Remove Key";
 "Choose which on-device model handles transcription." = "Choose which on-device model handles transcription.";
@@ -169,9 +178,9 @@
 "Select your preferred AI provider to handle transcription and cleanup." = "Select your preferred AI provider to handle transcription and cleanup.";
 "Grant microphone and input control permissions so Stet can record and type text back into your apps." = "Grant microphone and input control permissions so Stet can record and type text back into your apps.";
 "Choose the shortcut you want to use for dictation." = "Choose the shortcut you want to use for dictation.";
-"Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup.";
+"Press the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "Press the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup.";
 "Browse themes on the right, then apply and finish." = "Browse themes on the right, then apply and finish.";
-"Hold your shortcut and start speaking anywhere you can type text." = "Hold your shortcut and start speaking anywhere you can type text.";
+"Press your shortcut and start speaking anywhere you can type text." = "Press your shortcut and start speaking anywhere you can type text.";
 
 /* Onboarding steps */
 "Download the model to process your voice locally" = "Download the model to process your voice locally";
@@ -217,3 +226,24 @@
 "LLM Refined" = "LLM Refined";
 "Final Sent" = "Delivered";
 "Target App" = "Target App";
+
+/* Meetings settings */
+"Record Meeting" = "Record Meeting";
+"Start Meeting Recording" = "Start Meeting Recording";
+"Stop Meeting Recording" = "Stop Meeting Recording";
+"Recording" = "Recording";
+"Recording meeting" = "Recording meeting";
+"Press the shortcut again to stop." = "Press the shortcut again to stop.";
+"Meeting recording stopped" = "Meeting recording stopped";
+"The microphone is off. The transcript will be saved when it is ready." = "The microphone is off. The transcript will be saved when it is ready.";
+"Meeting saved" = "Meeting saved";
+"Meeting failed" = "Meeting failed";
+"Shortcut" = "Shortcut";
+"Control-Option-Command-M is the default. The shortcut toggles recording on key down; it is not hold-to-talk." = "Control-Option-Command-M is the default. The shortcut toggles recording on key down; it is not hold-to-talk.";
+"Meetings Folder" = "Meetings Folder";
+"Reveal Meetings Folder" = "Reveal Meetings Folder";
+"Each recording is saved as a folder named with the local start time." = "Each recording is saved as a folder named with the local start time.";
+"What's in a meeting folder" = "What's in a meeting folder";
+"Speaker labels are Me when your enrolled voice matches a track, Speaker 1–4 for other people, and Unresolved when people talk over each other. Meetings are not rewritten, pasted, or added to History." = "Speaker labels are Me when your enrolled voice matches a track, Speaker 1–4 for other people, and Unresolved when people talk over each other. Meetings are not rewritten, pasted, or added to History.";
+"Recent" = "Recent";
+"Location" = "Location";

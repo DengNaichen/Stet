@@ -9,6 +9,9 @@ enum MacPreferences {
     nonisolated static let rewriteProvider = "mac.rewriteProvider"
     nonisolated static let rewriteEnabled = "mac.rewriteEnabled"
     nonisolated static let customRewriteModel = "mac.customRewriteModel"
+    nonisolated static let customRewriteBaseURL = "mac.customRewriteBaseURL"
+    nonisolated static let customRewriteModelID = "mac.customRewriteModelID"
+    nonisolated static let customRewriteDiscoveredModels = "mac.customRewriteDiscoveredModels"
     nonisolated static let dictationLanguageMode = "mac.dictationLanguageMode"
     nonisolated static let globalHotkeyShortcut = "mac.globalHotkeyShortcut"
     nonisolated static let togglePanelHotkeyShortcut = "mac.togglePanelHotkeyShortcut"
@@ -21,6 +24,8 @@ enum MacPreferences {
     nonisolated static let personalDictionary = "mac.personalDictionary"
     nonisolated static let personalDictionaryEnabled = "mac.personalDictionaryEnabled"
     nonisolated static let interactionSoundsEnabled = "mac.interactionSoundsEnabled"
+    nonisolated static let dictationCompletionNotificationsEnabled =
+        "mac.dictationCompletionNotificationsEnabled"
     nonisolated static let interactionSoundPreset = "mac.interactionSoundPreset"
     nonisolated static let passiveListeningEnabled = "mac.passiveListeningEnabled"
     nonisolated static let shaderTheme = "mac.shaderTheme"

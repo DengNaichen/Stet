@@ -89,6 +89,8 @@ public struct OpenAICompatibleProviderEndpointConfiguration: Sendable, Equatable
             return URL(string: "https://open.bigmodel.cn/api/paas/v4/")!
         case .doubao:
             return URL(string: "https://ark.cn-beijing.volces.com/api/v3")!
+        case .custom:
+            preconditionFailure("Custom OpenAI-compatible endpoints require an explicit base URL.")
         }
     }
 
@@ -159,15 +161,16 @@ public struct RewriteProviderConfiguration: Sendable, Equatable {
 public enum DictationProviderDefaults {
     public nonisolated static func rewriteModel(for provider: DictationProvider) -> String {
         switch provider {
-        case .openAI: return "gpt-5.4-nano-2026-03-17"
-        case .google: return "gemini-3.1-flash-lite-preview"
-        case .anthropic: return "claude-haiku-4-6"
+        case .openAI: return "gpt-5.6-luna"
+        case .google: return "gemini-3.7-flash"
+        case .anthropic: return "claude-haiku-4-5"
         case .appleIntelligence: return "apple-intelligence-refine"
         case .groq: return "openai/gpt-oss-20b"
         case .deepSeek: return "deepseek-v4-flash"
-        case .qwen: return "qwen3.6-flash"
+        case .qwen: return "qwen3.5-flash"
         case .glm: return "glm-4.7-flash"
-        case .doubao: return "doubao-seed-1-6-flash-250828"
+        case .doubao: return "doubao-seed-2-0-mini-260428"
+        case .custom: return ""
         }
     }
 
@@ -182,7 +185,8 @@ public enum DictationProviderConfigurationResolver {
         apiKey: String,
         organizationID: String? = nil,
         projectID: String? = nil,
-        customModel: String? = nil
+        customModel: String? = nil,
+        baseURL: URL? = nil
     ) -> RewriteProviderConfiguration {
         let model = customModel ?? DictationProviderDefaults.rewriteModel(for: provider)
         switch provider {
@@ -196,6 +200,21 @@ public enum DictationProviderConfigurationResolver {
                         apiKey: apiKey,
                         organizationID: organizationID,
                         projectID: projectID
+                    )
+                )
+            )
+        case .custom:
+            guard let baseURL else {
+                preconditionFailure("Custom rewrite configuration requires a base URL.")
+            }
+            return RewriteProviderConfiguration(
+                provider: provider,
+                model: model,
+                backend: .remote(
+                    OpenAICompatibleProviderEndpointConfiguration(
+                        provider: provider,
+                        apiKey: apiKey,
+                        baseURL: baseURL
                     )
                 )
             )

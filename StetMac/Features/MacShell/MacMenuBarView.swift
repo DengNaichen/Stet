@@ -10,13 +10,32 @@
 
         var body: some View {
             Group {
-                Label(
-                    appModel.passiveListeningStatusText,
-                    systemImage: appModel.isPassiveMicrophoneActive ? "mic.fill" : "mic.slash"
-                )
-                .disabled(true)
+                Button {
+                    appModel.toggleMeetingRecording()
+                } label: {
+                    Label(
+                        appModel.meetingToggleTitle,
+                        systemImage: appModel.meetingMenuSymbolName
+                    )
+                }
+                .disabled(!appModel.canToggleMeetingRecording)
+
+                if appModel.isMeetingBusy {
+                    Text(appModel.meetingStatusText)
+                        .foregroundStyle(.secondary)
+                }
 
                 Divider()
+
+                if MacFeatureAvailability.isPassiveListeningVisible {
+                    Label(
+                        appModel.passiveListeningStatusText,
+                        systemImage: appModel.isPassiveMicrophoneActive ? "mic.fill" : "mic.slash"
+                    )
+                    .disabled(true)
+
+                    Divider()
+                }
 
                 Button("Settings…") {
                     settingsShellViewModel.openSettings {

@@ -154,6 +154,7 @@ final class TestTextInjectionService: TextInjectionService {
     var didOpenAccessibilitySettings = false
     var pasteResult = true
     var pasteOutcome: TextInjectionOutcome = .verifiedSuccess
+    var pasteGate: TestSuspensionGate?
     var replacementOutcome: TextReplacementOutcome = .replaced
     var selectedTextValue: String?
     var accessState = TextInjectionAccessState(
@@ -177,6 +178,7 @@ final class TestTextInjectionService: TextInjectionService {
 
     func pasteClipboard(into application: NSRunningApplication?) async -> TextInjectionOutcome {
         pasteTargets.append(application?.bundleIdentifier)
+        await pasteGate?.wait()
         return pasteResult ? pasteOutcome : .verificationFailed
     }
 
@@ -213,7 +215,7 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
     }
 
     enum StopBehavior: Sendable {
-        case immediate(String)
+        case immediate(SpeechTranscriptionResult)
         case suspended
         case fail(any Error & Sendable)
     }
@@ -221,11 +223,12 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
     private let audioLevelBridge = AudioLevelBridge()
     private var startContinuation: CheckedContinuation<Void, Error>?
     private var activationContinuation: CheckedContinuation<Void, Error>?
-    private var stopContinuation: CheckedContinuation<String, Error>?
+    private var stopContinuation: CheckedContinuation<SpeechTranscriptionResult, Error>?
 
     private var startBehavior: StartBehavior = .immediate
     private var activationBehavior: ActivationBehavior = .immediate
     private var stopBehavior: StopBehavior = .immediate("transcript")
+    private var cancelFailsPendingStop = true
     private(set) var startCallCount = 0
     private(set) var activationCallCount = 0
     private(set) var stopCallCount = 0
@@ -241,6 +244,10 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
 
     func setStopBehavior(_ behavior: StopBehavior) {
         stopBehavior = behavior
+    }
+
+    func setCancelFailsPendingStop(_ shouldFail: Bool) {
+        cancelFailsPendingStop = shouldFail
     }
 
     func counts() -> (start: Int, activate: Int, stop: Int, cancel: Int) {
@@ -284,15 +291,15 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
 
     func stopRecording(
         onCaptureStopped: (@Sendable () async -> Void)? = nil
-    ) async throws -> String {
+    ) async throws -> SpeechTranscriptionResult {
         stopCallCount += 1
 
         switch stopBehavior {
-        case .immediate(let text):
+        case .immediate(let result):
             if let onCaptureStopped {
                 await onCaptureStopped()
             }
-            return text
+            return result
         case .suspended:
             if let onCaptureStopped {
                 await onCaptureStopped()
@@ -311,6 +318,7 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
         startContinuation = nil
         activationContinuation?.resume(throwing: CancellationError())
         activationContinuation = nil
+        guard cancelFailsPendingStop else { return }
         stopContinuation?.resume(throwing: CancellationError())
         stopContinuation = nil
     }
@@ -328,7 +336,11 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
     }
 
     func finishStop(with text: String) {
-        stopContinuation?.resume(returning: text)
+        finishStop(with: SpeechTranscriptionResult(text))
+    }
+
+    func finishStop(with result: SpeechTranscriptionResult) {
+        stopContinuation?.resume(returning: result)
         stopContinuation = nil
     }
 
@@ -455,5 +467,32 @@ enum TestURLSessionFactory {
         }
 
         return URLSession(configuration: configuration)
+    }
+}
+
+/// Holds an async dependency at a known suspension, even if its caller is cancelled.
+actor TestSuspensionGate {
+    private var isOpen = false
+    private var continuations: [CheckedContinuation<Void, Never>] = []
+    private(set) var hasWaiter = false
+    private(set) var observedCancellation = false
+
+    func wait() async {
+        await withTaskCancellationHandler {
+            guard !isOpen else { return }
+            hasWaiter = true
+            await withCheckedContinuation { continuations.append($0) }
+        } onCancel: {
+            Task { await self.markCancelled() }
+        }
+    }
+
+    private func markCancelled() { observedCancellation = true }
+
+    func open() {
+        isOpen = true
+        let pending = continuations
+        continuations.removeAll()
+        for continuation in pending { continuation.resume() }
     }
 }

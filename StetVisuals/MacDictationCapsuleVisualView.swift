@@ -7,8 +7,6 @@
         static let orbHiddenScale: CGFloat = 0.84
         static let panelHiddenScale: CGFloat = 0.90
         static let orbRevealDelay: Duration = .milliseconds(130)
-        static let closeAnimationDuration: UInt64 = 320_000_000
-
         static let panelSpring = Animation.spring(response: 0.34, dampingFraction: 0.90)
         static let orbSpring = Animation.spring(response: 0.62, dampingFraction: 0.90)
         static let closeSpring = Animation.spring(response: 0.30, dampingFraction: 0.92)
@@ -216,10 +214,7 @@
                 showOrbs = false
             }
 
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: MacDictationCapsuleVisualTuning.closeAnimationDuration)
-                actions.onDismiss()
-            }
+            actions.onDismiss()
         }
     }
 #endif

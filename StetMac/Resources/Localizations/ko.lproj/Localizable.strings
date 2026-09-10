@@ -29,15 +29,6 @@
 "Dictionary" = "사전";
 "Debug" = "디버그";
 
-/* Settings tab subtitles */
-"Behavior, updates, and shell preferences." = "동작, 업데이트 및 시스템 환경설정.";
-"Microphone selection and recording test." = "마이크 선택 및 녹음 테스트.";
-"Dictation capsule theme and color palette." = "받아쓰기 캡슐 테마 및 색상 팔레트.";
-"Global keyboard shortcuts for starting dictation." = "받아쓰기 시작을 위한 전역 키보드 단축키.";
-"AI service, transcript improvement, and account access." = "AI 서비스, 전사 텍스트 개선 및 계정 접근.";
-"Personal dictionary entries used during transcription and transcript cleanup." = "전사 및 텍스트 정리 중 사용되는 개인 사전 항목.";
-"Large shader preview and color input controls." = "대형 셰이더 미리보기 및 색상 입력 제어.";
-
 /* Settings search */
 "Search settings" = "설정 검색";
 "No Results" = "결과 없음";
@@ -51,8 +42,11 @@
 "Launch at Login" = "로그인 시 실행";
 "Show in Dock" = "Dock에 표시";
 "Interaction sounds" = "상호작용 사운드";
+"Notify when dictation completes" = "받아쓰기 완료 시 알림";
 "Mute background audio" = "백그라운드 오디오 음소거";
 "Stet can provide feedback and limit distractions while you are speaking." = "Stet은 말하는 동안 피드백을 제공하고 주의 산만을 줄일 수 있습니다.";
+"Stet can play a sound and show a notification after your words are inserted." = "텍스트가 삽입된 후 Stet이 소리를 재생하고 알림을 표시할 수 있습니다.";
+"Dictation complete" = "받아쓰기 완료";
 "Always show onboarding while debugging" = "디버깅 시 항상 온보딩 표시";
 "Restart Onboarding Now" = "지금 온보딩 다시 시작";
 "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "`--force-onboarding` 또는 `STET_FORCE_ONBOARDING=1`로 시작할 수도 있습니다.";
@@ -160,9 +154,9 @@
 "Select your preferred AI provider to handle transcription and cleanup." = "전사 및 텍스트 정리를 처리할 선호하는 AI 제공자를 선택하세요.";
 "Grant microphone and input control permissions so Stet can record and type text back into your apps." = "Stet이 녹음하고 앱에 텍스트를 입력할 수 있도록 마이크 및 입력 제어 권한을 부여하세요.";
 "Choose the shortcut you want to use for dictation." = "받아쓰기에 사용할 단축키를 선택하세요.";
-"Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "단축키를 누른 상태에서 자연스럽게 말하세요. 필요한 정리를 수행하면서 당신의 의도를 보존합니다.";
+"Press the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "단축키를 누르고 자연스럽게 말하세요. 필요한 정리를 수행하면서 당신의 의도를 보존합니다.";
 "Browse themes on the right, then apply and finish." = "오른쪽의 테마를 둘러본 다음 적용하고 완료하세요.";
-"Hold your shortcut and start speaking anywhere you can type text." = "텍스트를 입력할 수 있는 곳이라면 어디서든 단축키를 누르고 말을 시작하세요.";
+"Press your shortcut and start speaking anywhere you can type text." = "텍스트를 입력할 수 있는 곳이라면 어디서든 단축키를 누르고 말을 시작하세요.";
 
 /* Onboarding steps */
 "Download the model to process your voice locally" = "기기에서 음성을 처리하기 위한 모델 다운로드";
@@ -208,3 +202,15 @@
 "LLM Refined" = "AI 정제";
 "Final Sent" = "전달됨";
 "Target App" = "대상 앱";
+
+/* Meetings */
+"Record Meeting" = "회의 녹음";
+"Start Meeting Recording" = "회의 녹음 시작";
+"Stop Meeting Recording" = "회의 녹음 중지";
+"Recording" = "녹음";
+"Recording meeting" = "회의 녹음 중";
+"Press the shortcut again to stop." = "바로 가기를 다시 누르면 중지됩니다.";
+"Meeting recording stopped" = "회의 녹음이 중지됨";
+"The microphone is off. The transcript will be saved when it is ready." = "마이크가 꺼졌습니다. 기록이 준비되면 저장됩니다.";
+"Meeting saved" = "회의가 저장됨";
+"Meeting failed" = "회의에 실패함";

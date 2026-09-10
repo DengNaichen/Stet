@@ -80,27 +80,13 @@ public struct AnthropicRewriteService: TextRewriteService {
 
     private func withRetry<T>(
         attempts: Int,
-        operation: () async throws -> T
+        operation: @escaping () async throws -> T
     ) async throws -> T {
-        for attempt in 1...attempts {
-            do {
-                return try await operation()
-            } catch let error as AnthropicError {
-                if error.shouldRetry && attempt < attempts {
-                    let delay = pow(2.0, Double(attempt))
-                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                    continue
-                }
-                throw error
-            } catch {
-                if attempt < attempts {
-                    try await Task.sleep(nanoseconds: UInt64(1_000_000_000))
-                    continue
-                }
-                throw error
-            }
-        }
-        throw AnthropicError.unknown
+        try await CloudRewriteRetryExecutor.execute(
+            attempts: attempts,
+            shouldRetry: { (failure: AnthropicError) in failure.shouldRetry },
+            operation: operation
+        )
     }
 }
 

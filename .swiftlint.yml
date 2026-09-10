@@ -1,12 +1,20 @@
 included:
   - StetMac
-  - StetTests
-  - StetUITests
+  - StetMacTests
+  - StetMacUITests
   - StetVisuals
+  - StetMobile/StetKeyboard
+  - StetMobile/StetLiveActivity
+  - StetMobile/StetMobile
+  - StetMobile/StetMobileTests
+  - StetMobile/StetMobileUITests
 
 excluded:
   - build
   - .derivedData
+  - StetMobile/build
+  - StetMobile/.build
+  - StetMobile/.runtime
 
 only_rules:
   - empty_count

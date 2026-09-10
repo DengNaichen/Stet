@@ -92,7 +92,6 @@
     private final class FakeHotkeyRegistrar: MacDictationHotkeyRegistering {
         private(set) var clearDictationHandlersCallCount = 0
         private(set) var registerKeyDownCallCount = 0
-        private(set) var registerKeyUpCallCount = 0
 
         func clearDictationHandlers() {
             clearDictationHandlersCallCount += 1
@@ -100,10 +99,6 @@
 
         func registerDictationKeyDown(_ handler: @escaping () -> Void) {
             registerKeyDownCallCount += 1
-        }
-
-        func registerDictationKeyUp(_ handler: @escaping () -> Void) {
-            registerKeyUpCallCount += 1
         }
     }
 
@@ -213,6 +208,7 @@
                 permissionManager: permissionManager,
                 pipelineFactory: .live(),
                 appBranchMonitor: appBranchMonitor,
+                defaults: defaults,
                 hotkeyRegistrar: hotkeyRegistrar
             )
 
@@ -263,6 +259,53 @@
             #expect(subject.shell.isPanelVisible == false)
         }
 
+        @Test func cancelDuringProcessingDoesNotPasteLateTranscript() async {
+            let subject = makeSubject()
+            let presentationModel = FakePresentationModel()
+            subject.session.activate(presentationModel: presentationModel, showInDock: false)
+            await subject.speechService.setStopBehavior(.suspended)
+            await subject.speechService.setCancelFailsPendingStop(false)
+
+            subject.session.startDictationCapture(from: .interface)
+            #expect(
+                await TestSupport.eventually {
+                    subject.workflow.dictationViewModel.state == .listening
+                }
+            )
+
+            subject.session.requestDictationCaptureStopIfNeeded()
+            #expect(
+                await TestSupport.eventually {
+                    subject.workflow.dictationViewModel.state == .processing
+                }
+            )
+            #expect(
+                await TestSupport.eventuallyAsync {
+                    await subject.speechService.counts().stop == 1
+                }
+            )
+
+            subject.session.cancelActiveCapture()
+            #expect(subject.workflow.dictationViewModel.state == .idle)
+            #expect(
+                await TestSupport.eventuallyAsync {
+                    await subject.speechService.counts().cancel == 1
+                }
+            )
+
+            await subject.speechService.finishStop(with: "late transcript")
+            #expect(
+                await TestSupport.eventually {
+                    subject.workflow.dictationViewModel.state == .idle
+                }
+            )
+            try? await Task.sleep(for: .milliseconds(80))
+
+            #expect(subject.workflow.dictationViewModel.state == .idle)
+            #expect(subject.textInjectionService.pasteTargets.isEmpty)
+            #expect(subject.clipboardService.copiedTexts.isEmpty)
+        }
+
         @Test func dismissPendingCopyHidesPanelAndResetsClipboardPendingState() async {
             let subject = makeSubject()
 
@@ -296,6 +339,55 @@
             #expect(subject.shell.hidePanelCallCount == 1)
             #expect(subject.shell.isPanelVisible == false)
             #expect(subject.clipboardService.copiedTexts == ["needs copy"])
+        }
+
+        @Test func confirmingPendingCopyCancelsAutoDismiss() async {
+            let subject = makeSubject()
+            let presentationModel = FakePresentationModel()
+            subject.session.activate(presentationModel: presentationModel, showInDock: false)
+            subject.session.clipboardPendingAutoDismissDelay = .milliseconds(100)
+            subject.workflow.dictationViewModel.send(.clipboardPending("needs copy"))
+            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask != nil })
+
+            subject.session.performPrimaryAction()
+            try? await Task.sleep(for: .milliseconds(200))
+
+            #expect(subject.workflow.dictationViewModel.state == .idle)
+            #expect(subject.clipboardService.copiedTexts == ["needs copy"])
+            #expect(subject.shell.hidePanelCallCount == 1)
+        }
+
+        @Test func startingCaptureCancelsPendingAutoDismiss() async {
+            let subject = makeSubject()
+            let presentationModel = FakePresentationModel()
+            subject.session.activate(presentationModel: presentationModel, showInDock: false)
+            subject.session.clipboardPendingAutoDismissDelay = .milliseconds(100)
+            subject.workflow.dictationViewModel.send(.clipboardPending("previous"))
+            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask != nil })
+
+            subject.workflow.dictationViewModel.send(.resetTapped)
+            subject.session.startDictationCapture(from: .hotkey)
+            #expect(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .listening })
+            try? await Task.sleep(for: .milliseconds(200))
+
+            #expect(subject.workflow.dictationViewModel.state == .listening)
+            #expect(subject.clipboardService.copiedTexts.isEmpty)
+            #expect(subject.shell.isPanelVisible)
+            subject.session.cancelActiveCapture()
+        }
+
+        @Test func autoDismissCopyFailurePreservesPendingTranscript() async {
+            let subject = makeSubject()
+            let presentationModel = FakePresentationModel()
+            subject.session.activate(presentationModel: presentationModel, showInDock: false)
+            subject.session.clipboardPendingAutoDismissDelay = .milliseconds(50)
+            subject.clipboardService.shouldFailCopy = true
+            subject.workflow.dictationViewModel.send(.clipboardPending("needs copy"))
+
+            #expect(await TestSupport.eventually { !subject.clipboardService.copiedTexts.isEmpty })
+            #expect(subject.workflow.dictationViewModel.state == .clipboardPending("needs copy"))
+            #expect(subject.shell.isPanelVisible)
+            #expect(subject.shell.hidePanelCallCount == 0)
         }
 
         @Test func startCaptureShowsTransientPanelOnlyOnceAcrossStartingAndListening() async {
@@ -402,6 +494,7 @@
                 permissionManager: permissionManager,
                 pipelineFactory: .live(),
                 appBranchMonitor: appBranchMonitor,
+                defaults: defaults,
                 hotkeyRegistrar: hotkeyRegistrar
             )
             let presentationModel = FakePresentationModel()
@@ -464,6 +557,7 @@
                 permissionManager: permissionManager,
                 pipelineFactory: .live(),
                 appBranchMonitor: appBranchMonitor,
+                defaults: defaults,
                 hotkeyRegistrar: hotkeyRegistrar
             )
             let presentationModel = FakePresentationModel()
@@ -526,6 +620,7 @@
                 permissionManager: permissionManager,
                 pipelineFactory: .live(),
                 appBranchMonitor: appBranchMonitor,
+                defaults: defaults,
                 hotkeyRegistrar: hotkeyRegistrar
             )
             let presentationModel = FakePresentationModel()
@@ -587,6 +682,7 @@
                 permissionManager: permissionManager,
                 pipelineFactory: .live(),
                 appBranchMonitor: appBranchMonitor,
+                defaults: defaults,
                 hotkeyRegistrar: hotkeyRegistrar
             )
             let presentationModel = FakePresentationModel()
@@ -601,6 +697,37 @@
             #expect(clipboardService.copiedTexts == ["transcript", "transcript"])
             #expect(textInjectionService.didRequestAccessIfNeeded == false)
             #expect(shell.isPanelVisible)
+        }
+
+        @Test func meetingSessionBlocksDictationCaptureStart() async {
+            let subject = makeSubject()
+            var meetingToggleCount = 0
+            subject.session.isMeetingSessionBusy = { true }
+            subject.session.onMeetingHotkey = { meetingToggleCount += 1 }
+
+            subject.session.requestDictationCaptureStart(from: .hotkey)
+
+            #expect(subject.workflow.dictationViewModel.state == .idle)
+            #expect(await subject.speechService.counts().start == 0)
+            #expect(meetingToggleCount == 0)
+        }
+
+        @Test func dictationCaptureBlocksMeetingHotkey() async {
+            let subject = makeSubject()
+            var meetingToggleCount = 0
+            subject.session.onMeetingHotkey = { meetingToggleCount += 1 }
+
+            subject.session.startDictationCapture(from: .hotkey)
+            #expect(
+                await TestSupport.eventually {
+                    subject.workflow.dictationViewModel.state == .listening
+                }
+            )
+
+            subject.session.handleMeetingHotkeyPressed()
+
+            #expect(meetingToggleCount == 0)
+            #expect(subject.session.isDictationBlockingMeeting)
         }
     }
 

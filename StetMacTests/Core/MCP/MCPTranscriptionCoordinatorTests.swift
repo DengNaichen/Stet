@@ -234,6 +234,7 @@ private func makeMCPSnapshot(
             ) : nil,
         personalDictionary: personalDictionary,
         interactionSoundsEnabled: true,
+        dictationCompletionNotificationsEnabled: true,
         interactionSoundPreset: .soft,
         transcriptionPrimaryLanguage: primaryLanguage,
         transcriptionSecondaryLanguage: nil,

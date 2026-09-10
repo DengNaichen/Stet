@@ -301,7 +301,7 @@
                     model: model,
                     normalizedCentroid: centroid,
                     enrollmentSampleCount: enrollmentEmbeddings.count,
-                    matchThreshold: 0.7
+                    matchThreshold: SpeakerProfile.defaultMatchThreshold
                 )
             )
             speakerProfiles = try await speakerProfileStore.loadProfiles(currentModel: model)

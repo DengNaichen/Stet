@@ -200,4 +200,14 @@ struct MacDictationPanelViewModelTests {
                     && viewModel.statusText == "Provider configuration required"
             })
     }
+
+    @Test func capsuleDismissCancelsCaptureWhileProcessing() {
+        #expect(MacDictationCapsuleDismissBehavior.forState(.starting) == .cancelActiveCapture)
+        #expect(MacDictationCapsuleDismissBehavior.forState(.listening) == .cancelActiveCapture)
+        #expect(MacDictationCapsuleDismissBehavior.forState(.processing) == .cancelActiveCapture)
+        #expect(MacDictationCapsuleDismissBehavior.forState(.idle) == .hidePanel)
+        #expect(MacDictationCapsuleDismissBehavior.forState(.error(.emptyTranscription)) == .hidePanel)
+        #expect(MacDictationCapsuleDismissBehavior.forState(.result("done")) == .ignore)
+        #expect(MacDictationCapsuleDismissBehavior.forState(.clipboardPending("copy")) == .ignore)
+    }
 }

@@ -13,11 +13,22 @@ public struct OpenAIRewriteService: TextRewriteService {
         let model: String
         let messages: [ChatCompletionMessage]
         let thinking: ChatCompletionThinking?
+        let reasoningEffort: String?
         let responseFormat: ChatCompletionResponseFormat
 
         enum CodingKeys: String, CodingKey {
             case model, messages, thinking
+            case reasoningEffort = "reasoning_effort"
             case responseFormat = "response_format"
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(model, forKey: .model)
+            try container.encode(messages, forKey: .messages)
+            try container.encodeIfPresent(thinking, forKey: .thinking)
+            try container.encodeIfPresent(reasoningEffort, forKey: .reasoningEffort)
+            try container.encode(responseFormat, forKey: .responseFormat)
         }
     }
 
@@ -108,6 +119,7 @@ public struct OpenAIRewriteService: TextRewriteService {
                 query: CreateModelResponseQuery(
                     input: .inputItemList(messages),
                     model: request.model ?? defaultModel,
+                    reasoning: .init(effort: .medium),
                     store: supportsResponsesStore ? false : nil,
                     text: .jsonSchema(
                         .init(
@@ -190,7 +202,7 @@ public struct OpenAIRewriteService: TextRewriteService {
         prepared: PreparedCloudRewritePayload
     ) throws -> URLRequest {
         let trimmedKey = endpoint.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedKey.isEmpty else {
+        if trimmedKey.isEmpty && endpoint.provider != .custom {
             throw OpenAIError.missingAPIKey(provider: endpoint.provider)
         }
 
@@ -198,7 +210,9 @@ public struct OpenAIRewriteService: TextRewriteService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 60
-        request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
+        if !trimmedKey.isEmpty {
+            request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
+        }
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(
@@ -209,6 +223,7 @@ public struct OpenAIRewriteService: TextRewriteService {
                     ChatCompletionMessage(role: "user", content: prepared.userPrompt),
                 ],
                 thinking: Self.thinkingConfiguration(for: endpoint.provider),
+                reasoningEffort: Self.reasoningEffort(for: endpoint.provider),
                 responseFormat: .configuration(provider: endpoint.provider, model: model)
             )
         )
@@ -217,7 +232,12 @@ public struct OpenAIRewriteService: TextRewriteService {
 
     private static func thinkingConfiguration(for provider: DictationProvider) -> ChatCompletionThinking? {
         guard provider == .deepSeek else { return nil }
-        return ChatCompletionThinking(type: "disabled")
+        return ChatCompletionThinking(type: "enabled")
+    }
+
+    private static func reasoningEffort(for provider: DictationProvider) -> String? {
+        guard provider == .deepSeek else { return nil }
+        return "low"
     }
 
     private func makeMessages(

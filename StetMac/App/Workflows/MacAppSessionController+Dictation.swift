@@ -38,23 +38,12 @@
         }
 
         func handleHotkeyPressed() {
-            let action = hotkeyInteraction.handleKeyDown(
-                for: dictationState,
-                now: ProcessInfo.processInfo.systemUptime
-            )
+            let action = hotkeyInteraction.handleKeyDown(for: dictationState)
             if action == .startCapture {
                 Task {
                     await DictationStartupProbe.shared.begin(trigger: .hotkey)
                 }
             }
-            performHotkeyAction(action)
-        }
-
-        func handleHotkeyReleased() {
-            let action = hotkeyInteraction.handleKeyUp(
-                for: dictationState,
-                now: ProcessInfo.processInfo.systemUptime
-            )
             performHotkeyAction(action)
         }
 
@@ -72,9 +61,13 @@
         func bindState() {
             workflowController.dictationViewModel.$state
                 .dropFirst()
+                .map { [weak self] state in
+                    (state, self?.workflowController.dictationViewModel.captureSessionID)
+                }
                 .receive(on: DispatchQueue.main)
-                .sink { [weak self] state in
-                    self?.handleDictationStateChange(state)
+                .sink { [weak self] state, sessionID in
+                    guard let self, sessionID == workflowController.dictationViewModel.captureSessionID else { return }
+                    handleDictationStateChange(state)
                 }
                 .store(in: &cancellables)
         }
@@ -88,7 +81,6 @@
         func handleStateTransitionObservation(for state: DictationState) {
             let previousState = previousDictationState
             previousDictationState = state
-            hotkeyInteraction.sync(with: state)
             Task {
                 await DictationRuntimeProbe.shared.markStateTransition(from: previousState, to: state)
                 if state == .idle, previousState != .idle {
@@ -122,6 +114,12 @@
 
             completionHandlingTask = Task { @MainActor [weak self] in
                 guard let self else { return }
+                guard !Task.isCancelled, case .result = dictationState else {
+                    Self.logger.info(
+                        "OutputTrace stage=session_result_mapping_skipped reason=cancelled_or_state_changed currentState=\(self.stateLabel(self.dictationState))"
+                    )
+                    return
+                }
                 let outcome = await workflowController.handleCompletedResult(
                     text: text,
                     showTransientPanel: showTransientPanel
@@ -165,6 +163,11 @@
                         showTransientPanel()
                     }
                     workflowController.dictationViewModel.send(.clipboardPending(text))
+                case .cancelled:
+                    hidePanel()
+                    if case .result = dictationState {
+                        workflowController.dictationViewModel.send(.resetTapped)
+                    }
                 case .failed(let failure):
                     if failure.preservesRecoveredTextInClipboard {
                         if !isPanelVisible {
@@ -215,11 +218,12 @@
 
         func registerHotkeys() {
             hotkeyRegistrar.clearDictationHandlers()
+            hotkeyRegistrar.clearMeetingHandlers()
             hotkeyRegistrar.registerDictationKeyDown { [weak self] in
                 self?.handleHotkeyPressed()
             }
-            hotkeyRegistrar.registerDictationKeyUp { [weak self] in
-                self?.handleHotkeyReleased()
+            hotkeyRegistrar.registerMeetingKeyDown { [weak self] in
+                self?.handleMeetingHotkeyPressed()
             }
         }
 
@@ -235,6 +239,9 @@
         }
 
         func requestDictationCaptureStart(from source: PrimaryActionSource) {
+            if isMeetingSessionBusy() {
+                return
+            }
 
             if requiresOnboarding && !onboardingStepState.allowsAudioCapture {
                 Task {
@@ -283,6 +290,7 @@
         }
 
         func startDictationCapture(from source: PrimaryActionSource) {
+            cancelPendingStateTasks()
             workflowController.startDictationCapture(
                 source: source,
                 allowCurrentAppTarget: requiresOnboarding && onboardingStepState == .firstSuccess,
@@ -343,6 +351,8 @@
                 return "completed"
             case .clipboardPending:
                 return "clipboardPending"
+            case .cancelled:
+                return "cancelled"
             case .failed(let failure):
                 return "failed:\(failureLabel(failure))"
             }

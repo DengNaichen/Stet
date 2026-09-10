@@ -232,11 +232,11 @@
                 return "Choose the shortcut you want to use for dictation."
             case .firstSuccess:
                 return
-                    "Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup."
+                    "Press the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup."
             case .appearance:
                 return "Browse themes on the right, then apply and finish."
             case .done:
-                return "Hold your shortcut and start speaking anywhere you can type text."
+                return "Press your shortcut and start speaking anywhere you can type text."
             }
         }
     }

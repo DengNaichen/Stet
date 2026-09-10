@@ -20,6 +20,7 @@
         private let systemAudioMuting: (any SystemAudioMuting)?
         private let settingsStore: DictationSettingsStore
         private let interactionSoundPlayer: any InteractionSoundPlaying
+        private let completionNotifier: (any MacDictationCompletionNotifying)?
         private let mediaResumeDelay: Duration
         private let startPromptActivationDeadline: Duration
 
@@ -38,6 +39,7 @@
             systemAudioMuting: (any SystemAudioMuting)? = nil,
             settingsStore: DictationSettingsStore,
             interactionSoundPlayer: any InteractionSoundPlaying,
+            completionNotifier: (any MacDictationCompletionNotifying)? = nil,
             statsModel: DictationStatsModel? = nil,
             mediaResumeDelay: Duration = .seconds(1),
             startPromptActivationDeadline: Duration = .milliseconds(350)
@@ -48,6 +50,7 @@
             self.systemAudioMuting = systemAudioMuting
             self.settingsStore = settingsStore
             self.interactionSoundPlayer = interactionSoundPlayer
+            self.completionNotifier = completionNotifier
             self.statsModel = statsModel
             self.mediaResumeDelay = mediaResumeDelay
             self.startPromptActivationDeadline = startPromptActivationDeadline
@@ -122,7 +125,9 @@
 
             startActivationTask = Task { @MainActor [weak self] in
                 guard let self else { return }
-                defer { startActivationTask = nil }
+                defer {
+                    if !Task.isCancelled { startActivationTask = nil }
+                }
 
                 await awaitStartPromptBeforeActivation(preset: settings.interactionSoundPreset)
 
@@ -144,12 +149,7 @@
             Task {
                 await DictationRuntimeProbe.shared.markAction("stopActiveCapture")
             }
-            let settings = settingsSnapshot
-
-            dictationViewModel.stopCapture(onCaptureStopped: { [weak self] in
-                guard settings.interactionSoundsEnabled else { return }
-                self?.interactionSoundPlayer.playFinish(preset: settings.interactionSoundPreset)
-            })
+            dictationViewModel.stopCapture()
         }
 
         func cancelActiveCapture() {
@@ -199,6 +199,11 @@
                 return .failed(.emptyTranscription)
             }
 
+            guard !Task.isCancelled else {
+                pendingSessionDuration = nil
+                return .cancelled
+            }
+
             if let duration = pendingSessionDuration {
                 let wordCount = Self.countWords(in: text)
                 statsModel?.record(
@@ -216,12 +221,21 @@
 
             }
 
-            return await captureCoordinator.handleCompletedCapture(
+            let outcome = await captureCoordinator.handleCompletedCapture(
                 text: text,
                 targetApplication: lastTargetApplication,
                 settings: captureSettings,
                 showPanel: showTransientPanel
             )
+            guard !Task.isCancelled else { return .cancelled }
+            let settings = settingsSnapshot
+            if outcome == .completed, settings.interactionSoundsEnabled {
+                interactionSoundPlayer.playFinish(preset: settings.interactionSoundPreset)
+            }
+            if outcome == .completed, settings.dictationCompletionNotificationsEnabled {
+                await completionNotifier?.notifyDictationCompleted()
+            }
+            return outcome
         }
 
         func copyPendingResultToClipboard(_ text: String) -> Bool {

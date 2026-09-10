@@ -166,8 +166,7 @@ struct AppForm<Content: View>: View {
 
     var body: some View {
         Form { content() }
-            .formStyle(.grouped)
-            .padding(.leading, 24)
+            .macSettingsFormStyle()
             .padding(.bottom, 32)
     }
 }

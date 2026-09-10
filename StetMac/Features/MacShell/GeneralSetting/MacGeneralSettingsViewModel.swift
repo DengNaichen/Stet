@@ -37,18 +37,6 @@
             }
         }
 
-        @Published var pauseMediaDuringDictation = false {
-            didSet {
-                guard hasLoadedPreferences else { return }
-                defaults.set(pauseMediaDuringDictation, forKey: MacPreferences.pauseMediaDuringDictation)
-            }
-        }
-        @Published var interactionSoundsEnabled = true {
-            didSet {
-                guard hasLoadedPreferences else { return }
-                defaults.set(interactionSoundsEnabled, forKey: MacPreferences.interactionSoundsEnabled)
-            }
-        }
         @Published var managedSettings = ManagedSettingsState() {
             didSet {
                 guard hasLoadedManagedSettings else { return }
@@ -72,7 +60,6 @@
         private weak var appModel: (any MacGeneralSettingsAppModeling)?
         private weak var appUpdateManager: AppUpdateManager?
 
-        private var hasLoadedPreferences = false
         private var hasLoadedManagedSettings = false
         private var hasLoadedDebugSettings = false
         private var suppressLaunchAtLoginChange = false
@@ -105,12 +92,6 @@
         }
 
         func load() {
-            hasLoadedPreferences = false
-            pauseMediaDuringDictation =
-                defaults.object(forKey: MacPreferences.pauseMediaDuringDictation) as? Bool ?? false
-            interactionSoundsEnabled = defaults.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
-            hasLoadedPreferences = true
-
             hasLoadedManagedSettings = false
             managedSettings = currentState()
             hasLoadedManagedSettings = true
@@ -171,10 +152,6 @@
                 launchAtLogin: currentLaunchAtLoginPreference,
                 showInDock: currentShowInDockPreference
             )
-        }
-
-        func previewSound() {
-            InteractionSoundPlayer().playPreview(preset: .defaultPreset)
         }
 
         func restartOnboarding() {

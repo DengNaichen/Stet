@@ -10,15 +10,13 @@
         var body: some View {
             Form {
                 appBehaviorSection
-                dictationSection
                 updatesSection
                 #if DEBUG
                     debugSection
                 #endif
                 feedbackSection
             }
-            .formStyle(.grouped)
-            .padding(.leading, MacUI.SettingsViewMetrics.formHorizontalPadding)
+            .macSettingsFormStyle()
             .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
                 viewModel.configure(appModel: settingsShellViewModel, appUpdateManager: appUpdateManager)
@@ -34,17 +32,6 @@
                 Text("Application")
             } footer: {
                 Text("Stet stays in the menu bar for quick access even when the dock icon is hidden.")
-            }
-        }
-
-        private var dictationSection: some View {
-            Section {
-                Toggle("Interaction sounds", isOn: $viewModel.interactionSoundsEnabled)
-                Toggle("Mute background audio", isOn: $viewModel.pauseMediaDuringDictation)
-            } header: {
-                Text("Dictation")
-            } footer: {
-                Text("Stet can provide feedback and limit distractions while you are speaking.")
             }
         }
 

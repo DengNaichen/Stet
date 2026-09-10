@@ -79,6 +79,28 @@
             #expect(frames[1].startSample == boundary)
         }
 
+        @Test func captureFrameBridgeDeliversTheSameFramesToMultipleSubscribers() async {
+            let bridge = AudioCaptureEventBridge()
+            let first = bridge.makeStream()
+            let second = bridge.makeStream()
+            let firstTask = Task { () -> AudioCaptureFrame? in
+                var iterator = first.makeAsyncIterator()
+                return await iterator.next()
+            }
+            let secondTask = Task { () -> AudioCaptureFrame? in
+                var iterator = second.makeAsyncIterator()
+                return await iterator.next()
+            }
+
+            bridge.emit(samples: [0.5, -0.25])
+
+            let left = await firstTask.value
+            let right = await secondTask.value
+            #expect(left?.samples == [0.5, -0.25])
+            #expect(right?.samples == [0.5, -0.25])
+            #expect(left == right)
+        }
+
         @Test func startRecordingWithUnavailableSelectedDeviceThrowsFailedToStartWithoutCreatingFile() throws {
             let recorder = MacCaptureAudioFileRecorder()
             let outputFormat = try #require(TranscriptionUploadAudioFormat.makeMacOutputFormat())

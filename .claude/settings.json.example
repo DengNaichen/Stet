@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//path/to/extra/project/**)",
+      "WebSearch",
+      "Bash(xcodebuild -resolvePackageDependencies -project Stet.xcodeproj -scheme Stet)",
+      "Bash(xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS,arch=arm64' build)"
+    ],
+    "additionalDirectories": [
+      "/path/to/extra/read-only/directory"
+    ]
+  }
+}

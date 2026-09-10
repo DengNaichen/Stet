@@ -4,7 +4,8 @@ nonisolated final class AudioCaptureEventBridge: @unchecked Sendable {
     private let lock = NSLock()
     private var epoch: UInt64
     private var nextSample: Int64 = 0
-    private var continuation: AsyncStream<AudioCaptureFrame>.Continuation?
+    private var nextSubscriberID: UInt64 = 0
+    private var continuations: [UInt64: AsyncStream<AudioCaptureFrame>.Continuation] = [:]
 
     nonisolated init(initialEpoch: UInt64 = 0) {
         epoch = initialEpoch
@@ -12,19 +13,23 @@ nonisolated final class AudioCaptureEventBridge: @unchecked Sendable {
 
     nonisolated func makeStream() -> AsyncStream<AudioCaptureFrame> {
         AsyncStream { continuation in
-            let previous = lock.withLock {
-                let previous = self.continuation
-                self.continuation = continuation
-                return previous
+            let id = lock.withLock { () -> UInt64 in
+                nextSubscriberID += 1
+                continuations[nextSubscriberID] = continuation
+                return nextSubscriberID
             }
-            previous?.finish()
+            continuation.onTermination = { [weak self] _ in
+                self?.lock.withLock {
+                    self?.continuations.removeValue(forKey: id)
+                }
+            }
         }
     }
 
     nonisolated func emit(samples: [Float]) {
         guard !samples.isEmpty else { return }
 
-        let (frame, continuation) = lock.withLock {
+        let (frame, continuations) = lock.withLock {
             let normalized = samples.map { min(max($0, -1), 1) }
             let frame = AudioCaptureFrame(
                 epoch: epoch,
@@ -32,9 +37,11 @@ nonisolated final class AudioCaptureEventBridge: @unchecked Sendable {
                 samples: normalized
             )
             nextSample = frame.endSample
-            return (frame, self.continuation)
+            return (frame, Array(self.continuations.values))
         }
-        continuation?.yield(frame)
+        for continuation in continuations {
+            continuation.yield(frame)
+        }
     }
 
     @discardableResult
@@ -54,10 +61,13 @@ nonisolated final class AudioCaptureEventBridge: @unchecked Sendable {
     }
 
     nonisolated func finish() {
-        let continuation = lock.withLock {
-            defer { self.continuation = nil }
-            return self.continuation
+        let continuations = lock.withLock {
+            let values = Array(self.continuations.values)
+            self.continuations.removeAll()
+            return values
         }
-        continuation?.finish()
+        for continuation in continuations {
+            continuation.finish()
+        }
     }
 }

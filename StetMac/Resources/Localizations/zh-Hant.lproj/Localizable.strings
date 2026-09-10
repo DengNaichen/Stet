@@ -29,15 +29,6 @@
 "Dictionary" = "詞典";
 "Debug" = "除錯";
 
-/* Settings tab subtitles */
-"Behavior, updates, and shell preferences." = "行為、更新和系統偏好設定。";
-"Microphone selection and recording test." = "麥克風選擇與錄音測試。";
-"Dictation capsule theme and color palette." = "聽寫膠囊主題與配色方案。";
-"Global keyboard shortcuts for starting dictation." = "用於啟動聽寫的全域鍵盤快捷鍵。";
-"AI service, transcript improvement, and account access." = "AI 服務、轉錄最佳化與帳戶存取。";
-"Personal dictionary entries used during transcription and transcript cleanup." = "轉錄和文本整理時使用的個人詞典詞條。";
-"Large shader preview and color input controls." = "大型著色器預覽和顏色輸入控制。";
-
 /* Settings search */
 "Search settings" = "搜尋設定";
 "No Results" = "無結果";
@@ -51,8 +42,11 @@
 "Launch at Login" = "登入時啟動";
 "Show in Dock" = "在 Dock 中顯示";
 "Interaction sounds" = "互動音效";
+"Notify when dictation completes" = "聽寫完成後通知";
 "Mute background audio" = "靜音背景音訊";
 "Stet can provide feedback and limit distractions while you are speaking." = "Stet 可以在您說話時提供回饋並減少干擾。";
+"Stet can play a sound and show a notification after your words are inserted." = "文字插入後，Stet 可以播放提示音並顯示通知。";
+"Dictation complete" = "聽寫完成";
 "Always show onboarding while debugging" = "除錯時始終顯示導引";
 "Restart Onboarding Now" = "立即重新開始導引";
 "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`." = "您也可以使用 `--force-onboarding` 或 `STET_FORCE_ONBOARDING=1` 啟動。";
@@ -160,9 +154,9 @@
 "Select your preferred AI provider to handle transcription and cleanup." = "選擇您偏好的 AI 服務商來處理轉錄和文本整理。";
 "Grant microphone and input control permissions so Stet can record and type text back into your apps." = "授予麥克風和輸入控制權限，以便 Stet 能夠錄音並將文字輸入您的應用。";
 "Choose the shortcut you want to use for dictation." = "選擇您用於聽寫的快捷鍵。";
-"Hold the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "按住快捷鍵自然說話。我們會保留您的意圖並進行必要的整理。";
+"Press the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup." = "按下快捷鍵自然說話。我們會保留您的意圖並進行必要的整理。";
 "Browse themes on the right, then apply and finish." = "在右側瀏覽主題，然後應用並完成。";
-"Hold your shortcut and start speaking anywhere you can type text." = "按住快捷鍵，在任何可以輸入文字的地方開始說話。";
+"Press your shortcut and start speaking anywhere you can type text." = "按下快捷鍵，在任何可以輸入文字的地方開始說話。";
 
 /* Onboarding steps */
 "Download the model to process your voice locally" = "下載模型以在本地處理您的語音";
@@ -208,3 +202,15 @@
 "LLM Refined" = "AI 優化";
 "Final Sent" = "已投遞";
 "Target App" = "目標應用程式";
+
+/* Meetings */
+"Record Meeting" = "錄製會議";
+"Start Meeting Recording" = "開始錄製會議";
+"Stop Meeting Recording" = "停止錄製會議";
+"Recording" = "錄音";
+"Recording meeting" = "正在錄製會議";
+"Press the shortcut again to stop." = "再按一次快捷鍵即可停止。";
+"Meeting recording stopped" = "會議錄音已停止";
+"The microphone is off. The transcript will be saved when it is ready." = "麥克風已關閉。轉錄完成後會儲存文稿。";
+"Meeting saved" = "會議已儲存";
+"Meeting failed" = "會議失敗";

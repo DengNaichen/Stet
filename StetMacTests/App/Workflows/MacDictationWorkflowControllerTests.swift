@@ -76,6 +76,15 @@
     }
 
     @MainActor
+    private final class TestCompletionNotifier: MacDictationCompletionNotifying {
+        private(set) var notifyCallCount = 0
+
+        func notifyDictationCompleted() async {
+            notifyCallCount += 1
+        }
+    }
+
+    @MainActor
     @Suite("Mac Dictation Workflow Controller", .serialized)
     struct MacDictationWorkflowControllerTests {
         private let promptActivationDeadline: Duration = .milliseconds(20)
@@ -87,6 +96,7 @@
             mediaPlaybackController: TestMediaPlaybackController? = nil,
             systemAudioMuting: TestSystemAudioMuting? = nil,
             interactionSoundPlayer: TestInteractionSoundPlayer? = nil,
+            completionNotifier: TestCompletionNotifier? = nil,
             frontmostBundleIdentifier: String? = nil,
             mediaResumeDelay: Duration = .zero
         ) -> (
@@ -96,7 +106,8 @@
             textInjectionService: TestTextInjectionService,
             mediaPlaybackController: TestMediaPlaybackController,
             systemAudioMuting: TestSystemAudioMuting?,
-            interactionSoundPlayer: TestInteractionSoundPlayer
+            interactionSoundPlayer: TestInteractionSoundPlayer,
+            completionNotifier: TestCompletionNotifier
         ) {
             let defaults = defaults ?? TestSupport.makeUserDefaults()
             let speechService = speechService ?? ControllableSpeechService()
@@ -104,6 +115,7 @@
             let mediaPlaybackController = mediaPlaybackController ?? TestMediaPlaybackController()
             let systemAudioMuting = systemAudioMuting
             let interactionSoundPlayer = interactionSoundPlayer ?? TestInteractionSoundPlayer()
+            let completionNotifier = completionNotifier ?? TestCompletionNotifier()
             if defaults.object(forKey: MacPreferences.interactionSoundsEnabled) == nil {
                 defaults.set(false, forKey: MacPreferences.interactionSoundsEnabled)
             }
@@ -129,6 +141,7 @@
                 systemAudioMuting: systemAudioMuting,
                 settingsStore: settingsStore,
                 interactionSoundPlayer: interactionSoundPlayer,
+                completionNotifier: completionNotifier,
                 mediaResumeDelay: mediaResumeDelay,
                 startPromptActivationDeadline: promptActivationDeadline
             )
@@ -140,7 +153,8 @@
                 textInjectionService: textInjectionService,
                 mediaPlaybackController: mediaPlaybackController,
                 systemAudioMuting: systemAudioMuting,
-                interactionSoundPlayer: interactionSoundPlayer
+                interactionSoundPlayer: interactionSoundPlayer,
+                completionNotifier: completionNotifier
             )
         }
 
@@ -243,6 +257,7 @@
             #expect(outcome == .completed)
             #expect(subject.clipboard.copiedTexts == ["hello"])
             #expect(subject.textInjectionService.pasteTargets.count == 1)
+            #expect(subject.interactionSoundPlayer.finishCallCount == 0)
             #expect(showPanelCount == 0)
         }
 
@@ -452,7 +467,7 @@
                 })
         }
 
-        @Test func finishSoundPlaysAsSoonAsCaptureStopsWhileTranscriptionIsStillProcessing() async {
+        @Test func finishSoundDoesNotPlayWhenCaptureStops() async {
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(true, forKey: MacPreferences.interactionSoundsEnabled)
             let speechService = ControllableSpeechService()
@@ -469,25 +484,103 @@
 
             subject.controller.stopActiveCapture()
 
-            #expect(
-                await TestSupport.eventually {
-                    subject.viewModel.state == .processing && subject.interactionSoundPlayer.finishCallCount == 1
-                })
+            #expect(await TestSupport.eventually { subject.viewModel.state == .processing })
+            #expect(subject.interactionSoundPlayer.finishCallCount == 0)
 
-            subject.controller.handleStateTransition(from: .listening, to: .processing)
+            subject.viewModel.send(.resetTapped)
+        }
+
+        @Test func finishSoundPlaysAfterSuccessfulTextDelivery() async {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(true, forKey: MacPreferences.interactionSoundsEnabled)
+            let textInjectionService = TestTextInjectionService()
+            textInjectionService.pasteResult = true
+            let interactionSoundPlayer = TestInteractionSoundPlayer()
+            let subject = makeController(
+                defaults: defaults,
+                textInjectionService: textInjectionService,
+                interactionSoundPlayer: interactionSoundPlayer
+            )
+
+            let outcome = await subject.controller.handleCompletedResult(text: "hello") {}
+            #expect(outcome == .completed)
             #expect(subject.interactionSoundPlayer.finishCallCount == 1)
+        }
 
-            await speechService.finishStop(with: "done")
-            #expect(
-                await TestSupport.eventually {
-                    if case .result("done") = subject.viewModel.state {
-                        return true
-                    }
-                    return false
-                })
+        @Test func completionNotificationPostsAfterSuccessfulTextDelivery() async {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(true, forKey: MacPreferences.dictationCompletionNotificationsEnabled)
+            let textInjectionService = TestTextInjectionService()
+            textInjectionService.pasteResult = true
+            let subject = makeController(
+                defaults: defaults,
+                textInjectionService: textInjectionService
+            )
 
-            subject.controller.handleStateTransition(from: .processing, to: .result("done"))
-            #expect(subject.interactionSoundPlayer.finishCallCount == 1)
+            let outcome = await subject.controller.handleCompletedResult(text: "hello there") {}
+            #expect(outcome == .completed)
+            #expect(subject.completionNotifier.notifyCallCount == 1)
+        }
+
+        @Test func completionNotificationDoesNotPostWhenDisabled() async {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(false, forKey: MacPreferences.dictationCompletionNotificationsEnabled)
+            let textInjectionService = TestTextInjectionService()
+            textInjectionService.pasteResult = true
+            let subject = makeController(
+                defaults: defaults,
+                textInjectionService: textInjectionService
+            )
+
+            let outcome = await subject.controller.handleCompletedResult(text: "hello") {}
+            #expect(outcome == .completed)
+            #expect(subject.completionNotifier.notifyCallCount == 0)
+        }
+
+        @Test func completionNotificationDoesNotPostWhenTextDeliveryFails() async {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(true, forKey: MacPreferences.dictationCompletionNotificationsEnabled)
+            let textInjectionService = TestTextInjectionService()
+            textInjectionService.pasteOutcome = .eventPostedVerificationUnavailable
+            let subject = makeController(
+                defaults: defaults,
+                textInjectionService: textInjectionService
+            )
+
+            let outcome = await subject.controller.handleCompletedResult(text: "hello") {}
+            #expect(outcome == .failed(.pasteVerificationUnavailable))
+            #expect(subject.completionNotifier.notifyCallCount == 0)
+        }
+
+        @Test func finishSoundDoesNotPlayWhenTextDeliveryFails() async {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(true, forKey: MacPreferences.interactionSoundsEnabled)
+            let textInjectionService = TestTextInjectionService()
+            textInjectionService.pasteOutcome = .eventPostedVerificationUnavailable
+            let interactionSoundPlayer = TestInteractionSoundPlayer()
+            let subject = makeController(
+                defaults: defaults,
+                textInjectionService: textInjectionService,
+                interactionSoundPlayer: interactionSoundPlayer
+            )
+
+            let outcome = await subject.controller.handleCompletedResult(text: "hello") {}
+            #expect(outcome == .failed(.pasteVerificationUnavailable))
+            #expect(subject.interactionSoundPlayer.finishCallCount == 0)
+        }
+
+        @Test func finishSoundDoesNotPlayForEmptyTranscription() async {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set(true, forKey: MacPreferences.interactionSoundsEnabled)
+            let interactionSoundPlayer = TestInteractionSoundPlayer()
+            let subject = makeController(
+                defaults: defaults,
+                interactionSoundPlayer: interactionSoundPlayer
+            )
+
+            let outcome = await subject.controller.handleCompletedResult(text: "  \n ") {}
+            #expect(outcome == .failed(.emptyTranscription))
+            #expect(subject.interactionSoundPlayer.finishCallCount == 0)
         }
 
         @Test func promptPlaybackRunsInParallelWithWarmupAndDelaysListeningUntilCompletion() async {

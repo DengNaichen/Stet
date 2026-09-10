@@ -8,6 +8,29 @@
     @MainActor
     @Suite("System Text Injection Service", .serialized)
     struct SystemTextInjectionServiceTests {
+        @Test func cancellationDuringPasteDelayNeverPostsCommand() async throws {
+            let service = SystemTextInjectionService(clipboardService: TestClipboardService())
+            let gate = TestSuspensionGate()
+            var posted = false
+            let task = Task { @MainActor in
+                await service.performPasteClipboard(
+                    into: nil,
+                    accessState: .init(hasAccessibilityAccess: true, hasPostEventAccess: true),
+                    activateApplication: { _ in },
+                    snapshotProvider: { nil },
+                    simulatePasteCommand: {
+                        posted = true; return true
+                    },
+                    sleep: { _ in await gate.wait() }
+                )
+            }
+            try #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+            task.cancel()
+            await gate.open()
+            #expect(await task.value == .eventPostFailed)
+            #expect(!posted)
+        }
+
         @Test func pasteCapturesVerificationSnapshotAfterTargetActivation() async throws {
             let service = SystemTextInjectionService(clipboardService: TestClipboardService())
             let targetApplication = try #require(Self.activationCandidateApplication())

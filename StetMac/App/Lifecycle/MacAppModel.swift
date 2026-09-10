@@ -19,10 +19,12 @@
         private let appearanceSettingsViewModel: MacAppearanceSettingsViewModel
         private let mcpServerController: StetMCPServerController?
         private var passiveListeningRuntime: MacPassiveListeningRuntime?
+        private var meetingRecordingRuntime: MacMeetingRecordingRuntime?
 
         @Published private(set) var passiveListeningState: MacPassiveListeningState =
             .unavailable("Preparing passive listening")
         @Published private(set) var isPassiveListeningEnabled = true
+        @Published private(set) var meetingRecordingPhase: MacMeetingRecordingPhase = .idle
 
         private var cancellables = Set<AnyCancellable>()
 
@@ -30,6 +32,11 @@
             let settingsStore = DictationSettingsStore()
             let captureService = MacAudioCaptureService()
             let passiveListeningRuntime = MacPassiveListeningRuntime(captureService: captureService)
+            let meetingRecordingRuntime = MacMeetingRecordingRuntime.live(
+                captureService: captureService,
+                beginExclusiveCapture: { await passiveListeningRuntime.beginActive() },
+                endExclusiveCapture: { await passiveListeningRuntime.resumePassive() }
+            )
             let pasteboardRestoreCoordinator = PasteboardRestoreCoordinator()
             let clipboardService = SystemClipboardService()
             let textInjectionService = SystemTextInjectionService(
@@ -54,7 +61,8 @@
                     pasteboardRestoreCoordinator: pasteboardRestoreCoordinator
                 ),
                 mcpServerController: StetMCPServerController.live(settingsStore: settingsStore),
-                passiveListeningRuntime: passiveListeningRuntime
+                passiveListeningRuntime: passiveListeningRuntime,
+                meetingRecordingRuntime: meetingRecordingRuntime
             )
         }
 
@@ -67,7 +75,8 @@
             settingsStore: DictationSettingsStore = DictationSettingsStore(),
             captureCoordinator: MacDictationCaptureCoordinator? = nil,
             mcpServerController: StetMCPServerController? = nil,
-            passiveListeningRuntime: MacPassiveListeningRuntime? = nil
+            passiveListeningRuntime: MacPassiveListeningRuntime? = nil,
+            meetingRecordingRuntime: MacMeetingRecordingRuntime? = nil
         ) {
             let bootstrapper = MacAppBootstrapper(settingsStore: settingsStore)
             let captureCoordinator =
@@ -77,6 +86,7 @@
                     textInjectionService: textInjectionService
                 )
             let interactionSoundPlayer = InteractionSoundPlayer()
+            MacDictationCompletionNotificationService.shared.installDelegateIfNeeded()
             let workflowController = MacDictationWorkflowController(
                 dictationViewModel: DictationViewModel(speechService: speechService),
                 captureCoordinator: captureCoordinator,
@@ -84,6 +94,7 @@
                 systemAudioMuting: systemAudioMuting,
                 settingsStore: settingsStore,
                 interactionSoundPlayer: interactionSoundPlayer,
+                completionNotifier: MacDictationCompletionNotificationService.shared,
                 statsModel: .shared
             )
             let sessionController = MacAppSessionController(
@@ -96,7 +107,9 @@
             self.interactionSoundPlayer = interactionSoundPlayer
             self.appearanceSettingsViewModel = .shared
             self.mcpServerController = mcpServerController
-            self.isPassiveListeningEnabled = settingsStore.loadPassiveListeningEnabled()
+            self.isPassiveListeningEnabled = MacFeatureAvailability.isPassiveListeningEnabled(
+                preference: settingsStore.loadPassiveListeningEnabled()
+            )
             let launchConfiguration = bootstrapper.prepareForLaunch()
             sessionController.onChange = { [weak self] in
                 self?.objectWillChange.send()
@@ -109,6 +122,30 @@
                 .store(in: &cancellables)
             sessionController.activate(presentationModel: self, showInDock: launchConfiguration.showInDock)
             mcpServerController?.startIfEnabled()
+
+            sessionController.isMeetingSessionBusy = { [weak self] in
+                self?.isMeetingBusy ?? false
+            }
+            sessionController.onMeetingHotkey = { [weak self] in
+                self?.toggleMeetingRecording()
+            }
+
+            if let meetingRecordingRuntime {
+                self.meetingRecordingRuntime = meetingRecordingRuntime
+                Task { [weak self] in
+                    await meetingRecordingRuntime.setPhaseHandler { [weak self] phase in
+                        guard let self else { return }
+                        let previous = self.meetingRecordingPhase
+                        self.meetingRecordingPhase = phase
+                        Task {
+                            await MacDictationCompletionNotificationService.shared.notifyMeetingPhase(
+                                from: previous,
+                                to: phase
+                            )
+                        }
+                    }
+                }
+            }
 
             if let passiveListeningRuntime {
                 self.passiveListeningRuntime = passiveListeningRuntime
@@ -146,7 +183,9 @@
                     .receive(on: DispatchQueue.main)
                     .sink { [weak self] _ in
                         guard let self else { return }
-                        let isEnabled = self.settingsStore.loadPassiveListeningEnabled()
+                        let isEnabled = MacFeatureAvailability.isPassiveListeningEnabled(
+                            preference: self.settingsStore.loadPassiveListeningEnabled()
+                        )
                         self.isPassiveListeningEnabled = isEnabled
                         Task { await passiveListeningRuntime.setEnabled(isEnabled) }
                     }
@@ -156,7 +195,11 @@
 
         deinit {
             let passiveListeningRuntime = passiveListeningRuntime
-            Task { await passiveListeningRuntime?.stop() }
+            let meetingRecordingRuntime = meetingRecordingRuntime
+            Task {
+                await meetingRecordingRuntime?.stop()
+                await passiveListeningRuntime?.stop()
+            }
         }
 
         var updates: AnyPublisher<Void, Never> {
@@ -327,6 +370,68 @@
             }
         }
 
+        var isMeetingBusy: Bool {
+            switch meetingRecordingPhase {
+            case .recording, .processing:
+                return true
+            case .idle, .failed:
+                return false
+            }
+        }
+
+        var isMeetingRecording: Bool {
+            if case .recording = meetingRecordingPhase {
+                return true
+            }
+            return false
+        }
+
+        var meetingStatusText: String {
+            switch meetingRecordingPhase {
+            case .idle:
+                return "Meeting recording idle"
+            case .recording(_, let folderName):
+                return "Recording meeting · \(folderName)"
+            case .processing:
+                return "Processing meeting"
+            case .failed(let message):
+                return "Meeting failed: \(message)"
+            }
+        }
+
+        var meetingMenuSymbolName: String {
+            switch meetingRecordingPhase {
+            case .recording:
+                return "record.circle.fill"
+            case .processing:
+                return "hourglass"
+            case .failed:
+                return "exclamationmark.triangle"
+            case .idle:
+                return "record.circle"
+            }
+        }
+
+        var meetingToggleTitle: String {
+            switch meetingRecordingPhase {
+            case .idle, .failed:
+                return "Start Meeting Recording"
+            case .recording:
+                return "Stop Meeting Recording"
+            case .processing:
+                return "Processing meeting"
+            }
+        }
+
+        var canToggleMeetingRecording: Bool {
+            switch meetingRecordingPhase {
+            case .processing:
+                return false
+            case .idle, .recording, .failed:
+                return true
+            }
+        }
+
         var stateAccentName: String {
             guard hasRequiredPermissions else {
                 return "Permissions"
@@ -428,6 +533,11 @@
 
         func togglePanel() {
             sessionController.togglePanel()
+        }
+
+        func toggleMeetingRecording() {
+            guard let meetingRecordingRuntime else { return }
+            Task { await meetingRecordingRuntime.toggle() }
         }
 
         func previewInteractionSound(_ preset: InteractionSoundPreset) {

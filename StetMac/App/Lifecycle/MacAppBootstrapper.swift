@@ -36,6 +36,7 @@
             .string(MacPreferences.rewriteProvider, DictationProvider.openAI.rawValue),
             .bool(MacPreferences.rewriteEnabled, true),
             .bool(MacPreferences.interactionSoundsEnabled, true),
+            .bool(MacPreferences.dictationCompletionNotificationsEnabled, true),
             .string(MacPreferences.interactionSoundPreset, InteractionSoundPreset.defaultPreset.rawValue),
             .string(MacPreferences.shaderTheme, MacDictationVisualTheme.egg.rawValue),
             .bool(MacPreferences.showInDock, false),

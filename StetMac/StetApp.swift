@@ -28,11 +28,26 @@ struct StetApp: App {
                 wrappedValue: MacSettingsShellViewModel(coordinator: appModel)
             )
         }
+
+        @ViewBuilder
+        private var menuBarExtraLabel: some View {
+            if appModel.isMeetingRecording {
+                Image(systemName: "record.circle.fill")
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(Color.red, Color.primary)
+                    .accessibilityLabel("Recording meeting")
+            } else if appModel.isMeetingBusy {
+                Image(systemName: "hourglass")
+                    .accessibilityLabel("Processing meeting")
+            } else {
+                Image("menuBarIcon")
+            }
+        }
     #endif
 
     var body: some Scene {
         #if os(macOS)
-            MenuBarExtra("", image: "menuBarIcon") {
+            MenuBarExtra {
                 MacMenuBarView()
                     .environmentObject(appModel)
                     .environmentObject(settingsShellViewModel)
@@ -40,14 +55,18 @@ struct StetApp: App {
                     .onOpenURL { url in
                         appModel.handleDeepLink(url)
                     }
+            } label: {
+                menuBarExtraLabel
             }
             .menuBarExtraStyle(.menu)
 
             Window("Settings", id: MacWindowSceneID.preferences) {
                 MacSettingsView()
+                    .environmentObject(appModel)
                     .environmentObject(settingsShellViewModel)
                     .environmentObject(appUpdateManager)
             }
+            .windowStyle(.hiddenTitleBar)
             .defaultLaunchBehavior(.suppressed)
             .restorationBehavior(.disabled)
             .defaultSize(
