@@ -33,6 +33,7 @@
         var onMeetingHotkey: () -> Void = {}
         var cancellables = Set<AnyCancellable>()
         var completionHandlingTask: Task<Void, Never>?
+        var copiedPendingResult: String?
         var clipboardPendingDismissTask: Task<Void, Never>?
         var clipboardPendingAutoDismissDelay: Duration = .seconds(4)
         let hotkeyInteraction = MacDictationHotkeyInteraction()

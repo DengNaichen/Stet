@@ -244,15 +244,18 @@
             }
             let copied = captureCoordinator.copyToClipboard(text)
             if copied {
-                // [History point D] User manually committed the clipboard-pending result.
-                DictationHistoryService.shared.updateFinal(
-                    text,
-                    targetBundleID: lastTargetApplication?.bundleIdentifier,
-                    targetAppName: lastTargetApplication?.localizedName,
-                    status: .clipboardPending
-                )
+                finalizePendingResultHistory(text)
             }
             return copied
+        }
+
+        func finalizePendingResultHistory(_ text: String) {
+            DictationHistoryService.shared.updateFinal(
+                text,
+                targetBundleID: lastTargetApplication?.bundleIdentifier,
+                targetAppName: lastTargetApplication?.localizedName,
+                status: .clipboardPending
+            )
         }
 
         private func refreshTargetApplication(allowingCurrentAppTarget: Bool) {

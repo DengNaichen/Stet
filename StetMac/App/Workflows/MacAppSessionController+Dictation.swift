@@ -111,6 +111,7 @@
 
         func handleResultLifecycle(for state: DictationState) {
             guard case .result(let text) = state else { return }
+            copiedPendingResult = nil
 
             completionHandlingTask = Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -170,6 +171,7 @@
                     }
                 case .failed(let failure):
                     if failure.preservesRecoveredTextInClipboard {
+                        copiedPendingResult = text
                         if !isPanelVisible {
                             showTransientPanel()
                         }
@@ -189,10 +191,8 @@
             shellPresentationController.cancelScheduledPanelHide()
         }
 
-        // The recovered text is already on the clipboard by the time the panel
-        // reaches `.clipboardPending`, so the surface is informational. Time it
-        // out the same way the confirm button resolves it, which also finalizes
-        // the history entry instead of leaving it stuck in `.processing`.
+        // Only acknowledge a successful fallback automatically. A timeout must
+        // never replace something the user copied while this panel was visible.
         func scheduleClipboardPendingAutoDismiss() {
             clipboardPendingDismissTask?.cancel()
             clipboardPendingDismissTask = Task { @MainActor [weak self] in
@@ -201,7 +201,9 @@
                 guard !Task.isCancelled else { return }
                 guard case .clipboardPending(let text) = dictationState else { return }
                 clipboardPendingDismissTask = nil
-                commitPendingCopy(text)
+                guard resolvePendingResult(text, copyIfNeeded: false) else { return }
+                hidePanel()
+                workflowController.dictationViewModel.send(.resetTapped)
             }
         }
 
@@ -278,10 +280,7 @@
                 workflowController.dictationViewModel.send(.resetTapped)
                 startDictationCapture(from: source)
             case .clipboardPending(let text):
-                // The text is already on the clipboard; finalize the history
-                // entry so starting a new capture does not leave the previous
-                // one stuck in `.processing`.
-                _ = workflowController.copyPendingResultToClipboard(text)
+                guard resolvePendingResult(text, copyIfNeeded: true) else { return }
                 workflowController.dictationViewModel.send(.resetTapped)
                 startDictationCapture(from: source)
             case .starting, .listening, .processing:
@@ -291,6 +290,7 @@
 
         func startDictationCapture(from source: PrimaryActionSource) {
             cancelPendingStateTasks()
+            copiedPendingResult = nil
             workflowController.startDictationCapture(
                 source: source,
                 allowCurrentAppTarget: requiresOnboarding && onboardingStepState == .firstSuccess,
@@ -311,7 +311,18 @@
             workflowController.stopActiveCapture()
         }
 
+        private func resolvePendingResult(_ text: String, copyIfNeeded: Bool) -> Bool {
+            if copiedPendingResult == text {
+                workflowController.finalizePendingResultHistory(text)
+            } else {
+                guard copyIfNeeded, workflowController.copyPendingResultToClipboard(text) else { return false }
+            }
+            copiedPendingResult = nil
+            return true
+        }
+
         func commitPendingCopy(_ text: String) {
+            copiedPendingResult = nil
             let copied = workflowController.copyPendingResultToClipboard(text)
             guard copied else {
                 return
