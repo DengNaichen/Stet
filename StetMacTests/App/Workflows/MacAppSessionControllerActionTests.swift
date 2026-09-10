@@ -424,9 +424,8 @@
             subject.clipboardService.shouldFailCopy = true
 
             subject.session.performPrimaryAction()
-            try #require(pendingDismiss.isCancelled)
-            await pendingDismiss.value
             await clock.advance(by: delay)
+            await pendingDismiss.value
             #expect(subject.session.clipboardPendingDismissTask == nil)
 
             #expect(subject.workflow.dictationViewModel.state == .clipboardPending("transcript A"))
@@ -472,8 +471,9 @@
             let pendingDismiss = try #require(subject.session.clipboardPendingDismissTask)
 
             subject.session.performPrimaryAction()
-            try #require(pendingDismiss.isCancelled)
+            // The reset is observed asynchronously by the state subscription.
             await pendingDismiss.value
+            #expect(pendingDismiss.isCancelled)
             await clock.advance(by: delay)
 
             #expect(subject.workflow.dictationViewModel.state == .idle)
