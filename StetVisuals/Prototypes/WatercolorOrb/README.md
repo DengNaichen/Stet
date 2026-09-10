@@ -19,3 +19,7 @@ The capsule renders at 80 × 40 CSS pixels (logical-point comparison at browser 
 Initial observation: broad pale-blue / white / blue bands remain legible at actual size; the pigment granularity and fine internal tonal variation are much less legible. Final acceptance is pending user review. No native app code was changed.
 
 Validation: JavaScript syntax checked; all three browser views inspected, including actual-size and enlarged copies. Microphone remains opt-in; the simulated envelope can drive both shapes for comparison.
+
+## Larger, rounder follow-up
+
+Size presets are shareable as `&size=original` (80 × 40), `compact` (88 × 56), and `round` (96 × 64, default). Each uses a capsule radius of half its height. Side controls stay at 40 × 40. The extra height gives the large color bands more room; acceptance is pending user review. Rendering resolution and the 4× pixel view follow the selected dimensions. Size switching and simulated audio were checked in the browser with no console errors.
