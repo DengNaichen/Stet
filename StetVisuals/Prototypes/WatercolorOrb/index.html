@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>胶囊尺寸实验 · 更大、更圆</title>
+<title>圆球与按钮 · 布局实验</title>
 <style>
 [hidden]{display:none!important}
 :root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#252c35;background:#fcfcfc;color-scheme:light}
@@ -30,15 +30,26 @@ body[data-variant=detail] #detail-panel{display:flex}
 footer{margin-bottom:90px}.error{margin:auto}.dimension-note{text-align:center;font-size:11px;color:#969da6;line-height:1.7}
 @media(max-width:680px){.study,body[data-variant=detail] .study{grid-template-columns:1fr;gap:36px}.study{min-height:360px}#reference{width:240px;height:240px}.switcher{bottom:10px}.switcher button{padding:8px 10px}}
 .size-options{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:24px}.size-options button{padding:8px 12px;font-size:11px;min-height:34px}
+
+.chrome-orb{padding:0;flex-shrink:0;cursor:pointer;position:relative}
+body[data-shape=circle] .capsule-context{gap:6px;padding:12px 16px}
+body[data-shape=circle] .chrome-orb{width:44px;height:44px;min-height:44px;border:0;background:transparent;transform:translateY(12px);opacity:.38;transition:opacity .18s ease;color:#546270;font-size:20px;isolation:isolate}
+body[data-shape=circle] .chrome-orb:before{content:"";position:absolute;inset:6px;border-radius:50%;background:#edf0f3;border:1px solid #e2e6eb;z-index:-1}
+body[data-shape=circle] .capsule-context:hover .chrome-orb,body[data-shape=circle] .capsule-context:focus-within .chrome-orb{opacity:1}
+body[data-shape=circle] .chrome-orb:hover:before{background:#e2eaf4}
+body[data-shape=circle] .chrome-orb:active:before{background:#ccdbee}
+#layout-feedback{min-height:16px;font-size:11px;color:#929ba5;margin-top:-12px}
+@media(hover:none){body[data-shape=circle] .chrome-orb{opacity:1}}
+@media(prefers-reduced-motion:reduce){body[data-shape=circle] .chrome-orb{transition:none}}
 </style>
 </head>
 <body>
 <main>
-  <header><h1>胶囊尺寸实验</h1><span id="variant-state">80 × 40 · 与原版同步</span></header>
-  <div class="size-options" aria-label="胶囊尺寸"><button data-size="original">原尺寸 · 80 × 40</button><button data-size="compact">稍大 · 88 × 56</button><button data-size="round">更圆 · 96 × 64</button></div>
+  <header><h1>圆球与按钮</h1><span id="variant-state">80 × 40 · 与原版同步</span></header>
+  <div class="size-options" aria-label="主体形状"><button data-size="circle">圆球 · 64</button><button data-size="circleLarge">圆球 · 72</button><button data-size="original">胶囊对照 · 80 × 40</button></div>
   <div class="study">
     <section class="study-panel" id="reference-panel"><h2>大圆对照</h2><canvas id="reference" role="img" aria-label="原始圆形水彩效果"></canvas></section>
-    <section class="study-panel" id="actual-panel"><h2 id="size-heading">胶囊 · 96 × 64</h2><div class="capsule-context"><span class="chrome-orb" aria-hidden="true">×</span><canvas id="actual" role="img" aria-label="80乘40实际大小的水彩胶囊"></canvas><span class="chrome-orb" aria-hidden="true">✓</span></div><p id="size-note">圆角 32 · 两侧按钮 40</p></section>
+    <section class="study-panel" id="actual-panel"><h2 id="size-heading">胶囊 · 96 × 64</h2><div class="capsule-context"><button class="chrome-orb" id="layout-cancel" aria-label="取消（布局演示）" title="取消"><span aria-hidden="true">×</span></button><canvas id="actual" role="img" aria-label="80乘40实际大小的水彩胶囊"></canvas><button class="chrome-orb" id="layout-confirm" aria-label="确认（布局演示）" title="确认"><span aria-hidden="true">✓</span></button></div><p id="size-note">圆球 64 · 按钮 32</p><p id="layout-feedback" role="status">靠近或用 Tab 聚焦，查看按钮</p></section>
     <section class="study-panel" id="detail-panel"><h2>4 倍放大 · 查看同一帧的像素</h2><canvas id="detail" role="img" aria-label="实际胶囊像素放大四倍"></canvas><p>使用实际尺寸渲染结果，不重新增加细节</p></section>
   </div>
   <p class="dimension-note">请用浏览器 100% 缩放判断实际大小。颜色与声音响应沿用提交版本；未叠加系统玻璃效果。</p>
@@ -84,9 +95,9 @@ footer{margin-bottom:90px}.error{margin:auto}.dimension-note{text-align:center;f
   const canvas = document.createElement('canvas');
   const targets = Object.fromEntries(['reference','actual','detail'].map(id => [id, {canvas:$(id), context:$(id).getContext('2d')}]));
   const views = ['actual','compare','detail'];
-  const sizes = {original:[80,40],compact:[88,56],round:[96,64]};
+  const sizes = {original:[80,40],compact:[88,56],round:[96,64],circle:[64,64],circleLarge:[72,72]};
   let sizeKey = new URL(location.href).searchParams.get('size');
-  if (!sizes[sizeKey]) sizeKey = 'round';
+  if (!sizes[sizeKey]) sizeKey = 'circle';
   let [capsuleWidth,capsuleHeight] = sizes[sizeKey];
   let variant;
   function setVariant(value) {
@@ -407,15 +418,18 @@ void main() {
     }
     let pixelRatio = 0, resolutionKey = '';
     function selectSize(key) {
-      sizeKey = sizes[key] ? key : 'round';
+      sizeKey = sizes[key] ? key : 'circle';
       [capsuleWidth,capsuleHeight] = sizes[sizeKey];
       $('actual').style.width = capsuleWidth+'px';
       $('actual').style.height = capsuleHeight+'px';
-      $('actual').setAttribute('aria-label',`${capsuleWidth}乘${capsuleHeight}水彩胶囊`);
+      const circular = capsuleWidth === capsuleHeight;
+      document.body.dataset.shape = circular ? 'circle' : 'capsule';
+      $('actual').setAttribute('aria-label',circular ? `直径${capsuleWidth}的水彩圆球` : `${capsuleWidth}乘${capsuleHeight}水彩胶囊`);
       $('detail').style.width = capsuleWidth*4+'px';
       $('detail').style.height = capsuleHeight*4+'px';
-      $('size-heading').textContent = `胶囊 · ${capsuleWidth} × ${capsuleHeight}`;
-      $('size-note').textContent = `圆角 ${capsuleHeight/2} · 两侧按钮 40 · 间距 18.144`;
+      $('size-heading').textContent = circular ? `圆球 · 直径 ${capsuleWidth}` : `胶囊 · ${capsuleWidth} × ${capsuleHeight}`;
+      $('size-note').textContent = circular ? '按钮 32 · 点击区域 44 · 下移 12 · 水平边缘间距 12' : `圆角 ${capsuleHeight/2} · 两侧按钮 40 · 间距 18.144`;
+      $('layout-feedback').textContent = '靠近或用 Tab 聚焦，查看按钮';
       document.querySelectorAll('[data-size]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.size===sizeKey)));
       const url = new URL(location.href); url.searchParams.set('size',sizeKey); history.replaceState(null,'',url);
       setVariant(variant);
@@ -447,6 +461,8 @@ void main() {
       target.context.clearRect(0,0,w,h);
       target.context.drawImage(canvas,0,canvas.height-h,w,h,0,0,w,h);
     }
+    $('layout-cancel').onclick = () => { $('layout-feedback').textContent = '已点击取消 · 仅演示布局'; };
+    $('layout-confirm').onclick = () => { $('layout-feedback').textContent = '已点击确认 · 仅演示布局'; };
     selectSize(sizeKey);
     document.addEventListener('visibilitychange', () => { previous = null; });
     canvas.addEventListener('webglcontextlost', event => {
@@ -490,7 +506,7 @@ void main() {
       gl.uniform1f(uTone, tone);
       gl.uniform1f(uGrain, grain);
       renderTarget('reference',350,350,0);
-      renderTarget('actual',capsuleWidth,capsuleHeight,1);
+      renderTarget('actual',capsuleWidth,capsuleHeight,capsuleWidth===capsuleHeight?0:1);
       const detail = targets.detail;
       detail.context.clearRect(0,0,detail.canvas.width,detail.canvas.height);
       detail.context.drawImage(targets.actual.canvas,0,0);

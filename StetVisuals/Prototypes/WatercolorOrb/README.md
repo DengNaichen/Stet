@@ -23,3 +23,7 @@ Validation: JavaScript syntax checked; all three browser views inspected, includ
 ## Larger, rounder follow-up
 
 Size presets are shareable as `&size=original` (80 × 40), `compact` (88 × 56), and `round` (96 × 64, default). Each uses a capsule radius of half its height. Side controls stay at 40 × 40. The extra height gives the large color bands more room; acceptance is pending user review. Rendering resolution and the 4× pixel view follow the selected dimensions. Size switching and simulated audio were checked in the browser with no console errors.
+
+## Circular body with secondary actions
+
+`size=circle` (default) renders a 64-diameter orb; `circleLarge` renders 72. Cancel and confirm have 32-diameter visible discs inside 44 × 44 hit areas. Their centers sit 12 below the orb center, with 12 horizontal pixels between visible edges. Hovering the group or focusing within it reveals the controls; touch pointers keep them visible. Buttons only show local layout-demo feedback. Original capsule remains selectable. Browser inspection verified 64 × 64 and 44 × 44 bounds, center offsets of ±60 horizontally and +12 vertically, feedback, and no console errors. Native app integration remains out of scope.
