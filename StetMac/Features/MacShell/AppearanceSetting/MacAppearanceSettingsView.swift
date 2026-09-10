@@ -14,21 +14,34 @@
         }
 
         var body: some View {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    capsulePreview
+            GeometryReader { geometry in
+                // Keep the complete composition visible in the normal Settings window.
+                // Retain scrolling as a fallback for unusually small windows.
+                let coverScale = max(
+                    0.35,
+                    min(0.72, (geometry.size.width - 72) / 440, (geometry.size.height - 140) / 380)
+                )
 
-                    appearanceCoverFlow
+                ScrollView {
+                    VStack(spacing: 12) {
+                        capsulePreview
 
-                    Text("Choose the color palette used by the dictation capsule.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 4)
+                        appearanceCoverFlow
+                            .frame(width: 440, height: 380)
+                            .scaleEffect(coverScale)
+                            .frame(width: 440 * coverScale, height: 380 * coverScale)
+
+                        Text("Choose the color palette used by the dictation capsule.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
                 }
-                .padding(.vertical, 20)
-                .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
+                .macSettingsTracksTitleScroll()
             }
-            .macSettingsTracksTitleScroll()
             .task {
                 viewModel.load()
             }
@@ -37,10 +50,9 @@
         private var capsulePreview: some View {
             MacDictationCapsulePreviewView(
                 theme: MacDictationShaderTheme(rawValue: viewModel.shaderTheme.rawValue) ?? .egg,
-                scale: 2.0
+                scale: 1.1
             )
             .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.vertical, 20)
         }
 
         private var appearanceCoverFlow: some View {
@@ -54,7 +66,6 @@
                     viewModel.updateShaderTheme(theme, persist: true)
                 }
             )
-            .frame(minHeight: 390)
         }
     }
 #endif
