@@ -86,8 +86,12 @@
                 coordinator.close()
                 return
             }
-            guard coordinator.panel == nil else { return }
             let root = sheet().environment(\.colorScheme, colorScheme)
+            if coordinator.panel != nil {
+                // The panel has its own hosting tree; refresh values derived from parent state.
+                coordinator.update(root)
+                return
+            }
             DispatchQueue.main.async { [weak view] in
                 guard let parent = view?.window, coordinator.panel == nil, coordinator.wantsPresentation else { return }
                 coordinator.present(root, on: parent)
@@ -102,6 +106,24 @@
         var panel: MacSettingsEditorPanel?
         var dismiss: (() -> Void)?
         var wantsPresentation = false
+        private var host: NSHostingView<AnyView>?
+
+        func update<Root: View>(_ root: Root) {
+            guard let panel else { return }
+            host?.rootView = hostedRoot(root, panel: panel)
+        }
+
+        private func hostedRoot<Root: View>(_ root: Root, panel: NSPanel) -> AnyView {
+            AnyView(
+                root.fixedSize().background {
+                    GeometryReader { geometry in
+                        Color.clear.preference(key: EditorSizeKey.self, value: geometry.size)
+                    }
+                }.onPreferenceChange(EditorSizeKey.self) { [weak panel] size in
+                    guard size.width > 0, size.height > 0 else { return }
+                    DispatchQueue.main.async { panel?.setContentSize(size) }
+                })
+        }
 
         func present<Root: View>(_ root: Root, on parent: NSWindow) {
             let panel = MacSettingsEditorPanel(
@@ -112,15 +134,8 @@
             panel.backgroundColor = .clear
             panel.hasShadow = true
             panel.isReleasedWhenClosed = false
-            let host = NSHostingView(
-                rootView: root.fixedSize().background {
-                    GeometryReader { geometry in
-                        Color.clear.preference(key: EditorSizeKey.self, value: geometry.size)
-                    }
-                }.onPreferenceChange(EditorSizeKey.self) { [weak panel] size in
-                    guard size.width > 0, size.height > 0 else { return }
-                    DispatchQueue.main.async { panel?.setContentSize(size) }
-                })
+            let host = NSHostingView(rootView: hostedRoot(root, panel: panel))
+            self.host = host
             panel.contentView = host
             panel.setContentSize(host.fittingSize)
             parent.beginSheet(panel)
@@ -134,6 +149,7 @@
         func close() {
             guard let panel else { return }
             self.panel = nil
+            host = nil
             panel.sheetParent?.endSheet(panel)
             panel.orderOut(nil)
         }

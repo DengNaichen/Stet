@@ -266,10 +266,21 @@
         init(viewModel: MacOpenAISettingsViewModel, onClose: @escaping () -> Void) {
             self.viewModel = viewModel
             self.onClose = onClose
-            _baseURL = State(initialValue: viewModel.customBaseURL)
+            _baseURL = State(initialValue: Self.singleLineURL(viewModel.customBaseURL))
             _key = State(initialValue: viewModel.customAPIKey)
             _modelID = State(initialValue: viewModel.customModelID)
             _models = State(initialValue: viewModel.discoveredCustomModels)
+        }
+
+        private static func singleLineURL(_ value: String) -> String {
+            value.components(separatedBy: .newlines).joined()
+        }
+
+        private var baseURLBinding: Binding<String> {
+            Binding(
+                get: { baseURL },
+                set: { baseURL = Self.singleLineURL($0) }
+            )
         }
 
         var body: some View {
@@ -278,7 +289,9 @@
             ) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Base URL").font(.subheadline)
-                    TextField("https://api.example.com/v1", text: $baseURL).labelsHidden()
+                    TextField("https://api.example.com/v1", text: baseURLBinding, axis: .horizontal)
+                        .lineLimit(1)
+                        .labelsHidden()
                     Text("Include the API version path if your provider requires one.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
