@@ -1,4 +1,6 @@
 IOS_DEVELOPER_DIR ?= /Applications/Xcode-beta.app/Contents/Developer
+CI_XCODEBUILD_FLAGS ?=
+
 IOS_XCODEBUILD := $(IOS_DEVELOPER_DIR)/usr/bin/xcodebuild
 
 MACOS_SWIFT_DIRS := StetMac StetMacTests StetMacUITests StetVisuals
@@ -41,10 +43,10 @@ build:
 	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' build
 
 ci-build:
-	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' build
+	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' $(CI_XCODEBUILD_FLAGS) build
 
 test:
-	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' -only-testing:StetTests test
+	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' -only-testing:StetTests $(CI_XCODEBUILD_FLAGS) test
 
 ios-bootstrap:
 	StetMobile/scripts/bootstrap-sherpa-runtime.sh

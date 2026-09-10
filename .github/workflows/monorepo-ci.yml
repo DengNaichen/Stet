@@ -25,9 +25,25 @@ jobs:
       - name: Run lint checks
         run: make lint
 
-  macos-build:
-    name: macOS Build
+  macos:
+    name: ${{ matrix.name }}
     runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Build
+            target: ci-build
+          - name: macOS Tests
+            target: test
+    env:
+      CI_XCODEBUILD_FLAGS: >-
+        -derivedDataPath .build/ci
+        -onlyUsePackageVersionsFromResolvedFile
+        -skipPackageUpdates
+        -showBuildTimingSummary
+        COMPILATION_CACHE_ENABLE_CACHING=YES
+        COMPILATION_CACHE_ENABLE_DIAGNOSTIC_REMARKS=YES
 
     steps:
       - uses: actions/checkout@v5
@@ -36,25 +52,53 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Install Metal Toolchain
-        run: xcodebuild -downloadComponent MetalToolchain
+      - name: Identify toolchain
+        id: toolchain
+        run: |
+          fingerprint=$( { xcodebuild -version; xcrun --sdk macosx --show-sdk-build-version; sw_vers -buildVersion; } | shasum -a 256 | cut -d ' ' -f 1)
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
 
-      - name: Build macOS app
-        run: make ci-build
-
-  macos-tests:
-    name: macOS Tests
-    runs-on: macos-26
-
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: maxim-lobanov/setup-xcode@v1
+      - name: Restore Swift packages
+        id: packages
+        uses: actions/cache/restore@v5
         with:
-          xcode-version: latest-stable
+          path: .build/ci/SourcePackages
+          key: spm-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('**/Package.resolved', '**/Package.swift') }}
+
+      - name: Resolve Swift packages
+        run: >-
+          xcodebuild -resolvePackageDependencies
+          -project Stet.xcodeproj -scheme Stet
+          -derivedDataPath .build/ci
+          -onlyUsePackageVersionsFromResolvedFile -skipPackageUpdates
+
+      - name: Save Swift packages
+        if: steps.packages.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: .build/ci/SourcePackages
+          key: ${{ steps.packages.outputs.cache-primary-key }}
+
+      - name: Restore compilation cache
+        id: compilation
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData/CompilationCache.noindex
+          key: compilation-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-${{ github.sha }}
+          restore-keys: |
+            compilation-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-
 
       - name: Install Metal Toolchain
         run: xcodebuild -downloadComponent MetalToolchain
 
-      - name: Run macOS tests
-        run: make test
+      - name: Build or test macOS app
+        run: make ${{ matrix.target }}
+
+      # Compiler results are reusable even if a later test fails. Never cache
+      # test results or skip test execution on a cache hit.
+      - name: Save compilation cache
+        if: ${{ !cancelled() && steps.compilation.outcome == 'success' && steps.compilation.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v5
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData/CompilationCache.noindex
+          key: ${{ steps.compilation.outputs.cache-primary-key }}
