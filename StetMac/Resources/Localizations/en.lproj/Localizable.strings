@@ -250,3 +250,14 @@
 
 "Automatically learned" = "Automatically learned";
 "Manually added" = "Manually added";
+
+/* App compatibility updates */
+"App Compatibility" = "App Compatibility";
+"Check for Compatibility List Updates" = "Check for Compatibility List Updates";
+"Checking compatibility list…" = "Checking compatibility list…";
+"Compatibility list updated." = "Compatibility list updated.";
+"Compatibility list is up to date." = "Compatibility list is up to date.";
+"Could not check for updates. Continuing to use the current compatibility list." = "Could not check for updates. Continuing to use the current compatibility list.";
+"Update compatibility fixes for pasting into other apps." = "Update compatibility fixes for pasting into other apps.";
+"Updated" = "Updated";
+"Check failed. Using current list." = "Check failed. Using current list.";

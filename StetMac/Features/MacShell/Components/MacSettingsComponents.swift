@@ -76,10 +76,11 @@
         @Environment(\.colorScheme) private var colorScheme
 
         func makeCoordinator() -> MacSettingsSheetCoordinator { MacSettingsSheetCoordinator() }
-        func makeNSView(context: Context) -> NSView { NSView() }
+        func makeNSView(context: Context) -> MacSettingsSheetAnchorView { MacSettingsSheetAnchorView() }
 
-        func updateNSView(_ view: NSView, context: Context) {
+        func updateNSView(_ view: MacSettingsSheetAnchorView, context: Context) {
             let coordinator = context.coordinator
+            view.presentWhenAttached = nil
             coordinator.dismiss = { isPresented = false }
             coordinator.wantsPresentation = isPresented
             if !isPresented {
@@ -92,14 +93,36 @@
                 coordinator.update(root)
                 return
             }
-            DispatchQueue.main.async { [weak view] in
-                guard let parent = view?.window, coordinator.panel == nil, coordinator.wantsPresentation else { return }
+            view.presentWhenAttached = { [weak view, weak coordinator] in
+                guard let parent = view?.window, let coordinator,
+                    coordinator.panel == nil, coordinator.wantsPresentation
+                else { return }
                 coordinator.present(root, on: parent)
             }
+            view.schedulePresentation()
         }
 
-        static func dismantleNSView(_ nsView: NSView, coordinator: MacSettingsSheetCoordinator) { coordinator.close() }
+        static func dismantleNSView(_ nsView: MacSettingsSheetAnchorView, coordinator: MacSettingsSheetCoordinator) {
+            nsView.presentWhenAttached = nil
+            coordinator.wantsPresentation = false
+            coordinator.close()
+        }
 
+    }
+
+    private final class MacSettingsSheetAnchorView: NSView {
+        var presentWhenAttached: (() -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if window != nil { schedulePresentation() }
+        }
+
+        func schedulePresentation() {
+            DispatchQueue.main.async { [weak self] in
+                self?.presentWhenAttached?()
+            }
+        }
     }
 
     private final class MacSettingsSheetCoordinator: NSObject {

@@ -14,7 +14,12 @@
                 contentRect: NSRect(x: 0, y: 0, width: 300, height: 200),
                 styleMask: [.titled], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
-            window.contentView = NSHostingView(rootView: Editor(draft: draft))
+            let host = NSHostingView(rootView: Editor(draft: draft))
+            // Exercise presentation requested before SwiftUI's host has a window.
+            _ = host.fittingSize
+            host.layoutSubtreeIfNeeded()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+            window.contentView = host
             window.orderFront(nil)
             defer {
                 if let sheet = window.attachedSheet { window.endSheet(sheet) }
@@ -22,26 +27,30 @@
                 window.close()
             }
 
-            settle()
+            waitUntil { window.attachedSheet != nil && draft.buttonEnabled == false }
             let sheet = try XCTUnwrap(window.attachedSheet)
             XCTAssertEqual(draft.buttonEnabled, false)
 
             draft.text = "OpenAI"
-            settle()
+            waitUntil { draft.buttonEnabled == true }
             XCTAssertEqual(draft.buttonEnabled, true, "Valid input must enable Add in the open sheet")
             XCTAssertTrue(window.attachedSheet === sheet)
 
             draft.text = "沙发上"
-            settle()
+            waitUntil { draft.buttonEnabled == true }
             XCTAssertEqual(draft.buttonEnabled, true)
 
             draft.text = ""
-            settle()
+            waitUntil { draft.buttonEnabled == false }
             XCTAssertEqual(draft.buttonEnabled, false, "Clearing input must disable Add again")
         }
 
-        private func settle() {
-            RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+        private func waitUntil(_ condition: () -> Bool, file: StaticString = #filePath, line: UInt = #line) {
+            let deadline = Date().addingTimeInterval(5)
+            while !condition(), Date() < deadline {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+            }
+            XCTAssertTrue(condition(), "Timed out waiting for sheet state", file: file, line: line)
         }
 
         private final class Draft: ObservableObject {

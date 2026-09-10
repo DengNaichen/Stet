@@ -19,6 +19,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+
+      - name: Validate app compatibility list
+        run: python3 scripts/validate-app-compatibility.py --base-ref HEAD^
 
       - uses: maxim-lobanov/setup-xcode@v1
         with:

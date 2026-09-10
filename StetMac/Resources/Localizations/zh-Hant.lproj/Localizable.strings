@@ -217,3 +217,14 @@
 
 "Automatically learned" = "自動學習";
 "Manually added" = "手動新增";
+
+/* App compatibility updates */
+"App Compatibility" = "應用程式相容性";
+"Check for Compatibility List Updates" = "檢查清單更新";
+"Checking compatibility list…" = "正在檢查清單…";
+"Compatibility list updated." = "相容清單已更新。";
+"Compatibility list is up to date." = "相容清單已是最新。";
+"Could not check for updates. Continuing to use the current compatibility list." = "檢查失敗，繼續使用目前的相容清單。";
+"Update compatibility fixes for pasting into other apps." = "更新向其他應用程式貼上文字時使用的相容清單。";
+"Updated" = "已更新";
+"Check failed. Using current list." = "檢查失敗，繼續使用目前的清單。";
