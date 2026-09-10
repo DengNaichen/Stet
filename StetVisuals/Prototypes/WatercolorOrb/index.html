@@ -41,6 +41,7 @@ body[data-shape=circle] .chrome-orb:active:before{background:#ccdbee}
 #layout-feedback{min-height:16px;font-size:11px;color:#929ba5;margin-top:-12px}
 @media(hover:none){body[data-shape=circle] .chrome-orb{opacity:1}}
 @media(prefers-reduced-motion:reduce){body[data-shape=circle] .chrome-orb{transition:none}}
+.weave-control{display:block;margin-top:20px}.weave-control span{margin-bottom:6px}
 </style>
 </head>
 <body>
@@ -52,7 +53,7 @@ body[data-shape=circle] .chrome-orb:active:before{background:#ccdbee}
     <section class="study-panel" id="actual-panel"><h2 id="size-heading">胶囊 · 96 × 64</h2><div class="capsule-context"><button class="chrome-orb" id="layout-cancel" aria-label="取消（布局演示）" title="取消"><span aria-hidden="true">×</span></button><canvas id="actual" role="img" aria-label="80乘40实际大小的水彩胶囊"></canvas><button class="chrome-orb" id="layout-confirm" aria-label="确认（布局演示）" title="确认"><span aria-hidden="true">✓</span></button></div><p id="size-note">圆球 64 · 按钮 32</p><p id="layout-feedback" role="status">靠近或用 Tab 聚焦，查看按钮</p></section>
     <section class="study-panel" id="detail-panel"><h2>4 倍放大 · 查看同一帧的像素</h2><canvas id="detail" role="img" aria-label="实际胶囊像素放大四倍"></canvas><p>使用实际尺寸渲染结果，不重新增加细节</p></section>
   </div>
-  <p class="dimension-note">请用浏览器 100% 缩放判断实际大小。颜色与声音响应沿用提交版本；未叠加系统玻璃效果。</p>
+  <p class="dimension-note">请用浏览器 100% 缩放判断实际大小。将“层间流动”调到 0 可对照原来的分层；未叠加系统玻璃效果。</p>
   <p id="status" class="status" data-mode="manual">原始流动</p>
   <p id="error" class="error" role="alert" hidden></p>
   <section class="controls" aria-label="声音与动画">
@@ -61,6 +62,7 @@ body[data-shape=circle] .chrome-orb:active:before{background:#ccdbee}
       <label><span>声音强度 <output id="levelValue">0.00</output></span><input id="level" type="range" min="0" max="1" step="0.01" value="0" aria-label="声音强度"></label>
       <label><span>颜料颗粒 <output id="grainValue">0.08</output></span><input id="grain" type="range" min="0" max="1" step="0.01" value="0.08" aria-label="颜料颗粒"></label>
     </div>
+    <label class="weave-control"><span>层间流动 <output id="weaveValue">0.80</output></span><input id="weave" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="层间流动"></label>
     <div class="actions">
       <button id="demo" type="button" aria-pressed="false">模拟声音</button>
       <button id="mic" type="button" aria-pressed="false">麦克风</button>
@@ -143,6 +145,7 @@ precision mediump float;
 uniform vec2 u_resolution;
 uniform float u_time;
 uniform float u_shape;
+uniform float u_weave;
 uniform float u_tone;
 uniform float u_grain;
 uniform float u_pixelRatio;
@@ -189,6 +192,13 @@ float granulation(vec2 p) {
   }
   return mass * 1.65;
 }
+// Two broad, counter-turning eddies carry the color fields across each other.
+vec2 turnField(vec2 point, vec2 centre, float angle) {
+  vec2 delta = point - centre;
+  float turn = angle * exp(-dot(delta, delta) * 7.0);
+  float c = cos(turn), s = sin(turn);
+  return centre + mat2(c, -s, s, c) * delta;
+}
 void main() {
   vec2 uv = gl_FragCoord.xy / u_resolution.xy;
   float t = u_time * 0.22;
@@ -196,11 +206,18 @@ void main() {
     sin(t) + 0.6 * sin(t * 1.7 + 1.3),
     cos(t * 0.8) + 0.6 * cos(t * 1.3 + 2.1)
   );
-  vec2 p = vec2(uv.x * 1.8, uv.y * 1.0) + drift * 0.7;
+  vec2 carried = turnField(uv,
+    vec2(0.32 + 0.10 * sin(t * 0.7), 0.43 + 0.09 * cos(t * 0.9)),
+    1.7 * sin(t * 0.85 + 0.8));
+  carried = turnField(carried,
+    vec2(0.67 + 0.08 * cos(t * 0.6), 0.58 + 0.08 * sin(t * 0.8)),
+    -1.9 * sin(t * 0.72 + 1.7));
+  vec2 flowUV = mix(uv, carried, u_weave);
+  vec2 p = vec2(flowUV.x * 1.8, flowUV.y) + drift * 0.7;
   vec2 q = vec2(fbm(p + drift), fbm(p + vec2(3.2, 1.5) - drift));
   vec2 material = p + 1.2 * q;
   float f = fbm(material);
-  float g = clamp(1.0 - uv.y, 0.0, 1.0);
+  float g = clamp(1.0 - flowUV.y, 0.0, 1.0);
   float anchor = smoothstep(0.0, 0.3, uv.y);
   float shade = clamp(g + (f - 0.5) * 0.8 * anchor, 0.0, 1.0);
   // Granules share the flow's drift and bend, with restrained local stretching.
@@ -215,7 +232,7 @@ void main() {
   // Dilute pigment seeps farther, while dense clusters leave a ragged margin.
   float seep = (pools - 0.5) * 0.028 + (min(grains, 1.5) - 0.75) * 0.012;
   float wetShade = shade + u_grain * seep;
-  float wash = smoothstep(0.48, 0.65, wetShade);
+  float wash = smoothstep(0.48 - 0.05 * u_weave, 0.65 + 0.06 * u_weave, wetShade);
   float body = smoothstep(0.58, 0.92, wetShade);
   float wetEdge = 4.0 * wash * (1.0 - wash);
   // A continuous dilute wash carries denser aggregates. Granules are most
@@ -233,6 +250,11 @@ void main() {
   vec3 ground = mix(vec3(0.80, 0.943, 0.976), vec3(0.88, 0.977, 0.992), groundLight);
   float whiteBand = smoothstep(0.18, 0.32, shade)
                   * (1.0 - smoothstep(0.50, 0.67, shade));
+  // A separately moving wash enters the blue, instead of staying a separator.
+  vec2 ribbonUV = turnField(flowUV, vec2(0.55, 0.46), 0.8 * sin(t * 0.9 + 2.0));
+  float ribbonLine = ribbonUV.y - 0.48 + 0.16 * sin(ribbonUV.x * 5.0 + t * 0.8);
+  float ribbon = exp(-ribbonLine * ribbonLine / 0.018);
+  whiteBand = mix(whiteBand, ribbon * 0.92, u_weave * 0.8);
   vec3 underpaint = mix(ground, white, whiteBand);
 
   // Large blue regions carry the tonal response; the hue of the whole orb
@@ -251,6 +273,7 @@ void main() {
   pigmentMass *= mix(1.0, concentration, u_grain);
   vec3 bluePaint = white * exp(-pigmentMass);
   vec3 col = mix(underpaint, bluePaint, wash);
+  col = mix(col, white, u_weave * ribbon * 0.48 * smoothstep(0.25, 0.75, wash));
   float edge = 1.0 - smoothstep(0.49, 0.5, distance(uv, vec2(0.5)));
   if (u_shape > 0.5) {
     float aspect = u_resolution.x / u_resolution.y;
@@ -293,6 +316,7 @@ void main() {
     const uResolution = gl.getUniformLocation(program, 'u_resolution');
     const uTime = gl.getUniformLocation(program, 'u_time');
     const uShape = gl.getUniformLocation(program, 'u_shape');
+    const uWeave = gl.getUniformLocation(program, 'u_weave');
     const uTone = gl.getUniformLocation(program, 'u_tone');
     const uGrain = gl.getUniformLocation(program, 'u_grain');
     const uPixelRatio = gl.getUniformLocation(program, 'u_pixelRatio');
@@ -355,6 +379,7 @@ void main() {
       get smoothedLevel() { return energy; },
       get colorLevel() { return tone; }
     };
+    $('weave').addEventListener('input', () => { $('weaveValue').value = Number($('weave').value).toFixed(2); dirty = true; });
     $('level').addEventListener('input', event => setLevel(Number(event.target.value)));
     $('grain').addEventListener('input', event => setGrain(Number(event.target.value)));
     $('speed').addEventListener('input', event => {
@@ -505,6 +530,7 @@ void main() {
       gl.uniform1f(uTime, phase);
       gl.uniform1f(uTone, tone);
       gl.uniform1f(uGrain, grain);
+      gl.uniform1f(uWeave, Number($('weave').value));
       renderTarget('reference',350,350,0);
       renderTarget('actual',capsuleWidth,capsuleHeight,capsuleWidth===capsuleHeight?0:1);
       const detail = targets.detail;

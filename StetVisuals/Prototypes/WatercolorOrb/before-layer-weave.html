@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>圆球与按钮 · 布局实验</title>
+<style>
+[hidden]{display:none!important}
+:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#252c35;background:#fcfcfc;color-scheme:light}
+*{box-sizing:border-box}body{margin:0}main{max-width:1000px;margin:auto;padding:34px 32px 28px}header{display:flex;justify-content:space-between;align-items:center;gap:16px}h1{font-size:15px;font-weight:500;letter-spacing:.02em;margin:0}header span{font-size:12px;color:#8b929b}.stage{display:grid;place-items:center;min-height:410px;height:min(64vh,610px);position:relative}canvas{display:block;width:min(100%,350px);aspect-ratio:1}.status{position:absolute;bottom:10px;font-size:12px;color:#969da6;margin:0;display:flex;gap:8px;align-items:center}.status:before{content:"";width:5px;height:5px;border-radius:50%;background:#9bb8de}.status[data-mode=mic]:before{background:#1a73f2}.controls{max-width:440px;margin:24px auto 0}.sliders{display:grid;grid-template-columns:1fr 1fr;gap:32px}label{font-size:12px;color:#707984}label span{display:flex;justify-content:space-between;margin-bottom:12px}output{font-variant-numeric:tabular-nums;color:#969da6}input{width:100%;accent-color:#1a73f2;cursor:pointer}.actions{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin-top:28px}button{border:1px solid #e5e9ee;background:#fff;border-radius:22px;padding:10px 17px;color:#66717e;font:inherit;font-size:12px;cursor:pointer;min-height:39px}button:hover{background:#f2f7fd}button:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid #1a73f2;outline-offset:4px}button[aria-pressed=true]{background:#edf4ff;border-color:#c4d8f6;color:#1a66d0}button:disabled{cursor:wait;opacity:.5}.message{font-size:12px;color:#95603a;text-align:center;line-height:1.6;margin:18px 0 0}.error{max-width:400px;color:#9b3838;font-size:14px;line-height:1.6}footer{text-align:center;color:#a0a7b0;font-size:11px;margin-top:35px}footer a{color:inherit;text-underline-offset:3px}details{margin-top:18px}summary{cursor:pointer;list-style:none}summary::-webkit-details-marker{display:none}details p{line-height:1.8;margin:10px auto 0;color:#838e9b}code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#537394;font-size:11px}@media(max-width:520px){main{padding:25px 22px}.stage{min-height:330px;height:54vh}canvas{width:min(100%,300px)}.sliders{gap:24px}header span{font-size:11px}.controls{margin-top:20px}}
+.sliders{grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+@media(max-width:520px){.sliders{gap:14px}}
+
+.study{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;min-height:420px;margin-top:22px}
+.study-panel{display:flex;align-items:center;justify-content:center;flex-direction:column;min-width:0;gap:28px}
+.study-panel h2{font-size:12px;font-weight:400;color:#8b929b;margin:0}.study-panel p{font-size:11px;color:#969da6;margin:0}
+#reference{width:350px;height:350px;max-width:100%;aspect-ratio:1;object-fit:contain}
+#actual{width:80px;height:40px;aspect-ratio:2;flex-shrink:0}
+#detail{width:320px;height:160px;aspect-ratio:2;max-width:none;image-rendering:pixelated}
+.capsule-context{display:flex;gap:18.144px;align-items:center;height:100px}
+.chrome-orb{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#f2f3f5;color:#56616a;font-size:24px;line-height:1;border:1px solid #e8eaed;user-select:none}
+#detail-panel{display:none}.status{position:static;justify-content:center;margin-top:10px}
+.switcher{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:6px;padding:6px;border:1px solid #e3e7eb;border-radius:30px;background:rgba(255,255,255,.96);box-shadow:0 6px 30px #18293812;white-space:nowrap;z-index:2}
+.switcher button{border:0;min-height:34px;padding:8px 13px}.switcher button[aria-pressed=true]{background:#edf4ff}
+body[data-variant=actual] .study{display:flex;justify-content:center;min-height:220px}
+body[data-variant=actual] #reference-panel{display:none}
+body[data-variant=detail] .study{grid-template-columns:1fr 1fr}
+body[data-variant=detail] #reference-panel{display:none}
+body[data-variant=detail] #detail-panel{display:flex}
+footer{margin-bottom:90px}.error{margin:auto}.dimension-note{text-align:center;font-size:11px;color:#969da6;line-height:1.7}
+@media(max-width:680px){.study,body[data-variant=detail] .study{grid-template-columns:1fr;gap:36px}.study{min-height:360px}#reference{width:240px;height:240px}.switcher{bottom:10px}.switcher button{padding:8px 10px}}
+.size-options{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:24px}.size-options button{padding:8px 12px;font-size:11px;min-height:34px}
+
+.chrome-orb{padding:0;flex-shrink:0;cursor:pointer;position:relative}
+body[data-shape=circle] .capsule-context{gap:6px;padding:12px 16px}
+body[data-shape=circle] .chrome-orb{width:44px;height:44px;min-height:44px;border:0;background:transparent;transform:translateY(12px);opacity:.38;transition:opacity .18s ease;color:#546270;font-size:20px;isolation:isolate}
+body[data-shape=circle] .chrome-orb:before{content:"";position:absolute;inset:6px;border-radius:50%;background:#edf0f3;border:1px solid #e2e6eb;z-index:-1}
+body[data-shape=circle] .capsule-context:hover .chrome-orb,body[data-shape=circle] .capsule-context:focus-within .chrome-orb{opacity:1}
+body[data-shape=circle] .chrome-orb:hover:before{background:#e2eaf4}
+body[data-shape=circle] .chrome-orb:active:before{background:#ccdbee}
+#layout-feedback{min-height:16px;font-size:11px;color:#929ba5;margin-top:-12px}
+@media(hover:none){body[data-shape=circle] .chrome-orb{opacity:1}}
+@media(prefers-reduced-motion:reduce){body[data-shape=circle] .chrome-orb{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <header><h1>圆球与按钮</h1><span id="variant-state">80 × 40 · 与原版同步</span></header>
+  <div class="size-options" aria-label="主体形状"><button data-size="circle">圆球 · 64</button><button data-size="circleLarge">圆球 · 72</button><button data-size="original">胶囊对照 · 80 × 40</button></div>
+  <div class="study">
+    <section class="study-panel" id="reference-panel"><h2>大圆对照</h2><canvas id="reference" role="img" aria-label="原始圆形水彩效果"></canvas></section>
+    <section class="study-panel" id="actual-panel"><h2 id="size-heading">胶囊 · 96 × 64</h2><div class="capsule-context"><button class="chrome-orb" id="layout-cancel" aria-label="取消（布局演示）" title="取消"><span aria-hidden="true">×</span></button><canvas id="actual" role="img" aria-label="80乘40实际大小的水彩胶囊"></canvas><button class="chrome-orb" id="layout-confirm" aria-label="确认（布局演示）" title="确认"><span aria-hidden="true">✓</span></button></div><p id="size-note">圆球 64 · 按钮 32</p><p id="layout-feedback" role="status">靠近或用 Tab 聚焦，查看按钮</p></section>
+    <section class="study-panel" id="detail-panel"><h2>4 倍放大 · 查看同一帧的像素</h2><canvas id="detail" role="img" aria-label="实际胶囊像素放大四倍"></canvas><p>使用实际尺寸渲染结果，不重新增加细节</p></section>
+  </div>
+  <p class="dimension-note">请用浏览器 100% 缩放判断实际大小。颜色与声音响应沿用提交版本；未叠加系统玻璃效果。</p>
+  <p id="status" class="status" data-mode="manual">原始流动</p>
+  <p id="error" class="error" role="alert" hidden></p>
+  <section class="controls" aria-label="声音与动画">
+    <div class="sliders">
+      <label><span>流速 <output id="speedValue">1.00×</output></span><input id="speed" type="range" min="0.2" max="2" step="0.05" value="1" aria-label="流速"></label>
+      <label><span>声音强度 <output id="levelValue">0.00</output></span><input id="level" type="range" min="0" max="1" step="0.01" value="0" aria-label="声音强度"></label>
+      <label><span>颜料颗粒 <output id="grainValue">0.08</output></span><input id="grain" type="range" min="0" max="1" step="0.01" value="0.08" aria-label="颜料颗粒"></label>
+    </div>
+    <div class="actions">
+      <button id="demo" type="button" aria-pressed="false">模拟声音</button>
+      <button id="mic" type="button" aria-pressed="false">麦克风</button>
+      <button id="pause" type="button" aria-pressed="false">暂停</button>
+    </div>
+    <p id="message" class="message" role="status" hidden></p>
+  </section>
+  <footer>
+    视觉基于 <a href="https://www.rareui.com/components/fluidorb" target="_blank" rel="noopener noreferrer">Rare UI · Fluid Orb</a>
+    <details><summary>接入声音</summary><p><code>orb.level = 0.6</code><br>持续传入 0–1 音量，驱动流速和蓝色浓淡。<br>麦克风仅在本页分析，不录制、不上传。</p></details>
+  </footer>
+</main>
+<nav class="switcher" aria-label="预览方式"><button id="previous" aria-label="上一个视图">←</button><button data-view="actual">实际大小</button><button data-view="compare">大圆对照</button><button data-view="detail">像素放大</button><button id="next" aria-label="下一个视图">→</button></nav>
+<!--
+  Standalone HTML adaptation of Fluid Orb by Rare UI / Swami Malode.
+  Source: https://www.rareui.com/components/fluidorb (retrieved 2026-09-10).
+  Source usage terms: free to use and modify in personal and commercial
+  projects; attribution appreciated; do not resell as your own component kit.
+  The base flow comes from Rare UI. The pale-blue ground, white interlayer,
+  and blue palette were adapted after inspecting the OpenAI reference video:
+  https://www.instagram.com/reel/DE4HSi2xAKa/
+  Pigment concentration, capillary edges, and the volume-to-color mapping
+  are our procedural approximations, not verified OpenAI implementation details.
+  The circle mask uses an equivalent, defined ascending smoothstep.
+  Added here: responsive renderer, audio-driven clock, and pigment granulation.
+-->
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  // Throwaway size study. ?variant=actual|compare|detail shares the viewing mode.
+  const canvas = document.createElement('canvas');
+  const targets = Object.fromEntries(['reference','actual','detail'].map(id => [id, {canvas:$(id), context:$(id).getContext('2d')}]));
+  const views = ['actual','compare','detail'];
+  const sizes = {original:[80,40],compact:[88,56],round:[96,64],circle:[64,64],circleLarge:[72,72]};
+  let sizeKey = new URL(location.href).searchParams.get('size');
+  if (!sizes[sizeKey]) sizeKey = 'circle';
+  let [capsuleWidth,capsuleHeight] = sizes[sizeKey];
+  let variant;
+  function setVariant(value) {
+    variant = views.includes(value) ? value : 'actual';
+    document.body.dataset.variant = variant;
+    const url = new URL(location.href);
+    url.searchParams.set('variant',variant);
+    history.replaceState(null,'',url);
+    document.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.view===variant)));
+    $('variant-state').textContent = ({actual:'实际大小',compare:'与原版同步',detail:'实际像素放大'})[variant] + ` · ${capsuleWidth} × ${capsuleHeight}`;
+  }
+  function cycleView(delta) { setVariant(views[(views.indexOf(variant)+delta+views.length)%views.length]); }
+  document.querySelectorAll('[data-view]').forEach(button => button.onclick=()=>setVariant(button.dataset.view));
+  $('previous').onclick=()=>cycleView(-1);
+  $('next').onclick=()=>cycleView(1);
+  document.addEventListener('keydown',event=>{
+    if (event.target.closest('input,textarea,select,[contenteditable]')) return;
+    if (event.key==='ArrowLeft'||event.key==='ArrowRight') { event.preventDefault(); cycleView(event.key==='ArrowLeft'?-1:1); }
+  });
+  setVariant(new URL(location.href).searchParams.get('variant'));
+  window.addEventListener('popstate',()=>setVariant(new URL(location.href).searchParams.get('variant')));
+  const gl = canvas.getContext('webgl', {alpha:true, antialias:true, premultipliedAlpha:true});
+  function fail(message) {
+    canvas.hidden = true;
+    $('status').hidden = true;
+    $('error').hidden = false;
+    $('error').textContent = message;
+    document.querySelectorAll('button,input').forEach(el => el.disabled = true);
+  }
+  if (!gl) { fail('WebGL 当前不可用，请使用支持 WebGL 的浏览器打开。'); return; }
+
+  const vertex = `
+attribute vec2 a_pos;
+void main() {
+  gl_Position = vec4(a_pos, 0.0, 1.0);
+}`;
+  const fragment = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform float u_shape;
+uniform float u_tone;
+uniform float u_grain;
+uniform float u_pixelRatio;
+uniform vec3 u_color;
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(hash(i + vec2(0.0, 0.0)), hash(i + vec2(1.0, 0.0)), u.x),
+    mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
+    u.y
+  );
+}
+float fbm(vec2 p) {
+  float v = 0.0;
+  float a = 0.6;
+  for (int i = 0; i < 3; i++) {
+    v += a * noise(p);
+    p *= 2.0;
+    a *= 0.5;
+  }
+  return v;
+}
+// Irregular pigment grains: soft overlapping deposits with varying size/mass.
+// Evaluating neighbouring cells avoids the square patches of thresholded noise.
+float granulation(vec2 p) {
+  vec2 cell = floor(p);
+  vec2 local = fract(p);
+  float mass = 0.0;
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      vec2 neighbour = vec2(float(x), float(y));
+      vec2 key = cell + neighbour;
+      vec2 centre = vec2(hash(key + 17.3), hash(key + 91.7));
+      float seed = hash(key + 31.6);
+      vec2 d = local - neighbour - centre;
+      float radius = 0.30 + 0.23 * seed;
+      mass += exp(-dot(d, d) / (radius * radius)) * (0.65 + seed * 0.75);
+    }
+  }
+  return mass * 1.65;
+}
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+  float t = u_time * 0.22;
+  vec2 drift = vec2(
+    sin(t) + 0.6 * sin(t * 1.7 + 1.3),
+    cos(t * 0.8) + 0.6 * cos(t * 1.3 + 2.1)
+  );
+  vec2 p = vec2(uv.x * 1.8, uv.y * 1.0) + drift * 0.7;
+  vec2 q = vec2(fbm(p + drift), fbm(p + vec2(3.2, 1.5) - drift));
+  vec2 material = p + 1.2 * q;
+  float f = fbm(material);
+  float g = clamp(1.0 - uv.y, 0.0, 1.0);
+  float anchor = smoothstep(0.0, 0.3, uv.y);
+  float shade = clamp(g + (f - 0.5) * 0.8 * anchor, 0.0, 1.0);
+  // Granules share the flow's drift and bend, with restrained local stretching.
+  // Full domain warping at this scale would turn small deposits into long hairs.
+  vec2 grainFlow = uv + drift * vec2(0.28, 0.20) + (q - 0.5) * 0.045;
+  vec2 pigmentSpace = grainFlow * (u_resolution.x / u_pixelRatio / 350.0);
+  float pools = 0.65 * noise(pigmentSpace * 32.0 + vec2(13.2, 7.7))
+              + 0.35 * noise(pigmentSpace * 67.0 + vec2(4.6, 37.1));
+  float grains = granulation(pigmentSpace * 185.0 + vec2(41.7, 19.3));
+
+  // The same deposits modify the wet edge before the color bands are formed.
+  // Dilute pigment seeps farther, while dense clusters leave a ragged margin.
+  float seep = (pools - 0.5) * 0.028 + (min(grains, 1.5) - 0.75) * 0.012;
+  float wetShade = shade + u_grain * seep;
+  float wash = smoothstep(0.48, 0.65, wetShade);
+  float body = smoothstep(0.58, 0.92, wetShade);
+  float wetEdge = 4.0 * wash * (1.0 - wash);
+  // A continuous dilute wash carries denser aggregates. Granules are most
+  // exposed in thin paint, and partly submerged inside the saturated blue.
+  float deposits = (grains - 0.92) * (0.18 + 0.34 * pools);
+  deposits *= 1.0 - 0.40 * body;
+  float concentration = 0.53 + 0.95 * pools + deposits;
+  concentration += wetEdge * pools * 0.12;
+  concentration = clamp(concentration, 0.30, 2.2);
+
+  // The pale ground remains visible above an independent white interlayer.
+  // All three layers follow the broad fluid contour, with soft overlaps.
+  vec3 white = vec3(0.998, 0.999, 0.991);
+  float groundLight = noise(uv * 1.7 + drift * 0.12 + vec2(6.1, 2.7));
+  vec3 ground = mix(vec3(0.80, 0.943, 0.976), vec3(0.88, 0.977, 0.992), groundLight);
+  float whiteBand = smoothstep(0.18, 0.32, shade)
+                  * (1.0 - smoothstep(0.50, 0.67, shade));
+  vec3 underpaint = mix(ground, white, whiteBand);
+
+  // Large blue regions carry the tonal response; the hue of the whole orb
+  // does not pulse uniformly. Increasing voice energy expands dense pigment.
+  float blueCurrent = noise(material * vec2(0.65, 0.55) + vec2(9.3, 4.1));
+  float blueDepth = clamp(0.38 + (blueCurrent - 0.5) * 0.65 + body * 0.42, 0.0, 1.0);
+  float deepRegion = smoothstep(0.52 - u_tone * 0.18, 0.89 - u_tone * 0.10, blueDepth);
+  vec3 lightBlue = vec3(0.075, 0.725, 0.985);
+  vec3 denseBlue = vec3(0.012, 0.455, 0.895);
+  vec3 blue = mix(lightBlue, u_color, body * 0.65);
+  blue = mix(blue, denseBlue, deepRegion * (0.45 + u_tone * 0.45));
+
+  // Granulation redistributes blue pigment before compositing the paint.
+  // The clean white band and pale ground are separate from pigment deposits.
+  vec3 pigmentMass = -log(clamp(blue / white, vec3(0.001), vec3(1.0)));
+  pigmentMass *= mix(1.0, concentration, u_grain);
+  vec3 bluePaint = white * exp(-pigmentMass);
+  vec3 col = mix(underpaint, bluePaint, wash);
+  float edge = 1.0 - smoothstep(0.49, 0.5, distance(uv, vec2(0.5)));
+  if (u_shape > 0.5) {
+    float aspect = u_resolution.x / u_resolution.y;
+    vec2 point = (uv - 0.5) * vec2(aspect, 1.0);
+    point.x = max(abs(point.x) - (aspect * 0.5 - 0.5), 0.0);
+    float distanceToEdge = length(point) - 0.5;
+    edge = 1.0 - smoothstep(-1.0 / u_resolution.y, 0.0, distanceToEdge);
+  }
+  gl_FragColor = vec4(col * edge, edge);
+}`;
+
+  function compile(type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      const info = gl.getShaderInfoLog(shader);
+      gl.deleteShader(shader);
+      throw new Error(info);
+    }
+    return shader;
+  }
+  try {
+    const vs = compile(gl.VERTEX_SHADER, vertex);
+    const fs = compile(gl.FRAGMENT_SHADER, fragment);
+    const program = gl.createProgram();
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+    gl.useProgram(program);
+    gl.deleteShader(vs);
+    gl.deleteShader(fs);
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]), gl.STATIC_DRAW);
+    const aPos = gl.getAttribLocation(program, 'a_pos');
+    gl.enableVertexAttribArray(aPos);
+    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+    const uResolution = gl.getUniformLocation(program, 'u_resolution');
+    const uTime = gl.getUniformLocation(program, 'u_time');
+    const uShape = gl.getUniformLocation(program, 'u_shape');
+    const uTone = gl.getUniformLocation(program, 'u_tone');
+    const uGrain = gl.getUniformLocation(program, 'u_grain');
+    const uPixelRatio = gl.getUniformLocation(program, 'u_pixelRatio');
+    gl.uniform3f(gl.getUniformLocation(program, 'u_color'), 6/255, 161/255, 247/255);
+
+    let mode = 'manual', level = 0, energy = 0, velocity = 1, speed = 1;
+    let grain = 0.08, tone = 0;
+    let phase = 0, elapsed = 0, previous = null, dirty = true, dead = false;
+    let paused = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let stream = null, audioContext = null, analyser = null, samples = null;
+    let micRequest = 0, raf = 0;
+
+    function displayLevel() {
+      $('level').value = String(level);
+      $('levelValue').value = level.toFixed(2);
+    }
+    function updateState() {
+      $('demo').setAttribute('aria-pressed', String(mode === 'demo'));
+      $('mic').setAttribute('aria-pressed', String(mode === 'mic'));
+      $('mic').textContent = mode === 'mic' ? '关闭麦克风' : '麦克风';
+      $('pause').setAttribute('aria-pressed', String(paused));
+      $('pause').textContent = paused ? '继续' : '暂停';
+      $('status').dataset.mode = mode;
+      $('status').textContent = paused ? '已暂停' : mode === 'mic' ? '麦克风驱动' : mode === 'demo' ? '模拟声音' : level > 0 ? '声音驱动' : '原始流动';
+    }
+    function releaseMic() {
+      micRequest++;
+      if (stream) stream.getTracks().forEach(track => track.stop());
+      if (audioContext) audioContext.close().catch(() => {});
+      stream = audioContext = analyser = samples = null;
+      $('mic').disabled = false;
+    }
+    function useManual() {
+      releaseMic();
+      mode = 'manual';
+      $('message').hidden = true;
+    }
+    function setLevel(value) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) throw new TypeError('orb.level must be a finite number');
+      if (mode !== 'manual' || $('mic').disabled) useManual();
+      level = Math.max(0, Math.min(1, value));
+      displayLevel();
+      updateState();
+    }
+    function setGrain(value) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) throw new TypeError('orb.grain must be a finite number');
+      grain = Math.max(0, Math.min(1, value));
+      $('grain').value = String(grain);
+      $('grainValue').value = grain.toFixed(2);
+      dirty = true;
+    }
+    // Feed normalized RMS/envelope values here, at any audio update cadence.
+    // Audio drives both the integrated clock and a slower pigment envelope.
+    window.orb = {
+      setLevel,
+      get level() { return level; },
+      set level(value) { setLevel(value); },
+      get grain() { return grain; },
+      set grain(value) { setGrain(value); },
+      get smoothedLevel() { return energy; },
+      get colorLevel() { return tone; }
+    };
+    $('level').addEventListener('input', event => setLevel(Number(event.target.value)));
+    $('grain').addEventListener('input', event => setGrain(Number(event.target.value)));
+    $('speed').addEventListener('input', event => {
+      speed = Number(event.target.value);
+      $('speedValue').value = speed.toFixed(2) + '×';
+    });
+    $('pause').onclick = () => {
+      paused = !paused;
+      previous = null;
+      updateState();
+    };
+    $('demo').onclick = () => {
+      const wasDemo = mode === 'demo';
+      useManual();
+      level = 0;
+      if (!wasDemo) { mode = 'demo'; elapsed = 0; paused = false; }
+      displayLevel();
+      updateState();
+    };
+    $('mic').onclick = async () => {
+      if (mode === 'mic') { useManual(); setLevel(0); return; }
+      useManual();
+      level = 0;
+      displayLevel();
+      updateState();
+      const request = ++micRequest;
+      $('mic').disabled = true;
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error('当前环境不支持麦克风，请在 localhost 或 HTTPS 中打开。');
+        const acquired = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}});
+        if (request !== micRequest || dead) { acquired.getTracks().forEach(track => track.stop()); return; }
+        stream = acquired;
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        await audioContext.resume();
+        if (request !== micRequest || dead) return;
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 1024;
+        samples = new Float32Array(analyser.fftSize);
+        audioContext.createMediaStreamSource(stream).connect(analyser);
+        mode = 'mic';
+        paused = false;
+        stream.getAudioTracks()[0].onended = () => {
+          if (mode === 'mic') { useManual(); setLevel(0); }
+        };
+      } catch (cause) {
+        if (request !== micRequest || dead) return;
+        releaseMic();
+        $('message').textContent = cause.name === 'NotAllowedError' ? '麦克风未获授权，仍可拖动声音强度或使用模拟声音。' : cause.message;
+        $('message').hidden = false;
+      } finally {
+        if (!dead && request === micRequest) { $('mic').disabled = false; updateState(); }
+      }
+    };
+
+    function speechEnvelope(t) {
+      // A repeatable phrase with separate syllables, a held sound, and silence.
+      const x = t % 8;
+      if (x < .6 || x > 6.5) return 0;
+      const pulses = [[.9,.55,.12],[1.35,.8,.16],[1.9,.45,.18],[2.6,.92,.18],[3.25,.6,.22],[4.35,.65,.48],[5.35,.95,.15],[5.85,.5,.2]];
+      return Math.min(1, pulses.reduce((v, [at, amplitude, width]) => v + amplitude * Math.exp(-Math.pow((x-at)/width, 2)), 0));
+    }
+    let pixelRatio = 0, resolutionKey = '';
+    function selectSize(key) {
+      sizeKey = sizes[key] ? key : 'circle';
+      [capsuleWidth,capsuleHeight] = sizes[sizeKey];
+      $('actual').style.width = capsuleWidth+'px';
+      $('actual').style.height = capsuleHeight+'px';
+      const circular = capsuleWidth === capsuleHeight;
+      document.body.dataset.shape = circular ? 'circle' : 'capsule';
+      $('actual').setAttribute('aria-label',circular ? `直径${capsuleWidth}的水彩圆球` : `${capsuleWidth}乘${capsuleHeight}水彩胶囊`);
+      $('detail').style.width = capsuleWidth*4+'px';
+      $('detail').style.height = capsuleHeight*4+'px';
+      $('size-heading').textContent = circular ? `圆球 · 直径 ${capsuleWidth}` : `胶囊 · ${capsuleWidth} × ${capsuleHeight}`;
+      $('size-note').textContent = circular ? '按钮 32 · 点击区域 44 · 下移 12 · 水平边缘间距 12' : `圆角 ${capsuleHeight/2} · 两侧按钮 40 · 间距 18.144`;
+      $('layout-feedback').textContent = '靠近或用 Tab 聚焦，查看按钮';
+      document.querySelectorAll('[data-size]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.size===sizeKey)));
+      const url = new URL(location.href); url.searchParams.set('size',sizeKey); history.replaceState(null,'',url);
+      setVariant(variant);
+      configureResolution();
+    }
+    document.querySelectorAll('[data-size]').forEach(b=>b.onclick=()=>selectSize(b.dataset.size));
+    function configureResolution() {
+      const ratio = Math.min(devicePixelRatio || 1, 2);
+      const key = `${ratio}:${capsuleWidth}:${capsuleHeight}`;
+      if (key === resolutionKey) return;
+      resolutionKey = key;
+      pixelRatio = ratio;
+      canvas.width = canvas.height = Math.round(350 * ratio);
+      for (const [id,target] of Object.entries(targets)) {
+        target.canvas.width = Math.round((id==='reference'?350:capsuleWidth)*ratio);
+        target.canvas.height = Math.round((id==='reference'?350:capsuleHeight)*ratio);
+      }
+      dirty = true;
+    }
+    function renderTarget(id, width, height, shape) {
+      const w = Math.round(width*pixelRatio), h = Math.round(height*pixelRatio);
+      gl.viewport(0,0,w,h);
+      gl.uniform2f(uResolution,w,h);
+      gl.uniform1f(uPixelRatio,pixelRatio);
+      gl.uniform1f(uShape,shape);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLES,0,6);
+      const target = targets[id];
+      target.context.clearRect(0,0,w,h);
+      target.context.drawImage(canvas,0,canvas.height-h,w,h,0,0,w,h);
+    }
+    $('layout-cancel').onclick = () => { $('layout-feedback').textContent = '已点击取消 · 仅演示布局'; };
+    $('layout-confirm').onclick = () => { $('layout-feedback').textContent = '已点击确认 · 仅演示布局'; };
+    selectSize(sizeKey);
+    document.addEventListener('visibilitychange', () => { previous = null; });
+    canvas.addEventListener('webglcontextlost', event => {
+      event.preventDefault();
+      dead = true;
+      cancelAnimationFrame(raf);
+      releaseMic();
+
+      fail('图形上下文已中断，请刷新页面重试。');
+    });
+    window.addEventListener('pagehide', () => { releaseMic(); if (mode === 'mic') { mode = 'manual'; level = 0; displayLevel(); updateState(); } });
+
+    function frame(now) {
+      if (dead) return;
+      raf = requestAnimationFrame(frame);
+      const dt = previous === null ? 0 : Math.min((now-previous)/1000, .05);
+      previous = now;
+      configureResolution();
+      if (document.hidden || (paused && !dirty)) return;
+      if (!paused) {
+        elapsed += dt;
+        if (mode === 'demo') level = speechEnvelope(elapsed);
+        if (mode === 'mic') {
+          analyser.getFloatTimeDomainData(samples);
+          let sum = 0;
+          for (const sample of samples) sum += sample * sample;
+          const rms = Math.sqrt(sum / samples.length);
+          level = Math.sqrt(Math.max(0, Math.min(1, (rms-.004)/.12)));
+        }
+        if (mode !== 'manual') displayLevel();
+        const tau = level > energy ? .055 : .32;
+        energy += (level-energy) * (1-Math.exp(-dt/tau));
+        // Pigment lingers through brief syllable gaps, then gently dilutes.
+        const toneTau = energy > tone ? 0.12 : 0.58;
+        tone += (energy-tone) * (1-Math.exp(-dt/toneTau));
+        const targetVelocity = speed * (1 + energy * 4);
+        velocity += (targetVelocity-velocity) * (1-Math.exp(-dt/.24));
+        phase += dt * velocity;
+      }
+      gl.uniform1f(uTime, phase);
+      gl.uniform1f(uTone, tone);
+      gl.uniform1f(uGrain, grain);
+      renderTarget('reference',350,350,0);
+      renderTarget('actual',capsuleWidth,capsuleHeight,capsuleWidth===capsuleHeight?0:1);
+      const detail = targets.detail;
+      detail.context.clearRect(0,0,detail.canvas.width,detail.canvas.height);
+      detail.context.drawImage(targets.actual.canvas,0,0);
+
+      dirty = false;
+    }
+    updateState();
+    raf = requestAnimationFrame(frame);
+  } catch (cause) {
+    console.error(cause);
+    fail('Shader 初始化失败：' + cause.message);
+  }
+})();
+</script>
+</body>
+</html>
