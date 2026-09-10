@@ -19,6 +19,18 @@
         @State private var entryDraft = ""
         @State private var clearConfirmation = ""
 
+        private var entryDraftBinding: Binding<String> {
+            Binding(
+                get: { entryDraft },
+                set: { value in
+                    let singleLine = value.components(separatedBy: .newlines)
+                        .filter { !$0.isEmpty }
+                        .joined(separator: ", ")
+                    entryDraft = String(singleLine.prefix(200))
+                }
+            )
+        }
+
         private var isEnabledBinding: Binding<Bool> {
             Binding(
                 get: { viewModel.isEnabled },
@@ -76,17 +88,14 @@
                 MacSettingsEditor(
                     title: editingEntry == nil ? "Add Dictionary Words" : "Edit Dictionary Entry",
                     subtitle:
-                        "Use the spelling you want in your transcripts. Separate multiple words or phrases with commas or new lines."
+                        "Use the spelling you want in your transcripts. Separate words or phrases with commas. Up to 200 characters."
                 ) {
                     Text("Words or phrases").font(.subheadline)
-                    TextEditor(text: $entryDraft)
+                    TextField("Words or phrases", text: entryDraftBinding, axis: .horizontal)
                         .font(.body)
-                        .frame(height: 110)
-                        .padding(6)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: MacUI.SettingsViewMetrics.sidebarRowCornerRadius)
-                                .strokeBorder(Color.secondary.opacity(0.25))
-                        )
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(1)
+                        .labelsHidden()
                         .accessibilityLabel("Words or phrases")
                     HStack {
                         Spacer()
