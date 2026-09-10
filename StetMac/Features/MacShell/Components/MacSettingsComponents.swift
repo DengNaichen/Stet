@@ -39,6 +39,116 @@
         }
     }
 
+    struct MacSettingsEditor<Content: View>: View {
+        let title: String
+        let subtitle: String
+        @ViewBuilder let content: () -> Content
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: MacUI.EditorMetrics.spacing) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title).font(.headline)
+                    Text(subtitle).font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                content()
+            }
+            .padding(MacUI.EditorMetrics.padding)
+            .frame(width: MacUI.EditorMetrics.width)
+            .background(MacUI.Surfaces.paper)
+            .clipShape(RoundedRectangle(cornerRadius: MacUI.EditorMetrics.cornerRadius, style: .continuous))
+
+        }
+    }
+
+    extension View {
+        func macSettingsSheet<Sheet: View>(
+            isPresented: Binding<Bool>, @ViewBuilder content: @escaping () -> Sheet
+        ) -> some View {
+            background(MacSettingsSheetPresenter(isPresented: isPresented, sheet: content))
+        }
+    }
+
+    /// A real modal panel keeps keyboard focus and Escape behavior while using Stet's surface tokens.
+    private struct MacSettingsSheetPresenter<Sheet: View>: NSViewRepresentable {
+        @Binding var isPresented: Bool
+        @ViewBuilder var sheet: () -> Sheet
+        @Environment(\.colorScheme) private var colorScheme
+
+        func makeCoordinator() -> Coordinator { Coordinator() }
+        func makeNSView(context: Context) -> NSView { NSView() }
+
+        func updateNSView(_ view: NSView, context: Context) {
+            let coordinator = context.coordinator
+            coordinator.dismiss = { isPresented = false }
+            coordinator.wantsPresentation = isPresented
+            if !isPresented {
+                coordinator.close()
+                return
+            }
+            guard coordinator.panel == nil else { return }
+            let root = sheet().environment(\.colorScheme, colorScheme)
+            DispatchQueue.main.async { [weak view] in
+                guard let parent = view?.window, coordinator.panel == nil, coordinator.wantsPresentation else { return }
+                coordinator.present(root, on: parent)
+            }
+        }
+
+        static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) { coordinator.close() }
+
+        final class Coordinator: NSObject {
+            var panel: EditorPanel?
+            var dismiss: (() -> Void)?
+            var wantsPresentation = false
+
+            func present<Root: View>(_ root: Root, on parent: NSWindow) {
+                let panel = EditorPanel(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
+                self.panel = panel
+                panel.onCancel = { [weak self] in self?.dismiss?() }
+                panel.isOpaque = false
+                panel.backgroundColor = .clear
+                panel.hasShadow = true
+                panel.isReleasedWhenClosed = false
+                let host = NSHostingView(
+                    rootView: root.fixedSize().background {
+                        GeometryReader { geometry in
+                            Color.clear.preference(key: EditorSizeKey.self, value: geometry.size)
+                        }
+                    }.onPreferenceChange(EditorSizeKey.self) { [weak panel] size in
+                        guard size.width > 0, size.height > 0 else { return }
+                        DispatchQueue.main.async { panel?.setContentSize(size) }
+                    })
+                panel.contentView = host
+                panel.setContentSize(host.fittingSize)
+                parent.beginSheet(panel)
+                // Hosting can apply native window chrome while attaching. Restore the token-shaped surface.
+                panel.styleMask = [.borderless]
+                panel.isOpaque = false
+                panel.backgroundColor = .clear
+                panel.makeKeyAndOrderFront(nil)
+            }
+
+            func close() {
+                guard let panel else { return }
+                self.panel = nil
+                panel.sheetParent?.endSheet(panel)
+                panel.orderOut(nil)
+            }
+        }
+
+        final class EditorPanel: NSPanel {
+            var onCancel: (() -> Void)?
+            override var canBecomeKey: Bool { true }
+            override var canBecomeMain: Bool { false }
+            override func cancelOperation(_ sender: Any?) { onCancel?() }
+        }
+    }
+
+    private struct EditorSizeKey: PreferenceKey {
+        static let defaultValue: CGSize = .zero
+        static func reduce(value: inout CGSize, nextValue: () -> CGSize) { value = nextValue() }
+    }
+
     struct MacSettingsValueRow<Value: View>: View {
         let title: String
 

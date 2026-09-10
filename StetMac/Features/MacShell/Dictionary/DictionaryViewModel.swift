@@ -49,6 +49,23 @@
             draft = ""
         }
 
+        func canSaveEntries(from text: String) -> Bool {
+            !DictionaryModel.words(from: text).isEmpty
+        }
+
+        func saveEntries(from text: String, replacing original: String?) {
+            let additions = DictionaryModel.words(from: text)
+            guard !additions.isEmpty else { return }
+            var updated = dictionaryModel.loadEntries()
+            if let original, let index = updated.firstIndex(of: original) {
+                updated.replaceSubrange(index...index, with: additions)
+            } else {
+                updated.append(contentsOf: additions)
+            }
+            dictionaryModel.saveEntries(updated)
+            entries = dictionaryModel.loadEntries()
+        }
+
         func removeEntry(_ entry: String) {
             entries = dictionaryModel.removeEntry(entry)
         }

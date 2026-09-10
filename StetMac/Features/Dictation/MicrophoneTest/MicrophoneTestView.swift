@@ -5,11 +5,16 @@ struct MicrophoneTestView: View {
     @ObservedObject var viewModel: MicrophoneTestViewModel
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Label("Test your microphone", systemImage: "mic")
+                    .font(.subheadline.weight(.medium))
+                Spacer()
+                Text(viewModel.isRecording ? "Recording" : viewModel.isPlaying ? "Playing" : "Ready")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             // Audio level indicator
             MicrophoneAudioLevelMeter(level: viewModel.audioLevel)
-                .frame(height: 40)
-                .padding(.horizontal, 8)
 
             // Recording controls
             HStack(spacing: 12) {
@@ -27,8 +32,7 @@ struct MicrophoneTestView: View {
                         systemImage: viewModel.isRecording ? "stop.circle.fill" : "record.circle"
                     )
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(viewModel.isRecording ? .red : .accentColor)
+                .buttonStyle(.bordered)
                 .disabled(viewModel.isPlaying)
 
                 // Playback controls
@@ -51,11 +55,11 @@ struct MicrophoneTestView: View {
             }
 
             // Status text
-            if viewModel.hasRecording {
+            if viewModel.hasRecording && !viewModel.isRecording {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                    Text("Recording saved - click Play to hear it")
+                        .foregroundStyle(.secondary)
+                    Text("Play back your test to check the sound.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -67,10 +71,11 @@ struct MicrophoneTestView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            } else {
+                Text("Record a short phrase, then play it back to check your input.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
-        .padding()
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(.vertical, 8)
     }
 }

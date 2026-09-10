@@ -18,6 +18,28 @@ struct LegacyDictionaryMigrationTests {
         return directoryURL
     }
 
+    @MainActor
+    @Test func dictionaryMigrationDoesNotReplaceHistorySchema() throws {
+        let directory = try makeAppSupportDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let schema = Schema([HistoryEntry.self])
+        let container = try ModelContainer(
+            for: schema,
+            configurations: [
+                ModelConfiguration(
+                    schema: schema, url: directory.appendingPathComponent("default.store"))
+            ])
+        let context = ModelContext(container)
+        context.insert(HistoryEntry(rawText: "Preserve this transcript"))
+        try context.save()
+        let defaults = TestSupport.makeUserDefaults()
+        LegacyDictionaryMigration.migrateIfNeededForTests(
+            defaults: defaults,
+            dictionaryModel: DictionaryModel(defaults: defaults, entriesKey: UUID().uuidString),
+            appSupportDirectory: directory, bundleIdentifier: "test")
+        #expect(try ModelContext(container).fetchCount(FetchDescriptor<HistoryEntry>()) == 1)
+    }
+
     @Test func migrationMovesLegacyDefaultStoreEntriesIntoSharedDictionary() throws {
         let appSupportDirectory = try makeAppSupportDirectory()
         defer { try? FileManager.default.removeItem(at: appSupportDirectory) }

@@ -10,6 +10,44 @@
     @Suite("Mac OpenAI Settings View Model", .serialized)
     struct MacOpenAISettingsViewModelTests {
 
+        @Test func verificationDoesNotSaveDraftOrOverwriteExistingKey() async throws {
+            let secretStore = TestSecretStore()
+            let validator = RecordingCredentialValidator()
+            let viewModel = MacOpenAISettingsViewModel(
+                settingsStore: DictationSettingsStore(
+                    defaults: TestSupport.makeUserDefaults(), secretStore: secretStore), credentialValidator: validator)
+            viewModel.load()
+            try viewModel.storeCredential("existing-key", for: .google)
+            try await viewModel.verifyCredential("  draft-key  ", for: .google)
+            #expect(await validator.lastKey == "draft-key")
+            #expect(viewModel.apiKey(for: .google) == "existing-key")
+            #expect(try secretStore.loadString(forAccount: "google.api_key") == "existing-key")
+        }
+
+        @Test func modelDiscoveryDoesNotSaveEndpointDraft() async throws {
+            let viewModel = MacOpenAISettingsViewModel(
+                settingsStore: DictationSettingsStore(
+                    defaults: TestSupport.makeUserDefaults(), secretStore: TestSecretStore()),
+                modelProbe: StubModelProbe(models: ["test-model"]))
+            viewModel.load()
+            let originalURL = viewModel.customBaseURL
+            let models = try await viewModel.discoverModels(baseURL: "http://localhost:11434/v1", key: "")
+            #expect(models == ["test-model"])
+            #expect(viewModel.customBaseURL == originalURL)
+        }
+
+        @Test func credentialPreviewNeverRevealsWholeKey() throws {
+            let viewModel = MacOpenAISettingsViewModel(
+                settingsStore: DictationSettingsStore(
+                    defaults: TestSupport.makeUserDefaults(), secretStore: TestSecretStore()))
+            viewModel.load()
+            #expect(viewModel.credentialPreview(for: .google) == "Not configured")
+            try viewModel.storeCredential("abcdef123456789", for: .google)
+            #expect(viewModel.credentialPreview(for: .google) == "abcdef••••••••")
+            try viewModel.storeCredential("abc", for: .google)
+            #expect(viewModel.credentialPreview(for: .google) == "••••••••")
+        }
+
         @Test func loadReadsStoredValues() throws {
             let defaults = TestSupport.makeUserDefaults()
             let secretStore = TestSecretStore()
@@ -261,6 +299,13 @@
                 defaults.stringArray(forKey: MacPreferences.customRewriteDiscoveredModels) == [
                     "gpt-4o-mini", "llama3.1",
                 ])
+        }
+    }
+
+    private actor RecordingCredentialValidator: ProviderCredentialValidating {
+        private(set) var lastKey: String?
+        func validateCredential(apiKey: String, provider: DictationProvider) async throws {
+            lastKey = apiKey
         }
     }
 

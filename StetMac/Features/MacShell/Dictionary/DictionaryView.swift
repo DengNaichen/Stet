@@ -13,6 +13,10 @@
         ]
 
         @State private var isShowingClearConfirmation = false
+        @State private var isShowingEditor = false
+        @State private var editingEntry: String?
+        @State private var entryDraft = ""
+        @State private var clearConfirmation = ""
 
         private var isEnabledBinding: Binding<Bool> {
             Binding(
@@ -26,35 +30,22 @@
                 Section {
                     Toggle("Enable Personal Dictionary", isOn: isEnabledBinding)
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Add names, brands, jargon, or phrases")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-
-                        HStack(spacing: MacUI.DictionaryViewMetrics.entryInputSpacing) {
-                            TextField(
-                                "",
-                                text: $viewModel.draft
-                            )
-                            .textFieldStyle(.roundedBorder)
-                            .multilineTextAlignment(.leading)
-                            .labelsHidden()
-                            .onSubmit {
-                                viewModel.addDraftEntries()
-                            }
-
-                            Button("Add") {
-                                viewModel.addDraftEntries()
-                            }
-                            .disabled(!viewModel.canAddDraftEntries)
-                        }
-                    }
-                    .padding(.vertical, 4)
+                    Text("Help Stet recognize names, brands, and phrases in your transcripts and rewrites.")
+                        .font(.callout).foregroundStyle(.secondary)
                 } header: {
                     Text("Personal Dictionary")
                 }
 
                 Section {
+                    HStack {
+                        Text("\(viewModel.entries.count) words and phrases").foregroundStyle(.secondary)
+                        Spacer()
+                        Button {
+                            openEditor()
+                        } label: {
+                            Label("Add Words…", systemImage: "plus")
+                        }
+                    }
                     if viewModel.entries.isEmpty {
                         Text("Once you add words here, Stet will reuse them in transcription and rewrite.")
                             .foregroundStyle(.secondary)
@@ -69,6 +60,7 @@
                         }
 
                         Button("Clear Dictionary", role: .destructive) {
+                            clearConfirmation = ""
                             isShowingClearConfirmation = true
                         }
                         .foregroundStyle(.red)
@@ -79,27 +71,76 @@
             }
             .macSettingsFormStyle()
             .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
-            .confirmationDialog(
-                "Are you sure you want to clear your personal dictionary?",
-                isPresented: $isShowingClearConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Clear All", role: .destructive) {
-                    viewModel.clearEntries()
+            .macSettingsSheet(isPresented: $isShowingEditor) {
+                MacSettingsEditor(
+                    title: editingEntry == nil ? "Add Dictionary Words" : "Edit Dictionary Entry",
+                    subtitle:
+                        "Use the spelling you want in your transcripts. Separate multiple words or phrases with commas or new lines."
+                ) {
+                    Text("Words or phrases").font(.subheadline)
+                    TextEditor(text: $entryDraft)
+                        .font(.body)
+                        .frame(height: 110)
+                        .padding(6)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: MacUI.SettingsViewMetrics.sidebarRowCornerRadius)
+                                .strokeBorder(Color.secondary.opacity(0.25))
+                        )
+                        .accessibilityLabel("Words or phrases")
+                    HStack {
+                        Spacer()
+                        Button("Cancel") { isShowingEditor = false }.keyboardShortcut(.cancelAction)
+                        Button(editingEntry == nil ? "Add Words" : "Save") {
+                            viewModel.saveEntries(from: entryDraft, replacing: editingEntry)
+                            isShowingEditor = false
+                        }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!viewModel.canSaveEntries(from: entryDraft))
+                    }
                 }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This action cannot be undone.")
             }
+            .macSettingsSheet(isPresented: $isShowingClearConfirmation) {
+                MacSettingsEditor(
+                    title: "Clear Personal Dictionary?",
+                    subtitle:
+                        "This permanently removes all \(viewModel.entries.count) entries, including on devices using your synced dictionary. This cannot be undone."
+                ) {
+                    Text("Type CLEAR to confirm.").font(.subheadline)
+                    TextField("CLEAR", text: $clearConfirmation).textFieldStyle(.roundedBorder).labelsHidden()
+                    HStack {
+                        Spacer()
+                        Button("Cancel") { isShowingClearConfirmation = false }.keyboardShortcut(.cancelAction)
+                        Button("Clear Dictionary", role: .destructive) {
+                            viewModel.clearEntries()
+                            isShowingClearConfirmation = false
+                        }
+                        .disabled(clearConfirmation != "CLEAR")
+                    }
+                }
+            }
+            .onAppear { viewModel.load() }
+        }
+
+        private func openEditor(_ entry: String? = nil) {
+            editingEntry = entry
+            entryDraft = entry ?? ""
+            isShowingEditor = true
         }
 
         private func dictionaryChip(for entry: String) -> some View {
             HStack(spacing: MacUI.DictionaryViewMetrics.chipSpacing) {
-                Text(entry)
-                    .font(MacUI.DictionaryViewMetrics.chipTextFont)
-                    .lineLimit(MacUI.DictionaryViewMetrics.entryLineLimit)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button {
+                    openEditor(entry)
+                } label: {
+                    Text(entry)
+                        .font(MacUI.DictionaryViewMetrics.chipTextFont)
+                        .lineLimit(MacUI.DictionaryViewMetrics.entryLineLimit)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                }
+                .buttonStyle(.plain)
+                .help("Edit entry")
 
                 Button {
                     viewModel.removeEntry(entry)
@@ -109,6 +150,7 @@
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Remove \(entry)")
             }
             .padding(.horizontal, MacUI.DictionaryViewMetrics.chipHorizontalPadding)
             .padding(.vertical, MacUI.DictionaryViewMetrics.chipVerticalPadding)

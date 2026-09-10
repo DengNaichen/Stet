@@ -25,6 +25,16 @@
             )
         }
 
+        @Test func editingPreservesOtherEntriesAndNormalizesReplacement() {
+            let subject = makeViewModel(defaults: TestSupport.makeUserDefaults())
+            subject.model.saveEntries(["OpenAI", "Groq", "Stet"])
+            subject.viewModel.load()
+            subject.viewModel.saveEntries(from: "  Google  , Stet", replacing: "Groq")
+            #expect(subject.viewModel.entries == ["OpenAI", "Google", "Stet"])
+            subject.viewModel.saveEntries(from: "  ", replacing: "Google")
+            #expect(subject.model.loadEntries() == ["OpenAI", "Google", "Stet"])
+        }
+
         @Test func loadReflectsStoredEntriesAndEnabledState() {
             let defaults = TestSupport.makeUserDefaults()
             let subject = makeViewModel(defaults: defaults)

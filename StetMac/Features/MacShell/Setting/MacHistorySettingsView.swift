@@ -5,6 +5,7 @@
     import UniformTypeIdentifiers
 
     struct MacHistorySettingsView: View {
+        @Environment(\.scenePhase) private var scenePhase
         @State private var entries: [HistoryEntry] = []
         @State private var searchText = ""
         @State private var isExporting = false
@@ -30,6 +31,7 @@
                 content
             }
             .task { reload() }
+            .onChange(of: scenePhase) { _, phase in if phase == .active { reload() } }
         }
 
         // MARK: - Toolbar
@@ -53,6 +55,12 @@
                     .buttonStyle(.plain)
                 }
                 Spacer()
+                Button {
+                    reload()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .help("Refresh history").accessibilityLabel("Refresh history")
                 Button(LocalizedStringKey("Export JSON")) {
                     exportJSON()
                 }
@@ -187,7 +195,7 @@
         }
 
         private var displayText: String {
-            entry.llmText ?? entry.rawText
+            entry.finalText ?? entry.llmText ?? entry.rawText
         }
 
         @ViewBuilder

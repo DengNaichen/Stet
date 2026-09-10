@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import SwiftData
 
 @MainActor
@@ -42,18 +43,47 @@ public final class DictationHistoryService: DictationHistoryRecording {
     // MARK: - Private state
 
     private let container: ModelContainer?
+    private var initializationError: Error?
     private var pending: PendingSession?
 
     // MARK: - Init
 
     private init() {
         do {
-            let schema = Schema([HistoryEntry.self])
-            let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-            self.container = try ModelContainer(for: schema, configurations: [config])
+            self.container = try Self.makePersistentContainer()
         } catch {
             self.container = nil
+            self.initializationError = error
         }
+    }
+
+    /// History owns a separate store so opening another feature's schema cannot remove its tables.
+    static func makePersistentContainer(
+        appSupportDirectory: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0],
+        bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "NaichengDeng.Stet"
+    ) throws -> ModelContainer {
+        let directory = appSupportDirectory.appendingPathComponent(bundleIdentifier)
+            .appendingPathComponent("SwiftData", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let destination = directory.appendingPathComponent("History.store")
+        let legacy = appSupportDirectory.appendingPathComponent("default.store")
+        if !FileManager.default.fileExists(atPath: destination.path),
+            FileManager.default.fileExists(atPath: legacy.path)
+        {
+            let metadata = try NSPersistentStoreCoordinator.metadataForPersistentStore(
+                ofType: NSSQLiteStoreType, at: legacy, options: [NSReadOnlyPersistentStoreOption: true])
+            let entities = metadata[NSStoreModelVersionHashesKey] as? [String: Any] ?? [:]
+            if entities["HistoryEntry"] != nil {
+                // Core Data copies a consistent store, including WAL transactions. Keep the original intact.
+                let coordinator = NSPersistentStoreCoordinator(managedObjectModel: NSManagedObjectModel())
+                try coordinator.replacePersistentStore(
+                    at: destination, destinationOptions: nil,
+                    withPersistentStoreFrom: legacy, sourceOptions: [NSReadOnlyPersistentStoreOption: true],
+                    ofType: NSSQLiteStoreType)
+            }
+        }
+        let schema = Schema([HistoryEntry.self])
+        return try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: destination)])
     }
 
     init(container: ModelContainer?) {
@@ -116,8 +146,7 @@ public final class DictationHistoryService: DictationHistoryRecording {
 
     /// Fetches history entries sorted by recency, up to `limit` results.
     public func fetchRecent(limit: Int = 300) throws -> [HistoryEntry] {
-        guard let container else { return [] }
-        let context = ModelContext(container)
+        let context = try persistenceContext()
         var descriptor = FetchDescriptor<HistoryEntry>(
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
         )
@@ -127,8 +156,7 @@ public final class DictationHistoryService: DictationHistoryRecording {
 
     /// Permanently deletes all history entries.
     public func deleteAll() throws {
-        guard let container else { return }
-        let context = ModelContext(container)
+        let context = try persistenceContext()
         try context.delete(model: HistoryEntry.self)
         try context.save()
     }
@@ -288,7 +316,7 @@ public final class DictationHistoryService: DictationHistoryRecording {
 
     private func persistenceContext() throws -> ModelContext {
         guard let container else {
-            throw PassiveHistoryError.persistenceUnavailable
+            throw initializationError ?? PassiveHistoryError.persistenceUnavailable
         }
         return ModelContext(container)
     }
