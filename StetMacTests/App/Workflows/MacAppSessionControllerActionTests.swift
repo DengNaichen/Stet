@@ -1,4 +1,5 @@
 #if os(macOS)
+    import AppKit
     import Combine
     import Foundation
     import StetVisuals
@@ -157,7 +158,7 @@
     @MainActor
     @Suite("Mac App Session Controller Action Behavior", .serialized)
     struct MacAppSessionControllerActionTests {
-        private func makeSubject() -> (
+        private func makeSubject(clock: TestClock? = nil) -> (
             session: MacAppSessionController,
             workflow: MacDictationWorkflowController,
             shell: FakeShellPresenter,
@@ -181,6 +182,7 @@
             let captureCoordinator = MacDictationCaptureCoordinator(
                 clipboardService: clipboardService,
                 textInjectionService: textInjectionService,
+                pasteboard: NSPasteboard(name: NSPasteboard.Name("StetTests.\(UUID().uuidString)")),
                 frontmostBundleIdentifierProvider: { nil }
             )
             let workflow = MacDictationWorkflowController(
@@ -214,6 +216,10 @@
                 defaults: defaults,
                 hotkeyRegistrar: hotkeyRegistrar
             )
+
+            if let clock {
+                session.clipboardPendingAutoDismissSleep = { try await clock.sleep(for: $0) }
+            }
 
             return (
                 session: session,
@@ -327,18 +333,25 @@
             #expect(subject.shell.isPanelVisible == false)
         }
 
-        @Test func autoDismissPreservesNewerClipboardContents() async {
-            let subject = makeSubject()
+        @Test func autoDismissPreservesNewerClipboardContents() async throws {
+            let clock = TestClock()
+            let subject = makeSubject(clock: clock)
             let presentationModel = FakePresentationModel()
             subject.session.activate(presentationModel: presentationModel, showInDock: false)
             subject.session.clipboardPendingAutoDismissDelay = .milliseconds(100)
             subject.textInjectionService.pasteOutcome = .verificationFailed
             subject.workflow.dictationViewModel.send(.transcriptionSucceeded("transcript A"))
-            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask != nil })
+            let delay = await clock.nextSleep()
+            #expect(delay == subject.session.clipboardPendingAutoDismissDelay)
+            let pendingDismiss = try #require(subject.session.clipboardPendingDismissTask)
             subject.clipboardService.copy("new clipboard B", transient: false)
             let writesBeforeDismiss = subject.clipboardService.copiedTexts
 
-            #expect(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .idle })
+            await clock.advance(by: delay - .milliseconds(1))
+            #expect(subject.workflow.dictationViewModel.state == .clipboardPending("transcript A"))
+            await clock.advance(by: .milliseconds(1))
+            await pendingDismiss.value
+            #expect(subject.workflow.dictationViewModel.state == .idle)
             #expect(subject.clipboardService.copiedTexts == writesBeforeDismiss)
         }
 
@@ -354,25 +367,34 @@
             subject.session.cancelActiveCapture()
         }
 
-        @Test func hotkeyPreservesNewerClipboardAndCancelsOldTimeout() async {
-            let subject = makeSubject()
+        @Test func hotkeyPreservesNewerClipboardAndCancelsOldTimeout() async throws {
+            let clock = TestClock()
+            let subject = makeSubject(clock: clock)
             let presentationModel = FakePresentationModel()
             subject.session.activate(presentationModel: presentationModel, showInDock: false)
             subject.session.clipboardPendingAutoDismissDelay = .milliseconds(100)
-            subject.textInjectionService.pasteOutcome = .verificationFailed
-            subject.workflow.dictationViewModel.send(.transcriptionSucceeded("transcript A"))
-            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask != nil })
+            // This action starts from an already-delivered pending result.
+            // Output failure mapping is covered by verificationFailureFallsBackToClipboardPendingSurface.
+            subject.clipboardService.copy("transcript A", transient: false)
+            subject.session.copiedPendingResult = "transcript A"
+            subject.workflow.dictationViewModel.send(.clipboardPending("transcript A"))
+            #expect(await clock.nextSleep() == .milliseconds(100))
+            let pendingDismiss = try #require(subject.session.clipboardPendingDismissTask)
+            defer { pendingDismiss.cancel() }
             subject.clipboardService.copy("new clipboard B", transient: false)
             let writesBeforeRestart = subject.clipboardService.copiedTexts
 
             subject.session.handleHotkeyPressed()
             #expect(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .listening })
-            try? await Task.sleep(for: .milliseconds(200))
+            try #require(pendingDismiss.isCancelled)
+            await pendingDismiss.value
+            #expect(subject.session.clipboardPendingDismissTask == nil)
 
             #expect(subject.clipboardService.copiedTexts == writesBeforeRestart)
             #expect(subject.workflow.dictationViewModel.state == .listening)
             #expect(subject.shell.isPanelVisible)
             #expect(await subject.speechService.counts().start == 1)
+            #expect(subject.textInjectionService.pasteTargets.isEmpty)
             subject.session.cancelActiveCapture()
         }
 
@@ -388,26 +410,32 @@
             subject.session.cancelActiveCapture()
         }
 
-        @Test func explicitCopyFailureAfterFallbackPreventsAutoDismiss() async {
-            let subject = makeSubject()
+        @Test func explicitCopyFailureAfterFallbackPreventsAutoDismiss() async throws {
+            let clock = TestClock()
+            let subject = makeSubject(clock: clock)
             let presentationModel = FakePresentationModel()
             subject.session.activate(presentationModel: presentationModel, showInDock: false)
             subject.session.clipboardPendingAutoDismissDelay = .milliseconds(100)
             subject.textInjectionService.pasteOutcome = .verificationFailed
             subject.workflow.dictationViewModel.send(.transcriptionSucceeded("transcript A"))
-            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask != nil })
+            let delay = await clock.nextSleep()
+            #expect(delay == subject.session.clipboardPendingAutoDismissDelay)
+            let pendingDismiss = try #require(subject.session.clipboardPendingDismissTask)
             subject.clipboardService.shouldFailCopy = true
 
             subject.session.performPrimaryAction()
-            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask == nil })
+            await clock.advance(by: delay)
+            await pendingDismiss.value
+            #expect(subject.session.clipboardPendingDismissTask == nil)
 
             #expect(subject.workflow.dictationViewModel.state == .clipboardPending("transcript A"))
             #expect(subject.shell.isPanelVisible)
             #expect(subject.clipboardService.copiedTexts == ["transcript A", "transcript A", "transcript A"])
         }
 
-        @Test func clipboardPendingPanelAutoDismissesAfterDelay() async {
-            let subject = makeSubject()
+        @Test func clipboardPendingPanelAutoDismissesAfterDelay() async throws {
+            let clock = TestClock()
+            let subject = makeSubject(clock: clock)
             let presentationModel = FakePresentationModel()
             subject.session.activate(presentationModel: presentationModel, showInDock: false)
             subject.session.clipboardPendingAutoDismissDelay = .milliseconds(300)
@@ -415,43 +443,61 @@
             subject.textInjectionService.pasteOutcome = .verificationFailed
             subject.workflow.dictationViewModel.send(.transcriptionSucceeded("needs copy"))
 
-            #expect(await TestSupport.eventually { subject.shell.isPanelVisible })
+            let delay = await clock.nextSleep()
+            #expect(delay == subject.session.clipboardPendingAutoDismissDelay)
+            let pendingDismiss = try #require(subject.session.clipboardPendingDismissTask)
+            #expect(subject.shell.isPanelVisible)
             #expect(subject.workflow.dictationViewModel.state == .clipboardPending("needs copy"))
 
-            #expect(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .idle })
+            await clock.advance(by: delay - .milliseconds(1))
+            #expect(subject.workflow.dictationViewModel.state == .clipboardPending("needs copy"))
+            await clock.advance(by: .milliseconds(1))
+            await pendingDismiss.value
+            #expect(subject.workflow.dictationViewModel.state == .idle)
             #expect(subject.shell.hidePanelCallCount == 1)
             #expect(subject.shell.isPanelVisible == false)
             #expect(subject.clipboardService.copiedTexts == ["needs copy", "needs copy"])
         }
 
-        @Test func confirmingPendingCopyCancelsAutoDismiss() async {
-            let subject = makeSubject()
+        @Test func confirmingPendingCopyCancelsAutoDismiss() async throws {
+            let clock = TestClock()
+            let subject = makeSubject(clock: clock)
             let presentationModel = FakePresentationModel()
             subject.session.activate(presentationModel: presentationModel, showInDock: false)
             subject.session.clipboardPendingAutoDismissDelay = .milliseconds(100)
             subject.workflow.dictationViewModel.send(.clipboardPending("needs copy"))
-            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask != nil })
+            let delay = await clock.nextSleep()
+            #expect(delay == subject.session.clipboardPendingAutoDismissDelay)
+            let pendingDismiss = try #require(subject.session.clipboardPendingDismissTask)
 
             subject.session.performPrimaryAction()
-            try? await Task.sleep(for: .milliseconds(200))
+            // The reset is observed asynchronously by the state subscription.
+            await pendingDismiss.value
+            #expect(pendingDismiss.isCancelled)
+            await clock.advance(by: delay)
 
             #expect(subject.workflow.dictationViewModel.state == .idle)
             #expect(subject.clipboardService.copiedTexts == ["needs copy"])
             #expect(subject.shell.hidePanelCallCount == 1)
         }
 
-        @Test func startingCaptureCancelsPendingAutoDismiss() async {
-            let subject = makeSubject()
+        @Test func startingCaptureCancelsPendingAutoDismiss() async throws {
+            let clock = TestClock()
+            let subject = makeSubject(clock: clock)
             let presentationModel = FakePresentationModel()
             subject.session.activate(presentationModel: presentationModel, showInDock: false)
             subject.session.clipboardPendingAutoDismissDelay = .milliseconds(100)
             subject.workflow.dictationViewModel.send(.clipboardPending("previous"))
-            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask != nil })
+            let delay = await clock.nextSleep()
+            #expect(delay == subject.session.clipboardPendingAutoDismissDelay)
+            let pendingDismiss = try #require(subject.session.clipboardPendingDismissTask)
 
             subject.workflow.dictationViewModel.send(.resetTapped)
             subject.session.startDictationCapture(from: .hotkey)
             #expect(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .listening })
-            try? await Task.sleep(for: .milliseconds(200))
+            try #require(pendingDismiss.isCancelled)
+            await pendingDismiss.value
+            await clock.advance(by: delay)
 
             #expect(subject.workflow.dictationViewModel.state == .listening)
             #expect(subject.clipboardService.copiedTexts.isEmpty)
@@ -459,16 +505,21 @@
             subject.session.cancelActiveCapture()
         }
 
-        @Test func uncopiedPendingResultDoesNotAutoDismissOrCopy() async {
-            let subject = makeSubject()
+        @Test func uncopiedPendingResultDoesNotAutoDismissOrCopy() async throws {
+            let clock = TestClock()
+            let subject = makeSubject(clock: clock)
             let presentationModel = FakePresentationModel()
             subject.session.activate(presentationModel: presentationModel, showInDock: false)
             subject.session.clipboardPendingAutoDismissDelay = .milliseconds(50)
             subject.clipboardService.shouldFailCopy = true
             subject.workflow.dictationViewModel.send(.clipboardPending("needs copy"))
 
-            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask != nil })
-            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask == nil })
+            let delay = await clock.nextSleep()
+            #expect(delay == subject.session.clipboardPendingAutoDismissDelay)
+            let pendingDismiss = try #require(subject.session.clipboardPendingDismissTask)
+            await clock.advance(by: delay)
+            await pendingDismiss.value
+            #expect(subject.session.clipboardPendingDismissTask == nil)
             #expect(subject.clipboardService.copiedTexts.isEmpty)
             #expect(subject.workflow.dictationViewModel.state == .clipboardPending("needs copy"))
             #expect(subject.shell.isPanelVisible)

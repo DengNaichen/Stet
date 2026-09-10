@@ -9,3 +9,5 @@
 | `macos-release-candidate.yml` | Manual | Release candidate build (runs at repository root) |
 
 Release jobs run at the repository root, where the scripts and Xcode project now live.
+
+macOS CI cache design, measured baseline, and cold/warm validation results: [CI performance](ci-performance.md).

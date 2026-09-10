@@ -22,11 +22,12 @@
         private let interactionSoundPlayer: any InteractionSoundPlaying
         private let completionNotifier: (any MacDictationCompletionNotifying)?
         private let mediaResumeDelay: Duration
+        private let mediaResumeSleep: @Sendable (Duration) async throws -> Void
         private let startPromptActivationDeadline: Duration
 
         private weak var lastTargetApplication: NSRunningApplication?
         private(set) var activeRecordingSource: PrimaryActionSource?
-        private var mediaResumeTask: Task<Void, Never>?
+        private(set) var mediaResumeTask: Task<Void, Never>?
         private var startActivationTask: Task<Void, Never>?
         private var sessionStartDate: Date?
         private var pendingSessionDuration: TimeInterval?
@@ -42,7 +43,8 @@
             completionNotifier: (any MacDictationCompletionNotifying)? = nil,
             statsModel: DictationStatsModel? = nil,
             mediaResumeDelay: Duration = .seconds(1),
-            startPromptActivationDeadline: Duration = .milliseconds(350)
+            startPromptActivationDeadline: Duration = .milliseconds(350),
+            mediaResumeSleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
         ) {
             self.dictationViewModel = dictationViewModel
             self.captureCoordinator = captureCoordinator
@@ -53,6 +55,7 @@
             self.completionNotifier = completionNotifier
             self.statsModel = statsModel
             self.mediaResumeDelay = mediaResumeDelay
+            self.mediaResumeSleep = mediaResumeSleep
             self.startPromptActivationDeadline = startPromptActivationDeadline
         }
 
@@ -329,7 +332,7 @@
 
                 // Let macOS release capture-side routing before restoring external audio.
                 if delay > .zero {
-                    try? await Task.sleep(for: delay)
+                    try? await mediaResumeSleep(delay)
                 }
 
                 guard !Task.isCancelled,

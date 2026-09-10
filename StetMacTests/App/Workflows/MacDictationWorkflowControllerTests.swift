@@ -98,7 +98,8 @@
             interactionSoundPlayer: TestInteractionSoundPlayer? = nil,
             completionNotifier: TestCompletionNotifier? = nil,
             frontmostBundleIdentifier: String? = nil,
-            mediaResumeDelay: Duration = .zero
+            mediaResumeDelay: Duration = .zero,
+            mediaResumeSleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
         ) -> (
             controller: MacDictationWorkflowController,
             viewModel: DictationViewModel,
@@ -143,7 +144,8 @@
                 interactionSoundPlayer: interactionSoundPlayer,
                 completionNotifier: completionNotifier,
                 mediaResumeDelay: mediaResumeDelay,
-                startPromptActivationDeadline: promptActivationDeadline
+                startPromptActivationDeadline: promptActivationDeadline,
+                mediaResumeSleep: mediaResumeSleep
             )
 
             return (
@@ -413,7 +415,8 @@
             #expect(subject.mediaPlaybackController.resumeCallCount == 1)
         }
 
-        @Test func listeningToProcessingTransitionDefersResumeUntilConfiguredDelayElapses() async {
+        @Test func listeningToProcessingTransitionDefersResumeUntilConfiguredDelayElapses() async throws {
+            let clock = TestClock()
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(true, forKey: MacPreferences.pauseMediaDuringDictation)
             let speechService = ControllableSpeechService()
@@ -421,7 +424,8 @@
             let subject = makeController(
                 defaults: defaults,
                 speechService: speechService,
-                mediaResumeDelay: .milliseconds(120)
+                mediaResumeDelay: .milliseconds(120),
+                mediaResumeSleep: { try await clock.sleep(for: $0) }
             )
 
             subject.controller.startDictationCapture(source: .interface) {}
@@ -433,13 +437,20 @@
 
             #expect(subject.mediaPlaybackController.pauseCallCount == 1)
             #expect(subject.mediaPlaybackController.resumeCallCount == 0)
-            #expect(
-                await TestSupport.eventually(timeout: .milliseconds(400)) {
-                    subject.mediaPlaybackController.resumeCallCount == 1
-                })
+            let resumeTask = try #require(subject.controller.mediaResumeTask)
+            #expect(await clock.nextSleep() == .milliseconds(120))
+            await clock.advance(by: .milliseconds(119))
+            #expect(subject.mediaPlaybackController.resumeCallCount == 0)
+            await clock.advance(by: .milliseconds(1))
+            await resumeTask.value
+            #expect(subject.mediaPlaybackController.resumeCallCount == 1)
+            await speechService.setStopBehavior(.immediate("done"))
+            subject.controller.cancelActiveCapture()
+            await speechService.cancelRecording()
         }
 
-        @Test func processingToResultTransitionDoesNotCancelDeferredResume() async {
+        @Test func processingToResultTransitionDoesNotCancelDeferredResume() async throws {
+            let clock = TestClock()
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(true, forKey: MacPreferences.pauseMediaDuringDictation)
             let speechService = ControllableSpeechService()
@@ -447,7 +458,8 @@
             let subject = makeController(
                 defaults: defaults,
                 speechService: speechService,
-                mediaResumeDelay: .milliseconds(120)
+                mediaResumeDelay: .milliseconds(120),
+                mediaResumeSleep: { try await clock.sleep(for: $0) }
             )
 
             subject.controller.startDictationCapture(source: .interface) {}
@@ -461,10 +473,16 @@
             subject.controller.handleStateTransition(from: .processing, to: .result("done"))
 
             #expect(subject.mediaPlaybackController.resumeCallCount == 0)
-            #expect(
-                await TestSupport.eventually(timeout: .milliseconds(400)) {
-                    subject.mediaPlaybackController.resumeCallCount == 1
-                })
+            let resumeTask = try #require(subject.controller.mediaResumeTask)
+            #expect(await clock.nextSleep() == .milliseconds(120))
+            await clock.advance(by: .milliseconds(119))
+            #expect(subject.mediaPlaybackController.resumeCallCount == 0)
+            await clock.advance(by: .milliseconds(1))
+            await resumeTask.value
+            #expect(subject.mediaPlaybackController.resumeCallCount == 1)
+            await speechService.setStopBehavior(.immediate("done"))
+            subject.controller.cancelActiveCapture()
+            await speechService.cancelRecording()
         }
 
         @Test func finishSoundDoesNotPlayWhenCaptureStops() async {

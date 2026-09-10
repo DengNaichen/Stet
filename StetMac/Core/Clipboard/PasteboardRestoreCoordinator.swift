@@ -15,11 +15,16 @@
     @MainActor
     final class PasteboardRestoreCoordinator {
         private let restoreDelay: Duration
+        private let sleep: @Sendable (Duration) async throws -> Void
         private var pendingRestoreTask: Task<Void, Never>?
         private var pendingOriginalSnapshot: PasteboardSnapshot?
 
-        init(restoreDelay: Duration = .milliseconds(800)) {
+        init(
+            restoreDelay: Duration = .milliseconds(800),
+            sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+        ) {
             self.restoreDelay = restoreDelay
+            self.sleep = sleep
         }
 
         deinit {
@@ -42,21 +47,23 @@
             )
         }
 
-        func scheduleRestoreIfNeeded(on pasteboard: NSPasteboard) {
+        @discardableResult
+        func scheduleRestoreIfNeeded(on pasteboard: NSPasteboard) -> Task<Void, Never>? {
             scheduleRestoreIfNeeded(on: pasteboard, delayOverride: nil)
         }
 
+        @discardableResult
         func scheduleRestoreIfNeeded(
             on pasteboard: NSPasteboard,
             delayOverride: Duration?
-        ) {
+        ) -> Task<Void, Never>? {
             guard let snapshot = pendingOriginalSnapshot else {
                 emitPasteboardTrace(
                     stage: "schedule_restore_skipped",
                     pasteboard: pasteboard,
                     details: "reason=no_pending_original_snapshot"
                 )
-                return
+                return nil
             }
 
             let effectiveDelay = delayOverride ?? restoreDelay
@@ -68,10 +75,10 @@
                     "delayMs=\(durationMilliseconds(effectiveDelay)) originalItemCount=\(snapshot.itemCount) temporaryItemCount=\(temporarySnapshot.itemCount)"
             )
             pendingRestoreTask?.cancel()
-            pendingRestoreTask = Task { @MainActor [weak self] in
+            let restoreTask = Task { @MainActor [weak self] in
                 guard let self else { return }
 
-                try? await Task.sleep(for: effectiveDelay)
+                try? await sleep(effectiveDelay)
                 guard !Task.isCancelled else { return }
 
                 defer {
@@ -99,6 +106,8 @@
                     details: "restoredItemCount=\(snapshot.itemCount)"
                 )
             }
+            pendingRestoreTask = restoreTask
+            return restoreTask
         }
 
         func restoreImmediatelyIfNeeded(on pasteboard: NSPasteboard) {

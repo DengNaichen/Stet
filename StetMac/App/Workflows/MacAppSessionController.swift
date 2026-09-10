@@ -36,6 +36,9 @@
         var copiedPendingResult: String?
         var clipboardPendingDismissTask: Task<Void, Never>?
         var clipboardPendingAutoDismissDelay: Duration = .seconds(4)
+        var clipboardPendingAutoDismissSleep: @Sendable (Duration) async throws -> Void = {
+            try await Task.sleep(for: $0)
+        }
         let hotkeyInteraction = MacDictationHotkeyInteraction()
         var previousDictationState: DictationState = .idle
         weak var presentationModel: (any MacAppPresentationModeling)?
