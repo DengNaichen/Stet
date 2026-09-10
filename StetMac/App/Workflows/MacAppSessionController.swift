@@ -79,7 +79,9 @@
             self.notificationCenter = notificationCenter
             self.hotkeyRegistrar = hotkeyRegistrar
             self.onboardingStepState = .done
-            self.onboardingAppearanceThemeState = .egg
+            self.onboardingAppearanceThemeState = MacDictationVisualTheme.fromStoredValue(
+                defaults.string(forKey: MacPreferences.shaderTheme)
+            )
             self.hasAppliedOnboardingAppearanceTheme = false
 
             configure()

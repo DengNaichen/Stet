@@ -16,6 +16,24 @@
         let model: MacDictationCapsuleVisualModel
         let actions: MacDictationCapsuleVisualActions
 
+        public init(model: MacDictationCapsuleVisualModel, actions: MacDictationCapsuleVisualActions) {
+            self.model = model
+            self.actions = actions
+        }
+
+        public var body: some View {
+            if model.shaderTheme == .watercolor {
+                MacWatercolorOrbView(model: model, actions: actions)
+            } else {
+                MacDictationLegacyCapsuleView(model: model, actions: actions)
+            }
+        }
+    }
+
+    private struct MacDictationLegacyCapsuleView: View {
+        let model: MacDictationCapsuleVisualModel
+        let actions: MacDictationCapsuleVisualActions
+
         @Namespace private var glassNamespace
 
         @State private var isPanelShown = false
@@ -51,7 +69,7 @@
             keepsHiddenOrbsCollapsed ? -collapsedOrbOffset : -MacDictationCapsuleVisualTuning.orbTravelDistance
         }
 
-        public init(
+        init(
             model: MacDictationCapsuleVisualModel,
             actions: MacDictationCapsuleVisualActions
         ) {
@@ -59,7 +77,7 @@
             self.actions = actions
         }
 
-        public var body: some View {
+        var body: some View {
             ZStack {
                 ZStack {
                     MacDictationGlassContainer(spacing: MacDictationCapsuleVisualTuning.orbSpacing) {

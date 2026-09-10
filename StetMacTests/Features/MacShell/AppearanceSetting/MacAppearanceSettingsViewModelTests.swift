@@ -7,6 +7,20 @@
     @MainActor
     @Suite("Mac Appearance Settings View Model", .serialized)
     struct MacAppearanceSettingsViewModelTests {
+        @Test func newInstallUsesWatercolorAndLegacyChoicesRemainAvailable() {
+            let defaults = TestSupport.makeUserDefaults()
+            let viewModel = MacAppearanceSettingsViewModel(defaults: defaults)
+            #expect(viewModel.shaderTheme == .watercolor)
+            #expect(viewModel.appliedShaderTheme == .watercolor)
+            for theme in MacDictationVisualTheme.allCases {
+                viewModel.updateShaderTheme(theme, persist: true)
+                let reloaded = MacAppearanceSettingsViewModel(defaults: defaults)
+                #expect(reloaded.shaderTheme == theme)
+            }
+            #expect(MacDictationVisualTheme.allCases.count == 7)
+            #expect(MacDictationVisualTheme.fromStoredValue("unknown") == .watercolor)
+        }
+
         @Test func loadReadsStoredTheme() {
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(MacDictationVisualTheme.autumn.rawValue, forKey: MacPreferences.shaderTheme)

@@ -15,6 +15,7 @@
 
 ### Active
 
+- [watercolor-orb](watercolor-orb.md) — 水彩蓝圆球、声音响应、Thinking 和原生玻璃按钮的定稿参数与状态行为。
 - [app-compatibility](app-compatibility.md) — 通过 GitHub 独立分发粘贴兼容清单，支持后台刷新和离线回退。
 - [correction-learning](correction-learning.md) — 从用户替换中自动学习词条，保存手动 / 自动来源。
 

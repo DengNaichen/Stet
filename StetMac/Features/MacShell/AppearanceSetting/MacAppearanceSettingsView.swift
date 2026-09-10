@@ -31,7 +31,7 @@
                             .scaleEffect(coverScale)
                             .frame(width: 440 * coverScale, height: 380 * coverScale)
 
-                        Text("Choose the color palette used by the dictation capsule.")
+                        Text("Choose the appearance of your dictation indicator.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -49,7 +49,7 @@
 
         private var capsulePreview: some View {
             MacDictationCapsulePreviewView(
-                theme: MacDictationShaderTheme(rawValue: viewModel.shaderTheme.rawValue) ?? .egg,
+                theme: MacDictationShaderTheme(rawValue: viewModel.shaderTheme.rawValue) ?? .watercolor,
                 scale: 1.1
             )
             .frame(maxWidth: .infinity, alignment: .center)

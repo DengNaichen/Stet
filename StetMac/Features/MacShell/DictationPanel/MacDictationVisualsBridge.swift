@@ -54,7 +54,7 @@
         }
 
         private var shaderTheme: MacDictationShaderTheme {
-            MacDictationShaderTheme(rawValue: theme.rawValue) ?? .egg
+            MacDictationShaderTheme(rawValue: theme.rawValue) ?? .watercolor
         }
     }
 #endif

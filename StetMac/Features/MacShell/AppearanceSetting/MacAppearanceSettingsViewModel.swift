@@ -6,8 +6,8 @@
     final class MacAppearanceSettingsViewModel: ObservableObject {
         static let shared = MacAppearanceSettingsViewModel()
 
-        @Published private(set) var shaderTheme = MacDictationVisualTheme.egg
-        @Published private(set) var appliedShaderTheme = MacDictationVisualTheme.egg
+        @Published private(set) var shaderTheme = MacDictationVisualTheme.watercolor
+        @Published private(set) var appliedShaderTheme = MacDictationVisualTheme.watercolor
 
         private let defaults: UserDefaults
 

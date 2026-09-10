@@ -2,6 +2,9 @@
     import Foundation
 
     public enum MacDictationShaderTheme: String, CaseIterable, Identifiable, Hashable {
+        #if os(macOS)
+            case watercolor
+        #endif
         case blossom
         case egg
         case harbor
@@ -13,6 +16,10 @@
 
         public var title: String {
             switch self {
+            #if os(macOS)
+                case .watercolor:
+                    return "Watercolor Blue"
+            #endif
             case .blossom:
                 return "Blossom"
             case .egg:
@@ -30,6 +37,15 @@
 
         var palette: MacDictationShaderThemePalette {
             switch self {
+            #if os(macOS)
+                case .watercolor:
+                    let colors = MacDictationShaderThemeColorSet(
+                        a: (0.84, 0.96, 0.98), b: (0.998, 0.999, 0.991), c: (0.024, 0.631, 0.969)
+                    )
+                    return MacDictationShaderThemePalette(
+                        idle: colors, starting: colors, speaking: colors, processing: colors
+                    )
+            #endif
             case .blossom:
                 let sky = (0.5294117647058824, 0.7019607843137254, 0.8862745098039215)
                 let leaf = (0.7176470588235294, 0.796078431372549, 0.3607843137254902)

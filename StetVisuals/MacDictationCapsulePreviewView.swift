@@ -12,20 +12,30 @@
             self.scale = scale
         }
 
-        private var baseWidth: CGFloat { MacDictationPanelConstants.Layout.mainWidthListening }
-        private var baseHeight: CGFloat { MacDictationPanelConstants.Layout.controlHeight }
+        private var baseWidth: CGFloat {
+            theme == .watercolor ? 64 : MacDictationPanelConstants.Layout.mainWidthListening
+        }
+        private var baseHeight: CGFloat {
+            theme == .watercolor ? 64 : MacDictationPanelConstants.Layout.controlHeight
+        }
 
         public var body: some View {
-            MacDictationShaderLayer(
-                state: .listening,
-                mainWidth: baseWidth,
-                controlHeight: baseHeight,
-                startDate: .now,
-                shaderFrameInterval: MacDictationPanelConstants.VoiceReactivity.shaderFrameIntervalActive,
-                signals: .zero,
-                shaderTheme: theme,
-                isPaused: false
-            )
+            Group {
+                if theme == .watercolor {
+                    MacWatercolorOrbPreview()
+                } else {
+                    MacDictationShaderLayer(
+                        state: .listening,
+                        mainWidth: baseWidth,
+                        controlHeight: baseHeight,
+                        startDate: .now,
+                        shaderFrameInterval: MacDictationPanelConstants.VoiceReactivity.shaderFrameIntervalActive,
+                        signals: .zero,
+                        shaderTheme: theme,
+                        isPaused: false
+                    )
+                }
+            }
             .frame(width: baseWidth, height: baseHeight)
             .scaleEffect(scale)
             .frame(width: baseWidth * scale, height: baseHeight * scale)

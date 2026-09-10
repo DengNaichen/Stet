@@ -31,7 +31,7 @@
                 defaults.string(forKey: MacPreferences.interactionSoundPreset) == InteractionSoundPreset.soft.rawValue)
             #expect(
                 defaults.string(forKey: MacPreferences.shaderTheme)
-                    == MacDictationVisualTheme.egg.rawValue)
+                    == MacDictationVisualTheme.watercolor.rawValue)
             #expect(defaults.bool(forKey: MacPreferences.launchAtLogin))
             #expect(!defaults.bool(forKey: MacPreferences.showInDock))
         }

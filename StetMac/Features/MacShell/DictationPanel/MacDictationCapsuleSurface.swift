@@ -6,7 +6,7 @@
 
         @ObservedObject var viewModel: MacDictationPanelViewModel
         let panelSize: CGSize
-        @AppStorage(MacPreferences.shaderTheme) private var shaderThemeRawValue = MacDictationVisualTheme.egg
+        @AppStorage(MacPreferences.shaderTheme) private var shaderThemeRawValue = MacDictationVisualTheme.watercolor
             .rawValue
 
         var body: some View {
@@ -18,8 +18,12 @@
                 onDismiss: dismissAction,
                 onConfirm: viewModel.performPrimaryAction
             )
-            .scaleEffect(viewModel.capsuleScale)
-            .animation(Self.voiceScaleAnimation, value: viewModel.capsuleScale)
+            .scaleEffect(capsuleScale)
+            .animation(Self.voiceScaleAnimation, value: capsuleScale)
+        }
+
+        private var capsuleScale: CGFloat {
+            shaderTheme == .watercolor ? 1 : viewModel.capsuleScale
         }
 
         private func dismissAction() {

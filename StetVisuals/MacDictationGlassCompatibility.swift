@@ -25,6 +25,15 @@
 
     extension View {
         @ViewBuilder
+        func stetInteractiveGlassEffect<S: Shape>(in shape: S) -> some View {
+            if #available(macOS 26.0, *) {
+                self.glassEffect(.regular.tint(nil).interactive(), in: shape)
+            } else {
+                self.background(.ultraThinMaterial, in: shape)
+            }
+        }
+
+        @ViewBuilder
         public func stetGlassEffect<S: Shape>(in shape: S) -> some View {
             if #available(macOS 26.0, *) {
                 self.glassEffect(in: shape)

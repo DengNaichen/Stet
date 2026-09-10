@@ -46,16 +46,20 @@ public struct MacDictationCapsuleVisualSignals: Equatable, Sendable {
 
     public let bands: [MacDictationAudioBandFeature]
     public let estimatedSummary: MacDictationAudioVisualSummary
+    /// Unwindowed mono RMS, when supplied by capture. Separate from the legacy perceptual level.
+    public let inputRMS: Float?
 
     public init(
         bands: [MacDictationAudioBandFeature],
-        estimatedSummary: MacDictationAudioVisualSummary = .zero
+        estimatedSummary: MacDictationAudioVisualSummary = .zero,
+        inputRMS: Float? = nil
     ) {
         let normalizedBands = Array(
             (bands + Array(repeating: .zero, count: Self.bandCount)).prefix(Self.bandCount)
         )
         self.bands = normalizedBands
         self.estimatedSummary = estimatedSummary
+        self.inputRMS = inputRMS.map { $0.isFinite ? max(0, $0) : 0 }
     }
 
     public init(
@@ -111,7 +115,8 @@ public struct MacDictationCapsuleVisualSignals: Equatable, Sendable {
                 flowX: estimatedSummary.flowX * gain,
                 flowY: estimatedSummary.flowY * gain,
                 groupedBands: estimatedSummary.groupedBands * gain
-            )
+            ),
+            inputRMS: inputRMS.map { $0 * max(0, gain) }
         )
     }
 }

@@ -1,0 +1,173 @@
+#if os(macOS)
+    import Metal
+    import SwiftUI
+
+    private final class WatercolorShaderBundle: NSObject {}
+
+    struct MacWatercolorOrbPaint: View {
+        private static let hasMetal = MTLCreateSystemDefaultDevice() != nil
+        let frame: MacWatercolorOrbFrame
+
+        var body: some View {
+            Group {
+                if Self.hasMetal {
+                    Circle().fill(.white)
+                        .colorEffect(
+                            ShaderLibrary.bundle(Bundle(for: WatercolorShaderBundle.self)).stetWatercolorOrb(
+                                .float2(64, 64),
+                                .float(Float(frame.phase)),
+                                .float(Float(frame.anchor)),
+                                .float(Float(frame.motion)),
+                                .float(Float(frame.tone)),
+                                .float(Float(MacWatercolorOrbPreset.weave)),
+                                .float(Float(MacWatercolorOrbPreset.grain)),
+                                .float3(Float(frame.idleWave.x), Float(frame.idleWave.y), Float(frame.idleWave.z))
+                            )
+                        )
+                } else {
+                    Circle().fill(
+                        LinearGradient(
+                            colors: [Color(red: 0.84, green: 0.96, blue: 0.98), .white, .cyan, .blue],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    )
+                }
+            }
+            .frame(width: 64, height: 64)
+            // Scaling the complete paint preserves the approved granule size during Thinking.
+            .scaleEffect(frame.diameter / MacWatercolorOrbPreset.diameter)
+            .allowsHitTesting(false)
+        }
+    }
+
+    struct MacWatercolorOrbView: View {
+        let model: MacDictationCapsuleVisualModel
+        let actions: MacDictationCapsuleVisualActions
+
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @Namespace private var glassNamespace
+        @State private var motion = MacWatercolorOrbMotion()
+        @State private var presentation = MacWatercolorOrbPresentation()
+        @State private var previousDate: Date?
+
+        var body: some View {
+            TimelineView(
+                .animation(
+                    minimumInterval: MacWatercolorOrbPreset.frameInterval,
+                    paused: reduceMotion || (!motion.isVisible && !presentation.isAnimating(at: .now))
+                )
+            ) { context in
+                let progress = presentation.progress(at: context.date)
+                ZStack {
+                    MacDictationGlassContainer(spacing: MacWatercolorOrbLayout.glassSpacing) {
+                        ZStack {
+                            glassButton("xmark", label: "Cancel dictation", id: "cancel", side: -1, progress: progress)
+                            {
+                                actions.onDismiss()
+                            }
+                            glassButton(
+                                "checkmark", label: "Finish dictation", id: "confirm", side: 1, progress: progress
+                            ) {
+                                actions.onConfirm()
+                            }
+                            .disabled(model.state == .processing)
+
+                            Color.clear
+                                .frame(width: motion.frame.diameter, height: motion.frame.diameter)
+                                .stetGlassEffect(in: Circle())
+                                .stetGlassID("main", in: glassNamespace)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    MacWatercolorOrbPaint(frame: motion.frame)
+                        .accessibilityLabel(statusLabel)
+                        .accessibilityIdentifier("dictation.watercolorOrb")
+                }
+                .opacity(min(1, progress * 3))
+                .frame(width: model.panelSize.width, height: model.panelSize.height)
+                .accessibilityHidden(!motion.isVisible)
+                .onChange(of: context.date) { _, date in
+                    if let previousDate {
+                        motion.advance(
+                            by: date.timeIntervalSince(previousDate),
+                            level: MacWatercolorOrbMotion.voiceLevel(for: model.signals)
+                        )
+                    }
+                    previousDate = date
+                }
+            }
+            .onAppear { synchronize() }
+            .onChange(of: model.state) { _, _ in synchronize() }
+            .onChange(of: reduceMotion) { _, _ in synchronize() }
+            .onDisappear {
+                previousDate = nil
+                motion.setState(.hidden)
+                presentation.setVisible(false, at: .now, reduceMotion: true)
+            }
+        }
+
+        private var statusLabel: String {
+            switch model.state {
+            case .processing: "Thinking"
+            case .starting: "Starting microphone"
+            default: "Listening"
+            }
+        }
+
+        private func synchronize() {
+            motion.setState(model.state, reduceMotion: reduceMotion)
+            presentation.setVisible(motion.isVisible, at: .now, reduceMotion: reduceMotion)
+            previousDate = nil
+        }
+
+        private func glassButton(
+            _ symbol: String, label: String, id: String, side: Double, progress: Double,
+            action: @escaping () -> Void
+        ) -> some View {
+            let point = MacWatercolorOrbLayout.buttonPosition(progress: progress, side: side)
+            return Button(action: action) {
+                Image(systemName: symbol)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .opacity(min(1, max(0, (progress - 0.18) / 0.35)))
+                    .frame(width: MacWatercolorOrbLayout.buttonDiameter, height: MacWatercolorOrbLayout.buttonDiameter)
+                    .stetInteractiveGlassEffect(in: Circle())
+                    .stetGlassID(id, in: glassNamespace)
+                    .padding((MacWatercolorOrbLayout.hitDiameter - MacWatercolorOrbLayout.buttonDiameter) / 2)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .offset(x: point.x, y: point.y)
+            .allowsHitTesting(motion.isVisible && progress > 0.98)
+            .accessibilityHidden(!motion.isVisible || progress <= 0.98)
+            .accessibilityLabel(label)
+            .accessibilityIdentifier("dictation.\(id)")
+            .help(label)
+        }
+    }
+
+    /// Uses the same material and silence behavior in appearance settings, without session controls.
+    struct MacWatercolorOrbPreview: View {
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @State private var motion = MacWatercolorOrbMotion()
+        @State private var previousDate: Date?
+
+        var body: some View {
+            TimelineView(.animation(minimumInterval: MacWatercolorOrbPreset.frameInterval, paused: reduceMotion)) {
+                context in
+                MacWatercolorOrbPaint(frame: motion.frame)
+                    .onChange(of: context.date) { _, date in
+                        if let previousDate { motion.advance(by: date.timeIntervalSince(previousDate), level: 0) }
+                        previousDate = date
+                    }
+            }
+            .onAppear { motion.setState(.listening, reduceMotion: reduceMotion) }
+            .onChange(of: reduceMotion) { _, value in
+                motion.setState(.listening, reduceMotion: value)
+                previousDate = nil
+            }
+            .onDisappear { previousDate = nil }
+            .accessibilityLabel("Watercolor Blue preview")
+        }
+    }
+#endif

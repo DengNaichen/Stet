@@ -2,6 +2,7 @@
     import Foundation
 
     enum MacDictationVisualTheme: String, CaseIterable, Identifiable, Hashable {
+        case watercolor
         case blossom
         case egg
         case harbor
@@ -13,6 +14,8 @@
 
         var title: String {
             switch self {
+            case .watercolor:
+                return "Watercolor Blue"
             case .blossom:
                 return "Blossom"
             case .egg:
@@ -29,7 +32,7 @@
         }
 
         static func fromStoredValue(_ rawValue: String?) -> Self {
-            Self(rawValue: rawValue ?? "") ?? .egg
+            Self(rawValue: rawValue ?? "") ?? .watercolor
         }
     }
 #endif

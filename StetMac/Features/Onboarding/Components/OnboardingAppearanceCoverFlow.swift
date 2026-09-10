@@ -46,6 +46,13 @@
 
         private let cards: [CardSpec] = [
             .init(
+                theme: .watercolor,
+                badge: "07",
+                color: Color(red: 0.024, green: 0.631, blue: 0.969),
+                imageName: "watercolorBlue",
+                swatches: [Color(hex: "#D6F5FA"), Color(hex: "#FEFFFD"), Color(hex: "#06A1F7")]
+            ),
+            .init(
                 theme: .blossom,
                 badge: "01",
                 color: Color(red: 0.95, green: 0.78, blue: 0.84),
