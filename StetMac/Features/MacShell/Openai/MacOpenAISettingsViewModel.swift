@@ -60,14 +60,17 @@
 
         private let settingsStore: DictationSettingsStore
         private let modelProbe: any OpenAICompatibleModelProbing
+        private let credentialValidator: any ProviderCredentialValidating
         private var hasLoadedState = false
 
         init(
             settingsStore: DictationSettingsStore = DictationSettingsStore(),
-            modelProbe: any OpenAICompatibleModelProbing = OpenAICompatibleModelProbe()
+            modelProbe: any OpenAICompatibleModelProbing = OpenAICompatibleModelProbe(),
+            credentialValidator: any ProviderCredentialValidating = ProviderCredentialValidationService()
         ) {
             self.settingsStore = settingsStore
             self.modelProbe = modelProbe
+            self.credentialValidator = credentialValidator
         }
 
         var connectionNeedsAttention: Bool {
@@ -107,6 +110,39 @@
             }
 
             hasLoadedState = true
+        }
+
+        func credentialPreview(for provider: DictationProvider) -> String {
+            let key = apiKey(for: provider).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty else { return "Not configured" }
+            // Never reveal an entire short key.
+            return String(key.prefix(min(6, max(0, key.count - 4)))) + "••••••••"
+        }
+
+        func verifyCredential(_ key: String, for provider: DictationProvider) async throws {
+            try await credentialValidator.validateCredential(
+                apiKey: key.trimmingCharacters(in: .whitespacesAndNewlines), provider: provider)
+        }
+
+        func discoverModels(baseURL: String, key: String) async throws -> [String] {
+            try await modelProbe.listModels(
+                baseURL: OpenAICompatibleBaseURL.normalize(baseURL),
+                apiKey: key.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+
+        func storeCredential(_ key: String, for provider: DictationProvider) throws {
+            let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+            try settingsStore.saveAPIKey(trimmed, for: provider)
+            setAPIKey(trimmed, for: provider)
+        }
+
+        func storeCustomEndpoint(baseURL: String, modelID: String, key: String, models: [String]) throws {
+            let normalized = try OpenAICompatibleBaseURL.normalize(baseURL)
+            try storeCredential(key, for: .custom)
+            customBaseURL = normalized.absoluteString
+            customModelID = modelID.trimmingCharacters(in: .whitespacesAndNewlines)
+            discoveredCustomModels = models
+            settingsStore.saveCustomRewriteDiscoveredModels(models)
         }
 
         func saveCustomEndpoint() {
@@ -284,7 +320,7 @@
 
         var visibleCredentialProviders: [DictationProvider] {
             guard isRewriteEnabled else { return [] }
-            guard rewriteProvider.requiresAPIKey else { return [] }
+            guard rewriteProvider.requiresAPIKey, rewriteProvider != .custom else { return [] }
             return [rewriteProvider]
         }
 

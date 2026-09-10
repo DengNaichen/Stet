@@ -7,6 +7,59 @@ import Testing
 @MainActor
 @Suite("Dictation history service", .serialized)
 struct DictationHistoryServiceTests {
+    @Test func persistentHistorySurvivesAnotherSchemaOpeningLegacyStore() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let container = try DictationHistoryService.makePersistentContainer(
+            appSupportDirectory: directory, bundleIdentifier: "test")
+        let service = DictationHistoryService(container: container)
+        let id = UUID()
+        try service.createPassiveCapture(id: id, startedAt: Date())
+        let otherSchema = Schema([HistoryCollisionRecord.self])
+        let other = try ModelContainer(
+            for: otherSchema,
+            configurations: [
+                ModelConfiguration(
+                    schema: otherSchema, url: directory.appendingPathComponent("default.store"))
+            ])
+        _ = try ModelContext(other).fetch(FetchDescriptor<HistoryCollisionRecord>())
+        #expect(try service.fetchRecent().map(\.id) == [id])
+    }
+
+    @Test func legacyHistoryIsCopiedWithAllTextStagesAndOriginalRetained() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let schema = Schema([HistoryEntry.self])
+        let legacy = try ModelContainer(
+            for: schema,
+            configurations: [
+                ModelConfiguration(
+                    schema: schema, url: directory.appendingPathComponent("default.store"))
+            ])
+        let context = ModelContext(legacy)
+        let original = HistoryEntry(rawText: "raw", llmText: "refined", finalText: "delivered")
+        context.insert(original)
+        try context.save()
+        let container = try DictationHistoryService.makePersistentContainer(
+            appSupportDirectory: directory, bundleIdentifier: "test")
+        let service = DictationHistoryService(container: container)
+        let entry = try #require(service.fetchRecent().first)
+        #expect(entry.id == original.id)
+        #expect(entry.rawText == "raw")
+        #expect(entry.llmText == "refined")
+        #expect(entry.finalText == "delivered")
+        #expect(try ModelContext(legacy).fetchCount(FetchDescriptor<HistoryEntry>()) == 1)
+        try service.deleteAll()
+        let reopened = try DictationHistoryService.makePersistentContainer(
+            appSupportDirectory: directory, bundleIdentifier: "test")
+        #expect(try DictationHistoryService(container: reopened).fetchRecent().isEmpty)
+    }
+
+    @Test func unavailableHistoryThrowsInsteadOfPretendingToBeEmpty() {
+        #expect(throws: (any Error).self) { try DictationHistoryService(container: nil).fetchRecent() }
+    }
+
     @Test func existingEntryUsesActiveCompletedMigrationDefaults() {
         let entry = HistoryEntry(rawText: "existing")
 
@@ -248,4 +301,10 @@ struct DictationHistoryServiceTests {
             isOverlap: isOverlap
         )
     }
+}
+
+@Model
+private final class HistoryCollisionRecord {
+    var name: String = ""
+    init() {}
 }

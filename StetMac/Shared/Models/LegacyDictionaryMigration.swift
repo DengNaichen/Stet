@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import os
 import StetCore
 import SwiftData
@@ -130,6 +131,11 @@ enum LegacyDictionaryMigration {
         }
 
         do {
+            // Inspect metadata before opening: a different schema can migrate away history tables.
+            let metadata = try NSPersistentStoreCoordinator.metadataForPersistentStore(
+                ofType: NSSQLiteStoreType, at: storeURL, options: [NSReadOnlyPersistentStoreOption: true])
+            let entities = metadata[NSStoreModelVersionHashesKey] as? [String: Any] ?? [:]
+            guard entities["LegacyDictionaryEntryRecord"] != nil else { return nil }
             let schema = Schema([LegacyDictionaryEntryRecord.self])
             let configuration = ModelConfiguration(schema: schema, url: storeURL)
             let container = try ModelContainer(for: schema, configurations: [configuration])

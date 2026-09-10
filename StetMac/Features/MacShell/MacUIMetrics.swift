@@ -75,6 +75,13 @@
             static let detailTitleCollapseDistance: CGFloat = 32
         }
 
+        enum EditorMetrics {
+            static let width: CGFloat = 440
+            static let padding: CGFloat = 24
+            static let spacing: CGFloat = 16
+            static let cornerRadius: CGFloat = 12
+        }
+
         enum DictionaryViewMetrics {
             // Form paddings
             static let formHorizontalPadding: CGFloat = 20
