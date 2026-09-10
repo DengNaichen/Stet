@@ -191,7 +191,10 @@
                 interactionSoundPlayer: InteractionSoundPlayer(),
                 mediaResumeDelay: .zero
             )
-            let permissionManager = MacPermissionManager(textInjectionService: textInjectionService)
+            let permissionManager = MacPermissionManager(
+                textInjectionService: textInjectionService,
+                microphoneAccessStatusProvider: { .allowed }
+            )
             let shell = FakeShellPresenter()
             let permissionGate = FakePermissionGatePresenter()
             let hotkeyRegistrar = FakeHotkeyRegistrar()
@@ -208,6 +211,7 @@
                 permissionManager: permissionManager,
                 pipelineFactory: .live(),
                 appBranchMonitor: appBranchMonitor,
+                defaults: defaults,
                 hotkeyRegistrar: hotkeyRegistrar
             )
 
@@ -323,6 +327,154 @@
             #expect(subject.shell.isPanelVisible == false)
         }
 
+        @Test func autoDismissPreservesNewerClipboardContents() async {
+            let subject = makeSubject()
+            let presentationModel = FakePresentationModel()
+            subject.session.activate(presentationModel: presentationModel, showInDock: false)
+            subject.session.clipboardPendingAutoDismissDelay = .milliseconds(100)
+            subject.textInjectionService.pasteOutcome = .verificationFailed
+            subject.workflow.dictationViewModel.send(.transcriptionSucceeded("transcript A"))
+            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask != nil })
+            subject.clipboardService.copy("new clipboard B", transient: false)
+            let writesBeforeDismiss = subject.clipboardService.copiedTexts
+
+            #expect(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .idle })
+            #expect(subject.clipboardService.copiedTexts == writesBeforeDismiss)
+        }
+
+        @Test func hotkeyCopyFailureKeepsPendingTranscriptAndDoesNotStartCapture() async {
+            let subject = makeSubject()
+            subject.workflow.dictationViewModel.send(.clipboardPending("needs copy"))
+            subject.clipboardService.shouldFailCopy = true
+
+            subject.session.handleHotkeyPressed()
+
+            #expect(subject.workflow.dictationViewModel.state == .clipboardPending("needs copy"))
+            #expect(await subject.speechService.counts().start == 0)
+            subject.session.cancelActiveCapture()
+        }
+
+        @Test func hotkeyPreservesNewerClipboardAndCancelsOldTimeout() async {
+            let subject = makeSubject()
+            let presentationModel = FakePresentationModel()
+            subject.session.activate(presentationModel: presentationModel, showInDock: false)
+            subject.session.clipboardPendingAutoDismissDelay = .milliseconds(100)
+            subject.textInjectionService.pasteOutcome = .verificationFailed
+            subject.workflow.dictationViewModel.send(.transcriptionSucceeded("transcript A"))
+            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask != nil })
+            subject.clipboardService.copy("new clipboard B", transient: false)
+            let writesBeforeRestart = subject.clipboardService.copiedTexts
+
+            subject.session.handleHotkeyPressed()
+            #expect(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .listening })
+            try? await Task.sleep(for: .milliseconds(200))
+
+            #expect(subject.clipboardService.copiedTexts == writesBeforeRestart)
+            #expect(subject.workflow.dictationViewModel.state == .listening)
+            #expect(subject.shell.isPanelVisible)
+            #expect(await subject.speechService.counts().start == 1)
+            subject.session.cancelActiveCapture()
+        }
+
+        @Test func hotkeyCopiesUndeliveredTextBeforeStartingCapture() async {
+            let subject = makeSubject()
+            subject.workflow.dictationViewModel.send(.clipboardPending("needs copy"))
+
+            subject.session.handleHotkeyPressed()
+
+            #expect(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .listening })
+            #expect(subject.clipboardService.copiedTexts == ["needs copy"])
+            #expect(await subject.speechService.counts().start == 1)
+            subject.session.cancelActiveCapture()
+        }
+
+        @Test func explicitCopyFailureAfterFallbackPreventsAutoDismiss() async {
+            let subject = makeSubject()
+            let presentationModel = FakePresentationModel()
+            subject.session.activate(presentationModel: presentationModel, showInDock: false)
+            subject.session.clipboardPendingAutoDismissDelay = .milliseconds(100)
+            subject.textInjectionService.pasteOutcome = .verificationFailed
+            subject.workflow.dictationViewModel.send(.transcriptionSucceeded("transcript A"))
+            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask != nil })
+            subject.clipboardService.shouldFailCopy = true
+
+            subject.session.performPrimaryAction()
+            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask == nil })
+
+            #expect(subject.workflow.dictationViewModel.state == .clipboardPending("transcript A"))
+            #expect(subject.shell.isPanelVisible)
+            #expect(subject.clipboardService.copiedTexts == ["transcript A", "transcript A", "transcript A"])
+        }
+
+        @Test func clipboardPendingPanelAutoDismissesAfterDelay() async {
+            let subject = makeSubject()
+            let presentationModel = FakePresentationModel()
+            subject.session.activate(presentationModel: presentationModel, showInDock: false)
+            subject.session.clipboardPendingAutoDismissDelay = .milliseconds(300)
+
+            subject.textInjectionService.pasteOutcome = .verificationFailed
+            subject.workflow.dictationViewModel.send(.transcriptionSucceeded("needs copy"))
+
+            #expect(await TestSupport.eventually { subject.shell.isPanelVisible })
+            #expect(subject.workflow.dictationViewModel.state == .clipboardPending("needs copy"))
+
+            #expect(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .idle })
+            #expect(subject.shell.hidePanelCallCount == 1)
+            #expect(subject.shell.isPanelVisible == false)
+            #expect(subject.clipboardService.copiedTexts == ["needs copy", "needs copy"])
+        }
+
+        @Test func confirmingPendingCopyCancelsAutoDismiss() async {
+            let subject = makeSubject()
+            let presentationModel = FakePresentationModel()
+            subject.session.activate(presentationModel: presentationModel, showInDock: false)
+            subject.session.clipboardPendingAutoDismissDelay = .milliseconds(100)
+            subject.workflow.dictationViewModel.send(.clipboardPending("needs copy"))
+            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask != nil })
+
+            subject.session.performPrimaryAction()
+            try? await Task.sleep(for: .milliseconds(200))
+
+            #expect(subject.workflow.dictationViewModel.state == .idle)
+            #expect(subject.clipboardService.copiedTexts == ["needs copy"])
+            #expect(subject.shell.hidePanelCallCount == 1)
+        }
+
+        @Test func startingCaptureCancelsPendingAutoDismiss() async {
+            let subject = makeSubject()
+            let presentationModel = FakePresentationModel()
+            subject.session.activate(presentationModel: presentationModel, showInDock: false)
+            subject.session.clipboardPendingAutoDismissDelay = .milliseconds(100)
+            subject.workflow.dictationViewModel.send(.clipboardPending("previous"))
+            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask != nil })
+
+            subject.workflow.dictationViewModel.send(.resetTapped)
+            subject.session.startDictationCapture(from: .hotkey)
+            #expect(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .listening })
+            try? await Task.sleep(for: .milliseconds(200))
+
+            #expect(subject.workflow.dictationViewModel.state == .listening)
+            #expect(subject.clipboardService.copiedTexts.isEmpty)
+            #expect(subject.shell.isPanelVisible)
+            subject.session.cancelActiveCapture()
+        }
+
+        @Test func uncopiedPendingResultDoesNotAutoDismissOrCopy() async {
+            let subject = makeSubject()
+            let presentationModel = FakePresentationModel()
+            subject.session.activate(presentationModel: presentationModel, showInDock: false)
+            subject.session.clipboardPendingAutoDismissDelay = .milliseconds(50)
+            subject.clipboardService.shouldFailCopy = true
+            subject.workflow.dictationViewModel.send(.clipboardPending("needs copy"))
+
+            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask != nil })
+            #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask == nil })
+            #expect(subject.clipboardService.copiedTexts.isEmpty)
+            #expect(subject.workflow.dictationViewModel.state == .clipboardPending("needs copy"))
+            #expect(subject.shell.isPanelVisible)
+            #expect(subject.shell.hidePanelCallCount == 0)
+        }
+
         @Test func startCaptureShowsTransientPanelOnlyOnceAcrossStartingAndListening() async {
             let subject = makeSubject()
             let presentationModel = FakePresentationModel()
@@ -410,7 +562,10 @@
                 interactionSoundPlayer: InteractionSoundPlayer(),
                 mediaResumeDelay: .zero
             )
-            let permissionManager = MacPermissionManager(textInjectionService: textInjectionService)
+            let permissionManager = MacPermissionManager(
+                textInjectionService: textInjectionService,
+                microphoneAccessStatusProvider: { .allowed }
+            )
             let shell = FakeShellPresenter()
             let permissionGate = FakePermissionGatePresenter()
             let hotkeyRegistrar = FakeHotkeyRegistrar()
@@ -427,6 +582,7 @@
                 permissionManager: permissionManager,
                 pipelineFactory: .live(),
                 appBranchMonitor: appBranchMonitor,
+                defaults: defaults,
                 hotkeyRegistrar: hotkeyRegistrar
             )
             let presentationModel = FakePresentationModel()
@@ -471,7 +627,10 @@
                 interactionSoundPlayer: InteractionSoundPlayer(),
                 mediaResumeDelay: .zero
             )
-            let permissionManager = MacPermissionManager(textInjectionService: textInjectionService)
+            let permissionManager = MacPermissionManager(
+                textInjectionService: textInjectionService,
+                microphoneAccessStatusProvider: { .allowed }
+            )
             let shell = FakeShellPresenter()
             let permissionGate = FakePermissionGatePresenter()
             let hotkeyRegistrar = FakeHotkeyRegistrar()
@@ -489,6 +648,7 @@
                 permissionManager: permissionManager,
                 pipelineFactory: .live(),
                 appBranchMonitor: appBranchMonitor,
+                defaults: defaults,
                 hotkeyRegistrar: hotkeyRegistrar
             )
             let presentationModel = FakePresentationModel()
@@ -533,7 +693,10 @@
                 interactionSoundPlayer: InteractionSoundPlayer(),
                 mediaResumeDelay: .zero
             )
-            let permissionManager = MacPermissionManager(textInjectionService: textInjectionService)
+            let permissionManager = MacPermissionManager(
+                textInjectionService: textInjectionService,
+                microphoneAccessStatusProvider: { .allowed }
+            )
             let shell = FakeShellPresenter()
             let permissionGate = FakePermissionGatePresenter()
             let hotkeyRegistrar = FakeHotkeyRegistrar()
@@ -551,6 +714,7 @@
                 permissionManager: permissionManager,
                 pipelineFactory: .live(),
                 appBranchMonitor: appBranchMonitor,
+                defaults: defaults,
                 hotkeyRegistrar: hotkeyRegistrar
             )
             let presentationModel = FakePresentationModel()
@@ -595,7 +759,10 @@
                 interactionSoundPlayer: InteractionSoundPlayer(),
                 mediaResumeDelay: .zero
             )
-            let permissionManager = MacPermissionManager(textInjectionService: textInjectionService)
+            let permissionManager = MacPermissionManager(
+                textInjectionService: textInjectionService,
+                microphoneAccessStatusProvider: { .allowed }
+            )
             let shell = FakeShellPresenter()
             let permissionGate = FakePermissionGatePresenter()
             let hotkeyRegistrar = FakeHotkeyRegistrar()
@@ -612,6 +779,7 @@
                 permissionManager: permissionManager,
                 pipelineFactory: .live(),
                 appBranchMonitor: appBranchMonitor,
+                defaults: defaults,
                 hotkeyRegistrar: hotkeyRegistrar
             )
             let presentationModel = FakePresentationModel()

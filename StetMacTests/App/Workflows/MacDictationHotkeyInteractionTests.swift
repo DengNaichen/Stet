@@ -18,20 +18,20 @@ struct MacDictationHotkeyInteractionTests {
         #expect(interaction.handleKeyDown(for: .starting) == .stopCapture)
     }
 
-    @Test func processingAndClipboardPendingIgnoreHotkeyPress() {
+    @Test func processingIgnoresHotkeyPress() {
         let interaction = MacDictationHotkeyInteraction()
 
         #expect(interaction.handleKeyDown(for: .processing) == .none)
-        #expect(interaction.handleKeyDown(for: .clipboardPending("copied")) == .none)
     }
 
-    @Test func startActionsRemainAvailableAfterIdleResultAndError() {
+    @Test func startActionsRemainAvailableAfterIdleResultErrorAndClipboardPending() {
         let interaction = MacDictationHotkeyInteraction()
 
         for state in [
             DictationState.idle,
             .result("previous"),
             .error(.failedToStart),
+            .clipboardPending("previous"),
         ] {
             #expect(interaction.handleKeyDown(for: state) == .startCapture)
         }

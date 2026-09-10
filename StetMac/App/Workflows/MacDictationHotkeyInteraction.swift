@@ -9,9 +9,9 @@ struct MacDictationHotkeyInteraction {
         switch dictationState {
         case .starting, .listening:
             .stopCapture
-        case .idle, .result, .error:
+        case .idle, .result, .error, .clipboardPending:
             .startCapture
-        case .clipboardPending, .processing:
+        case .processing:
             .none
         }
     }

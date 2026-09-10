@@ -53,8 +53,21 @@
 
         private let textInjectionService: any TextInjectionService
 
-        init(textInjectionService: any TextInjectionService) {
+        private let microphoneAccessStatusProvider: () -> PermissionStatus
+
+        init(
+            textInjectionService: any TextInjectionService,
+            microphoneAccessStatusProvider: @escaping () -> PermissionStatus = {
+                switch AVAudioApplication.shared.recordPermission {
+                case .granted: .allowed
+                case .undetermined: .notRequested
+                case .denied: .needsAccess
+                @unknown default: .unavailable
+                }
+            }
+        ) {
             self.textInjectionService = textInjectionService
+            self.microphoneAccessStatusProvider = microphoneAccessStatusProvider
         }
 
         var hasRequiredPermissions: Bool {
@@ -62,16 +75,7 @@
         }
 
         var microphoneAccessStatus: PermissionStatus {
-            switch AVAudioApplication.shared.recordPermission {
-            case .granted:
-                return .allowed
-            case .undetermined:
-                return .notRequested
-            case .denied:
-                return .needsAccess
-            @unknown default:
-                return .unavailable
-            }
+            microphoneAccessStatusProvider()
         }
 
         var microphoneAccessNeedsAttention: Bool {

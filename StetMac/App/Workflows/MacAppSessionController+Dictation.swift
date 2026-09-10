@@ -95,8 +95,11 @@
 
         func handlePanelAndIdleLifecycle(for state: DictationState) {
             switch state {
-            case .starting, .listening, .error, .clipboardPending:
+            case .starting, .listening, .error:
                 showTransientPanelIfNeeded()
+            case .clipboardPending:
+                showTransientPanelIfNeeded()
+                scheduleClipboardPendingAutoDismiss()
             case .idle:
                 guard workflowController.activeRecordingSource == nil else { return }
                 workflowController.resetWorkflowIfNeeded()
@@ -108,6 +111,7 @@
 
         func handleResultLifecycle(for state: DictationState) {
             guard case .result(let text) = state else { return }
+            copiedPendingResult = nil
 
             completionHandlingTask = Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -167,6 +171,7 @@
                     }
                 case .failed(let failure):
                     if failure.preservesRecoveredTextInClipboard {
+                        copiedPendingResult = text
                         if !isPanelVisible {
                             showTransientPanel()
                         }
@@ -181,7 +186,25 @@
         func cancelPendingStateTasks() {
             completionHandlingTask?.cancel()
             completionHandlingTask = nil
+            clipboardPendingDismissTask?.cancel()
+            clipboardPendingDismissTask = nil
             shellPresentationController.cancelScheduledPanelHide()
+        }
+
+        // Only acknowledge a successful fallback automatically. A timeout must
+        // never replace something the user copied while this panel was visible.
+        func scheduleClipboardPendingAutoDismiss() {
+            clipboardPendingDismissTask?.cancel()
+            clipboardPendingDismissTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                try? await Task.sleep(for: clipboardPendingAutoDismissDelay)
+                guard !Task.isCancelled else { return }
+                guard case .clipboardPending(let text) = dictationState else { return }
+                clipboardPendingDismissTask = nil
+                guard resolvePendingResult(text, copyIfNeeded: false) else { return }
+                hidePanel()
+                workflowController.dictationViewModel.send(.resetTapped)
+            }
         }
 
         func scheduleTransientPanelHideIfNeeded() {
@@ -256,13 +279,18 @@
             case .result, .error:
                 workflowController.dictationViewModel.send(.resetTapped)
                 startDictationCapture(from: source)
-            case .clipboardPending, .starting, .listening, .processing:
+            case .clipboardPending(let text):
+                guard resolvePendingResult(text, copyIfNeeded: true) else { return }
+                workflowController.dictationViewModel.send(.resetTapped)
+                startDictationCapture(from: source)
+            case .starting, .listening, .processing:
                 break
             }
         }
 
         func startDictationCapture(from source: PrimaryActionSource) {
             cancelPendingStateTasks()
+            copiedPendingResult = nil
             workflowController.startDictationCapture(
                 source: source,
                 allowCurrentAppTarget: requiresOnboarding && onboardingStepState == .firstSuccess,
@@ -283,7 +311,18 @@
             workflowController.stopActiveCapture()
         }
 
+        private func resolvePendingResult(_ text: String, copyIfNeeded: Bool) -> Bool {
+            if copiedPendingResult == text {
+                workflowController.finalizePendingResultHistory(text)
+            } else {
+                guard copyIfNeeded, workflowController.copyPendingResultToClipboard(text) else { return false }
+            }
+            copiedPendingResult = nil
+            return true
+        }
+
         func commitPendingCopy(_ text: String) {
+            copiedPendingResult = nil
             let copied = workflowController.copyPendingResultToClipboard(text)
             guard copied else {
                 return
