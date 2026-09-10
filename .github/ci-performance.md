@@ -59,4 +59,27 @@ Historical runs failed intermittently on `restoreHandlesEmptyClipboardGracefully
 
 The fix injects controllable sleep functions into clipboard restore, pending-result dismissal and media resume, keeping their existing real-time defaults in the app. Tests await sleep registration, advance a virtual clock and await the actual task. Cancellation assertions also await completion. All related pending-result timeout tests use the same approach. The hotkey action test starts from an already-copied pending result; separate tests retain coverage of the failed-paste fallback pipeline. Its fixture uses a private pasteboard.
 
-The clock has regression tests for deadline ordering and cancellation before/after registration. A standalone harness passed 1,000 repetitions of each of these three cases. Final repeated app-suite and hosted CI results are pending.
+The clock has regression tests for deadline ordering and cancellation before/after registration. A standalone harness passed 1,000 repetitions of each of these three cases. Local validation of the final timing fixes (`c9c7526`):
+
+- Four affected suites: `xcodebuild test` with `-test-iterations 20 -run-tests-until-failure`; all 1,220 executions passed (61 tests per iteration).
+- Full suite: `xcodebuild test-without-building` with `-only-testing:StetTests -test-iterations 3 -run-tests-until-failure`; all 1,572 executions passed (524 per iteration).
+- No retry-on-failure option is enabled. The clock helper's three tests account for the increase from 521 to 524 tests.
+- The first deterministic run caught two incorrect assumptions in the rewritten tests: failed copy preserves the pending result when the deadline expires; successful copy cancels through an asynchronous state subscription. Both now wait for the actual behavior.
+- Local Xcode's Clang dependency scanner crashed twice before tests started during intermediate validation. Removing only the temporary Build/ModuleCache output resolved it; the subsequent incremental build and repetitions passed. No workflow fallback or automatic retry was added to conceal this tooling failure.
+
+## Final hosted validation
+
+The timing fixes at `c9c7526` passed [34466147590 attempt 1](https://github.com/DengNaichen/Stet/actions/runs/34466147590/attempts/1): build 116 s, tests 339 s, quality 20 s. All 524 tests executed and passed in 35.425 s. The test job had package/compiler caches but no incremental products; its build/test step took 266 s and saving the new incremental products took 17 s. The build job restored previous products and recompiled changed application inputs.
+
+The exact same commit passed again in [attempt 2](https://github.com/DengNaichen/Stet/actions/runs/34466147590/attempts/2), with all cache layers present:
+
+| Successful job measurement | PR #56 baseline | Final warm run | Reduction |
+| --- | ---: | ---: | ---: |
+| macOS Build | 349 s | 112 s | 68% |
+| macOS Tests | 355 s | 215 s | 39% |
+| Swift Quality | 18 s | 15 s | 17% |
+| Sum of successful job durations | 722 s | 342 s | 53% |
+
+These are job durations, not queue time, billed minutes or sequential workflow duration; build and tests run in parallel. The baseline combines retained successful jobs with its successful test rerun. Both final attempts executed the full 524-test suite. The warm build/test command steps took 61 s / 138 s; package restores took 14 s / 22 s and incremental restores 10 s / 17 s. Those transfer costs are included above.
+
+The earlier warm sample was faster (109 s / 168 s), demonstrating runner/network variation. Use the final measurements above rather than the best sample as the comparison. New toolchains, evicted caches and changed inputs can still require compilation; warm no-change timings are not a promise for every PR.
