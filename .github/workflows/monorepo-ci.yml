@@ -71,15 +71,15 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: .build/ci/SourcePackages
-          key: spm-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('Packages/**/Package.swift', 'Packages/**/Package.resolved', 'Stet.xcodeproj/**/Package.resolved') }}
+          key: spm-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('Packages/**/Package.swift', 'Packages/**/Package.resolved', 'Stet.xcodeproj/**/Package.resolved') }}
           restore-keys: |
-            spm-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-
+            spm-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-
 
       - name: Cache Swift package manifests
         uses: actions/cache@v5
         with:
           path: ~/Library/Caches/org.swift.swiftpm/manifests
-          key: spm-manifests-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('Packages/**/Package.swift', 'Packages/**/Package.resolved', 'Stet.xcodeproj/**/Package.resolved') }}
+          key: spm-manifests-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('Packages/**/Package.swift', 'Packages/**/Package.resolved', 'Stet.xcodeproj/**/Package.resolved') }}
 
       # On a hit, the build command validates/resolves the restored packages.
       # A separate resolve is only needed to save downloads before a cold build.
@@ -103,9 +103,9 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: .build/ci/CompilationCache.noindex
-          key: compilation-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-${{ github.sha }}
+          key: compilation-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-${{ github.sha }}
           restore-keys: |
-            compilation-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-
+            compilation-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-
 
       - name: Restore incremental build
         id: incremental
@@ -115,9 +115,9 @@ jobs:
             .build/ci/Build
             .build/ci/ModuleCache.noindex
             .build/ci/source-mtimes.json
-          key: incremental-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-${{ github.sha }}
+          key: incremental-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-${{ github.sha }}
           restore-keys: |
-            incremental-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-
+            incremental-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-
 
       - name: Validate incremental build inputs
         run: python3 scripts/ci-source-mtimes.py restore .build/ci/source-mtimes.json

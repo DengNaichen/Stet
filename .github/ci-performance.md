@@ -47,4 +47,8 @@ Native caching leaves substantial build preparation and Swift test macro work ev
 | Seed products from native caches, [34461659602 attempt 1](https://github.com/DengNaichen/Stet/actions/runs/34461659602/attempts/1) | 163 s | 184 s | 521 tests passed |
 | Same revision with incremental cache, attempt 2 | 109 s | 168 s | 521 tests passed; build has no SwiftCompile/SwiftDriver tasks |
 
-Incremental archives are approximately 476 MiB (build) / 501 MiB (tests), taking 12–14 seconds to restore in this sample. Total job times include that cost. Directory fingerprints are being strengthened to cover nested resource contents, with a real Swift test-source edit used for the final invalidation run.
+Incremental archives are approximately 476 MiB (build) / 501 MiB (tests), taking 12–14 seconds to restore in this sample. Total job times include that cost. Directory fingerprints cover nested resource contents, with fixture coverage for same-name edits and malformed cache metadata.
+
+The changed-source run [34462415559](https://github.com/DengNaichen/Stet/actions/runs/34462415559) passed all checks: build 126 s, tests 298 s, including cache uploads. The test-source edit was recompiled and all 521 tests ran. This is slower than a no-change rerun; do not advertise warm rerun timing as the cost of every code change.
+
+The final v2 namespace intentionally starts empty for a clean-cache benchmark, then an unchanged warm rerun. These final measurements are pending.
