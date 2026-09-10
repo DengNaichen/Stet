@@ -214,3 +214,6 @@
 "The microphone is off. The transcript will be saved when it is ready." = "Il microfono è spento. La trascrizione verrà salvata quando sarà pronta.";
 "Meeting saved" = "Riunione salvata";
 "Meeting failed" = "Riunione non riuscita";
+
+"Automatically learned" = "Appreso automaticamente";
+"Manually added" = "Aggiunto manualmente";

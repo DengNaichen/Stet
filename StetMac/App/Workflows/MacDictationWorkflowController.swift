@@ -100,6 +100,7 @@
             allowCurrentAppTarget: Bool = false,
             showTransientPanel: @escaping @MainActor () -> Void
         ) {
+            captureCoordinator.stopCorrectionLearning()
             Task {
                 await DictationRuntimeProbe.shared.markAction("startDictationCapture")
             }

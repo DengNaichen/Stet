@@ -214,3 +214,6 @@
 "The microphone is off. The transcript will be saved when it is ready." = "마이크가 꺼졌습니다. 기록이 준비되면 저장됩니다.";
 "Meeting saved" = "회의가 저장됨";
 "Meeting failed" = "회의에 실패함";
+
+"Automatically learned" = "자동 학습";
+"Manually added" = "직접 추가";

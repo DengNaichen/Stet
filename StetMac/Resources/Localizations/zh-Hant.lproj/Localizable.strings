@@ -214,3 +214,6 @@
 "The microphone is off. The transcript will be saved when it is ready." = "麥克風已關閉。轉錄完成後會儲存文稿。";
 "Meeting saved" = "會議已儲存";
 "Meeting failed" = "會議失敗";
+
+"Automatically learned" = "自動學習";
+"Manually added" = "手動新增";

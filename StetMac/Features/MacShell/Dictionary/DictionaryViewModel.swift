@@ -9,7 +9,12 @@
         private var syncObserver: NSObjectProtocol?
 
         @Published private(set) var isEnabled = true
-        @Published private(set) var entries: [String] = []
+        @Published private(set) var records: [GlossaryEntry] = []
+        var entries: [String] { records.map(\.term) }
+
+        func source(for term: String) -> GlossaryEntry.Source {
+            records.first { $0.term == term }?.source ?? .manual
+        }
         @Published var draft = ""
 
         init(dictionaryModel: DictionaryModel = DictionaryModel()) {
@@ -20,7 +25,7 @@
                 queue: .main
             ) { [weak self] _ in
                 guard let self else { return }
-                self.entries = self.dictionaryModel.loadEntries()
+                self.records = self.dictionaryModel.loadRecords()
             }
         }
 
@@ -34,7 +39,7 @@
 
         func load() {
             isEnabled = dictionaryModel.loadIsEnabled()
-            entries = dictionaryModel.loadEntries()
+            records = dictionaryModel.loadRecords()
         }
 
         func setEnabled(_ enabled: Bool) {
@@ -45,7 +50,8 @@
         func addDraftEntries() {
             guard canAddDraftEntries else { return }
 
-            entries = dictionaryModel.addEntries(from: draft)
+            _ = dictionaryModel.addEntries(from: draft)
+            records = dictionaryModel.loadRecords()
             draft = ""
         }
 
@@ -67,12 +73,13 @@
         }
 
         func removeEntry(_ entry: String) {
-            entries = dictionaryModel.removeEntry(entry)
+            _ = dictionaryModel.removeEntry(entry)
+            records = dictionaryModel.loadRecords()
         }
 
         func clearEntries() {
             dictionaryModel.clear()
-            entries = []
+            records = []
         }
     }
 #endif

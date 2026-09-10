@@ -8,6 +8,17 @@
     @MainActor
     @Suite("Dictionary View Model", .serialized)
     struct DictionaryViewModelTests {
+        @Test func entrySourceIsVisibleAndManualAddPromotesAutomaticEntry() {
+            let subject = makeViewModel(defaults: TestSupport.makeUserDefaults())
+            defer { subject.model.clear() }
+            subject.model.addAutomaticEntries(["python"])
+            subject.viewModel.load()
+            #expect(subject.viewModel.source(for: "python") == .automatic)
+            subject.viewModel.draft = "Python"
+            subject.viewModel.addDraftEntries()
+            #expect(subject.viewModel.entries == ["Python"])
+            #expect(subject.viewModel.source(for: "Python") == .manual)
+        }
         private func makeViewModel(
             defaults: UserDefaults
         ) -> (viewModel: DictionaryViewModel, model: DictionaryModel) {

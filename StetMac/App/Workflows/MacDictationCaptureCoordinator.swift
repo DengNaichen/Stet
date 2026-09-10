@@ -59,6 +59,7 @@
             settings: CaptureSettings,
             showPanel: @escaping @MainActor () -> Void
         ) async -> CompletionOutcome {
+            textInjectionService.stopCorrectionLearning()
             let traceID = makeOutputTraceID()
             emitOutputTrace(
                 traceID,
@@ -80,6 +81,9 @@
 
             completionID += 1
             let outputID = completionID
+            defer {
+                if Task.isCancelled, outputID == completionID { textInjectionService.stopCorrectionLearning() }
+            }
             let shouldRestoreClipboardAfterSuccessfulPaste =
                 settings.shouldAutoPaste && !settings.shouldCopyToClipboard
 
@@ -364,6 +368,8 @@
             pasteboardRestoreCoordinator.discardPendingRestore()
             return clipboardService.copy(text, transient: false)
         }
+
+        func stopCorrectionLearning() { textInjectionService.stopCorrectionLearning() }
 
         private func makeOutputTraceID() -> String {
             String(UUID().uuidString.prefix(8))

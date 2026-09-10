@@ -249,3 +249,6 @@
 "Speaker labels are Me when your enrolled voice matches a track, Speaker 1–4 for other people, and Unresolved when people talk over each other. Meetings are not rewritten, pasted, or added to History." = "说话人标签：注册过的本人声音匹配为「我」，其他人是 Speaker 1–4，重叠说话则为 Unresolved。会议不会改写、粘贴，也不会写入听写历史。";
 "Recent" = "最近";
 "Location" = "位置";
+
+"Automatically learned" = "自动学习";
+"Manually added" = "手动添加";

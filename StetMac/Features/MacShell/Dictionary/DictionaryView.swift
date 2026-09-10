@@ -1,5 +1,6 @@
 #if os(macOS)
     import SwiftUI
+    import StetCore
 
     struct DictionaryView: View {
         @ObservedObject var viewModel: DictionaryViewModel
@@ -141,6 +142,17 @@
                 }
                 .buttonStyle(.plain)
                 .help("Edit entry")
+
+                Image(systemName: viewModel.source(for: entry) == .automatic ? "sparkles" : "person")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .help(
+                        viewModel.source(for: entry) == .automatic
+                            ? Text("Automatically learned") : Text("Manually added")
+                    )
+                    .accessibilityLabel(
+                        viewModel.source(for: entry) == .automatic
+                            ? Text("Automatically learned") : Text("Manually added"))
 
                 Button {
                     viewModel.removeEntry(entry)

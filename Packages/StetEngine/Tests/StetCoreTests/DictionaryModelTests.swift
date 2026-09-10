@@ -3,6 +3,38 @@ import Testing
 @testable import StetCore
 
 struct DictionaryModelTests {
+    @Test func originsPersistAcrossReloadAndManualPromotion() {
+        let defaults = UserDefaults(suiteName: "StetCoreTests.Origins.\(UUID().uuidString)")!
+        let key = "dictionary.entries.\(UUID().uuidString)"
+        defaults.set(["Swift"], forKey: key)
+        let model = DictionaryModel(defaults: defaults, entriesKey: key)
+        model.addAutomaticEntries(["Python", "swift"])
+        // Keep the text-only sync format readable by previously released clients.
+        #expect(defaults.stringArray(forKey: key) == ["Swift", "Python"])
+        let reloaded = DictionaryModel(defaults: defaults, entriesKey: key)
+        #expect(
+            reloaded.loadRecords() == [
+                .init(term: "Swift", source: .manual), .init(term: "Python", source: .automatic),
+            ])
+        _ = reloaded.addEntries(from: "python")
+        #expect(
+            model.loadRecords() == [
+                .init(term: "Swift", source: .manual), .init(term: "python", source: .manual),
+            ])
+        model.clear()
+    }
+
+    @Test func removingAnEntryPreservesOtherOriginsAndDisabledDictionaryDoesNotLearn() {
+        let defaults = UserDefaults(suiteName: "StetCoreTests.Origins.\(UUID().uuidString)")!
+        let model = DictionaryModel(defaults: defaults, entriesKey: "dictionary.entries.\(UUID().uuidString)")
+        model.addAutomaticEntries(["Python", "Swift"])
+        _ = model.removeEntry("Swift")
+        #expect(model.loadRecords() == [.init(term: "Python", source: .automatic)])
+        model.saveIsEnabled(false)
+        model.addAutomaticEntries(["Rust"])
+        #expect(model.loadEntries() == ["Python"])
+        model.clear()
+    }
     @Test func wordsNormalizeWhitespaceAndDeduplicate() {
         #expect(
             DictionaryModel.words(from: " OpenAI, groq,\nOpenAI  ,  Naicheng Deng ")

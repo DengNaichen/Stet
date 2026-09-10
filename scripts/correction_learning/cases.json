@@ -1,0 +1,1046 @@
+[
+  {
+    "id": "chinese_to_python",
+    "original": "我最近在学拍图",
+    "edited": "我最近在学Python",
+    "expected": [
+      {
+        "original": "拍图",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "repair_inside_word",
+    "original": "I use Pyton daily",
+    "edited": "I use Python daily",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "punctuation_only",
+    "original": "Hello, world!",
+    "edited": "Hello， world。",
+    "expected": []
+  },
+  {
+    "id": "emoji_only",
+    "original": "今天开心😀",
+    "edited": "今天开心😄",
+    "expected": []
+  },
+  {
+    "id": "pure_append",
+    "original": "我用Python",
+    "edited": "我用Python写代码",
+    "expected": []
+  },
+  {
+    "id": "pure_insert_word",
+    "original": "I use Python",
+    "edited": "I often use Python",
+    "expected": []
+  },
+  {
+    "id": "pure_delete",
+    "original": "I often use Python",
+    "edited": "I use Python",
+    "expected": []
+  },
+  {
+    "id": "no_intent_filter",
+    "original": "明天开会",
+    "edited": "后天开会",
+    "expected": [
+      {
+        "original": "明天",
+        "replacement": "后天"
+      }
+    ]
+  },
+  {
+    "id": "unrelated_replacement",
+    "original": "I want coffee",
+    "edited": "I want tea",
+    "expected": [
+      {
+        "original": "coffee",
+        "replacement": "tea"
+      }
+    ]
+  },
+  {
+    "id": "punctuation_next_to_replacement",
+    "original": "Use Pyton, please",
+    "edited": "Use Python! please",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "chinese_word_boundary",
+    "original": "我喜欢苹果",
+    "edited": "我喜欢芒果",
+    "expected": [
+      {
+        "original": "苹果",
+        "replacement": "芒果"
+      }
+    ]
+  },
+  {
+    "id": "cplusplus",
+    "original": "Learn C plus plus today",
+    "edited": "Learn C++ today",
+    "expected": [
+      {
+        "original": "C plus plus",
+        "replacement": "C++"
+      }
+    ]
+  },
+  {
+    "id": "csharp",
+    "original": "Use C sharp",
+    "edited": "Use C#",
+    "expected": [
+      {
+        "original": "C sharp",
+        "replacement": "C#"
+      }
+    ]
+  },
+  {
+    "id": "dotnet",
+    "original": "Use dot net",
+    "edited": "Use .NET",
+    "expected": [
+      {
+        "original": "dot net",
+        "replacement": ".NET"
+      }
+    ]
+  },
+  {
+    "id": "identifier",
+    "original": "call get_usr_id now",
+    "edited": "call get_user_id now",
+    "expected": [
+      {
+        "original": "get_usr_id",
+        "replacement": "get_user_id"
+      }
+    ]
+  },
+  {
+    "id": "domain",
+    "original": "visit example.con now",
+    "edited": "visit example.com now",
+    "expected": [
+      {
+        "original": "example.con",
+        "replacement": "example.com"
+      }
+    ]
+  },
+  {
+    "id": "hyphenated",
+    "original": "use gpt-4 today",
+    "edited": "use gpt-5 today",
+    "expected": [
+      {
+        "original": "gpt-4",
+        "replacement": "gpt-5"
+      }
+    ]
+  },
+  {
+    "id": "apostrophe",
+    "original": "it cant work",
+    "edited": "it can't work",
+    "expected": [
+      {
+        "original": "cant",
+        "replacement": "can't"
+      }
+    ]
+  },
+  {
+    "id": "scoped_package",
+    "original": "install @scope/old now",
+    "edited": "install @scope/new now",
+    "expected": [
+      {
+        "original": "@scope/old",
+        "replacement": "@scope/new"
+      }
+    ]
+  },
+  {
+    "id": "version",
+    "original": "use v1.2.3",
+    "edited": "use v1.2.4",
+    "expected": [
+      {
+        "original": "v1.2.3",
+        "replacement": "v1.2.4"
+      }
+    ]
+  },
+  {
+    "id": "unicode_equivalent",
+    "original": "café",
+    "edited": "café",
+    "expected": []
+  },
+  {
+    "id": "repeated_first",
+    "original": "foo foo",
+    "edited": "bar foo",
+    "expected": [
+      {
+        "original": "foo",
+        "replacement": "bar"
+      }
+    ]
+  },
+  {
+    "id": "repeated_last",
+    "original": "foo foo",
+    "edited": "foo bar",
+    "expected": [
+      {
+        "original": "foo",
+        "replacement": "bar"
+      }
+    ]
+  },
+  {
+    "id": "same_term_twice",
+    "original": "Pyton and Pyton",
+    "edited": "Python and Python",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      },
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "two_changes_and_append",
+    "original": "I use Pyton with react",
+    "edited": "I use Python with React every day",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      },
+      {
+        "original": "react",
+        "replacement": "React"
+      }
+    ]
+  },
+  {
+    "id": "separated_append",
+    "original": "Use Pyton here",
+    "edited": "Use Python here every day",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "pure_reorder",
+    "original": "alpha beta gamma",
+    "edited": "beta gamma alpha",
+    "expected": []
+  },
+  {
+    "id": "case_phrase",
+    "original": "visit new york tomorrow",
+    "edited": "visit New York tomorrow",
+    "expected": [
+      {
+        "original": "new york",
+        "replacement": "New York"
+      }
+    ]
+  },
+  {
+    "id": "empty",
+    "original": "",
+    "edited": "",
+    "expected": []
+  },
+  {
+    "id": "initial_typing",
+    "original": "",
+    "edited": "Python",
+    "expected": []
+  },
+  {
+    "id": "delete_all",
+    "original": "Python",
+    "edited": "",
+    "expected": []
+  },
+  {
+    "id": "unchanged",
+    "original": "Python 很好用",
+    "edited": "Python 很好用",
+    "expected": []
+  },
+  {
+    "id": "space_only",
+    "original": " \t\n",
+    "edited": "   ",
+    "expected": []
+  },
+  {
+    "id": "spaces",
+    "original": "I  use\tPython",
+    "edited": "I use Python",
+    "expected": []
+  },
+  {
+    "id": "linebreak_only",
+    "original": "I use\nPython",
+    "edited": "I use Python",
+    "expected": []
+  },
+  {
+    "id": "append_sentence",
+    "original": "我用Python。",
+    "edited": "我用Python。今天很好。",
+    "expected": []
+  },
+  {
+    "id": "prepend_sentence",
+    "original": "我用Python。",
+    "edited": "今天很好。我用Python。",
+    "expected": []
+  },
+  {
+    "id": "append_english",
+    "original": "Use Python",
+    "edited": "Use Python for work",
+    "expected": []
+  },
+  {
+    "id": "insert_chinese_word",
+    "original": "我学习Python",
+    "edited": "我每天学习Python",
+    "expected": []
+  },
+  {
+    "id": "delete_chinese_word",
+    "original": "我每天学习Python",
+    "edited": "我学习Python",
+    "expected": []
+  },
+  {
+    "id": "format_quotes",
+    "original": "Python",
+    "edited": "“Python”",
+    "expected": []
+  },
+  {
+    "id": "remove_quotes",
+    "original": "“Python”",
+    "edited": "Python",
+    "expected": []
+  },
+  {
+    "id": "replace_quote_style",
+    "original": "“Python”",
+    "edited": "「Python」",
+    "expected": []
+  },
+  {
+    "id": "emoji_zwj",
+    "original": "hello 👩‍💻",
+    "edited": "hello 👨‍💻",
+    "expected": []
+  },
+  {
+    "id": "emoji_skin",
+    "original": "ok 👍🏻",
+    "edited": "ok 👍🏽",
+    "expected": []
+  },
+  {
+    "id": "flag",
+    "original": "hello 🇨🇳",
+    "edited": "hello 🇺🇸",
+    "expected": []
+  },
+  {
+    "id": "emoji_to_word",
+    "original": "I like 😀",
+    "edited": "I like Python",
+    "expected": []
+  },
+  {
+    "id": "word_to_emoji",
+    "original": "I like Python",
+    "edited": "I like 😀",
+    "expected": []
+  },
+  {
+    "id": "symbol_to_word",
+    "original": "use ???",
+    "edited": "use Python",
+    "expected": []
+  },
+  {
+    "id": "word_to_symbol",
+    "original": "use Python",
+    "edited": "use ???",
+    "expected": []
+  },
+  {
+    "id": "short_word",
+    "original": "I use X",
+    "edited": "I use R",
+    "expected": [
+      {
+        "original": "X",
+        "replacement": "R"
+      }
+    ]
+  },
+  {
+    "id": "two_letter",
+    "original": "I use XX",
+    "edited": "I use AI",
+    "expected": [
+      {
+        "original": "XX",
+        "replacement": "AI"
+      }
+    ]
+  },
+  {
+    "id": "numbers",
+    "original": "meet at 3",
+    "edited": "meet at 4",
+    "expected": [
+      {
+        "original": "3",
+        "replacement": "4"
+      }
+    ]
+  },
+  {
+    "id": "standalone_python",
+    "original": "Pyton",
+    "edited": "Python",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "single_letter_deletion_inside_word",
+    "original": "Pythonn",
+    "edited": "Python",
+    "expected": [
+      {
+        "original": "Pythonn",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "transposition",
+    "original": "Pythno",
+    "edited": "Python",
+    "expected": [
+      {
+        "original": "Pythno",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "case_only",
+    "original": "python",
+    "edited": "Python",
+    "expected": [
+      {
+        "original": "python",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "case_only_cjk_context",
+    "original": "我用python工作",
+    "edited": "我用Python工作",
+    "expected": [
+      {
+        "original": "python",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "all_caps",
+    "original": "Use python",
+    "edited": "Use PYTHON",
+    "expected": [
+      {
+        "original": "python",
+        "replacement": "PYTHON"
+      }
+    ]
+  },
+  {
+    "id": "different_meaning",
+    "original": "meet tomorrow",
+    "edited": "meet later",
+    "expected": [
+      {
+        "original": "tomorrow",
+        "replacement": "later"
+      }
+    ]
+  },
+  {
+    "id": "unrelated_chinese",
+    "original": "我要苹果",
+    "edited": "我要香蕉",
+    "expected": [
+      {
+        "original": "苹果",
+        "replacement": "香蕉"
+      }
+    ]
+  },
+  {
+    "id": "wholesale_rewrite",
+    "original": "the cat sat",
+    "edited": "a dog ran",
+    "expected": [
+      {
+        "original": "the cat sat",
+        "replacement": "a dog ran"
+      }
+    ]
+  },
+  {
+    "id": "one_to_phrase",
+    "original": "use postcard",
+    "edited": "use PostgreSQL database",
+    "expected": [
+      {
+        "original": "postcard",
+        "replacement": "PostgreSQL database"
+      }
+    ]
+  },
+  {
+    "id": "phrase_to_one",
+    "original": "use post grass",
+    "edited": "use PostgreSQL",
+    "expected": [
+      {
+        "original": "post grass",
+        "replacement": "PostgreSQL"
+      }
+    ]
+  },
+  {
+    "id": "split_word",
+    "original": "use database",
+    "edited": "use data base",
+    "expected": [
+      {
+        "original": "database",
+        "replacement": "data base"
+      }
+    ]
+  },
+  {
+    "id": "join_words",
+    "original": "use data base",
+    "edited": "use database",
+    "expected": [
+      {
+        "original": "data base",
+        "replacement": "database"
+      }
+    ]
+  },
+  {
+    "id": "middle_chinese_to_english",
+    "original": "我用拍图写代码",
+    "edited": "我用Python写代码",
+    "expected": [
+      {
+        "original": "拍图",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "english_to_chinese",
+    "original": "我用Python写代码",
+    "edited": "我用蟒蛇写代码",
+    "expected": [
+      {
+        "original": "Python",
+        "replacement": "蟒蛇"
+      }
+    ]
+  },
+  {
+    "id": "leading_correction",
+    "original": "Pyton is useful",
+    "edited": "Python is useful",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "trailing_correction",
+    "original": "I use Pyton",
+    "edited": "I use Python",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "parentheses",
+    "original": "use (Pyton)",
+    "edited": "use (Python)",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "brackets",
+    "original": "用【拍图】",
+    "edited": "用【Python】",
+    "expected": [
+      {
+        "original": "拍图",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "newlines",
+    "original": "Use Pyton\nTomorrow",
+    "edited": "Use Python\nTomorrow",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "tabs",
+    "original": "Use\tPyton\tnow",
+    "edited": "Use\tPython\tnow",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "two_replacements",
+    "original": "Use Pyton and Swfit",
+    "edited": "Use Python and Swift",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      },
+      {
+        "original": "Swfit",
+        "replacement": "Swift"
+      }
+    ]
+  },
+  {
+    "id": "replace_and_delete",
+    "original": "Use Pyton and old notes",
+    "edited": "Use Python and notes",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "prepend_and_replace",
+    "original": "Use Pyton here",
+    "edited": "Today Use Python here",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "two_repeated_phrases",
+    "original": "foo bar and foo bar",
+    "edited": "foo baz and foo baz",
+    "expected": [
+      {
+        "original": "bar",
+        "replacement": "baz"
+      },
+      {
+        "original": "bar",
+        "replacement": "baz"
+      }
+    ]
+  },
+  {
+    "id": "insert_among_repetitions",
+    "original": "go go go",
+    "edited": "go now go go",
+    "expected": []
+  },
+  {
+    "id": "delete_among_repetitions",
+    "original": "go now go go",
+    "edited": "go go go",
+    "expected": []
+  },
+  {
+    "id": "accent_correction",
+    "original": "cafe",
+    "edited": "café",
+    "expected": [
+      {
+        "original": "cafe",
+        "replacement": "café"
+      }
+    ]
+  },
+  {
+    "id": "decomposed_corrected",
+    "original": "cafe",
+    "edited": "café",
+    "expected": [
+      {
+        "original": "cafe",
+        "replacement": "café"
+      }
+    ]
+  },
+  {
+    "id": "arabic",
+    "original": "أحب بايثن",
+    "edited": "أحب بايثون",
+    "expected": [
+      {
+        "original": "بايثن",
+        "replacement": "بايثون"
+      }
+    ]
+  },
+  {
+    "id": "korean",
+    "original": "파이선 좋아요",
+    "edited": "파이썬 좋아요",
+    "expected": [
+      {
+        "original": "파이선",
+        "replacement": "파이썬"
+      }
+    ]
+  },
+  {
+    "id": "cyrillic",
+    "original": "я учу Питон",
+    "edited": "я учу Python",
+    "expected": [
+      {
+        "original": "Питон",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "greek",
+    "original": "Use αλφα",
+    "edited": "Use βήτα",
+    "expected": [
+      {
+        "original": "αλφα",
+        "replacement": "βήτα"
+      }
+    ]
+  },
+  {
+    "id": "fullwidth",
+    "original": "use Ｐｙｔｈｏｎ",
+    "edited": "use Python",
+    "expected": [
+      {
+        "original": "Ｐｙｔｈｏｎ",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "turkish_case",
+    "original": "use İstanbul",
+    "edited": "use Istanbul",
+    "expected": [
+      {
+        "original": "İstanbul",
+        "replacement": "Istanbul"
+      }
+    ]
+  },
+  {
+    "id": "german_case",
+    "original": "die straße",
+    "edited": "die Straße",
+    "expected": [
+      {
+        "original": "straße",
+        "replacement": "Straße"
+      }
+    ]
+  },
+  {
+    "id": "emoji_adjacent_to_word",
+    "original": "😀Pyton😀",
+    "edited": "😄Python😄",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "underscore_prefix",
+    "original": "call _prvate",
+    "edited": "call _private",
+    "expected": [
+      {
+        "original": "_prvate",
+        "replacement": "_private"
+      }
+    ]
+  },
+  {
+    "id": "underscore_only",
+    "original": "___",
+    "edited": "____",
+    "expected": []
+  },
+  {
+    "id": "curly_apostrophe",
+    "original": "cant",
+    "edited": "can’t",
+    "expected": [
+      {
+        "original": "cant",
+        "replacement": "can’t"
+      }
+    ]
+  },
+  {
+    "id": "dotted_runtime",
+    "original": "use node.jz",
+    "edited": "use node.js",
+    "expected": [
+      {
+        "original": "node.jz",
+        "replacement": "node.js"
+      }
+    ]
+  },
+  {
+    "id": "cplusplus_version",
+    "original": "C++17",
+    "edited": "C++20",
+    "expected": [
+      {
+        "original": "C++17",
+        "replacement": "C++20"
+      }
+    ]
+  },
+  {
+    "id": "language_switch",
+    "original": "C++",
+    "edited": "C#",
+    "expected": [
+      {
+        "original": "C++",
+        "replacement": "C#"
+      }
+    ]
+  },
+  {
+    "id": "hashtag",
+    "original": "follow #Pythn",
+    "edited": "follow #Python",
+    "expected": [
+      {
+        "original": "#Pythn",
+        "replacement": "#Python"
+      }
+    ]
+  },
+  {
+    "id": "scope_chinese_adjacent",
+    "original": "安装@scope/old版本",
+    "edited": "安装@scope/new版本",
+    "expected": [
+      {
+        "original": "@scope/old",
+        "replacement": "@scope/new"
+      }
+    ]
+  },
+  {
+    "id": "markdown_heading",
+    "original": "# Pyton",
+    "edited": "# Python",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "backticks",
+    "original": "use `Pyton`",
+    "edited": "use `Python`",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "edge_newline",
+    "original": "\nPyton\n",
+    "edited": "\nPython\n",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "sentence_dot",
+    "original": "Use Pyton.",
+    "edited": "Use Python.",
+    "expected": [
+      {
+        "original": "Pyton",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "shared_chinese_suffix",
+    "original": "今天吃苹果",
+    "edited": "今天吃芒果",
+    "expected": [
+      {
+        "original": "苹果",
+        "replacement": "芒果"
+      }
+    ]
+  },
+  {
+    "id": "no_threshold_long_replacement",
+    "original": "x",
+    "edited": "this is a completely new phrase",
+    "expected": [
+      {
+        "original": "x",
+        "replacement": "this is a completely new phrase"
+      }
+    ]
+  },
+  {
+    "id": "ambiguous_adjacent_append",
+    "original": "Use old",
+    "edited": "Use Python today",
+    "expected": [
+      {
+        "original": "old",
+        "replacement": "Python today"
+      }
+    ]
+  },
+  {
+    "id": "suffix_inside_word",
+    "original": "Pytho",
+    "edited": "Python",
+    "expected": [
+      {
+        "original": "Pytho",
+        "replacement": "Python"
+      }
+    ]
+  },
+  {
+    "id": "spaces_inside_replaced_phrase",
+    "original": "use old name",
+    "edited": "use New   York",
+    "expected": [
+      {
+        "original": "old name",
+        "replacement": "New   York"
+      }
+    ]
+  },
+  {
+    "id": "traditional_chinese_to_python",
+    "original": "我使用拍圖寫程式",
+    "edited": "我使用Python寫程式",
+    "expected": [
+      {
+        "original": "拍圖",
+        "replacement": "Python"
+      }
+    ]
+  }
+]
