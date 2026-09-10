@@ -354,20 +354,25 @@
             subject.session.cancelActiveCapture()
         }
 
-        @Test func hotkeyPreservesNewerClipboardAndCancelsOldTimeout() async {
+        @Test func hotkeyPreservesNewerClipboardAndCancelsOldTimeout() async throws {
             let subject = makeSubject()
             let presentationModel = FakePresentationModel()
             subject.session.activate(presentationModel: presentationModel, showInDock: false)
-            subject.session.clipboardPendingAutoDismissDelay = .milliseconds(100)
+            // Keep the timeout pending until the hotkey cancels it. A 100 ms
+            // deadline can expire before a busy CI runner observes the task.
+            subject.session.clipboardPendingAutoDismissDelay = .seconds(3_600)
             subject.textInjectionService.pasteOutcome = .verificationFailed
             subject.workflow.dictationViewModel.send(.transcriptionSucceeded("transcript A"))
             #expect(await TestSupport.eventually { subject.session.clipboardPendingDismissTask != nil })
+            let pendingDismiss = try #require(subject.session.clipboardPendingDismissTask)
+            defer { pendingDismiss.cancel() }
             subject.clipboardService.copy("new clipboard B", transient: false)
             let writesBeforeRestart = subject.clipboardService.copiedTexts
 
             subject.session.handleHotkeyPressed()
             #expect(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .listening })
-            try? await Task.sleep(for: .milliseconds(200))
+            try #require(pendingDismiss.isCancelled)
+            await pendingDismiss.value
 
             #expect(subject.clipboardService.copiedTexts == writesBeforeRestart)
             #expect(subject.workflow.dictationViewModel.state == .listening)
