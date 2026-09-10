@@ -49,11 +49,11 @@ body[data-shape=circle] .chrome-orb:active:before{background:#ccdbee}
   <header><h1>圆球与按钮</h1><span id="variant-state">80 × 40 · 与原版同步</span></header>
   <div class="size-options" aria-label="主体形状"><button data-size="circle">圆球 · 64</button><button data-size="circleLarge">圆球 · 72</button><button data-size="original">胶囊对照 · 80 × 40</button></div>
   <div class="study">
-    <section class="study-panel" id="reference-panel"><h2>大圆对照</h2><canvas id="reference" role="img" aria-label="原始圆形水彩效果"></canvas></section>
+    <section class="study-panel" id="reference-panel"><h2>大圆对照</h2><canvas id="reference" role="img" aria-label="同一效果的大尺寸圆球"></canvas></section>
     <section class="study-panel" id="actual-panel"><h2 id="size-heading">胶囊 · 96 × 64</h2><div class="capsule-context"><button class="chrome-orb" id="layout-cancel" aria-label="取消（布局演示）" title="取消"><span aria-hidden="true">×</span></button><canvas id="actual" role="img" aria-label="80乘40实际大小的水彩胶囊"></canvas><button class="chrome-orb" id="layout-confirm" aria-label="确认（布局演示）" title="确认"><span aria-hidden="true">✓</span></button></div><p id="size-note">圆球 64 · 按钮 32</p><p id="layout-feedback" role="status">靠近或用 Tab 聚焦，查看按钮</p></section>
     <section class="study-panel" id="detail-panel"><h2>4 倍放大 · 查看同一帧的像素</h2><canvas id="detail" role="img" aria-label="实际胶囊像素放大四倍"></canvas><p>使用实际尺寸渲染结果，不重新增加细节</p></section>
   </div>
-  <p class="dimension-note">请用浏览器 100% 缩放判断实际大小。将“层间流动”调到 0 可对照原来的分层；未叠加系统玻璃效果。</p>
+  <p class="dimension-note">请用浏览器 100% 缩放判断实际大小。关闭“随机跳变”可对照原版连续流动；未叠加系统玻璃效果。</p>
   <p id="status" class="status" data-mode="manual">原始流动</p>
   <p id="error" class="error" role="alert" hidden></p>
   <section class="controls" aria-label="声音与动画">
@@ -64,15 +64,17 @@ body[data-shape=circle] .chrome-orb:active:before{background:#ccdbee}
     </div>
     <label class="weave-control"><span>层间流动 <output id="weaveValue">0.80</output></span><input id="weave" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="层间流动"></label>
     <div class="actions">
+      <button id="random" type="button" aria-pressed="true">随机跳变</button>
       <button id="demo" type="button" aria-pressed="false">模拟声音</button>
       <button id="mic" type="button" aria-pressed="false">麦克风</button>
       <button id="pause" type="button" aria-pressed="false">暂停</button>
     </div>
+    <p id="random-status" class="dimension-note">等待声音触发 · 0 次</p>
     <p id="message" class="message" role="status" hidden></p>
   </section>
   <footer>
     视觉基于 <a href="https://www.rareui.com/components/fluidorb" target="_blank" rel="noopener noreferrer">Rare UI · Fluid Orb</a>
-    <details><summary>接入声音</summary><p><code>orb.level = 0.6</code><br>持续传入 0–1 音量，驱动流速和蓝色浓淡。<br>麦克风仅在本页分析，不录制、不上传。</p></details>
+    <details><summary>接入声音</summary><p><code>orb.level = 0.6</code><br>持续传入 0–1 音量；起音随机切换形态，音量驱动流速与浓淡。<br>麦克风仅在本页分析，不录制、不上传。</p></details>
   </footer>
 </main>
 <nav class="switcher" aria-label="预览方式"><button id="previous" aria-label="上一个视图">←</button><button data-view="actual">实际大小</button><button data-view="compare">大圆对照</button><button data-view="detail">像素放大</button><button id="next" aria-label="下一个视图">→</button></nav>
@@ -109,7 +111,7 @@ body[data-shape=circle] .chrome-orb:active:before{background:#ccdbee}
     url.searchParams.set('variant',variant);
     history.replaceState(null,'',url);
     document.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.view===variant)));
-    $('variant-state').textContent = ({actual:'实际大小',compare:'与原版同步',detail:'实际像素放大'})[variant] + ` · ${capsuleWidth} × ${capsuleHeight}`;
+    $('variant-state').textContent = ({actual:'实际大小',compare:'大小同步',detail:'实际像素放大'})[variant] + ` · ${capsuleWidth} × ${capsuleHeight}`;
   }
   function cycleView(delta) { setVariant(views[(views.indexOf(variant)+delta+views.length)%views.length]); }
   document.querySelectorAll('[data-view]').forEach(button => button.onclick=()=>setVariant(button.dataset.view));
@@ -146,6 +148,10 @@ uniform vec2 u_resolution;
 uniform float u_time;
 uniform float u_shape;
 uniform float u_weave;
+uniform float u_random;
+uniform vec3 u_turnA;
+uniform vec3 u_turnB;
+uniform vec2 u_pigmentOffset;
 uniform float u_tone;
 uniform float u_grain;
 uniform float u_pixelRatio;
@@ -206,12 +212,13 @@ void main() {
     sin(t) + 0.6 * sin(t * 1.7 + 1.3),
     cos(t * 0.8) + 0.6 * cos(t * 1.3 + 2.1)
   );
+  drift += u_random * u_pigmentOffset * 0.32;
   vec2 carried = turnField(uv,
-    vec2(0.32 + 0.10 * sin(t * 0.7), 0.43 + 0.09 * cos(t * 0.9)),
-    1.7 * sin(t * 0.85 + 0.8));
+    mix(vec2(0.32 + 0.10 * sin(t * 0.7), 0.43 + 0.09 * cos(t * 0.9)), u_turnA.xy, u_random),
+    mix(1.7 * sin(t * 0.85 + 0.8), u_turnA.z, u_random));
   carried = turnField(carried,
-    vec2(0.67 + 0.08 * cos(t * 0.6), 0.58 + 0.08 * sin(t * 0.8)),
-    -1.9 * sin(t * 0.72 + 1.7));
+    mix(vec2(0.67 + 0.08 * cos(t * 0.6), 0.58 + 0.08 * sin(t * 0.8)), u_turnB.xy, u_random),
+    mix(-1.9 * sin(t * 0.72 + 1.7), u_turnB.z, u_random));
   vec2 flowUV = mix(uv, carried, u_weave);
   vec2 p = vec2(flowUV.x * 1.8, flowUV.y) + drift * 0.7;
   vec2 q = vec2(fbm(p + drift), fbm(p + vec2(3.2, 1.5) - drift));
@@ -251,7 +258,9 @@ void main() {
   float whiteBand = smoothstep(0.18, 0.32, shade)
                   * (1.0 - smoothstep(0.50, 0.67, shade));
   // A separately moving wash enters the blue, instead of staying a separator.
-  vec2 ribbonUV = turnField(flowUV, vec2(0.55, 0.46), 0.8 * sin(t * 0.9 + 2.0));
+  vec2 ribbonUV = turnField(flowUV,
+    mix(vec2(0.55, 0.46), (u_turnA.xy + u_turnB.xy) * 0.5, u_random),
+    mix(0.8 * sin(t * 0.9 + 2.0), u_turnB.z * 0.45, u_random));
   float ribbonLine = ribbonUV.y - 0.48 + 0.16 * sin(ribbonUV.x * 5.0 + t * 0.8);
   float ribbon = exp(-ribbonLine * ribbonLine / 0.018);
   whiteBand = mix(whiteBand, ribbon * 0.92, u_weave * 0.8);
@@ -259,13 +268,13 @@ void main() {
 
   // Large blue regions carry the tonal response; the hue of the whole orb
   // does not pulse uniformly. Increasing voice energy expands dense pigment.
-  float blueCurrent = noise(material * vec2(0.65, 0.55) + vec2(9.3, 4.1));
+  float blueCurrent = noise(material * vec2(0.65, 0.55) + vec2(9.3, 4.1) + u_random * u_pigmentOffset);
   float blueDepth = clamp(0.38 + (blueCurrent - 0.5) * 0.65 + body * 0.42, 0.0, 1.0);
   float deepRegion = smoothstep(0.52 - u_tone * 0.18, 0.89 - u_tone * 0.10, blueDepth);
   vec3 lightBlue = vec3(0.075, 0.725, 0.985);
   vec3 denseBlue = vec3(0.012, 0.455, 0.895);
   vec3 blue = mix(lightBlue, u_color, body * 0.65);
-  blue = mix(blue, denseBlue, deepRegion * (0.45 + u_tone * 0.45));
+  blue = mix(blue, denseBlue, deepRegion * (mix(0.45,0.10,u_random) + u_tone * mix(0.45,0.85,u_random)));
 
   // Granulation redistributes blue pigment before compositing the paint.
   // The clean white band and pale ground are separate from pigment deposits.
@@ -317,6 +326,10 @@ void main() {
     const uTime = gl.getUniformLocation(program, 'u_time');
     const uShape = gl.getUniformLocation(program, 'u_shape');
     const uWeave = gl.getUniformLocation(program, 'u_weave');
+    const uRandom = gl.getUniformLocation(program, 'u_random');
+    const uTurnA = gl.getUniformLocation(program, 'u_turnA');
+    const uTurnB = gl.getUniformLocation(program, 'u_turnB');
+    const uPigmentOffset = gl.getUniformLocation(program, 'u_pigmentOffset');
     const uTone = gl.getUniformLocation(program, 'u_tone');
     const uGrain = gl.getUniformLocation(program, 'u_grain');
     const uPixelRatio = gl.getUniformLocation(program, 'u_pixelRatio');
@@ -328,6 +341,49 @@ void main() {
     let paused = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let stream = null, audioContext = null, analyser = null, samples = null;
     let micRequest = 0, raf = 0;
+    let randomEnabled = true, triggerCount = 0;
+    let onsetEnvelope = 0, onsetPeak = 0, onsetLow = 0, onsetArmed = true;
+    let lastTrigger = -Infinity, poseProgress = 1;
+    // Hold each independent draw until the next audio onset. No random timer,
+    // preferred turning direction, oscillator, or autonomous random walk.
+    let pose = [0.32,0.43,1.1, 0.67,0.58,-1.8, 0,0];
+    let poseFrom = pose.slice(), poseTo = pose.slice();
+    function randomizePose() {
+      const randomTurn = () => (Math.random() < .5 ? -1 : 1) * (.65 + Math.random() * 1.9);
+      poseFrom = pose.slice();
+      poseTo = [.18+Math.random()*.64, .27+Math.random()*.46, randomTurn(),
+                .18+Math.random()*.64, .27+Math.random()*.46, randomTurn(),
+                Math.random()*3-1.5, Math.random()*3-1.5];
+      poseProgress = 0;
+      triggerCount++;
+      $('random-status').textContent = `声音触发 · ${triggerCount} 次`;
+    }
+    function updateAudioRandom(dt) {
+      onsetEnvelope += (level-onsetEnvelope) * (1-Math.exp(-dt/.018));
+      if (onsetEnvelope < .035) {
+        onsetArmed = true;
+        onsetLow = 0;
+        onsetPeak = 0;
+      }
+      if (onsetArmed) {
+        onsetLow = Math.min(onsetLow,onsetEnvelope);
+        if (onsetEnvelope > .08 && onsetEnvelope-onsetLow > .075 && elapsed-lastTrigger > .14) {
+          randomizePose();
+          lastTrigger = elapsed;
+          onsetArmed = false;
+          onsetPeak = onsetEnvelope;
+        }
+      } else {
+        onsetPeak = Math.max(onsetPeak,onsetEnvelope);
+        if (onsetPeak-onsetEnvelope > .12) {
+          onsetArmed = true;
+          onsetLow = onsetEnvelope;
+        }
+      }
+      // About one or two display frames, with a definite end rather than a tail.
+      poseProgress = Math.min(1,poseProgress+dt/.025);
+      pose = poseFrom.map((value,i) => value+(poseTo[i]-value)*poseProgress);
+    }
 
     function displayLevel() {
       $('level').value = String(level);
@@ -340,7 +396,7 @@ void main() {
       $('pause').setAttribute('aria-pressed', String(paused));
       $('pause').textContent = paused ? '继续' : '暂停';
       $('status').dataset.mode = mode;
-      $('status').textContent = paused ? '已暂停' : mode === 'mic' ? '麦克风驱动' : mode === 'demo' ? '模拟声音' : level > 0 ? '声音驱动' : '原始流动';
+      $('status').textContent = paused ? '已暂停' : mode === 'mic' ? '麦克风驱动' : mode === 'demo' ? '模拟声音' : level > 0 ? '声音驱动' : randomEnabled ? '等待声音' : '原始流动';
     }
     function releaseMic() {
       micRequest++;
@@ -352,6 +408,9 @@ void main() {
     function useManual() {
       releaseMic();
       mode = 'manual';
+      onsetEnvelope = onsetPeak = onsetLow = 0;
+      onsetArmed = true;
+      lastTrigger = -Infinity;
       $('message').hidden = true;
     }
     function setLevel(value) {
@@ -380,6 +439,16 @@ void main() {
       get colorLevel() { return tone; }
     };
     $('weave').addEventListener('input', () => { $('weaveValue').value = Number($('weave').value).toFixed(2); dirty = true; });
+    $('random').onclick = () => {
+      randomEnabled = !randomEnabled;
+      $('random').setAttribute('aria-pressed',String(randomEnabled));
+      $('random-status').textContent = randomEnabled ? `声音触发 · ${triggerCount} 次` : '原版连续流动';
+      onsetEnvelope = onsetPeak = onsetLow = 0;
+      onsetArmed = true;
+      lastTrigger = -Infinity;
+      dirty = true;
+      updateState();
+    };
     $('level').addEventListener('input', event => setLevel(Number(event.target.value)));
     $('grain').addEventListener('input', event => setGrain(Number(event.target.value)));
     $('speed').addEventListener('input', event => {
@@ -518,19 +587,27 @@ void main() {
           level = Math.sqrt(Math.max(0, Math.min(1, (rms-.004)/.12)));
         }
         if (mode !== 'manual') displayLevel();
-        const tau = level > energy ? .055 : .32;
+        if (randomEnabled) updateAudioRandom(dt);
+        const tau = randomEnabled ? (level > energy ? .018 : .075) : (level > energy ? .055 : .32);
         energy += (level-energy) * (1-Math.exp(-dt/tau));
-        // Pigment lingers through brief syllable gaps, then gently dilutes.
-        const toneTau = energy > tone ? 0.12 : 0.58;
-        tone += (energy-tone) * (1-Math.exp(-dt/toneTau));
+        const toneTarget = randomEnabled ? level : energy;
+        const toneTau = randomEnabled ? (toneTarget > tone ? .015 : .065) : (energy > tone ? .12 : .58);
+        tone += (toneTarget-tone) * (1-Math.exp(-dt/toneTau));
+        if (randomEnabled && level < .004 && tone < .002) tone = 0;
         const targetVelocity = speed * (1 + energy * 4);
-        velocity += (targetVelocity-velocity) * (1-Math.exp(-dt/.24));
-        phase += dt * velocity;
+        velocity += (targetVelocity-velocity) * (1-Math.exp(-dt/(randomEnabled ? .05 : .24)));
+        // Keep the accepted loudness-to-speed mapping while sound is present.
+        // Silence does not advance a hidden animation or draw another pose.
+        if (!randomEnabled || level > .035) phase += dt * velocity;
       }
       gl.uniform1f(uTime, phase);
       gl.uniform1f(uTone, tone);
       gl.uniform1f(uGrain, grain);
       gl.uniform1f(uWeave, Number($('weave').value));
+      gl.uniform1f(uRandom, randomEnabled ? 1 : 0);
+      gl.uniform3f(uTurnA,pose[0],pose[1],pose[2]);
+      gl.uniform3f(uTurnB,pose[3],pose[4],pose[5]);
+      gl.uniform2f(uPigmentOffset,pose[6],pose[7]);
       renderTarget('reference',350,350,0);
       renderTarget('actual',capsuleWidth,capsuleHeight,capsuleWidth===capsuleHeight?0:1);
       const detail = targets.detail;

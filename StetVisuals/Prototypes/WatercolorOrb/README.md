@@ -31,3 +31,11 @@ Size presets are shareable as `&size=original` (80 × 40), `compact` (88 × 56),
 ## Inter-layer flow
 
 Added two broad counter-turning coordinate fields, a separately moving white wash, and wider blue transition blending. The layer-flow slider defaults to 0.8; 0 restores the previous color-field equations for comparison at the same time. This is procedural domain warping, not a fluid simulation. Geometry, pigment amount, and audio envelope remain as before. Checked the small orb and large preview, slider input, JavaScript syntax, and browser console. User visual acceptance is pending.
+
+## Audio-triggered random jumps
+
+The enabled-by-default Random jumps control draws independent vortex locations, directions, turn strengths, and pigment offsets on detected audio onsets. There is no random timer, cyclic direction schedule, or random walk. A rise detector uses an 18 ms envelope, hysteresis, and a 140 ms retrigger guard; sustained constant input does not repeatedly draw new poses. Each pose is held until the next onset, with a finite 25 ms transition. Motion uses 18/75 ms attack/release; pigment responds directly to the input with 15/65 ms constants and a lower idle deep-blue weight.
+
+The accepted 1–5× loudness-dependent speed mapping remains while sound is present. In random mode the shader clock stops below the input gate; the short pigment tail settles, and silence generates no new motion. The switch restores the prior continuous model for comparison. This still uses loudness, not FFT or speech recognition.
+
+Validated at 30, 60, and 120 simulated update rates: silence produces zero draws, a held input one draw, the next onset a second draw, and a silent pose remains fixed. Browser checks confirmed those trigger counts, shader compilation, manual input, and simulated audio without console errors. Visual acceptance is pending user review.
