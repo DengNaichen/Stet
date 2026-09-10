@@ -83,7 +83,7 @@ jobs:
         id: compilation
         uses: actions/cache/restore@v5
         with:
-          path: ~/Library/Developer/Xcode/DerivedData/CompilationCache.noindex
+          path: .build/ci/CompilationCache.noindex
           key: compilation-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-${{ github.sha }}
           restore-keys: |
             compilation-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-
@@ -100,5 +100,5 @@ jobs:
         if: ${{ !cancelled() && steps.compilation.outcome == 'success' && steps.compilation.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v5
         with:
-          path: ~/Library/Developer/Xcode/DerivedData/CompilationCache.noindex
+          path: .build/ci/CompilationCache.noindex
           key: ${{ steps.compilation.outputs.cache-primary-key }}
