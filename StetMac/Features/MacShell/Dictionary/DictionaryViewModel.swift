@@ -69,7 +69,8 @@
                 updated.append(contentsOf: additions)
             }
             dictionaryModel.saveEntries(updated)
-            entries = dictionaryModel.loadEntries()
+            _ = dictionaryModel.addEntries(from: text)
+            records = dictionaryModel.loadRecords()
         }
 
         func removeEntry(_ entry: String) {
