@@ -21,10 +21,23 @@ Attempt 1 tests failed after 398 s on timing-sensitive tests. An unchanged rerun
 
 Keep the same checks, test suite, coverage, runner and Xcode selection. Separate dependency resolution so GitHub records its elapsed time. Cache SwiftPM sources and binary artifacts using manifests, lockfiles and exact toolchain/OS identity. Save packages before compilation so a test failure does not discard the download work.
 
-Enable Xcode's input-addressed Swift/Clang compilation cache, isolated by toolchain and build/test mode, with a per-commit key and compatible fallback. Cache compiler results even on test failure. Build products, test results, signing material and app data are not cached. Local Makefile behavior is unchanged unless `CI_XCODEBUILD_FLAGS` is supplied.
+Enable Xcode's input-addressed Swift/Clang compilation cache, isolated by toolchain and build/test mode, with a per-commit key and compatible fallback. Cache compiler results even on test failure. The first experiment cached only compiler results. The incremental follow-up also caches unsigned Build products and ModuleCache, validating tracked input SHA-256 hashes before restoring nanosecond mtimes. Test result logs, signing material and app data are not cached. Local Makefile behavior is unchanged unless `CI_XCODEBUILD_FLAGS` is supplied.
 
 The package cache stays in DerivedData/SourcePackages because `normalize-binary-frameworks.sh` locates the Sherpa framework there. Do not independently move that directory without updating its consumer.
 
 Validation: run the modified workflow cold, then rerun the same commit warm. Compare job elapsed times including cache transfer overhead, dependency resolution, compilation cache hits, and the number/result of executed tests. Follow with a changed-source run to check invalidation. No estimated speedup is a measured result.
 
 References: [Apple Xcode 26 release notes](https://developer.apple.com/documentation/Xcode-Release-Notes/xcode-26-release-notes), [GitHub cache action](https://github.com/actions/cache), [GitHub cache scope](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).
+
+## Intermediate measurements
+
+| Experiment | Build job | Test job | Result |
+| --- | ---: | ---: | --- |
+| Native cache cold, [34458876587 attempt 1](https://github.com/DengNaichen/Stet/actions/runs/34458876587/attempts/1) | 280 s | 524 s | 521 tests passed |
+| Native cache warm, same commit, attempt 2 | 176 s | 244 s | Existing clipboard timing test failed |
+| Skip redundant resolution, changed test source, [34460313988 attempt 1](https://github.com/DengNaichen/Stet/actions/runs/34460313988/attempts/1) | 154 s | 265 s | 521 tests passed; tests: 996 cache-hit and 15 cache-miss diagnostics |
+| Native + manifests fully warm, same commit, attempt 2 | 137 s | 246 s | 521 tests passed |
+
+The clipboard test raced a 100 ms timeout against polling on a loaded runner. It now checks cancellation on the captured task and awaits completion, without changing production behavior. The revised source passed both full-suite runs.
+
+Native caching leaves substantial build preparation and Swift test macro work even with zero compiler misses. The next experiment caches incremental products with content-checked source timestamps. Changed files retain fresh mtimes; removed/untracked paths and symlinks cannot be restored by cached metadata. The helper is covered by fixture tests, including same-length edits and nanosecond precision. Each CI job still invokes its original build/test command; test results are never used to skip execution.

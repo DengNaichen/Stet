@@ -27,6 +27,9 @@ jobs:
       - name: Install SwiftLint
         run: brew install swiftlint
 
+      - name: Test CI cache validation
+        run: python3 -m unittest discover -s scripts/tests -p 'test_ci_source_mtimes.py'
+
       - name: Run lint checks
         run: make lint
 
@@ -69,6 +72,8 @@ jobs:
         with:
           path: .build/ci/SourcePackages
           key: spm-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('Packages/**/Package.swift', 'Packages/**/Package.resolved', 'Stet.xcodeproj/**/Package.resolved') }}
+          restore-keys: |
+            spm-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-
 
       - name: Cache Swift package manifests
         uses: actions/cache@v5
@@ -102,6 +107,21 @@ jobs:
           restore-keys: |
             compilation-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-
 
+      - name: Restore incremental build
+        id: incremental
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            .build/ci/Build
+            .build/ci/ModuleCache.noindex
+            .build/ci/source-mtimes.json
+          key: incremental-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-${{ github.sha }}
+          restore-keys: |
+            incremental-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-
+
+      - name: Validate incremental build inputs
+        run: python3 scripts/ci-source-mtimes.py restore .build/ci/source-mtimes.json
+
       - name: Install Metal Toolchain
         run: xcodebuild -downloadComponent MetalToolchain
 
@@ -116,3 +136,17 @@ jobs:
         with:
           path: .build/ci/CompilationCache.noindex
           key: ${{ steps.compilation.outputs.cache-primary-key }}
+
+      - name: Record incremental build inputs
+        if: success() && steps.incremental.outputs.cache-hit != 'true'
+        run: python3 scripts/ci-source-mtimes.py save .build/ci/source-mtimes.json
+
+      - name: Save incremental build
+        if: success() && steps.incremental.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            .build/ci/Build
+            .build/ci/ModuleCache.noindex
+            .build/ci/source-mtimes.json
+          key: ${{ steps.incremental.outputs.cache-primary-key }}
