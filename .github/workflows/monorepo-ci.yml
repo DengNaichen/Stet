@@ -7,6 +7,11 @@ on:
       - main
       - "migration/**"
 
+# New commits supersede older PR runs; main and migration pushes still finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   quality:
     name: Swift Quality
@@ -63,9 +68,18 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: .build/ci/SourcePackages
-          key: spm-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('**/Package.resolved', '**/Package.swift') }}
+          key: spm-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('Packages/**/Package.swift', 'Packages/**/Package.resolved', 'Stet.xcodeproj/**/Package.resolved') }}
 
+      - name: Cache Swift package manifests
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm/manifests
+          key: spm-manifests-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('Packages/**/Package.swift', 'Packages/**/Package.resolved', 'Stet.xcodeproj/**/Package.resolved') }}
+
+      # On a hit, the build command validates/resolves the restored packages.
+      # A separate resolve is only needed to save downloads before a cold build.
       - name: Resolve Swift packages
+        if: steps.packages.outputs.cache-hit != 'true'
         run: >-
           xcodebuild -resolvePackageDependencies
           -project Stet.xcodeproj -scheme Stet
