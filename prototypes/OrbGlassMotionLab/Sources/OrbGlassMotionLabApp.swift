@@ -29,16 +29,20 @@ private enum Trajectory: String, CaseIterable, Identifiable {
 }
 
 private struct MotionSettings {
-    var trajectory = Trajectory.arc
-    var reach = 60.0
-    var drop = 12.0
-    var bend = 12.0
+    // User-selected native preset, captured on 2026-09-11.
+    // Keep full slider precision to preserve the selected geometry.
+    var trajectory = Trajectory.swing
+    var reach = 60.15538985143712
+    var drop = 12.6339011004039
+    var bend = 11.88852372917651
     var duration = 0.55
-    var glassSpacing = 10.0
+    var glassSpacing = 11.56007428520794
     var showPath = false
     var showPaint = true
-    var animatePaint = false
-    var backdrop = 0
+    var animatePaint = true
+    var backdrop = 2
+
+    static let selectedPreviewProgress = 0.8643167688116247
 }
 
 private struct Playback {
@@ -57,7 +61,7 @@ private struct Playback {
 
 private struct MotionLabView: View {
     @State private var settings = MotionSettings()
-    @State private var manualProgress = 1.0
+    @State private var manualProgress = MotionSettings.selectedPreviewProgress
     @State private var playback: Playback?
     @State private var paintStart = Date()
     @State private var feedback = "拖动展开进度，可以检查玻璃分离的中间帧。"

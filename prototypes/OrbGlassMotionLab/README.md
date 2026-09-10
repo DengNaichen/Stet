@@ -39,15 +39,41 @@ open /tmp/orb-glass-motion-build/Build/Products/Debug/OrbGlassMotionLab.app
 - Adjust glass spacing to inspect fusion and separation. Light, dark, and
   colored backgrounds make the native material easier to inspect.
 - Hide the watercolor to inspect the underlying glass, or enable watercolor
-  movement to judge the complete composition. Paint starts paused so the
-  trajectory can be inspected on its own.
+  movement to judge the complete composition. The selected preset starts with
+  watercolor movement enabled; turn it off to inspect the trajectory alone.
 
-The default geometry places the button centers 60 pt to either side and 12 pt
-below the orb. Each preview uses a shared `GlassEffectContainer` and stable
-glass identities. The watercolor overlays the center glass, following Stet's
-existing composition. See Apple's
+Each preview uses a shared `GlassEffectContainer` and stable glass identities.
+The watercolor overlays the center glass, following Stet's existing
+composition. See Apple's
 [Applying Liquid Glass to custom views](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views)
 for the native material APIs.
+
+## Selected preset — 2026-09-11
+
+Captured from the only open native lab window after the user selected its
+parameters. These exact values are now the launch defaults; the UI's integer
+labels truncate the underlying slider values.
+
+| Control | Saved value |
+| --- | --- |
+| Trajectory | Downward swing / 下摆 |
+| Horizontal reach per side | 60.15538985143712 pt |
+| Final downward offset | 12.6339011004039 pt |
+| Curve amplitude | 11.88852372917651 pt |
+| Glass fusion spacing | 11.56007428520794 pt |
+| Duration | 0.55 s |
+| Initial preview progress | 0.8643167688116247 (86.43167688116247%) |
+| Background | Colored / 色块 |
+| Show path | Off |
+| Show watercolor | On |
+| Animate watercolor | On |
+| Orb / button / hit diameter | 64 / 28 / 44 pt |
+
+The saved preview is an intermediate point on the curve. Its rendered button
+positions therefore differ from the endpoint values above. Launch restores
+that selected preview position; replay and expand still run to 100%. The
+progress control retains its existing behavior, including button interaction
+after full expansion.
 
 ## Scope and validation
 
@@ -58,8 +84,8 @@ does not replace the HTML experiment's audio behavior.
 
 Built with Xcode 26.6 and launched on macOS 26.6.2. Both native previews and the
 Metal material rendered successfully; background and watercolor movement
-controls were observed working. Intermediate glass morphs and the final
-trajectory still need visual selection in the lab. The build's only warning
+controls were observed working. The selected preset above was verified against
+the native controls and a screenshot. The build's only warning
 was the skipped App Intents metadata extraction for this app without App
 Intents.
 
