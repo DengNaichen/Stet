@@ -31,7 +31,3 @@ Size presets are shareable as `&size=original` (80 × 40), `compact` (88 × 56),
 ## Inter-layer flow
 
 Added two broad counter-turning coordinate fields, a separately moving white wash, and wider blue transition blending. The layer-flow slider defaults to 0.8; 0 restores the previous color-field equations for comparison at the same time. This is procedural domain warping, not a fluid simulation. Geometry, pigment amount, and audio envelope remain as before. Checked the small orb and large preview, slider input, JavaScript syntax, and browser console. User visual acceptance is pending.
-
-## Stronger sound response with a steady base clock
-
-Removed the loudness multiplier that previously varied global animation speed from 1× to 5×. The clock now advances only from elapsed time and the base-speed slider. Loudness adds opposite local turns to the two broad eddies and deforms the white wash. A smoothed positive envelope slope gives short onset accents; this is not FFT analysis. Motion attack/release is 35/180 ms, onset smoothing 25/120 ms, and color now follows input directly with 50/200 ms constants. Checked syntax, strong manual input, simulated sound, and browser console.
