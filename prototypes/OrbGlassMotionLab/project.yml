@@ -1,0 +1,34 @@
+name: OrbGlassMotionLab
+options:
+  bundleIdPrefix: com.stet.prototype
+  deploymentTarget:
+    macOS: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    ENABLE_APP_SANDBOX: YES
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+targets:
+  OrbGlassMotionLab:
+    type: application
+    platform: macOS
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.stet.prototype.OrbGlassMotionLab
+        PRODUCT_NAME: OrbGlassMotionLab
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Orb Glass Motion Lab
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
+schemes:
+  OrbGlassMotionLab:
+    build:
+      targets:
+        OrbGlassMotionLab: all
+    run:
+      config: Debug
