@@ -75,7 +75,7 @@
         @ViewBuilder var sheet: () -> Sheet
         @Environment(\.colorScheme) private var colorScheme
 
-        func makeCoordinator() -> Coordinator { Coordinator() }
+        func makeCoordinator() -> MacSettingsSheetCoordinator { MacSettingsSheetCoordinator() }
         func makeNSView(context: Context) -> NSView { NSView() }
 
         func updateNSView(_ view: NSView, context: Context) {
@@ -94,54 +94,58 @@
             }
         }
 
-        static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) { coordinator.close() }
+        static func dismantleNSView(_ nsView: NSView, coordinator: MacSettingsSheetCoordinator) { coordinator.close() }
 
-        final class Coordinator: NSObject {
-            var panel: EditorPanel?
-            var dismiss: (() -> Void)?
-            var wantsPresentation = false
+    }
 
-            func present<Root: View>(_ root: Root, on parent: NSWindow) {
-                let panel = EditorPanel(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
-                self.panel = panel
-                panel.onCancel = { [weak self] in self?.dismiss?() }
-                panel.isOpaque = false
-                panel.backgroundColor = .clear
-                panel.hasShadow = true
-                panel.isReleasedWhenClosed = false
-                let host = NSHostingView(
-                    rootView: root.fixedSize().background {
-                        GeometryReader { geometry in
-                            Color.clear.preference(key: EditorSizeKey.self, value: geometry.size)
-                        }
-                    }.onPreferenceChange(EditorSizeKey.self) { [weak panel] size in
-                        guard size.width > 0, size.height > 0 else { return }
-                        DispatchQueue.main.async { panel?.setContentSize(size) }
-                    })
-                panel.contentView = host
-                panel.setContentSize(host.fittingSize)
-                parent.beginSheet(panel)
-                // Hosting can apply native window chrome while attaching. Restore the token-shaped surface.
-                panel.styleMask = [.borderless]
-                panel.isOpaque = false
-                panel.backgroundColor = .clear
-                panel.makeKeyAndOrderFront(nil)
-            }
+    private final class MacSettingsSheetCoordinator: NSObject {
+        var panel: MacSettingsEditorPanel?
+        var dismiss: (() -> Void)?
+        var wantsPresentation = false
 
-            func close() {
-                guard let panel else { return }
-                self.panel = nil
-                panel.sheetParent?.endSheet(panel)
-                panel.orderOut(nil)
-            }
+        func present<Root: View>(_ root: Root, on parent: NSWindow) {
+            let panel = MacSettingsEditorPanel(
+                contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
+            self.panel = panel
+            panel.onCancel = { [weak self] in self?.dismiss?() }
+            panel.isOpaque = false
+            panel.backgroundColor = .clear
+            panel.hasShadow = true
+            panel.isReleasedWhenClosed = false
+            let host = NSHostingView(
+                rootView: root.fixedSize().background {
+                    GeometryReader { geometry in
+                        Color.clear.preference(key: EditorSizeKey.self, value: geometry.size)
+                    }
+                }.onPreferenceChange(EditorSizeKey.self) { [weak panel] size in
+                    guard size.width > 0, size.height > 0 else { return }
+                    DispatchQueue.main.async { panel?.setContentSize(size) }
+                })
+            panel.contentView = host
+            panel.setContentSize(host.fittingSize)
+            parent.beginSheet(panel)
+            // Hosting can apply native window chrome while attaching. Restore the token-shaped surface.
+            panel.styleMask = [.borderless]
+            panel.isOpaque = false
+            panel.backgroundColor = .clear
+            panel.makeKeyAndOrderFront(nil)
         }
 
-        final class EditorPanel: NSPanel {
-            var onCancel: (() -> Void)?
-            override var canBecomeKey: Bool { true }
-            override var canBecomeMain: Bool { false }
-            override func cancelOperation(_ sender: Any?) { onCancel?() }
+        func close() {
+            guard let panel else { return }
+            self.panel = nil
+            panel.sheetParent?.endSheet(panel)
+            panel.orderOut(nil)
         }
+    }
+
+    // Keep AppKit subclasses outside the generic presenter: Swift 6.3's Intel
+    // Release optimizer crashes on the nested class's MainActor-isolated deinit.
+    private final class MacSettingsEditorPanel: NSPanel {
+        var onCancel: (() -> Void)?
+        override var canBecomeKey: Bool { true }
+        override var canBecomeMain: Bool { false }
+        override func cancelOperation(_ sender: Any?) { onCancel?() }
     }
 
     private struct EditorSizeKey: PreferenceKey {
