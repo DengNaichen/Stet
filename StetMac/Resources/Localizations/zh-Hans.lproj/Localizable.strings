@@ -252,3 +252,14 @@
 
 "Automatically learned" = "自动学习";
 "Manually added" = "手动添加";
+
+/* App compatibility updates */
+"App Compatibility" = "应用兼容性";
+"Check for Compatibility List Updates" = "检查清单更新";
+"Checking compatibility list…" = "正在检查清单…";
+"Compatibility list updated." = "兼容清单已更新。";
+"Compatibility list is up to date." = "兼容清单已是最新。";
+"Could not check for updates. Continuing to use the current compatibility list." = "检查失败，继续使用当前兼容清单。";
+"Update compatibility fixes for pasting into other apps." = "更新向其他应用粘贴文字时使用的兼容清单。";
+"Updated" = "已更新";
+"Check failed. Using current list." = "检查失败，继续使用当前清单。";

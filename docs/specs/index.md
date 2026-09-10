@@ -15,6 +15,7 @@
 
 ### Active
 
+- [app-compatibility](app-compatibility.md) — 通过 GitHub 独立分发粘贴兼容清单，支持后台刷新和离线回退。
 - [correction-learning](correction-learning.md) — 从用户替换中自动学习词条，保存手动 / 自动来源。
 
 ### Archived

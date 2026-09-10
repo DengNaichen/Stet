@@ -30,6 +30,7 @@
         }
 
         private var completionID: UInt64 = 0
+        private let compatibilityStore: AppCompatibilityStore
         private let clipboardService: any ClipboardService
         private let textInjectionService: any TextInjectionService
         private let pasteboard: NSPasteboard
@@ -39,12 +40,14 @@
         init(
             clipboardService: any ClipboardService,
             textInjectionService: any TextInjectionService,
+            compatibilityStore: AppCompatibilityStore? = nil,
             pasteboard: NSPasteboard = .general,
             pasteboardRestoreCoordinator: PasteboardRestoreCoordinator? = nil,
             frontmostBundleIdentifierProvider: @escaping @MainActor () -> String? = {
                 NSWorkspace.shared.frontmostApplication?.bundleIdentifier
             }
         ) {
+            self.compatibilityStore = compatibilityStore ?? AppCompatibilityStore()
             self.clipboardService = clipboardService
             self.textInjectionService = textInjectionService
             self.pasteboard = pasteboard
@@ -441,48 +444,8 @@
         }
 
         private func outputProfile(for bundleIdentifier: String?) -> TargetAppOutputProfile? {
-            switch bundleIdentifier?.lowercased() {
-            case "com.microsoft.vscode",
-                "com.microsoft.vscodeinsiders",
-                "com.hnc.discord",
-                "notion.id",
-                "com.google.chrome",
-                "com.anthropic.claude",
-                "com.linear",
-                "com.tinyspeck.slackmacgap",
-                "md.obsidian",
-                "com.openai.codex",
-                "com.google.antigravity",
-                "dev.zed.app",
-                "dev.zed.zed",
-                "com.todesktop.230313mzl4w4u92",
-                "co.anysphere.cursor.nightly",
-                "com.tencent.xinwechat",
-                "com.mitchellh.ghostty",
-                "com.electron.lark",
-                "com.bytedance.macos.feishu",
-                "com.larksuite.larkapp",
-                "com.anthropic.claudefordesktop",
-                "cn.trae.app",
-                "now.typeless.desktop",
-                "app.motrix.native",
-                "com.1password.1password",
-                "com.alibaba.dingtalkmac",
-                "com.tencent.weworkmac",
-                "com.tencent.qq",
-                "com.tencent.meeting",
-                "com.bot.pc.doubao",
-                "com.alibaba.tongyi",
-                "com.moonshot.kimichat",
-                "com.yuque.app",
-                "com.tencent.mac.tdappdesktop",
-                "com.shimo.desktop.main",
-                "com.kingsoft.wpsoffice.mac",
-                "com.kingsoft.wpsoffice.mac.global":
-                return .optimisticVerificationBlind(recoveryWindow: .seconds(10))
-            default:
-                return nil
-            }
+            guard compatibilityStore.contains(bundleIdentifier) else { return nil }
+            return .optimisticVerificationBlind(recoveryWindow: .seconds(10))
         }
 
         private func shouldTreatAsOptimisticCompletion(_ outcome: TextInjectionOutcome) -> Bool {

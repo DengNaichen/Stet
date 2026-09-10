@@ -28,7 +28,7 @@
 
         private var cancellables = Set<AnyCancellable>()
 
-        convenience init() {
+        convenience init(compatibilityStore: AppCompatibilityStore? = nil) {
             let settingsStore = DictationSettingsStore()
             let captureService = MacAudioCaptureService()
             let passiveListeningRuntime = MacPassiveListeningRuntime(captureService: captureService)
@@ -58,6 +58,7 @@
                 captureCoordinator: MacDictationCaptureCoordinator(
                     clipboardService: clipboardService,
                     textInjectionService: textInjectionService,
+                    compatibilityStore: compatibilityStore ?? AppCompatibilityStore.live(),
                     pasteboardRestoreCoordinator: pasteboardRestoreCoordinator
                 ),
                 mcpServerController: StetMCPServerController.live(settingsStore: settingsStore),

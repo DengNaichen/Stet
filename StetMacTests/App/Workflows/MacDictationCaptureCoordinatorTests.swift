@@ -8,6 +8,42 @@
     @MainActor
     @Suite("Mac Dictation Capture Coordinator", .serialized)
     struct MacDictationCaptureCoordinatorTests {
+        @Test func remoteCompatibilityChangesApplyToExistingCoordinator() async throws {
+            func configuration(_ revision: Int, _ identifiers: [String]) throws -> Data {
+                try JSONEncoder().encode(
+                    AppCompatibilityStore.Configuration(
+                        schemaVersion: 1, revision: revision, bundleIDs: identifiers))
+            }
+            var remote = try configuration(2, ["example.new-editor"])
+            let store = AppCompatibilityStore(
+                bundledData: try configuration(1, []), fetch: { remote })
+            let injection = TestTextInjectionService()
+            injection.pasteOutcome = .eventPostedVerificationUnavailable
+            let coordinator = MacDictationCaptureCoordinator(
+                clipboardService: TestClipboardService(), textInjectionService: injection,
+                compatibilityStore: store,
+                frontmostBundleIdentifierProvider: { "example.new-editor" })
+            let settings = MacDictationCaptureCoordinator.CaptureSettings(
+                shouldCopyToClipboard: true, shouldAutoPaste: true, shouldRevealPanelOnCapture: false)
+
+            await store.refresh()
+            let accepted = await coordinator.handleCompletedCapture(
+                text: "hello", targetApplication: nil, settings: settings, showPanel: {})
+            #expect(accepted == .completed)
+
+            injection.pasteOutcome = .eventPostFailed
+            let failedPost = await coordinator.handleCompletedCapture(
+                text: "hello", targetApplication: nil, settings: settings, showPanel: {})
+            #expect(failedPost == .failed(.pasteVerificationFailed))
+
+            remote = try configuration(3, [])
+            await store.refresh()
+            injection.pasteOutcome = .eventPostedVerificationUnavailable
+            let revoked = await coordinator.handleCompletedCapture(
+                text: "hello", targetApplication: nil, settings: settings, showPanel: {})
+            #expect(revoked == .failed(.pasteVerificationUnavailable))
+        }
+
         private func makeCoordinator(
             clipboard: TestClipboardService,
             textInjection: TestTextInjectionService,

@@ -16,10 +16,13 @@ struct StetApp: App {
         @StateObject private var dictationCommandsViewModel: MacDictationCommandsViewModel
         @StateObject private var settingsShellViewModel: MacSettingsShellViewModel
         @StateObject private var appUpdateManager = AppUpdateManager()
+        @StateObject private var compatibilityStore: AppCompatibilityStore
 
         init() {
             AnalyticsService.initialize()
-            let appModel = MacAppModel()
+            let compatibilityStore = AppCompatibilityStore.live()
+            _compatibilityStore = StateObject(wrappedValue: compatibilityStore)
+            let appModel = MacAppModel(compatibilityStore: compatibilityStore)
             _appModel = StateObject(wrappedValue: appModel)
             _dictationCommandsViewModel = StateObject(
                 wrappedValue: MacDictationCommandsViewModel(coordinator: appModel)
@@ -62,6 +65,7 @@ struct StetApp: App {
 
             Window("Settings", id: MacWindowSceneID.preferences) {
                 MacSettingsView()
+                    .environmentObject(compatibilityStore)
                     .environmentObject(appModel)
                     .environmentObject(settingsShellViewModel)
                     .environmentObject(appUpdateManager)
