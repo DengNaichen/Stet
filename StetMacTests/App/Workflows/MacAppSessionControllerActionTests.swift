@@ -373,6 +373,7 @@
             #expect(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .listening })
             try #require(pendingDismiss.isCancelled)
             await pendingDismiss.value
+            #expect(subject.session.clipboardPendingDismissTask == nil)
 
             #expect(subject.clipboardService.copiedTexts == writesBeforeRestart)
             #expect(subject.workflow.dictationViewModel.state == .listening)

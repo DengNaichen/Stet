@@ -24,27 +24,37 @@ def tracked_inputs(root):
     return sorted(paths, key=str)
 
 
-def fingerprint(path):
+def fingerprint(path, cache=None):
+    cache = {} if cache is None else cache
+    if path in cache:
+        return cache[path]
     digest = hashlib.sha256()
-    if path.is_dir():
-        # Xcode also watches directory membership for assets and file groups.
-        digest.update(b"directory\0")
-        for name in sorted(child.name for child in path.iterdir()):
-            digest.update(name.encode() + b"\0")
+    if path.is_symlink():
+        # A directory hash includes link text, never the external target.
+        digest.update(b"symlink\0" + os.readlink(path).encode())
+    elif path.is_dir():
+        # A resource change must invalidate its containing directory even if
+        # membership is unchanged. Memoization hashes each file only once.
+        digest.update(b"directory-tree\0")
+        for child in sorted(path.iterdir(), key=lambda child: child.name):
+            digest.update(child.name.encode() + b"\0")
+            digest.update(fingerprint(child, cache).encode())
     else:
         digest.update(b"file\0")
         with path.open("rb") as source:
             for chunk in iter(lambda: source.read(1024 * 1024), b""):
                 digest.update(chunk)
-    return digest.hexdigest()
+    cache[path] = digest.hexdigest()
+    return cache[path]
 
 
 def save(root, manifest):
     entries = {}
+    hashes = {}
     for relative in tracked_inputs(root):
         path = root / relative
         entries[str(relative)] = {
-            "sha256": fingerprint(path),
+            "sha256": fingerprint(path, hashes),
             "mtime_ns": path.stat().st_mtime_ns,
         }
     manifest.parent.mkdir(parents=True, exist_ok=True)
@@ -56,14 +66,26 @@ def restore(root, manifest):
     if not manifest.is_file():
         print("No input timestamps cached; using a fresh build")
         return
-    entries = json.loads(manifest.read_text())
+    try:
+        entries = json.loads(manifest.read_text())
+        if not isinstance(entries, dict):
+            raise ValueError("Expected a timestamp map")
+    except (OSError, ValueError):
+        print("Invalid input timestamp cache; using fresh input timestamps")
+        return
     restored = 0
+    hashes = {}
     # Intersect with today's tracked inputs: removed/untracked paths and paths
     # outside the repository can never be restored from cache metadata.
     for relative in tracked_inputs(root):
         entry = entries.get(str(relative))
         path = root / relative
-        if entry and entry["sha256"] == fingerprint(path):
+        if (
+            isinstance(entry, dict)
+            and isinstance(entry.get("mtime_ns"), int)
+            and 0 <= entry["mtime_ns"] < 2**63
+            and entry.get("sha256") == fingerprint(path, hashes)
+        ):
             os.utime(path, ns=(path.stat().st_atime_ns, entry["mtime_ns"]))
             restored += 1
     print(f"Restored timestamps for {restored} unchanged build inputs")

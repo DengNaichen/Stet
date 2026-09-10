@@ -58,3 +58,36 @@ class SourceMtimeTests(unittest.TestCase):
             }))
             mtimes.restore(root, manifest)
             self.assertEqual(source.stat().st_mtime_ns, timestamp)
+
+    def test_resource_edit_invalidates_directory_without_changing_membership(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            assets = root / "Assets.xcassets"
+            assets.mkdir()
+            resource = assets / "Contents.json"
+            resource.write_text('{"version":1}')
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            manifest = root / "cache.json"
+            mtimes.save(root, manifest)
+            resource.write_text('{"version":2}')
+            fresh = assets.stat().st_mtime_ns + 10_000_000_000
+            os.utime(assets, ns=(fresh, fresh))
+            os.utime(resource, ns=(fresh, fresh))
+            mtimes.restore(root, manifest)
+            self.assertEqual(assets.stat().st_mtime_ns, fresh)
+            self.assertEqual(resource.stat().st_mtime_ns, fresh)
+
+    def test_corrupt_timestamp_metadata_falls_back_to_fresh_inputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            source = root / "main.swift"
+            source.write_text("source")
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            timestamp = source.stat().st_mtime_ns
+            manifest = root / "cache.json"
+            for contents in ("not JSON", "[]", '{"main.swift": {"mtime_ns": "invalid"}}'):
+                manifest.write_text(contents)
+                mtimes.restore(root, manifest)
+                self.assertEqual(source.stat().st_mtime_ns, timestamp)
