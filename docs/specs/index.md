@@ -15,7 +15,7 @@
 
 ### Active
 
-- <!-- TODO: [feature-name](feature-name.md) — 简述 -->
+- [correction-learning](correction-learning.md) — 从用户替换中自动学习词条，保存手动 / 自动来源。
 
 ### Archived
 

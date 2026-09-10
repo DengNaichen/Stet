@@ -1,0 +1,16 @@
+[
+  {"id":"new_automatic","existing":[],"terms":["Python"],"source":"automatic","expected":[{"term":"Python","source":"automatic"}]},
+  {"id":"new_manual","existing":[],"terms":["Python"],"source":"manual","expected":[{"term":"Python","source":"manual"}]},
+  {"id":"legacy_migration","existing":["Python","Swift"],"terms":[],"source":"automatic","expected":[{"term":"Python","source":"manual"},{"term":"Swift","source":"manual"}]},
+  {"id":"manual_not_downgraded","existing":[{"term":"Python","source":"manual"}],"terms":["python"],"source":"automatic","expected":[{"term":"Python","source":"manual"}]},
+  {"id":"automatic_promoted_to_manual","existing":[{"term":"python","source":"automatic"}],"terms":["Python"],"source":"manual","expected":[{"term":"Python","source":"manual"}]},
+  {"id":"automatic_dedup","existing":[{"term":"Python","source":"automatic"}],"terms":["python","PYTHON"],"source":"automatic","expected":[{"term":"Python","source":"automatic"}]},
+  {"id":"unicode_normalization","existing":["café"],"terms":["café"],"source":"automatic","expected":[{"term":"café","source":"manual"}]},
+  {"id":"phrase_whitespace","existing":[],"terms":["  New\t York  ","New York"],"source":"automatic","expected":[{"term":"New York","source":"automatic"}]},
+  {"id":"empty_terms","existing":["", "  "],"terms":["","\n\t"],"source":"automatic","expected":[]},
+  {"id":"manual_wins_migrated_duplicates","existing":[{"term":"python","source":"automatic"},"Python"],"terms":[],"source":"automatic","expected":[{"term":"Python","source":"manual"}]},
+  {"id":"manual_wins_reverse_order","existing":["Python",{"term":"python","source":"automatic"}],"terms":[],"source":"automatic","expected":[{"term":"Python","source":"manual"}]},
+  {"id":"stable_order","existing":["Swift"],"terms":["Python","Rust","python"],"source":"automatic","expected":[{"term":"Swift","source":"manual"},{"term":"Python","source":"automatic"},{"term":"Rust","source":"automatic"}]},
+  {"id":"technical_spelling_preserved","existing":[],"terms":["C++","C#",".NET","@scope/name","get_user_id"],"source":"automatic","expected":[{"term":"C++","source":"automatic"},{"term":"C#","source":"automatic"},{"term":".NET","source":"automatic"},{"term":"@scope/name","source":"automatic"},{"term":"get_user_id","source":"automatic"}]},
+  {"id":"no_intent_filter","existing":[],"terms":["后天","4","茶","this is a new phrase"],"source":"automatic","expected":[{"term":"后天","source":"automatic"},{"term":"4","source":"automatic"},{"term":"茶","source":"automatic"},{"term":"this is a new phrase","source":"automatic"}]}
+]

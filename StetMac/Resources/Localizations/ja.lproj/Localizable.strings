@@ -214,3 +214,6 @@
 "The microphone is off. The transcript will be saved when it is ready." = "マイクはオフです。書き起こしの準備ができ次第保存されます。";
 "Meeting saved" = "会議を保存しました";
 "Meeting failed" = "会議に失敗しました";
+
+"Automatically learned" = "自動学習";
+"Manually added" = "手動で追加";

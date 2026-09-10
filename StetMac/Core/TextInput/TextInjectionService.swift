@@ -51,12 +51,17 @@
         func requestAccessIfNeeded()
         func openAccessibilitySettings()
         func pasteClipboard(into application: NSRunningApplication?) async -> TextInjectionOutcome
+        func stopCorrectionLearning()
         func selectedText() -> String?
         func replaceSelectedText(
             _ text: String,
             into application: NSRunningApplication?,
             keepResultInClipboard: Bool
         ) async -> TextReplacementOutcome
+    }
+
+    extension TextInjectionService {
+        func stopCorrectionLearning() {}
     }
 
     @MainActor
@@ -152,6 +157,8 @@
         private let pasteboard: NSPasteboard
         private let pasteboardRestoreCoordinator: PasteboardRestoreCoordinator
         private var didPromptForMissingAccessThisSession = false
+        private let correctionLearning = MacCorrectionLearningService()
+        private var pasteLearningID = UUID()
         private let logger = Logger(
             subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "TextInjection")
 
@@ -211,7 +218,9 @@
         }
 
         func pasteClipboard(into application: NSRunningApplication?) async -> TextInjectionOutcome {
-            await performPasteClipboard(
+            stopCorrectionLearning()
+            let learningID = pasteLearningID
+            let outcome = await performPasteClipboard(
                 into: application,
                 accessState: accessState,
                 activateApplication: { application in
@@ -221,12 +230,27 @@
                     self?.focusedElementSnapshot()
                 },
                 simulatePasteCommand: { [weak self] in
-                    self?.simulateCommandKey(KeyCode.paste) ?? false
+                    guard let self, self.pasteLearningID == learningID else { return false }
+                    if let text = self.pasteboard.string(forType: .string) {
+                        self.correctionLearning.prepare(inserted: text, application: application)
+                    }
+                    let posted = self.simulateCommandKey(KeyCode.paste)
+                    if posted { self.correctionLearning.start() } else { self.correctionLearning.stop() }
+                    return posted
                 },
                 sleep: { duration in
                     try? await Task.sleep(for: duration)
                 }
             )
+            if pasteLearningID == learningID, Task.isCancelled || outcome == .eventPostFailed {
+                correctionLearning.stop()
+            }
+            return outcome
+        }
+
+        func stopCorrectionLearning() {
+            pasteLearningID = UUID()
+            correctionLearning.stop()
         }
 
         func selectedText() -> String? {
@@ -244,6 +268,7 @@
             into application: NSRunningApplication?,
             keepResultInClipboard: Bool
         ) async -> TextReplacementOutcome {
+            stopCorrectionLearning()
             guard !text.isEmpty else { return .injectionFailed(.verificationFailed) }
 
             if keepResultInClipboard {

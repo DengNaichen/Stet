@@ -247,3 +247,6 @@
 "Speaker labels are Me when your enrolled voice matches a track, Speaker 1–4 for other people, and Unresolved when people talk over each other. Meetings are not rewritten, pasted, or added to History." = "Speaker labels are Me when your enrolled voice matches a track, Speaker 1–4 for other people, and Unresolved when people talk over each other. Meetings are not rewritten, pasted, or added to History.";
 "Recent" = "Recent";
 "Location" = "Location";
+
+"Automatically learned" = "Automatically learned";
+"Manually added" = "Manually added";

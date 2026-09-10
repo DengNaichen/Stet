@@ -24,9 +24,11 @@ private final class DictionaryDefaultsStore: @unchecked Sendable {
 }
 
 public final class SyncedDictionaryStore: @unchecked Sendable {
+    private static let lock = NSRecursiveLock()
     private let defaults: UserDefaults
     private let cloudStore: NSUbiquitousKeyValueStore
     private let entriesKey: String
+    private let provenanceKey: String
     private let notificationCenter: NotificationCenter
     private let changeNotification: Notification.Name
     private let cloudObserver: NSObjectProtocol
@@ -41,21 +43,28 @@ public final class SyncedDictionaryStore: @unchecked Sendable {
         self.defaults = defaults
         self.cloudStore = cloudStore
         self.entriesKey = entriesKey
+        let provenanceKey = entriesKey + ".provenance.v1"
+        self.provenanceKey = provenanceKey
         self.notificationCenter = notificationCenter
         self.changeNotification = changeNotification
         self.cloudObserver = notificationCenter.addObserver(
             forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
             object: cloudStore,
             queue: nil
-        ) { [defaults, cloudStore, entriesKey, notificationCenter, changeNotification] _ in
-            let entries = Self.normalizedEntries(
-                cloudStore.array(forKey: entriesKey) as? [String] ?? []
-            )
-            defaults.set(entries, forKey: entriesKey)
+        ) { [defaults, cloudStore, entriesKey, provenanceKey, notificationCenter, changeNotification] notification in
+            if let keys = notification.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String],
+                !keys.contains(entriesKey), !keys.contains(provenanceKey)
+            {
+                return
+            }
+            Self.lock.lock()
+            let sources = cloudStore.dictionary(forKey: provenanceKey) as? [String: String] ?? [:]
+            let records = Self.decodeRecords(cloudStore.array(forKey: entriesKey) ?? [], sources: sources)
+            defaults.set(records.map(\.term), forKey: entriesKey)
+            defaults.set(sources, forKey: provenanceKey)
+            Self.lock.unlock()
             notificationCenter.post(
-                name: changeNotification,
-                object: nil,
-                userInfo: ["entries": entries]
+                name: changeNotification, object: nil, userInfo: ["entries": records.map(\.term)]
             )
         }
 
@@ -66,32 +75,65 @@ public final class SyncedDictionaryStore: @unchecked Sendable {
         notificationCenter.removeObserver(cloudObserver)
     }
 
-    public func loadEntries() -> [String] {
-        let cloudEntries = Self.normalizedEntries(
-            cloudStore.array(forKey: entriesKey) as? [String] ?? []
-        )
-        if !cloudEntries.isEmpty {
-            defaults.set(cloudEntries, forKey: entriesKey)
-            return cloudEntries
-        }
+    public func loadEntries() -> [String] { loadRecords().map(\.term) }
 
-        return Self.normalizedEntries(defaults.stringArray(forKey: entriesKey) ?? [])
+    public func loadRecords() -> [GlossaryEntry] {
+        Self.lock.lock()
+        defer { Self.lock.unlock() }
+        return readRecords()
+    }
+
+    private func readRecords() -> [GlossaryEntry] {
+        // An explicitly empty cloud array is a synced deletion, not a cache miss.
+        if let cloudEntries = cloudStore.array(forKey: entriesKey) {
+            let sources = cloudStore.dictionary(forKey: provenanceKey) as? [String: String] ?? [:]
+            let records = Self.decodeRecords(cloudEntries, sources: sources)
+            defaults.set(records.map(\.term), forKey: entriesKey)
+            defaults.set(sources, forKey: provenanceKey)
+            return records
+        }
+        return Self.decodeRecords(
+            defaults.array(forKey: entriesKey) ?? [],
+            sources: defaults.dictionary(forKey: provenanceKey) as? [String: String] ?? [:])
     }
 
     public func saveEntries(_ entries: [String]) {
-        let normalizedEntries = Self.normalizedEntries(entries)
-        defaults.set(normalizedEntries, forKey: entriesKey)
-        cloudStore.set(normalizedEntries, forKey: entriesKey)
-        cloudStore.synchronize()
-        notificationCenter.post(
-            name: changeNotification,
-            object: nil,
-            userInfo: ["entries": normalizedEntries]
-        )
+        updateRecords { existing in
+            let sources = Dictionary(uniqueKeysWithValues: existing.map { ($0.term.lowercased(), $0.source) })
+            return DictionaryModel.normalizedEntries(entries).map {
+                GlossaryEntry(term: $0, source: sources[$0.lowercased()] ?? .manual)
+            }
+        }
     }
 
-    private static func normalizedEntries(_ entries: [String]) -> [String] {
-        DictionaryModel.normalizedEntries(entries)
+    @discardableResult
+    func updateRecords(_ update: ([GlossaryEntry]) -> [GlossaryEntry]) -> [GlossaryEntry] {
+        Self.lock.lock()
+        let records = GlossaryEntry.normalized(update(readRecords()))
+        // Keep the original text-array wire format; provenance is an additive sidecar.
+        let sources = Dictionary(uniqueKeysWithValues: records.map { ($0.term, $0.source.rawValue) })
+        defaults.set(records.map(\.term), forKey: entriesKey)
+        defaults.set(sources, forKey: provenanceKey)
+        cloudStore.set(sources, forKey: provenanceKey)
+        cloudStore.set(records.map(\.term), forKey: entriesKey)
+        cloudStore.synchronize()
+        Self.lock.unlock()
+        // Notify outside the lock; a main-queue observer may read from another thread.
+        notificationCenter.post(
+            name: changeNotification, object: nil, userInfo: ["entries": records.map(\.term)]
+        )
+        return records
+    }
+
+    private static func decodeRecords(_ entries: [Any], sources: [String: String]) -> [GlossaryEntry] {
+        GlossaryEntry.normalized(
+            entries.compactMap { value in
+                if let term = value as? String {
+                    return .init(term: term, source: GlossaryEntry.Source(rawValue: sources[term] ?? "") ?? .manual)
+                }
+                guard let record = value as? [String: String], let term = record["term"] else { return nil }
+                return .init(term: term, source: GlossaryEntry.Source(rawValue: record["source"] ?? "") ?? .manual)
+            })
     }
 }
 
@@ -120,6 +162,8 @@ public struct DictionaryModel: Sendable {
         syncedStore.loadEntries()
     }
 
+    public func loadRecords() -> [GlossaryEntry] { syncedStore.loadRecords() }
+
     public func loadIsEnabled() -> Bool {
         defaultsStore.loadIsEnabled(forKey: enabledKey)
     }
@@ -133,18 +177,20 @@ public struct DictionaryModel: Sendable {
     }
 
     public func addEntries(from rawInput: String) -> [String] {
-        let updatedEntries = loadEntries() + Self.words(from: rawInput)
-        saveEntries(updatedEntries)
-        return loadEntries()
+        syncedStore.updateRecords {
+            GlossaryEntry.merging($0, terms: Self.words(from: rawInput), source: .manual)
+        }.map(\.term)
+    }
+
+    @discardableResult
+    public func addAutomaticEntries(_ terms: [String]) -> [GlossaryEntry] {
+        guard loadIsEnabled(), !terms.isEmpty else { return loadRecords() }
+        return syncedStore.updateRecords { GlossaryEntry.merging($0, terms: terms, source: .automatic) }
     }
 
     public func removeEntry(_ entry: String) -> [String] {
-        let normalizedLookupKey = Self.lookupKey(for: entry)
-        let updatedEntries = loadEntries().filter {
-            Self.lookupKey(for: $0) != normalizedLookupKey
-        }
-        saveEntries(updatedEntries)
-        return updatedEntries
+        let key = Self.lookupKey(for: entry)
+        return syncedStore.updateRecords { $0.filter { Self.lookupKey(for: $0.term) != key } }.map(\.term)
     }
 
     public func clear() {
@@ -165,7 +211,7 @@ public struct DictionaryModel: Sendable {
 
         for entry in entries {
             let normalizedEntry =
-                entry
+                entry.precomposedStringWithCanonicalMapping
                 .split(whereSeparator: \.isWhitespace)
                 .joined(separator: " ")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -183,7 +229,7 @@ public struct DictionaryModel: Sendable {
     }
 
     static func lookupKey(for entry: String) -> String {
-        entry
+        entry.precomposedStringWithCanonicalMapping
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
     }
