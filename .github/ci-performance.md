@@ -38,7 +38,7 @@ References: [Apple Xcode 26 release notes](https://developer.apple.com/documenta
 | Skip redundant resolution, changed test source, [34460313988 attempt 1](https://github.com/DengNaichen/Stet/actions/runs/34460313988/attempts/1) | 154 s | 265 s | 521 tests passed; tests: 996 cache-hit and 15 cache-miss diagnostics |
 | Native + manifests fully warm, same commit, attempt 2 | 137 s | 246 s | 521 tests passed |
 
-The clipboard test raced a 100 ms timeout against polling on a loaded runner. It now checks cancellation on the captured task and awaits completion, without changing production behavior. The revised source passed both full-suite runs.
+The first clipboard-test adjustment captured and awaited the cancelled task and passed two runs, but failed again in the final cold run. Increasing the timeout did not establish reliable readiness; those two passes were insufficient evidence of stability.
 
 Native caching leaves substantial build preparation and Swift test macro work even with zero compiler misses. The next experiment caches incremental products with content-checked source timestamps. Changed files retain fresh mtimes; removed/untracked paths and symlinks cannot be restored by cached metadata. The helper is covered by fixture tests, including same-length edits and nanosecond precision. Each CI job still invokes its original build/test command; test results are never used to skip execution.
 
@@ -51,4 +51,12 @@ Incremental archives are approximately 476 MiB (build) / 501 MiB (tests), taking
 
 The changed-source run [34462415559](https://github.com/DengNaichen/Stet/actions/runs/34462415559) passed all checks: build 126 s, tests 298 s, including cache uploads. The test-source edit was recompiled and all 521 tests ran. This is slower than a no-change rerun; do not advertise warm rerun timing as the cost of every code change.
 
-The final v2 namespace intentionally starts empty for a clean-cache benchmark, then an unchanged warm rerun. These final measurements are pending.
+The v2 namespace intentionally started empty in [34463067580](https://github.com/DengNaichen/Stet/actions/runs/34463067580): build passed in 254 s; tests took 504 s and failed on clipboard restoration and pending-result readiness. Package resolution alone took 78 s in the test job. This failed run is not a successful performance result. It retained package/native caches but deliberately did not save incremental test products.
+
+## Flaky-test investigation
+
+Historical runs failed intermittently on `restoreHandlesEmptyClipboardGracefully`, `hotkeyPreservesNewerClipboardAndCancelsOldTimeout`, and `listeningToProcessingTransitionDefersResumeUntilConfiguredDelayElapses`. Tests assumed that a short real sleep or a brief polling window established asynchronous completion. A busy runner can start or resume the production task later than the test expects.
+
+The fix injects controllable sleep functions into clipboard restore, pending-result dismissal and media resume, keeping their existing real-time defaults in the app. Tests await sleep registration, advance a virtual clock and await the actual task. Cancellation assertions also await completion. All related pending-result timeout tests use the same approach. The hotkey action test starts from an already-copied pending result; separate tests retain coverage of the failed-paste fallback pipeline. Its fixture uses a private pasteboard.
+
+The clock has regression tests for deadline ordering and cancellation before/after registration. A standalone harness passed 1,000 repetitions of each of these three cases. Final repeated app-suite and hosted CI results are pending.

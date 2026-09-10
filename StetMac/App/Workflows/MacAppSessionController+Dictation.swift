@@ -197,7 +197,7 @@
             clipboardPendingDismissTask?.cancel()
             clipboardPendingDismissTask = Task { @MainActor [weak self] in
                 guard let self else { return }
-                try? await Task.sleep(for: clipboardPendingAutoDismissDelay)
+                try? await clipboardPendingAutoDismissSleep(clipboardPendingAutoDismissDelay)
                 guard !Task.isCancelled else { return }
                 guard case .clipboardPending(let text) = dictationState else { return }
                 clipboardPendingDismissTask = nil
