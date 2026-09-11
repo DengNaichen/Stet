@@ -25,7 +25,9 @@
         private let mediaResumeSleep: @Sendable (Duration) async throws -> Void
         private let startPromptActivationDeadline: Duration
 
-        private weak var lastTargetApplication: NSRunningApplication?
+        private var lastTargetApplication: NSRunningApplication?
+        private var lastTargetBundleID: String?
+        private var lastTargetAppName: String?
         private(set) var activeRecordingSource: PrimaryActionSource?
         private(set) var mediaResumeTask: Task<Void, Never>?
         private var startActivationTask: Task<Void, Never>?
@@ -211,7 +213,12 @@
             if let duration = pendingSessionDuration {
                 let wordCount = Self.countWords(in: text)
                 statsModel?.record(
-                    startedAt: Date().addingTimeInterval(-duration), durationSeconds: duration, wordCount: wordCount)
+                    startedAt: Date().addingTimeInterval(-duration),
+                    durationSeconds: duration,
+                    wordCount: wordCount,
+                    targetBundleID: lastTargetBundleID,
+                    targetAppName: lastTargetAppName
+                )
 
                 AnalyticsService.track(
                     "dictation_completed",
@@ -256,8 +263,8 @@
         func finalizePendingResultHistory(_ text: String) {
             DictationHistoryService.shared.updateFinal(
                 text,
-                targetBundleID: lastTargetApplication?.bundleIdentifier,
-                targetAppName: lastTargetApplication?.localizedName,
+                targetBundleID: lastTargetBundleID,
+                targetAppName: lastTargetAppName,
                 status: .clipboardPending
             )
         }
@@ -271,6 +278,8 @@
             }
 
             lastTargetApplication = frontmostApplication
+            lastTargetBundleID = frontmostApplication.bundleIdentifier
+            lastTargetAppName = frontmostApplication.localizedName
         }
 
         private var settingsSnapshot: DictationSettingsSnapshot {
