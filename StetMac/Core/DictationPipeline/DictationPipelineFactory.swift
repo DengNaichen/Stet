@@ -11,11 +11,13 @@ struct DictationPipeline: Sendable {
     let rewriteProvider: DictationProvider?
     let preferredSpellings: [String]
     let usesAudienceAwareLocalPrompts: Bool
+    let recordsNoHotwordTranscript: Bool
 }
 
 struct DictationPipelineFactory: Sendable {
     var makeLocalTranscriptionService: @Sendable () throws -> any AudioFileTranscriptionService
     var makeRewriteService: @Sendable (RewriteProviderConfiguration, URLSession) -> any TextRewriteService
+    var recordsNoHotwordTranscript: Bool?
 
     init(
         makeLocalTranscriptionService: @escaping @Sendable () throws -> any AudioFileTranscriptionService,
@@ -23,10 +25,12 @@ struct DictationPipelineFactory: Sendable {
             @escaping @Sendable (
                 RewriteProviderConfiguration,
                 URLSession
-            ) -> any TextRewriteService
+            ) -> any TextRewriteService,
+        recordsNoHotwordTranscript: Bool? = false
     ) {
         self.makeLocalTranscriptionService = makeLocalTranscriptionService
         self.makeRewriteService = makeRewriteService
+        self.recordsNoHotwordTranscript = recordsNoHotwordTranscript
     }
 
     static func live(configuration: any ModelStorageConfiguration = UserDefaultsModelStorage()) -> Self {
@@ -49,7 +53,8 @@ struct DictationPipelineFactory: Sendable {
                 case .remote:
                     return OpenAIRewriteService(configuration: configuration, session: session)
                 }
-            }
+            },
+            recordsNoHotwordTranscript: nil
         )
     }
 
@@ -75,7 +80,14 @@ struct DictationPipelineFactory: Sendable {
 
             transcriptionLanguageCode = snapshot.transcriptionPrimaryLanguage
             preferredSpellings = direct.preferredSpellings
-            promptProvider = Self.makePromptProvider(preferredSpellings: preferredSpellings)
+            let records =
+                snapshot.personalDictionaryRecords.isEmpty
+                ? FunASRNanoHotwordPrompt.records(from: preferredSpellings)
+                : snapshot.personalDictionaryRecords
+            promptProvider = Self.makePromptProvider(
+                records: records,
+                engine: snapshot.transcriptionEngine
+            )
             usesAudienceAwareLocalPrompts = true
 
             if direct.rewriteEnabled, let rewriteConfiguration = direct.rewriteConfiguration {
@@ -94,7 +106,9 @@ struct DictationPipelineFactory: Sendable {
             rewriteService: rewriteService,
             rewriteProvider: rewriteProvider,
             preferredSpellings: preferredSpellings,
-            usesAudienceAwareLocalPrompts: usesAudienceAwareLocalPrompts
+            usesAudienceAwareLocalPrompts: usesAudienceAwareLocalPrompts,
+            recordsNoHotwordTranscript: recordsNoHotwordTranscript
+                ?? (snapshot.transcriptionEngine == .funASRNano)
         )
     }
 
@@ -108,14 +122,30 @@ struct DictationPipelineFactory: Sendable {
     nonisolated static func makeTranscriptionPrompt(
         preferredSpellings: [String]
     ) -> String? {
-        guard !preferredSpellings.isEmpty else { return nil }
-        return preferredSpellings.joined(separator: ", ")
+        makeTranscriptionPrompt(
+            records: FunASRNanoHotwordPrompt.records(from: preferredSpellings),
+            engine: .fluidAudio
+        )
+    }
+
+    nonisolated static func makeTranscriptionPrompt(
+        records: [GlossaryEntry],
+        engine: StoredTranscriptionEngine
+    ) -> String? {
+        switch engine {
+        case .funASRNano:
+            return FunASRNanoHotwordPrompt.makePrompt(from: records)
+        case .fluidAudio, .localWhisper:
+            guard !records.isEmpty else { return nil }
+            return records.map(\.term).joined(separator: ", ")
+        }
     }
 
     private nonisolated static func makePromptProvider(
-        preferredSpellings: [String]
+        records: [GlossaryEntry],
+        engine: StoredTranscriptionEngine
     ) -> (@Sendable () async -> String?)? {
-        guard let prompt = makeTranscriptionPrompt(preferredSpellings: preferredSpellings) else {
+        guard let prompt = makeTranscriptionPrompt(records: records, engine: engine) else {
             return nil
         }
 

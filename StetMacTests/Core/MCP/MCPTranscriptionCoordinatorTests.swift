@@ -233,6 +233,7 @@ private func makeMCPSnapshot(
                 apiKey: "sk-test"
             ) : nil,
         personalDictionary: personalDictionary,
+        personalDictionaryRecords: personalDictionary.map { GlossaryEntry(term: $0, source: .manual) },
         interactionSoundsEnabled: true,
         dictationCompletionNotificationsEnabled: true,
         interactionSoundPreset: .soft,

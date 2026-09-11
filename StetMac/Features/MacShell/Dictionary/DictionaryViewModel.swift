@@ -16,6 +16,34 @@
             records.first { $0.term == term }?.source ?? .manual
         }
         @Published var draft = ""
+        @Published var importAlert: ImportAlert?
+
+        enum ImportAlert: Equatable, Identifiable {
+            case success(added: Int, skipped: Int)
+            case failure(String)
+
+            var id: String {
+                switch self {
+                case .success(let added, let skipped):
+                    return "success-\(added)-\(skipped)"
+                case .failure(let message):
+                    return "failure-\(message)"
+                }
+            }
+
+            var title: String { "Import Dictionary" }
+
+            var message: String {
+                switch self {
+                case .success(let added, let skipped) where skipped == 0:
+                    return added == 1 ? "Added 1 term." : "Added \(added) terms."
+                case .success(let added, let skipped):
+                    return "Added \(added), skipped \(skipped) duplicate\(skipped == 1 ? "" : "s")."
+                case .failure(let message):
+                    return message
+                }
+            }
+        }
 
         init(dictionaryModel: DictionaryModel = DictionaryModel()) {
             self.dictionaryModel = dictionaryModel
@@ -81,6 +109,26 @@
         func clearEntries() {
             dictionaryModel.clear()
             records = []
+        }
+
+        func importEntries(from url: URL) {
+            let accessed = url.startAccessingSecurityScopedResource()
+            defer {
+                if accessed {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+            do {
+                let data = try Data(contentsOf: url)
+                let text = try DictionaryModel.importText(from: data)
+                let result = try dictionaryModel.importEntries(from: text)
+                records = dictionaryModel.loadRecords()
+                importAlert = .success(added: result.addedCount, skipped: result.skippedCount)
+            } catch let error as DictionaryImportError {
+                importAlert = .failure(error.localizedDescription ?? "Stet could not import that file.")
+            } catch {
+                importAlert = .failure(error.localizedDescription)
+            }
         }
     }
 #endif

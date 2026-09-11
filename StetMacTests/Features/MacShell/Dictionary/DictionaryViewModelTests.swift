@@ -105,5 +105,19 @@
             #expect(subject.model.loadEntries().isEmpty)
             #expect(subject.model.loadIsEnabled() == false)
         }
+
+        @Test func importFromTextFileMergesAndReportsCounts() throws {
+            let subject = makeViewModel(defaults: TestSupport.makeUserDefaults())
+            defer { subject.model.clear() }
+            subject.model.addAutomaticEntries(["python"])
+            subject.viewModel.load()
+            let url = TestSupport.temporaryFileURL("glossary", ext: "txt")
+            try Data("Python, Stet\nCursor\n".utf8).write(to: url)
+            subject.viewModel.importEntries(from: url)
+            #expect(subject.viewModel.entries == ["python", "Stet", "Cursor"])
+            #expect(subject.viewModel.source(for: "python") == .automatic)
+            #expect(subject.viewModel.source(for: "Stet") == .manual)
+            #expect(subject.viewModel.importAlert == .success(added: 2, skipped: 1))
+        }
     }
 #endif

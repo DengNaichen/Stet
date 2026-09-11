@@ -494,6 +494,8 @@ private final class HistoryRecordingSpy: DictationHistoryRecording {
         llmTexts.append(text)
     }
 
+    func recordRawWithoutHotwords(_ text: String) {}
+
     func commitPending() -> UUID? {
         commitCount += 1
         return UUID()
