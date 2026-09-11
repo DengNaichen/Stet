@@ -79,7 +79,7 @@ material background. The approved native lab settings are:
 | Horizontal reach | 60.15538985143712 pt |
 | Final drop | 12.6339011004039 pt |
 | Bend | 11.88852372917651 pt |
-| Duration | 0.55 s, smoothstep easing |
+| Duration | 0.3 s, smoothstep easing |
 | Glass fusion spacing | 11.56007428520794 pt |
 | Selected lab preview progress | 0.8643167688116247 |
 

@@ -5,7 +5,7 @@
         static let buttonDiameter = 28.0
         static let hitDiameter = 44.0
         static let glassSpacing = 11.56007428520794
-        static let revealDuration = 0.55
+        static let revealDuration = 0.3
 
         // The selected native-lab pose becomes the fully interactive product endpoint.
         private static let selectedProgress = 0.8643167688116247
