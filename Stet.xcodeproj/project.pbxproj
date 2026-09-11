@@ -23,6 +23,7 @@
 		E5E0E5E0E5E0E5E0E5E00009 /* StetASR in Frameworks */ = {isa = PBXBuildFile; productRef = E5E0E5E0E5E0E5E0E5E00008 /* StetASR */; };
 		F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; };
 		F1A0B001000000000000000E /* StetVisuals.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A2C0DE010000000000000001 /* HeatmapKit in Frameworks */ = {isa = PBXBuildFile; productRef = A2C0DE010000000000000002 /* HeatmapKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -126,6 +127,7 @@
 				E5E0E5E0E5E0E5E0E5E00006 /* StetAI in Frameworks */,
 				E5E0E5E0E5E0E5E0E5E00007 /* StetRewrite in Frameworks */,
 				E5E0E5E0E5E0E5E0E5E00009 /* StetASR in Frameworks */,
+				A2C0DE010000000000000001 /* HeatmapKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -222,6 +224,7 @@
 				E5E0E5E0E5E0E5E0E5E00003 /* StetAI */,
 				E5E0E5E0E5E0E5E0E5E00004 /* StetRewrite */,
 				E5E0E5E0E5E0E5E0E5E00008 /* StetASR */,
+				A2C0DE010000000000000002 /* HeatmapKit */,
 			);
 			productName = Stet;
 			productReference = 6D29DC7D2F5FA23000267DEA /* Stet.app */;
@@ -344,6 +347,7 @@
 				6DCB53132F6DB36500358FE5 /* XCRemoteSwiftPackageReference "FluidAudio" */,
 				6DC0CD012F9DD8BE00696D0F /* XCRemoteSwiftPackageReference "SwiftSDK" */,
 				E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */,
+				A2C0DE010000000000000003 /* XCRemoteSwiftPackageReference "HeatmapKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6D29DC7E2F5FA23000267DEA /* Products */;
@@ -988,6 +992,14 @@
 				minimumVersion = 0.4.7;
 			};
 		};
+		A2C0DE010000000000000003 /* XCRemoteSwiftPackageReference "HeatmapKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jacklv-coder/HeatmapKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.5.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1060,6 +1072,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */;
 			productName = StetASR;
+		};
+		A2C0DE010000000000000002 /* HeatmapKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A2C0DE010000000000000003 /* XCRemoteSwiftPackageReference "HeatmapKit" */;
+			productName = HeatmapKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -1,5 +1,5 @@
 {
-  "originHash" : "f3634ee1797f717cd3f44163aff8cb3ba539c6789100d2a4d3ddae7402a2da1d",
+  "originHash" : "a3bb550a1c6b13ada312fc107a4476ed31d0514b0a24b71d4014dd5cfd0da97a",
   "pins" : [
     {
       "identity" : "eventsource",
@@ -17,6 +17,15 @@
       "state" : {
         "branch" : "main",
         "revision" : "0346057d8245b5e7ace6965d499f85d93e803ef1"
+      }
+    },
+    {
+      "identity" : "heatmapkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jacklv-coder/HeatmapKit",
+      "state" : {
+        "revision" : "7494afca307d45acfcbab9bbc45e5bd4915cdd31",
+        "version" : "0.5.1"
       }
     },
     {

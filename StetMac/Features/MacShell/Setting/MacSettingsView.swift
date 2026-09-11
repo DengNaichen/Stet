@@ -27,6 +27,7 @@
     }
 
     private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
+        case overview
         case general
         case appearance
         case dictation
@@ -56,7 +57,7 @@
             switch self {
             case .general, .dictation, .microphone, .transcription, .voice, .meetings, .openAI, .dictionary:
                 return MacUI.SettingsViewMetrics.groupedFormTitleHorizontalPadding
-            case .appearance, .history:
+            case .overview, .appearance, .history:
                 return MacUI.SettingsViewMetrics.detailHorizontalPadding
             #if DEBUG
                 case .shaderDebug:
@@ -67,7 +68,7 @@
 
         var section: MacSettingsSection {
             switch self {
-            case .general, .appearance:
+            case .overview, .general, .appearance:
                 return .app
             case .dictation, .microphone, .transcription:
                 return .dictation
@@ -86,6 +87,8 @@
 
         var title: String {
             switch self {
+            case .overview:
+                return "Overview"
             case .general:
                 return "General"
             case .appearance:
@@ -119,7 +122,7 @@
 
         @StateObject private var dictionaryViewModel = DictionaryViewModel()
         @StateObject private var openAISettingsViewModel = MacOpenAISettingsViewModel()
-        @State private var selectedTab: MacSettingsTab = .general
+        @State private var selectedTab: MacSettingsTab = .overview
         @State private var titleScrollStore = MacSettingsTitleScrollStore()
 
         var body: some View {
@@ -254,6 +257,8 @@
         @ViewBuilder
         private func selectedContent(for tab: MacSettingsTab) -> some View {
             switch tab {
+            case .overview:
+                MacOverviewSettingsView()
             case .general:
                 MacGeneralSettingsView()
             case .appearance:
@@ -290,7 +295,7 @@
             if visibleTabs.contains(selectedTab) {
                 return selectedTab
             }
-            return visibleTabs.first ?? .general
+            return visibleTabs.first ?? .overview
         }
 
         private func reloadStateFromPreferences() {
@@ -302,7 +307,7 @@
             if visibleTabs.contains(selectedTab) {
                 return
             }
-            selectedTab = visibleTabs.first ?? .general
+            selectedTab = visibleTabs.first ?? .overview
         }
     }
 #endif
