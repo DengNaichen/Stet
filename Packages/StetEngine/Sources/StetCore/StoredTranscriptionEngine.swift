@@ -1,15 +1,16 @@
 import Foundation
 
+/// On-device engines the user can select. Retired raw values such as
+/// `localWhisper` and `sherpaOnnxSenseVoice` are not cases; loaders persist
+/// `.default` instead.
 public enum StoredTranscriptionEngine: String, CaseIterable, Sendable {
-    case fluidAudio
     case funASRNano
-    case localWhisper
+    case fluidAudio
 
     public var displayName: String {
         switch self {
-        case .fluidAudio: return "Parakeet V3"
         case .funASRNano: return "Fun-ASR Nano"
-        case .localWhisper: return "Whisper"
+        case .fluidAudio: return "Parakeet V3"
         }
     }
 

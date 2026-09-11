@@ -1,6 +1,7 @@
 #if os(macOS)
     @preconcurrency import FluidAudio
     import Foundation
+    import StetCore
 
     nonisolated enum PassiveVoiceActivityEvent: Equatable, Sendable {
         case speechStarted(sampleIndex: Int)
@@ -72,6 +73,7 @@
             speechEndSilence: TimeInterval = 1.0,
             sortformerConfig: SortformerConfig = .default
         ) async throws -> FluidAudioPassiveSpeechAnalyzer {
+            FluidAudioModelManager.configureDownloadRegistry()
             let vadManager = try await VadManager(
                 config: VadConfig(defaultThreshold: vadProbabilityThreshold)
             )

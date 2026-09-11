@@ -1,5 +1,6 @@
 import FluidAudio
 import Foundation
+import StetCore
 
 /// Manages the NVIDIA Parakeet V3 multilingual model via the FluidAudio SPM
 /// package. Scope is intentionally narrow: a single hardcoded version (`v3`),
@@ -11,12 +12,19 @@ struct FluidAudioModelManager: Sendable {
 
     nonisolated init() {}
 
+    nonisolated static func configureDownloadRegistry() {
+        if ModelDownloadMirror.prefersChinaMirrors() {
+            ModelRegistry.baseURL = "https://\(ModelDownloadMirror.huggingFaceChinaOrigin)"
+        }
+    }
+
     nonisolated func isModelDownloaded() -> Bool {
         let cacheDirectory = AsrModels.defaultCacheDirectory(for: Self.version)
         return AsrModels.modelsExist(at: cacheDirectory, version: Self.version)
     }
 
     func downloadModel() async throws {
+        Self.configureDownloadRegistry()
         _ = try await AsrModels.downloadAndLoad(version: Self.version)
     }
 

@@ -332,7 +332,15 @@ struct LocalWhisperModelManager: Sendable {
         _ url: URL,
         progressSink: LocalWhisperDownloadProgressSink
     ) async throws -> URL {
-        try await downloadFile(from: url, progressSink: progressSink)
+        var lastError: Error = LocalWhisperError.downloadFailed(url)
+        for candidate in ModelDownloadMirror.candidates(for: url) {
+            do {
+                return try await downloadFile(from: candidate, progressSink: progressSink)
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError
     }
 }
 
@@ -368,6 +376,7 @@ private final class ProgressReportingDownloadCoordinator: NSObject, URLSessionDo
             self.continuation = continuation
 
             let configuration = URLSessionConfiguration.default
+            configuration.timeoutIntervalForRequest = 30
             let session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
             self.session = session
 
@@ -401,6 +410,18 @@ private final class ProgressReportingDownloadCoordinator: NSObject, URLSessionDo
         downloadTask: URLSessionDownloadTask,
         didFinishDownloadingTo location: URL
     ) {
+        if let httpResponse = downloadTask.response as? HTTPURLResponse,
+            !(200...299).contains(httpResponse.statusCode)
+        {
+            resumeIfNeeded(
+                with: LocalWhisperError.invalidDownloadResponse(
+                    requestURL,
+                    statusCode: httpResponse.statusCode
+                )
+            )
+            return
+        }
+
         do {
             let fileManager = FileManager.default
             if fileManager.fileExists(atPath: stagedDownloadURL.path) {

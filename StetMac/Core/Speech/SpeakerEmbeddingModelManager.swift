@@ -4,6 +4,7 @@
     import FluidAudio
     import Foundation
     import StetASR
+    import StetCore
 
     struct SpeakerEnrollmentEmbedding: Sendable {
         let model: SpeakerEmbeddingModelIdentity
@@ -29,9 +30,13 @@
 
     actor SpeakerEmbeddingModelManager {
         private static let modelFileName = "3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx"
-        private static let modelDownloadURL = URL(
+        private static let githubModelDownloadURL = URL(
             string:
                 "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/\(modelFileName)"
+        )!
+        private static let huggingFaceModelDownloadURL = URL(
+            string:
+                "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/\(modelFileName)"
         )!
 
         private var loadedRecognizer: SpeakerEmbeddingRecognizer?
@@ -78,18 +83,34 @@
             }
 
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let (temporaryURL, response) = try await URLSession.shared.download(from: modelDownloadURL)
-            guard let response = response as? HTTPURLResponse, (200...299).contains(response.statusCode) else {
-                try? FileManager.default.removeItem(at: temporaryURL)
-                throw SpeakerEmbeddingModelManagerError.modelDownloadFailed
+            var lastError: Error = SpeakerEmbeddingModelManagerError.modelDownloadFailed
+            let downloadURLs = ModelDownloadMirror.candidates(
+                huggingFace: huggingFaceModelDownloadURL,
+                github: githubModelDownloadURL
+            )
+            for url in downloadURLs {
+                do {
+                    let (temporaryURL, response) = try await ModelDownloadMirror.urlSession.download(from: url)
+                    guard let response = response as? HTTPURLResponse,
+                        (200...299).contains(response.statusCode)
+                    else {
+                        try? FileManager.default.removeItem(at: temporaryURL)
+                        lastError = SpeakerEmbeddingModelManagerError.modelDownloadFailed
+                        continue
+                    }
+                    do {
+                        try FileManager.default.moveItem(at: temporaryURL, to: destination)
+                    } catch {
+                        try? FileManager.default.removeItem(at: temporaryURL)
+                        lastError = error
+                        continue
+                    }
+                    return destination
+                } catch {
+                    lastError = error
+                }
             }
-            do {
-                try FileManager.default.moveItem(at: temporaryURL, to: destination)
-            } catch {
-                try? FileManager.default.removeItem(at: temporaryURL)
-                throw error
-            }
-            return destination
+            throw lastError
         }
     }
 

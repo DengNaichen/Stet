@@ -13,7 +13,7 @@
         nonisolated var errorDescription: String? {
             switch self {
             case .modelNotDownloaded:
-                return "Parakeet model is not downloaded. Open Settings → Local Whisper → Download to install it."
+                return "Parakeet model is not downloaded. Open Settings → Local Transcription and download it."
             case .audioPreparationFailed:
                 return "Stet could not prepare audio for Parakeet transcription."
             case .transcriptionFailed(let message):

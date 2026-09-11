@@ -73,10 +73,7 @@ struct DictationPipelineFactory: Sendable {
         case .direct(let direct):
             transcriptionService = try makeLocalTranscriptionService()
 
-            transcriptionLanguageCode =
-                snapshot.transcriptionEngine == .localWhisper
-                ? nil
-                : snapshot.transcriptionPrimaryLanguage
+            transcriptionLanguageCode = snapshot.transcriptionPrimaryLanguage
             preferredSpellings = direct.preferredSpellings
             promptProvider = Self.makePromptProvider(preferredSpellings: preferredSpellings)
             usesAudienceAwareLocalPrompts = true
