@@ -453,6 +453,22 @@ struct LogicPrimitiveTests {
         #expect(pipeline.preferredSpellings == terms)
         #expect(pipeline.recordsNoHotwordTranscript == false)
     }
+
+    @Test func makePipelineRecordsNoHotwordTranscriptForFunASRNanoWhenUnspecified() async throws {
+        let factory = DictationPipelineFactory(
+            makeLocalTranscriptionService: { RecordingTranscriptionService(result: "direct") },
+            makeRewriteService: { _, _ in RecordingRewriteService() },
+            recordsNoHotwordTranscript: nil
+        )
+
+        let nano = try await factory.makePipeline(from: makeSnapshot(transcriptionEngine: .funASRNano))
+        let parakeet = try await factory.makePipeline(from: makeSnapshot(transcriptionEngine: .fluidAudio))
+        let whisper = try await factory.makePipeline(from: makeSnapshot(transcriptionEngine: .localWhisper))
+
+        #expect(nano.recordsNoHotwordTranscript)
+        #expect(parakeet.recordsNoHotwordTranscript == false)
+        #expect(whisper.recordsNoHotwordTranscript == false)
+    }
 }
 
 // MARK: - Local transcription engine routing

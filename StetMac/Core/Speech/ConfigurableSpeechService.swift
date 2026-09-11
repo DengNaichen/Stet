@@ -429,6 +429,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
             if pipeline.recordsNoHotwordTranscript {
                 cleanupURLs.remove(processedCaptureResult.url)
+                logger.info("Starting background no-hotword transcription.")
                 startNoHotwordPass(
                     audioURL: processedCaptureResult.url,
                     languageCode: pipeline.transcriptionLanguageCode,

@@ -26,7 +26,7 @@ struct DictationPipelineFactory: Sendable {
                 RewriteProviderConfiguration,
                 URLSession
             ) -> any TextRewriteService,
-        recordsNoHotwordTranscript: Bool? = nil
+        recordsNoHotwordTranscript: Bool? = false
     ) {
         self.makeLocalTranscriptionService = makeLocalTranscriptionService
         self.makeRewriteService = makeRewriteService
@@ -53,7 +53,8 @@ struct DictationPipelineFactory: Sendable {
                 case .remote:
                     return OpenAIRewriteService(configuration: configuration, session: session)
                 }
-            }
+            },
+            recordsNoHotwordTranscript: nil
         )
     }
 
@@ -110,7 +111,7 @@ struct DictationPipelineFactory: Sendable {
             preferredSpellings: preferredSpellings,
             usesAudienceAwareLocalPrompts: usesAudienceAwareLocalPrompts,
             recordsNoHotwordTranscript: recordsNoHotwordTranscript
-                ?? Self.usesFunASRNano(transcriptionService)
+                ?? (snapshot.transcriptionEngine == .funASRNano)
         )
     }
 
@@ -152,13 +153,5 @@ struct DictationPipelineFactory: Sendable {
         }
 
         return { prompt }
-    }
-
-    nonisolated static func usesFunASRNano(_ service: any AudioFileTranscriptionService) -> Bool {
-        #if os(macOS)
-            return service is FunASRNanoTranscriptionService
-        #else
-            return false
-        #endif
     }
 }
