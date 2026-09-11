@@ -65,9 +65,11 @@ mapping, capture gain, or recognition behavior is introduced.
 ## Native button arrangement
 
 Each glass button is 28 pt, its circular target is 44 pt, and its symbol is 12 pt.
-While the main orb shrinks 64 → 44 pt, both buttons and their symbols shrink by the
-same continuous ratio: buttons reach 19.25 pt and symbols 8.25 pt. The surrounding
-padding grows to preserve each 44 pt hit target throughout the transition.
+While the main orb shrinks 64 → 44 pt, the whole arrangement contracts around its
+center by the same continuous ratio: buttons reach 19.25 pt, symbols 8.25 pt, and
+both the horizontal and vertical button offsets scale to 68.75% of the listening
+pose. Glass fusion spacing follows that same ratio. The surrounding padding grows
+to preserve each 44 pt hit target throughout the transition.
 On macOS 26 use a shared Liquid Glass container; older supported systems use a
 material background. The approved native lab settings are:
 

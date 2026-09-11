@@ -70,7 +70,7 @@
             ) { context in
                 let progress = presentation.progress(at: context.date)
                 ZStack {
-                    MacDictationGlassContainer(spacing: MacWatercolorOrbLayout.glassSpacing) {
+                    MacDictationGlassContainer(spacing: MacWatercolorOrbLayout.glassSpacing * motion.frame.scale) {
                         ZStack {
                             glassButton("xmark", label: "Cancel dictation", id: "cancel", side: -1, progress: progress)
                             {
@@ -148,7 +148,7 @@
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .offset(x: point.x, y: point.y)
+            .offset(x: point.x * motion.frame.scale, y: point.y * motion.frame.scale)
             .allowsHitTesting(motion.isVisible && progress > 0.98)
             .accessibilityHidden(!motion.isVisible || progress <= 0.98)
             .accessibilityLabel(label)
