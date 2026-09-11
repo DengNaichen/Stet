@@ -1,5 +1,19 @@
 # macOS CI performance
 
+## Current routing — September 11, 2026
+
+The workflow now selects jobs by changed paths; see [CI scope](README.md#change-based-ci-scope).
+Compatibility-list and documentation changes use Linux checks without starting
+macOS runners. App changes run the existing full `make test` command, which builds
+the app; the duplicate standalone Debug build is removed. Existing test cache
+keys and test execution remain intact. PR and post-merge integration checks are
+both retained, using the same path routing.
+
+The measurements below describe the previous all-files, two-job build/test
+workflow. They are historical cache evidence, not measurements of this routing
+change. Do not infer a new wall-clock speedup from the removed job: jobs previously
+ran in parallel, and runner allocation and cache state still affect elapsed time.
+
 ## Baseline — September 10, 2026
 
 Baseline: [PR #56 run 34456673443](https://github.com/DengNaichen/Stet/actions/runs/34456673443), commit `b5b84c05fdfae7e35e358023c5f058a02adfddab`, macos-26 ARM64, Xcode 26.6 (17F113). Job elapsed times include cache/setup/cleanup when present; phase measurements use timestamped logs.
