@@ -136,33 +136,6 @@ struct MacDictationPanelViewModelTests {
         #expect(appModel.performPrimaryActionCallCount == 1)
     }
 
-    @Test func capsuleScaleTracksListeningLevelAndResetsOutsideCapture() async {
-        let appModel = StubPanelModel(
-            dictationState: .listening,
-            statusText: "Listening...",
-            recordingLevel: 0.0
-        )
-        let viewModel = MacDictationPanelViewModel(appModel: appModel)
-
-        #expect(abs(viewModel.capsuleScale - 0.98) < 0.001)
-
-        appModel.recordingLevel = 1.0
-        appModel.emitUpdate()
-
-        #expect(
-            await TestSupport.eventually {
-                abs(viewModel.capsuleScale - 1.08) < 0.001
-            })
-
-        appModel.dictationState = .processing
-        appModel.emitUpdate()
-
-        #expect(
-            await TestSupport.eventually {
-                abs(viewModel.capsuleScale - 1.0) < 0.001
-            })
-    }
-
     @Test func displayStateShowsListeningWhenStartingCaptureIsAlreadyLive() async {
         let appModel = StubPanelModel(
             dictationState: .starting,

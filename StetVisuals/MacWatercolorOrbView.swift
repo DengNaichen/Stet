@@ -41,8 +41,8 @@
                 }
             }
             .frame(width: 64, height: 64)
-            // Scaling the complete paint preserves the approved granule size during Thinking.
-            .scaleEffect(frame.scale)
+            // Scale the complete paint for voice response and the Thinking transition.
+            .scaleEffect(frame.orbScale)
             .allowsHitTesting(false)
         }
 
@@ -84,7 +84,7 @@
                             .disabled(model.state == .processing)
 
                             Color.clear
-                                .frame(width: motion.frame.diameter, height: motion.frame.diameter)
+                                .frame(width: motion.frame.orbDiameter, height: motion.frame.orbDiameter)
                                 .stetGlassEffect(in: Circle())
                                 .stetGlassID("main", in: glassNamespace)
                                 .allowsHitTesting(false)

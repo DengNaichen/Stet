@@ -6,6 +6,44 @@
 
     @Suite("Watercolor Orb Motion")
     struct MacWatercolorOrbMotionTests {
+        @Test func voiceScalesTheWholeOrbWithTheLegacyCurveButKeepsButtonsStable() {
+            var motion = MacWatercolorOrbMotion()
+            motion.setState(.starting)
+            advance(&motion, seconds: 3, level: 0)
+            #expect(abs(motion.frame.orbScale - 0.98) < 0.001)
+
+            motion.setState(.listening)
+            advance(&motion, seconds: 1, level: 0.08)
+            #expect(abs(motion.frame.orbScale - (0.98 + pow(0.08, 0.4) * 0.1)) < 0.001)
+            advance(&motion, seconds: 1, level: 1)
+            #expect(abs(motion.frame.orbDiameter - 69.12) < 0.001)
+            #expect(motion.frame.buttonDiameter == 28)
+            #expect(motion.frame.scale == 1)
+            #expect(motion.frame.orbDiameter < 106)
+
+            let loud = motion.frame.orbScale
+            motion.advance(by: 0.025, level: 0)
+            #expect(motion.frame.orbScale < loud && motion.frame.orbScale > 1.06)
+            advance(&motion, seconds: 3, level: 0)
+            #expect(abs(motion.frame.orbScale - 0.98) < 0.001)
+        }
+
+        @Test func voiceScaleStaysBoundedAndStopsForReducedMotion() {
+            var motion = MacWatercolorOrbMotion()
+            motion.setState(.listening)
+            for level in [2.0, -1.0, .nan, .infinity, 0.5] {
+                advance(&motion, seconds: 1, level: level)
+                #expect(motion.frame.orbScale.isFinite)
+                #expect((0.98...1.08).contains(motion.frame.orbScale))
+            }
+            motion.setState(.listening, reduceMotion: true)
+            #expect(motion.frame.orbScale == 1)
+            advance(&motion, seconds: 1, level: 1)
+            #expect(motion.frame.orbScale == 1)
+            motion.setState(.processing, reduceMotion: true)
+            #expect(motion.frame.orbDiameter == 44)
+        }
+
         @Test func microphoneMappingMatchesBrowserWithoutChangingManualLevel() {
             let background = MacDictationCapsuleVisualSignals(
                 bands: [], estimatedSummary: .init(level: 0.45, flowX: 0, flowY: 0, groupedBands: .zero),
@@ -75,6 +113,7 @@
             #expect(quiet.frame.phase > entry)
             #expect(quiet.frame.anchor == entry)
             #expect(abs(quiet.frame.diameter - 44) < 0.001)
+            #expect(abs(quiet.frame.orbDiameter - 44) < 0.001)
             #expect(abs(quiet.frame.motion - 0.4) < 0.001)
             #expect(quiet.frame.idleWave.x == 0)
         }
@@ -94,6 +133,7 @@
             motion.setState(.processing)
             #expect(motion.frame.phase == entry.phase)
             #expect(motion.frame.diameter == entry.diameter)
+            #expect(motion.frame.orbDiameter == entry.orbDiameter)
             motion.advance(by: 0.025, level: 0)
             #expect(motion.frame.diameter > 44 && motion.frame.diameter < 64)
 

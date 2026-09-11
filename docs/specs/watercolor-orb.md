@@ -38,7 +38,11 @@ approved browser colors rather than going through this derived palette mapping.
 - **Starting / listening:** 64 pt. Normalized audio level drives the
   approved response: energy attack 55 ms / release 320 ms; pigment tone attack
   120 ms / release 580 ms; velocity follows `1.25 × (1 + 4 × energy)` over 240 ms.
-  The orb and buttons do not scale with microphone volume.
+  The whole orb (paint and its glass backing) scales with microphone volume using
+  the former capsule curve, `0.98 + 0.10 × level^0.4`: approximately 62.72–69.12 pt.
+  Scale follows the input with a 55 ms attack / 320 ms release. Buttons and their
+  hit targets remain steady while listening. The voice contribution blends out
+  with the existing Thinking transition, which still reaches 44 pt.
 - **A pause while listening:** stays in listening. After at least 650 ms of
   quiet input and low residual energy, gentle waves blend in over 600 ms. Their
   amplitudes and speed vary every 2.8–4.6 seconds; both waves travel in the same
