@@ -5,12 +5,6 @@
 
     @MainActor
     final class MacDictationPanelViewModel: ObservableObject {
-        private enum CapsuleScaleTuning {
-            static let minimumListeningScale: CGFloat = 0.98
-            static let maximumListeningScale: CGFloat = 1.08
-            static let easingPower = 0.4
-        }
-
         private let appModel: any MacDictationPanelCoordinating
         private var cancellables = Set<AnyCancellable>()
 
@@ -19,10 +13,6 @@
         @Published private(set) var recordingLevel: Double
         @Published private(set) var visualSignals: MacDictationPanelVisualSignals
         @Published private(set) var detectedTargetApplication: AppInfo?
-
-        var capsuleScale: CGFloat {
-            Self.capsuleScale(for: state, recordingLevel: recordingLevel)
-        }
 
         var displayState: DictationState {
             Self.displayState(for: state, recordingLevel: recordingLevel)
@@ -63,23 +53,6 @@
                 return appModel.audioFeatures.scaled(by: 0.35)
             case .idle, .clipboardPending, .result, .error:
                 return .zero
-            }
-        }
-
-        private static func capsuleScale(
-            for state: DictationState,
-            recordingLevel: Double
-        ) -> CGFloat {
-            switch state {
-            case .starting, .listening:
-                let clampedLevel = max(0, min(recordingLevel, 1))
-                let easedLevel = pow(clampedLevel, CapsuleScaleTuning.easingPower)
-                let scaleRange =
-                    CapsuleScaleTuning.maximumListeningScale - CapsuleScaleTuning.minimumListeningScale
-
-                return CapsuleScaleTuning.minimumListeningScale + (CGFloat(easedLevel) * scaleRange)
-            case .processing, .idle, .clipboardPending, .result, .error:
-                return 1
             }
         }
 

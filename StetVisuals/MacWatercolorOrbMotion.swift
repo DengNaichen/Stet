@@ -11,6 +11,9 @@
         static let thinkingPeriod = 2.6
         static let thinkingMotion = 0.40
         static let frameInterval = 1.0 / 40.0
+        static let minimumListeningScale = 0.98
+        static let maximumListeningScale = 1.08
+        static let listeningScalePower = 0.4
     }
 
     struct MacWatercolorOrbFrame: Equatable {
@@ -19,6 +22,7 @@
         var tone = 0.0
         var thinkingBlend = 0.0
         var idleWave = SIMD3<Double>.zero
+        var listeningScale = 1.0
 
         var diameter: Double {
             MacWatercolorOrbPreset.diameter
@@ -30,6 +34,9 @@
         }
 
         var scale: Double { diameter / MacWatercolorOrbPreset.diameter }
+        // Voice scales only the orb. Thinking still contracts the whole arrangement.
+        var orbScale: Double { scale * (1 + (listeningScale - 1) * (1 - thinkingBlend)) }
+        var orbDiameter: Double { MacWatercolorOrbPreset.diameter * orbScale }
         var buttonDiameter: Double { MacWatercolorOrbLayout.buttonDiameter * scale }
     }
 
@@ -60,6 +67,7 @@
             }
             self.state = state
             self.reduceMotion = reduceMotion
+            if reduceMotion || !isVisible { frame.listeningScale = 1 }
             if reduceMotion {
                 frame.thinkingBlend = state == .processing ? 1 : 0
                 frame.idleWave = .zero
@@ -75,7 +83,16 @@
             // A suspended/occluded window must not fast-forward through a large paint displacement.
             let dt = min(elapsed, 0.05)
             let thinking = state == .processing
-            if !thinking { speechLevel = level.isFinite ? min(1, max(0, level)) : 0 }
+            if !thinking {
+                speechLevel = level.isFinite ? min(1, max(0, level)) : 0
+                let targetScale =
+                    MacWatercolorOrbPreset.minimumListeningScale
+                    + pow(speechLevel, MacWatercolorOrbPreset.listeningScalePower)
+                    * (MacWatercolorOrbPreset.maximumListeningScale - MacWatercolorOrbPreset.minimumListeningScale)
+                frame.listeningScale = follow(
+                    frame.listeningScale, targetScale, dt, targetScale > frame.listeningScale ? 0.055 : 0.32
+                )
+            }
             frame.thinkingBlend = follow(frame.thinkingBlend, thinking ? 1 : 0, dt, 0.115)
             cycle = (cycle + dt).truncatingRemainder(dividingBy: MacWatercolorOrbPreset.thinkingPeriod)
             let sine = Self.thinkingLevel(at: cycle)
