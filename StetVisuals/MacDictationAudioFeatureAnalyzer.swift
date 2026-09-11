@@ -47,7 +47,8 @@
             let samples = monoSignal.windowedSamples
             guard samples.contains(where: { abs($0) > 0.000_01 }) else { return .zero }
 
-            let level = Self.normalizedLevel(from: monoSignal.unwindowedSamples)
+            let rms = Self.rootMeanSquare(monoSignal.unwindowedSamples)
+            let level = Self.normalizedLevel(rms: rms)
             let magnitudes = spectrumMagnitudes(samples: samples)
             let frequencies = frequencyBins(sampleRate: sampleRate, count: magnitudes.count)
             let features = computeBandFeatures(spectrumMag: magnitudes, freqs: frequencies, level: level)
@@ -60,7 +61,8 @@
                     flowX: (groupedBands[2] - groupedBands[0]) * 0.12,
                     flowY: (groupedBands[3] - groupedBands[1]) * 0.12,
                     groupedBands: SIMD4<Float>(groupedBands[0], groupedBands[1], groupedBands[2], groupedBands[3])
-                )
+                ),
+                inputRMS: rms
             )
         }
 
@@ -219,13 +221,16 @@
             return groupedBands
         }
 
-        private static func normalizedLevel(from samples: [Float]) -> Float {
+        private static func rootMeanSquare(_ samples: [Float]) -> Float {
             guard !samples.isEmpty else { return 0 }
             let meanSquare =
                 samples.reduce(Float(0)) { partialResult, sample in
                     partialResult + sample * sample
                 } / Float(samples.count)
-            let rms = sqrt(meanSquare)
+            return sqrt(meanSquare)
+        }
+
+        private static func normalizedLevel(rms: Float) -> Float {
             guard rms > 0 else { return 0 }
 
             let levelDBFS = 20 * log10(rms)

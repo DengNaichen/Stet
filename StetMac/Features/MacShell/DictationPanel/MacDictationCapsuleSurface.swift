@@ -2,11 +2,9 @@
     import SwiftUI
 
     struct MacDictationCapsuleSurface: View {
-        private static let voiceScaleAnimation = Animation.spring(response: 0.18, dampingFraction: 0.82)
-
         @ObservedObject var viewModel: MacDictationPanelViewModel
         let panelSize: CGSize
-        @AppStorage(MacPreferences.shaderTheme) private var shaderThemeRawValue = MacDictationVisualTheme.egg
+        @AppStorage(MacPreferences.shaderTheme) private var shaderThemeRawValue = MacDictationVisualTheme.watercolor
             .rawValue
 
         var body: some View {
@@ -18,8 +16,6 @@
                 onDismiss: dismissAction,
                 onConfirm: viewModel.performPrimaryAction
             )
-            .scaleEffect(viewModel.capsuleScale)
-            .animation(Self.voiceScaleAnimation, value: viewModel.capsuleScale)
         }
 
         private func dismissAction() {

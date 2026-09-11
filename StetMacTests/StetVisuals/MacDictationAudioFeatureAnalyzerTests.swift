@@ -45,6 +45,11 @@
             let shortBuffer = analyzer.analyze(buffer: try makeSineBuffer(rmsDBFS: -45, frameCount: 512))
 
             #expect(abs(fullBuffer.estimatedSummary.level - shortBuffer.estimatedSummary.level) < 0.02)
+            let fullRMS = try #require(fullBuffer.inputRMS)
+            let shortRMS = try #require(shortBuffer.inputRMS)
+            let expectedRMS = pow(Float(10), -45 / 20)
+            #expect(abs(fullRMS - expectedRMS) < 0.0001)
+            #expect(abs(fullRMS - shortRMS) < 0.0001)
         }
 
         private func makeSineBuffer(

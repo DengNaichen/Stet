@@ -38,7 +38,7 @@
             .bool(MacPreferences.interactionSoundsEnabled, true),
             .bool(MacPreferences.dictationCompletionNotificationsEnabled, true),
             .string(MacPreferences.interactionSoundPreset, InteractionSoundPreset.defaultPreset.rawValue),
-            .string(MacPreferences.shaderTheme, MacDictationVisualTheme.egg.rawValue),
+            .string(MacPreferences.shaderTheme, MacDictationVisualTheme.watercolor.rawValue),
             .bool(MacPreferences.showInDock, false),
         ]
 
