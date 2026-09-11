@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 1,
+  "revision": 2,
   "bundleIDs": [
     "com.microsoft.vscode",
     "com.microsoft.vscodeinsiders",
@@ -23,7 +23,15 @@
     "com.bytedance.macos.feishu",
     "com.larksuite.larkapp",
     "com.anthropic.claudefordesktop",
+    "com.figma.desktop",
+    "cn.trae.solo.app",
+    "com.trae.solo.app",
     "cn.trae.app",
+    "com.infcode.editor",
+    "com.baidu.baidunetdisk-mac",
+    "com.qoder.work",
+    "com.qoder.ide",
+    "io.open-design.desktop",
     "now.typeless.desktop",
     "app.motrix.native",
     "com.1password.1password",
