@@ -44,7 +44,7 @@ float2 leftCenter(float t) {
 float2 rightCenter(float t) {
   return float2(0.67+0.08*cos(t*0.6),0.58+0.08*sin(t*0.8));
 }
-float3 paint(float2 uv, float u_time, float u_anchor, float u_motion, float u_tone, float u_diameter, float weave, float grain, float3 idleWave) {
+float3 paint(float2 uv, float u_time, float u_anchor, float u_motion, float u_tone, float u_diameter, float weave, float grain, float3 idleWave, float3 groundLow, float3 groundHigh, float3 interlayer, float3 lightPigment, float3 pigment, float3 densePigment) {
   float t=u_time*0.22;
   float anchor=u_anchor*0.22;
   float2 drift=mix(driftAt(anchor),driftAt(t),u_motion);
@@ -77,7 +77,7 @@ float3 paint(float2 uv, float u_time, float u_anchor, float u_motion, float u_to
   float concentration=clamp(0.53+0.95*pools+deposits+wetEdge*pools*0.12,0.30,2.2);
   float3 white=float3(0.998,0.999,0.991);
   float groundLight=noise(uv*1.7+drift*0.12+float2(6.1,2.7));
-  float3 ground=mix(float3(0.80,0.943,0.976),float3(0.88,0.977,0.992),groundLight);
+  float3 ground=mix(groundLow,groundHigh,groundLight);
   float whiteBand=smoothstep(0.18,0.32,shade)*(1.0-smoothstep(0.50,0.67,shade));
   float ribbonTurn=mix(0.8*sin(anchor*0.9+2.0),0.8*sin(t*0.9+2.0),u_motion);
   float2 ribbonUV=turnField(flowUV,float2(0.55,0.46),ribbonTurn);
@@ -85,19 +85,16 @@ float3 paint(float2 uv, float u_time, float u_anchor, float u_motion, float u_to
   float ribbonLine=ribbonUV.y-0.48+0.16*ribbonSwell;
   float ribbon=exp(-ribbonLine*ribbonLine/0.018);
   whiteBand=mix(whiteBand,ribbon*0.92,weave*0.8);
-  float3 underpaint=mix(ground,white,whiteBand);
+  float3 underpaint=mix(ground,interlayer,whiteBand);
   float blueCurrent=noise(material*float2(0.65,0.55)+float2(9.3,4.1));
   float blueDepth=clamp(0.38+(blueCurrent-0.5)*0.65+body*0.42,0.0,1.0);
   float deepRegion=smoothstep(0.52-u_tone*0.18,0.89-u_tone*0.10,blueDepth);
-  float3 lightBlue=float3(0.075,0.725,0.985);
-  float3 denseBlue=float3(0.012,0.455,0.895);
-  float3 middleBlue=float3(0.023529,0.631373,0.968627);
-  float3 blue=mix(lightBlue,middleBlue,body*0.65);
-  blue=mix(blue,denseBlue,deepRegion*(0.45+u_tone*0.45));
+  float3 blue=mix(lightPigment,pigment,body*0.65);
+  blue=mix(blue,densePigment,deepRegion*(0.45+u_tone*0.45));
   float3 pigmentMass=-log(clamp(blue/white,float3(0.001),float3(1.0)));
   pigmentMass *= mix(1.0,concentration,grain);
   float3 col=mix(underpaint,white*exp(-pigmentMass),wash);
-  col=mix(col,white,weave*ribbon*0.48*smoothstep(0.25,0.75,wash));
+  col=mix(col,interlayer,weave*ribbon*0.48*smoothstep(0.25,0.75,wash));
 
   return col;
 }
@@ -106,10 +103,12 @@ float3 paint(float2 uv, float u_time, float u_anchor, float u_motion, float u_to
 [[ stitchable ]] half4 stetWatercolorOrb(
     float2 position, half4 color, float2 size,
     float time, float anchor, float motion, float tone,
-    float weave, float grain, float3 idleWave
+    float weave, float grain, float3 idleWave,
+    float3 groundLow, float3 groundHigh, float3 interlayer,
+    float3 lightPigment, float3 pigment, float3 densePigment
 ) {
     float2 uv = float2(position.x, size.y - position.y) / size;
-    float3 paint = stet_watercolor::paint(uv, time, anchor, motion, tone, size.x, weave, grain, idleWave);
+    float3 paint = stet_watercolor::paint(uv, time, anchor, motion, tone, size.x, weave, grain, idleWave, groundLow, groundHigh, interlayer, lightPigment, pigment, densePigment);
     float edge = 1.0 - smoothstep(0.49, 0.50, distance(uv, float2(0.5)));
     half alpha = half(edge) * color.a;
     return half4(half3(paint) * alpha, alpha);

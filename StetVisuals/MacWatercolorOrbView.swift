@@ -7,6 +7,9 @@
     struct MacWatercolorOrbPaint: View {
         private static let hasMetal = MTLCreateSystemDefaultDevice() != nil
         let frame: MacWatercolorOrbFrame
+        let theme: MacDictationShaderTheme
+
+        private var palette: MacWatercolorOrbPalette { MacWatercolorOrbPalette(theme: theme) }
 
         var body: some View {
             Group {
@@ -21,13 +24,17 @@
                                 .float(Float(frame.tone)),
                                 .float(Float(MacWatercolorOrbPreset.weave)),
                                 .float(Float(MacWatercolorOrbPreset.grain)),
-                                .float3(Float(frame.idleWave.x), Float(frame.idleWave.y), Float(frame.idleWave.z))
+                                .float3(Float(frame.idleWave.x), Float(frame.idleWave.y), Float(frame.idleWave.z)),
+                                shaderColor(palette.groundLow), shaderColor(palette.groundHigh),
+                                shaderColor(palette.interlayer), shaderColor(palette.lightPigment),
+                                shaderColor(palette.pigment), shaderColor(palette.densePigment)
                             )
                         )
                 } else {
                     Circle().fill(
                         LinearGradient(
-                            colors: [Color(red: 0.84, green: 0.96, blue: 0.98), .white, .cyan, .blue],
+                            colors: [palette.groundHigh, palette.interlayer, palette.lightPigment, palette.pigment]
+                                .map { Color(red: Double($0.x), green: Double($0.y), blue: Double($0.z)) },
                             startPoint: .top, endPoint: .bottom
                         )
                     )
@@ -35,8 +42,12 @@
             }
             .frame(width: 64, height: 64)
             // Scaling the complete paint preserves the approved granule size during Thinking.
-            .scaleEffect(frame.diameter / MacWatercolorOrbPreset.diameter)
+            .scaleEffect(frame.scale)
             .allowsHitTesting(false)
+        }
+
+        private func shaderColor(_ color: SIMD3<Float>) -> Shader.Argument {
+            .float3(color.x, color.y, color.z)
         }
     }
 
@@ -79,7 +90,7 @@
                                 .allowsHitTesting(false)
                         }
                     }
-                    MacWatercolorOrbPaint(frame: motion.frame)
+                    MacWatercolorOrbPaint(frame: motion.frame, theme: model.shaderTheme)
                         .accessibilityLabel(statusLabel)
                         .accessibilityIdentifier("dictation.watercolorOrb")
                 }
@@ -127,13 +138,13 @@
             let point = MacWatercolorOrbLayout.buttonPosition(progress: progress, side: side)
             return Button(action: action) {
                 Image(systemName: symbol)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 12 * motion.frame.scale, weight: .semibold))
                     .foregroundStyle(.primary)
                     .opacity(min(1, max(0, (progress - 0.18) / 0.35)))
-                    .frame(width: MacWatercolorOrbLayout.buttonDiameter, height: MacWatercolorOrbLayout.buttonDiameter)
+                    .frame(width: motion.frame.buttonDiameter, height: motion.frame.buttonDiameter)
                     .stetInteractiveGlassEffect(in: Circle())
                     .stetGlassID(id, in: glassNamespace)
-                    .padding((MacWatercolorOrbLayout.hitDiameter - MacWatercolorOrbLayout.buttonDiameter) / 2)
+                    .padding((MacWatercolorOrbLayout.hitDiameter - motion.frame.buttonDiameter) / 2)
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
@@ -148,6 +159,7 @@
 
     /// Uses the same material and silence behavior in appearance settings, without session controls.
     struct MacWatercolorOrbPreview: View {
+        let theme: MacDictationShaderTheme
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
         @State private var motion = MacWatercolorOrbMotion()
         @State private var previousDate: Date?
@@ -155,7 +167,7 @@
         var body: some View {
             TimelineView(.animation(minimumInterval: MacWatercolorOrbPreset.frameInterval, paused: reduceMotion)) {
                 context in
-                MacWatercolorOrbPaint(frame: motion.frame)
+                MacWatercolorOrbPaint(frame: motion.frame, theme: theme)
                     .onChange(of: context.date) { _, date in
                         if let previousDate { motion.advance(by: date.timeIntervalSince(previousDate), level: 0) }
                         previousDate = date
@@ -167,7 +179,7 @@
                 previousDate = nil
             }
             .onDisappear { previousDate = nil }
-            .accessibilityLabel("Watercolor Blue preview")
+            .accessibilityLabel("\(theme.title) preview")
         }
     }
 #endif

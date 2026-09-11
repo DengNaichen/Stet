@@ -29,57 +29,6 @@
             self.shaderTheme = shaderTheme
         }
 
-        var mainWidth: CGFloat {
-            switch state {
-            case .hidden:
-                MacDictationPanelConstants.Layout.mainWidthIdle
-            case .starting:
-                MacDictationPanelConstants.Layout.mainWidthStarting
-            case .listening:
-                MacDictationPanelConstants.Layout.mainWidthListening
-            case .processing:
-                MacDictationPanelConstants.Layout.mainWidthProcessing
-            case .result:
-                MacDictationPanelConstants.Layout.mainWidthResult
-            case .error:
-                MacDictationPanelConstants.Layout.mainWidthError
-            }
-        }
-
-        var controlHeight: CGFloat {
-            MacDictationPanelConstants.Layout.controlHeight
-        }
-
-        var shaderFrameInterval: Double {
-            MacDictationPanelConstants.VoiceReactivity.shaderFrameIntervalActive
-        }
-
-        var isShaderPaused: Bool {
-            switch state {
-            case .starting, .listening:
-                return false
-            case .hidden, .processing, .result, .error:
-                return true
-            }
-        }
-
-        var shouldShowPanel: Bool {
-            switch state {
-            case .starting, .listening, .processing:
-                return true
-            case .hidden, .result, .error:
-                return false
-            }
-        }
-
-        var shouldShowOrbs: Bool {
-            switch state {
-            case .starting, .listening, .processing:
-                return true
-            case .hidden, .result, .error:
-                return false
-            }
-        }
     }
 
     public struct MacDictationCapsuleVisualActions {

@@ -5,9 +5,9 @@ Status: active. macOS only.
 ## Approved appearance
 
 Watercolor Blue is the default for a missing or unknown theme preference. All six
-existing themes remain available; a saved selection is preserved. The new theme
-has its own native circular renderer and appearance card. Existing themes retain
-their capsule rendering. iOS behavior is unchanged.
+existing themes remain available; a saved selection is preserved. All seven themes
+use the same native circular renderer, audio response, Thinking animation and
+glass button arrangement. Each retains its own appearance card. iOS behavior is unchanged.
 
 The source of truth is the user's live browser controls captured on 2026-09-11 at
 `http://127.0.0.1:8765/?variant=detail&size=circle`, not the HTML file's defaults:
@@ -26,6 +26,12 @@ The palette stays pale blue, white, light blue and dense blue in every state.
 Granulation changes pigment concentration and wet edges, rather than adding a
 noise overlay. Broad counter-turning fields and an independent white wash let
 the color layers pass through each other.
+
+For the other six themes, reuse the existing three swatches in their fixed
+`idle` order as ground, interlayer and pigment. Dilute them toward the same paper
+white to create lighter washes; mix pigment with the ground for its denser region.
+Color roles remain fixed when entering Thinking. Watercolor Blue retains the exact
+approved browser colors rather than going through this derived palette mapping.
 
 ## Session behavior
 
@@ -52,12 +58,16 @@ The audio analyzer supplies unwindowed mono RMS alongside its existing level.
 Watercolor uses the browser's microphone mapping,
 `sqrt(clamp((RMS - 0.004) / 0.12, 0, 1))`, so ordinary low background input can
 enter the approved quiet-wave state. Explicit normalized preview inputs remain
-unchanged. Existing themes keep their perceptual dB curve. No new FFT-to-visual
+unchanged. The legacy perceptual dB measurement remains available to other consumers;
+all seven native orb themes share the browser response. No new FFT-to-visual
 mapping, capture gain, or recognition behavior is introduced.
 
 ## Native button arrangement
 
 Each glass button is 28 pt, its circular target is 44 pt, and its symbol is 12 pt.
+While the main orb shrinks 64 → 44 pt, both buttons and their symbols shrink by the
+same continuous ratio: buttons reach 19.25 pt and symbols 8.25 pt. The surrounding
+padding grows to preserve each 44 pt hit target throughout the transition.
 On macOS 26 use a shared Liquid Glass container; older supported systems use a
 material background. The approved native lab settings are:
 
@@ -106,3 +116,10 @@ Thinking, old Egg rendering and switching back to Watercolor, and the artwork at
 the production card's portrait crop. Reduced Motion and interrupted transitions
 were verified in state/geometry tests. No live microphone session or signed
 release was run in this validation; PCM input was exercised with synthetic audio.
+
+The subsequent all-theme update removes the old capsule view and state styling.
+`make test` again passed all 550 tests, and `make lint` passed. A native overview
+rendered all seven theme previews with the same circular material; the existing
+three swatches remain recognizable in each theme. Local packaging is a separate
+Release build signed with the existing Developer ID identity and profile, without
+publishing or replacing the installed application.

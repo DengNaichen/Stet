@@ -28,6 +28,9 @@
         var motion: Double {
             1 + (MacWatercolorOrbPreset.thinkingMotion - 1) * thinkingBlend
         }
+
+        var scale: Double { diameter / MacWatercolorOrbPreset.diameter }
+        var buttonDiameter: Double { MacWatercolorOrbLayout.buttonDiameter * scale }
     }
 
     /// Owns time and envelopes independently of SwiftUI updates and microphone delivery cadence.
