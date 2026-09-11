@@ -22,6 +22,7 @@ private func makeSnapshot(
         ),
     rewriteEnabled: Bool = false,
     personalDictionary: [String] = [],
+    personalDictionaryRecords: [GlossaryEntry]? = nil,
     transcriptionPrimaryLanguage: String = "en",
     transcriptionSecondaryLanguage: String? = nil,
     transcriptionEngine: StoredTranscriptionEngine = .funASRNano
@@ -34,6 +35,8 @@ private func makeSnapshot(
         shouldPauseMediaDuringDictation: false,
         rewriteProviderConfiguration: rewriteProviderConfiguration,
         personalDictionary: personalDictionary,
+        personalDictionaryRecords: personalDictionaryRecords
+            ?? personalDictionary.map { GlossaryEntry(term: $0, source: .manual) },
         interactionSoundsEnabled: true,
         dictationCompletionNotificationsEnabled: true,
         interactionSoundPreset: .soft,
@@ -380,6 +383,75 @@ struct LogicPrimitiveTests {
 
     @Test func makeTranscriptionPromptReturnsNilWithoutPreferredSpellings() {
         #expect(DictationPipelineFactory.makeTranscriptionPrompt(preferredSpellings: []) == nil)
+    }
+
+    @Test func makePipelineCapsFunASRNanoPromptAndKeepsFullRewriteSpellings() async throws {
+        let terms = (1...80).map { "term\($0)" }
+        let local = RecordingTranscriptionService(result: "direct")
+        let factory = DictationPipelineFactory(
+            makeLocalTranscriptionService: { local },
+            makeRewriteService: { _, _ in RecordingRewriteService() }
+        )
+        let snapshot = makeSnapshot(
+            personalDictionary: terms,
+            transcriptionEngine: .funASRNano
+        )
+
+        let pipeline = try await factory.makePipeline(from: snapshot)
+        let prompt = try #require(await pipeline.promptProvider?())
+        let expected = try #require(
+            FunASRNanoHotwordPrompt.makePrompt(
+                from: terms.map { GlossaryEntry(term: $0, source: .manual) }
+            )
+        )
+
+        #expect(prompt == expected)
+        #expect(prompt.split(separator: ", ").count <= FunASRNanoHotwordPrompt.maximumTermCount)
+        #expect(prompt.count <= FunASRNanoHotwordPrompt.maximumJoinedCharacterCount)
+        #expect(pipeline.preferredSpellings == terms)
+        #expect(pipeline.recordsNoHotwordTranscript == false)
+    }
+
+    @Test func makePipelinePrefersManualDictionaryTermsInFunASRNanoPrompt() async throws {
+        let automatic = (1...40).map { GlossaryEntry(term: "a\($0)", source: .automatic) }
+        let manual = (1...15).map { GlossaryEntry(term: "M\($0)", source: .manual) }
+        let records = automatic + manual
+        let local = RecordingTranscriptionService(result: "direct")
+        let factory = DictationPipelineFactory(
+            makeLocalTranscriptionService: { local },
+            makeRewriteService: { _, _ in RecordingRewriteService() }
+        )
+        let snapshot = makeSnapshot(
+            personalDictionary: records.map(\.term),
+            personalDictionaryRecords: records,
+            transcriptionEngine: .funASRNano
+        )
+
+        let pipeline = try await factory.makePipeline(from: snapshot)
+        let prompt = try #require(await pipeline.promptProvider?())
+
+        #expect(prompt == FunASRNanoHotwordPrompt.makePrompt(from: records))
+        #expect(pipeline.preferredSpellings == records.map(\.term))
+    }
+
+    @Test func makePipelineDoesNotCapFluidAudioPrompt() async throws {
+        let terms = (1...80).map { "term\($0)" }
+        let local = RecordingTranscriptionService(result: "direct")
+        let factory = DictationPipelineFactory(
+            makeLocalTranscriptionService: { local },
+            makeRewriteService: { _, _ in RecordingRewriteService() }
+        )
+        let snapshot = makeSnapshot(
+            personalDictionary: terms,
+            transcriptionEngine: .fluidAudio
+        )
+
+        let pipeline = try await factory.makePipeline(from: snapshot)
+        let prompt = try #require(await pipeline.promptProvider?())
+
+        #expect(prompt == terms.joined(separator: ", "))
+        #expect(pipeline.preferredSpellings == terms)
+        #expect(pipeline.recordsNoHotwordTranscript == false)
     }
 }
 

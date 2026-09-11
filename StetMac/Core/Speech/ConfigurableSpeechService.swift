@@ -43,6 +43,9 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     private var retiringPrewarmTasks: [Task<Void, Never>] = []
     private var nextCaptureSessionID: UInt64 = 0
     private var invalidatedThroughCaptureSessionID: UInt64 = 0
+    private var noHotwordPassTask: Task<Void, Never>?
+    private var noHotwordPassGeneration: UInt64 = 0
+    private let recordNoHotwordTranscript: @Sendable (String) async -> Void
 
     init(
         settingsStore: DictationSettingsStore = DictationSettingsStore(),
@@ -53,7 +56,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         captureService: (any AudioCaptureService)? = nil,
         captureServiceFactory: (@Sendable () -> any AudioCaptureService)? = nil,
         beginActiveCapture: (@Sendable () async -> Void)? = nil,
-        resumePassiveCapture: (@Sendable () async -> Void)? = nil
+        resumePassiveCapture: (@Sendable () async -> Void)? = nil,
+        recordNoHotwordTranscript: (@Sendable (String) async -> Void)? = nil
     ) {
         precondition(
             captureService == nil || captureServiceFactory == nil,
@@ -70,6 +74,12 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         self.audioPostProcessor = audioPostProcessor ?? DefaultAudioPostProcessor()
         self.beginActiveCapture = beginActiveCapture
         self.resumePassiveCapture = resumePassiveCapture
+        self.recordNoHotwordTranscript =
+            recordNoHotwordTranscript ?? { text in
+                await MainActor.run {
+                    DictationHistoryService.shared.recordRawWithoutHotwords(text)
+                }
+            }
         if let captureService {
             self.captureServiceFactory = { captureService }
             self.reusableCaptureService = captureService
@@ -101,6 +111,12 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     }
 
     private func startRecording(activateRecordingWindow: Bool) async throws {
+        if noHotwordPassTask != nil {
+            noHotwordPassTask?.cancel()
+            await MainActor.run {
+                DictationHistoryService.shared.discardUncommittedNoHotwordTranscript()
+            }
+        }
         let sessionID = try beginCaptureSession()
         // Recheck after every wait: another cancellation may have been queued.
         while let cancellationTask { await cancellationTask.value }
@@ -293,6 +309,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         await DictationLatencyProbe.shared.beginSession(audioDurationSeconds: processedCaptureResult.duration)
         let processingStartedAt = ProcessInfo.processInfo.systemUptime
 
+        await waitForNoHotwordPass()
+
         var transcriptionPrompt: String? = nil
         if let provider = pipeline.promptProvider {
             transcriptionPrompt = await provider()
@@ -409,6 +427,16 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 "DictationSummary totalProcessingMs=\(Self.formatMilliseconds(totalProcessingMs)) audioDurationSeconds=\(Self.formatDurationSeconds(processedCaptureResult.duration)) finalTextChars=\(trimmedTranscript.count) rewriteEnabled=\(pipeline.rewriteService != nil)"
             )
 
+            if pipeline.recordsNoHotwordTranscript {
+                cleanupURLs.remove(processedCaptureResult.url)
+                startNoHotwordPass(
+                    audioURL: processedCaptureResult.url,
+                    languageCode: pipeline.transcriptionLanguageCode,
+                    duration: processedCaptureResult.duration,
+                    transcriptionService: pipeline.transcriptionService
+                )
+            }
+
             return SpeechTranscriptionResult(
                 rawText: wasRewritten ? intermediateTranscript : trimmedTranscript,
                 text: trimmedTranscript,
@@ -467,7 +495,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
     private func scheduleContextCleanupIfIdle() {
         guard activeCaptureSessionID == nil, processingSessions.isEmpty,
-            cancellationTask == nil, contextCleanupTask == nil
+            cancellationTask == nil, contextCleanupTask == nil,
+            noHotwordPassTask == nil
         else { return }
         let prewarms = retiringPrewarmTasks
         retiringPrewarmTasks.removeAll()
@@ -482,6 +511,48 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             #endif
             contextCleanupTask = nil
         }
+    }
+
+    private func waitForNoHotwordPass() async {
+        await noHotwordPassTask?.value
+    }
+
+    private func startNoHotwordPass(
+        audioURL: URL,
+        languageCode: String?,
+        duration: TimeInterval?,
+        transcriptionService: any AudioFileTranscriptionService
+    ) {
+        noHotwordPassGeneration += 1
+        let generation = noHotwordPassGeneration
+        let record = recordNoHotwordTranscript
+        noHotwordPassTask = Task {
+            defer { try? FileManager.default.removeItem(at: audioURL) }
+            if !Task.isCancelled {
+                do {
+                    let result = try await transcriptionService.transcribe(
+                        audioFileAt: audioURL,
+                        languageCode: languageCode,
+                        prompt: nil,
+                        audioDurationSeconds: duration
+                    )
+                    let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !Task.isCancelled, !text.isEmpty {
+                        await record(text)
+                    }
+                } catch {
+                    // The user-facing transcript already succeeded. Skip quietly.
+                }
+            }
+            await self.finishNoHotwordPass(generation: generation)
+        }
+    }
+
+    private func finishNoHotwordPass(generation: UInt64) {
+        if noHotwordPassGeneration == generation {
+            noHotwordPassTask = nil
+        }
+        scheduleContextCleanupIfIdle()
     }
 
     private func resumePassiveCaptureIfNeeded() async {

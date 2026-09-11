@@ -1,6 +1,7 @@
 #if os(macOS)
     import SwiftUI
     import StetCore
+    import UniformTypeIdentifiers
 
     struct DictionaryView: View {
         @ObservedObject var viewModel: DictionaryViewModel
@@ -18,6 +19,7 @@
         @State private var editingEntry: String?
         @State private var entryDraft = ""
         @State private var clearConfirmation = ""
+        @State private var isImportingFile = false
 
         private var entryDraftBinding: Binding<String> {
             Binding(
@@ -53,6 +55,11 @@
                     HStack {
                         Text("\(viewModel.entries.count) words and phrases").foregroundStyle(.secondary)
                         Spacer()
+                        Button {
+                            isImportingFile = true
+                        } label: {
+                            Label("Import…", systemImage: "square.and.arrow.down")
+                        }
                         Button {
                             openEditor()
                         } label: {
@@ -129,6 +136,31 @@
                 }
             }
             .onAppear { viewModel.load() }
+            .fileImporter(
+                isPresented: $isImportingFile,
+                allowedContentTypes: [.plainText, .commaSeparatedText, .utf8PlainText],
+                allowsMultipleSelection: false
+            ) { result in
+                switch result {
+                case .success(let urls):
+                    guard let url = urls.first else { return }
+                    viewModel.importEntries(from: url)
+                case .failure(let error):
+                    viewModel.importAlert = .failure(error.localizedDescription)
+                }
+            }
+            .alert(
+                viewModel.importAlert?.title ?? "Import Dictionary",
+                isPresented: Binding(
+                    get: { viewModel.importAlert != nil },
+                    set: { if !$0 { viewModel.importAlert = nil } }
+                ),
+                presenting: viewModel.importAlert
+            ) { _ in
+                Button("OK") { viewModel.importAlert = nil }
+            } message: { alert in
+                Text(alert.message)
+            }
         }
 
         private func openEditor(_ entry: String? = nil) {

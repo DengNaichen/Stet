@@ -1398,6 +1398,112 @@ struct ConfigurableSpeechServiceTests {
         #expect(instructions.contains("Keep the correction local."))
         #expect(instructions.contains("Never translate any word, phrase, clause, sentence, or language span."))
     }
+
+    @Test func stopRecordingQueuesNoHotwordPassThenDeletesAudio() async throws {
+        let audioFileURL = makeAudioFileURL()
+        let recorder = NoHotwordTranscriptRecorder()
+        let direct = TestTranscriptionService(result: "with hotwords")
+        await direct.setNilPromptOutcome(.success("without hotwords"))
+        let (store, _, _) = try makeSettingsStore(preferredSpellings: ["OpenAI", "Groq"])
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                makeLocalTranscriptionService: { direct },
+                makeRewriteService: { _, _ in RecordingRewriteService() },
+                recordsNoHotwordTranscript: true
+            ),
+            captureService: TestAudioCaptureService(audioFileURL: audioFileURL),
+            recordNoHotwordTranscript: { text in
+                await recorder.record(text)
+            }
+        )
+
+        try await service.startRecording()
+        let result = try await service.stopRecording()
+
+        #expect(result.text == "with hotwords")
+        #expect(
+            await TestSupport.eventuallyAsync(timeout: .seconds(2)) {
+                await recorder.texts() == ["without hotwords"]
+            }
+        )
+        #expect(await direct.callCount() == 2)
+        #expect(await direct.prompts() == ["OpenAI, Groq", nil])
+        #expect(
+            await TestSupport.eventuallyAsync(timeout: .seconds(2)) {
+                !FileManager.default.fileExists(atPath: audioFileURL.path)
+            }
+        )
+    }
+
+    @Test func noHotwordPassFailureDoesNotSurfaceToTheUser() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+        let recorder = NoHotwordTranscriptRecorder()
+        let direct = TestTranscriptionService(result: "with hotwords")
+        await direct.setNilPromptOutcome(.failure(TestError.expected))
+        let (store, _, _) = try makeSettingsStore(preferredSpellings: ["Stet"])
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                makeLocalTranscriptionService: { direct },
+                makeRewriteService: { _, _ in RecordingRewriteService() },
+                recordsNoHotwordTranscript: true
+            ),
+            captureService: TestAudioCaptureService(audioFileURL: audioFileURL),
+            recordNoHotwordTranscript: { text in
+                await recorder.record(text)
+            }
+        )
+
+        try await service.startRecording()
+        let result = try await service.stopRecording()
+
+        #expect(result.text == "with hotwords")
+        #expect(
+            await TestSupport.eventuallyAsync(timeout: .seconds(2)) {
+                await direct.callCount() == 2
+            }
+        )
+        #expect(await recorder.texts().isEmpty)
+    }
+
+    @Test func startRecordingCancelsInFlightNoHotwordPass() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+        let recorder = NoHotwordTranscriptRecorder()
+        let nilPromptGate = TestSuspensionGate()
+        let direct = TestTranscriptionService(result: "with hotwords")
+        await direct.setNilPromptOutcome(.success("without hotwords"))
+        await direct.setNilPromptGate(nilPromptGate)
+        let (store, _, _) = try makeSettingsStore(preferredSpellings: ["Stet"])
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                makeLocalTranscriptionService: { direct },
+                makeRewriteService: { _, _ in RecordingRewriteService() },
+                recordsNoHotwordTranscript: true
+            ),
+            captureService: TestAudioCaptureService(audioFileURL: audioFileURL),
+            recordNoHotwordTranscript: { text in
+                await recorder.record(text)
+            }
+        )
+
+        try await service.startRecording()
+        _ = try await service.stopRecording()
+        try #require(await TestSupport.eventuallyAsync(timeout: .seconds(2)) { await nilPromptGate.hasWaiter })
+
+        try await service.startRecording()
+        #expect(await nilPromptGate.observedCancellation)
+        await nilPromptGate.open()
+        #expect(
+            await TestSupport.eventuallyAsync(timeout: .seconds(2)) {
+                await direct.callCount() == 2
+            }
+        )
+        #expect(await recorder.texts().isEmpty)
+    }
 }
 
 extension ConfigurableSpeechServiceTests {
@@ -1540,6 +1646,18 @@ private final class CountingAudioCaptureFactory: @unchecked Sendable {
     }
 }
 
+private actor NoHotwordTranscriptRecorder {
+    private var recordedTexts: [String] = []
+
+    func record(_ text: String) {
+        recordedTexts.append(text)
+    }
+
+    func texts() -> [String] {
+        recordedTexts
+    }
+}
+
 private actor TestTranscriptionService: AudioFileTranscriptionService {
     enum Outcome: Sendable {
         case success(String)
@@ -1548,10 +1666,15 @@ private actor TestTranscriptionService: AudioFileTranscriptionService {
 
     private(set) var outcome: Outcome
     private var gate: TestSuspensionGate?
+    private var nilPromptGate: TestSuspensionGate?
+    private var nilPromptOutcome: Outcome?
 
     func setGate(_ gate: TestSuspensionGate) { self.gate = gate }
+    func setNilPromptGate(_ gate: TestSuspensionGate) { nilPromptGate = gate }
+    func setNilPromptOutcome(_ outcome: Outcome) { nilPromptOutcome = outcome }
     private var callCountValue = 0
     private var lastInvocationValue: (fileURL: URL, languageCode: String?, prompt: String?, duration: TimeInterval?)?
+    private var promptsValue: [String?] = []
 
     init(result: String) {
         self.outcome = .success(result)
@@ -1575,7 +1698,20 @@ private actor TestTranscriptionService: AudioFileTranscriptionService {
         lastInvocationValue = (
             fileURL: fileURL, languageCode: languageCode, prompt: prompt, duration: audioDurationSeconds
         )
+        promptsValue.append(prompt)
         #expect(!fileURL.path.isEmpty)
+        if prompt == nil {
+            await nilPromptGate?.wait()
+            try Task.checkCancellation()
+            if let nilPromptOutcome {
+                switch nilPromptOutcome {
+                case .success(let value):
+                    return TranscriptionResult(text: value, languageCode: languageCode)
+                case .failure(let error):
+                    throw error
+                }
+            }
+        }
         await gate?.wait()
 
         switch outcome {
@@ -1588,6 +1724,10 @@ private actor TestTranscriptionService: AudioFileTranscriptionService {
 
     func callCount() -> Int {
         callCountValue
+    }
+
+    func prompts() -> [String?] {
+        promptsValue
     }
 
     func lastInvocation() -> (fileURL: URL, languageCode: String?, prompt: String?, duration: TimeInterval?)? {

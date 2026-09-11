@@ -84,6 +84,10 @@ public final class HistoryEntry {
     /// Raw transcript from the selected ASR engine.
     public var rawText: String
 
+    /// Fun-ASR Nano transcript of the same audio with an empty hotword prompt.
+    /// Nil when the engine is not Nano or the background pass was skipped.
+    public var rawTextWithoutHotwords: String?
+
     /// LLM-refined text, if a rewrite transformer was active. Nil when rewrite is off.
     public var llmText: String?
 
@@ -127,6 +131,7 @@ public final class HistoryEntry {
         id: UUID = UUID(),
         timestamp: Date = Date(),
         rawText: String,
+        rawTextWithoutHotwords: String? = nil,
         llmText: String? = nil,
         finalText: String? = nil,
         targetBundleID: String? = nil,
@@ -142,6 +147,7 @@ public final class HistoryEntry {
         self.id = id
         self.timestamp = timestamp
         self.rawText = rawText
+        self.rawTextWithoutHotwords = rawTextWithoutHotwords
         self.llmText = llmText
         self.finalText = finalText
         self.targetBundleID = targetBundleID
@@ -177,6 +183,7 @@ extension HistoryEntry {
         public let id: UUID
         public let timestamp: Date
         public let rawText: String
+        public let rawTextWithoutHotwords: String?
         public let llmText: String?
         public let finalText: String?
         public let targetBundleID: String?
@@ -193,6 +200,7 @@ extension HistoryEntry {
             self.id = entry.id
             self.timestamp = entry.timestamp
             self.rawText = entry.rawText
+            self.rawTextWithoutHotwords = entry.rawTextWithoutHotwords
             self.llmText = entry.llmText
             self.finalText = entry.finalText
             self.targetBundleID = entry.targetBundleID

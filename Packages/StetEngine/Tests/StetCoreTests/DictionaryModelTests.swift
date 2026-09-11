@@ -84,4 +84,45 @@ struct DictionaryModelTests {
 
         #expect(subject.loadEntries() == ["Cursor", "OpenAI"])
     }
+
+    @Test func importMergesManualTermsAndReportsDuplicates() throws {
+        let defaults = UserDefaults(suiteName: "StetCoreTests.Import.\(UUID().uuidString)")!
+        let subject = DictionaryModel(
+            defaults: defaults,
+            entriesKey: "dictionary.entries.\(UUID().uuidString)"
+        )
+        subject.addAutomaticEntries(["python"])
+        let result = try subject.importEntries(from: "Python, Stet\nCursor")
+        #expect(result.addedCount == 2)
+        #expect(result.skippedCount == 1)
+        #expect(
+            subject.loadRecords() == [
+                .init(term: "python", source: .automatic),
+                .init(term: "Stet", source: .manual),
+                .init(term: "Cursor", source: .manual),
+            ])
+        subject.clear()
+    }
+
+    @Test func importRejectsEmptyTextAndOversizedFiles() throws {
+        let defaults = UserDefaults(suiteName: "StetCoreTests.ImportLimits.\(UUID().uuidString)")!
+        let subject = DictionaryModel(
+            defaults: defaults,
+            entriesKey: "dictionary.entries.\(UUID().uuidString)"
+        )
+        #expect(throws: DictionaryImportError.empty) {
+            try subject.importEntries(from: "  , \n ")
+        }
+        let oversized = Data(repeating: 0x61, count: DictionaryModel.maximumImportFileByteCount + 1)
+        #expect(throws: DictionaryImportError.fileTooLarge(byteCount: oversized.count)) {
+            _ = try DictionaryModel.importText(from: oversized)
+        }
+        let text = try DictionaryModel.importText(from: Data("\u{FEFF}OpenAI, Groq".utf8))
+        #expect(DictionaryModel.words(from: text) == ["OpenAI", "Groq"])
+        let oversizedDictionary = String(repeating: "a", count: DictionaryModel.maximumStoredUTF8ByteCount)
+        #expect(throws: DictionaryImportError.dictionaryWouldExceedLimit) {
+            try subject.importEntries(from: oversizedDictionary)
+        }
+        subject.clear()
+    }
 }

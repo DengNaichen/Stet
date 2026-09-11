@@ -6,6 +6,7 @@ import SwiftData
 public protocol DictationHistoryRecording: AnyObject {
     func recordRaw(_ text: String)
     func recordLLM(_ text: String)
+    func recordRawWithoutHotwords(_ text: String)
     @discardableResult
     func commitPending() -> UUID?
 }
@@ -26,6 +27,7 @@ public final class DictationHistoryService: DictationHistoryRecording {
     /// Ephemeral value type that accumulates data across the three pipeline stages.
     private struct PendingSession {
         var rawText: String
+        var rawTextWithoutHotwords: String?
         var llmText: String?
         var finalText: String?
         var targetBundleID: String?
@@ -45,6 +47,8 @@ public final class DictationHistoryService: DictationHistoryRecording {
     private let container: ModelContainer?
     private var initializationError: Error?
     private var pending: PendingSession?
+    private var lastCommittedEntryID: UUID?
+    private var stagedRawTextWithoutHotwords: String?
 
     // MARK: - Init
 
@@ -101,11 +105,39 @@ public final class DictationHistoryService: DictationHistoryRecording {
             return
         }
         pending = PendingSession(rawText: trimmed)
+        lastCommittedEntryID = nil
+        if let staged = stagedRawTextWithoutHotwords {
+            pending?.rawTextWithoutHotwords = staged
+            stagedRawTextWithoutHotwords = nil
+        }
     }
 
     /// Called after the LLM transformer runs. Updates the pending session.
     public func recordLLM(_ text: String) {
         pending?.llmText = text
+    }
+
+    public func recordRawWithoutHotwords(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        if var session = pending {
+            session.rawTextWithoutHotwords = trimmed
+            pending = session
+            if let id = session.persistedEntryID {
+                updateRawTextWithoutHotwords(id: id, text: trimmed)
+            }
+            return
+        }
+        if let id = lastCommittedEntryID {
+            updateRawTextWithoutHotwords(id: id, text: trimmed)
+            return
+        }
+        stagedRawTextWithoutHotwords = trimmed
+    }
+
+    /// Drops a no-hotword transcript that arrived before `recordRaw` for this utterance.
+    public func discardUncommittedNoHotwordTranscript() {
+        stagedRawTextWithoutHotwords = nil
     }
 
     /// Immediately persists the pending session with `.processing` status.
@@ -117,6 +149,7 @@ public final class DictationHistoryService: DictationHistoryRecording {
         guard var session = pending else { return nil }
         let id = UUID()
         session.persistedEntryID = id
+        lastCommittedEntryID = id
         pending = session
         persistEntry(from: session, id: id, status: .processing)
         return id
@@ -140,6 +173,8 @@ public final class DictationHistoryService: DictationHistoryRecording {
     /// Call this when a capture is cancelled or results in an empty transcription.
     public func discardPendingSession() {
         pending = nil
+        lastCommittedEntryID = nil
+        stagedRawTextWithoutHotwords = nil
     }
 
     // MARK: - Query API
@@ -242,6 +277,7 @@ public final class DictationHistoryService: DictationHistoryRecording {
         guard let container else { return }
 
         let rawText = session.rawText
+        let rawTextWithoutHotwords = session.rawTextWithoutHotwords
         let llmText = session.llmText
         let timestamp = session.timestamp
 
@@ -251,11 +287,32 @@ public final class DictationHistoryService: DictationHistoryRecording {
                 id: id,
                 timestamp: timestamp,
                 rawText: rawText,
+                rawTextWithoutHotwords: rawTextWithoutHotwords,
                 llmText: llmText,
                 status: status
             )
             context.insert(entry)
             try? context.save()
+        }
+    }
+
+    private func updateRawTextWithoutHotwords(id: UUID, text: String) {
+        guard let container else { return }
+
+        Task.detached(priority: .background) {
+            for _ in 0..<20 {
+                let context = ModelContext(container)
+                var descriptor = FetchDescriptor<HistoryEntry>(
+                    predicate: #Predicate { $0.id == id }
+                )
+                descriptor.fetchLimit = 1
+                if let entry = try? context.fetch(descriptor).first {
+                    entry.rawTextWithoutHotwords = text
+                    try? context.save()
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
         }
     }
 

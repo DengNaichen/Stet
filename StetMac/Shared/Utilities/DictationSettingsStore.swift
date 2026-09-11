@@ -42,6 +42,7 @@ struct DictationSettingsSnapshot: Sendable {
     let shouldPauseMediaDuringDictation: Bool
     let rewriteProviderConfiguration: RewriteProviderConfiguration?
     let personalDictionary: [String]
+    let personalDictionaryRecords: [GlossaryEntry]
     let interactionSoundsEnabled: Bool
     let dictationCompletionNotificationsEnabled: Bool
     let interactionSoundPreset: InteractionSoundPreset
@@ -125,7 +126,8 @@ struct DictationSettingsStore: Sendable {
         let rewriteAPIKey = loadAPIKey(for: rewriteProvider)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let selectedModel = loadSelectedModel(for: rewriteProvider)
-        let personalDictionary = loadPersonalDictionaryEnabled() ? loadPersonalDictionary() : []
+        let personalDictionaryRecords = loadPersonalDictionaryEnabled() ? dictionaryModel.loadRecords() : []
+        let personalDictionary = personalDictionaryRecords.map(\.term)
         let interactionSoundsEnabled =
             defaultsStore.object(forKey: MacPreferences.interactionSoundsEnabled) as? Bool ?? true
         let dictationCompletionNotificationsEnabled =
@@ -178,6 +180,7 @@ struct DictationSettingsStore: Sendable {
             shouldPauseMediaDuringDictation: shouldPauseMediaDuringDictation,
             rewriteProviderConfiguration: rewriteConfiguration,
             personalDictionary: personalDictionary,
+            personalDictionaryRecords: personalDictionaryRecords,
             interactionSoundsEnabled: interactionSoundsEnabled,
             dictationCompletionNotificationsEnabled: dictationCompletionNotificationsEnabled,
             interactionSoundPreset: interactionSoundPreset,

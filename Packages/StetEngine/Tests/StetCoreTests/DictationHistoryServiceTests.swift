@@ -68,6 +68,7 @@ struct DictationHistoryServiceTests {
         #expect(entry.captureStartedAt == entry.timestamp)
         #expect(entry.captureEndedAt == nil)
         #expect(entry.speakerRegions.isEmpty)
+        #expect(entry.rawTextWithoutHotwords == nil)
     }
 
     @Test func passiveCapturePersistsOrderedRegionsAndExportOmitsBiometricTemplates() throws {
@@ -274,6 +275,77 @@ struct DictationHistoryServiceTests {
                 speakerRegions: outside
             )
         }
+    }
+
+    @Test func noHotwordTranscriptAttachesBeforeCommit() async throws {
+        let service = try makeService()
+        service.recordRaw("with hotwords")
+        service.recordRawWithoutHotwords("without hotwords")
+        let id = try #require(service.commitPending())
+
+        let entry = try await waitForEntry(in: service, id: id)
+        #expect(entry.rawText == "with hotwords")
+        #expect(entry.rawTextWithoutHotwords == "without hotwords")
+        #expect(entry.llmText == nil)
+    }
+
+    @Test func noHotwordTranscriptAttachesAfterCommitAndUpdateFinal() async throws {
+        let service = try makeService()
+        service.recordRaw("with hotwords")
+        let id = try #require(service.commitPending())
+        _ = try await waitForEntry(in: service, id: id)
+        service.updateFinal(
+            "delivered",
+            targetBundleID: "com.example.editor",
+            targetAppName: "Editor"
+        )
+        service.recordRawWithoutHotwords("without hotwords")
+
+        let entry = try await waitForEntry(in: service, id: id) {
+            $0.rawTextWithoutHotwords == "without hotwords"
+        }
+        #expect(entry.rawText == "with hotwords")
+        #expect(entry.rawTextWithoutHotwords == "without hotwords")
+        #expect(entry.finalText == "delivered")
+    }
+
+    @Test func nextRecordRawDoesNotReceivePreviousNoHotwordTranscript() async throws {
+        let service = try makeService()
+        service.recordRaw("first")
+        let firstID = try #require(service.commitPending())
+        _ = try await waitForEntry(in: service, id: firstID)
+        service.updateFinal("first delivered", targetBundleID: nil, targetAppName: nil)
+        service.recordRaw("second")
+        service.recordRawWithoutHotwords("second without")
+        let secondID = try #require(service.commitPending())
+
+        let first = try await waitForEntry(in: service, id: firstID)
+        let second = try await waitForEntry(in: service, id: secondID)
+        #expect(first.rawTextWithoutHotwords == nil)
+        #expect(second.rawTextWithoutHotwords == "second without")
+    }
+
+    private func waitForEntry(
+        in service: DictationHistoryService,
+        id: UUID,
+        timeout: Duration = .seconds(2),
+        matching: ((HistoryEntry) -> Bool)? = nil
+    ) async throws -> HistoryEntry {
+        let clock = ContinuousClock()
+        let deadline = clock.now + timeout
+        while clock.now < deadline {
+            if let entry = try service.fetchRecent().first(where: { $0.id == id }),
+                matching?(entry) ?? true
+            {
+                return entry
+            }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let entry = try #require(service.fetchRecent().first(where: { $0.id == id }))
+        if let matching {
+            #expect(matching(entry))
+        }
+        return entry
     }
 
     private func makeService() throws -> DictationHistoryService {

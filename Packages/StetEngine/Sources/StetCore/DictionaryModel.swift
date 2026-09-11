@@ -4,6 +4,36 @@ public extension Notification.Name {
     static let dictionaryDidSync = Notification.Name("StetCore.DictionaryDidSync")
 }
 
+public struct DictionaryImportResult: Equatable, Sendable {
+    public let addedCount: Int
+    public let skippedCount: Int
+
+    public init(addedCount: Int, skippedCount: Int) {
+        self.addedCount = addedCount
+        self.skippedCount = skippedCount
+    }
+}
+
+public enum DictionaryImportError: Error, Equatable, LocalizedError {
+    case fileTooLarge(byteCount: Int)
+    case dictionaryWouldExceedLimit
+    case unreadable
+    case empty
+
+    public var errorDescription: String? {
+        switch self {
+        case .fileTooLarge:
+            return "This file is too large to import. Use a file smaller than 512 KB."
+        case .dictionaryWouldExceedLimit:
+            return "Importing these terms would make the synced dictionary too large."
+        case .unreadable:
+            return "Stet could not read that file as text."
+        case .empty:
+            return "That file does not contain any dictionary terms."
+        }
+    }
+}
+
 /// `UserDefaults` supports access from multiple threads and tasks, but is not
 /// declared `Sendable` by Foundation. Keep that unchecked boundary limited to
 /// the enabled-flag operations used by `DictionaryModel`.
@@ -180,6 +210,55 @@ public struct DictionaryModel: Sendable {
         syncedStore.updateRecords {
             GlossaryEntry.merging($0, terms: Self.words(from: rawInput), source: .manual)
         }.map(\.term)
+    }
+
+    public static let maximumImportFileByteCount = 512_000
+    public static let maximumStoredUTF8ByteCount = 800_000
+
+    public func importEntries(from rawInput: String) throws -> DictionaryImportResult {
+        let incoming = Self.words(from: rawInput)
+        guard !incoming.isEmpty else { throw DictionaryImportError.empty }
+        let existing = loadRecords()
+        let existingKeys = Set(existing.map { Self.lookupKey(for: $0.term) })
+        let uniqueIncoming = incoming.filter { !existingKeys.contains(Self.lookupKey(for: $0)) }
+        let merged = existing + uniqueIncoming.map { GlossaryEntry(term: $0, source: .manual) }
+        guard Self.encodedUTF8ByteCount(of: merged) <= Self.maximumStoredUTF8ByteCount else {
+            throw DictionaryImportError.dictionaryWouldExceedLimit
+        }
+        if !uniqueIncoming.isEmpty {
+            _ = addEntries(from: uniqueIncoming.joined(separator: "\n"))
+        }
+        return DictionaryImportResult(
+            addedCount: uniqueIncoming.count,
+            skippedCount: incoming.count - uniqueIncoming.count
+        )
+    }
+
+    public static func importText(from data: Data) throws -> String {
+        guard data.count <= maximumImportFileByteCount else {
+            throw DictionaryImportError.fileTooLarge(byteCount: data.count)
+        }
+        let text: String
+        if let utf8 = String(data: data, encoding: .utf8) {
+            text = utf8
+        } else if let utf16 = String(data: data, encoding: .utf16) {
+            text = utf16
+        } else {
+            throw DictionaryImportError.unreadable
+        }
+        return text.replacingOccurrences(of: "\u{FEFF}", with: "")
+    }
+
+    static func encodedUTF8ByteCount(of records: [GlossaryEntry]) -> Int {
+        let terms = records.map(\.term)
+        let sources = Dictionary(uniqueKeysWithValues: records.map { ($0.term, $0.source.rawValue) })
+        let termsSize =
+            (try? PropertyListSerialization.data(fromPropertyList: terms, format: .binary, options: 0).count)
+            ?? 0
+        let sourcesSize =
+            (try? PropertyListSerialization.data(fromPropertyList: sources, format: .binary, options: 0).count)
+            ?? 0
+        return termsSize + sourcesSize
     }
 
     @discardableResult
