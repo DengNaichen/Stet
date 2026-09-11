@@ -31,10 +31,19 @@ from typing import Any, Sequence
 
 
 MODEL_NAME = "3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx"
-MODEL_URL = (
+HF_MODEL_URL = (
+    "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/"
+    f"{MODEL_NAME}"
+)
+HF_MIRROR_URL = (
+    "https://hf-mirror.com/csukuangfj/speaker-embedding-models/resolve/main/"
+    f"{MODEL_NAME}"
+)
+GITHUB_MODEL_URL = (
     "https://github.com/k2-fsa/sherpa-onnx/releases/download/"
     f"speaker-recongition-models/{MODEL_NAME}"
 )
+MODEL_URLS = (HF_MIRROR_URL, HF_MODEL_URL, GITHUB_MODEL_URL)
 DEFAULT_MODEL_PATH = Path.home() / "Library" / "Caches" / "StetSpeakerProbe" / MODEL_NAME
 
 
@@ -154,12 +163,18 @@ def ensure_model(model: Path | None) -> Path:
     DEFAULT_MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     partial = DEFAULT_MODEL_PATH.with_suffix(".part")
     print(f"Downloading speaker model to {DEFAULT_MODEL_PATH}")
-    try:
-        urllib.request.urlretrieve(MODEL_URL, partial)
-        partial.replace(DEFAULT_MODEL_PATH)
-    except Exception:
-        partial.unlink(missing_ok=True)
-        raise
+    last_error: Exception | None = None
+    for model_url in MODEL_URLS:
+        try:
+            urllib.request.urlretrieve(model_url, partial)
+            partial.replace(DEFAULT_MODEL_PATH)
+            last_error = None
+            break
+        except Exception as error:
+            last_error = error
+            partial.unlink(missing_ok=True)
+    if last_error is not None:
+        raise last_error
     return DEFAULT_MODEL_PATH
 
 

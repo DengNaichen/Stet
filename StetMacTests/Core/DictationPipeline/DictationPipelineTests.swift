@@ -429,21 +429,13 @@ struct EngineSelectionRegressionTests {
         #expect(defaults.string(forKey: MacPreferences.transcriptionEngine) == "funASRNano")
     }
 
-    @Test func makePipelinePassesNilLanguageCodeToWhisper() async throws {
-        let local = RecordingTranscriptionService(result: "ok")
-        let factory = DictationPipelineFactory(
-            makeLocalTranscriptionService: { local },
-            makeRewriteService: { _, _ in RecordingRewriteService() }
-        )
-        let snapshot = makeSnapshot(
-            transcriptionPrimaryLanguage: "zh",
-            transcriptionSecondaryLanguage: nil,
-            transcriptionEngine: .localWhisper
-        )
+    @Test func retiredWhisperStoredEngineMigratesToNano() {
+        let defaults = TestSupport.makeUserDefaults()
+        defaults.set("localWhisper", forKey: MacPreferences.transcriptionEngine)
+        let storage = UserDefaultsModelStorage(defaults: defaults)
 
-        let pipeline = try await factory.makePipeline(from: snapshot)
-
-        #expect(pipeline.transcriptionLanguageCode == nil)
+        #expect(storage.transcriptionEngine == .funASRNano)
+        #expect(defaults.string(forKey: MacPreferences.transcriptionEngine) == "funASRNano")
     }
 }
 

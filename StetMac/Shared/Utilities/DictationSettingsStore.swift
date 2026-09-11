@@ -356,7 +356,11 @@ struct DictationSettingsStore: Sendable {
         guard let raw = defaultsStore.string(forKey: MacPreferences.transcriptionEngine) else {
             return .default
         }
-        return StoredTranscriptionEngine(rawValue: raw) ?? .default
+        if let engine = StoredTranscriptionEngine(rawValue: raw) {
+            return engine
+        }
+        saveTranscriptionEngine(.default)
+        return .default
     }
 
     nonisolated func saveTranscriptionEngine(_ engine: StoredTranscriptionEngine) {

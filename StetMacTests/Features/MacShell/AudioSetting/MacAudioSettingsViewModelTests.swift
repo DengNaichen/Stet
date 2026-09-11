@@ -15,9 +15,8 @@
 
             #expect(
                 viewModel.localTranscriptionEngineOptions == [
-                    .fluidAudio,
                     .funASRNano,
-                    .localWhisper,
+                    .fluidAudio,
                 ]
             )
         }
@@ -28,21 +27,39 @@
                 defaults: defaults,
                 secretStore: TestSecretStore()
             )
-            settingsStore.saveTranscriptionEngine(.localWhisper)
+            settingsStore.saveTranscriptionEngine(.funASRNano)
             let viewModel = MacAudioSettingsViewModel(
-                settingsStore: settingsStore,
-                configuration: UserDefaultsModelStorage(defaults: defaults)
+                settingsStore: settingsStore
             )
 
             viewModel.onAppear()
             defer { viewModel.onDisappear() }
 
-            #expect(viewModel.localTranscriptionEngine == .localWhisper)
-            #expect(settingsStore.loadTranscriptionEngine() == .localWhisper)
+            #expect(viewModel.localTranscriptionEngine == .funASRNano)
+            #expect(settingsStore.loadTranscriptionEngine() == .funASRNano)
 
             viewModel.localTranscriptionEngine = .fluidAudio
 
             #expect(settingsStore.loadTranscriptionEngine() == .fluidAudio)
+        }
+
+        @Test func retiredWhisperEngineMigratesToNano() {
+            let defaults = TestSupport.makeUserDefaults()
+            defaults.set("localWhisper", forKey: MacPreferences.transcriptionEngine)
+            let settingsStore = DictationSettingsStore(
+                defaults: defaults,
+                secretStore: TestSecretStore()
+            )
+            let viewModel = MacAudioSettingsViewModel(
+                settingsStore: settingsStore
+            )
+
+            viewModel.onAppear()
+            defer { viewModel.onDisappear() }
+
+            #expect(viewModel.localTranscriptionEngine == .funASRNano)
+            #expect(settingsStore.loadTranscriptionEngine() == .funASRNano)
+            #expect(defaults.string(forKey: MacPreferences.transcriptionEngine) == "funASRNano")
         }
 
         @Test func passiveListeningDefaultsOnAndPersistsExplicitChanges() {
@@ -52,8 +69,7 @@
                 secretStore: TestSecretStore()
             )
             let viewModel = MacAudioSettingsViewModel(
-                settingsStore: settingsStore,
-                configuration: UserDefaultsModelStorage(defaults: defaults)
+                settingsStore: settingsStore
             )
 
             viewModel.onAppear()

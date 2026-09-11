@@ -26,10 +26,6 @@
             }
         }
 
-        @Published private(set) var isWhisperDownloaded = false
-        @Published private(set) var isWhisperDownloading = false
-        @Published private(set) var whisperErrorMessage: String?
-
         @Published private(set) var isParakeetDownloaded = false
         @Published private(set) var isParakeetDownloading = false
         @Published private(set) var parakeetErrorMessage: String?
@@ -55,7 +51,6 @@
         private let extractEnrollmentEmbedding: @Sendable (URL) async throws -> SpeakerEnrollmentEmbedding
         private var enrollmentEmbeddings: [SpeakerEnrollmentEmbedding] = []
 
-        private let localWhisperModelManager: LocalWhisperModelManager
         private let fluidAudioModelManager: FluidAudioModelManager
         private let funASRNanoModelManager: FunASRNanoModelManager
 
@@ -63,7 +58,6 @@
             deviceManager: AudioDeviceSelectionManager = .shared,
             microphoneTestService: MicrophoneTestService = DefaultMicrophoneTestService.shared,
             settingsStore: DictationSettingsStore = DictationSettingsStore(),
-            configuration: any ModelStorageConfiguration = UserDefaultsModelStorage(),
             speakerProfileStore: SpeakerProfileStore = SpeakerProfileStore(),
             extractEnrollmentEmbedding: (@Sendable (URL) async throws -> SpeakerEnrollmentEmbedding)? = nil
         ) {
@@ -77,7 +71,6 @@
                 extractEnrollmentEmbedding ?? { url in
                     try await defaultEmbeddingService.extract(from: url)
                 }
-            self.localWhisperModelManager = LocalWhisperModelManager(configuration: configuration)
             self.fluidAudioModelManager = FluidAudioModelManager()
             self.funASRNanoModelManager = FunASRNanoModelManager()
         }
@@ -87,7 +80,6 @@
             deviceManager.refreshDevices()
             AudioDeviceChangeMonitor.shared.startMonitoring()
 
-            isWhisperDownloaded = (try? localWhisperModelManager.defaultModelReady()) ?? false
             isParakeetDownloaded = fluidAudioModelManager.isModelDownloaded()
             isFunASRNanoDownloaded = funASRNanoModelManager.isModelDownloaded()
             localTranscriptionEngine = settingsStore.loadTranscriptionEngine()
@@ -200,27 +192,6 @@
             isProcessingEnrollment = false
         }
 
-        func downloadWhisperModel() {
-            guard !isWhisperDownloading, !isWhisperDownloaded else { return }
-            isWhisperDownloading = true
-            whisperErrorMessage = nil
-
-            Task { [localWhisperModelManager] in
-                do {
-                    try await localWhisperModelManager.installDefaultModel()
-                    await MainActor.run {
-                        self.isWhisperDownloaded = (try? localWhisperModelManager.defaultModelReady()) ?? false
-                        self.isWhisperDownloading = false
-                    }
-                } catch {
-                    await MainActor.run {
-                        self.whisperErrorMessage = error.localizedDescription
-                        self.isWhisperDownloading = false
-                    }
-                }
-            }
-        }
-
         func downloadParakeetModel() {
             guard !isParakeetDownloading, !isParakeetDownloaded else { return }
             isParakeetDownloading = true
@@ -261,10 +232,6 @@
                     }
                 }
             }
-        }
-
-        func openWhisperFolder() {
-            revealInFinder(urlProvider: { try self.localWhisperModelManager.defaultModelURL() })
         }
 
         func openParakeetFolder() {

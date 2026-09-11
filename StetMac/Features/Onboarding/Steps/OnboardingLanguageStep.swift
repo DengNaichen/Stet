@@ -94,7 +94,7 @@
                         Image(
                             systemName: viewModel.transcriptionEngine == .fluidAudio
                                 ? "bolt.fill"
-                                : (viewModel.transcriptionEngine == .funASRNano ? "waveform" : "cpu")
+                                : "waveform"
                         )
                         .font(.title2)
                         .foregroundStyle(.blue)
@@ -106,9 +106,7 @@
                             Text(
                                 viewModel.transcriptionEngine == .fluidAudio
                                     ? "Optimized for speed and accuracy in these languages."
-                                    : (viewModel.transcriptionEngine == .funASRNano
-                                        ? "Fast local transcription for Chinese, English, and Japanese."
-                                        : "Highly accurate multilingual engine.")
+                                    : "Fast local transcription for Chinese, English, and Japanese."
                             )
                             .font(.caption)
                             .foregroundStyle(.secondary)

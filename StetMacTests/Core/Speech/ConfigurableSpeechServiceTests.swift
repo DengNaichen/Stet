@@ -265,29 +265,25 @@ struct ConfigurableSpeechServiceTests {
         await service.cancelRecording()
     }
 
-    @Test func localWhisperModelMissingFailsBeforeCaptureStarts() async throws {
+    @Test func missingLocalModelFailsBeforeCaptureStarts() async throws {
         let (store, _, _) = try makeSettingsStore(
             rewriteProvider: .openAI,
             openAIAPIKey: "sk-test"
         )
         let capture = TestAudioCaptureService(audioFileURL: makeAudioFileURL())
+        let missingAssets = [URL(fileURLWithPath: "/tmp/funasr-encoder-f16.gguf")]
         let service = ConfigurableSpeechService(
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
                 makeLocalTranscriptionService: {
-                    throw LocalWhisperError.modelMissing(
-                        expectedURL: URL(fileURLWithPath: "/tmp/ggml-large-v3-turbo-q5_0.bin")
-                    )
+                    throw FunASRNanoModelError.missingAssets(missingAssets)
                 },
                 makeRewriteService: { _, _ in RecordingRewriteService() }
             ),
             captureService: capture
         )
 
-        await #expect(
-            throws: LocalWhisperError.modelMissing(
-                expectedURL: URL(fileURLWithPath: "/tmp/ggml-large-v3-turbo-q5_0.bin"))
-        ) {
+        await #expect(throws: FunASRNanoModelError.missingAssets(missingAssets)) {
             try await service.startRecording()
         }
 

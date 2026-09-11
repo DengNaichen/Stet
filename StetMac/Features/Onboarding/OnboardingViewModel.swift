@@ -42,7 +42,6 @@
         private let coordinator: any MacPermissionsCoordinating
         private let settingsStore: DictationSettingsStore
         private let credentialValidationService: any ProviderCredentialValidating
-        private let localWhisperModelManager: LocalWhisperModelManager
         private let fluidAudioModelManager: FluidAudioModelManager
         private let funASRNanoModelManager: FunASRNanoModelManager
         private var cancellables = Set<AnyCancellable>()
@@ -51,14 +50,12 @@
             coordinator: any MacPermissionsCoordinating,
             settingsStore: DictationSettingsStore = DictationSettingsStore(),
             credentialValidationService: (any ProviderCredentialValidating)? = nil,
-            localWhisperModelManager: LocalWhisperModelManager = LocalWhisperModelManager(),
             fluidAudioModelManager: FluidAudioModelManager = FluidAudioModelManager(),
             funASRNanoModelManager: FunASRNanoModelManager = FunASRNanoModelManager()
         ) {
             self.coordinator = coordinator
             self.settingsStore = settingsStore
             self.credentialValidationService = credentialValidationService ?? ProviderCredentialValidationService()
-            self.localWhisperModelManager = localWhisperModelManager
             self.fluidAudioModelManager = fluidAudioModelManager
             self.funASRNanoModelManager = funASRNanoModelManager
 
@@ -319,49 +316,6 @@
                         try? await LocalParakeetContextManager.shared.loadModel(version: .v3) { version in
                             try await AsrModels.loadFromCache(configuration: nil, version: version)
                         }
-                    }
-
-                case .localWhisper:
-                    if try localWhisperModelManager.defaultModelReady() {
-                        try localWhisperModelManager.removeDefaultEncoderIfPresent()
-                        localWhisperModelManager.saveCustomModelPath(nil)
-                        engineDownloadFraction = 1
-                        engineDownloadState = .ready
-                        settingsStore.saveTranscriptionEngine(.localWhisper)
-                        return
-                    }
-
-                    engineDownloadState = .running(stageText: "Checking existing assets...")
-                    try await localWhisperModelManager.installDefaultModel(
-                        progress: { [weak self] stage in
-                            Task { @MainActor [weak self, stage] in
-                                let stageText =
-                                    switch stage {
-                                    case .checkingExistingAssets: "Checking assets..."
-                                    case .downloadingModel: "Downloading Whisper..."
-                                    case .ready: "Ready"
-                                    }
-                                self?.engineDownloadState = .running(stageText: stageText)
-                            }
-                        },
-                        downloadProgress: { [weak self] fraction, completed, total in
-                            Task { @MainActor [weak self, fraction, completed, total] in
-                                self?.engineDownloadFraction = fraction
-                                self?.engineBytesCompleted = completed
-                                self?.engineBytesTotal = total
-                            }
-                        }
-                    )
-
-                    localWhisperModelManager.saveCustomModelPath(nil)
-                    engineDownloadFraction = 1
-                    engineDownloadState = .ready
-                    settingsStore.saveTranscriptionEngine(.localWhisper)
-
-                    // Trigger proactive high-priority background warm-up for Whisper
-                    Task.detached(priority: .userInitiated) { [localWhisperModelManager] in
-                        try? await localWhisperModelManager.installDefaultAssets()
-                        try? await LocalWhisperWarmupCoordinator.shared.warmup()
                     }
 
                 case .funASRNano:

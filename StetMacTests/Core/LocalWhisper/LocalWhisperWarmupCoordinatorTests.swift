@@ -19,7 +19,6 @@
             try Data("sample".utf8).write(to: sampleURL)
 
             let configuration = UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults())
-            configuration.saveTranscriptionEngine(.localWhisper)
             let createdServices = CreatedWarmServices()
             let coordinator = LocalWhisperWarmupCoordinator(
                 configuration: configuration,
@@ -56,7 +55,6 @@
             try Data("sample".utf8).write(to: sampleURL)
 
             let configuration = UserDefaultsModelStorage(defaults: TestSupport.makeUserDefaults())
-            configuration.saveTranscriptionEngine(.localWhisper)
             let createdServices = CreatedWarmServices()
             let coordinator = LocalWhisperWarmupCoordinator(
                 configuration: configuration,

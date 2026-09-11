@@ -1,14 +1,14 @@
-import Foundation
-import StetCore
-import os
+#if os(macOS)
+    import Foundation
+    import StetCore
+    import os
 
-/// Deep module for selecting and preparing the local transcription engine.
-/// Its interface is one configuration in, one ready service out; fallback and diagnostics stay local.
-struct LocalTranscriptionServiceFactory: Sendable {
-    nonisolated static func make(
-        configuration: any ModelStorageConfiguration = UserDefaultsModelStorage()
-    ) throws -> any AudioFileTranscriptionService {
-        #if os(macOS)
+    /// Deep module for selecting and preparing the local transcription engine.
+    /// Parakeet falls back to Fun-ASR Nano; Fun-ASR has no further fallback.
+    struct LocalTranscriptionServiceFactory: Sendable {
+        nonisolated static func make(
+            configuration: any ModelStorageConfiguration = UserDefaultsModelStorage()
+        ) throws -> any AudioFileTranscriptionService {
             let stored = configuration.transcriptionEngine
             let logger = Logger(
                 subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
@@ -18,41 +18,17 @@ struct LocalTranscriptionServiceFactory: Sendable {
 
             switch stored {
             case .fluidAudio:
-                return try makeWithFallback(logger: logger, configuration: configuration) {
-                    try FluidAudioTranscriptionService()
+                do {
+                    return try FluidAudioTranscriptionService()
+                } catch {
+                    logger.warning(
+                        "Selected transcription engine unavailable (\(error.localizedDescription)); falling back to Fun-ASR Nano."
+                    )
+                    return try FunASRNanoTranscriptionService()
                 }
             case .funASRNano:
-                return try makeWithFallback(logger: logger, configuration: configuration) {
-                    try FunASRNanoTranscriptionService()
-                }
-            case .localWhisper:
-                return try LocalWhisperTranscriptionService(
-                    modelManager: LocalWhisperModelManager(configuration: configuration)
-                )
-            }
-        #else
-            return try LocalWhisperTranscriptionService(
-                modelManager: LocalWhisperModelManager(configuration: configuration)
-            )
-        #endif
-    }
-
-    #if os(macOS)
-        private nonisolated static func makeWithFallback(
-            logger: Logger,
-            configuration: any ModelStorageConfiguration,
-            makePrimary: () throws -> any AudioFileTranscriptionService
-        ) throws -> any AudioFileTranscriptionService {
-            do {
-                return try makePrimary()
-            } catch {
-                logger.warning(
-                    "Selected transcription engine unavailable (\(error.localizedDescription)); falling back to local whisper."
-                )
-                return try LocalWhisperTranscriptionService(
-                    modelManager: LocalWhisperModelManager(configuration: configuration)
-                )
+                return try FunASRNanoTranscriptionService()
             }
         }
-    #endif
-}
+    }
+#endif

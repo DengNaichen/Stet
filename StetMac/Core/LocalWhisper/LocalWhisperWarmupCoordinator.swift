@@ -61,21 +61,6 @@
         func activateIfNeeded() {
             guard !hasActivated else { return }
             hasActivated = true
-
-            guard configuration.transcriptionEngine == .localWhisper else {
-                return
-            }
-
-            scheduleWarmup(after: startupWarmupDelay)
-            wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
-                forName: NSWorkspace.didWakeNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.scheduleWarmup(after: self?.startupWarmupDelay ?? 3)
-                }
-            }
         }
 
         func warmup() async throws {
@@ -102,10 +87,6 @@
         }
 
         private func performWarmupIfPossible(logMessage: StaticString) async throws {
-            guard configuration.transcriptionEngine == .localWhisper else {
-                return
-            }
-
             guard let sampleURL = sampleURLProvider() else {
                 return
             }

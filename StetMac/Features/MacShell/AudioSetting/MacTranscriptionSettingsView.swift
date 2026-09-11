@@ -26,7 +26,7 @@
 
                         if viewModel.localTranscriptionEngine == .fluidAudio, !viewModel.isParakeetDownloaded {
                             Text(
-                                "Parakeet model isn't downloaded yet. Stet will fall back to Whisper until you download it below."
+                                "Parakeet model isn't downloaded yet. Stet will fall back to Fun-ASR Nano until you download it below."
                             )
                             .font(.system(size: 11))
                             .foregroundStyle(.orange)
@@ -36,7 +36,7 @@
                             !viewModel.isFunASRNanoDownloaded
                         {
                             Text(
-                                "Fun-ASR Nano isn't downloaded yet. Stet will fall back to Whisper until you download it below."
+                                "Fun-ASR Nano isn't downloaded yet. Download it below before dictating."
                             )
                             .font(.system(size: 11))
                             .foregroundStyle(.orange)
@@ -46,12 +46,12 @@
 
                         VStack(spacing: 12) {
                             TranscriptionModelRow(
-                                name: "Whisper",
-                                isDownloaded: viewModel.isWhisperDownloaded,
-                                isDownloading: viewModel.isWhisperDownloading,
-                                errorMessage: viewModel.whisperErrorMessage,
-                                onDownload: { viewModel.downloadWhisperModel() },
-                                onReveal: { viewModel.openWhisperFolder() }
+                                name: "Fun-ASR Nano (Chinese / English / Japanese)",
+                                isDownloaded: viewModel.isFunASRNanoDownloaded,
+                                isDownloading: viewModel.isFunASRNanoDownloading,
+                                errorMessage: viewModel.funASRNanoErrorMessage,
+                                onDownload: { viewModel.downloadFunASRNanoModel() },
+                                onReveal: { viewModel.openFunASRNanoFolder() }
                             )
 
                             Divider()
@@ -63,17 +63,6 @@
                                 errorMessage: viewModel.parakeetErrorMessage,
                                 onDownload: { viewModel.downloadParakeetModel() },
                                 onReveal: { viewModel.openParakeetFolder() }
-                            )
-
-                            Divider()
-
-                            TranscriptionModelRow(
-                                name: "Fun-ASR Nano (Chinese / English / Japanese)",
-                                isDownloaded: viewModel.isFunASRNanoDownloaded,
-                                isDownloading: viewModel.isFunASRNanoDownloading,
-                                errorMessage: viewModel.funASRNanoErrorMessage,
-                                onDownload: { viewModel.downloadFunASRNanoModel() },
-                                onReveal: { viewModel.openFunASRNanoFolder() }
                             )
                         }
                     }

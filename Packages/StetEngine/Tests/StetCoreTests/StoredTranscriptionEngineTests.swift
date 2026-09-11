@@ -4,9 +4,10 @@ import Testing
 
 @Suite("Stored Transcription Engine")
 struct StoredTranscriptionEngineTests {
-    @Test func supportedCasesAndDefaultExcludeRetiredSenseVoice() {
-        #expect(StoredTranscriptionEngine.allCases == [.fluidAudio, .funASRNano, .localWhisper])
+    @Test func supportedCasesExcludeRetiredEngines() {
+        #expect(StoredTranscriptionEngine.allCases == [.funASRNano, .fluidAudio])
         #expect(StoredTranscriptionEngine.default == .funASRNano)
         #expect(StoredTranscriptionEngine(rawValue: "sherpaOnnxSenseVoice") == nil)
+        #expect(StoredTranscriptionEngine(rawValue: "localWhisper") == nil)
     }
 }

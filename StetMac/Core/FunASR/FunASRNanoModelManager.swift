@@ -1,6 +1,7 @@
 #if os(macOS)
     import Foundation
     import StetASR
+    import StetCore
 
     enum FunASRNanoModelError: LocalizedError, Equatable, Sendable {
         case modelDirectoryUnavailable
@@ -77,8 +78,30 @@
                 }
             self.downloadProvider =
                 downloadProvider ?? { url in
-                    try await URLSession.shared.download(from: url)
+                    try await Self.downloadUsingMirrors(official: url)
                 }
+        }
+
+        private static func downloadUsingMirrors(official: URL) async throws -> (URL, URLResponse) {
+            var lastError: Error?
+            for url in ModelDownloadMirror.candidates(for: official) {
+                do {
+                    let (file, response) = try await ModelDownloadMirror.urlSession.download(from: url)
+                    if let httpResponse = response as? HTTPURLResponse,
+                        (200...299).contains(httpResponse.statusCode)
+                    {
+                        return (file, response)
+                    }
+                    try? FileManager.default.removeItem(at: file)
+                    lastError = FunASRNanoModelError.invalidDownloadResponse(
+                        url,
+                        statusCode: (response as? HTTPURLResponse)?.statusCode
+                    )
+                } catch {
+                    lastError = error
+                }
+            }
+            throw lastError ?? FunASRNanoModelError.invalidDownloadResponse(official, statusCode: nil)
         }
 
         nonisolated func modelFiles() throws -> FunASRNanoModelFiles {
