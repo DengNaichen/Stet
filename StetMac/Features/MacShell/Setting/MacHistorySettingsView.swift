@@ -18,7 +18,6 @@
             return entries.filter {
                 ($0.rawText.lowercased().contains(q))
                     || ($0.llmText?.lowercased().contains(q) == true)
-                    || ($0.finalText?.lowercased().contains(q) == true)
                     || ($0.targetAppName?.lowercased().contains(q) == true)
                     || ($0.targetBundleID?.lowercased().contains(q) == true)
             }
@@ -108,7 +107,7 @@
             } else {
                 List(filtered, id: \.id) { entry in
                     HistoryEntryRow(entry: entry)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+                        .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
                 }
                 .listStyle(.plain)
                 .macSettingsTracksTitleScroll()
@@ -158,107 +157,42 @@
     private struct HistoryEntryRow: View {
         let entry: HistoryEntry
 
-        @State private var isExpanded = false
-
         var body: some View {
-            VStack(alignment: .leading, spacing: 6) {
-                // Header row
-                HStack(spacing: 6) {
-                    statusBadge
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Text(entry.timestamp, format: .dateTime.month(.twoDigits).day(.twoDigits))
                     if let appName = entry.targetAppName {
+                        Text("·")
                         Text(appName)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
-                    Spacer()
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.15)) { isExpanded.toggle() }
-                    } label: {
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .imageScale(.small)
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
                 }
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-                // Primary text — always visible
-                Text(displayText)
-                    .font(.system(size: 13))
-                    .lineLimit(isExpanded ? nil : 2)
-                    .fixedSize(horizontal: false, vertical: isExpanded)
-
-                // Expanded detail
-                if isExpanded {
-                    expandedDetail
+                textStageRow(text: entry.rawText)
+                if let llm = entry.llmText {
+                    textStageRow(text: llm, isRefined: true)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
 
-        private var displayText: String {
-            entry.finalText ?? entry.llmText ?? entry.rawText
-        }
-
-        @ViewBuilder
-        private var statusBadge: some View {
-            let (label, color): (LocalizedStringKey, Color) = {
-                switch entry.status {
-                case .completed:
-                    return (LocalizedStringKey("Sent"), .green)
-                case .clipboardPending:
-                    return (LocalizedStringKey("Clipboard"), .orange)
-                case .processing:
-                    return (LocalizedStringKey("Transcribed"), .secondary)
-                case .notDelivered:
-                    return (LocalizedStringKey("Transcribed"), .secondary)
+        private func textStageRow(text: String, isRefined: Bool = false) -> some View {
+            let label: LocalizedStringKey = isRefined ? "LLM Refined" : "Transcription"
+            return Text(text)
+                .font(.system(size: 13))
+                .foregroundStyle(isRefined ? Color.primary : Color.secondary)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+                .accessibilityLabel(Text("\(Text(label)): \(text)"))
+                .padding(.leading, 10)
+                .overlay(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(isRefined ? Color.accentColor : Color.secondary.opacity(0.35))
+                        .frame(width: 2)
+                        .accessibilityHidden(true)
                 }
-            }()
-            Text(label)
-                .font(.system(size: 10, weight: .medium))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(color.opacity(0.15))
-                .foregroundStyle(color)
-                .clipShape(Capsule())
-        }
-
-        @ViewBuilder
-        private var expandedDetail: some View {
-            VStack(alignment: .leading, spacing: 8) {
-                Divider()
-                textStageRow(label: LocalizedStringKey("Transcript"), text: entry.rawText)
-                if let llm = entry.llmText, llm != entry.rawText {
-                    textStageRow(label: LocalizedStringKey("LLM Refined"), text: llm)
-                }
-                if let final = entry.finalText {
-                    textStageRow(label: LocalizedStringKey("Delivered"), text: final)
-                }
-                if let bundleID = entry.targetBundleID {
-                    labeledRow(label: LocalizedStringKey("Target App"), value: bundleID)
-                }
-            }
-            .padding(.top, 2)
-        }
-
-        private func textStageRow(label: LocalizedStringKey, text: String) -> some View {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(text)
-                    .font(.system(size: 12))
-                    .textSelection(.enabled)
-            }
-        }
-
-        private func labeledRow(label: LocalizedStringKey, value: String) -> some View {
-            HStack(alignment: .top, spacing: 4) {
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(value)
-                    .font(.caption)
-                    .textSelection(.enabled)
-            }
         }
     }
 #endif

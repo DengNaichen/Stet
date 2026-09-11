@@ -263,3 +263,6 @@
 "Update compatibility fixes for pasting into other apps." = "更新向其他应用粘贴文字时使用的兼容清单。";
 "Updated" = "已更新";
 "Check failed. Using current list." = "检查失败，继续使用当前清单。";
+
+/* History */
+"Transcription" = "转写";
