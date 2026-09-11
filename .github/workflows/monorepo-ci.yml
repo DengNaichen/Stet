@@ -7,23 +7,62 @@ on:
       - main
       - "migration/**"
 
+permissions:
+  contents: read
+
 # New commits supersede older PR runs; main and migration pushes still finish.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  quality:
-    name: Swift Quality
-    runs-on: macos-26
+  changes:
+    name: Repository Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      quality: ${{ steps.scope.outputs.quality }}
+      macos: ${{ steps.scope.outputs.macos }}
 
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 2
+          # Full history makes PR merge-base and multi-commit push diffs exact.
+          fetch-depth: 0
+
+      - name: Determine affected jobs
+        id: scope
+        run: python3 scripts/ci-changes.py
 
       - name: Validate app compatibility list
-        run: python3 scripts/validate-app-compatibility.py --base-ref HEAD^
+        env:
+          BASE_REF: ${{ steps.scope.outputs.base_ref }}
+        run: |
+          args=()
+          if [[ -n "$BASE_REF" ]]; then args+=(--base-ref "$BASE_REF"); fi
+          python3 scripts/validate-app-compatibility.py "${args[@]}"
+
+      - name: Test CI helpers
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+
+      - name: Validate harness entrypoints
+        run: scripts/validate-agent-entrypoints
+
+      - name: Validate workflow syntax
+        if: steps.scope.outputs.workflows == 'true'
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
+
+  quality:
+    name: Swift Quality
+    needs: changes
+    if: needs.changes.outputs.quality == 'true'
+    runs-on: macos-26
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
 
       - uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -32,23 +71,17 @@ jobs:
       - name: Install SwiftLint
         run: brew install swiftlint
 
-      - name: Test CI cache validation
-        run: python3 -m unittest discover -s scripts/tests -p 'test_ci_source_mtimes.py'
-
       - name: Run lint checks
         run: make lint
 
   macos:
-    name: ${{ matrix.name }}
+    # `make test` builds the Stet app and its dependencies before running tests.
+    # A separate Debug build would repeat the same compilation and cache I/O.
+    name: macOS Tests
+    needs: changes
+    if: needs.changes.outputs.macos == 'true'
     runs-on: macos-26
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: macOS Build
-            target: ci-build
-          - name: macOS Tests
-            target: test
+    timeout-minutes: 30
     env:
       CI_XCODEBUILD_FLAGS: >-
         -derivedDataPath .build/ci
@@ -108,9 +141,9 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: .build/ci/CompilationCache.noindex
-          key: compilation-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-${{ github.sha }}
+          key: compilation-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-test-${{ github.sha }}
           restore-keys: |
-            compilation-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-
+            compilation-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-test-
 
       - name: Restore incremental build
         id: incremental
@@ -120,9 +153,9 @@ jobs:
             .build/ci/Build
             .build/ci/ModuleCache.noindex
             .build/ci/source-mtimes.json
-          key: incremental-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-${{ github.sha }}
+          key: incremental-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-test-${{ github.sha }}
           restore-keys: |
-            incremental-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ matrix.target }}-
+            incremental-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-test-
 
       - name: Validate incremental build inputs
         run: python3 scripts/ci-source-mtimes.py restore .build/ci/source-mtimes.json
@@ -130,8 +163,8 @@ jobs:
       - name: Install Metal Toolchain
         run: xcodebuild -downloadComponent MetalToolchain
 
-      - name: Build or test macOS app
-        run: make ${{ matrix.target }}
+      - name: Build and test macOS app
+        run: make test
 
       # Compiler results are reusable even if a later test fails. Never cache
       # test results or skip test execution on a cache hit.
@@ -155,3 +188,28 @@ jobs:
             .build/ci/ModuleCache.noindex
             .build/ci/source-mtimes.json
           key: ${{ steps.incremental.outputs.cache-primary-key }}
+
+  result:
+    name: CI Result
+    needs: [changes, quality, macos]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every selected job to succeed
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          assert needs["changes"]["result"] == "success", "Repository checks failed or were cancelled"
+          for name in ("quality", "macos"):
+              selected = needs["changes"]["outputs"][name]
+              assert selected in ("true", "false"), f"Missing CI selection: {name}"
+              expected = "success" if selected == "true" else "skipped"
+              actual = needs[name]["result"]
+              assert actual == expected, f"{name}: expected {expected}, got {actual}"
+          print("All selected checks passed.")
+          PY

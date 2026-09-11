@@ -28,9 +28,25 @@ macOS-only 目标（`ci-build`、`release-github`、`doctor` 等）见根 [`Make
 
 | CI job | 本地等价命令 |
 |--------|--------------|
+| Repository Checks（Linux，始终运行） | CI helper 单测、兼容名单校验、`scripts/validate-agent-entrypoints`；工作流改动时加 `actionlint` |
 | Swift Quality | `make lint` |
-| macOS Build | `make ci-build` |
-| macOS Tests | `make test` |
+| macOS Tests（包含 app 构建） | `make test` |
+| CI Result（Linux，始终运行） | 汇总：所有选中的任务必须成功，未选中的任务必须跳过 |
+
+`scripts/ci-changes.py` 按完整 Git diff 选择任务：名单和文档改动只跑
+Linux 检查，iOS Swift 改动跑现有 lint，macOS／共享包改动跑完整构建和
+测试。独立 Debug Build 与 `make test` 重复，已移除；本地 `make ci-build`
+仍可使用。具体路径、保守回退和 PR／push 差异语义见
+[CI 范围说明](../.github/README.md#change-based-ci-scope)。
+
+CI 配置的本地验证：
+
+```sh
+python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+python3 scripts/validate-app-compatibility.py --base-ref origin/main
+scripts/validate-agent-entrypoints
+actionlint
+```
 
 ### Release workflows
 
