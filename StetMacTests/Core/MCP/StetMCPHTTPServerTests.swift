@@ -6,7 +6,7 @@
 
     @testable import Stet
 
-    @Suite("Stet MCP HTTP Server")
+    @Suite("Stet MCP HTTP Server", .serialized)
     struct StetMCPHTTPServerTests {
         @Test func bindsAndStopsNormally() async throws {
             let server = makeHTTPServer(port: 0)
