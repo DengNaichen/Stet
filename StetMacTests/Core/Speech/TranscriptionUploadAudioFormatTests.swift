@@ -6,7 +6,7 @@ import Testing
 @Suite("Transcription Upload Audio Format")
 struct TranscriptionUploadAudioFormatTests {
     #if os(macOS)
-        @Test func macFormatTargetsWhisperFriendlyPCMShape() throws {
+        @Test func macFormatTargets16kHzMonoPCM() throws {
             let format = try #require(TranscriptionUploadAudioFormat.makeMacOutputFormat())
 
             #expect(TranscriptionUploadAudioFormat.macFileExtension == "wav")

@@ -3,7 +3,6 @@
 
     enum MacOnboardingMode: String, Sendable {
         case fluidAudio
-        case localWhisper
     }
 
     enum MacOnboardingStep: Int, CaseIterable, Sendable {

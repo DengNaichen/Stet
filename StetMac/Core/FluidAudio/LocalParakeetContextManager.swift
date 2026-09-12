@@ -6,11 +6,11 @@
 
     /// Single point of ownership for the loaded NVIDIA Parakeet ASR engine.
     ///
-    /// Mirrors `LocalWhisperContextManager`: holds the loaded `AsrManager` for
-    /// the whole app, exposes `isModelLoaded` / `isModelLoading` for UI, and
-    /// releases everything between recordings via `cleanupResources()` so memory
-    /// drops back to baseline. The transcription service reuses the loaded
-    /// manager when present and falls back to a transient one otherwise.
+    /// Holds the loaded `AsrManager` for the whole app, exposes
+    /// `isModelLoaded` / `isModelLoading` for UI, and releases everything
+    /// between recordings via `cleanupResources()` so memory drops back to
+    /// baseline. The transcription service reuses the loaded manager when
+    /// present and falls back to a transient one otherwise.
     @MainActor
     final class LocalParakeetContextManager: ObservableObject {
         static let shared = LocalParakeetContextManager()

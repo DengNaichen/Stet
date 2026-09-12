@@ -23,8 +23,7 @@
     }
 
     /// Transcribes captured audio with the NVIDIA Parakeet ASR model via
-    /// FluidAudio. Mirrors `LocalWhisperTranscriptionService`'s reuse-or-transient
-    /// pattern: when `LocalParakeetContextManager.shared` already has the right
+    /// FluidAudio. When `LocalParakeetContextManager.shared` already has the right
     /// version loaded the manager is reused; otherwise a transient `AsrManager`
     /// is created, used, and torn down so memory returns to baseline.
     final class FluidAudioTranscriptionService: AudioFileTranscriptionService, @unchecked Sendable {
@@ -56,9 +55,8 @@
         }
 
         /// Loads the ASR model into the shared context manager if nothing is
-        /// loaded. Mirrors `LocalWhisperTranscriptionService.prewarm` so the
-        /// existing parallel-prewarm path in `ConfigurableSpeechService` works
-        /// for both engines.
+        /// loaded, so the existing parallel-prewarm path in
+        /// `ConfigurableSpeechService` works for Parakeet.
         func prewarm() async throws {
             let manager = await contextManagerProvider()
             let loader = modelLoader

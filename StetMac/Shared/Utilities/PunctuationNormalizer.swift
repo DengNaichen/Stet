@@ -8,7 +8,7 @@ import Foundation
 ///
 /// `PunctuationNormalizer` fixes this in a single O(n) pass by:
 /// 1. Checking the **immediate character context** around each punctuation mark.
-/// 2. Using the Whisper-detected **language code** as a tiebreaker when context
+/// 2. Using the detected **language code** as a tiebreaker when context
 ///    is ambiguous (e.g. punctuation at string boundaries or surrounded by spaces).
 enum PunctuationNormalizer {
 
@@ -19,7 +19,7 @@ enum PunctuationNormalizer {
     ///
     /// - Parameters:
     ///   - text: The post-rewrite transcript text.
-    ///   - languageCode: Whisper-detected language code (e.g. `"zh"`, `"ja"`, `"ko"`, `"en"`).
+    ///   - languageCode: Detected language code (e.g. `"zh"`, `"ja"`, `"ko"`, `"en"`).
     ///     `nil` falls back to context-only normalization.
     /// - Returns: Text with punctuation widths corrected.
     static func normalize(_ text: String, languageCode: String?) -> String {
