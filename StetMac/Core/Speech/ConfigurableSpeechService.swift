@@ -415,7 +415,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 )
                 trimmedTranscript = Self.stripTrailingPeriod(normalizedTranscript)
             } else {
-                trimmedTranscript = trimmedFinalTranscript
+                trimmedTranscript = Self.stripTrailingPeriod(trimmedFinalTranscript)
             }
             try ensureCaptureSessionIsActive(sessionID)
             guard !trimmedTranscript.isEmpty else {
