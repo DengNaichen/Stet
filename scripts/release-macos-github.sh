@@ -144,6 +144,8 @@ XCODEBUILD_COMMAND=(
   -destination 'generic/platform=macOS' \
   -archivePath "$ARCHIVE_PATH" \
   archive \
+  ARCHS=arm64 \
+  ONLY_ACTIVE_ARCH=NO \
   CODE_SIGN_STYLE="$ARCHIVE_CODE_SIGN_STYLE" \
   DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
 )
