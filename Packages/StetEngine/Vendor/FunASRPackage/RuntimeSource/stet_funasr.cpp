@@ -1,6 +1,6 @@
 // Stet's in-process Fun-ASR-Nano runtime, derived from FunASR's funasr-cli.
 //
-//   wav(16k mono) -> kaldi fbank -> SAN-M encoder + adaptor (ggml) ->
+//   wav(16k mono) -> kaldi fbank -> SAN-M encoder + adaptor (CoreML CPU, else ggml) ->
 //   low-frame-rate truncation -> [prefix tokens | audio embeds | suffix tokens]
 //   -> Qwen3 LLM (llama.cpp) -> transcription.
 //
@@ -15,6 +15,7 @@
 #include "gguf.h"
 #include "llama.h"
 #include "stet_funasr.h"
+#include "stet_funasr_coreml.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -24,6 +25,7 @@
 #include <cstring>
 #include <exception>
 #include <map>
+#include <memory>
 #include <new>
 #include <stdexcept>
 #include <string>
@@ -178,6 +180,7 @@ static int decode_batch(llama_context*ctx,int n,llama_token*tok,float*embd,int n
 
 struct stet_funasr_context {
     enc_model encoder;
+    std::unique_ptr<StetCoreMLEncoder> coreml_encoder;
     llama_model *model = nullptr;
     llama_context *llama = nullptr;
     llama_sampler *sampler = nullptr;
@@ -238,10 +241,17 @@ extern "C" stet_funasr_context *stet_funasr_create(
         context->vad_path=vad_path;
         ggml_time_init();
         llama_log_set(runtime_log_callback,nullptr);
-        if(!load_enc(encoder_path,context->encoder))throw std::runtime_error("encoder model could not be loaded");
+        if(stet_coreml_is_model_path(encoder_path)){
+            context->coreml_encoder=std::make_unique<StetCoreMLEncoder>();
+            std::string encoder_error;
+            if(!context->coreml_encoder->load(encoder_path,encoder_error))
+                throw std::runtime_error(encoder_error);
+        }else if(!load_enc(encoder_path,context->encoder)){
+            throw std::runtime_error("encoder model could not be loaded");
+        }
         llama_model_params mp=llama_model_default_params();
 #if defined(GGML_USE_METAL)
-        // Qwen3 decoder on Metal; SAN-M encoder stays on the CPU ggml graph.
+        // Qwen3 decoder on Metal; SAN-M encoder uses CoreML CPU when given an .mlmodelc.
         ggml_backend_load_all();
         mp.n_gpu_layers=99;
 #else
@@ -297,7 +307,14 @@ extern "C" stet_funasr_status stet_funasr_transcribe(
             if(end-off<WINLEN)continue;
             std::vector<float>samples(wav.begin()+off,wav.begin()+end);
             int T=0; auto fbank=compute_fbank(samples,T);
-            int D=0; auto adaptor=run_encoder(context->encoder,fbank,T,560,D,context->thread_count);
+            int D=0; std::vector<float> adaptor;
+            if(context->coreml_encoder){
+                std::string encoder_error;
+                if(!context->coreml_encoder->encode(fbank.data(),T,560,adaptor,D,encoder_error))
+                    throw std::runtime_error(encoder_error);
+            }else{
+                adaptor=run_encoder(context->encoder,fbank,T,560,D,context->thread_count);
+            }
             int ol=1+(T-3+2)/2; ol=1+(ol-3+2)/2; int n_audio=(ol-1)/2+1;
             llama_memory_clear(llama_get_memory(context->llama),true);
             llama_sampler_reset(context->sampler);

@@ -36,6 +36,15 @@
             }
         }
 
+        static let coremlEncoderFileName = "FunASRNanoEncoder.mlmodelc"
+
+        nonisolated static func compiledCoreMLEncoderURL(in directory: URL) -> URL? {
+            let encoder = directory.appendingPathComponent(coremlEncoderFileName, isDirectory: true)
+            let mil = encoder.appendingPathComponent("model.mil")
+            guard FileManager.default.fileExists(atPath: mil.path) else { return nil }
+            return encoder
+        }
+
         nonisolated var downloadURL: URL {
             let urlString =
                 switch self {
@@ -106,8 +115,11 @@
 
         nonisolated func modelFiles() throws -> FunASRNanoModelFiles {
             let directory = try modelsDirectoryProvider()
+            let encoder =
+                FunASRNanoModelAsset.compiledCoreMLEncoderURL(in: directory)
+                ?? directory.appendingPathComponent(FunASRNanoModelAsset.encoder.fileName)
             return FunASRNanoModelFiles(
-                encoder: directory.appendingPathComponent(FunASRNanoModelAsset.encoder.fileName),
+                encoder: encoder,
                 languageModel: directory.appendingPathComponent(FunASRNanoModelAsset.languageModel.fileName),
                 voiceActivityDetector: directory.appendingPathComponent(
                     FunASRNanoModelAsset.voiceActivityDetector.fileName)

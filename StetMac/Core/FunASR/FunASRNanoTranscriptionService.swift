@@ -77,6 +77,9 @@
             self.modelFiles = try modelManager.resolvedModelFiles()
             self.engineFactory = engineFactory
             self.contextManager = contextManager
+            logger.info(
+                "Fun-ASR Nano encoder=\(self.modelFiles.encoder.lastPathComponent, privacy: .public)"
+            )
         }
 
         func prewarm() async throws {
