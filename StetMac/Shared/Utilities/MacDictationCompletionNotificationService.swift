@@ -3,16 +3,8 @@
     import UserNotifications
 
     @MainActor
-    protocol MacDictationCompletionNotifying: AnyObject {
-        func notifyDictationCompleted() async
-    }
-
-    @MainActor
-    final class MacDictationCompletionNotificationService: NSObject, MacDictationCompletionNotifying,
-        UNUserNotificationCenterDelegate
-    {
+    final class MacDictationCompletionNotificationService: NSObject, UNUserNotificationCenterDelegate {
         static let shared = MacDictationCompletionNotificationService()
-        static let requestIdentifier = "stet.dictation.completed"
 
         private let center: UNUserNotificationCenter
         private var didInstallDelegate = false
@@ -32,12 +24,6 @@
             let settings = await center.notificationSettings()
             guard settings.authorizationStatus == .notDetermined else { return }
             _ = try? await center.requestAuthorization(options: [.alert])
-        }
-
-        func notifyDictationCompleted() async {
-            let content = UNMutableNotificationContent()
-            content.title = String(localized: "Dictation complete")
-            await post(content, identifier: Self.requestIdentifier)
         }
 
         func notifyMeetingPhase(

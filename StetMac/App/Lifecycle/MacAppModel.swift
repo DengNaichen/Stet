@@ -95,7 +95,6 @@
                 systemAudioMuting: systemAudioMuting,
                 settingsStore: settingsStore,
                 interactionSoundPlayer: interactionSoundPlayer,
-                completionNotifier: MacDictationCompletionNotificationService.shared,
                 statsModel: .shared
             )
             let sessionController = MacAppSessionController(
