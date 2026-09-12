@@ -135,7 +135,7 @@ struct DictationPipelineFactory: Sendable {
         switch engine {
         case .funASRNano:
             return FunASRNanoHotwordPrompt.makePrompt(from: records)
-        case .fluidAudio, .localWhisper:
+        case .fluidAudio:
             guard !records.isEmpty else { return nil }
             return records.map(\.term).joined(separator: ", ")
         }

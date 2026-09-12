@@ -463,11 +463,9 @@ struct LogicPrimitiveTests {
 
         let nano = try await factory.makePipeline(from: makeSnapshot(transcriptionEngine: .funASRNano))
         let parakeet = try await factory.makePipeline(from: makeSnapshot(transcriptionEngine: .fluidAudio))
-        let whisper = try await factory.makePipeline(from: makeSnapshot(transcriptionEngine: .localWhisper))
 
         #expect(nano.recordsNoHotwordTranscript)
         #expect(parakeet.recordsNoHotwordTranscript == false)
-        #expect(whisper.recordsNoHotwordTranscript == false)
     }
 }
 
