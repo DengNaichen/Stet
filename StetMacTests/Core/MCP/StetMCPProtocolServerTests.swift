@@ -160,6 +160,46 @@ struct StetMCPProtocolServerTests {
         #expect(emptyInboxResult["isError"] as? Bool == true)
     }
 
+    @Test func initializeIsIdempotentForClientReconnects() async throws {
+        let server = StetMCPProtocolServer(catalog: MCPStubMeetingCatalog())
+        try await server.start()
+        defer { Task { await server.stop() } }
+
+        try await initialize(server, id: 1)
+        try await initialize(server, id: 2)
+
+        let listResponse = await server.handleRawRequest(
+            method: "POST",
+            headers: protocolHeaders,
+            body: try jsonData([
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/list",
+                "params": [:],
+            ])
+        )
+        #expect(listResponse.statusCode == 200)
+        let listJSON = try responseJSON(listResponse)
+        #expect(listJSON["error"] == nil)
+        let listResult = try #require(listJSON["result"] as? [String: Any])
+        let tools = try #require(listResult["tools"] as? [[String: Any]])
+        #expect(tools.count == 3)
+    }
+
+    @Test func initializeAcceptsStreamableHTTPAcceptHeader() async throws {
+        let server = StetMCPProtocolServer(catalog: MCPStubMeetingCatalog())
+        try await server.start()
+        defer { Task { await server.stop() } }
+
+        try await initialize(
+            server,
+            headers: [
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/event-stream",
+            ]
+        )
+    }
+
     private let protocolVersion = "2025-11-25"
 
     private var baseHeaders: [String: String] {
@@ -173,13 +213,17 @@ struct StetMCPProtocolServerTests {
         baseHeaders.merging(["MCP-Protocol-Version": protocolVersion]) { _, new in new }
     }
 
-    private func initialize(_ server: StetMCPProtocolServer) async throws {
+    private func initialize(
+        _ server: StetMCPProtocolServer,
+        headers: [String: String]? = nil,
+        id: Int = 1
+    ) async throws {
         let response = await server.handleRawRequest(
             method: "POST",
-            headers: baseHeaders,
+            headers: headers ?? baseHeaders,
             body: try jsonData([
                 "jsonrpc": "2.0",
-                "id": 1,
+                "id": id,
                 "method": "initialize",
                 "params": [
                     "protocolVersion": protocolVersion,
@@ -189,6 +233,12 @@ struct StetMCPProtocolServerTests {
             ])
         )
         #expect(response.statusCode == 200)
+        let json = try responseJSON(response)
+        #expect(json["error"] == nil)
+        let result = try #require(json["result"] as? [String: Any])
+        #expect(result["protocolVersion"] as? String == protocolVersion)
+        let serverInfo = try #require(result["serverInfo"] as? [String: Any])
+        #expect(serverInfo["name"] as? String == "stet")
     }
 }
 
