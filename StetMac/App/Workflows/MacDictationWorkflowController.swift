@@ -2,7 +2,6 @@
     import AppKit
     import StetCore
     import Foundation
-    import NaturalLanguage
 
     @MainActor
     final class MacDictationWorkflowController {
@@ -352,14 +351,7 @@
         }
 
         private static func countWords(in text: String) -> Int {
-            let tokenizer = NLTokenizer(unit: .word)
-            tokenizer.string = text
-            var count = 0
-            tokenizer.enumerateTokens(in: text.startIndex..<text.endIndex) { _, _ in
-                count += 1
-                return true
-            }
-            return count
+            DictationWordCounter.displayUnits(in: text)
         }
 
         private func matchesListeningState(_ state: DictationState) -> Bool {

@@ -49,4 +49,7 @@ enum MacPreferences {
     /// Which on-device transcription engine the dictation pipeline uses.
     /// Values are `StoredTranscriptionEngine.rawValue`.
     nonisolated static let transcriptionEngine = "mac.transcriptionEngine"
+
+    /// Overview word-count scheme. `2` is Han/Hangul characters plus Latin tokens.
+    nonisolated static let dictationWordCountScheme = "mac.dictationWordCountScheme"
 }
