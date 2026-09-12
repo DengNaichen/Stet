@@ -86,7 +86,7 @@
             #expect(apps[0].share == 100.0 / 150.0)
         }
 
-        @Test func appUsageBucketsUnknownAndOther() throws {
+        @Test func appUsageOmitsUnknownAndBucketsOther() throws {
             let model = DictationStatsModel(modelContainer: try DictationStatsModel.makeInMemoryModelContainer())
             model.record(startedAt: Date(), durationSeconds: 10, wordCount: 10)
             model.record(startedAt: Date(), durationSeconds: 10, wordCount: 9, targetBundleID: "a", targetAppName: "A")
@@ -95,11 +95,18 @@
             model.record(startedAt: Date(), durationSeconds: 10, wordCount: 1, targetBundleID: "d", targetAppName: "D")
 
             let apps = model.appUsage(limit: 3)
-            #expect(apps.map(\.name) == ["Unknown", "A", "B", "Other"])
-            #expect(apps[0].sessionCount == 1)
+            #expect(apps.map(\.name) == ["A", "B", "C", "Other"])
+            #expect(apps[0].share == 9.0 / 25.0)
             #expect(apps[3].name == "Other")
-            #expect(apps[3].sessionCount == 2)
-            #expect(apps[3].wordCount == 8)
+            #expect(apps[3].sessionCount == 1)
+            #expect(apps[3].wordCount == 1)
+        }
+
+        @Test func appUsageHidesListWhenEverySessionIsUnknown() throws {
+            let model = DictationStatsModel(modelContainer: try DictationStatsModel.makeInMemoryModelContainer())
+            model.record(startedAt: Date(), durationSeconds: 10, wordCount: 10)
+
+            #expect(model.appUsage().isEmpty)
         }
     }
 #endif

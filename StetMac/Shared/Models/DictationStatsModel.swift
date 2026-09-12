@@ -41,9 +41,7 @@
     }
 
     struct DictationAppUsage: Equatable, Identifiable, Sendable {
-        static let unknownID = "unknown"
         static let otherID = "other"
-        static let unknownName = "Unknown"
         static let otherName = "Other"
 
         var id: String
@@ -281,14 +279,14 @@
                 } else if let appName {
                     key = "name:\(appName)"
                 } else {
-                    key = DictationAppUsage.unknownID
+                    continue
                 }
 
                 var current =
                     grouped[key]
                     ?? Accumulator(
                         bundleID: bundleID,
-                        name: appName ?? DictationAppUsage.unknownName,
+                        name: appName ?? bundleID ?? key,
                         sessionCount: 0,
                         wordCount: 0,
                         durationSeconds: 0
@@ -296,7 +294,7 @@
                 current.sessionCount += 1
                 current.wordCount += session.wordCount
                 current.durationSeconds += session.durationSeconds
-                if current.name == DictationAppUsage.unknownName, let appName {
+                if let appName {
                     current.name = appName
                 }
                 if current.bundleID == nil {
@@ -305,8 +303,10 @@
                 grouped[key] = current
             }
 
-            let totalWords = sessions.reduce(0) { $0 + $1.wordCount }
-            let totalSessions = sessions.count
+            guard !grouped.isEmpty else { return [] }
+
+            let totalWords = grouped.values.reduce(0) { $0 + $1.wordCount }
+            let totalSessions = grouped.values.reduce(0) { $0 + $1.sessionCount }
             let ranked = grouped.map { key, value in
                 DictationAppUsage(
                     id: key,
