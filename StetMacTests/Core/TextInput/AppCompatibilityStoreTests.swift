@@ -15,6 +15,7 @@
             let store = AppCompatibilityStore()
             #expect(store.contains("com.openai.codex"))
             #expect(store.contains("COM.MICROSOFT.VSCODE"))
+            #expect(store.contains("com.qodercn.app"))
             #expect(store.contains("com.kingsoft.wpsoffice.mac.global"))
             #expect(!store.contains(nil))
             #expect(!store.contains("unknown.app"))

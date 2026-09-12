@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 2,
+  "revision": 3,
   "bundleIDs": [
     "com.microsoft.vscode",
     "com.microsoft.vscodeinsiders",
@@ -31,6 +31,8 @@
     "com.baidu.baidunetdisk-mac",
     "com.qoder.work",
     "com.qoder.ide",
+    "com.qodercn.app",
+    "com.qoder.app",
     "io.open-design.desktop",
     "now.typeless.desktop",
     "app.motrix.native",
