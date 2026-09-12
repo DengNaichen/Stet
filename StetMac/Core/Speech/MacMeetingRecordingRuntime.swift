@@ -202,10 +202,7 @@
         }
 
         private func writeRecord(_ record: MeetingSessionRecord, to url: URL) throws {
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            encoder.dateEncodingStrategy = .iso8601
-            try encoder.encode(record).write(to: url)
+            try record.jsonData().write(to: url)
         }
     }
 

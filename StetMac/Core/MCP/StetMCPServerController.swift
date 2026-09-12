@@ -60,16 +60,16 @@
         }
 
         static func live(
-            settingsStore: DictationSettingsStore,
+            livePhaseStore: MCPLiveMeetingPhaseStore,
+            meetingStore: MeetingRecordingStore = MeetingRecordingStore(),
             defaults: UserDefaults = .standard
         ) -> StetMCPServerController {
-            let pipelineFactory = DictationPipelineFactory.live()
-            return StetMCPServerController(defaults: defaults) {
-                let coordinator = MCPTranscriptionCoordinator(
-                    settingsStore: settingsStore,
-                    pipelineFactory: pipelineFactory
+            StetMCPServerController(defaults: defaults) {
+                let catalog = MCPMeetingCatalog(
+                    store: meetingStore,
+                    livePhase: { livePhaseStore.current() }
                 )
-                let protocolServer = StetMCPProtocolServer(transcriber: coordinator)
+                let protocolServer = StetMCPProtocolServer(catalog: catalog)
                 let httpServer = StetMCPHTTPServer { request in
                     await protocolServer.handleHTTPRequest(request)
                 }

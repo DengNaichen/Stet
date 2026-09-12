@@ -16,6 +16,12 @@
             }()
 
             #expect(MeetingRecordingStore.folderName(for: startedAt) == expected)
+            #expect(MeetingRecordingStore.startedAt(fromFolderName: expected) != nil)
+            #expect(
+                MeetingRecordingStore.folderName(
+                    for: MeetingRecordingStore.startedAt(fromFolderName: expected) ?? startedAt
+                ) == expected
+            )
         }
 
         @Test func makeSessionDirectoryCreatesAudioTranscriptAndSessionURLs() throws {

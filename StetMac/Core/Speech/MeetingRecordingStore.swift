@@ -30,7 +30,7 @@
             return MeetingSessionDirectory(url: url, startedAt: startedAt)
         }
 
-        func recentSessionDirectories(limit: Int = 20) throws -> [URL] {
+        func sessionDirectories() throws -> [URL] {
             guard fileManager.fileExists(atPath: rootDirectory.path) else { return [] }
             let urls = try fileManager.contentsOfDirectory(
                 at: rootDirectory,
@@ -47,15 +47,53 @@
                         ?? .distantPast
                     return left > right
                 }
-                .prefix(limit)
-                .map { $0 }
+        }
+
+        func recentSessionDirectories(limit: Int = 20) throws -> [URL] {
+            Array(try sessionDirectories().prefix(limit))
+        }
+
+        func sessionDirectory(id: String) -> MeetingSessionDirectory? {
+            let trimmed = id.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, !trimmed.contains("/"), !trimmed.contains("\\") else {
+                return nil
+            }
+            let url = rootDirectory.appendingPathComponent(trimmed, isDirectory: true)
+            var isDirectory = ObjCBool(false)
+            guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory),
+                isDirectory.boolValue
+            else {
+                return nil
+            }
+            return MeetingSessionDirectory(
+                url: url,
+                startedAt: Self.startedAt(fromFolderName: trimmed) ?? .distantPast
+            )
+        }
+
+        func record(for directory: MeetingSessionDirectory) throws -> MeetingSessionRecord? {
+            guard fileManager.fileExists(atPath: directory.sessionURL.path) else { return nil }
+            return try MeetingSessionRecord.fromJSON(Data(contentsOf: directory.sessionURL))
+        }
+
+        func transcriptText(for directory: MeetingSessionDirectory) throws -> String? {
+            guard fileManager.fileExists(atPath: directory.transcriptURL.path) else { return nil }
+            return try String(contentsOf: directory.transcriptURL, encoding: .utf8)
         }
 
         nonisolated static func folderName(for startedAt: Date) -> String {
+            folderNameFormatter().string(from: startedAt)
+        }
+
+        nonisolated static func startedAt(fromFolderName name: String) -> Date? {
+            folderNameFormatter().date(from: name)
+        }
+
+        private nonisolated static func folderNameFormatter() -> DateFormatter {
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.dateFormat = "yyyy-MM-dd HH-mm-ss"
-            return formatter.string(from: startedAt)
+            return formatter
         }
     }
 
@@ -83,5 +121,19 @@
         var status: String
         var failureMessage: String?
         var speakerCount: Int
+        var organizedAt: Date? = nil
+
+        func jsonData() throws -> Data {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            encoder.dateEncodingStrategy = .iso8601
+            return try encoder.encode(self)
+        }
+
+        static func fromJSON(_ data: Data) throws -> MeetingSessionRecord {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            return try decoder.decode(Self.self, from: data)
+        }
     }
 #endif
