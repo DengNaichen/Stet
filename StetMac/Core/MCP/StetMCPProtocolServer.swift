@@ -18,6 +18,13 @@ actor StetMCPProtocolServer {
     static let listUnorganizedMeetingsToolName = "stet_list_unorganized_meetings"
     static let getMeetingTranscriptToolName = "stet_get_meeting_transcript"
 
+    private static let serverName = "stet"
+    private static let serverVersion = "1.0.0"
+    private static let serverTitle = "Stet Meetings"
+    private static let serverInstructions =
+        "Read meeting recordings already captured by Stet. Listing tools return metadata only. Use stet_get_meeting_transcript to fetch a saved transcript. Do not wait on transcription; Stet processes audio in the app."
+    private static let serverCapabilities = Server.Capabilities(tools: .init(listChanged: false))
+
     private let catalog: any MCPMeetingServing
     private let transport: StatelessHTTPServerTransport
     private let server: Server
@@ -27,12 +34,11 @@ actor StetMCPProtocolServer {
         self.catalog = catalog
         self.transport = StatelessHTTPServerTransport()
         self.server = Server(
-            name: "stet",
-            version: "1.0.0",
-            title: "Stet Meetings",
-            instructions:
-                "Read meeting recordings already captured by Stet. Listing tools return metadata only. Use stet_get_meeting_transcript to fetch a saved transcript. Do not wait on transcription; Stet processes audio in the app.",
-            capabilities: .init(tools: .init(listChanged: false))
+            name: Self.serverName,
+            version: Self.serverVersion,
+            title: Self.serverTitle,
+            instructions: Self.serverInstructions,
+            capabilities: Self.serverCapabilities
         )
     }
 
@@ -47,6 +53,11 @@ actor StetMCPProtocolServer {
             await Self.callTool(parameters, catalog: catalog)
         }
         try await server.start(transport: transport)
+        // Stateless HTTP has no session. Cursor reconnects by sending initialize
+        // again; the SDK's default handler rejects that for the process lifetime.
+        await server.withMethodHandler(Initialize.self) { params in
+            Self.initializeResult(requestedProtocolVersion: params.protocolVersion)
+        }
         started = true
     }
 
@@ -208,6 +219,23 @@ actor StetMCPProtocolServer {
                 ]),
                 "additionalProperties": .bool(false),
             ])
+        )
+    }
+
+    private nonisolated static func initializeResult(requestedProtocolVersion: String) -> Initialize.Result {
+        let protocolVersion =
+            Version.supported.contains(requestedProtocolVersion)
+            ? requestedProtocolVersion
+            : Version.latest
+        return Initialize.Result(
+            protocolVersion: protocolVersion,
+            capabilities: serverCapabilities,
+            serverInfo: .init(
+                name: serverName,
+                version: serverVersion,
+                title: serverTitle
+            ),
+            instructions: serverInstructions
         )
     }
 
