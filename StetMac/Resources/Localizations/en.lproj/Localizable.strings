@@ -56,6 +56,9 @@
 "Microphone" = "Microphone";
 "Default (Built-in Microphone)" = "Default (Built-in Microphone)";
 "Start Recording" = "Start Recording";
+"Meeting soon" = "Meeting soon";
+"Starts at %@." = "Starts at %@.";
+"Starts at %@ with %@." = "Starts at %@ with %@.";
 "Stop Recording" = "Stop Recording";
 "Play Recording" = "Play Recording";
 "Stop Playback" = "Stop Playback";

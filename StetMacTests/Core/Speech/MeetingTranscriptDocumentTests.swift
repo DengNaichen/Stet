@@ -67,5 +67,36 @@
             #expect(markdown.contains("1 min 35s"))
             #expect(!markdown.localizedCaseInsensitiveContains("rewrite"))
         }
+
+        @Test func markdownIncludesExpectedMeetingMetadata() {
+            let scheduledStart = Date(timeIntervalSince1970: 1_704_067_200)
+            let metadata = MeetingMetadata(
+                expectedMeeting: ExpectedMeeting(
+                    id: UUID(),
+                    source: "calendar",
+                    externalID: "event-1",
+                    scheduledStartAt: scheduledStart,
+                    scheduledEndAt: scheduledStart.addingTimeInterval(1_800),
+                    title: "Project sync",
+                    attendees: [MeetingAttendee(name: "Taylor", email: nil)],
+                    meetingURL: URL(string: "https://example.com/meeting"),
+                    notes: nil,
+                    sourceModifiedAt: nil,
+                    status: .scheduled,
+                    recordedMeetingID: nil
+                )
+            )
+            let markdown = MeetingTranscriptDocument.markdown(
+                startedAt: scheduledStart.addingTimeInterval(60),
+                endedAt: scheduledStart.addingTimeInterval(120),
+                turns: [],
+                metadata: metadata
+            )
+
+            #expect(markdown.contains("# Project sync"))
+            #expect(markdown.contains("Attendees: Taylor"))
+            #expect(markdown.contains("Meeting: https://example.com/meeting"))
+            #expect(markdown.contains("Scheduled:"))
+        }
     }
 #endif

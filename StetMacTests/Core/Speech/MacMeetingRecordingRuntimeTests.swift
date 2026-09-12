@@ -81,6 +81,58 @@
             #expect(record.status == "completed")
         }
 
+        @Test func expectedMeetingMetadataIsSavedWithRecording() async throws {
+            let root = TestSupport.temporaryDirectoryURL()
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            let (stream, continuation) = AsyncStream<AudioCaptureFrame>.makeStream()
+            let startedAt = Date(timeIntervalSince1970: 1_704_067_200)
+            let expected = ExpectedMeeting(
+                id: UUID(),
+                source: "calendar",
+                externalID: "event-1",
+                scheduledStartAt: startedAt,
+                scheduledEndAt: startedAt.addingTimeInterval(1_800),
+                title: "Project sync",
+                attendees: [MeetingAttendee(name: "Taylor", email: nil)],
+                meetingURL: nil,
+                notes: nil,
+                sourceModifiedAt: nil,
+                status: .scheduled,
+                recordedMeetingID: nil
+            )
+            let runtime = MacMeetingRecordingRuntime(
+                dependencies: MacMeetingRecordingRuntime.Dependencies(
+                    store: MeetingRecordingStore(rootDirectory: root),
+                    ensureCaptureRunning: {},
+                    beginExclusiveCapture: {},
+                    endExclusiveCapture: {},
+                    makeFrameStream: { stream },
+                    processor: MeetingSessionProcessor(
+                        sampleRate: 16_000,
+                        diarize: { _ in [] },
+                        transcribe: { _ in "" },
+                        identify: { _ in PassiveSpeakerMatch(identity: .other, similarity: nil) }
+                    ),
+                    now: { startedAt }
+                )
+            )
+
+            await runtime.start(expectedMeeting: expected)
+            continuation.finish()
+            await runtime.stop()
+
+            let directory = try #require(
+                try MeetingRecordingStore(rootDirectory: root).sessionDirectories().first
+            )
+            let session = try JSONDecoder.iso8601.decode(
+                MeetingSessionRecord.self,
+                from: Data(contentsOf: directory.appendingPathComponent("session.json"))
+            )
+            #expect(session.metadata?.expectedMeetingID == expected.id)
+            #expect(session.metadata?.title == "Project sync")
+            #expect(session.metadata?.attendees.first?.name == "Taylor")
+        }
+
         @Test func stopCompletesWhileCaptureStreamKeepsProducing() async throws {
             let root = TestSupport.temporaryDirectoryURL()
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -244,6 +296,14 @@
                 }
             )
             continuation.finish()
+        }
+    }
+
+    private extension JSONDecoder {
+        static var iso8601: JSONDecoder {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            return decoder
         }
     }
 

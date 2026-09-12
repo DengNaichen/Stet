@@ -44,5 +44,28 @@
         @Test func idleDoesNotPostABanner() {
             #expect(MacMeetingRecordingNotification.payload(from: .idle, to: .idle) == nil)
         }
+
+        @Test func expectedMeetingBodyIncludesTimeAndAttendees() {
+            let start = Date(timeIntervalSince1970: 1_704_067_200)
+            let meeting = ExpectedMeeting(
+                id: UUID(),
+                source: "calendar",
+                externalID: "event-1",
+                scheduledStartAt: start,
+                scheduledEndAt: start.addingTimeInterval(1_800),
+                title: "Project sync",
+                attendees: [MeetingAttendee(name: "Taylor", email: nil)],
+                meetingURL: nil,
+                notes: nil,
+                sourceModifiedAt: nil,
+                status: .scheduled,
+                recordedMeetingID: nil
+            )
+
+            let body = MacDictationCompletionNotificationService.expectedMeetingBody(meeting)
+
+            #expect(body.contains("Taylor"))
+            #expect(!body.isEmpty)
+        }
     }
 #endif

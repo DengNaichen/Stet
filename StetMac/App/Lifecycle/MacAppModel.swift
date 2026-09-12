@@ -19,8 +19,10 @@
         private let appearanceSettingsViewModel: MacAppearanceSettingsViewModel
         private let mcpServerController: StetMCPServerController?
         private let liveMeetingPhaseStore: MCPLiveMeetingPhaseStore?
+        private let expectedMeetingCoordinator: (any ExpectedMeetingServing)?
         private var passiveListeningRuntime: MacPassiveListeningRuntime?
         private var meetingRecordingRuntime: MacMeetingRecordingRuntime?
+        private var activeExpectedMeetingID: UUID?
 
         @Published private(set) var passiveListeningState: MacPassiveListeningState =
             .unavailable("Preparing passive listening")
@@ -33,6 +35,10 @@
             let settingsStore = DictationSettingsStore()
             let captureService = MacAudioCaptureService()
             let liveMeetingPhaseStore = MCPLiveMeetingPhaseStore()
+            let notificationService = MacDictationCompletionNotificationService.shared
+            let expectedMeetingCoordinator = ExpectedMeetingCoordinator(
+                reminders: notificationService
+            )
             let passiveListeningRuntime = MacPassiveListeningRuntime(captureService: captureService)
             let meetingRecordingRuntime = MacMeetingRecordingRuntime.live(
                 captureService: captureService,
@@ -64,11 +70,13 @@
                     pasteboardRestoreCoordinator: pasteboardRestoreCoordinator
                 ),
                 mcpServerController: StetMCPServerController.live(
-                    livePhaseStore: liveMeetingPhaseStore
+                    livePhaseStore: liveMeetingPhaseStore,
+                    expectedMeetings: expectedMeetingCoordinator
                 ),
                 passiveListeningRuntime: passiveListeningRuntime,
                 meetingRecordingRuntime: meetingRecordingRuntime,
-                liveMeetingPhaseStore: liveMeetingPhaseStore
+                liveMeetingPhaseStore: liveMeetingPhaseStore,
+                expectedMeetingCoordinator: expectedMeetingCoordinator
             )
         }
 
@@ -83,7 +91,8 @@
             mcpServerController: StetMCPServerController? = nil,
             passiveListeningRuntime: MacPassiveListeningRuntime? = nil,
             meetingRecordingRuntime: MacMeetingRecordingRuntime? = nil,
-            liveMeetingPhaseStore: MCPLiveMeetingPhaseStore? = nil
+            liveMeetingPhaseStore: MCPLiveMeetingPhaseStore? = nil,
+            expectedMeetingCoordinator: (any ExpectedMeetingServing)? = nil
         ) {
             let bootstrapper = MacAppBootstrapper(settingsStore: settingsStore)
             let captureCoordinator =
@@ -114,6 +123,7 @@
             self.appearanceSettingsViewModel = .shared
             self.mcpServerController = mcpServerController
             self.liveMeetingPhaseStore = liveMeetingPhaseStore
+            self.expectedMeetingCoordinator = expectedMeetingCoordinator
             self.isPassiveListeningEnabled = MacFeatureAvailability.isPassiveListeningEnabled(
                 preference: settingsStore.loadPassiveListeningEnabled()
             )
@@ -133,6 +143,18 @@
             sessionController.activate(presentationModel: self, showInDock: launchConfiguration.showInDock)
             mcpServerController?.startIfEnabled()
 
+            let notificationService = MacDictationCompletionNotificationService.shared
+            notificationService.onStartExpectedMeeting = { [weak self] id in
+                self?.startExpectedMeeting(id: id)
+            }
+            notificationService.onSkipExpectedMeeting = { [weak self] id in
+                guard let coordinator = self?.expectedMeetingCoordinator else { return }
+                Task { try? await coordinator.skip(id: id) }
+            }
+            if let expectedMeetingCoordinator {
+                Task { await expectedMeetingCoordinator.restoreReminders() }
+            }
+
             sessionController.isMeetingSessionBusy = { [weak self] in
                 self?.isMeetingBusy ?? false
             }
@@ -148,6 +170,14 @@
                         let previous = self.meetingRecordingPhase
                         self.meetingRecordingPhase = phase
                         self.liveMeetingPhaseStore?.update(phase)
+                        if case .processing = previous,
+                            phase == .idle || phase.isFailure,
+                            let id = self.activeExpectedMeetingID,
+                            let coordinator = self.expectedMeetingCoordinator
+                        {
+                            self.activeExpectedMeetingID = nil
+                            Task { try? await coordinator.markCompleted(id: id) }
+                        }
                         Task {
                             await MacDictationCompletionNotificationService.shared.notifyMeetingPhase(
                                 from: previous,
@@ -551,6 +581,24 @@
             Task { await meetingRecordingRuntime.toggle() }
         }
 
+        private func startExpectedMeeting(id: UUID) {
+            guard !isMeetingBusy, let expectedMeetingCoordinator, let meetingRecordingRuntime else {
+                return
+            }
+            Task { [weak self] in
+                guard let meeting = await expectedMeetingCoordinator.meeting(id: id),
+                    meeting.status == .scheduled,
+                    meeting.scheduledEndAt > Date()
+                else { return }
+                await meetingRecordingRuntime.start(expectedMeeting: meeting)
+                guard case .recording(_, let folderName) = await meetingRecordingRuntime.currentPhase() else {
+                    return
+                }
+                self?.activeExpectedMeetingID = id
+                try? await expectedMeetingCoordinator.markRecorded(id: id, meetingID: folderName)
+            }
+        }
+
         func previewInteractionSound(_ preset: InteractionSoundPreset) {
             interactionSoundPlayer.playPreview(preset: preset)
         }
@@ -597,6 +645,13 @@
 
         private var settingsSnapshot: DictationSettingsSnapshot {
             settingsStore.loadSnapshot()
+        }
+    }
+
+    private extension MacMeetingRecordingPhase {
+        var isFailure: Bool {
+            if case .failed = self { return true }
+            return false
         }
     }
 #endif

@@ -55,6 +55,9 @@
 "Microphone" = "麥克風";
 "Default (Built-in Microphone)" = "預設（內建麥克風）";
 "Start Recording" = "開始錄音";
+"Meeting soon" = "會議即將開始";
+"Starts at %@." = "%@ 開始。";
+"Starts at %@ with %@." = "%@ 開始，與會者：%@。";
 "Stop Recording" = "停止錄音";
 "Play Recording" = "播放錄音";
 "Stop Playback" = "停止播放";

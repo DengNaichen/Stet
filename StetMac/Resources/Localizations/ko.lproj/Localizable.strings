@@ -55,6 +55,9 @@
 "Microphone" = "마이크";
 "Default (Built-in Microphone)" = "기본값 (내장 마이크)";
 "Start Recording" = "녹음 시작";
+"Meeting soon" = "회의가 곧 시작됩니다";
+"Starts at %@." = "%@에 시작합니다.";
+"Starts at %@ with %@." = "%@에 %@와 함께 시작합니다.";
 "Stop Recording" = "녹음 중지";
 "Play Recording" = "녹음 재생";
 "Stop Playback" = "재생 중지";

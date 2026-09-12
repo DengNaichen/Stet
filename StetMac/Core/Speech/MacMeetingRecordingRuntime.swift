@@ -30,6 +30,7 @@
         private var frameTask: Task<Void, Never>?
         private var processingTask: Task<Void, Never>?
         private var session: ActiveSession?
+        private var pendingExpectedMeeting: ExpectedMeeting?
         private var phaseHandler: @MainActor @Sendable (MacMeetingRecordingPhase) -> Void = { _ in }
 
         private struct ActiveSession {
@@ -37,6 +38,7 @@
             var writer: MeetingAudioWriter
             var samples: [Float]
             var startedAt: Date
+            var metadata: MeetingMetadata?
         }
 
         init(dependencies: Dependencies) {
@@ -89,8 +91,10 @@
                     directory: directory,
                     writer: writer,
                     samples: [],
-                    startedAt: startedAt
+                    startedAt: startedAt,
+                    metadata: pendingExpectedMeeting.map(MeetingMetadata.init)
                 )
+                pendingExpectedMeeting = nil
                 let folderName = directory.url.lastPathComponent
                 await setPhase(.recording(startedAt: startedAt, folderName: folderName))
                 let stream = await dependencies.makeFrameStream()
@@ -106,6 +110,15 @@
                     await dependencies.endExclusiveCapture()
                 }
                 await setPhase(.failed(error.localizedDescription))
+            }
+        }
+
+        func start(expectedMeeting: ExpectedMeeting) async {
+            guard !isBusy() else { return }
+            pendingExpectedMeeting = expectedMeeting
+            await start()
+            if case .failed = phase {
+                pendingExpectedMeeting = nil
             }
         }
 
@@ -127,11 +140,13 @@
             let samples = active.samples
             let directory = active.directory
             let startedAt = active.startedAt
+            let metadata = active.metadata
             processingTask = Task {
                 await self.completeStoppedSession(
                     samples: samples,
                     directory: directory,
-                    startedAt: startedAt
+                    startedAt: startedAt,
+                    metadata: metadata
                 )
             }
         }
@@ -139,7 +154,8 @@
         private func completeStoppedSession(
             samples: [Float],
             directory: MeetingSessionDirectory,
-            startedAt: Date
+            startedAt: Date,
+            metadata: MeetingMetadata?
         ) async {
             let endedAt = dependencies.now()
 
@@ -148,7 +164,8 @@
                 let markdown = MeetingTranscriptDocument.markdown(
                     startedAt: startedAt,
                     endedAt: endedAt,
-                    turns: turns
+                    turns: turns,
+                    metadata: metadata
                 )
                 try markdown.write(to: directory.transcriptURL, atomically: true, encoding: .utf8)
                 let record = MeetingSessionRecord(
@@ -157,7 +174,8 @@
                     durationSeconds: endedAt.timeIntervalSince(startedAt),
                     status: "completed",
                     failureMessage: nil,
-                    speakerCount: Set(turns.map(\.speakerLabel)).count
+                    speakerCount: Set(turns.map(\.speakerLabel)).count,
+                    metadata: metadata
                 )
                 try writeRecord(record, to: directory.sessionURL)
                 await setPhase(.idle)
@@ -167,6 +185,7 @@
                     startedAt: startedAt,
                     endedAt: endedAt,
                     turns: [],
+                    metadata: metadata,
                     note: "Processing failed: \(error.localizedDescription). The audio file was kept."
                 )
                 try? markdown.write(to: directory.transcriptURL, atomically: true, encoding: .utf8)
@@ -176,7 +195,8 @@
                     durationSeconds: endedAt.timeIntervalSince(startedAt),
                     status: "failed",
                     failureMessage: error.localizedDescription,
-                    speakerCount: 0
+                    speakerCount: 0,
+                    metadata: metadata
                 )
                 try? writeRecord(record, to: directory.sessionURL)
                 await setPhase(.failed(error.localizedDescription))
