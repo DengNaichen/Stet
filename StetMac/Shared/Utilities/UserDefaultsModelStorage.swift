@@ -8,18 +8,6 @@ struct UserDefaultsModelStorage: ModelStorageConfiguration {
         self.defaults = defaults
     }
 
-    nonisolated var localWhisperModelPath: String? {
-        defaults.string(forKey: MacPreferences.localWhisperModelPath)
-    }
-
-    nonisolated func saveLocalWhisperModelPath(_ path: String?) {
-        if let path {
-            defaults.set(path, forKey: MacPreferences.localWhisperModelPath)
-        } else {
-            defaults.removeObject(forKey: MacPreferences.localWhisperModelPath)
-        }
-    }
-
     nonisolated var transcriptionEngine: StoredTranscriptionEngine {
         if let raw = defaults.string(forKey: MacPreferences.transcriptionEngine),
             let engine = StoredTranscriptionEngine(rawValue: raw)

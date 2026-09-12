@@ -21,6 +21,7 @@ struct StetApp: App {
         init() {
             AnalyticsService.initialize()
             FluidAudioModelManager.configureDownloadRegistry()
+            RetiredLocalWhisperCleanup.removeInstalledAssets()
             let compatibilityStore = AppCompatibilityStore.live()
             _compatibilityStore = StateObject(wrappedValue: compatibilityStore)
             let appModel = MacAppModel(compatibilityStore: compatibilityStore)

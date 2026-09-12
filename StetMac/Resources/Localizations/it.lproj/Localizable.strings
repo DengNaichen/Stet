@@ -82,8 +82,6 @@
 "Remove Key" = "Rimuovi chiave";
 "Choose which on-device model handles transcription." = "Scegli quale modello sul dispositivo gestisce la trascrizione.";
 "Engine" = "Motore";
-"Parakeet model isn't downloaded yet. Stet will fall back to Whisper until you download it below." = "Il modello Parakeet non è ancora stato scaricato. Stet utilizzerà Whisper finché non lo scarichi qui sotto.";
-"Reveal Whisper Folder in Finder" = "Mostra cartella Whisper nel Finder";
 "Downloaded" = "Scaricato";
 "Not downloaded" = "Non scaricato";
 "Download" = "Scarica";
@@ -128,7 +126,6 @@
 "Get ready" = "Preparati";
 "One click gets you ready." = "Basta un clic per essere pronti.";
 "You're set." = "È tutto pronto.";
-"Unable to resolve Local Whisper model path." = "Impossibile risolvere il percorso locale del modello Whisper.";
 
 /* API key */
 "Verify Key" = "Verifica chiave";

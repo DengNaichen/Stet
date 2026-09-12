@@ -10,12 +10,12 @@ struct ModelDownloadMirrorTests {
     private let vad = URL(
         string: "https://huggingface.co/FunAudioLLM/fsmn-vad-GGUF/resolve/main/fsmn-vad.gguf"
     )!
-    private let whisper = URL(
-        string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin"
-    )!
     private let speaker = URL(
         string:
             "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx"
+    )!
+    private let unlisted = URL(
+        string: "https://huggingface.co/example/unlisted-model/resolve/main/weights.bin"
     )!
     private let github = URL(
         string:
@@ -44,9 +44,9 @@ struct ModelDownloadMirrorTests {
         #expect(urls.map(\.host) == ["huggingface.co", "hf-mirror.com"])
     }
 
-    @Test func whisperHasNoModelScopeCopy() {
-        #expect(ModelDownloadMirror.modelScopeURL(for: whisper) == nil)
-        let urls = ModelDownloadMirror.candidates(for: whisper, prefersChina: true)
+    @Test func unlistedHuggingFaceRepoHasNoModelScopeCopy() {
+        #expect(ModelDownloadMirror.modelScopeURL(for: unlisted) == nil)
+        let urls = ModelDownloadMirror.candidates(for: unlisted, prefersChina: true)
         #expect(urls.map(\.host) == ["hf-mirror.com", "huggingface.co"])
     }
 

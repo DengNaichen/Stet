@@ -82,8 +82,6 @@
 "Remove Key" = "刪除金鑰";
 "Choose which on-device model handles transcription." = "選擇處理轉錄的本地模型。";
 "Engine" = "引擎";
-"Parakeet model isn't downloaded yet. Stet will fall back to Whisper until you download it below." = "Parakeet 模型尚未下載。在您下載之前，Stet 將使用 Whisper。";
-"Reveal Whisper Folder in Finder" = "在 Finder 中顯示 Whisper 資料夾";
 "Downloaded" = "已下載";
 "Not downloaded" = "未下載";
 "Download" = "下載";
@@ -128,7 +126,6 @@
 "Get ready" = "準備就緒";
 "One click gets you ready." = "一鍵即可準備就緒。";
 "You're set." = "已就緒。";
-"Unable to resolve Local Whisper model path." = "無法解析本地 Whisper 模型路徑。";
 
 /* API key */
 "Verify Key" = "驗證金鑰";

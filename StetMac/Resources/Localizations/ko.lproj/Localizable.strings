@@ -82,8 +82,6 @@
 "Remove Key" = "키 삭제";
 "Choose which on-device model handles transcription." = "전사를 처리할 온디바이스 모델을 선택하세요.";
 "Engine" = "엔진";
-"Parakeet model isn't downloaded yet. Stet will fall back to Whisper until you download it below." = "Parakeet 모델이 아직 다운로드되지 않았습니다. 아래에서 다운로드할 때까지 Stet은 Whisper를 사용합니다.";
-"Reveal Whisper Folder in Finder" = "Finder에서 Whisper 폴더 표시";
 "Downloaded" = "다운로드됨";
 "Not downloaded" = "다운로드되지 않음";
 "Download" = "다운로드";
@@ -128,7 +126,6 @@
 "Get ready" = "준비하세요";
 "One click gets you ready." = "클릭 한 번으로 준비됩니다.";
 "You're set." = "모두 설정되었습니다.";
-"Unable to resolve Local Whisper model path." = "로컬 Whisper 모델 경로를 확인할 수 없습니다.";
 
 /* API key */
 "Verify Key" = "키 확인";

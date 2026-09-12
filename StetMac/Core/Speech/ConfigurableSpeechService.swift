@@ -506,7 +506,6 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         contextCleanupTask = Task {
             for task in prewarms { await task.value }
             #if os(macOS)
-                await LocalWhisperContextManager.shared.cleanupResources()
                 await LocalParakeetContextManager.shared.cleanupResources()
                 await FunASRNanoContextManager.shared.cleanupResources()
             #endif

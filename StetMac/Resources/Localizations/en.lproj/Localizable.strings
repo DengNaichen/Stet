@@ -105,8 +105,6 @@
 "Remove Key" = "Remove Key";
 "Choose which on-device model handles transcription." = "Choose which on-device model handles transcription.";
 "Engine" = "Engine";
-"Parakeet model isn't downloaded yet. Stet will fall back to Whisper until you download it below." = "Parakeet model isn't downloaded yet. Stet will fall back to Whisper until you download it below.";
-"Reveal Whisper Folder in Finder" = "Reveal Whisper Folder in Finder";
 "Downloaded" = "Downloaded";
 "Not downloaded" = "Not downloaded";
 "Download" = "Download";
@@ -152,7 +150,6 @@
 "Get ready" = "Get ready";
 "One click gets you ready." = "One click gets you ready.";
 "You're set." = "You're set.";
-"Unable to resolve Local Whisper model path." = "Unable to resolve Local Whisper model path.";
 
 /* API key */
 "Verify Key" = "Verify Key";

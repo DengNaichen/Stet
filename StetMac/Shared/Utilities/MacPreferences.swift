@@ -35,6 +35,7 @@ enum MacPreferences {
     // Audio device selection
     nonisolated static let preferredAudioInputDeviceUID = "mac.preferredAudioInputDeviceUID"
 
+    /// Retired custom Whisper.cpp path. Cleared on launch; no longer used to load a model.
     nonisolated static let localWhisperModelPath = "mac.localWhisperModelPath"
 
     nonisolated static let senseVoiceModelPath = "mac.senseVoiceModelPath"

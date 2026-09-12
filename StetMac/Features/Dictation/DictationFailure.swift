@@ -28,8 +28,6 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
     case invalidResponse(provider: DictationProvider)
     case providerAPI(provider: DictationProvider, statusCode: Int?, message: String)
     case unsupportedProviderCombination(transcriptionProvider: DictationProvider, rewriteProvider: DictationProvider)
-    case localWhisperModelMissing(expectedPath: String)
-    case localWhisperRuntimeUnavailable
     case network(code: URLError.Code, message: String)
     case clipboardWriteFailed
     case autoPastePermissionMissing
@@ -44,8 +42,7 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
         case .unsupportedLocale,
             .unsupportedAudioFormat,
             .failedToStart,
-            .invalidResponse,
-            .localWhisperRuntimeUnavailable:
+            .invalidResponse:
             return .service
         case .emptyTranscription:
             return .noSpeech
@@ -58,8 +55,7 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
         case .missingProviderConfiguration,
             .missingAPIKey,
             .invalidBaseURL,
-            .unsupportedProviderCombination,
-            .localWhisperModelMissing:
+            .unsupportedProviderCombination:
             return .configuration
         case .providerAPI(_, let statusCode, _):
             switch statusCode {
@@ -104,11 +100,6 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
             return "\(provider.displayName) request failed"
         case .unsupportedProviderCombination:
             return "Unsupported provider pair"
-
-        case .localWhisperModelMissing:
-            return "Local Whisper model required"
-        case .localWhisperRuntimeUnavailable:
-            return "Local Whisper unavailable"
         case .network:
             return "Network problem"
         case .clipboardWriteFailed:
@@ -151,11 +142,6 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
         case .unsupportedProviderCombination(let transcriptionProvider, let rewriteProvider):
             return
                 "\(transcriptionProvider.displayName) transcription with \(rewriteProvider.displayName) rewrite is unsupported."
-
-        case .localWhisperModelMissing(let expectedPath):
-            return "Local Whisper model not found. Place the model at \(expectedPath)."
-        case .localWhisperRuntimeUnavailable:
-            return LocalWhisperError.runtimeUnavailable.localizedDescription
         case .network(_, let message):
             return message
         case .clipboardWriteFailed:
@@ -246,17 +232,6 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
             switch configurationError {
             case .missingRequirements(let requirements):
                 return .missingProviderConfiguration(requirements: requirements)
-            }
-        }
-
-        if let localWhisperError = error as? LocalWhisperError {
-            switch localWhisperError {
-            case .modelDirectoryUnavailable, .runtimeUnavailable:
-                return .localWhisperRuntimeUnavailable
-            case .modelMissing(let expectedURL):
-                return .localWhisperModelMissing(expectedPath: expectedURL.path)
-            case .audioPreparationFailed, .transcriptionFailed, .downloadFailed, .invalidDownloadResponse:
-                return .unknown(message: localWhisperError.localizedDescription)
             }
         }
 
