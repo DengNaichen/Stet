@@ -18,6 +18,7 @@
         private let interactionSoundPlayer: InteractionSoundPlayer
         private let appearanceSettingsViewModel: MacAppearanceSettingsViewModel
         private let mcpServerController: StetMCPServerController?
+        private let liveMeetingPhaseStore: MCPLiveMeetingPhaseStore?
         private var passiveListeningRuntime: MacPassiveListeningRuntime?
         private var meetingRecordingRuntime: MacMeetingRecordingRuntime?
 
@@ -31,6 +32,7 @@
         convenience init(compatibilityStore: AppCompatibilityStore? = nil) {
             let settingsStore = DictationSettingsStore()
             let captureService = MacAudioCaptureService()
+            let liveMeetingPhaseStore = MCPLiveMeetingPhaseStore()
             let passiveListeningRuntime = MacPassiveListeningRuntime(captureService: captureService)
             let meetingRecordingRuntime = MacMeetingRecordingRuntime.live(
                 captureService: captureService,
@@ -61,9 +63,12 @@
                     compatibilityStore: compatibilityStore ?? AppCompatibilityStore.live(),
                     pasteboardRestoreCoordinator: pasteboardRestoreCoordinator
                 ),
-                mcpServerController: StetMCPServerController.live(settingsStore: settingsStore),
+                mcpServerController: StetMCPServerController.live(
+                    livePhaseStore: liveMeetingPhaseStore
+                ),
                 passiveListeningRuntime: passiveListeningRuntime,
-                meetingRecordingRuntime: meetingRecordingRuntime
+                meetingRecordingRuntime: meetingRecordingRuntime,
+                liveMeetingPhaseStore: liveMeetingPhaseStore
             )
         }
 
@@ -77,7 +82,8 @@
             captureCoordinator: MacDictationCaptureCoordinator? = nil,
             mcpServerController: StetMCPServerController? = nil,
             passiveListeningRuntime: MacPassiveListeningRuntime? = nil,
-            meetingRecordingRuntime: MacMeetingRecordingRuntime? = nil
+            meetingRecordingRuntime: MacMeetingRecordingRuntime? = nil,
+            liveMeetingPhaseStore: MCPLiveMeetingPhaseStore? = nil
         ) {
             let bootstrapper = MacAppBootstrapper(settingsStore: settingsStore)
             let captureCoordinator =
@@ -107,6 +113,7 @@
             self.interactionSoundPlayer = interactionSoundPlayer
             self.appearanceSettingsViewModel = .shared
             self.mcpServerController = mcpServerController
+            self.liveMeetingPhaseStore = liveMeetingPhaseStore
             self.isPassiveListeningEnabled = MacFeatureAvailability.isPassiveListeningEnabled(
                 preference: settingsStore.loadPassiveListeningEnabled()
             )
@@ -140,6 +147,7 @@
                         guard let self else { return }
                         let previous = self.meetingRecordingPhase
                         self.meetingRecordingPhase = phase
+                        self.liveMeetingPhaseStore?.update(phase)
                         Task {
                             await MacDictationCompletionNotificationService.shared.notifyMeetingPhase(
                                 from: previous,

@@ -6,35 +6,11 @@ import Testing
 @MainActor
 @Suite("Stet MCP Protocol Server")
 struct StetMCPProtocolServerTests {
-    @Test func listsAndCallsTheTranscriptionTool() async throws {
-        let transcriber = MCPStubTranscriber(
-            output: .init(
-                text: "cleaned transcript",
-                rawText: "raw transcript",
-                languageCode: "zh",
-                rewriteApplied: true,
-                warnings: []
-            )
-        )
-        let server = StetMCPProtocolServer(transcriber: transcriber)
+    @Test func listsTheThreeMeetingTools() async throws {
+        let server = StetMCPProtocolServer(catalog: MCPStubMeetingCatalog())
         try await server.start()
         defer { Task { await server.stop() } }
-
-        let initializeResponse = await server.handleRawRequest(
-            method: "POST",
-            headers: baseHeaders,
-            body: try jsonData([
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "initialize",
-                "params": [
-                    "protocolVersion": protocolVersion,
-                    "capabilities": [:],
-                    "clientInfo": ["name": "StetTests", "version": "1.0"],
-                ],
-            ])
-        )
-        #expect(initializeResponse.statusCode == 200)
+        try await initialize(server)
 
         let listResponse = await server.handleRawRequest(
             method: "POST",
@@ -50,60 +26,23 @@ struct StetMCPProtocolServerTests {
         let listJSON = try responseJSON(listResponse)
         let listResult = try #require(listJSON["result"] as? [String: Any])
         let tools = try #require(listResult["tools"] as? [[String: Any]])
-        let tool = try #require(tools.first)
-        #expect(tool["name"] as? String == StetMCPProtocolServer.toolName)
-        #expect(tool["inputSchema"] != nil)
-        #expect(tool["outputSchema"] != nil)
-
-        let callResponse = await server.handleRawRequest(
-            method: "POST",
-            headers: protocolHeaders,
-            body: try jsonData([
-                "jsonrpc": "2.0",
-                "id": 3,
-                "method": "tools/call",
-                "params": [
-                    "name": StetMCPProtocolServer.toolName,
-                    "arguments": ["audio_path": "/tmp/message.m4a"],
-                ],
+        #expect(
+            tools.map { $0["name"] as? String } == [
+                StetMCPProtocolServer.listMeetingsToolName,
+                StetMCPProtocolServer.listUnorganizedMeetingsToolName,
+                StetMCPProtocolServer.getMeetingTranscriptToolName,
             ])
-        )
-        #expect(callResponse.statusCode == 200)
-        let callJSON = try responseJSON(callResponse)
-        let callResult = try #require(callJSON["result"] as? [String: Any])
-        #expect(callResult["isError"] as? Bool == false)
-        let content = try #require(callResult["content"] as? [[String: Any]])
-        #expect(content.first?["text"] as? String == "cleaned transcript")
-        let structured = try #require(callResult["structuredContent"] as? [String: Any])
-        #expect(structured["text"] as? String == "cleaned transcript")
-        #expect(structured["raw_text"] as? String == "raw transcript")
-        #expect(structured["language_code"] as? String == "zh")
-        #expect(structured["rewrite_applied"] as? Bool == true)
-        #expect(await transcriber.audioPaths == ["/tmp/message.m4a"])
+        #expect(tools.allSatisfy { $0["inputSchema"] != nil && $0["outputSchema"] != nil })
     }
 
-    @Test func invalidArgumentsAndTranscriptionFailuresAreToolErrors() async throws {
-        let transcriber = MCPStubTranscriber(error: TestError.expected)
-        let server = StetMCPProtocolServer(transcriber: transcriber)
+    @Test func callsMeetingToolsAndReturnsStructuredContent() async throws {
+        let catalog = MCPStubMeetingCatalog()
+        let server = StetMCPProtocolServer(catalog: catalog)
         try await server.start()
         defer { Task { await server.stop() } }
+        try await initialize(server)
 
-        _ = await server.handleRawRequest(
-            method: "POST",
-            headers: baseHeaders,
-            body: try jsonData([
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "initialize",
-                "params": [
-                    "protocolVersion": protocolVersion,
-                    "capabilities": [:],
-                    "clientInfo": ["name": "StetTests", "version": "1.0"],
-                ],
-            ])
-        )
-
-        let missingPathResponse = await server.handleRawRequest(
+        let listResponse = await server.handleRawRequest(
             method: "POST",
             headers: protocolHeaders,
             body: try jsonData([
@@ -111,17 +50,19 @@ struct StetMCPProtocolServerTests {
                 "id": 2,
                 "method": "tools/call",
                 "params": [
-                    "name": StetMCPProtocolServer.toolName,
-                    "arguments": [:],
+                    "name": StetMCPProtocolServer.listMeetingsToolName,
+                    "arguments": ["limit": 5],
                 ],
             ])
         )
-        let missingPathResult = try #require(
-            try responseJSON(missingPathResponse)["result"] as? [String: Any]
-        )
-        #expect(missingPathResult["isError"] as? Bool == true)
+        let listResult = try #require(try responseJSON(listResponse)["result"] as? [String: Any])
+        #expect(listResult["isError"] as? Bool == false)
+        let listStructured = try #require(listResult["structuredContent"] as? [String: Any])
+        let meetings = try #require(listStructured["meetings"] as? [[String: Any]])
+        #expect(meetings.first?["id"] as? String == "2026-09-12 16-20-01")
+        #expect(meetings.first?["status"] as? String == "ready")
 
-        let failureResponse = await server.handleRawRequest(
+        let inboxResponse = await server.handleRawRequest(
             method: "POST",
             headers: protocolHeaders,
             body: try jsonData([
@@ -129,15 +70,94 @@ struct StetMCPProtocolServerTests {
                 "id": 3,
                 "method": "tools/call",
                 "params": [
-                    "name": StetMCPProtocolServer.toolName,
-                    "arguments": ["audio_path": "/tmp/failure.wav"],
+                    "name": StetMCPProtocolServer.listUnorganizedMeetingsToolName,
+                    "arguments": [:],
                 ],
             ])
         )
-        let failureResult = try #require(
-            try responseJSON(failureResponse)["result"] as? [String: Any]
+        let inboxResult = try #require(try responseJSON(inboxResponse)["result"] as? [String: Any])
+        #expect(inboxResult["isError"] as? Bool == false)
+
+        let getResponse = await server.handleRawRequest(
+            method: "POST",
+            headers: protocolHeaders,
+            body: try jsonData([
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "tools/call",
+                "params": [
+                    "name": StetMCPProtocolServer.getMeetingTranscriptToolName,
+                    "arguments": ["meeting_id": "2026-09-12 16-20-01"],
+                ],
+            ])
         )
-        #expect(failureResult["isError"] as? Bool == true)
+        let getResult = try #require(try responseJSON(getResponse)["result"] as? [String: Any])
+        #expect(getResult["isError"] as? Bool == false)
+        let content = try #require(getResult["content"] as? [[String: Any]])
+        #expect(content.first?["text"] as? String == "hello from the room")
+        let structured = try #require(getResult["structuredContent"] as? [String: Any])
+        #expect(structured["transcript"] as? String == "hello from the room")
+        #expect(structured["id"] as? String == "2026-09-12 16-20-01")
+    }
+
+    @Test func unknownToolInvalidLimitAndCatalogFailuresAreToolErrors() async throws {
+        let catalog = MCPStubMeetingCatalog(error: MCPMeetingError.noReadyMeeting)
+        let server = StetMCPProtocolServer(catalog: catalog)
+        try await server.start()
+        defer { Task { await server.stop() } }
+        try await initialize(server)
+
+        let unknown = await server.handleRawRequest(
+            method: "POST",
+            headers: protocolHeaders,
+            body: try jsonData([
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": [
+                    "name": "stet_transcribe_audio",
+                    "arguments": [:],
+                ],
+            ])
+        )
+        let unknownResult = try #require(try responseJSON(unknown)["result"] as? [String: Any])
+        #expect(unknownResult["isError"] as? Bool == true)
+
+        let invalidLimit = await server.handleRawRequest(
+            method: "POST",
+            headers: protocolHeaders,
+            body: try jsonData([
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": [
+                    "name": StetMCPProtocolServer.listMeetingsToolName,
+                    "arguments": ["limit": 0],
+                ],
+            ])
+        )
+        let invalidLimitResult = try #require(
+            try responseJSON(invalidLimit)["result"] as? [String: Any]
+        )
+        #expect(invalidLimitResult["isError"] as? Bool == true)
+
+        let emptyInbox = await server.handleRawRequest(
+            method: "POST",
+            headers: protocolHeaders,
+            body: try jsonData([
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "tools/call",
+                "params": [
+                    "name": StetMCPProtocolServer.getMeetingTranscriptToolName,
+                    "arguments": [:],
+                ],
+            ])
+        )
+        let emptyInboxResult = try #require(
+            try responseJSON(emptyInbox)["result"] as? [String: Any]
+        )
+        #expect(emptyInboxResult["isError"] as? Bool == true)
     }
 
     private let protocolVersion = "2025-11-25"
@@ -152,29 +172,59 @@ struct StetMCPProtocolServerTests {
     private var protocolHeaders: [String: String] {
         baseHeaders.merging(["MCP-Protocol-Version": protocolVersion]) { _, new in new }
     }
+
+    private func initialize(_ server: StetMCPProtocolServer) async throws {
+        let response = await server.handleRawRequest(
+            method: "POST",
+            headers: baseHeaders,
+            body: try jsonData([
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": [
+                    "protocolVersion": protocolVersion,
+                    "capabilities": [:],
+                    "clientInfo": ["name": "StetTests", "version": "1.0"],
+                ],
+            ])
+        )
+        #expect(response.statusCode == 200)
+    }
 }
 
-private actor MCPStubTranscriber: MCPTranscriptionServing {
-    private let output: MCPTranscriptionOutput?
-    private let error: (any Error & Sendable)?
-    private(set) var audioPaths: [String] = []
+private struct MCPStubMeetingCatalog: MCPMeetingServing {
+    var error: MCPMeetingError?
+    var summary = MCPMeetingSummary(
+        id: "2026-09-12 16-20-01",
+        startedAt: "2026-09-12T08:20:01Z",
+        endedAt: "2026-09-12T08:45:12Z",
+        durationSeconds: 1511,
+        status: "ready",
+        speakerCount: 2,
+        failureMessage: nil
+    )
 
-    init(output: MCPTranscriptionOutput) {
-        self.output = output
-        self.error = nil
+    func listMeetings(limit: Int) throws -> MCPMeetingListOutput {
+        if let error { throw error }
+        return MCPMeetingListOutput(meetings: Array([summary].prefix(limit)))
     }
 
-    init(error: any Error & Sendable) {
-        self.output = nil
-        self.error = error
+    func listUnorganizedMeetings(limit: Int) throws -> MCPMeetingListOutput {
+        try listMeetings(limit: limit)
     }
 
-    func transcribe(audioPath: String) async throws -> MCPTranscriptionOutput {
-        audioPaths.append(audioPath)
-        if let error {
-            throw error
-        }
-        return try #require(output)
+    func meetingTranscript(meetingID: String?) throws -> MCPMeetingTranscriptOutput {
+        if let error { throw error }
+        return MCPMeetingTranscriptOutput(
+            id: meetingID ?? summary.id,
+            startedAt: summary.startedAt,
+            endedAt: summary.endedAt,
+            durationSeconds: summary.durationSeconds,
+            status: summary.status,
+            speakerCount: summary.speakerCount,
+            transcript: "hello from the room",
+            failureMessage: nil
+        )
     }
 }
 
