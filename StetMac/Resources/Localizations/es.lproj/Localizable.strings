@@ -68,6 +68,9 @@
 "Microphone" = "Micrófono";
 "Default (Built-in Microphone)" = "Predeterminado (Micrófono integrado)";
 "Start Recording" = "Iniciar grabación";
+"Meeting soon" = "La reunión empieza pronto";
+"Starts at %@." = "Empieza a las %@.";
+"Starts at %@ with %@." = "Empieza a las %@ con %@.";
 "Stop Recording" = "Detener grabación";
 "Play Recording" = "Reproducir grabación";
 "Stop Playback" = "Detener reproducción";

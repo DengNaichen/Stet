@@ -15,16 +15,31 @@
             startedAt: Date,
             endedAt: Date,
             turns: [MeetingTranscriptTurn],
+            metadata: MeetingMetadata? = nil,
             note: String? = nil
         ) -> String {
+            let heading = metadata?.title?.nilIfPlaceholder ?? "Meeting · \(displayTimestamp(startedAt))"
             var lines = [
-                "# Meeting · \(displayTimestamp(startedAt))",
+                "# \(heading)",
                 "",
                 "Started: \(displayTimestamp(startedAt))",
                 "Ended: \(displayTimestamp(endedAt))",
                 "Duration: \(formatDuration(endedAt.timeIntervalSince(startedAt)))",
-                "",
             ]
+            if let scheduledStartAt = metadata?.scheduledStartAt,
+                let scheduledEndAt = metadata?.scheduledEndAt
+            {
+                lines.append(
+                    "Scheduled: \(displayTimestamp(scheduledStartAt))–\(displayTimestamp(scheduledEndAt))"
+                )
+            }
+            if let attendees = metadata?.attendees, !attendees.isEmpty {
+                lines.append("Attendees: \(attendees.map(\.name).joined(separator: ", "))")
+            }
+            if let meetingURL = metadata?.meetingURL {
+                lines.append("Meeting: \(meetingURL.absoluteString)")
+            }
+            lines.append("")
             if let note, !note.isEmpty {
                 lines.append(note)
                 lines.append("")
@@ -86,6 +101,16 @@
             let minutes = total / 60
             let remainder = total % 60
             return String(format: "%d:%02d", minutes, remainder)
+        }
+    }
+
+    private extension String {
+        nonisolated var nilIfPlaceholder: String? {
+            let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, trimmed.caseInsensitiveCompare("(NO Title)") != .orderedSame else {
+                return nil
+            }
+            return trimmed
         }
     }
 #endif

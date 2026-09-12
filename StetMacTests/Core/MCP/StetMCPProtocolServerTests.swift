@@ -6,7 +6,7 @@ import Testing
 @MainActor
 @Suite("Stet MCP Protocol Server")
 struct StetMCPProtocolServerTests {
-    @Test func listsTheThreeMeetingTools() async throws {
+    @Test func listsMeetingTools() async throws {
         let server = StetMCPProtocolServer(catalog: MCPStubMeetingCatalog())
         try await server.start()
         defer { Task { await server.stop() } }
@@ -31,6 +31,7 @@ struct StetMCPProtocolServerTests {
                 StetMCPProtocolServer.listMeetingsToolName,
                 StetMCPProtocolServer.listUnorganizedMeetingsToolName,
                 StetMCPProtocolServer.getMeetingTranscriptToolName,
+                StetMCPProtocolServer.syncExpectedMeetingsToolName,
             ])
         #expect(tools.allSatisfy { $0["inputSchema"] != nil && $0["outputSchema"] != nil })
     }
@@ -98,6 +99,82 @@ struct StetMCPProtocolServerTests {
         let structured = try #require(getResult["structuredContent"] as? [String: Any])
         #expect(structured["transcript"] as? String == "hello from the room")
         #expect(structured["id"] as? String == "2026-09-12 16-20-01")
+    }
+
+    @Test func syncsExpectedMeetingsThroughMCP() async throws {
+        let expectedMeetings = MCPExpectedMeetingStub()
+        let server = StetMCPProtocolServer(
+            catalog: MCPStubMeetingCatalog(),
+            expectedMeetings: expectedMeetings
+        )
+        try await server.start()
+        defer { Task { await server.stop() } }
+        try await initialize(server)
+
+        let response = await server.handleRawRequest(
+            method: "POST",
+            headers: protocolHeaders,
+            body: try jsonData([
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": [
+                    "name": StetMCPProtocolServer.syncExpectedMeetingsToolName,
+                    "arguments": [
+                        "window_start": "2026-09-12T00:00:00+08:00",
+                        "window_end": "2026-09-13T00:00:00+08:00",
+                        "meetings": [
+                            [
+                                "source": "calendar",
+                                "external_id": "event-1",
+                                "scheduled_start_at": "2026-09-12T21:00:00+08:00",
+                                "scheduled_end_at": "2026-09-12T22:30:00+08:00",
+                                "title": "Project sync",
+                                "attendees": [["name": "Taylor", "email": "taylor@example.com"]],
+                                "meeting_url": "https://example.com/meeting",
+                            ]
+                        ],
+                    ],
+                ],
+            ])
+        )
+
+        let result = try #require(try responseJSON(response)["result"] as? [String: Any])
+        #expect(result["isError"] as? Bool == false)
+        let captured = await expectedMeetings.capturedInputs
+        #expect(captured.count == 1)
+        #expect(captured.first?.externalID == "event-1")
+        #expect(captured.first?.attendees.first?.name == "Taylor")
+    }
+
+    @Test func syncRejectsMissingMeetingsSnapshot() async throws {
+        let server = StetMCPProtocolServer(
+            catalog: MCPStubMeetingCatalog(),
+            expectedMeetings: MCPExpectedMeetingStub()
+        )
+        try await server.start()
+        defer { Task { await server.stop() } }
+        try await initialize(server)
+
+        let response = await server.handleRawRequest(
+            method: "POST",
+            headers: protocolHeaders,
+            body: try jsonData([
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": [
+                    "name": StetMCPProtocolServer.syncExpectedMeetingsToolName,
+                    "arguments": [
+                        "window_start": "2026-09-12T00:00:00+08:00",
+                        "window_end": "2026-09-13T00:00:00+08:00",
+                    ],
+                ],
+            ])
+        )
+
+        let result = try #require(try responseJSON(response)["result"] as? [String: Any])
+        #expect(result["isError"] as? Bool == true)
     }
 
     @Test func unknownToolInvalidLimitAndCatalogFailuresAreToolErrors() async throws {
@@ -183,7 +260,7 @@ struct StetMCPProtocolServerTests {
         #expect(listJSON["error"] == nil)
         let listResult = try #require(listJSON["result"] as? [String: Any])
         let tools = try #require(listResult["tools"] as? [[String: Any]])
-        #expect(tools.count == 3)
+        #expect(tools.count == 4)
     }
 
     @Test func initializeAcceptsStreamableHTTPAcceptHeader() async throws {
@@ -251,7 +328,8 @@ private struct MCPStubMeetingCatalog: MCPMeetingServing {
         durationSeconds: 1511,
         status: "ready",
         speakerCount: 2,
-        failureMessage: nil
+        failureMessage: nil,
+        metadata: nil
     )
 
     func listMeetings(limit: Int) throws -> MCPMeetingListOutput {
@@ -273,9 +351,29 @@ private struct MCPStubMeetingCatalog: MCPMeetingServing {
             status: summary.status,
             speakerCount: summary.speakerCount,
             transcript: "hello from the room",
-            failureMessage: nil
+            failureMessage: nil,
+            metadata: nil
         )
     }
+}
+
+private actor MCPExpectedMeetingStub: ExpectedMeetingServing {
+    private(set) var capturedInputs: [ExpectedMeetingInput] = []
+
+    func sync(
+        windowStart: Date,
+        windowEnd: Date,
+        inputs: [ExpectedMeetingInput]
+    ) -> ExpectedMeetingSyncResult {
+        capturedInputs = inputs
+        return ExpectedMeetingSyncResult(created: inputs.count, updated: 0, cancelled: 0, meetings: [])
+    }
+
+    func meeting(id: UUID) -> ExpectedMeeting? { nil }
+    func skip(id: UUID) throws {}
+    func markRecorded(id: UUID, meetingID: String) async throws {}
+    func markCompleted(id: UUID) throws {}
+    func restoreReminders() {}
 }
 
 private func jsonData(_ object: [String: Any]) throws -> Data {

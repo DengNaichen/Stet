@@ -68,6 +68,9 @@
 "Microphone" = "マイク";
 "Default (Built-in Microphone)" = "デフォルト（内蔵マイク）";
 "Start Recording" = "録音開始";
+"Meeting soon" = "まもなく会議です";
+"Starts at %@." = "%@に開始します。";
+"Starts at %@ with %@." = "%@に%@と開始します。";
 "Stop Recording" = "録音停止";
 "Play Recording" = "録音を再生";
 "Stop Playback" = "再生停止";

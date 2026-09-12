@@ -17,6 +17,7 @@
         let status: String
         let speakerCount: Int
         let failureMessage: String?
+        let metadata: MCPMeetingMetadata?
 
         private enum CodingKeys: String, CodingKey {
             case id
@@ -26,6 +27,7 @@
             case status
             case speakerCount = "speaker_count"
             case failureMessage = "failure_message"
+            case metadata
         }
     }
 
@@ -42,6 +44,7 @@
         let speakerCount: Int
         let transcript: String?
         let failureMessage: String?
+        let metadata: MCPMeetingMetadata?
 
         private enum CodingKeys: String, CodingKey {
             case id
@@ -52,6 +55,46 @@
             case speakerCount = "speaker_count"
             case transcript
             case failureMessage = "failure_message"
+            case metadata
+        }
+    }
+
+    struct MCPMeetingMetadata: Codable, Equatable, Sendable {
+        let expectedMeetingID: UUID?
+        let source: String?
+        let externalID: String?
+        let title: String?
+        let scheduledStartAt: String?
+        let scheduledEndAt: String?
+        let attendees: [MeetingAttendee]
+        let meetingURL: URL?
+
+        init(_ metadata: MeetingMetadata) {
+            self.expectedMeetingID = metadata.expectedMeetingID
+            self.source = metadata.source
+            self.externalID = metadata.externalID
+            self.title = metadata.title
+            self.scheduledStartAt = metadata.scheduledStartAt.map(Self.iso8601String)
+            self.scheduledEndAt = metadata.scheduledEndAt.map(Self.iso8601String)
+            self.attendees = metadata.attendees
+            self.meetingURL = metadata.meetingURL
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case expectedMeetingID = "expected_meeting_id"
+            case source
+            case externalID = "external_id"
+            case title
+            case scheduledStartAt = "scheduled_start_at"
+            case scheduledEndAt = "scheduled_end_at"
+            case attendees
+            case meetingURL = "meeting_url"
+        }
+
+        private nonisolated static func iso8601String(_ date: Date) -> String {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime]
+            return formatter.string(from: date)
         }
     }
 
@@ -178,6 +221,7 @@
                 status: status,
                 speakerCount: record?.speakerCount ?? 0,
                 failureMessage: record?.failureMessage,
+                metadata: record?.metadata.map { MCPMeetingMetadata($0) },
                 directory: directory
             )
         }
@@ -190,8 +234,8 @@
             switch overlay {
             case .recording(_, let folderName) where folderName == id:
                 return .recording
-            case .processing where record == nil:
-                return .processing
+            case .processing:
+                if record == nil { return .processing }
             default:
                 break
             }
@@ -215,6 +259,7 @@
         let status: MCPMeetingStatus
         let speakerCount: Int
         let failureMessage: String?
+        let metadata: MCPMeetingMetadata?
         let directory: MeetingSessionDirectory
 
         var summary: MCPMeetingSummary {
@@ -225,7 +270,8 @@
                 durationSeconds: durationSeconds,
                 status: status.rawValue,
                 speakerCount: speakerCount,
-                failureMessage: failureMessage
+                failureMessage: failureMessage,
+                metadata: metadata
             )
         }
 
@@ -238,7 +284,8 @@
                 status: status.rawValue,
                 speakerCount: speakerCount,
                 transcript: transcript,
-                failureMessage: failureMessage
+                failureMessage: failureMessage,
+                metadata: metadata
             )
         }
 

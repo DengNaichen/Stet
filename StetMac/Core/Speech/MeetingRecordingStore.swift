@@ -122,6 +122,7 @@
         var failureMessage: String?
         var speakerCount: Int
         var organizedAt: Date? = nil
+        var metadata: MeetingMetadata? = nil
 
         func jsonData() throws -> Data {
             let encoder = JSONEncoder()
