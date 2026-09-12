@@ -10,12 +10,17 @@ set(LLAMA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_SERVER OFF CACHE BOOL "" FORCE)
 set(LLAMA_CURL OFF CACHE BOOL "" FORCE)
-set(GGML_METAL OFF CACHE BOOL "" FORCE)
 set(GGML_ACCELERATE ON CACHE BOOL "" FORCE)
 set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
     set(GGML_CPU_ARM_ARCH "armv8.2-a+dotprod+fp16" CACHE STRING "" FORCE)
+    # Embed the metallib so the XCFramework does not need a sidecar .metallib.
+    set(GGML_METAL ON CACHE BOOL "" FORCE)
+    set(GGML_METAL_EMBED_LIBRARY ON CACHE BOOL "" FORCE)
+else()
+    # Cross-built Intel slices stay CPU-only; llama.cpp ignores n_gpu_layers.
+    set(GGML_METAL OFF CACHE BOOL "" FORCE)
 endif()
 
 if(NOT DEFINED FUNASR_SOURCE_DIR)
@@ -35,6 +40,9 @@ target_include_directories(StetFunASRRuntime
 )
 target_link_libraries(StetFunASRRuntime PRIVATE llama ggml)
 target_compile_definitions(StetFunASRRuntime PRIVATE GGML_USE_ACCELERATE)
+if(GGML_METAL)
+    target_compile_definitions(StetFunASRRuntime PRIVATE GGML_USE_METAL)
+endif()
 set_target_properties(StetFunASRRuntime PROPERTIES
     OUTPUT_NAME StetFunASRRuntime
     POSITION_INDEPENDENT_CODE ON

@@ -11,13 +11,19 @@ BUILD_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/stet-funasr-build.XXXXXX")
 SDK_VERSION=$(xcrun --sdk macosx --show-sdk-version)
 trap 'rm -rf "$BUILD_ROOT"' EXIT
 
-git clone --filter=blob:none --no-checkout https://github.com/modelscope/FunASR.git "$BUILD_ROOT/FunASR"
-git -C "$BUILD_ROOT/FunASR" sparse-checkout init --cone
-git -C "$BUILD_ROOT/FunASR" sparse-checkout set runtime/llama.cpp
-git -C "$BUILD_ROOT/FunASR" checkout "$FUNASR_COMMIT"
+if [[ -z "${FUNASR_SOURCE_DIR:-}" ]]; then
+    git clone --filter=blob:none --no-checkout https://github.com/modelscope/FunASR.git "$BUILD_ROOT/FunASR"
+    git -C "$BUILD_ROOT/FunASR" sparse-checkout init --cone
+    git -C "$BUILD_ROOT/FunASR" sparse-checkout set runtime/llama.cpp
+    git -C "$BUILD_ROOT/FunASR" checkout "$FUNASR_COMMIT"
+    FUNASR_SOURCE_DIR="$BUILD_ROOT/FunASR"
+fi
 
-git clone --filter=blob:none https://github.com/ggml-org/llama.cpp.git "$BUILD_ROOT/llama.cpp"
-git -C "$BUILD_ROOT/llama.cpp" checkout "$LLAMA_COMMIT"
+if [[ -z "${LLAMA_SOURCE_DIR:-}" ]]; then
+    git clone --filter=blob:none https://github.com/ggml-org/llama.cpp.git "$BUILD_ROOT/llama.cpp"
+    git -C "$BUILD_ROOT/llama.cpp" checkout "$LLAMA_COMMIT"
+    LLAMA_SOURCE_DIR="$BUILD_ROOT/llama.cpp"
+fi
 
 typeset -a ARCH_LIBRARIES
 for ARCHITECTURE in arm64 x86_64; do
@@ -29,9 +35,22 @@ for ARCHITECTURE in arm64 x86_64; do
         -DCMAKE_OSX_ARCHITECTURES="$ARCHITECTURE" \
         -DCMAKE_SYSTEM_PROCESSOR="$ARCHITECTURE" \
         -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
-        -DFUNASR_SOURCE_DIR="$BUILD_ROOT/FunASR" \
-        -DLLAMA_SOURCE_DIR="$BUILD_ROOT/llama.cpp"
+        -DFUNASR_SOURCE_DIR="$FUNASR_SOURCE_DIR" \
+        -DLLAMA_SOURCE_DIR="$LLAMA_SOURCE_DIR"
     cmake --build "$ARCH_BUILD_DIR" --target StetFunASRRuntime --parallel
+
+    typeset -a ARCH_OBJECTS
+    ARCH_OBJECTS=(
+        "$ARCH_BUILD_DIR/libStetFunASRRuntime.a"
+        "$ARCH_BUILD_DIR/llama/src/libllama.a"
+        "$ARCH_BUILD_DIR/llama/ggml/src/libggml.a"
+        "$ARCH_BUILD_DIR/llama/ggml/src/libggml-base.a"
+        "$ARCH_BUILD_DIR/llama/ggml/src/libggml-cpu.a"
+        "$ARCH_BUILD_DIR/llama/ggml/src/ggml-blas/libggml-blas.a"
+    )
+    if [[ "$ARCHITECTURE" == arm64 ]]; then
+        ARCH_OBJECTS+=("$ARCH_BUILD_DIR/llama/ggml/src/ggml-metal/libggml-metal.a")
+    fi
 
     COMBINED_OBJECT="$BUILD_ROOT/FunASRRuntime-$ARCHITECTURE.o"
     ld -r \
@@ -39,12 +58,7 @@ for ARCHITECTURE in arm64 x86_64; do
         -platform_version macos 14.0 "$SDK_VERSION" \
         -o "$COMBINED_OBJECT" \
         -all_load \
-        "$ARCH_BUILD_DIR/libStetFunASRRuntime.a" \
-        "$ARCH_BUILD_DIR/llama/src/libllama.a" \
-        "$ARCH_BUILD_DIR/llama/ggml/src/libggml.a" \
-        "$ARCH_BUILD_DIR/llama/ggml/src/libggml-base.a" \
-        "$ARCH_BUILD_DIR/llama/ggml/src/libggml-cpu.a" \
-        "$ARCH_BUILD_DIR/llama/ggml/src/ggml-blas/libggml-blas.a"
+        "${ARCH_OBJECTS[@]}"
     nmedit -s "$RUNTIME_DIR/exported_symbols.txt" "$COMBINED_OBJECT"
 
     COMBINED_LIBRARY="$BUILD_ROOT/libFunASRRuntime-$ARCHITECTURE.a"
