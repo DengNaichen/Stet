@@ -3,7 +3,7 @@
     import Foundation
 
     @MainActor
-    final class MacSettingsShellViewModel: ObservableObject, MacGeneralSettingsAppModeling {
+    final class MacSettingsShellViewModel: ObservableObject, MacGeneralSettingsAppModeling, MacMCPSettingsAppModeling {
         private let coordinator: any MacSettingsShellCoordinating
 
         init(coordinator: any MacSettingsShellCoordinating) {
@@ -32,6 +32,18 @@
 
         func applyDockVisibility(showInDock: Bool) {
             coordinator.applyDockVisibility(showInDock: showInDock)
+        }
+
+        var mcpServerState: StetMCPServerState {
+            coordinator.mcpServerState
+        }
+
+        func setMCPServerEnabled(_ enabled: Bool) async -> StetMCPServerState {
+            await coordinator.setMCPServerEnabled(enabled)
+        }
+
+        func setMCPServerStateHandler(_ handler: @escaping @MainActor (StetMCPServerState) -> Void) {
+            coordinator.setMCPServerStateHandler(handler)
         }
 
         var isDebugForceOnboardingEnabled: Bool {
