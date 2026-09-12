@@ -28,6 +28,19 @@
 "Refine" = "Refinar";
 "Dictionary" = "Diccionario";
 "Debug" = "Depurar";
+"MCP" = "MCP";
+"MCP Server" = "Servidor MCP";
+"Let your coding agent access Stet through MCP." = "Permite que tu agente de programación acceda a Stet mediante MCP.";
+"Connect your coding agent" = "Conecta tu agente de programación";
+"Turn on MCP Server" = "Activa el servidor MCP";
+"Copy the setup prompt" = "Copia las instrucciones de configuración";
+"Paste it into your coding agent" = "Pégalas en tu agente de programación";
+"Copy Setup Prompt" = "Copiar instrucciones";
+"Copied" = "Copiado";
+"Off" = "Desactivado";
+"Starting…" = "Iniciando…";
+"Running" = "En ejecución";
+"Failed to start" = "No se pudo iniciar";
 
 /* Settings search */
 "Search settings" = "Buscar en configuración";

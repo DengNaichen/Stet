@@ -43,7 +43,7 @@
             _ = await TestSupport.eventuallyAsync {
                 await runtime.runCount == 1
             }
-            controller.stop()
+            await controller.stop()
 
             let stopped = await TestSupport.eventuallyAsync {
                 await runtime.stopCount == 1
@@ -64,6 +64,26 @@
             }
             #expect(attempted)
         }
+
+        @Test func setEnabledPersistsAndAppliesImmediately() async {
+            let defaults = TestSupport.makeUserDefaults()
+            let runtime = MCPRuntimeRecorder()
+            let controller = StetMCPServerController(defaults: defaults) { runtime }
+
+            await controller.setEnabled(true)
+            let running = await TestSupport.eventuallyAsync {
+                await MainActor.run { controller.state == .running }
+            }
+
+            #expect(running)
+            #expect(defaults.bool(forKey: MacPreferences.mcpServerEnabled))
+
+            await controller.setEnabled(false)
+
+            #expect(controller.state == .disabled)
+            #expect(!defaults.bool(forKey: MacPreferences.mcpServerEnabled))
+            #expect(await runtime.stopCount == 1)
+        }
     }
 
     private actor MCPRuntimeRecorder: StetMCPRuntimeServing {
@@ -75,10 +95,14 @@
             self.runError = runError
         }
 
-        func run() async throws {
+        func run(onReady: @Sendable () async -> Void) async throws {
             runCount += 1
             if let runError {
                 throw runError
+            }
+            await onReady()
+            while !Task.isCancelled {
+                try await Task.sleep(for: .seconds(60))
             }
         }
 

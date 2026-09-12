@@ -28,6 +28,19 @@
 "Refine" = "改善";
 "Dictionary" = "辞書";
 "Debug" = "デバッグ";
+"MCP" = "MCP";
+"MCP Server" = "MCP サーバー";
+"Let your coding agent access Stet through MCP." = "Coding Agent が MCP 経由で Stet にアクセスできるようにします。";
+"Connect your coding agent" = "Coding Agent を接続";
+"Turn on MCP Server" = "MCP サーバーをオンにする";
+"Copy the setup prompt" = "設定指示をコピー";
+"Paste it into your coding agent" = "Coding Agent に貼り付ける";
+"Copy Setup Prompt" = "設定指示をコピー";
+"Copied" = "コピー済み";
+"Off" = "オフ";
+"Starting…" = "起動中…";
+"Running" = "実行中";
+"Failed to start" = "起動できませんでした";
 
 /* Settings search */
 "Search settings" = "設定を検索";

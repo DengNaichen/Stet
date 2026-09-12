@@ -35,6 +35,7 @@
         case transcription
         case voice
         case meetings
+        case mcp
         case openAI
         case dictionary
         case history
@@ -55,7 +56,7 @@
 
         var titleHorizontalPadding: CGFloat {
             switch self {
-            case .general, .dictation, .microphone, .transcription, .voice, .meetings, .openAI, .dictionary:
+            case .general, .dictation, .microphone, .transcription, .voice, .meetings, .mcp, .openAI, .dictionary:
                 return MacUI.SettingsViewMetrics.groupedFormTitleHorizontalPadding
             case .overview, .appearance, .history:
                 return MacUI.SettingsViewMetrics.detailHorizontalPadding
@@ -68,7 +69,7 @@
 
         var section: MacSettingsSection {
             switch self {
-            case .overview, .general, .appearance:
+            case .overview, .general, .appearance, .mcp:
                 return .app
             case .dictation, .microphone, .transcription:
                 return .dictation
@@ -103,6 +104,8 @@
                 return "Voice"
             case .meetings:
                 return "Meetings"
+            case .mcp:
+                return "MCP"
             case .openAI:
                 return "Refine"
             case .dictionary:
@@ -273,6 +276,8 @@
                 MacVoiceSettingsView()
             case .meetings:
                 MacMeetingSettingsView()
+            case .mcp:
+                MacMCPSettingsView()
             case .openAI:
                 MacOpenAISettingsView(viewModel: openAISettingsViewModel)
             case .dictionary:

@@ -28,6 +28,19 @@
 "Refine" = "最佳化";
 "Dictionary" = "詞典";
 "Debug" = "除錯";
+"MCP" = "MCP";
+"MCP Server" = "MCP 伺服器";
+"Let your coding agent access Stet through MCP." = "讓你的 Coding Agent 透過 MCP 存取 Stet。";
+"Connect your coding agent" = "連接你的 Coding Agent";
+"Turn on MCP Server" = "開啟 MCP 伺服器";
+"Copy the setup prompt" = "複製設定指令";
+"Paste it into your coding agent" = "將指令傳送給你的 Coding Agent";
+"Copy Setup Prompt" = "複製設定指令";
+"Copied" = "已複製";
+"Off" = "已關閉";
+"Starting…" = "正在啟動…";
+"Running" = "執行中";
+"Failed to start" = "啟動失敗";
 
 /* Settings search */
 "Search settings" = "搜尋設定";

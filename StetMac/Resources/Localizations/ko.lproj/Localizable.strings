@@ -28,6 +28,19 @@
 "Refine" = "개선";
 "Dictionary" = "사전";
 "Debug" = "디버그";
+"MCP" = "MCP";
+"MCP Server" = "MCP 서버";
+"Let your coding agent access Stet through MCP." = "Coding Agent가 MCP를 통해 Stet에 접근하도록 허용합니다.";
+"Connect your coding agent" = "Coding Agent 연결";
+"Turn on MCP Server" = "MCP 서버 켜기";
+"Copy the setup prompt" = "설정 지침 복사";
+"Paste it into your coding agent" = "Coding Agent에 붙여넣기";
+"Copy Setup Prompt" = "설정 지침 복사";
+"Copied" = "복사됨";
+"Off" = "꺼짐";
+"Starting…" = "시작 중…";
+"Running" = "실행 중";
+"Failed to start" = "시작하지 못함";
 
 /* Settings search */
 "Search settings" = "설정 검색";

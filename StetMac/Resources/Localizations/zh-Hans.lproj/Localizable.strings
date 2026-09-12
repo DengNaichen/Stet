@@ -29,6 +29,21 @@
 "Refine" = "优化";
 "Dictionary" = "词典";
 "Debug" = "调试";
+"MCP" = "MCP";
+
+/* MCP settings */
+"MCP Server" = "MCP 服务器";
+"Let your coding agent access Stet through MCP." = "让你的 Coding Agent 通过 MCP 访问 Stet。";
+"Connect your coding agent" = "连接你的 Coding Agent";
+"Turn on MCP Server" = "开启 MCP 服务器";
+"Copy the setup prompt" = "复制配置指令";
+"Paste it into your coding agent" = "将指令发送给你的 Coding Agent";
+"Copy Setup Prompt" = "复制配置指令";
+"Copied" = "已复制";
+"Off" = "已关闭";
+"Starting…" = "正在启动…";
+"Running" = "运行中";
+"Failed to start" = "启动失败";
 
 /* Settings search */
 "Search settings" = "搜索设置";

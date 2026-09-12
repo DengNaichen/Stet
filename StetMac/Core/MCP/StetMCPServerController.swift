@@ -3,8 +3,15 @@
     import os
 
     nonisolated protocol StetMCPRuntimeServing: Sendable {
-        func run() async throws
+        func run(onReady: @Sendable () async -> Void) async throws
         func stop() async
+    }
+
+    nonisolated enum StetMCPServerState: Equatable, Sendable {
+        case disabled
+        case starting
+        case running
+        case failed(String)
     }
 
     actor StetMCPServer: StetMCPRuntimeServing {
@@ -19,10 +26,10 @@
             self.httpServer = httpServer
         }
 
-        func run() async throws {
+        func run(onReady: @Sendable () async -> Void) async throws {
             try await protocolServer.start()
             do {
-                try await httpServer.run()
+                try await httpServer.run(onReady: onReady)
                 await protocolServer.stop()
             } catch {
                 await protocolServer.stop()
@@ -45,6 +52,9 @@
         private let logger: Logger
         private var server: (any StetMCPRuntimeServing)?
         private var serverTask: Task<Void, Never>?
+        private var runID = UUID()
+        private(set) var state: StetMCPServerState = .disabled
+        var onStateChange: ((StetMCPServerState) -> Void)?
 
         init(
             defaults: UserDefaults = .standard,
@@ -86,31 +96,74 @@
 
         func startIfEnabled() {
             guard defaults.bool(forKey: MacPreferences.mcpServerEnabled) else { return }
+            start()
+        }
+
+        func setEnabled(_ enabled: Bool) async {
+            defaults.set(enabled, forKey: MacPreferences.mcpServerEnabled)
+            if enabled {
+                start()
+            } else {
+                await stop()
+            }
+        }
+
+        private func start() {
             guard serverTask == nil else { return }
 
             let server = makeServer()
             let logger = self.logger
+            let runID = UUID()
+            self.runID = runID
             self.server = server
-            serverTask = Task {
+            updateState(.starting)
+            serverTask = Task { [weak self] in
                 do {
-                    try await server.run()
+                    try await server.run {
+                        await self?.markRunning(runID: runID)
+                    }
                     logger.info("Stet MCP server stopped.")
+                    self?.finish(runID: runID, state: .disabled)
                 } catch is CancellationError {
                     logger.info("Stet MCP server cancelled.")
+                    self?.finish(runID: runID, state: .disabled)
                 } catch {
                     logger.error("Stet MCP server failed: \(error.localizedDescription)")
+                    self?.finish(runID: runID, state: .failed(error.localizedDescription))
                 }
             }
         }
 
-        func stop() {
-            guard let server else { return }
-            serverTask?.cancel()
+        func stop() async {
+            guard let server else {
+                updateState(.disabled)
+                return
+            }
+            let task = serverTask
+            task?.cancel()
+            await server.stop()
+            await task?.value
             serverTask = nil
             self.server = nil
-            Task {
-                await server.stop()
-            }
+            updateState(.disabled)
+        }
+
+        private func markRunning(runID: UUID) {
+            guard self.runID == runID else { return }
+            updateState(.running)
+        }
+
+        private func finish(runID: UUID, state: StetMCPServerState) {
+            guard self.runID == runID else { return }
+            serverTask = nil
+            server = nil
+            updateState(state)
+        }
+
+        private func updateState(_ state: StetMCPServerState) {
+            guard self.state != state else { return }
+            self.state = state
+            onStateChange?(state)
         }
 
         deinit {
