@@ -112,6 +112,9 @@
                 preference: settingsStore.loadPassiveListeningEnabled()
             )
             let launchConfiguration = bootstrapper.prepareForLaunch()
+            if !ProcessInfo.processInfo.isRunningTests {
+                DictationWordCountMigration.migrateIfNeeded()
+            }
             sessionController.onChange = { [weak self] in
                 self?.objectWillChange.send()
             }

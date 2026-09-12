@@ -166,6 +166,51 @@
             try? context.save()
         }
 
+        struct HistoryTranscript: Sendable {
+            var endedAt: Date
+            var text: String
+        }
+
+        struct RecountResult: Equatable, Sendable {
+            var updated: Int
+            var unmatched: Int
+        }
+
+        /// Rewrites `wordCount` for sessions whose end time matches a history transcript.
+        @discardableResult
+        nonisolated func recountDisplayUnits(
+            from history: [HistoryTranscript],
+            matchWindow: TimeInterval = 3
+        ) -> RecountResult {
+            guard let context = modelContext else {
+                return RecountResult(updated: 0, unmatched: history.count)
+            }
+            var available = (try? context.fetch(FetchDescriptor<DictationSessionRecord>())) ?? []
+            var updated = 0
+            var unmatched = 0
+
+            for item in history {
+                let units = DictationWordCounter.displayUnits(in: item.text)
+                guard units > 0 else {
+                    unmatched += 1
+                    continue
+                }
+                guard let index = bestSessionIndex(for: item.endedAt, in: available, matchWindow: matchWindow)
+                else {
+                    unmatched += 1
+                    continue
+                }
+                available[index].wordCount = units
+                available.remove(at: index)
+                updated += 1
+            }
+
+            if updated > 0 {
+                try? context.save()
+            }
+            return RecountResult(updated: updated, unmatched: unmatched)
+        }
+
         nonisolated func usageSummary(since date: Date? = nil) -> DictationUsageSummary {
             let sessions = fetchSessions(since: date)
             return DictationUsageSummary(
@@ -342,6 +387,23 @@
                 descriptor.predicate = #Predicate { $0.startedAt >= date }
             }
             return (try? context.fetch(descriptor)) ?? []
+        }
+
+        nonisolated private func bestSessionIndex(
+            for endedAt: Date,
+            in sessions: [DictationSessionRecord],
+            matchWindow: TimeInterval
+        ) -> Int? {
+            var best: (index: Int, delta: TimeInterval)?
+            for (index, session) in sessions.enumerated() {
+                let sessionEnd = session.startedAt.addingTimeInterval(session.durationSeconds)
+                let delta = abs(sessionEnd.timeIntervalSince(endedAt))
+                guard delta <= matchWindow else { continue }
+                if best == nil || delta < best!.delta {
+                    best = (index, delta)
+                }
+            }
+            return best?.index
         }
 
         nonisolated private func startOfToday() -> Date {
