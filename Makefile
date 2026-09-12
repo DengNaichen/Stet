@@ -6,7 +6,7 @@ IOS_XCODEBUILD := $(IOS_DEVELOPER_DIR)/usr/bin/xcodebuild
 MACOS_SWIFT_DIRS := StetMac StetMacTests StetMacUITests StetVisuals
 IOS_SWIFT_DIRS := StetMobile/StetKeyboard StetMobile/StetLiveActivity StetMobile/StetMobile StetMobile/StetMobileTests StetMobile/StetMobileUITests
 
-.PHONY: help swiftlint format format-lint lint whisper-deps build ci-build test ios-bootstrap ios-build doctor clean-derived-data release-github notary-setup
+.PHONY: help swiftlint format format-lint lint whisper-deps build ci-build test ios-bootstrap ios-build doctor clean-derived-data release-github notary-setup funasr-nano-coreml
 
 help:
 	@echo "Available targets:"
@@ -24,6 +24,7 @@ help:
 	@echo "  release-github  Build signed GitHub release artifacts"
 	# @echo "  publish-github  Publish GitHub release artifacts"
 	@echo "  notary-setup    Configure notarytool profile"
+	@echo "  funasr-nano-coreml  Convert local Fun-ASR encoder GGUF to CoreML"
 
 swiftlint:
 	swiftlint lint --config .swiftlint.yml --strict --no-cache
@@ -68,3 +69,8 @@ release-github:
 
 notary-setup:
 	./scripts/setup-notarytool-profile.sh
+
+FUNASR_NANO_ANE_PYTHON ?= /tmp/stet-nano-ane/bin/python
+
+funasr-nano-coreml:
+	$(FUNASR_NANO_ANE_PYTHON) scripts/funasr-nano-ane/convert_coreml.py

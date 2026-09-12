@@ -11,8 +11,35 @@ BUILD_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/stet-funasr-build.XXXXXX")
 SDK_VERSION=$(xcrun --sdk macosx --show-sdk-version)
 trap 'rm -rf "$BUILD_ROOT"' EXIT
 
+typeset -a BUILD_ARCHS
+BUILD_ARCHS=(arm64)
+
+github_clone() {
+    local dest="$1"
+    local repo_path="$2"
+    shift 2
+    local urls=(
+        "https://github.com/${repo_path}"
+        "https://ghfast.top/https://github.com/${repo_path}"
+        "https://gitclone.com/github.com/${repo_path}"
+    )
+    local url
+    for url in "${urls[@]}"; do
+        echo "Cloning ${url}"
+        if GIT_TERMINAL_PROMPT=0 \
+            GIT_HTTP_LOW_SPEED_LIMIT=1024 \
+            GIT_HTTP_LOW_SPEED_TIME=20 \
+            git clone "$@" "$url" "$dest"; then
+            return 0
+        fi
+        rm -rf "$dest"
+    done
+    echo "failed to clone ${repo_path} from GitHub and China mirrors" >&2
+    return 1
+}
+
 if [[ -z "${FUNASR_SOURCE_DIR:-}" ]]; then
-    git clone --filter=blob:none --no-checkout https://github.com/modelscope/FunASR.git "$BUILD_ROOT/FunASR"
+    github_clone "$BUILD_ROOT/FunASR" "modelscope/FunASR.git" --filter=blob:none --no-checkout
     git -C "$BUILD_ROOT/FunASR" sparse-checkout init --cone
     git -C "$BUILD_ROOT/FunASR" sparse-checkout set runtime/llama.cpp
     git -C "$BUILD_ROOT/FunASR" checkout "$FUNASR_COMMIT"
@@ -20,13 +47,13 @@ if [[ -z "${FUNASR_SOURCE_DIR:-}" ]]; then
 fi
 
 if [[ -z "${LLAMA_SOURCE_DIR:-}" ]]; then
-    git clone --filter=blob:none https://github.com/ggml-org/llama.cpp.git "$BUILD_ROOT/llama.cpp"
+    github_clone "$BUILD_ROOT/llama.cpp" "ggml-org/llama.cpp.git" --filter=blob:none
     git -C "$BUILD_ROOT/llama.cpp" checkout "$LLAMA_COMMIT"
     LLAMA_SOURCE_DIR="$BUILD_ROOT/llama.cpp"
 fi
 
 typeset -a ARCH_LIBRARIES
-for ARCHITECTURE in arm64 x86_64; do
+for ARCHITECTURE in "${BUILD_ARCHS[@]}"; do
     ARCH_BUILD_DIR="$BUILD_ROOT/build-$ARCHITECTURE"
     cmake \
         -S "$RUNTIME_DIR" \
@@ -67,7 +94,7 @@ for ARCHITECTURE in arm64 x86_64; do
 done
 
 UNIVERSAL_LIBRARY="$BUILD_ROOT/libFunASRRuntime.a"
-lipo -create "${ARCH_LIBRARIES[@]}" -output "$UNIVERSAL_LIBRARY"
+cp "${ARCH_LIBRARIES[1]}" "$UNIVERSAL_LIBRARY"
 mkdir -p "$OUTPUT_DIR"
 if [[ -e "$OUTPUT_XCFRAMEWORK" ]]; then
     mv "$OUTPUT_XCFRAMEWORK" "$BUILD_ROOT/previous.xcframework"

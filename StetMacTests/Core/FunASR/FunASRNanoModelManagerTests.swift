@@ -34,6 +34,43 @@
             #expect(await queue.requestedURLs == FunASRNanoModelAsset.allCases.map(\.downloadURL))
         }
 
+        @Test func prefersCompiledCoreMLEncoderWhenPresent() throws {
+            let modelsDirectory = TestSupport.temporaryDirectoryURL()
+            try FileManager.default.createDirectory(at: modelsDirectory, withIntermediateDirectories: true)
+            let manager = FunASRNanoModelManager(
+                modelsDirectoryProvider: { modelsDirectory },
+                downloadProvider: { _ in throw TestError.expected }
+            )
+            let files = try manager.modelFiles()
+            for file in files.allFiles {
+                try Data("model".utf8).write(to: file)
+            }
+            let coremlEncoder = modelsDirectory.appendingPathComponent(
+                FunASRNanoModelAsset.coremlEncoderFileName)
+            try FileManager.default.createDirectory(at: coremlEncoder, withIntermediateDirectories: true)
+            try Data().write(to: coremlEncoder.appendingPathComponent("model.mil"))
+
+            #expect(try manager.modelFiles().encoder.lastPathComponent == "FunASRNanoEncoder.mlmodelc")
+        }
+
+        @Test func emptyCoreMLDirectoryDoesNotReplaceGGUFEncoder() throws {
+            let modelsDirectory = TestSupport.temporaryDirectoryURL()
+            try FileManager.default.createDirectory(at: modelsDirectory, withIntermediateDirectories: true)
+            let manager = FunASRNanoModelManager(
+                modelsDirectoryProvider: { modelsDirectory },
+                downloadProvider: { _ in throw TestError.expected }
+            )
+            let files = try manager.modelFiles()
+            for file in files.allFiles {
+                try Data("model".utf8).write(to: file)
+            }
+            try FileManager.default.createDirectory(
+                at: modelsDirectory.appendingPathComponent(FunASRNanoModelAsset.coremlEncoderFileName),
+                withIntermediateDirectories: true)
+
+            #expect(try manager.modelFiles().encoder.lastPathComponent == "funasr-encoder-f16.gguf")
+        }
+
         @Test func installSkipsComponentsAlreadyPresent() async throws {
             let modelsDirectory = TestSupport.temporaryDirectoryURL()
             try FileManager.default.createDirectory(at: modelsDirectory, withIntermediateDirectories: true)
