@@ -239,7 +239,14 @@ extern "C" stet_funasr_context *stet_funasr_create(
         ggml_time_init();
         llama_log_set(runtime_log_callback,nullptr);
         if(!load_enc(encoder_path,context->encoder))throw std::runtime_error("encoder model could not be loaded");
-        llama_model_params mp=llama_model_default_params(); mp.n_gpu_layers=0;
+        llama_model_params mp=llama_model_default_params();
+#if defined(GGML_USE_METAL)
+        // Qwen3 decoder on Metal; SAN-M encoder stays on the CPU ggml graph.
+        ggml_backend_load_all();
+        mp.n_gpu_layers=99;
+#else
+        mp.n_gpu_layers=0;
+#endif
         context->model=llama_model_load_from_file(language_model_path,mp);
         if(!context->model)throw std::runtime_error("language model could not be loaded");
         context->vocab=llama_model_get_vocab(context->model);
