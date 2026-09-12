@@ -21,11 +21,13 @@
         private let liveMeetingPhaseStore: MCPLiveMeetingPhaseStore?
         private var passiveListeningRuntime: MacPassiveListeningRuntime?
         private var meetingRecordingRuntime: MacMeetingRecordingRuntime?
+        private var mcpServerStateHandler: (@MainActor (StetMCPServerState) -> Void)?
 
         @Published private(set) var passiveListeningState: MacPassiveListeningState =
             .unavailable("Preparing passive listening")
         @Published private(set) var isPassiveListeningEnabled = true
         @Published private(set) var meetingRecordingPhase: MacMeetingRecordingPhase = .idle
+        @Published private(set) var mcpServerState: StetMCPServerState = .disabled
 
         private var cancellables = Set<AnyCancellable>()
 
@@ -114,6 +116,7 @@
             self.appearanceSettingsViewModel = .shared
             self.mcpServerController = mcpServerController
             self.liveMeetingPhaseStore = liveMeetingPhaseStore
+            self.mcpServerState = mcpServerController?.state ?? .disabled
             self.isPassiveListeningEnabled = MacFeatureAvailability.isPassiveListeningEnabled(
                 preference: settingsStore.loadPassiveListeningEnabled()
             )
@@ -131,6 +134,10 @@
                 }
                 .store(in: &cancellables)
             sessionController.activate(presentationModel: self, showInDock: launchConfiguration.showInDock)
+            mcpServerController?.onStateChange = { [weak self] state in
+                self?.mcpServerState = state
+                self?.mcpServerStateHandler?(state)
+            }
             mcpServerController?.startIfEnabled()
 
             sessionController.isMeetingSessionBusy = { [weak self] in
@@ -561,6 +568,17 @@
 
         func applyDockVisibility(showInDock: Bool) {
             sessionController.applyDockVisibility(showInDock: showInDock)
+        }
+
+        func setMCPServerEnabled(_ enabled: Bool) async -> StetMCPServerState {
+            guard let mcpServerController else { return .disabled }
+            await mcpServerController.setEnabled(enabled)
+            return mcpServerController.state
+        }
+
+        func setMCPServerStateHandler(_ handler: @escaping @MainActor (StetMCPServerState) -> Void) {
+            mcpServerStateHandler = handler
+            handler(mcpServerState)
         }
 
         var isDebugForceOnboardingEnabled: Bool {

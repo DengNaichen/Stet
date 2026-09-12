@@ -81,7 +81,7 @@
     }
 
     @MainActor
-    protocol MacSettingsShellCoordinating: AnyObject, MacGeneralSettingsAppModeling {
+    protocol MacSettingsShellCoordinating: AnyObject, MacGeneralSettingsAppModeling, MacMCPSettingsAppModeling {
         func openSettings(using action: () -> Void)
         func settingsDidAppear()
         func settingsDidDisappear()

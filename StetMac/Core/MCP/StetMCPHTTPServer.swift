@@ -32,7 +32,7 @@ actor StetMCPHTTPServer {
         self.requestHandler = requestHandler
     }
 
-    func run() async throws {
+    func run(onReady: @Sendable () async -> Void = {}) async throws {
         guard channel == nil else { return }
 
         let group = MultiThreadedEventLoopGroup(numberOfThreads: max(1, min(2, System.coreCount)))
@@ -64,6 +64,7 @@ actor StetMCPHTTPServer {
 
         channel = boundChannel
         eventLoopGroup = group
+        await onReady()
 
         do {
             try await withTaskCancellationHandler {
