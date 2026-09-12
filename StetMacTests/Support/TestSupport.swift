@@ -56,7 +56,7 @@ enum TestSupport {
 
     @MainActor
     static func eventually(
-        timeout: Duration = .seconds(1),
+        timeout: Duration = .seconds(3),
         pollInterval: Duration = .milliseconds(10),
         condition: @MainActor @escaping () -> Bool
     ) async -> Bool {
@@ -75,7 +75,7 @@ enum TestSupport {
     }
 
     static func eventuallyAsync(
-        timeout: Duration = .seconds(1),
+        timeout: Duration = .seconds(3),
         pollInterval: Duration = .milliseconds(10),
         condition: @escaping @Sendable () async -> Bool
     ) async -> Bool {

@@ -771,13 +771,13 @@ struct ConfigurableSpeechServiceTests {
         #expect(await rewrite.recordedRequests().count == 1)
     }
 
-    @Test func cloudRewriteSkipsManualPunctuationCleanup() async throws {
+    @Test func cloudRewriteSkipsPunctuationWidthNormalization() async throws {
         let audioFileURL = makeAudioFileURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
 
         let direct = TestTranscriptionService(result: "raw transcript")
         let rewrite = RecordingRewriteService()
-        await rewrite.setResult("云端模型已经处理好这个句号。")
+        await rewrite.setResult("你好,world。")
         let (store, _, _) = try makeSettingsStore(
             transcriptionProvider: .openAI,
             rewriteProvider: .openAI,
@@ -795,7 +795,34 @@ struct ConfigurableSpeechServiceTests {
         let result = try await service.stopRecording()
 
         #expect(result.rawText == "raw transcript")
-        #expect(result.text == "云端模型已经处理好这个句号。")
+        #expect(result.text == "你好,world")
+        #expect(result.wasRewritten)
+    }
+
+    @Test func cloudRewriteStillStripsTrailingPeriod() async throws {
+        let audioFileURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioFileURL) }
+
+        let direct = TestTranscriptionService(result: "raw transcript")
+        let rewrite = RecordingRewriteService()
+        await rewrite.setResult("Hello world.")
+        let (store, _, _) = try makeSettingsStore(
+            transcriptionProvider: .openAI,
+            rewriteProvider: .openAI,
+            rewriteEnabled: true,
+            openAIAPIKey: "sk-test"
+        )
+
+        let service = makeDictationService(
+            settingsStore: store,
+            directTranscriptionService: direct,
+            rewriteService: rewrite
+        )
+
+        try await service.startRecording()
+        let result = try await service.stopRecording()
+
+        #expect(result.text == "Hello world")
         #expect(result.wasRewritten)
     }
 
@@ -909,7 +936,7 @@ struct ConfigurableSpeechServiceTests {
         let result = try await service.stopRecording()
 
         #expect(result.rawText == "um hello world")
-        #expect(result.text == "Hello world.")
+        #expect(result.text == "Hello world")
         #expect(result.wasRewritten)
     }
 
