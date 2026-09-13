@@ -40,6 +40,7 @@
                 Button("Settings…") {
                     settingsShellViewModel.openSettings {
                         openWindow(id: MacWindowSceneID.preferences)
+                        NotificationCenter.default.post(name: .stetOpenSettings, object: nil)
                     }
                 }
 

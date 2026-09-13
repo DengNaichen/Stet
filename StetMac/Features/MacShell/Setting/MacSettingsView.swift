@@ -2,43 +2,22 @@
     import SwiftUI
 
     private enum MacSettingsSection: String, CaseIterable, Identifiable {
-        case app
-        case dictation
-        case listening
-        case text
-        case library
+        case app, dictation, intelligence, advanced
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
-            case .app:
-                return "App"
-            case .dictation:
-                return "Dictation"
-            case .listening:
-                return "Listening"
-            case .text:
-                return "Text"
-            case .library:
-                return "Library"
+            case .app: return "App"
+            case .dictation: return "Dictation"
+            case .intelligence: return "Intelligence"
+            case .advanced: return "Advanced"
             }
         }
     }
 
     private enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
-        case overview
-        case general
-        case appearance
-        case dictation
-        case microphone
-        case transcription
-        case voice
-        case meetings
-        case mcp
-        case openAI
-        case dictionary
-        case history
+        case general, dictation, microphone, transcription, openAI, mcp
         #if DEBUG
             case shaderDebug
         #endif
@@ -47,74 +26,43 @@
 
         var isAvailable: Bool {
             switch self {
-            case .voice:
-                return MacFeatureAvailability.isPassiveListeningVisible
-            default:
-                return true
-            }
-        }
-
-        var titleHorizontalPadding: CGFloat {
-            switch self {
-            case .general, .dictation, .microphone, .transcription, .voice, .meetings, .mcp, .openAI, .dictionary:
-                return MacUI.SettingsViewMetrics.groupedFormTitleHorizontalPadding
-            case .overview, .appearance, .history:
-                return MacUI.SettingsViewMetrics.detailHorizontalPadding
-            #if DEBUG
-                case .shaderDebug:
-                    return MacUI.SettingsViewMetrics.detailHorizontalPadding
-            #endif
+            case .mcp: return true
+            default: return true
             }
         }
 
         var section: MacSettingsSection {
             switch self {
-            case .overview, .general, .appearance, .mcp:
-                return .app
-            case .dictation, .microphone, .transcription:
-                return .dictation
-            case .voice, .meetings:
-                return .listening
-            case .openAI, .dictionary:
-                return .text
-            case .history:
-                return .library
+            case .general: return .app
+            case .dictation, .microphone, .transcription: return .dictation
+            case .openAI: return .intelligence
+            case .mcp: return .advanced
             #if DEBUG
-                case .shaderDebug:
-                    return .library
+                case .shaderDebug: return .advanced
             #endif
             }
         }
 
         var title: String {
             switch self {
-            case .overview:
-                return "Overview"
-            case .general:
-                return "General"
-            case .appearance:
-                return "Theme"
-            case .dictation:
-                return "Dictation"
-            case .microphone:
-                return "Microphone"
-            case .transcription:
-                return "Transcription"
-            case .voice:
-                return "Voice"
-            case .meetings:
-                return "Meetings"
-            case .mcp:
-                return "MCP"
-            case .openAI:
-                return "Refine"
-            case .dictionary:
-                return "Dictionary"
-            case .history:
-                return "History"
+            case .general: return "General"
+            case .dictation: return "Shortcut"
+            case .microphone: return "Microphone"
+            case .transcription: return "Transcription"
+            case .openAI: return "Refine"
+            case .mcp: return "MCP"
             #if DEBUG
-                case .shaderDebug:
-                    return "Debug"
+                case .shaderDebug: return "Debug"
+            #endif
+            }
+        }
+
+        var titleHorizontalPadding: CGFloat {
+            switch self {
+            case .general, .dictation, .microphone, .transcription, .openAI, .mcp:
+                return MacUI.SettingsViewMetrics.groupedFormTitleHorizontalPadding
+            #if DEBUG
+                case .shaderDebug: return MacUI.SettingsViewMetrics.detailHorizontalPadding
             #endif
             }
         }
@@ -122,10 +70,11 @@
 
     struct MacSettingsView: View {
         @EnvironmentObject private var settingsShellViewModel: MacSettingsShellViewModel
+        var onBack: (() -> Void)? = nil
 
         @StateObject private var dictionaryViewModel = DictionaryViewModel()
         @StateObject private var openAISettingsViewModel = MacOpenAISettingsViewModel()
-        @State private var selectedTab: MacSettingsTab = .overview
+        @State private var selectedTab: MacSettingsTab = .general
         @State private var titleScrollStore = MacSettingsTitleScrollStore()
 
         var body: some View {
@@ -162,8 +111,18 @@
 
         private var sidebarColumn: some View {
             VStack(alignment: .leading, spacing: 0) {
-                brandHeader
-                    .frame(height: MacUI.SettingsViewMetrics.headerHeight, alignment: .leading)
+                HStack(spacing: 8) {
+                    Button {
+                        onBack?()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(MacUI.Surfaces.ink)
+                    .opacity(onBack == nil ? 0 : 1)
+                    brandHeader
+                }
+                .frame(height: MacUI.SettingsViewMetrics.headerHeight, alignment: .leading)
                 sidebarNav
             }
             .frame(width: MacUI.SettingsViewMetrics.sidebarWidth)
@@ -260,30 +219,18 @@
         @ViewBuilder
         private func selectedContent(for tab: MacSettingsTab) -> some View {
             switch tab {
-            case .overview:
-                MacOverviewSettingsView()
             case .general:
                 MacGeneralSettingsView()
-            case .appearance:
-                MacAppearanceSettingsView()
             case .dictation:
                 MacDictationSettingsView()
             case .microphone:
                 MacMicrophoneSettingsView()
             case .transcription:
                 MacTranscriptionSettingsView()
-            case .voice:
-                MacVoiceSettingsView()
-            case .meetings:
-                MacMeetingSettingsView()
-            case .mcp:
-                MacMCPSettingsView()
             case .openAI:
                 MacOpenAISettingsView(viewModel: openAISettingsViewModel)
-            case .dictionary:
-                DictionaryView(viewModel: dictionaryViewModel)
-            case .history:
-                MacHistorySettingsView()
+            case .mcp:
+                MacMCPSettingsView()
             #if DEBUG
                 case .shaderDebug:
                     MacShaderDebugSettingsView()
@@ -300,7 +247,7 @@
             if visibleTabs.contains(selectedTab) {
                 return selectedTab
             }
-            return visibleTabs.first ?? .overview
+            return visibleTabs.first ?? .general
         }
 
         private func reloadStateFromPreferences() {
@@ -312,7 +259,7 @@
             if visibleTabs.contains(selectedTab) {
                 return
             }
-            selectedTab = visibleTabs.first ?? .overview
+            selectedTab = visibleTabs.first ?? .general
         }
     }
 #endif

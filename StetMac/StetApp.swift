@@ -70,7 +70,7 @@ struct StetApp: App {
             .menuBarExtraStyle(.menu)
 
             Window("Settings", id: MacWindowSceneID.preferences) {
-                MacSettingsView()
+                MacMainView()
                     .environmentObject(compatibilityStore)
                     .environmentObject(rewriteModelCatalogStore)
                     .environmentObject(appModel)
