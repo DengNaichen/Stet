@@ -455,7 +455,7 @@ struct LogicPrimitiveTests {
         #expect(pipeline.recordsNoHotwordTranscript == false)
     }
 
-    @Test func makePipelineDoesNotSendPersonalDictionaryToAppleSpeech() async throws {
+    @Test func makePipelinePreservesNanoPromptForAppleSpeechFallback() async throws {
         let terms = ["Stet", "OpenAI"]
         let factory = DictationPipelineFactory(
             makeLocalTranscriptionService: { RecordingTranscriptionService(result: "direct") },
@@ -468,7 +468,9 @@ struct LogicPrimitiveTests {
 
         let pipeline = try await factory.makePipeline(from: snapshot)
 
-        #expect(await pipeline.promptProvider?() == nil)
+        let prompt = try #require(await pipeline.promptProvider?())
+        #expect(
+            prompt == FunASRNanoHotwordPrompt.makePrompt(from: terms.map { GlossaryEntry(term: $0, source: .manual) }))
         #expect(pipeline.preferredSpellings == terms)
         #expect(pipeline.recordsNoHotwordTranscript == false)
     }

@@ -46,7 +46,7 @@
             #expect(settingsStore.loadTranscriptionEngine() == .appleSpeech)
         }
 
-        @Test func unsupportedAppleSpeechSelectionFallsBackToDefault() {
+        @Test func unsupportedAppleSpeechSelectionPreservesPreference() {
             guard !AppleSpeechSupport.isAvailable else { return }
             let defaults = TestSupport.makeUserDefaults()
             let settingsStore = DictationSettingsStore(
@@ -59,8 +59,8 @@
             viewModel.onAppear()
             defer { viewModel.onDisappear() }
 
-            #expect(viewModel.localTranscriptionEngine == .default)
-            #expect(settingsStore.loadTranscriptionEngine() == .default)
+            #expect(viewModel.localTranscriptionEngine == .appleSpeech)
+            #expect(settingsStore.loadTranscriptionEngine() == .appleSpeech)
         }
 
         @Test func retiredWhisperEngineMigratesToNano() {

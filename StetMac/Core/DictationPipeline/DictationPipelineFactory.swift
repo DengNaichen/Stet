@@ -139,7 +139,10 @@ struct DictationPipelineFactory: Sendable {
             guard !records.isEmpty else { return nil }
             return records.map(\.term).joined(separator: ", ")
         case .appleSpeech:
-            return nil
+            // Apple Speech does not consume prompts, but using Nano's prompt here
+            // preserves dictionary/hotword behavior when Apple Speech falls back
+            // to Fun-ASR Nano at runtime.
+            return FunASRNanoHotwordPrompt.makePrompt(from: records)
         }
     }
 

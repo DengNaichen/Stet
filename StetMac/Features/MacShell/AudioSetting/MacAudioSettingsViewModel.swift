@@ -84,13 +84,9 @@
 
             isParakeetDownloaded = fluidAudioModelManager.isModelDownloaded()
             isFunASRNanoDownloaded = funASRNanoModelManager.isModelDownloaded()
-            let storedEngine = settingsStore.loadTranscriptionEngine()
-            if storedEngine == .appleSpeech, !AppleSpeechSupport.isAvailable {
-                localTranscriptionEngine = .default
-                settingsStore.saveTranscriptionEngine(.default)
-            } else {
-                localTranscriptionEngine = storedEngine
-            }
+            // Keep the persisted choice even when Apple Speech is temporarily unavailable.
+            // The pipeline applies a transient Fun-ASR Nano fallback at execution time.
+            localTranscriptionEngine = settingsStore.loadTranscriptionEngine()
             isPassiveListeningEnabled = settingsStore.loadPassiveListeningEnabled()
             hasLoadedState = true
             refreshAppleSpeechAssetState()
@@ -101,9 +97,7 @@
         }
 
         var localTranscriptionEngineOptions: [StoredTranscriptionEngine] {
-            StoredTranscriptionEngine.allCases.filter {
-                $0 != .appleSpeech || AppleSpeechSupport.isAvailable
-            }
+            StoredTranscriptionEngine.allCases
         }
 
         var canStartSpeakerEnrollment: Bool {

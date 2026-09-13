@@ -103,8 +103,11 @@
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Apple Speech")
+                            Text("Apple Speech (Experimental)")
                                 .font(.system(size: 12, weight: .medium))
+                            Text("On-device SpeechAnalyzer / SpeechTranscriber")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
                             Text(state.statusText)
                                 .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
