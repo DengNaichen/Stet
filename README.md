@@ -13,15 +13,14 @@ Stet is a macOS menu bar dictation app that turns speech into usable text with m
 - Runs from the menu bar without occupying the Dock
 - Starts and stops dictation with a global hotkey
 - Tests microphones and lets you choose an input device
-- Supports OpenAI and Groq transcription providers
-- Supports `Automatic`, `Stet account`, and `Your own key` execution modes
+- Transcribes locally and optionally rewrites text with OpenAI or Groq
 - Supports Chinese, English, and mixed-language dictation preferences
 - Includes a personal dictionary
-- Updates automatically through Sparkle
+- Checks for updates through Sparkle; installations require approval
 
 ## Requirements
 
-- macOS 26.0 or later
+- macOS 15.0 or later
 - Apple Silicon Mac
 - Xcode 26 or a compatible version when building from source
 - Microphone permission
@@ -29,7 +28,7 @@ Stet is a macOS menu bar dictation app that turns speech into usable text with m
 
 ## Getting started
 
-Download the latest macOS release from [GitHub Releases](https://github.com/DengNaichen/Stet/releases), or build Stet from source with Xcode. On first launch, Stet guides you through permissions, dictation setup, and either a Stet account or your own API key.
+Download the latest macOS release from [GitHub Releases](https://github.com/DengNaichen/Stet/releases), or build Stet from source with Xcode. On first launch, Stet guides you through permissions and dictation setup. Cloud rewriting is optional and can be configured with a provider API key.
 
 To build from the repository root:
 
