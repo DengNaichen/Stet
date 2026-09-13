@@ -1,58 +1,79 @@
 # Stet
 
-The open-source repository for Stet — macOS and iOS dictation apps, shared
-Swift packages, and agent harness docs in one repository. All source is public;
-the former `Public/` and `Private/` wrappers have been removed.
+[English](README.md) | [中文](docs/README.zh-CN.md)
 
-## Layout
+![Stet app icon](docs/assets/app-icon.png)
 
-- `Stet.xcodeproj`, `StetMac/`, `StetMacTests/`, `StetMacUITests/`, and `StetVisuals/` — macOS app and tests
-- `StetMobile/` — iOS app, keyboard extension, Live Activity, and tests
-- `Packages/StetEngine/` — shared Swift package
-- `docs/` — harness docs (architecture, specs, exec-plans, validation)
-- `reference/` — Apple platform reference library (read on demand)
-- Root `Makefile` — orchestrates build, test, lint, and iOS simulator build across subtrees
+![Stet demo](docs/assets/demo.gif)
 
-## Common commands
+Stet is a macOS menu bar dictation app that turns speech into usable text with minimal rewriting. It records your speech, transcribes it, and pastes the result into the current app or replaces selected text.
 
-From the repository root:
+## Features
+
+- Runs from the menu bar without occupying the Dock
+- Starts and stops dictation with a global hotkey
+- Tests microphones and lets you choose an input device
+- Transcribes locally and optionally rewrites text with OpenAI or Groq
+- Supports Chinese, English, and mixed-language dictation preferences
+- Includes a personal dictionary
+- Checks for updates through Sparkle; installations require approval
+
+## Requirements
+
+- macOS 15.0 or later
+- Apple Silicon Mac
+- Xcode 26 or a compatible version when building from source
+- Microphone permission
+- Accessibility / Input Control permission so Stet can write text into other apps
+
+## Getting started
+
+Download the latest macOS release from [GitHub Releases](https://github.com/DengNaichen/Stet/releases), or build Stet from source with Xcode. On first launch, Stet guides you through permissions and dictation setup. Cloud rewriting is optional and can be configured with a provider API key.
+
+To build from the repository root:
 
 ```bash
-make build          # macOS app
-make test           # macOS tests
-make ios-build      # iOS simulator build (bootstraps ignored runtime)
-make lint           # SwiftLint and swift-format across macOS and iOS sources
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make build
 ```
 
-For macOS-only targets (release, doctor, etc.), see [`Makefile`](Makefile) and [`docs/release.md`](docs/release.md).
+Open `Stet.xcodeproj` in Xcode if you want to run or debug the app directly. Let Swift Package Manager resolve dependencies, then run the `Stet` scheme.
 
-## Agent entry
+## Development
 
-Start with [`AGENTS.md`](AGENTS.md) and [`docs/HARNESS.md`](docs/HARNESS.md).
+The repository is a unified monorepo containing the macOS app, the iOS app, and shared Swift packages.
 
-## Visibility
+```bash
+# Build the macOS app
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make build
 
-The full repository is public. API keys, signing material, and provider
-credentials belong in GitHub Environment secrets or local Keychain, never in
-tracked files.
+# Run macOS tests
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make test
 
-## Runtime policy
+# Run SwiftLint and swift-format checks
+make lint
 
-Model payloads, downloaded iOS runtime frameworks, Xcode build products, and
-local-only checkouts are not tracked in Git. Ignore rules live in the repository
-root [`.gitignore`](.gitignore) only (no per-subtree copies).
+# Build the iOS app for the simulator
+make ios-build
+```
 
-## Git remotes
+See the [`Makefile`](Makefile) for all available targets. For repository conventions and the agent-facing documentation, start with [`AGENTS.md`](AGENTS.md) and [`docs/HARNESS.md`](docs/HARNESS.md).
 
-Canonical remote (releases, stars, CI secrets): **`origin`** → `github.com/DengNaichen/Stet`
+## Repository layout
 
-Legacy development mirror: **`stet-internal`** → `github.com/DengNaichen/Stet-internal`
+- [`StetMac/`](StetMac/) — macOS app
+- [`StetMobile/`](StetMobile/) — iOS app, keyboard extension, and Live Activity
+- [`Packages/StetEngine/`](Packages/StetEngine/) — shared Swift package
+- [`docs/`](docs/) — architecture, specifications, release, and development documentation
+- [`reference/`](reference/) — Apple platform reference material
 
-After the unified-monorepo migration, push to `origin` only. Prune stale
-remote-tracking branches with `git remote prune origin` (and `stet-internal` if
-kept).
+## Privacy and runtime files
+
+API keys, signing material, and provider credentials belong in the local Keychain or GitHub Environment secrets, never in tracked files. Model payloads, downloaded runtime frameworks, Xcode build products, and other local-only artifacts are intentionally excluded from Git.
+
+## Release process
+
+Official release artifacts are built by GitHub Actions. See the [release guide](docs/release.md) for the macOS release and notarization workflow.
 
 ## License
 
-Stet is licensed under [GNU General Public License v3.0 (GPL-3.0-only)](LICENSE).
-See [`docs/release.md`](docs/release.md) for macOS-specific release notes.
+Stet is licensed under the [GNU General Public License v3.0 (GPL-3.0-only)](LICENSE).
