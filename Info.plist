@@ -43,6 +43,8 @@
 	<string>Stet uses System Events to paste your transcript back into the app you were using.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Stet uses the microphone to capture your dictation.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Stet uses selected calendars to keep meeting reminders up to date.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Stet uses on-device speech recognition to turn your voice into text.</string>
 	<key>SUAutomaticallyUpdate</key>

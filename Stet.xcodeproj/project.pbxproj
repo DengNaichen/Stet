@@ -23,6 +23,7 @@
 		F1A0B0010000000000000001 /* StetVisuals.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; };
 		F1A0B001000000000000000E /* StetVisuals.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A2C0DE010000000000000001 /* HeatmapKit in Frameworks */ = {isa = PBXBuildFile; productRef = A2C0DE010000000000000002 /* HeatmapKit */; };
+		C4A1E0010000000000000001 /* EventKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C4A1E0010000000000000002 /* EventKit.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,6 +69,7 @@
 		6D29DC8C2F5FA23100267DEA /* StetTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StetTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6D29DC962F5FA23100267DEA /* StetUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StetUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F1A0B0010000000000000003 /* StetVisuals.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = StetVisuals.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		C4A1E0010000000000000002 /* EventKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = EventKit.framework; path = System/Library/Frameworks/EventKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -111,6 +113,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C4A1E0010000000000000001 /* EventKit.framework in Frameworks */,
 				A1C000010000000000000001 /* MCP in Frameworks */,
 				A1C000010000000000000002 /* NIOCore in Frameworks */,
 				A1C000010000000000000003 /* NIOPosix in Frameworks */,
@@ -156,6 +159,7 @@
 		6D29DC742F5FA23000267DEA = {
 			isa = PBXGroup;
 			children = (
+				C4A1E0010000000000000002 /* EventKit.framework */,
 				6D29DC7F2F5FA23000267DEA /* Stet */,
 				F1A0B0010000000000000004 /* StetVisuals */,
 				6D29DC8F2F5FA23100267DEA /* StetTests */,
@@ -609,7 +613,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
-				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
 				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
 				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
@@ -663,7 +667,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
-				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
 				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
 				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;

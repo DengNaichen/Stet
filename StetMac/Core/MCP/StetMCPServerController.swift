@@ -72,6 +72,7 @@
         static func live(
             livePhaseStore: MCPLiveMeetingPhaseStore,
             expectedMeetings: any ExpectedMeetingServing,
+            calendarClient: (any CalendarWriteClient)? = nil,
             meetingStore: MeetingRecordingStore = MeetingRecordingStore(),
             defaults: UserDefaults = .standard
         ) -> StetMCPServerController {
@@ -82,7 +83,8 @@
                 )
                 let protocolServer = StetMCPProtocolServer(
                     catalog: catalog,
-                    expectedMeetings: expectedMeetings
+                    expectedMeetings: expectedMeetings,
+                    calendarWriteClient: calendarClient
                 )
                 let httpServer = StetMCPHTTPServer { request in
                     await protocolServer.handleHTTPRequest(request)

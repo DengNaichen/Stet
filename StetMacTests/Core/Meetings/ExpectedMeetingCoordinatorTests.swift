@@ -18,11 +18,13 @@
             let input = makeInput(start: now.addingTimeInterval(3_600))
 
             let first = try await coordinator.sync(
+                sourceScope: "calendar",
                 windowStart: now,
                 windowEnd: now.addingTimeInterval(86_400),
                 inputs: [input]
             )
             let second = try await coordinator.sync(
+                sourceScope: "calendar",
                 windowStart: now,
                 windowEnd: now.addingTimeInterval(86_400),
                 inputs: [input]
@@ -46,12 +48,14 @@
                 now: { now }
             )
             _ = try await coordinator.sync(
+                sourceScope: "calendar",
                 windowStart: now,
                 windowEnd: now.addingTimeInterval(86_400),
                 inputs: [makeInput(start: now.addingTimeInterval(3_600))]
             )
 
             let result = try await coordinator.sync(
+                sourceScope: "calendar",
                 windowStart: now,
                 windowEnd: now.addingTimeInterval(86_400),
                 inputs: []
@@ -71,6 +75,7 @@
                 now: { now }
             )
             let result = try await coordinator.sync(
+                sourceScope: "calendar",
                 windowStart: now,
                 windowEnd: now.addingTimeInterval(86_400),
                 inputs: [makeInput(start: now.addingTimeInterval(3_600))]
@@ -96,6 +101,7 @@
             )
             let input = makeInput(start: now.addingTimeInterval(3_600))
             let first = try await coordinator.sync(
+                sourceScope: "calendar",
                 windowStart: now,
                 windowEnd: now.addingTimeInterval(86_400),
                 inputs: [input]
@@ -104,12 +110,41 @@
             try await coordinator.skip(id: id)
 
             let repeated = try await coordinator.sync(
+                sourceScope: "calendar",
                 windowStart: now,
                 windowEnd: now.addingTimeInterval(86_400),
                 inputs: [input]
             )
 
             #expect(repeated.meetings.first?.status == .skipped)
+        }
+
+        @Test func sourceScopedSyncDoesNotCancelOtherSources() async throws {
+            let fileURL = TestSupport.temporaryDirectoryURL().appendingPathComponent("expected.json")
+            let now = Date(timeIntervalSince1970: 1_704_067_200)
+            let coordinator = ExpectedMeetingCoordinator(
+                store: ExpectedMeetingStore(fileURL: fileURL),
+                reminders: ReminderRecorder(),
+                now: { now }
+            )
+            var agentMeeting = makeInput(start: now.addingTimeInterval(3_600))
+            agentMeeting.source = "agent:status"
+            _ = try await coordinator.sync(
+                sourceScope: "agent:status",
+                windowStart: now,
+                windowEnd: now.addingTimeInterval(86_400),
+                inputs: [agentMeeting]
+            )
+
+            _ = try await coordinator.sync(
+                sourceScope: "calendar",
+                windowStart: now,
+                windowEnd: now.addingTimeInterval(86_400),
+                inputs: []
+            )
+
+            let meetings = try await coordinator.meetings(from: now, to: now.addingTimeInterval(86_400))
+            #expect(meetings.first { $0.source == "agent:status" }?.status == .scheduled)
         }
 
         private func makeInput(start: Date) -> ExpectedMeetingInput {
