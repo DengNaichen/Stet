@@ -18,7 +18,7 @@ struct CloudStructuredRewriteTests {
             #expect(schema["required"] as? [String] == ["text"])
             #expect(schema["additionalProperties"] as? Bool == false)
             let reasoning = try #require(body["reasoning"] as? [String: Any])
-            #expect(reasoning["effort"] as? String == "medium")
+            #expect(reasoning["effort"] as? String == "minimal")
 
             return try TestHTTP.response(
                 for: request,
@@ -89,6 +89,8 @@ struct CloudStructuredRewriteTests {
             let body = try TestHTTP.jsonBody(from: request)
             let generationConfig = try #require(body["generationConfig"] as? [String: Any])
             #expect(generationConfig["responseMimeType"] as? String == "application/json")
+            let thinkingConfig = try #require(generationConfig["thinkingConfig"] as? [String: Any])
+            #expect(thinkingConfig["thinkingLevel"] as? String == "low")
             let schema = try #require(generationConfig["responseJsonSchema"] as? [String: Any])
             #expect(schema["required"] as? [String] == ["text"])
             #expect(schema["additionalProperties"] as? Bool == false)
@@ -227,7 +229,13 @@ struct CloudStructuredRewriteTests {
     }
 
     private func makeConfiguration(provider: DictationProvider) -> RewriteProviderConfiguration {
-        RewriteProviderConfiguration(
+        let thinkingLevel: RewriteThinkingLevel? =
+            switch provider {
+            case .openAI: .minimal
+            case .deepSeek: .off
+            default: nil
+            }
+        return RewriteProviderConfiguration(
             provider: provider,
             model: DictationProviderDefaults.rewriteModel(for: provider),
             backend: .remote(
@@ -236,7 +244,8 @@ struct CloudStructuredRewriteTests {
                     apiKey: "sk-test",
                     baseURL: URL(string: "https://api.example.com/v1")!
                 )
-            )
+            ),
+            thinkingLevel: thinkingLevel
         )
     }
 }

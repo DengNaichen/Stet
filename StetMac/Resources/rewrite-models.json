@@ -1,13 +1,24 @@
 {
   "schemaVersion": 1,
-  "revision": 2,
+  "revision": 3,
   "providers": [
     {
       "id": "openai",
       "enabled": true,
       "defaultModelID": "gpt-5.6-luna",
       "models": [
-        { "id": "gpt-5.6-luna", "displayName": "GPT-5.6 Luna", "enabled": true }
+        {
+          "id": "gpt-5.6-luna",
+          "displayName": "GPT-5.6 Luna",
+          "enabled": true,
+          "thinkingLevels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "defaultThinkingLevel": "minimal"
+        }
       ]
     },
     {
@@ -15,7 +26,17 @@
       "enabled": true,
       "defaultModelID": "gemini-3.8-flash",
       "models": [
-        { "id": "gemini-3.8-flash", "displayName": "Gemini 3.8 Flash", "enabled": true }
+        {
+          "id": "gemini-3.8-flash",
+          "displayName": "Gemini 3.8 Flash",
+          "enabled": true,
+          "thinkingLevels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "defaultThinkingLevel": "low"
+        }
       ]
     },
     {
@@ -23,7 +44,18 @@
       "enabled": true,
       "defaultModelID": "deepseek-flash",
       "models": [
-        { "id": "deepseek-flash", "displayName": "DeepSeek V4.1 Flash", "enabled": true }
+        {
+          "id": "deepseek-flash",
+          "displayName": "DeepSeek V4.1 Flash",
+          "enabled": true,
+          "thinkingLevels": [
+            "off",
+            "low",
+            "high",
+            "max"
+          ],
+          "defaultThinkingLevel": "off"
+        }
       ]
     },
     {
@@ -31,7 +63,11 @@
       "enabled": false,
       "defaultModelID": "qwen3.5-flash",
       "models": [
-        { "id": "qwen3.5-flash", "displayName": "Qwen 3.5 Flash", "enabled": true }
+        {
+          "id": "qwen3.5-flash",
+          "displayName": "Qwen 3.5 Flash",
+          "enabled": true
+        }
       ]
     },
     {
@@ -39,7 +75,11 @@
       "enabled": false,
       "defaultModelID": "glm-4.7-flash",
       "models": [
-        { "id": "glm-4.7-flash", "displayName": "GLM-4.7 Flash", "enabled": true }
+        {
+          "id": "glm-4.7-flash",
+          "displayName": "GLM-4.7 Flash",
+          "enabled": true
+        }
       ]
     }
   ]

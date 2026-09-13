@@ -47,7 +47,12 @@ struct DictationPipelineFactory: Sendable {
                         return UnavailableRewriteService(message: "Apple Intelligence requires macOS 26.0 or newer.")
                     }
                 case .google(let apiKey):
-                    return GoogleRewriteService(apiKey: apiKey, model: configuration.model, session: session)
+                    return GoogleRewriteService(
+                        apiKey: apiKey,
+                        model: configuration.model,
+                        thinkingLevel: configuration.thinkingLevel,
+                        session: session
+                    )
                 case .anthropic(let apiKey):
                     return AnthropicRewriteService(apiKey: apiKey, model: configuration.model, session: session)
                 case .remote:

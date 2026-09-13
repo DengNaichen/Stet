@@ -217,9 +217,31 @@
 
             #expect(viewModel.rewriteProvider == .deepSeek)
             #expect(viewModel.unifiedProvider == .deepSeek)
-            #expect(viewModel.selectedModelID == "deepseek-v4-flash")
-            #expect(viewModel.availableModels.map(\.id) == ["deepseek-v4-flash"])
+            #expect(viewModel.selectedModelID == "deepseek-flash")
+            #expect(viewModel.availableModels.map(\.id) == ["deepseek-flash"])
             #expect(viewModel.visibleCredentialProviders == [.deepSeek])
+            #expect(viewModel.selectedThinkingLevel == .off)
+            #expect(viewModel.availableThinkingLevels == [.off, .low, .high, .max])
+        }
+
+        @Test func providerThinkingLevelDefaultsAndSelectionsPersistIndependently() {
+            let defaults = TestSupport.makeUserDefaults()
+            let store = DictationSettingsStore(defaults: defaults, secretStore: TestSecretStore())
+            let viewModel = MacOpenAISettingsViewModel(settingsStore: store)
+
+            viewModel.load()
+            #expect(viewModel.selectedThinkingLevel == .minimal)
+            #expect(viewModel.availableThinkingLevels == [.minimal, .low, .medium, .high])
+
+            viewModel.selectedThinkingLevel = .high
+            viewModel.unifiedProvider = .google
+            #expect(viewModel.selectedThinkingLevel == .low)
+            #expect(viewModel.availableThinkingLevels == [.low, .medium, .high])
+
+            viewModel.selectedThinkingLevel = .high
+            viewModel.unifiedProvider = .openAI
+            #expect(viewModel.selectedThinkingLevel == .high)
+            #expect(store.loadRewriteThinkingLevel(for: .google, modelID: "gemini-3.8-flash") == .high)
         }
 
         @Test func loadRespectsStoredRewriteDisabledValue() {

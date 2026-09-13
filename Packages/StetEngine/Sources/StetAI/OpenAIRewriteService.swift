@@ -86,6 +86,7 @@ public struct OpenAIRewriteService: TextRewriteService {
     private let session: URLSession
     private let defaultModel: String
     private let supportsResponsesStore: Bool
+    private let thinkingLevel: RewriteThinkingLevel?
 
     public nonisolated init(
         configuration: RewriteProviderConfiguration,
@@ -100,6 +101,7 @@ public struct OpenAIRewriteService: TextRewriteService {
         self.session = session
         self.defaultModel = configuration.model
         self.supportsResponsesStore = configuration.supportsResponsesStore
+        self.thinkingLevel = configuration.thinkingLevel
     }
 
     public func rewrite(_ request: TextRewriteRequest) async throws -> String {
@@ -119,7 +121,7 @@ public struct OpenAIRewriteService: TextRewriteService {
                 query: CreateModelResponseQuery(
                     input: .inputItemList(messages),
                     model: request.model ?? defaultModel,
-                    reasoning: .init(effort: .medium),
+                    reasoning: .init(effort: openAIReasoningEffort),
                     store: supportsResponsesStore ? false : nil,
                     text: .jsonSchema(
                         .init(
@@ -222,17 +224,37 @@ public struct OpenAIRewriteService: TextRewriteService {
                     ChatCompletionMessage(role: "system", content: prepared.systemPrompt),
                     ChatCompletionMessage(role: "user", content: prepared.userPrompt),
                 ],
-                thinking: Self.thinkingConfiguration(for: endpoint.provider),
-                reasoningEffort: nil,
+                thinking: deepSeekThinkingConfiguration,
+                reasoningEffort: deepSeekReasoningEffort,
                 responseFormat: .configuration(provider: endpoint.provider, model: model)
             )
         )
         return request
     }
 
-    private static func thinkingConfiguration(for provider: DictationProvider) -> ChatCompletionThinking? {
-        guard provider == .deepSeek else { return nil }
-        return ChatCompletionThinking(type: "disabled")
+    private var openAIReasoningEffort: Components.Schemas.ReasoningEffort? {
+        switch thinkingLevel {
+        case .minimal: return .minimal
+        case .low: return .low
+        case .medium: return .medium
+        case .high: return .high
+        default: return nil
+        }
+    }
+
+    private var deepSeekThinkingConfiguration: ChatCompletionThinking? {
+        guard endpoint.provider == .deepSeek else { return nil }
+        return ChatCompletionThinking(type: thinkingLevel == .off ? "disabled" : "enabled")
+    }
+
+    private var deepSeekReasoningEffort: String? {
+        guard endpoint.provider == .deepSeek, thinkingLevel != .off else { return nil }
+        switch thinkingLevel {
+        case .low: return "low"
+        case .high: return "high"
+        case .max: return "max"
+        default: return nil
+        }
     }
 
     private func makeMessages(
