@@ -455,6 +455,26 @@ struct LogicPrimitiveTests {
         #expect(pipeline.recordsNoHotwordTranscript == false)
     }
 
+    @Test func makePipelinePreservesNanoPromptForAppleSpeechFallback() async throws {
+        let terms = ["Stet", "OpenAI"]
+        let factory = DictationPipelineFactory(
+            makeLocalTranscriptionService: { RecordingTranscriptionService(result: "direct") },
+            makeRewriteService: { _, _ in RecordingRewriteService() }
+        )
+        let snapshot = makeSnapshot(
+            personalDictionary: terms,
+            transcriptionEngine: .appleSpeech
+        )
+
+        let pipeline = try await factory.makePipeline(from: snapshot)
+
+        let prompt = try #require(await pipeline.promptProvider?())
+        #expect(
+            prompt == FunASRNanoHotwordPrompt.makePrompt(from: terms.map { GlossaryEntry(term: $0, source: .manual) }))
+        #expect(pipeline.preferredSpellings == terms)
+        #expect(pipeline.recordsNoHotwordTranscript == false)
+    }
+
     @Test func makePipelineRecordsNoHotwordTranscriptForFunASRNanoWhenUnspecified() async throws {
         let factory = DictationPipelineFactory(
             makeLocalTranscriptionService: { RecordingTranscriptionService(result: "direct") },
@@ -464,9 +484,11 @@ struct LogicPrimitiveTests {
 
         let nano = try await factory.makePipeline(from: makeSnapshot(transcriptionEngine: .funASRNano))
         let parakeet = try await factory.makePipeline(from: makeSnapshot(transcriptionEngine: .fluidAudio))
+        let appleSpeech = try await factory.makePipeline(from: makeSnapshot(transcriptionEngine: .appleSpeech))
 
         #expect(nano.recordsNoHotwordTranscript)
         #expect(parakeet.recordsNoHotwordTranscript == false)
+        #expect(appleSpeech.recordsNoHotwordTranscript == false)
     }
 }
 
@@ -488,13 +510,13 @@ struct TranscriptionLanguageRoutingTests {
 
 @Suite("DictationPipelineFactory – selected engine language forwarding")
 struct EngineSelectionRegressionTests {
-    @Test func makePipelinePassesPrimaryLanguageToNanoAndParakeet() async throws {
+    @Test func makePipelinePassesPrimaryLanguageToEveryLocalEngine() async throws {
         let local = RecordingTranscriptionService(result: "ok")
         let factory = DictationPipelineFactory(
             makeLocalTranscriptionService: { local },
             makeRewriteService: { _, _ in RecordingRewriteService() }
         )
-        for engine in [StoredTranscriptionEngine.funASRNano, .fluidAudio] {
+        for engine in [StoredTranscriptionEngine.funASRNano, .fluidAudio, .appleSpeech] {
             let snapshot = makeSnapshot(
                 transcriptionPrimaryLanguage: "zh",
                 transcriptionSecondaryLanguage: nil,

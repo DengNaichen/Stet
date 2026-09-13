@@ -6,11 +6,13 @@ import Foundation
 public enum StoredTranscriptionEngine: String, CaseIterable, Sendable {
     case funASRNano
     case fluidAudio
+    case appleSpeech
 
     public var displayName: String {
         switch self {
         case .funASRNano: return "Fun-ASR Nano"
         case .fluidAudio: return "Parakeet V3"
+        case .appleSpeech: return "Apple Speech"
         }
     }
 

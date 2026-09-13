@@ -13,12 +13,8 @@
         @Test func exposesAllLocalTranscriptionEngines() {
             let viewModel = MacAudioSettingsViewModel()
 
-            #expect(
-                viewModel.localTranscriptionEngineOptions == [
-                    .funASRNano,
-                    .fluidAudio,
-                ]
-            )
+            let expected = StoredTranscriptionEngine.allCases
+            #expect(viewModel.localTranscriptionEngineOptions == expected)
         }
 
         @Test func loadsAndPersistsSelectedLocalTranscriptionEngine() {
@@ -41,6 +37,27 @@
             viewModel.localTranscriptionEngine = .fluidAudio
 
             #expect(settingsStore.loadTranscriptionEngine() == .fluidAudio)
+
+            viewModel.localTranscriptionEngine = .appleSpeech
+
+            #expect(settingsStore.loadTranscriptionEngine() == .appleSpeech)
+        }
+
+        @Test func unsupportedAppleSpeechSelectionPreservesPreference() {
+            guard !AppleSpeechSupport.isAvailable else { return }
+            let defaults = TestSupport.makeUserDefaults()
+            let settingsStore = DictationSettingsStore(
+                defaults: defaults,
+                secretStore: TestSecretStore()
+            )
+            settingsStore.saveTranscriptionEngine(.appleSpeech)
+            let viewModel = MacAudioSettingsViewModel(settingsStore: settingsStore)
+
+            viewModel.onAppear()
+            defer { viewModel.onDisappear() }
+
+            #expect(viewModel.localTranscriptionEngine == .appleSpeech)
+            #expect(settingsStore.loadTranscriptionEngine() == .appleSpeech)
         }
 
         @Test func retiredWhisperEngineMigratesToNano() {
