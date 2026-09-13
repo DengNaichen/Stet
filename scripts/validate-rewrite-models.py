@@ -9,6 +9,7 @@ import subprocess
 CONFIG = "StetMac/Resources/rewrite-models.json"
 PROVIDERS = {"openai", "google", "anthropic", "groq", "deepseek", "qwen", "glm", "doubao"}
 ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,254}")
+THINKING_LEVELS = {"off", "minimal", "low", "medium", "high", "max"}
 
 
 def validate(raw):
@@ -40,6 +41,17 @@ def validate(raw):
                 raise ValueError("Invalid model ID")
             if not isinstance(name, str) or not name.strip() or len(name) > 100:
                 raise ValueError("Invalid model display name")
+            levels = model.get("thinkingLevels")
+            default_level = model.get("defaultThinkingLevel")
+            if levels is not None:
+                if (not isinstance(levels, list) or not levels or len(levels) > len(THINKING_LEVELS)
+                        or len(set(levels)) != len(levels)
+                        or not all(isinstance(level, str) and level in THINKING_LEVELS for level in levels)):
+                    raise ValueError("Invalid thinkingLevels")
+                if default_level not in levels:
+                    raise ValueError("defaultThinkingLevel must reference a supported thinking level")
+            elif default_level is not None:
+                raise ValueError("defaultThinkingLevel requires thinkingLevels")
             model_ids.append(model_id)
         if len(set(model_ids)) != len(model_ids):
             raise ValueError("Duplicate model IDs within provider")

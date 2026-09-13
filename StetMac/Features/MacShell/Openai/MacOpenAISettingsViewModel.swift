@@ -57,6 +57,17 @@
         @Published var discoveredCustomModels: [String] = []
         @Published var customModelProbeState: ModelProbeState = .idle
         @Published var selectedModelID = ""
+        @Published var selectedThinkingLevel: RewriteThinkingLevel = .medium {
+            didSet {
+                guard hasLoadedState else { return }
+                guard !selectedModelID.isEmpty else { return }
+                settingsStore.saveRewriteThinkingLevel(
+                    selectedThinkingLevel,
+                    for: rewriteProvider,
+                    modelID: selectedModelID
+                )
+            }
+        }
 
         private let settingsStore: DictationSettingsStore
         private let modelProbe: any OpenAICompatibleModelProbing
@@ -109,6 +120,7 @@
             customModelID = settingsStore.loadCustomRewriteModelID()
             discoveredCustomModels = settingsStore.loadCustomRewriteDiscoveredModels()
             selectedModelID = effectiveModelID(for: rewriteProvider)
+            selectedThinkingLevel = effectiveThinkingLevel(for: rewriteProvider, modelID: selectedModelID)
 
             // Safety check: If the loaded provider is disabled (e.g. Apple Intelligence on old macOS)
             // or retired from rewrite (Groq, Doubao, Anthropic), fallback to OpenAI.
@@ -117,6 +129,7 @@
             {
                 rewriteProvider = .openAI
                 selectedModelID = effectiveModelID(for: .openAI)
+                selectedThinkingLevel = effectiveThinkingLevel(for: .openAI, modelID: selectedModelID)
                 settingsStore.saveRewriteProvider(.openAI)
             }
 
@@ -312,12 +325,7 @@
         func selectModel(_ modelID: String) {
             selectedModelID = modelID
             settingsStore.saveSelectedModelID(modelID, for: rewriteProvider)
-        }
-
-        var selectedModelFallbackMessage: String? {
-            let preferred = settingsStore.loadSelectedModelID(for: rewriteProvider)
-            guard let preferred, !preferred.isEmpty, preferred != selectedModelID else { return nil }
-            return "\(preferred) is unavailable. Stet is using \(selectedModelID) until it becomes available again."
+            selectedThinkingLevel = effectiveThinkingLevel(for: rewriteProvider, modelID: modelID)
         }
 
         func refreshModelCatalog() async {
@@ -358,7 +366,25 @@
                     rewriteProvider = .custom
                 }
                 selectedModelID = effectiveModelID(for: rewriteProvider)
+                selectedThinkingLevel = effectiveThinkingLevel(for: rewriteProvider, modelID: selectedModelID)
             }
+        }
+
+        var availableThinkingLevels: [RewriteThinkingLevel] {
+            catalogStore.catalog.model(for: rewriteProvider, modelID: selectedModelID)?.thinkingLevels ?? []
+        }
+
+        private func effectiveThinkingLevel(
+            for provider: DictationProvider,
+            modelID: String
+        ) -> RewriteThinkingLevel {
+            let model = catalogStore.catalog.model(for: provider, modelID: modelID)
+            if let stored = settingsStore.loadRewriteThinkingLevel(for: provider, modelID: modelID),
+                model?.thinkingLevels?.contains(stored) == true
+            {
+                return stored
+            }
+            return model?.defaultThinkingLevel ?? .medium
         }
 
         var visibleCredentialProviders: [DictationProvider] {

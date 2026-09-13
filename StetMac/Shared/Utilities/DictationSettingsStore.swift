@@ -140,6 +140,7 @@ struct DictationSettingsStore: Sendable {
         } else {
             resolvedModelID = selectedModelID ?? DictationProviderDefaults.rewriteModel(for: rewriteProvider)
         }
+        let thinkingLevel = loadRewriteThinkingLevel(for: rewriteProvider, modelID: resolvedModelID)
         let personalDictionaryRecords = loadPersonalDictionaryEnabled() ? dictionaryModel.loadRecords() : []
         let personalDictionary = personalDictionaryRecords.map(\.term)
         let interactionSoundsEnabled =
@@ -154,7 +155,8 @@ struct DictationSettingsStore: Sendable {
             rewriteConfiguration = DictationProviderConfigurationResolver.rewriteConfiguration(
                 provider: rewriteProvider,
                 apiKey: "",
-                customModel: resolvedModelID
+                customModel: resolvedModelID,
+                thinkingLevel: thinkingLevel
             )
         } else if rewriteProvider == .custom {
             let modelID = loadCustomRewriteModelID()
@@ -165,7 +167,8 @@ struct DictationSettingsStore: Sendable {
                     provider: .custom,
                     apiKey: rewriteAPIKey,
                     customModel: modelID,
-                    baseURL: baseURL
+                    baseURL: baseURL,
+                    thinkingLevel: thinkingLevel
                 )
             } else {
                 rewriteConfiguration = nil
@@ -177,7 +180,8 @@ struct DictationSettingsStore: Sendable {
                 : DictationProviderConfigurationResolver.rewriteConfiguration(
                     provider: rewriteProvider,
                     apiKey: rewriteAPIKey,
-                    customModel: resolvedModelID
+                    customModel: resolvedModelID,
+                    thinkingLevel: thinkingLevel
                 )
         }
 
@@ -306,6 +310,33 @@ struct DictationSettingsStore: Sendable {
         } else {
             defaultsStore.removeObject(forKey: key)
         }
+    }
+
+    nonisolated func loadRewriteThinkingLevel(
+        for provider: DictationProvider,
+        modelID: String?
+    ) -> RewriteThinkingLevel? {
+        guard let modelID else { return nil }
+        let key = rewriteThinkingLevelKey(provider: provider, modelID: modelID)
+        let storedLevel = defaultsStore.string(forKey: key).flatMap(RewriteThinkingLevel.init(rawValue:))
+        guard let model = rewriteModelCatalog?.snapshot().model(for: provider, modelID: modelID),
+            let levels = model.thinkingLevels,
+            !levels.isEmpty
+        else { return storedLevel }
+        if let storedLevel, levels.contains(storedLevel) { return storedLevel }
+        return model.defaultThinkingLevel
+    }
+
+    nonisolated func saveRewriteThinkingLevel(
+        _ level: RewriteThinkingLevel,
+        for provider: DictationProvider,
+        modelID: String
+    ) {
+        defaultsStore.set(level.rawValue, forKey: rewriteThinkingLevelKey(provider: provider, modelID: modelID))
+    }
+
+    private nonisolated func rewriteThinkingLevelKey(provider: DictationProvider, modelID: String) -> String {
+        "\(MacPreferences.rewriteThinkingLevel).\(provider.rawValue).\(modelID)"
     }
 
     nonisolated func loadCustomRewriteBaseURL() -> String {

@@ -133,19 +133,43 @@ public enum RewriteExecutionBackend: Sendable, Equatable {
     case anthropic(apiKey: String)
 }
 
+public enum RewriteThinkingLevel: String, Codable, Sendable, Equatable, CaseIterable {
+    case off
+    case minimal
+    case low
+    case medium
+    case high
+    case max
+
+    public var displayName: String {
+        switch self {
+        case .off: return "Off"
+        case .minimal: return "Minimal"
+        case .low: return "Low"
+        case .medium: return "Medium"
+        case .high: return "High"
+        case .max: return "Max"
+        }
+    }
+
+}
+
 public struct RewriteProviderConfiguration: Sendable, Equatable {
     public let provider: DictationProvider
     public let model: String
     public let backend: RewriteExecutionBackend
+    public let thinkingLevel: RewriteThinkingLevel?
 
     public init(
         provider: DictationProvider,
         model: String,
-        backend: RewriteExecutionBackend
+        backend: RewriteExecutionBackend,
+        thinkingLevel: RewriteThinkingLevel? = nil
     ) {
         self.provider = provider
         self.model = model
         self.backend = backend
+        self.thinkingLevel = thinkingLevel
     }
 
     public nonisolated var supportsResponsesStore: Bool {
@@ -186,9 +210,11 @@ public enum DictationProviderConfigurationResolver {
         organizationID: String? = nil,
         projectID: String? = nil,
         customModel: String? = nil,
-        baseURL: URL? = nil
+        baseURL: URL? = nil,
+        thinkingLevel: RewriteThinkingLevel? = nil
     ) -> RewriteProviderConfiguration {
         let model = customModel ?? DictationProviderDefaults.rewriteModel(for: provider)
+        let resolvedThinkingLevel = thinkingLevel
         switch provider {
         case .openAI, .groq, .deepSeek, .qwen, .glm, .doubao:
             return RewriteProviderConfiguration(
@@ -201,7 +227,8 @@ public enum DictationProviderConfigurationResolver {
                         organizationID: organizationID,
                         projectID: projectID
                     )
-                )
+                ),
+                thinkingLevel: resolvedThinkingLevel
             )
         case .custom:
             guard let baseURL else {
@@ -216,25 +243,29 @@ public enum DictationProviderConfigurationResolver {
                         apiKey: apiKey,
                         baseURL: baseURL
                     )
-                )
+                ),
+                thinkingLevel: resolvedThinkingLevel
             )
         case .google:
             return RewriteProviderConfiguration(
                 provider: provider,
                 model: model,
-                backend: .google(apiKey: apiKey)
+                backend: .google(apiKey: apiKey),
+                thinkingLevel: resolvedThinkingLevel
             )
         case .anthropic:
             return RewriteProviderConfiguration(
                 provider: provider,
                 model: model,
-                backend: .anthropic(apiKey: apiKey)
+                backend: .anthropic(apiKey: apiKey),
+                thinkingLevel: resolvedThinkingLevel
             )
         case .appleIntelligence:
             return RewriteProviderConfiguration(
                 provider: provider,
                 model: model,
-                backend: .appleIntelligence
+                backend: .appleIntelligence,
+                thinkingLevel: resolvedThinkingLevel
             )
         }
     }

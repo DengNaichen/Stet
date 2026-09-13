@@ -9,6 +9,7 @@ enum MacPreferences {
     nonisolated static let rewriteProvider = "mac.rewriteProvider"
     nonisolated static let rewriteEnabled = "mac.rewriteEnabled"
     nonisolated static let customRewriteModel = "mac.customRewriteModel"
+    nonisolated static let rewriteThinkingLevel = "mac.rewriteThinkingLevel"
     nonisolated static let customRewriteBaseURL = "mac.customRewriteBaseURL"
     nonisolated static let customRewriteModelID = "mac.customRewriteModelID"
     nonisolated static let customRewriteDiscoveredModels = "mac.customRewriteDiscoveredModels"

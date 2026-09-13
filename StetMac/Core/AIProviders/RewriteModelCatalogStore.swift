@@ -2,12 +2,29 @@
     import Combine
     import Foundation
     import os
+    import StetAI
     import StetCore
 
     struct RewriteModelDescriptor: Codable, Identifiable, Sendable, Equatable, Hashable {
         let id: String
         let displayName: String
         let enabled: Bool
+        let thinkingLevels: [RewriteThinkingLevel]?
+        let defaultThinkingLevel: RewriteThinkingLevel?
+
+        init(
+            id: String,
+            displayName: String,
+            enabled: Bool,
+            thinkingLevels: [RewriteThinkingLevel]? = nil,
+            defaultThinkingLevel: RewriteThinkingLevel? = nil
+        ) {
+            self.id = id
+            self.displayName = displayName
+            self.enabled = enabled
+            self.thinkingLevels = thinkingLevels
+            self.defaultThinkingLevel = defaultThinkingLevel
+        }
     }
 
     struct RewriteProviderCatalog: Codable, Sendable, Equatable {
@@ -38,9 +55,15 @@
                 guard allowedProviders.contains(provider.id), provider.models.count <= 100,
                     !provider.defaultModelID.isEmpty,
                     Set(provider.models.map(\.id)).count == provider.models.count,
-                    provider.models.allSatisfy({
-                        validID($0.id) && !$0.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            && $0.displayName.count <= 100
+                    provider.models.allSatisfy({ model in
+                        let levels = model.thinkingLevels ?? []
+                        return validID(model.id)
+                            && !model.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            && model.displayName.count <= 100
+                            && Set(levels).count == levels.count
+                            && levels.count <= RewriteThinkingLevel.allCases.count
+                            && ((levels.isEmpty && model.defaultThinkingLevel == nil)
+                                || model.defaultThinkingLevel.map(levels.contains) == true)
                     }),
                     provider.models.contains(where: { $0.id == provider.defaultModelID && $0.enabled })
                 else { throw RewriteModelCatalogError.invalid }
@@ -55,6 +78,10 @@
         func availableModels(for provider: DictationProvider) -> [RewriteModelDescriptor] {
             guard let descriptor = self.provider(provider), descriptor.enabled else { return [] }
             return descriptor.models.filter(\.enabled)
+        }
+
+        func model(for provider: DictationProvider, modelID: String) -> RewriteModelDescriptor? {
+            availableModels(for: provider).first { $0.id == modelID }
         }
 
         func resolvedModelID(for provider: DictationProvider, preferredID: String?) -> String? {

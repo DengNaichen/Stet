@@ -6,15 +6,18 @@ public struct GoogleRewriteService: TextRewriteService {
     private let apiKey: String
     private let model: String
     private let session: URLSession
+    private let thinkingLevel: RewriteThinkingLevel?
 
     public nonisolated init(
         apiKey: String,
         model: String,
+        thinkingLevel: RewriteThinkingLevel? = .low,
         session: URLSession = .shared
     ) {
         self.apiKey = apiKey
         self.model = model
         self.session = session
+        self.thinkingLevel = thinkingLevel
     }
 
     public func rewrite(_ request: TextRewriteRequest) async throws -> String {
@@ -47,7 +50,8 @@ public struct GoogleRewriteService: TextRewriteService {
             contents: [
                 GoogleContent(role: "user", parts: [GooglePart(text: userPrompt)])
             ],
-            systemInstruction: GoogleContent(role: nil, parts: [GooglePart(text: systemPrompt)])
+            systemInstruction: GoogleContent(role: nil, parts: [GooglePart(text: systemPrompt)]),
+            generationConfig: GoogleGenerationConfig(thinkingLevel: thinkingLevel)
         )
         urlRequest.httpBody = try JSONEncoder().encode(body)
 
@@ -94,7 +98,7 @@ public struct GoogleRewriteService: TextRewriteService {
 private struct GoogleGeminiRequest: Encodable {
     let contents: [GoogleContent]
     let systemInstruction: GoogleContent?
-    let generationConfig: GoogleGenerationConfig = GoogleGenerationConfig()
+    let generationConfig: GoogleGenerationConfig
 
     enum CodingKeys: String, CodingKey {
         case contents
@@ -113,9 +117,23 @@ private struct GooglePart: Encodable, Decodable {
 }
 
 private struct GoogleGenerationConfig: Encodable {
+    struct ThinkingConfig: Encodable {
+        let thinkingLevel: String
+    }
+
     let maxOutputTokens: Int = 4096
     let responseMimeType = "application/json"
     let responseJsonSchema = StructuredRewriteOutput.jsonSchema
+    let thinkingConfig: ThinkingConfig?
+
+    init(thinkingLevel: RewriteThinkingLevel?) {
+        switch thinkingLevel {
+        case .low, .medium, .high:
+            thinkingConfig = ThinkingConfig(thinkingLevel: thinkingLevel?.rawValue ?? "medium")
+        default:
+            thinkingConfig = nil
+        }
+    }
 }
 
 private struct GoogleGeminiResponse: Decodable {

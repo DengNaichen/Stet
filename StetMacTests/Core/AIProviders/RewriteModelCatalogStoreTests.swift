@@ -8,7 +8,13 @@
 
     @MainActor
     struct RewriteModelCatalogStoreTests {
-        private func data(revision: Int, enabled: Bool = true, model: String = "model-a") throws -> Data {
+        private func data(
+            revision: Int,
+            enabled: Bool = true,
+            model: String = "model-a",
+            thinkingLevels: [RewriteThinkingLevel]? = [.minimal, .low],
+            defaultThinkingLevel: RewriteThinkingLevel? = .minimal
+        ) throws -> Data {
             try JSONEncoder().encode(
                 RewriteModelCatalog(
                     schemaVersion: 1,
@@ -18,7 +24,15 @@
                             id: DictationProvider.openAI.rawValue,
                             enabled: enabled,
                             defaultModelID: model,
-                            models: [RewriteModelDescriptor(id: model, displayName: "Model A", enabled: true)]
+                            models: [
+                                RewriteModelDescriptor(
+                                    id: model,
+                                    displayName: "Model A",
+                                    enabled: true,
+                                    thinkingLevels: thinkingLevels,
+                                    defaultThinkingLevel: defaultThinkingLevel
+                                )
+                            ]
                         )
                     ]
                 ))
@@ -38,6 +52,36 @@
             #expect(store.catalog.resolvedModelID(for: .openAI, preferredID: nil) == "model-b")
             let relaunched = RewriteModelCatalogStore(bundledData: try data(revision: 1), cacheURL: cache)
             #expect(relaunched.revision == 2)
+        }
+
+        @Test func thinkingPolicyIsModelSpecificAndRemotelyUpdated() async throws {
+            let store = RewriteModelCatalogStore(
+                bundledData: try data(revision: 1),
+                fetch: {
+                    try self.data(
+                        revision: 2,
+                        thinkingLevels: [.off, .high, .max],
+                        defaultThinkingLevel: .off
+                    )
+                }
+            )
+
+            await store.refresh()
+
+            let model = try #require(store.catalog.model(for: .openAI, modelID: "model-a"))
+            #expect(model.thinkingLevels == [.off, .high, .max])
+            #expect(model.defaultThinkingLevel == .off)
+        }
+
+        @Test func invalidThinkingPolicyIsRejected() throws {
+            let invalid = try data(
+                revision: 1,
+                thinkingLevels: [.low],
+                defaultThinkingLevel: .high
+            )
+            #expect(throws: (any Error).self) {
+                try RewriteModelCatalog.decode(invalid)
+            }
         }
 
         @Test func unavailablePreferredModelFallsBackWithoutChangingPreference() throws {
