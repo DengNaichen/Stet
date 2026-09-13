@@ -7,7 +7,7 @@
 
     @MainActor
     final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, MacSettingsShellCoordinating,
-        MacAppPresentationModeling
+        MacAppPresentationModeling, MacCalendarSettingsAppModeling
     {
         static let logger = Logger(
             subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
@@ -20,6 +20,7 @@
         private let mcpServerController: StetMCPServerController?
         private let liveMeetingPhaseStore: MCPLiveMeetingPhaseStore?
         private let expectedMeetingCoordinator: (any ExpectedMeetingServing)?
+        private let calendarSyncController: CalendarSyncController?
         private var passiveListeningRuntime: MacPassiveListeningRuntime?
         private var meetingRecordingRuntime: MacMeetingRecordingRuntime?
         private var activeExpectedMeetingID: UUID?
@@ -30,6 +31,7 @@
         @Published private(set) var isPassiveListeningEnabled = true
         @Published private(set) var meetingRecordingPhase: MacMeetingRecordingPhase = .idle
         @Published private(set) var mcpServerState: StetMCPServerState = .disabled
+        @Published private(set) var calendarSyncState: CalendarSyncState = .disabled
 
         private var cancellables = Set<AnyCancellable>()
 
@@ -40,6 +42,17 @@
             let notificationService = MacDictationCompletionNotificationService.shared
             let expectedMeetingCoordinator = ExpectedMeetingCoordinator(
                 reminders: notificationService
+            )
+            let calendarClient = LiveEventKitClient()
+            let calendarSelectionStore = SelectedCalendarStore()
+            let scopedCalendarClient = ScopedCalendarClient(
+                client: calendarClient,
+                selectionStore: calendarSelectionStore
+            )
+            let calendarSyncController = CalendarSyncController(
+                client: calendarClient,
+                selectionStore: calendarSelectionStore,
+                synchronizer: expectedMeetingCoordinator
             )
             let passiveListeningRuntime = MacPassiveListeningRuntime(captureService: captureService)
             let meetingRecordingRuntime = MacMeetingRecordingRuntime.live(
@@ -73,12 +86,14 @@
                 ),
                 mcpServerController: StetMCPServerController.live(
                     livePhaseStore: liveMeetingPhaseStore,
-                    expectedMeetings: expectedMeetingCoordinator
+                    expectedMeetings: expectedMeetingCoordinator,
+                    calendarClient: scopedCalendarClient
                 ),
                 passiveListeningRuntime: passiveListeningRuntime,
                 meetingRecordingRuntime: meetingRecordingRuntime,
                 liveMeetingPhaseStore: liveMeetingPhaseStore,
-                expectedMeetingCoordinator: expectedMeetingCoordinator
+                expectedMeetingCoordinator: expectedMeetingCoordinator,
+                calendarSyncController: calendarSyncController
             )
         }
 
@@ -94,7 +109,8 @@
             passiveListeningRuntime: MacPassiveListeningRuntime? = nil,
             meetingRecordingRuntime: MacMeetingRecordingRuntime? = nil,
             liveMeetingPhaseStore: MCPLiveMeetingPhaseStore? = nil,
-            expectedMeetingCoordinator: (any ExpectedMeetingServing)? = nil
+            expectedMeetingCoordinator: (any ExpectedMeetingServing)? = nil,
+            calendarSyncController: CalendarSyncController? = nil
         ) {
             let bootstrapper = MacAppBootstrapper(settingsStore: settingsStore)
             let captureCoordinator =
@@ -126,6 +142,7 @@
             self.mcpServerController = mcpServerController
             self.liveMeetingPhaseStore = liveMeetingPhaseStore
             self.expectedMeetingCoordinator = expectedMeetingCoordinator
+            self.calendarSyncController = calendarSyncController
             self.mcpServerState = mcpServerController?.state ?? .disabled
             self.isPassiveListeningEnabled = MacFeatureAvailability.isPassiveListeningEnabled(
                 preference: settingsStore.loadPassiveListeningEnabled()
@@ -160,6 +177,14 @@
             }
             if let expectedMeetingCoordinator {
                 Task { await expectedMeetingCoordinator.restoreReminders() }
+            }
+            if let calendarSyncController {
+                calendarSyncController.onStateChange = { [weak self] state in
+                    self?.calendarSyncState = state
+                }
+                if UserDefaults.standard.bool(forKey: MacPreferences.calendarMeetingsEnabled) {
+                    Task { await calendarSyncController.start() }
+                }
             }
 
             sessionController.isMeetingSessionBusy = { [weak self] in
@@ -244,7 +269,9 @@
         deinit {
             let passiveListeningRuntime = passiveListeningRuntime
             let meetingRecordingRuntime = meetingRecordingRuntime
+            let calendarSyncController = calendarSyncController
             Task {
+                await calendarSyncController?.stop()
                 await meetingRecordingRuntime?.stop()
                 await passiveListeningRuntime?.stop()
             }
@@ -627,6 +654,45 @@
         func setMCPServerStateHandler(_ handler: @escaping @MainActor (StetMCPServerState) -> Void) {
             mcpServerStateHandler = handler
             handler(mcpServerState)
+        }
+
+        var isCalendarMeetingsEnabled: Bool {
+            UserDefaults.standard.bool(forKey: MacPreferences.calendarMeetingsEnabled)
+        }
+
+        var calendarAuthorizationStatus: CalendarAuthorizationStatus {
+            calendarSyncController?.authorizationStatus ?? .denied
+        }
+
+        var selectedCalendarIDs: Set<String> {
+            calendarSyncController?.selectedCalendarIDs ?? []
+        }
+
+        func availableCalendars() throws -> [CalendarRecord] {
+            try calendarSyncController?.calendars() ?? []
+        }
+
+        func setCalendarMeetingsEnabled(_ enabled: Bool) async {
+            guard let calendarSyncController else { return }
+            if enabled {
+                do {
+                    guard try await calendarSyncController.requestAccess() else {
+                        await calendarSyncController.start()
+                        return
+                    }
+                    UserDefaults.standard.set(true, forKey: MacPreferences.calendarMeetingsEnabled)
+                    await calendarSyncController.start()
+                } catch {
+                    calendarSyncState = .failed(error.localizedDescription)
+                }
+            } else {
+                UserDefaults.standard.set(false, forKey: MacPreferences.calendarMeetingsEnabled)
+                await calendarSyncController.stopAndClear()
+            }
+        }
+
+        func setSelectedCalendarIDs(_ ids: Set<String>) async {
+            await calendarSyncController?.setSelectedCalendarIDs(ids)
         }
 
         var isDebugForceOnboardingEnabled: Bool {

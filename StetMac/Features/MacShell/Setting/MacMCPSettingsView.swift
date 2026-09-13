@@ -98,6 +98,11 @@
                     .buttonStyle(.borderedProminent)
                     .disabled(!viewModel.isEnabled)
                 }
+
+                Section("Calendar Tools") {
+                    Text("Connected agents can read and modify calendars selected in Meetings settings.")
+                        .foregroundStyle(.secondary)
+                }
             }
             .macSettingsFormStyle()
             .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)

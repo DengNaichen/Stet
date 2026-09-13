@@ -11,6 +11,8 @@
 
         var body: some View {
             Form {
+                MacCalendarMeetingSettingsView(appModel: appModel)
+
                 Section {
                     Button {
                         appModel.toggleMeetingRecording()

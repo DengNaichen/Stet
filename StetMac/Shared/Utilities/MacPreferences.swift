@@ -21,6 +21,8 @@ enum MacPreferences {
     nonisolated static let dictationPerfTracingEnabled = "mac.dictationPerfTracingEnabled"
     nonisolated static let dictationTranscriptTracingEnabled = "mac.dictationTranscriptTracingEnabled"
     nonisolated static let mcpServerEnabled = "mac.mcpServerEnabled"
+    nonisolated static let calendarMeetingsEnabled = "mac.calendarMeetingsEnabled"
+    nonisolated static let selectedCalendarIDs = "mac.selectedCalendarIDs"
     nonisolated static let personalDictionary = "mac.personalDictionary"
     nonisolated static let personalDictionaryEnabled = "mac.personalDictionaryEnabled"
     nonisolated static let interactionSoundsEnabled = "mac.interactionSoundsEnabled"

@@ -41,10 +41,12 @@
 
     nonisolated protocol ExpectedMeetingServing: Sendable {
         func sync(
+            sourceScope: String,
             windowStart: Date,
             windowEnd: Date,
             inputs: [ExpectedMeetingInput]
         ) async throws -> ExpectedMeetingSyncResult
+        func meetings(from startAt: Date, to endAt: Date) async throws -> [ExpectedMeeting]
         func meeting(id: UUID) async -> ExpectedMeeting?
         func skip(id: UUID) async throws
         func markRecorded(id: UUID, meetingID: String) async throws
@@ -87,13 +89,23 @@
         }
 
         func sync(
+            sourceScope: String,
             windowStart: Date,
             windowEnd: Date,
             inputs: [ExpectedMeetingInput]
         ) async throws -> ExpectedMeetingSyncResult {
             guard windowEnd > windowStart else { throw ExpectedMeetingError.invalidWindow }
+            let normalizedScope = sourceScope.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !normalizedScope.isEmpty else {
+                throw ExpectedMeetingError.invalidMeeting("source_scope is required.")
+            }
             var keys = Set<String>()
             for input in inputs {
+                guard Self.belongs(input.source, to: normalizedScope) else {
+                    throw ExpectedMeetingError.invalidMeeting(
+                        "Meeting \(input.externalID) does not belong to source_scope \(normalizedScope)."
+                    )
+                }
                 guard input.scheduledEndAt > input.scheduledStartAt else {
                     throw ExpectedMeetingError.invalidMeeting(
                         "scheduled_end_at must be after scheduled_start_at for \(input.externalID)."
@@ -169,6 +181,7 @@
             where meetings[index].scheduledStartAt >= windowStart
                 && meetings[index].scheduledStartAt < windowEnd
                 && meetings[index].status == .scheduled
+                && Self.belongs(meetings[index].source, to: normalizedScope)
                 && !keys.contains(Self.key(source: meetings[index].source, externalID: meetings[index].externalID))
             {
                 meetings[index].status = .cancelled
@@ -187,8 +200,16 @@
                 cancelled: cancelled,
                 meetings: meetings.filter {
                     $0.scheduledStartAt >= windowStart && $0.scheduledStartAt < windowEnd
+                        && Self.belongs($0.source, to: normalizedScope)
                 }
             )
+        }
+
+        func meetings(from startAt: Date, to endAt: Date) throws -> [ExpectedMeeting] {
+            guard endAt > startAt else { throw ExpectedMeetingError.invalidWindow }
+            return meetings.filter {
+                $0.scheduledStartAt >= startAt && $0.scheduledStartAt < endAt
+            }
         }
 
         func meeting(id: UUID) -> ExpectedMeeting? {
@@ -230,6 +251,25 @@
 
         private nonisolated static func key(source: String, externalID: String) -> String {
             "\(source)\u{0}\(externalID)"
+        }
+
+        private nonisolated static func belongs(_ source: String, to scope: String) -> Bool {
+            source == scope || source.hasPrefix("\(scope):")
+        }
+    }
+
+    extension ExpectedMeetingCoordinator: CalendarMeetingSyncing {
+        func reconcileCalendarMeetings(
+            windowStart: Date,
+            windowEnd: Date,
+            inputs: [ExpectedMeetingInput]
+        ) async throws {
+            _ = try await sync(
+                sourceScope: "calendar",
+                windowStart: windowStart,
+                windowEnd: windowEnd,
+                inputs: inputs
+            )
         }
     }
 #endif
