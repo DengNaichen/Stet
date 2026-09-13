@@ -13,10 +13,7 @@
         @Test func exposesAllLocalTranscriptionEngines() {
             let viewModel = MacAudioSettingsViewModel()
 
-            var expected = [StoredTranscriptionEngine.funASRNano, .fluidAudio]
-            if AppleSpeechSupport.isAvailable {
-                expected.append(.appleSpeech)
-            }
+            let expected = StoredTranscriptionEngine.allCases
             #expect(viewModel.localTranscriptionEngineOptions == expected)
         }
 
