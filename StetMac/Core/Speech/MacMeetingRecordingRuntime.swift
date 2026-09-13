@@ -236,8 +236,16 @@
                 profileStore: SpeakerProfileStore(),
                 modelManager: SpeakerEmbeddingModelManager()
             )
+            let nano = try? FunASRNanoTranscriptionService()
             let processor = MeetingSessionProcessor(
                 sampleRate: FluidAudioPassiveSpeechAnalyzer.sampleRate,
+                prepareTranscription: {
+                    guard let nano else { throw SpeechServiceError.failedToStart }
+                    try await nano.acquireContextLease()
+                },
+                finishTranscription: {
+                    await nano?.releaseContextLease()
+                },
                 diarize: { samples in
                     let analyzer = try await FluidAudioPassiveSpeechAnalyzer.load()
                     _ = try await analyzer.addAcceptedAudio(samples)
@@ -249,7 +257,7 @@
                         filePrefix: "stet-meeting-turn"
                     )
                     defer { try? FileManager.default.removeItem(at: url) }
-                    let nano = try FunASRNanoTranscriptionService()
+                    guard let nano else { throw SpeechServiceError.failedToStart }
                     return try await nano.transcribe(
                         audioFileAt: url,
                         languageCode: nil,

@@ -16,31 +16,53 @@
         }
     }
 
+    enum FunASRNanoContextError: LocalizedError {
+        case modelInUse
+
+        var errorDescription: String? {
+            switch self {
+            case .modelInUse:
+                "The loaded Fun-ASR Nano model is currently in use."
+            }
+        }
+    }
+
     actor FunASRNanoContextManager {
         static let shared = FunASRNanoContextManager()
 
         private var engine: (any FunASRNanoEngine)?
         private var loadedModelFiles: FunASRNanoModelFiles?
+        private var loadTask: Task<any FunASRNanoEngine, Error>?
+        private var loadingModelFiles: FunASRNanoModelFiles?
+        private var loadGeneration = 0
+        private var activeLeaseCount = 0
+        private var cleanupRequested = false
 
         func loadModel(
             files: FunASRNanoModelFiles,
-            engineFactory: @Sendable (FunASRNanoModelFiles) throws -> any FunASRNanoEngine
+            engineFactory: @escaping @Sendable (FunASRNanoModelFiles) throws -> any FunASRNanoEngine
         ) async throws {
-            if loadedModelFiles == files, engine != nil { return }
-            if let engine {
-                await engine.releaseResources()
-            }
+            try await ensureModel(files: files, engineFactory: engineFactory, permitsActiveLease: false)
+        }
 
-            self.engine = nil
-            loadedModelFiles = nil
-            let newEngine = try engineFactory(files)
+        func acquireLease(
+            files: FunASRNanoModelFiles,
+            engineFactory: @escaping @Sendable (FunASRNanoModelFiles) throws -> any FunASRNanoEngine
+        ) async throws {
+            activeLeaseCount += 1
             do {
-                try await newEngine.prepare()
-                engine = newEngine
-                loadedModelFiles = files
+                try await ensureModel(files: files, engineFactory: engineFactory, permitsActiveLease: true)
             } catch {
-                await newEngine.releaseResources()
+                activeLeaseCount -= 1
                 throw error
+            }
+        }
+
+        func releaseLease() async {
+            guard activeLeaseCount > 0 else { return }
+            activeLeaseCount -= 1
+            if activeLeaseCount == 0, cleanupRequested {
+                await releaseLoadedEngine()
             }
         }
 
@@ -50,11 +72,76 @@
         }
 
         func cleanupResources() async {
+            guard activeLeaseCount == 0, loadTask == nil else {
+                cleanupRequested = true
+                return
+            }
+            await releaseLoadedEngine()
+        }
+
+        private func ensureModel(
+            files: FunASRNanoModelFiles,
+            engineFactory: @escaping @Sendable (FunASRNanoModelFiles) throws -> any FunASRNanoEngine,
+            permitsActiveLease: Bool
+        ) async throws {
+            if loadedModelFiles == files, engine != nil { return }
+            if let loadTask {
+                guard loadingModelFiles == files else { throw FunASRNanoContextError.modelInUse }
+                _ = try await loadTask.value
+                return
+            }
+            guard permitsActiveLease || activeLeaseCount == 0 else {
+                throw FunASRNanoContextError.modelInUse
+            }
+
+            let previousEngine = engine
+            engine = nil
+            loadedModelFiles = nil
+            loadGeneration += 1
+            let generation = loadGeneration
+            loadingModelFiles = files
+            let task = Task<any FunASRNanoEngine, Error> {
+                if let previousEngine {
+                    await previousEngine.releaseResources()
+                }
+                let newEngine = try engineFactory(files)
+                do {
+                    try await newEngine.prepare()
+                    return newEngine
+                } catch {
+                    await newEngine.releaseResources()
+                    throw error
+                }
+            }
+            loadTask = task
+
+            do {
+                let loadedEngine = try await task.value
+                if loadGeneration == generation {
+                    engine = loadedEngine
+                    loadedModelFiles = files
+                    loadTask = nil
+                    loadingModelFiles = nil
+                    if activeLeaseCount == 0, cleanupRequested {
+                        await releaseLoadedEngine()
+                    }
+                }
+            } catch {
+                if loadGeneration == generation {
+                    loadTask = nil
+                    loadingModelFiles = nil
+                }
+                throw error
+            }
+        }
+
+        private func releaseLoadedEngine() async {
             if let engine {
                 await engine.releaseResources()
             }
             engine = nil
             loadedModelFiles = nil
+            cleanupRequested = false
         }
     }
 
@@ -81,6 +168,14 @@
 
         func prewarm() async throws {
             try await contextManager.loadModel(files: modelFiles, engineFactory: engineFactory)
+        }
+
+        func acquireContextLease() async throws {
+            try await contextManager.acquireLease(files: modelFiles, engineFactory: engineFactory)
+        }
+
+        func releaseContextLease() async {
+            await contextManager.releaseLease()
         }
 
         func transcribe(

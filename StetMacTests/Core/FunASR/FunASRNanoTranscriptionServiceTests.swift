@@ -42,6 +42,91 @@
             #expect(await engine.releaseCallCount == 1)
         }
 
+        @Test func contextLeaseDefersCleanupUntilReleased() async throws {
+            let modelManager = try makeModelManager()
+            let engines = FunASREngineStore()
+            let contextManager = FunASRNanoContextManager()
+            let service = try FunASRNanoTranscriptionService(
+                modelManager: modelManager,
+                engineFactory: { _ in
+                    let engine = StubFunASREngine(text: "leased")
+                    engines.append(engine)
+                    return engine
+                },
+                contextManager: contextManager
+            )
+
+            try await service.acquireContextLease()
+            let engine = try #require(engines.snapshot().first)
+            #expect(await engine.prepareCallCount == 1)
+
+            await contextManager.cleanupResources()
+            #expect(await engine.releaseCallCount == 0)
+
+            await service.releaseContextLease()
+            #expect(await engine.releaseCallCount == 1)
+        }
+
+        @Test func multipleLeasesPrepareOnceAndReleaseAfterLastLease() async throws {
+            let modelManager = try makeModelManager()
+            let engines = FunASREngineStore()
+            let contextManager = FunASRNanoContextManager()
+            let service = try FunASRNanoTranscriptionService(
+                modelManager: modelManager,
+                engineFactory: { _ in
+                    let engine = StubFunASREngine(text: "shared")
+                    engines.append(engine)
+                    return engine
+                },
+                contextManager: contextManager
+            )
+
+            try await service.acquireContextLease()
+            try await service.acquireContextLease()
+            let engine = try #require(engines.snapshot().first)
+            #expect(await engine.prepareCallCount == 1)
+
+            await contextManager.cleanupResources()
+            await service.releaseContextLease()
+            #expect(await engine.releaseCallCount == 0)
+            await service.releaseContextLease()
+            #expect(await engine.releaseCallCount == 1)
+        }
+
+        @Test func concurrentLeasesShareOneInFlightModelLoad() async throws {
+            let modelManager = try makeModelManager()
+            let engines = FunASREngineStore()
+            let gate = PrepareGate()
+            let contextManager = FunASRNanoContextManager()
+            let service = try FunASRNanoTranscriptionService(
+                modelManager: modelManager,
+                engineFactory: { _ in
+                    let engine = StubFunASREngine(text: "shared", prepareGate: gate)
+                    engines.append(engine)
+                    return engine
+                },
+                contextManager: contextManager
+            )
+
+            let first = Task { try await service.acquireContextLease() }
+            await gate.waitUntilWaiting()
+            let second = Task { try await service.acquireContextLease() }
+            await Task.yield()
+            #expect(engines.snapshot().count == 1)
+
+            await gate.resume()
+            try await first.value
+            try await second.value
+            let engine = try #require(engines.snapshot().first)
+            #expect(await engine.prepareCallCount == 1)
+
+            await contextManager.cleanupResources()
+            await service.releaseContextLease()
+            #expect(await engine.releaseCallCount == 0)
+            await service.releaseContextLease()
+            #expect(await engine.releaseCallCount == 1)
+        }
+
         @Test func transcriptionWithoutPrewarmUsesTransientEngine() async throws {
             let modelManager = try makeModelManager()
             let audioURL = try makeAudioFile()
@@ -110,17 +195,20 @@
 
     private actor StubFunASREngine: FunASRNanoEngine {
         private let text: String
+        private let prepareGate: PrepareGate?
         private(set) var prepareCallCount = 0
         private(set) var transcribeCallCount = 0
         private(set) var releaseCallCount = 0
         private(set) var receivedHotwords: [String?] = []
 
-        init(text: String) {
+        init(text: String, prepareGate: PrepareGate? = nil) {
             self.text = text
+            self.prepareGate = prepareGate
         }
 
         func prepare() async throws {
             prepareCallCount += 1
+            await prepareGate?.wait()
         }
 
         func transcribe(audioFileURL _: URL, hotwords: String?) async throws -> String {
@@ -131,6 +219,30 @@
 
         func releaseResources() async {
             releaseCallCount += 1
+        }
+    }
+
+    private actor PrepareGate {
+        private var continuation: CheckedContinuation<Void, Never>?
+        private var waiting = false
+
+        func wait() async {
+            await withCheckedContinuation { continuation in
+                self.continuation = continuation
+                waiting = true
+            }
+        }
+
+        func waitUntilWaiting() async {
+            while !waiting {
+                await Task.yield()
+            }
+        }
+
+        func resume() {
+            continuation?.resume()
+            continuation = nil
+            waiting = false
         }
     }
 
