@@ -21,6 +21,11 @@
 "Updates" = "업데이트";
 
 /* Settings tabs */
+"Settings" = "설정";
+"Intelligence" = "인텔리전스";
+"Advanced" = "고급";
+"Shortcut" = "단축키";
+
 "General" = "일반";
 "Audio" = "오디오";
 "Theme" = "테마";

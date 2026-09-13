@@ -21,6 +21,11 @@
 "Updates" = "更新";
 
 /* Settings tabs */
+"Settings" = "设置";
+"Intelligence" = "智能";
+"Advanced" = "高级";
+"Shortcut" = "快捷键";
+
 "General" = "通用";
 "Audio" = "音频";
 "Theme" = "主题";

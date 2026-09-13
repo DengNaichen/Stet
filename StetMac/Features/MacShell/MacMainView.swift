@@ -53,6 +53,13 @@
             .onReceive(NotificationCenter.default.publisher(for: .stetOpenSettings)) { _ in
                 showingSettings = true
             }
+            .onAppear {
+                settingsShellViewModel.settingsDidAppear()
+                dictionaryViewModel.load()
+            }
+            .onDisappear {
+                settingsShellViewModel.settingsDidDisappear()
+            }
             .onChange(of: showingSettings) { _, value in
                 if !value { selectedTab = .overview }
             }

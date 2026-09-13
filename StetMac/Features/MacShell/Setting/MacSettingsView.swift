@@ -97,12 +97,6 @@
                 reloadStateFromPreferences()
                 synchronizeSelection()
             }
-            .onAppear {
-                settingsShellViewModel.settingsDidAppear()
-            }
-            .onDisappear {
-                settingsShellViewModel.settingsDidDisappear()
-            }
             .onChange(of: selectedTab) { _, _ in
                 titleScrollStore.reset()
             }
