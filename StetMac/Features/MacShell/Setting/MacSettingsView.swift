@@ -110,8 +110,8 @@
                         onBack?()
                     } label: {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 22, weight: .medium))
-                            .frame(width: 32, height: 32)
+                            .font(.system(size: 16, weight: .medium))
+                            .frame(width: 24, height: 24)
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(MacUI.Surfaces.ink)
@@ -120,7 +120,7 @@
                     .accessibilityLabel("Back to Stet")
                     .help("Back to Stet")
                 }
-                .padding(.leading, 16)
+                .padding(.leading, 18)
                 .frame(height: MacUI.SettingsViewMetrics.headerHeight, alignment: .leading)
                 sidebarNav
             }
