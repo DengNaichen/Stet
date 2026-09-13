@@ -111,17 +111,22 @@
 
         private var sidebarColumn: some View {
             VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 8) {
+                HStack(spacing: 0) {
                     Button {
                         onBack?()
                     } label: {
                         Image(systemName: "chevron.left")
+                            .font(.system(size: 22, weight: .medium))
+                            .frame(width: 32, height: 32)
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(MacUI.Surfaces.ink)
+                    .contentShape(Rectangle())
                     .opacity(onBack == nil ? 0 : 1)
-                    brandHeader
+                    .accessibilityLabel("Back to Stet")
+                    .help("Back to Stet")
                 }
+                .padding(.leading, 16)
                 .frame(height: MacUI.SettingsViewMetrics.headerHeight, alignment: .leading)
                 sidebarNav
             }
