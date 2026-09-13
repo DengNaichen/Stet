@@ -3,7 +3,7 @@
     import SwiftUI
 
     struct MacDictationActivityHeatmapView: View {
-        let contributions: [Date: Double]
+        let details: [Date: DictationDailySummary]
         var now: Date = Date()
         var calendar: Calendar = .current
 
@@ -30,7 +30,7 @@
             let today = calendar.startOfDay(for: now)
             let start = calendar.date(byAdding: .day, value: -364, to: today) ?? today
             return CalendarHeatmap(
-                contributions: contributions,
+                contributions: details.mapValues { Double($0.wordCount) },
                 dateRange: start...today
             )
             .levels(.orange)
@@ -79,12 +79,10 @@
 
         private func tooltip(date: Date, value: Double) -> String {
             let day = date.formatted(date: .abbreviated, time: .omitted)
-            let words = Int(value.rounded())
-            if words <= 0 {
-                return "No dictation on \(day)"
-            }
-            let label = words == 1 ? "1 word" : "\(words) words"
-            return "\(day): \(label)"
+            let detail = details[calendar.startOfDay(for: date)]
+            let words = detail?.formattedWordCount ?? DictationUsageSummary.formatCompactCount(Int(value.rounded()))
+            let timeSaved = detail?.formattedTimeSaved ?? DictationUsageSummary.empty.formattedTimeSaved
+            return "\(day): \(words) words · \(timeSaved) saved"
         }
     }
 #endif

@@ -63,6 +63,12 @@
             let day = calendar.startOfDay(for: morning)
             #expect(contributions[day] == 150)
             #expect(contributions.count == 1)
+
+            let details = model.activityDetails(now: now, calendar: calendar)
+            #expect(details[day]?.wordCount == 150)
+            #expect(details[day]?.totalDuration == 90)
+            #expect(details[day]?.timeSaved == 135)
+            #expect(details.count == 1)
         }
 
         @Test func appUsageGroupsByBundleAndRanksByWords() throws {
