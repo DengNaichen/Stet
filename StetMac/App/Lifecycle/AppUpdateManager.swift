@@ -84,6 +84,12 @@
             syncFromUpdater()
         }
 
+        func standardUserDriverDidShowModalAlert() {
+            DispatchQueue.main.async { [weak self] in
+                self?.centerUpdateWindow()
+            }
+        }
+
         func updater(_ updater: SPUUpdater, didAbortWithError error: any Error) {
             let nsError = error as NSError
             if Self.isNoUpdateFoundError(nsError) {
@@ -134,8 +140,22 @@
 
         private func configureUpdaterDefaults() {
             guard let updater = updaterController?.updater else { return }
-            updater.automaticallyDownloadsUpdates = false
+            // Sparkle persists the user's automatic-download choice in its standard
+            // preferences. Do not overwrite it when the app starts.
             updater.automaticallyChecksForUpdates = true
+        }
+
+        private func centerUpdateWindow() {
+            // Sparkle makes its alert key immediately after this delegate callback.
+            guard let updateWindow = NSApp.keyWindow else { return }
+            let screen = updateWindow.screen ?? NSScreen.main
+            guard let screen else { return }
+            let visibleFrame = screen.visibleFrame
+            let origin = CGPoint(
+                x: visibleFrame.midX - updateWindow.frame.width / 2,
+                y: visibleFrame.midY - updateWindow.frame.height / 2
+            )
+            updateWindow.setFrameOrigin(origin)
         }
 
         private func syncFromUpdater() {
