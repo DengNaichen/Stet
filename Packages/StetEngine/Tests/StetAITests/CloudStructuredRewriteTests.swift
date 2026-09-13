@@ -41,8 +41,8 @@ struct CloudStructuredRewriteTests {
             let responseFormat = try #require(body["response_format"] as? [String: Any])
             #expect(responseFormat["type"] as? String == "json_object")
             let thinking = try #require(body["thinking"] as? [String: Any])
-            #expect(thinking["type"] as? String == "enabled")
-            #expect(body["reasoning_effort"] as? String == "low")
+            #expect(thinking["type"] as? String == "disabled")
+            #expect(body["reasoning_effort"] == nil)
             let messages = try #require(body["messages"] as? [[String: Any]])
             #expect((messages.last?["content"] as? String)?.contains("Return exactly one JSON object") == true)
 

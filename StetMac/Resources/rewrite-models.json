@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 1,
+  "revision": 2,
   "providers": [
     {
       "id": "openai",
@@ -13,17 +13,17 @@
     {
       "id": "google",
       "enabled": true,
-      "defaultModelID": "gemini-3.7-flash",
+      "defaultModelID": "gemini-3.8-flash",
       "models": [
-        { "id": "gemini-3.7-flash", "displayName": "Gemini 3.7 Flash", "enabled": true }
+        { "id": "gemini-3.8-flash", "displayName": "Gemini 3.8 Flash", "enabled": true }
       ]
     },
     {
       "id": "deepseek",
       "enabled": true,
-      "defaultModelID": "deepseek-v4-flash",
+      "defaultModelID": "deepseek-flash",
       "models": [
-        { "id": "deepseek-v4-flash", "displayName": "DeepSeek V4 Flash", "enabled": true }
+        { "id": "deepseek-flash", "displayName": "DeepSeek V4.1 Flash", "enabled": true }
       ]
     },
     {
