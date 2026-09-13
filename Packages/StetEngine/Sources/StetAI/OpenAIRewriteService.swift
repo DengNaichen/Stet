@@ -223,7 +223,7 @@ public struct OpenAIRewriteService: TextRewriteService {
                     ChatCompletionMessage(role: "user", content: prepared.userPrompt),
                 ],
                 thinking: Self.thinkingConfiguration(for: endpoint.provider),
-                reasoningEffort: Self.reasoningEffort(for: endpoint.provider),
+                reasoningEffort: nil,
                 responseFormat: .configuration(provider: endpoint.provider, model: model)
             )
         )
@@ -232,12 +232,7 @@ public struct OpenAIRewriteService: TextRewriteService {
 
     private static func thinkingConfiguration(for provider: DictationProvider) -> ChatCompletionThinking? {
         guard provider == .deepSeek else { return nil }
-        return ChatCompletionThinking(type: "enabled")
-    }
-
-    private static func reasoningEffort(for provider: DictationProvider) -> String? {
-        guard provider == .deepSeek else { return nil }
-        return "low"
+        return ChatCompletionThinking(type: "disabled")
     }
 
     private func makeMessages(
