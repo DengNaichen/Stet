@@ -17,14 +17,18 @@ struct StetApp: App {
         @StateObject private var settingsShellViewModel: MacSettingsShellViewModel
         @StateObject private var appUpdateManager = AppUpdateManager()
         @StateObject private var compatibilityStore: AppCompatibilityStore
+        @StateObject private var rewriteModelCatalogStore: RewriteModelCatalogStore
 
         init() {
             AnalyticsService.initialize()
             FluidAudioModelManager.configureDownloadRegistry()
             RetiredLocalWhisperCleanup.removeInstalledAssets()
             let compatibilityStore = AppCompatibilityStore.live()
+            let rewriteModelCatalogStore = RewriteModelCatalogStore.shared
+            _rewriteModelCatalogStore = StateObject(wrappedValue: rewriteModelCatalogStore)
             _compatibilityStore = StateObject(wrappedValue: compatibilityStore)
-            let appModel = MacAppModel(compatibilityStore: compatibilityStore)
+            let appModel = MacAppModel(
+                compatibilityStore: compatibilityStore, rewriteModelCatalog: rewriteModelCatalogStore.source)
             _appModel = StateObject(wrappedValue: appModel)
             _dictationCommandsViewModel = StateObject(
                 wrappedValue: MacDictationCommandsViewModel(coordinator: appModel)
@@ -68,6 +72,7 @@ struct StetApp: App {
             Window("Settings", id: MacWindowSceneID.preferences) {
                 MacSettingsView()
                     .environmentObject(compatibilityStore)
+                    .environmentObject(rewriteModelCatalogStore)
                     .environmentObject(appModel)
                     .environmentObject(settingsShellViewModel)
                     .environmentObject(appUpdateManager)

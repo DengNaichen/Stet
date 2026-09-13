@@ -28,6 +28,8 @@ are referenced by both platforms.
   does not change the global Xcode selection.
 - Formatting and lint: `make lint`
 
+For macOS rewrite model additions, removals, defaults, or availability changes, edit `StetMac/Resources/rewrite-models.json`, increment its `revision`, and run `python3 scripts/validate-rewrite-models.py`; do not modify `Packages/StetEngine/Sources/StetCore/RewriteModel.swift`, which remains the iOS compatibility model list.
+
 Do not add model payloads or downloaded runtime frameworks to Git. Release
 scripts and signing config live under `scripts/`; canonical GitHub Actions
 workflows live at repository root `.github/workflows/` (see `.github/README.md`).

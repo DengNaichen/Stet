@@ -9,6 +9,7 @@ import subprocess
 
 
 COMPATIBILITY = "StetMac/Resources/app-compatibility.json"
+REWRITE_MODELS = "StetMac/Resources/rewrite-models.json"
 MACOS_ROOTS = ("StetMac/", "StetMacTests/", "StetMacUITests/", "StetVisuals/")
 IOS_SWIFT_ROOTS = (
     "StetMobile/StetKeyboard/", "StetMobile/StetLiveActivity/",
@@ -30,7 +31,7 @@ def classify(paths):
             selected["workflows"] = True
         elif path in (".swiftlint.yml", ".swift-format"):
             selected["quality"] = True
-        elif path == COMPATIBILITY:
+        elif path in (COMPATIBILITY, REWRITE_MODELS):
             # Validated on Linux, including revision monotonicity.
             continue
         elif path.startswith(MACOS_ROOTS):
@@ -45,7 +46,10 @@ def classify(paths):
             continue
         elif path.startswith(("Packages/", "Stet.xcodeproj/")) or path == "Info.plist":
             selected["macos"] = True
-        elif path in ("scripts/validate-app-compatibility.py", "scripts/validate-agent-entrypoints"):
+        elif path in (
+            "scripts/validate-app-compatibility.py", "scripts/validate-rewrite-models.py",
+            "scripts/validate-agent-entrypoints",
+        ):
             continue  # These execute on every run in Repository Checks.
         elif path in ("scripts/ci-source-mtimes.py", "scripts/tests/test_ci_source_mtimes.py"):
             selected["macos"] = True

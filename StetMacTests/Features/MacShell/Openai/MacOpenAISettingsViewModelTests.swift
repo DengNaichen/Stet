@@ -165,7 +165,7 @@
             viewModel.load()
 
             #expect(viewModel.rewriteProvider == .openAI)
-            #expect(viewModel.selectedModel == .gpt56Luna)
+            #expect(viewModel.selectedModelID == "gpt-5.6-luna")
             #expect(!MacOpenAISettingsViewModel.UnifiedAIProvider.allCases.map(\.rawValue).contains("groq"))
             #expect(!MacOpenAISettingsViewModel.UnifiedAIProvider.allCases.map(\.rawValue).contains("doubao"))
             #expect(!MacOpenAISettingsViewModel.UnifiedAIProvider.allCases.map(\.rawValue).contains("anthropic"))
@@ -184,7 +184,7 @@
             viewModel.load()
 
             #expect(viewModel.rewriteProvider == .openAI)
-            #expect(viewModel.selectedModel == .gpt56Luna)
+            #expect(viewModel.selectedModelID == "gpt-5.6-luna")
             #expect(!MacOpenAISettingsViewModel.UnifiedAIProvider.allCases.map(\.rawValue).contains("anthropic"))
             #expect(defaults.string(forKey: MacPreferences.rewriteProvider) == DictationProvider.openAI.rawValue)
         }
@@ -201,7 +201,7 @@
             viewModel.load()
 
             #expect(viewModel.rewriteProvider == .openAI)
-            #expect(viewModel.selectedModel == .gpt56Luna)
+            #expect(viewModel.selectedModelID == "gpt-5.6-luna")
             #expect(!MacOpenAISettingsViewModel.UnifiedAIProvider.allCases.map(\.rawValue).contains("doubao"))
             #expect(defaults.string(forKey: MacPreferences.rewriteProvider) == DictationProvider.openAI.rawValue)
         }
@@ -217,8 +217,8 @@
 
             #expect(viewModel.rewriteProvider == .deepSeek)
             #expect(viewModel.unifiedProvider == .deepSeek)
-            #expect(viewModel.selectedModel == .deepseekV4Flash)
-            #expect(viewModel.availableModels == [.deepseekV4Flash])
+            #expect(viewModel.selectedModelID == "deepseek-v4-flash")
+            #expect(viewModel.availableModels.map(\.id) == ["deepseek-v4-flash"])
             #expect(viewModel.visibleCredentialProviders == [.deepSeek])
         }
 

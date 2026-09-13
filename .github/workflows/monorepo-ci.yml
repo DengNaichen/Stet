@@ -41,6 +41,7 @@ jobs:
           args=()
           if [[ -n "$BASE_REF" ]]; then args+=(--base-ref "$BASE_REF"); fi
           python3 scripts/validate-app-compatibility.py "${args[@]}"
+          python3 scripts/validate-rewrite-models.py "${args[@]}"
 
       - name: Test CI helpers
         run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'
