@@ -138,6 +138,8 @@ struct DictationPipelineFactory: Sendable {
         case .fluidAudio:
             guard !records.isEmpty else { return nil }
             return records.map(\.term).joined(separator: ", ")
+        case .appleSpeech:
+            return nil
         }
     }
 

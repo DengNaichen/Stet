@@ -42,6 +42,14 @@
                             .foregroundStyle(.orange)
                         }
 
+                        if viewModel.localTranscriptionEngine == .appleSpeech,
+                            !viewModel.appleSpeechAssetState.isInstalled
+                        {
+                            Text(viewModel.appleSpeechAssetState.statusText)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.orange)
+                        }
+
                         Divider().padding(.vertical, 4)
 
                         VStack(spacing: 12) {
@@ -64,6 +72,13 @@
                                 onDownload: { viewModel.downloadParakeetModel() },
                                 onReveal: { viewModel.openParakeetFolder() }
                             )
+
+                            Divider()
+
+                            AppleSpeechModelRow(
+                                state: viewModel.appleSpeechAssetState,
+                                onDownload: { viewModel.downloadAppleSpeechModel() }
+                            )
                         }
                     }
                 } header: {
@@ -77,6 +92,43 @@
             }
             .onDisappear {
                 viewModel.onDisappear()
+            }
+        }
+
+        private struct AppleSpeechModelRow: View {
+            let state: AppleSpeechAssetState
+            let onDownload: () -> Void
+
+            var body: some View {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Apple Speech")
+                                .font(.system(size: 12, weight: .medium))
+                            Text(state.statusText)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        if state.isDownloading {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+
+                        Button(state.isInstalled ? "Installed" : state.errorMessage == nil ? "Download" : "Retry") {
+                            onDownload()
+                        }
+                        .disabled(!state.canDownload)
+                    }
+
+                    if let message = state.errorMessage {
+                        Text(message)
+                            .font(.system(size: 10))
+                            .foregroundStyle(.red)
+                    }
+                }
             }
         }
 

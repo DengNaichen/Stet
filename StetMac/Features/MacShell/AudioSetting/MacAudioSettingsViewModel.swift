@@ -34,6 +34,8 @@
         @Published private(set) var isFunASRNanoDownloading = false
         @Published private(set) var funASRNanoErrorMessage: String?
 
+        @Published private(set) var appleSpeechAssetState: AppleSpeechAssetState = .unavailable
+
         @Published private(set) var speakerProfiles: [SpeakerProfile] = []
         @Published var enrollmentName = ""
         @Published var enrollmentRole: SpeakerProfileRole = .owner
@@ -82,9 +84,16 @@
 
             isParakeetDownloaded = fluidAudioModelManager.isModelDownloaded()
             isFunASRNanoDownloaded = funASRNanoModelManager.isModelDownloaded()
-            localTranscriptionEngine = settingsStore.loadTranscriptionEngine()
+            let storedEngine = settingsStore.loadTranscriptionEngine()
+            if storedEngine == .appleSpeech, !AppleSpeechSupport.isAvailable {
+                localTranscriptionEngine = .default
+                settingsStore.saveTranscriptionEngine(.default)
+            } else {
+                localTranscriptionEngine = storedEngine
+            }
             isPassiveListeningEnabled = settingsStore.loadPassiveListeningEnabled()
             hasLoadedState = true
+            refreshAppleSpeechAssetState()
         }
 
         func onDisappear() {
@@ -92,7 +101,9 @@
         }
 
         var localTranscriptionEngineOptions: [StoredTranscriptionEngine] {
-            StoredTranscriptionEngine.allCases
+            StoredTranscriptionEngine.allCases.filter {
+                $0 != .appleSpeech || AppleSpeechSupport.isAvailable
+            }
         }
 
         var canStartSpeakerEnrollment: Bool {
@@ -234,6 +245,21 @@
             }
         }
 
+        func downloadAppleSpeechModel() {
+            guard appleSpeechAssetState.canDownload else { return }
+            appleSpeechAssetState = .downloading
+            let languageCode = settingsStore.loadTranscriptionPrimaryLanguage()
+
+            Task {
+                do {
+                    try await AppleSpeechSupport.installAsset(for: languageCode)
+                    appleSpeechAssetState = await AppleSpeechSupport.assetState(for: languageCode)
+                } catch {
+                    appleSpeechAssetState = .failed(error.localizedDescription)
+                }
+            }
+        }
+
         func openParakeetFolder() {
             revealInFinder(urlProvider: { self.fluidAudioModelManager.cacheDirectoryURL() })
         }
@@ -250,6 +276,13 @@
                 let url = exists && isDirectory.boolValue ? providedURL : providedURL.deletingLastPathComponent()
                 NSWorkspace.shared.open(url)
             } catch {}
+        }
+
+        private func refreshAppleSpeechAssetState() {
+            let languageCode = settingsStore.loadTranscriptionPrimaryLanguage()
+            Task {
+                appleSpeechAssetState = await AppleSpeechSupport.assetState(for: languageCode)
+            }
         }
 
         private func finishSpeakerEnrollment(using model: SpeakerEmbeddingModelIdentity) async throws {
