@@ -56,21 +56,32 @@
         }
         @Published var discoveredCustomModels: [String] = []
         @Published var customModelProbeState: ModelProbeState = .idle
-        @Published var selectedModel: RewriteModel = .gpt56Luna
+        @Published var selectedModelID = ""
 
         private let settingsStore: DictationSettingsStore
         private let modelProbe: any OpenAICompatibleModelProbing
         private let credentialValidator: any ProviderCredentialValidating
+        let catalogStore: RewriteModelCatalogStore
         private var hasLoadedState = false
+        private var catalogCancellable: AnyCancellable?
 
         init(
             settingsStore: DictationSettingsStore = DictationSettingsStore(),
             modelProbe: any OpenAICompatibleModelProbing = OpenAICompatibleModelProbe(),
-            credentialValidator: any ProviderCredentialValidating = ProviderCredentialValidationService()
+            credentialValidator: any ProviderCredentialValidating = ProviderCredentialValidationService(),
+            catalogStore: RewriteModelCatalogStore = .shared
         ) {
             self.settingsStore = settingsStore
             self.modelProbe = modelProbe
             self.credentialValidator = credentialValidator
+            self.catalogStore = catalogStore
+            catalogCancellable = catalogStore.$catalog
+                .dropFirst()
+                .sink { [weak self] _ in
+                    guard let self else { return }
+                    selectedModelID = effectiveModelID(for: rewriteProvider)
+                    objectWillChange.send()
+                }
         }
 
         var connectionNeedsAttention: Bool {
@@ -97,7 +108,7 @@
             customBaseURL = settingsStore.loadCustomRewriteBaseURL()
             customModelID = settingsStore.loadCustomRewriteModelID()
             discoveredCustomModels = settingsStore.loadCustomRewriteDiscoveredModels()
-            selectedModel = settingsStore.loadSelectedModel(for: rewriteProvider) ?? .default(for: rewriteProvider)
+            selectedModelID = effectiveModelID(for: rewriteProvider)
 
             // Safety check: If the loaded provider is disabled (e.g. Apple Intelligence on old macOS)
             // or retired from rewrite (Groq, Doubao, Anthropic), fallback to OpenAI.
@@ -105,7 +116,7 @@
                 || unifiedProvider.isDisabled
             {
                 rewriteProvider = .openAI
-                selectedModel = .gpt56Luna
+                selectedModelID = effectiveModelID(for: .openAI)
                 settingsStore.saveRewriteProvider(.openAI)
             }
 
@@ -183,7 +194,6 @@
 
             do {
                 try settingsStore.saveAPIKey(trimmedKey, for: provider)
-                settingsStore.saveSelectedModel(selectedModel, for: provider)
                 setAPIKey(trimmedKey, for: provider)
             } catch {}
         }
@@ -265,6 +275,18 @@
                 }
             }
 
+            var dictationProvider: DictationProvider {
+                switch self {
+                case .openAI: return .openAI
+                case .google: return .google
+                case .appleIntelligence: return .appleIntelligence
+                case .deepSeek: return .deepSeek
+                case .qwen: return .qwen
+                case .glm: return .glm
+                case .custom: return .custom
+                }
+            }
+
             var isDisabled: Bool {
                 switch self {
                 case .appleIntelligence:
@@ -274,13 +296,34 @@
                     } else {
                         return true
                     }
-                case .openAI, .google, .deepSeek, .custom:
+                case .custom:
                     return false
-                case .qwen, .glm:
-                    // These are placeholders for now
-                    return true
+                case .openAI, .google, .deepSeek, .qwen, .glm:
+                    return RewriteModelCatalogStore.shared.availableModels(for: dictationProvider).isEmpty
                 }
             }
+        }
+
+        private func effectiveModelID(for provider: DictationProvider) -> String {
+            let preferred = settingsStore.loadSelectedModelID(for: provider)
+            return catalogStore.catalog.resolvedModelID(for: provider, preferredID: preferred) ?? preferred ?? ""
+        }
+
+        func selectModel(_ modelID: String) {
+            selectedModelID = modelID
+            settingsStore.saveSelectedModelID(modelID, for: rewriteProvider)
+        }
+
+        var selectedModelFallbackMessage: String? {
+            let preferred = settingsStore.loadSelectedModelID(for: rewriteProvider)
+            guard let preferred, !preferred.isEmpty, preferred != selectedModelID else { return nil }
+            return "\(preferred) is unavailable. Stet is using \(selectedModelID) until it becomes available again."
+        }
+
+        func refreshModelCatalog() async {
+            await catalogStore.refresh()
+            let resolved = effectiveModelID(for: rewriteProvider)
+            if selectedModelID != resolved { selectedModelID = resolved }
         }
 
         var unifiedProvider: UnifiedAIProvider {
@@ -314,7 +357,7 @@
                 case .custom:
                     rewriteProvider = .custom
                 }
-                selectedModel = settingsStore.loadSelectedModel(for: rewriteProvider) ?? .default(for: rewriteProvider)
+                selectedModelID = effectiveModelID(for: rewriteProvider)
             }
         }
 
@@ -324,8 +367,8 @@
             return [rewriteProvider]
         }
 
-        var availableModels: [RewriteModel] {
-            RewriteModel.availableModels(for: rewriteProvider)
+        var availableModels: [RewriteModelDescriptor] {
+            catalogStore.availableModels(for: rewriteProvider)
         }
 
         func hasAPIKey(for provider: DictationProvider) -> Bool {

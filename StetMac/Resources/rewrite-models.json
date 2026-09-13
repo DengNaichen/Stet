@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "providers": [
+    {
+      "id": "openai",
+      "enabled": true,
+      "defaultModelID": "gpt-5.6-luna",
+      "models": [
+        { "id": "gpt-5.6-luna", "displayName": "GPT-5.6 Luna", "enabled": true }
+      ]
+    },
+    {
+      "id": "google",
+      "enabled": true,
+      "defaultModelID": "gemini-3.7-flash",
+      "models": [
+        { "id": "gemini-3.7-flash", "displayName": "Gemini 3.7 Flash", "enabled": true }
+      ]
+    },
+    {
+      "id": "deepseek",
+      "enabled": true,
+      "defaultModelID": "deepseek-v4-flash",
+      "models": [
+        { "id": "deepseek-v4-flash", "displayName": "DeepSeek V4 Flash", "enabled": true }
+      ]
+    },
+    {
+      "id": "qwen",
+      "enabled": false,
+      "defaultModelID": "qwen3.5-flash",
+      "models": [
+        { "id": "qwen3.5-flash", "displayName": "Qwen 3.5 Flash", "enabled": true }
+      ]
+    },
+    {
+      "id": "glm",
+      "enabled": false,
+      "defaultModelID": "glm-4.7-flash",
+      "models": [
+        { "id": "glm-4.7-flash", "displayName": "GLM-4.7 Flash", "enabled": true }
+      ]
+    }
+  ]
+}

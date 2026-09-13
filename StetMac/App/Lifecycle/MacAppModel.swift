@@ -35,8 +35,13 @@
 
         private var cancellables = Set<AnyCancellable>()
 
-        convenience init(compatibilityStore: AppCompatibilityStore? = nil) {
-            let settingsStore = DictationSettingsStore()
+        convenience init(
+            compatibilityStore: AppCompatibilityStore? = nil,
+            rewriteModelCatalog: RewriteModelCatalogSource? = nil
+        ) {
+            let settingsStore = DictationSettingsStore(
+                defaults: .standard, secretStore: KeychainSecretStore(),
+                rewriteModelCatalog: rewriteModelCatalog)
             let captureService = MacAudioCaptureService()
             let liveMeetingPhaseStore = MCPLiveMeetingPhaseStore()
             let notificationService = MacDictationCompletionNotificationService.shared

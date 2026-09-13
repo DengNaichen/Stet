@@ -18,9 +18,9 @@ spec.loader.exec_module(changes)
 class RoutingTests(unittest.TestCase):
     def test_lightweight_changes_do_not_allocate_macos(self):
         for path in (
-            changes.COMPATIBILITY, "docs/specs/app-compatibility.md", "README.md",
+            changes.COMPATIBILITY, changes.REWRITE_MODELS, "docs/specs/app-compatibility.md", "README.md",
             "reference/apple-platform/index.md", ".github/README.md", "AGENTS.md",
-            "scripts/validate-app-compatibility.py", "scripts/validate-agent-entrypoints",
+            "scripts/validate-app-compatibility.py", "scripts/validate-rewrite-models.py", "scripts/validate-agent-entrypoints",
         ):
             with self.subTest(path=path):
                 self.assertEqual(changes.classify([path]), dict(quality=False, macos=False, workflows=False))

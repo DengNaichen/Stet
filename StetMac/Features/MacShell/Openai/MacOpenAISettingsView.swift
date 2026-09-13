@@ -46,15 +46,39 @@
 
                             if !viewModel.availableModels.isEmpty {
                                 MacSettingsValueRow(title: NSLocalizedString("Preferred Model", comment: "")) {
-                                    Picker("", selection: $viewModel.selectedModel) {
+                                    Picker(
+                                        "",
+                                        selection: Binding(
+                                            get: { viewModel.selectedModelID },
+                                            set: { viewModel.selectModel($0) }
+                                        )
+                                    ) {
                                         ForEach(viewModel.availableModels) { model in
-                                            Text(model.displayName).tag(model)
+                                            Text(model.displayName).tag(model.id)
                                         }
                                     }
                                     .labelsHidden()
                                     .pickerStyle(.menu)
                                     .frame(width: controlWidth, alignment: .trailing)
                                 }
+                            }
+
+                            if let message = viewModel.selectedModelFallbackMessage {
+                                Text(message)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            HStack {
+                                Button(
+                                    viewModel.catalogStore.isRefreshing ? "Checking Models…" : "Check for Model Updates"
+                                ) {
+                                    Task { await viewModel.refreshModelCatalog() }
+                                }
+                                .disabled(viewModel.catalogStore.isRefreshing)
+                                Text("Catalog revision \(viewModel.catalogStore.revision)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
