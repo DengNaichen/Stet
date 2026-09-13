@@ -16,6 +16,7 @@
         private let settingsStore: DictationSettingsStore
         private let sessionController: MacAppSessionController
         private let interactionSoundPlayer: InteractionSoundPlayer
+        private let hotwordLearningCoordinator: HotwordLearningBatchCoordinator
         private let appearanceSettingsViewModel: MacAppearanceSettingsViewModel
         private let mcpServerController: StetMCPServerController?
         private let liveMeetingPhaseStore: MCPLiveMeetingPhaseStore?
@@ -138,6 +139,7 @@
             self.settingsStore = settingsStore
             self.sessionController = sessionController
             self.interactionSoundPlayer = interactionSoundPlayer
+            self.hotwordLearningCoordinator = HotwordLearningBatchCoordinator(settings: settingsStore)
             self.appearanceSettingsViewModel = .shared
             self.mcpServerController = mcpServerController
             self.liveMeetingPhaseStore = liveMeetingPhaseStore
