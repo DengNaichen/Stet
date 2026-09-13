@@ -21,6 +21,11 @@
 "Updates" = "Atualizações";
 
 /* Settings tabs */
+"Settings" = "Ajustes";
+"Intelligence" = "Inteligência";
+"Advanced" = "Avançado";
+"Shortcut" = "Atalho";
+
 "General" = "Geral";
 "Audio" = "Áudio";
 "Theme" = "Tema";

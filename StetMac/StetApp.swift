@@ -70,7 +70,7 @@ struct StetApp: App {
             .menuBarExtraStyle(.menu)
 
             Window("Settings", id: MacWindowSceneID.preferences) {
-                MacSettingsView()
+                MacMainView()
                     .environmentObject(compatibilityStore)
                     .environmentObject(rewriteModelCatalogStore)
                     .environmentObject(appModel)
@@ -129,6 +129,7 @@ struct StetApp: App {
                 Button("Settings…") {
                     settingsShellViewModel.openSettings {
                         openWindow(id: MacWindowSceneID.preferences)
+                        NotificationCenter.default.post(name: .stetOpenSettings, object: nil)
                     }
                 }
                 .keyboardShortcut(",", modifiers: .command)
