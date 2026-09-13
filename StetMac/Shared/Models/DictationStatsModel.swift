@@ -61,6 +61,25 @@
         }
     }
 
+    struct DictationDailySummary: Equatable, Sendable {
+        var wordCount: Int
+        var totalDuration: TimeInterval
+
+        var timeSaved: TimeInterval {
+            guard wordCount > 0 else { return 0 }
+            let typingDuration = Double(wordCount) / DictationUsageSummary.assumedTypingWordsPerMinute * 60
+            return max(0, typingDuration - totalDuration)
+        }
+
+        var formattedWordCount: String {
+            DictationUsageSummary.formatCompactCount(wordCount)
+        }
+
+        var formattedTimeSaved: String {
+            DictationUsageSummary.formatDuration(timeSaved)
+        }
+    }
+
     struct DictationUsageSummary: Equatable, Sendable {
         static let assumedTypingWordsPerMinute = 40.0
         static let empty = DictationUsageSummary(sessionCount: 0, totalDuration: 0, wordCount: 0)
@@ -97,7 +116,7 @@
             return "\(Int(averageWordsPerMinute.rounded()))"
         }
 
-        private static func formatDuration(_ duration: TimeInterval) -> String {
+        fileprivate static func formatDuration(_ duration: TimeInterval) -> String {
             let totalSeconds = max(0, Int(duration.rounded()))
             let hours = totalSeconds / 3_600
             let minutes = (totalSeconds % 3_600) / 60
@@ -246,15 +265,25 @@
             now: Date = Date(),
             calendar: Calendar = .current
         ) -> [Date: Double] {
+            activityDetails(now: now, calendar: calendar).mapValues { Double($0.wordCount) }
+        }
+
+        nonisolated func activityDetails(
+            now: Date = Date(),
+            calendar: Calendar = .current
+        ) -> [Date: DictationDailySummary] {
             let today = calendar.startOfDay(for: now)
             let since = calendar.date(byAdding: .day, value: -364, to: today)
             let sessions = fetchSessions(since: since)
-            var totals: [Date: Double] = [:]
+            var totals: [Date: (wordCount: Int, duration: TimeInterval)] = [:]
             for session in sessions {
                 let day = calendar.startOfDay(for: session.startedAt)
-                totals[day, default: 0] += Double(session.wordCount)
+                totals[day, default: (0, 0)].wordCount += session.wordCount
+                totals[day, default: (0, 0)].duration += session.durationSeconds
             }
-            return totals
+            return totals.mapValues {
+                DictationDailySummary(wordCount: $0.wordCount, totalDuration: $0.duration)
+            }
         }
 
         nonisolated func appUsage(limit: Int = 6) -> [DictationAppUsage] {
