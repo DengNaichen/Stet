@@ -4,7 +4,7 @@
 
 ## 总览
 
-Stet 在**仓库根目录**（`.github/workflows/`）使用三条 GitHub Actions workflow。GitHub 只会执行根目录 workflow；完整列表见 [`.github/README.md`](../.github/README.md)。
+Stet 在**仓库根目录**（`.github/workflows/`）使用三条 GitHub Actions workflow。GitHub 只会执行根目录 workflow；完整列表见 [`.github/WORKFLOWS.md`](../.github/WORKFLOWS.md)。
 
 - `Monorepo CI`
   - 文件：`.github/workflows/monorepo-ci.yml`

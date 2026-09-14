@@ -4,7 +4,7 @@ This document records the release flow that is currently working for Stet.
 
 ## Overview
 
-Stet uses three GitHub Actions workflows at the **repository root** (`.github/workflows/`). GitHub only executes root workflows; see [`.github/README.md`](../.github/README.md) for the canonical list.
+Stet uses three GitHub Actions workflows at the **repository root** (`.github/workflows/`). GitHub only executes root workflows; see [`.github/WORKFLOWS.md`](../.github/WORKFLOWS.md) for the canonical list.
 
 - `Monorepo CI`
   - file: `.github/workflows/monorepo-ci.yml`
