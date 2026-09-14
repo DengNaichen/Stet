@@ -1,4 +1,5 @@
 import Foundation
+import StetCore
 
 /// Outcome of a completed capture: raw ASR text plus the post-rewrite string that
 /// should be delivered. History needs both; callers that only paste text use `text`.
@@ -10,17 +11,20 @@ struct SpeechTranscriptionResult: Equatable, Sendable, ExpressibleByStringLitera
     let text: String
     /// True when a rewrite service produced `text` (even if it happens to equal `rawText`).
     let wasRewritten: Bool
+    let injectedHotwords: [HotwordLearningTerm]
 
-    init(rawText: String, text: String, wasRewritten: Bool) {
+    init(rawText: String, text: String, wasRewritten: Bool, injectedHotwords: [HotwordLearningTerm] = []) {
         self.rawText = rawText
         self.text = text
         self.wasRewritten = wasRewritten
+        self.injectedHotwords = injectedHotwords
     }
 
     init(_ text: String) {
         self.rawText = text
         self.text = text
         self.wasRewritten = false
+        self.injectedHotwords = []
     }
 
     init(stringLiteral value: String) {

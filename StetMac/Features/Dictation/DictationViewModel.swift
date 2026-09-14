@@ -355,6 +355,7 @@ final class DictationViewModel: ObservableObject {
                 guard isCurrentCaptureSession(sessionID) else { return }
                 // Commit both History stages together after the last suspension.
                 historyService.recordRaw(transcription.rawText)
+                historyService.recordHotwordLearningTerms(transcription.injectedHotwords)
                 if resultTransformer != nil || transcription.wasRewritten {
                     historyService.recordLLM(finalText)
                 }
