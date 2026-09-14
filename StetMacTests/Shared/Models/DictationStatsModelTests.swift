@@ -1,11 +1,52 @@
 #if os(macOS)
     import Foundation
+    import SwiftData
     import Testing
 
     @testable import Stet
 
     @Suite("Dictation Stats Model", .serialized)
     struct DictationStatsModelTests {
+        @Test func persistentConfigurationEnablesStatisticsCloudOnly() throws {
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let configuration = try DictationStatsModel.persistentConfiguration(
+                appSupportDirectory: directory, bundleIdentifier: "test.stats")
+            #expect(configuration.cloudKitContainerIdentifier == "iCloud.NaichengDeng.Stet")
+            #expect(configuration.url.lastPathComponent == "DictationStats.store")
+            #expect(configuration.schema?.entities.map(\.name) == ["DictationSessionRecord"])
+        }
+
+        @Test func existingStoreReopensWithoutCopyingOrDuplicatingSessions() throws {
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let configuration = try DictationStatsModel.persistentConfiguration(
+                appSupportDirectory: directory, bundleIdentifier: "test.stats", cloudKitDatabase: .none)
+            let schema = Schema([DictationSessionRecord.self])
+            // Seed the pre-sync schema at its original URL; migration must reuse this store.
+            try autoreleasepool {
+                let legacy = try ModelContainer(
+                    for: schema,
+                    configurations: [
+                        ModelConfiguration(schema: schema, url: configuration.url, cloudKitDatabase: .none)
+                    ])
+                DictationStatsModel(modelContainer: legacy).record(
+                    startedAt: Date(timeIntervalSince1970: 1), durationSeconds: 60, wordCount: 80,
+                    targetBundleID: "com.apple.Safari", targetAppName: "Safari")
+            }
+            for _ in 0..<2 {
+                try autoreleasepool {
+                    let container = try DictationStatsModel.makePersistentModelContainer(
+                        appSupportDirectory: directory, bundleIdentifier: "test.stats", cloudKitDatabase: .none)
+                    let model = DictationStatsModel(modelContainer: container)
+                    #expect(model.usageSummary().sessionCount == 1)
+                    #expect(model.usageSummary().wordCount == 80)
+                    #expect(model.usageSummary().totalDuration == 60)
+                    #expect(model.appUsage().first?.name == "Safari")
+                }
+            }
+        }
+
         @Test func recordsSessionsIntoAnAllTimeSummary() throws {
             let model = DictationStatsModel(modelContainer: try DictationStatsModel.makeInMemoryModelContainer())
             model.record(startedAt: Date(timeIntervalSince1970: 1), durationSeconds: 60, wordCount: 80)
