@@ -29,7 +29,7 @@ Workflow skills（若存在）放在 `.agents/skills/`。平台参考库在 [`re
 
 可执行的 workflow 均在仓库根 [`.github/workflows/`](../.github/workflows/)。
 
-- CI 与验证映射：[`.github/README.md`](../.github/README.md)、[VALIDATION.md](VALIDATION.md)
+- CI 与验证映射：[`.github/WORKFLOWS.md`](../.github/WORKFLOWS.md)、[VALIDATION.md](VALIDATION.md)
 - macOS release 流程：[`release.md`](release.md)
 
 ## 漂移处理

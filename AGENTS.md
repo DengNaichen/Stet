@@ -32,7 +32,7 @@ For macOS rewrite model additions, removals, defaults, or availability changes, 
 
 Do not add model payloads or downloaded runtime frameworks to Git. Release
 scripts and signing config live under `scripts/`; canonical GitHub Actions
-workflows live at repository root `.github/workflows/` (see `.github/README.md`).
+workflows live at repository root `.github/workflows/` (see `.github/WORKFLOWS.md`).
 
 Do not run Git index-writing commands in parallel. Preserve unrelated user
 changes and use small, verifiable commits.

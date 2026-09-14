@@ -19,7 +19,7 @@ macOS-only 目标（`ci-build`、`release-github`、`doctor` 等）见根 [`Make
 ## Hook 与 CI
 
 - Pre-commit：`.githooks/`（若已安装）。
-- GitHub Actions 总览：[`.github/README.md`](../.github/README.md)。
+- GitHub Actions 总览：[`.github/WORKFLOWS.md`](../.github/WORKFLOWS.md)。
 - 根 `Makefile` 直接构建根 `Stet.xcodeproj`，iOS 目标构建 `StetMobile/StetMobile.xcodeproj`。
 
 ### monorepo-ci.yml
@@ -37,7 +37,7 @@ macOS-only 目标（`ci-build`、`release-github`、`doctor` 等）见根 [`Make
 Linux 检查，iOS Swift 改动跑现有 lint，macOS／共享包改动跑完整构建和
 测试。独立 Debug Build 与 `make test` 重复，已移除；本地 `make ci-build`
 仍可使用。具体路径、保守回退和 PR／push 差异语义见
-[CI 范围说明](../.github/README.md#change-based-ci-scope)。
+[CI 范围说明](../.github/WORKFLOWS.md#change-based-ci-scope)。
 
 CI 配置的本地验证：
 

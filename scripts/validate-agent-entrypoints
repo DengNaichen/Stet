@@ -47,7 +47,7 @@ if [ ! -d "$repo_root/docs/exec-plans/completed" ]; then
   missing=1
 fi
 
-scan_paths='docs AGENTS.md README.md .github/README.md'
+scan_paths='docs AGENTS.md README.md .github/WORKFLOWS.md'
 grep_scan='grep -R --exclude-dir=.git --exclude-dir=archive'
 
 check_retired() {
