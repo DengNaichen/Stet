@@ -114,6 +114,28 @@ struct AppViewModelTests {
     }
 
     @Test
+    func hapticsFireImmediatelyForStartAndStopActions() async {
+        let coordinator = RoutingDictationCoordinator()
+        let haptics = RecordingDictationHapticProvider()
+        let subject = SenseVoiceViewModel(coordinator: coordinator, hapticProvider: haptics)
+        var states = subject.$state.values.makeAsyncIterator()
+        _ = await states.next()
+        subject.start()
+
+        coordinator.emit(.ready(engineName: "FunASR Realtime"))
+        #expect(await states.next() == .idle)
+        subject.toggleRecording()
+        #expect(haptics.events == [.started])
+
+        coordinator.emit(.recording(sessionId: "session-a"))
+        #expect(await states.next() == .recording)
+        subject.toggleRecording()
+        #expect(haptics.events == [.started, .ended])
+
+        await coordinator.shutdown()
+    }
+
+    @Test
     func recordingSamplesScalarVolumeAndProcessingFreezesTheLastLevel() async throws {
         let coordinator = RoutingDictationCoordinator()
         let volumeTransport = MutableVolumeTransport(level: 0.4)
@@ -237,5 +259,23 @@ private final class RoutingDictationCoordinator: DictationSessionCoordinating {
 
     func emit(_ event: DictationCoordinatorEvent) {
         continuation.yield(event)
+    }
+}
+
+@MainActor
+private final class RecordingDictationHapticProvider: DictationHapticProviding {
+    enum Event: Equatable {
+        case started
+        case ended
+    }
+
+    private(set) var events: [Event] = []
+
+    func recordingStarted() {
+        events.append(.started)
+    }
+
+    func recordingEnded() {
+        events.append(.ended)
     }
 }

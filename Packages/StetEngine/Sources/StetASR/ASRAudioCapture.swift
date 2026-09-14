@@ -620,6 +620,7 @@ nonisolated final class AVAudioEngineASRAudioCaptureHardware:
                 mode: .default,
                 options: strategy.categoryOptions
             )
+            try session.setAllowHapticsAndSystemSoundsDuringRecording(true)
             try await Self.activateAudioSession(session)
 
             var requestedInput = "system"

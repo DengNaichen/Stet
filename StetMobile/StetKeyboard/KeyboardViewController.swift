@@ -44,8 +44,8 @@ final class KeyboardViewController: UIInputViewController {
     private var pendingSessionId: String?
     private var isWakingMainApp = false
 
-    private let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-    private let notificationFeedback = UINotificationFeedbackGenerator()
+    private let startFeedback = UIImpactFeedbackGenerator(style: .medium)
+    private let endFeedback = UIImpactFeedbackGenerator(style: .rigid)
 
     override func loadView() {
         view = UIInputView(frame: .zero, inputViewStyle: .keyboard)
@@ -73,8 +73,8 @@ final class KeyboardViewController: UIInputViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         isWakingMainApp = false
-        impactFeedback.prepare()
-        notificationFeedback.prepare()
+        startFeedback.prepare()
+        endFeedback.prepare()
 
         // The extension may be recreated while the main app is handling a request.
         // The origin stored in the transactional session file also repairs the
@@ -323,8 +323,6 @@ final class KeyboardViewController: UIInputViewController {
             return
         }
 
-        impactFeedback.impactOccurred()
-        impactFeedback.prepare()
     }
 
     @objc private func handleNextKeyboard(_ sender: UIButton, event: UIEvent) {
@@ -371,6 +369,8 @@ final class KeyboardViewController: UIInputViewController {
 
         pendingSessionId = sessionId
         SharedDictationManager.shared.updateVolume(0)
+        startFeedback.impactOccurred(intensity: 1)
+        endFeedback.prepare()
 
         // A live main app will observe the shared request; otherwise wake it explicitly.
         if !SharedDictationManager.shared.mainAppAlive(within: 0.6) {
@@ -399,6 +399,8 @@ final class KeyboardViewController: UIInputViewController {
             }
         }
 
+        endFeedback.impactOccurred(intensity: 1)
+        startFeedback.prepare()
         publishState(.processing)
     }
 
@@ -608,7 +610,6 @@ final class KeyboardViewController: UIInputViewController {
 
         if !session.finalText.isEmpty {
             textDocumentProxy.insertText(session.finalText)
-            notificationFeedback.notificationOccurred(.success)
         }
         lastProcessedSessionId = session.sessionId
         cleanupSession(sessionId: session.sessionId)

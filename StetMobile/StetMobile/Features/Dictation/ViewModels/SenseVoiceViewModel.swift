@@ -3,6 +3,32 @@ import Foundation
 import UIKit
 
 @MainActor
+protocol DictationHapticProviding: AnyObject {
+    func recordingStarted()
+    func recordingEnded()
+}
+
+@MainActor
+final class SystemDictationHapticProvider: DictationHapticProviding {
+    private let startGenerator = UIImpactFeedbackGenerator(style: .medium)
+    private let endGenerator = UIImpactFeedbackGenerator(style: .rigid)
+
+    init() {
+        startGenerator.prepare()
+        endGenerator.prepare()
+    }
+
+    func recordingStarted() {
+        startGenerator.impactOccurred(intensity: 1)
+        endGenerator.prepare()
+    }
+
+    func recordingEnded() {
+        endGenerator.impactOccurred(intensity: 1)
+        startGenerator.prepare()
+    }
+}
+@MainActor
 final class SenseVoiceViewModel: ObservableObject {
     enum State: Equatable {
         case loading
@@ -23,19 +49,21 @@ final class SenseVoiceViewModel: ObservableObject {
     private let coordinator: any DictationSessionCoordinating
     private let liveActivityManager: any MicrophoneLiveActivityManaging
     private let volumeTransport: any DictationVolumeTransporting
+    private let hapticProvider: any DictationHapticProviding
     private var eventsListener: Task<Void, Never>?
     private var volumeSampler: AnyCancellable?
-    private let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
-    private let notificationGenerator = UINotificationFeedbackGenerator()
 
+    @MainActor
     init(
         coordinator: any DictationSessionCoordinating,
         liveActivityManager: (any MicrophoneLiveActivityManaging)? = nil,
-        volumeTransport: any DictationVolumeTransporting = SharedDictationManager.shared
+        volumeTransport: any DictationVolumeTransporting = SharedDictationManager.shared,
+        hapticProvider: (any DictationHapticProviding)? = nil
     ) {
         self.coordinator = coordinator
         self.liveActivityManager = liveActivityManager ?? NoOpMicrophoneLiveActivityManager()
         self.volumeTransport = volumeTransport
+        self.hapticProvider = hapticProvider ?? SystemDictationHapticProvider()
     }
 
     var isRecording: Bool {
@@ -75,11 +103,11 @@ final class SenseVoiceViewModel: ObservableObject {
 
     func toggleRecording() {
         guard canToggleRecording else { return }
-        impactGenerator.impactOccurred()
-
         if isRecording {
+            hapticProvider.recordingEnded()
             coordinator.stopRecording(sessionId: nil)
         } else {
+            hapticProvider.recordingStarted()
             coordinator.startRecording(sessionId: UUID().uuidString)
         }
     }
@@ -134,9 +162,6 @@ final class SenseVoiceViewModel: ObservableObject {
             state = .idle
             completedSessionId = sessionId
             partialStatus = text.isEmpty ? "Empty result." : "Finished."
-            if !text.isEmpty {
-                notificationGenerator.notificationOccurred(.success)
-            }
 
         case .failed:
             stopVolumeSampling(resetLevel: true)
