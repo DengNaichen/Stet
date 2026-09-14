@@ -12,6 +12,7 @@ import StetVisuals
 @main
 struct StetApp: App {
     #if os(macOS)
+        @NSApplicationDelegateAdaptor(StatisticsSyncAppDelegate.self) private var statisticsSyncAppDelegate
         @StateObject private var appModel: MacAppModel
         @StateObject private var dictationCommandsViewModel: MacDictationCommandsViewModel
         @StateObject private var settingsShellViewModel: MacSettingsShellViewModel
@@ -120,6 +121,14 @@ struct StetApp: App {
 }
 
 #if os(macOS)
+    final class StatisticsSyncAppDelegate: NSObject, NSApplicationDelegate {
+        func applicationDidFinishLaunching(_ notification: Notification) {
+            if !ProcessInfo.processInfo.isRunningTests {
+                NSApplication.shared.registerForRemoteNotifications()
+            }
+        }
+    }
+
     private struct MacPreferencesCommand: Commands {
         @Environment(\.openWindow) private var openWindow
         let settingsShellViewModel: MacSettingsShellViewModel
