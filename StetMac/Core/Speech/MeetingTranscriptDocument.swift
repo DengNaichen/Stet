@@ -44,21 +44,55 @@
                 lines.append(note)
                 lines.append("")
             }
-            if turns.isEmpty {
+            let paragraphs = readableTurns(turns)
+            if paragraphs.isEmpty {
                 lines.append("No speech was recognized in this recording.")
                 lines.append("")
             } else {
-                for turn in turns {
+                for turn in paragraphs {
                     let overlap = turn.isOverlap ? " · overlapping" : ""
                     lines.append(
                         "**\(turn.speakerLabel)** (\(formatClock(turn.startSeconds))–\(formatClock(turn.endSeconds))\(overlap))"
                     )
                     lines.append("")
-                    lines.append(turn.text.isEmpty ? "_No text_" : turn.text)
+                    lines.append(turn.text)
                     lines.append("")
                 }
             }
             return lines.joined(separator: "\n")
+        }
+
+        /// Audio windows are not paragraph boundaries. Empty turns stay out of the
+        /// document, but a different speaker or overlap still interrupts a paragraph.
+        nonisolated private static func readableTurns(_ turns: [MeetingTranscriptTurn]) -> [MeetingTranscriptTurn] {
+            var result: [MeetingTranscriptTurn] = []
+            var previous: MeetingTranscriptTurn?
+            var canContinueParagraph = false
+            for turn in turns {
+                let followsSameSpeaker =
+                    previous.map {
+                        !$0.isOverlap && !turn.isOverlap && $0.speakerLabel == turn.speakerLabel
+                    } ?? false
+                if !followsSameSpeaker { canContinueParagraph = false }
+                previous = turn
+                guard !turn.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
+
+                if canContinueParagraph, let last = result.last,
+                    !last.isOverlap, last.speakerLabel == turn.speakerLabel
+                {
+                    result[result.count - 1] = MeetingTranscriptTurn(
+                        startSeconds: last.startSeconds,
+                        endSeconds: max(last.endSeconds, turn.endSeconds),
+                        speakerLabel: last.speakerLabel,
+                        text: last.text + "\n" + turn.text,
+                        isOverlap: false
+                    )
+                } else {
+                    result.append(turn)
+                }
+                canContinueParagraph = !turn.isOverlap
+            }
+            return result
         }
 
         nonisolated static func speakerLabel(
