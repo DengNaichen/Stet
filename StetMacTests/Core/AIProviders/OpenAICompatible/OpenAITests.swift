@@ -29,12 +29,14 @@ struct OpenAITests {
     private func makeRewriteConfiguration(
         provider: DictationProvider = .openAI,
         apiKey: String = "sk-test",
-        baseURL: URL = URL(string: "https://api.example.com/v1")!
+        baseURL: URL = URL(string: "https://api.example.com/v1")!,
+        thinkingLevel: RewriteThinkingLevel? = nil
     ) -> RewriteProviderConfiguration {
         RewriteProviderConfiguration(
             provider: provider,
             model: DictationProviderDefaults.rewriteModel(for: provider),
-            backend: .remote(makeEndpoint(provider: provider, apiKey: apiKey, baseURL: baseURL))
+            backend: .remote(makeEndpoint(provider: provider, apiKey: apiKey, baseURL: baseURL)),
+            thinkingLevel: thinkingLevel
         )
     }
 
@@ -271,7 +273,8 @@ struct OpenAITests {
         let service = OpenAIRewriteService(
             configuration: makeRewriteConfiguration(
                 provider: .deepSeek,
-                baseURL: URL(string: "https://api.deepseek.com/v1")!
+                baseURL: URL(string: "https://api.deepseek.com/v1")!,
+                thinkingLevel: .off
             ),
             session: session
         )

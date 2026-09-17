@@ -1,7 +1,8 @@
 #if os(macOS)
     import Foundation
 
-    struct MeetingRecordingStore: Sendable {
+    // The FileManager operations used here are thread-safe; session state lives in the runtime actor.
+    nonisolated struct MeetingRecordingStore: @unchecked Sendable {
         let rootDirectory: URL
         private let fileManager: FileManager
 
@@ -23,9 +24,12 @@
         }
 
         func makeSessionDirectory(startedAt: Date) throws -> MeetingSessionDirectory {
-            try ensureRootDirectory()
+            _ = try ensureRootDirectory()
             let folderName = Self.folderName(for: startedAt)
-            let url = rootDirectory.appendingPathComponent(folderName, isDirectory: true)
+            var url = rootDirectory.appendingPathComponent(folderName, isDirectory: true)
+            if fileManager.fileExists(atPath: url.path) {
+                url = rootDirectory.appendingPathComponent("\(folderName)-\(UUID().uuidString)", isDirectory: true)
+            }
             try fileManager.createDirectory(at: url, withIntermediateDirectories: true)
             return MeetingSessionDirectory(url: url, startedAt: startedAt)
         }
@@ -86,7 +90,7 @@
         }
 
         nonisolated static func startedAt(fromFolderName name: String) -> Date? {
-            folderNameFormatter().date(from: name)
+            folderNameFormatter().date(from: String(name.prefix(19)))
         }
 
         private nonisolated static func folderNameFormatter() -> DateFormatter {
@@ -97,7 +101,7 @@
         }
     }
 
-    struct MeetingSessionDirectory: Equatable, Sendable {
+    nonisolated struct MeetingSessionDirectory: Equatable, Sendable {
         let url: URL
         let startedAt: Date
 
@@ -114,7 +118,7 @@
         }
     }
 
-    struct MeetingSessionRecord: Codable, Equatable, Sendable {
+    nonisolated struct MeetingSessionRecord: Codable, Equatable, Sendable {
         var startedAt: Date
         var endedAt: Date?
         var durationSeconds: Double
@@ -123,6 +127,7 @@
         var speakerCount: Int
         var organizedAt: Date? = nil
         var metadata: MeetingMetadata? = nil
+        var recordingStatus: String? = nil
 
         func jsonData() throws -> Data {
             let encoder = JSONEncoder()

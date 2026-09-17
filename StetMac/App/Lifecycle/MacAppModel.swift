@@ -61,7 +61,6 @@
             )
             let passiveListeningRuntime = MacPassiveListeningRuntime(captureService: captureService)
             let meetingRecordingRuntime = MacMeetingRecordingRuntime.live(
-                captureService: captureService,
                 beginExclusiveCapture: { await passiveListeningRuntime.beginActive() },
                 endExclusiveCapture: { await passiveListeningRuntime.resumePassive() }
             )
@@ -452,7 +451,7 @@
 
         var isMeetingBusy: Bool {
             switch meetingRecordingPhase {
-            case .recording, .processing:
+            case .starting, .recording, .processing:
                 return true
             case .idle, .failed:
                 return false
@@ -470,12 +469,14 @@
             switch meetingRecordingPhase {
             case .idle:
                 return "Meeting recording idle"
+            case .starting:
+                return "Starting microphone and system audio recording"
             case .recording(_, let folderName):
                 return "Recording meeting · \(folderName)"
             case .processing:
-                return "Processing meeting"
+                return "Recording saved · Processing meeting"
             case .failed(let message):
-                return "Meeting failed: \(message)"
+                return message
             }
         }
 
@@ -483,7 +484,7 @@
             switch meetingRecordingPhase {
             case .recording:
                 return "record.circle.fill"
-            case .processing:
+            case .starting, .processing:
                 return "hourglass"
             case .failed:
                 return "exclamationmark.triangle"
@@ -496,6 +497,8 @@
             switch meetingRecordingPhase {
             case .idle, .failed:
                 return "Start Meeting Recording"
+            case .starting:
+                return "Starting meeting recording"
             case .recording:
                 return "Stop Meeting Recording"
             case .processing:
@@ -505,7 +508,7 @@
 
         var canToggleMeetingRecording: Bool {
             switch meetingRecordingPhase {
-            case .processing:
+            case .starting, .processing:
                 return false
             case .idle, .recording, .failed:
                 return true

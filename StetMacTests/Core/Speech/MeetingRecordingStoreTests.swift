@@ -36,5 +36,19 @@
             #expect(directory.sessionURL.lastPathComponent == "session.json")
             #expect(directory.url.lastPathComponent == MeetingRecordingStore.folderName(for: startedAt))
         }
+
+        @Test func restartingWithinTheSameSecondPreservesThePreviousRecording() throws {
+            let root = TestSupport.temporaryDirectoryURL()
+            defer { try? FileManager.default.removeItem(at: root) }
+            let store = MeetingRecordingStore(rootDirectory: root)
+            let startedAt = Date(timeIntervalSince1970: 1_704_067_200)
+            let first = try store.makeSessionDirectory(startedAt: startedAt)
+            try Data([1, 2, 3]).write(to: first.audioURL)
+            let second = try store.makeSessionDirectory(startedAt: startedAt)
+
+            #expect(first.url != second.url)
+            #expect(try Data(contentsOf: first.audioURL) == Data([1, 2, 3]))
+            #expect(store.sessionDirectory(id: second.url.lastPathComponent)?.startedAt == startedAt)
+        }
     }
 #endif

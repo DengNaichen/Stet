@@ -42,7 +42,9 @@
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Stet uses System Events to paste your transcript back into the app you were using.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Stet uses the microphone to capture your dictation.</string>
+	<string>Stet uses the selected microphone to record your voice during dictation and meetings.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Stet records system audio during meetings so the saved recording includes other participants, including when you use headphones.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Stet uses on-device speech recognition to turn your voice into text.</string>
 	<key>NSAppTransportSecurity</key>

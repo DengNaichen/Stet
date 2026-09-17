@@ -5,6 +5,7 @@
     @testable import Stet
 
     @Suite("Mac Meeting Recording Notification")
+    @MainActor
     struct MacMeetingRecordingNotificationTests {
         @Test func startPostsRecordingBanner() {
             let payload = MacMeetingRecordingNotification.payload(
@@ -16,17 +17,18 @@
             #expect(payload?.body == String(localized: "Press the shortcut again to stop."))
         }
 
-        @Test func stopPostsMicrophoneOffBannerBeforeTranscriptIsReady() {
+        @Test func stopConfirmsAudioWasSavedBeforeProcessingIsReady() {
             let payload = MacMeetingRecordingNotification.payload(
                 from: .recording(startedAt: Date(), folderName: "2024-01-01"),
                 to: .processing
             )
 
-            #expect(payload?.title == String(localized: "Meeting recording stopped"))
+            #expect(payload?.title == String(localized: "Meeting recording saved"))
             #expect(
                 payload?.body
                     == String(
-                        localized: "The microphone is off. The transcript will be saved when it is ready."
+                        localized:
+                            "Microphone and system audio have been saved. You can open the recording in Meetings."
                     )
             )
         }
