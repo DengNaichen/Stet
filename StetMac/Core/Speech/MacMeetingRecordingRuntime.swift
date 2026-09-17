@@ -1,10 +1,11 @@
 #if os(macOS)
+    @preconcurrency import AVFoundation
     import Foundation
-    import os
     import StetCore
 
     nonisolated enum MacMeetingRecordingPhase: Equatable, Sendable {
         case idle
+        case starting
         case recording(startedAt: Date, folderName: String)
         case processing
         case failed(String)
@@ -13,103 +14,97 @@
     actor MacMeetingRecordingRuntime {
         struct Dependencies: Sendable {
             var store: MeetingRecordingStore
-            var ensureCaptureRunning: @Sendable () async throws -> Void
+            var makeRecording: @Sendable () -> any MeetingAudioRecording
             var beginExclusiveCapture: @Sendable () async -> Void
             var endExclusiveCapture: @Sendable () async -> Void
-            var makeFrameStream: @Sendable () async -> AsyncStream<AudioCaptureFrame>
             var processor: MeetingSessionProcessor
             var now: @Sendable () -> Date
         }
 
         private let dependencies: Dependencies
-        private let logger = Logger(
-            subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",
-            category: "MeetingRecording"
-        )
         private var phase: MacMeetingRecordingPhase = .idle
-        private var frameTask: Task<Void, Never>?
         private var processingTask: Task<Void, Never>?
         private var session: ActiveSession?
         private var pendingExpectedMeeting: ExpectedMeeting?
+        private var isStarting = false
+        private var isStopping = false
+        private var captureFailure: String?
         private var phaseHandler: @MainActor @Sendable (MacMeetingRecordingPhase) -> Void = { _ in }
 
         private struct ActiveSession {
+            var id: UUID
             var directory: MeetingSessionDirectory
-            var writer: MeetingAudioWriter
-            var samples: [Float]
+            var recording: any MeetingAudioRecording
             var startedAt: Date
             var metadata: MeetingMetadata?
         }
 
-        init(dependencies: Dependencies) {
-            self.dependencies = dependencies
-        }
+        init(dependencies: Dependencies) { self.dependencies = dependencies }
 
         func setPhaseHandler(_ handler: @escaping @MainActor @Sendable (MacMeetingRecordingPhase) -> Void) {
             phaseHandler = handler
         }
 
-        func currentPhase() -> MacMeetingRecordingPhase {
-            phase
-        }
+        func currentPhase() -> MacMeetingRecordingPhase { phase }
 
         func isBusy() -> Bool {
+            if isStarting || isStopping { return true }
             switch phase {
-            case .recording, .processing:
-                return true
-            case .idle, .failed:
-                return false
+            case .starting, .recording, .processing: return true
+            case .idle, .failed: return false
             }
         }
 
-        func recordedSampleCount() -> Int {
-            session?.samples.count ?? 0
-        }
-
         func toggle() async {
+            guard !isStarting, !isStopping else { return }
             switch phase {
-            case .recording:
-                await requestStop()
-            case .processing:
-                break
-            case .idle, .failed:
-                await start()
+            case .recording: await requestStop()
+            case .starting, .processing: break
+            case .idle, .failed: await start()
             }
         }
 
         func start() async {
             guard !isBusy() else { return }
-            var didBeginExclusive = false
+            isStarting = true
+            captureFailure = nil
+            await setPhase(.starting)
+            var exclusive = false
             do {
-                try await dependencies.ensureCaptureRunning()
-                await dependencies.beginExclusiveCapture()
-                didBeginExclusive = true
                 let startedAt = dependencies.now()
                 let directory = try dependencies.store.makeSessionDirectory(startedAt: startedAt)
-                let writer = try MeetingAudioWriter(url: directory.audioURL)
-                session = ActiveSession(
-                    directory: directory,
-                    writer: writer,
-                    samples: [],
-                    startedAt: startedAt,
-                    metadata: pendingExpectedMeeting.map(MeetingMetadata.init)
+                let expectedMeeting = pendingExpectedMeeting
+                let metadata = await MainActor.run { expectedMeeting.map(MeetingMetadata.init) }
+                let active = ActiveSession(
+                    id: UUID(), directory: directory, recording: dependencies.makeRecording(), startedAt: startedAt,
+                    metadata: metadata
                 )
+                session = active
                 pendingExpectedMeeting = nil
-                let folderName = directory.url.lastPathComponent
-                await setPhase(.recording(startedAt: startedAt, folderName: folderName))
-                let stream = await dependencies.makeFrameStream()
-                frameTask = Task { [weak self] in
-                    for await frame in stream {
-                        guard !Task.isCancelled else { break }
-                        await self?.append(frame.samples)
-                    }
+                await dependencies.beginExclusiveCapture()
+                exclusive = true
+                let sessionID = active.id
+                try await active.recording.start(in: directory.url) { [weak self] message in
+                    Task { await self?.recordingFailed(id: sessionID, message: message) }
                 }
+                try writeRecord(for: active, status: "recording", duration: 0, recordingStatus: "recording")
+                await setPhase(.recording(startedAt: startedAt, folderName: directory.url.lastPathComponent))
+                isStarting = false
+                if captureFailure != nil { await requestStop() }
             } catch {
-                logger.error("Meeting start failed: \(error.localizedDescription, privacy: .public)")
-                if didBeginExclusive {
-                    await dependencies.endExclusiveCapture()
+                if let active = session {
+                    // The recorder also finalizes partial sources on a failed start.
+                    _ = try? await active.recording.stop()
+                    try? writeRecord(
+                        for: active, status: "failed", duration: 0, recordingStatus: "failed",
+                        failure: error.localizedDescription
+                    )
                 }
-                await setPhase(.failed(error.localizedDescription))
+                session = nil
+                pendingExpectedMeeting = nil
+                if exclusive { await dependencies.endExclusiveCapture() }
+                isStarting = false
+                await setPhase(.failed("Recording failed: \(error.localizedDescription)"))
             }
         }
 
@@ -117,103 +112,93 @@
             guard !isBusy() else { return }
             pendingExpectedMeeting = expectedMeeting
             await start()
-            if case .failed = phase {
-                pendingExpectedMeeting = nil
-            }
         }
 
         func stop() async {
             await requestStop()
-            if let processingTask {
-                await processingTask.value
-            }
+            await processingTask?.value
+        }
+
+        private func recordingFailed(id: UUID, message: String) async {
+            guard session?.id == id else { return }
+            captureFailure = message
+            if !isStarting { await requestStop() }
         }
 
         private func requestStop() async {
-            guard case .recording = phase, let active = session else { return }
+            guard !isStarting, !isStopping, case .recording = phase, let active = session else { return }
+            isStopping = true
             session = nil
-            frameTask?.cancel()
-            frameTask = nil
-            logger.info("Meeting stop requested")
-            await dependencies.endExclusiveCapture()
-            await setPhase(.processing)
-            let samples = active.samples
-            let directory = active.directory
-            let startedAt = active.startedAt
-            let metadata = active.metadata
-            processingTask = Task {
-                await self.completeStoppedSession(
-                    samples: samples,
-                    directory: directory,
-                    startedAt: startedAt,
-                    metadata: metadata
+            let endedAt = dependencies.now()
+            do {
+                let audio = try await active.recording.stop()
+                let failure = captureFailure ?? audio.failureMessage
+                captureFailure = nil
+                try writeRecord(
+                    for: active, status: failure == nil ? "processing" : "failed", duration: audio.duration,
+                    recordingStatus: failure == nil ? "recorded" : "failed", failure: failure, endedAt: endedAt
                 )
+                await dependencies.endExclusiveCapture()
+                if let failure {
+                    await setPhase(.failed("Recording failed: \(failure)"))
+                } else {
+                    await setPhase(.processing)
+                    processingTask = Task { await self.process(active, audio: audio, endedAt: endedAt) }
+                }
+            } catch {
+                try? writeRecord(
+                    for: active, status: "failed", duration: endedAt.timeIntervalSince(active.startedAt),
+                    recordingStatus: "failed", failure: error.localizedDescription, endedAt: endedAt
+                )
+                await dependencies.endExclusiveCapture()
+                await setPhase(
+                    .failed("Could not finish the recording: \(error.localizedDescription). Source audio was kept."))
             }
+            isStopping = false
         }
 
-        private func completeStoppedSession(
-            samples: [Float],
-            directory: MeetingSessionDirectory,
-            startedAt: Date,
-            metadata: MeetingMetadata?
-        ) async {
-            let endedAt = dependencies.now()
-
+        private func process(_ active: ActiveSession, audio: MeetingAudioRecordingResult, endedAt: Date) async {
             do {
+                // Existing processing starts only after all recording files have been finalized.
+                let samples = try await Task.detached(priority: .utility) {
+                    try Self.readSamples(at: audio.audioURL)
+                }.value
                 let turns = try await dependencies.processor.process(samples: samples)
                 let markdown = MeetingTranscriptDocument.markdown(
-                    startedAt: startedAt,
-                    endedAt: endedAt,
-                    turns: turns,
-                    metadata: metadata
+                    startedAt: active.startedAt, endedAt: endedAt, turns: turns, metadata: active.metadata
                 )
-                try markdown.write(to: directory.transcriptURL, atomically: true, encoding: .utf8)
-                let record = MeetingSessionRecord(
-                    startedAt: startedAt,
-                    endedAt: endedAt,
-                    durationSeconds: endedAt.timeIntervalSince(startedAt),
-                    status: "completed",
-                    failureMessage: nil,
-                    speakerCount: Set(turns.map(\.speakerLabel)).count,
-                    metadata: metadata
+                try markdown.write(to: active.directory.transcriptURL, atomically: true, encoding: .utf8)
+                try writeRecord(
+                    for: active, status: "completed", duration: audio.duration, recordingStatus: "recorded",
+                    endedAt: endedAt, speakerCount: Set(turns.map(\.speakerLabel)).count
                 )
-                try writeRecord(record, to: directory.sessionURL)
                 await setPhase(.idle)
             } catch {
-                logger.error("Meeting processing failed: \(error.localizedDescription, privacy: .public)")
+                let note = "Processing failed: \(error.localizedDescription). The recording was saved."
                 let markdown = MeetingTranscriptDocument.markdown(
-                    startedAt: startedAt,
-                    endedAt: endedAt,
-                    turns: [],
-                    metadata: metadata,
-                    note: "Processing failed: \(error.localizedDescription). The audio file was kept."
+                    startedAt: active.startedAt, endedAt: endedAt, turns: [], metadata: active.metadata, note: note
                 )
-                try? markdown.write(to: directory.transcriptURL, atomically: true, encoding: .utf8)
-                let record = MeetingSessionRecord(
-                    startedAt: startedAt,
-                    endedAt: endedAt,
-                    durationSeconds: endedAt.timeIntervalSince(startedAt),
-                    status: "failed",
-                    failureMessage: error.localizedDescription,
-                    speakerCount: 0,
-                    metadata: metadata
+                try? markdown.write(to: active.directory.transcriptURL, atomically: true, encoding: .utf8)
+                try? writeRecord(
+                    for: active, status: "failed", duration: audio.duration, recordingStatus: "recorded",
+                    failure: error.localizedDescription, endedAt: endedAt
                 )
-                try? writeRecord(record, to: directory.sessionURL)
-                await setPhase(.failed(error.localizedDescription))
+                await setPhase(.failed("Recording saved. Processing failed: \(error.localizedDescription)"))
             }
-
             processingTask = nil
         }
 
-        private func append(_ samples: [Float]) {
-            guard var active = session else { return }
-            do {
-                try active.writer.append(samples)
-            } catch {
-                logger.error("Meeting audio write failed: \(error.localizedDescription, privacy: .public)")
+        nonisolated private static func readSamples(at url: URL) throws -> [Float] {
+            let file = try AVAudioFile(forReading: url, commonFormat: .pcmFormatFloat32, interleaved: false)
+            guard file.length > 0, file.length <= Int64(UInt32.max),
+                let buffer = AVAudioPCMBuffer(
+                    pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length))
+            else { throw MeetingRecordingError.failed("The saved recording could not be loaded for processing.") }
+            try file.read(into: buffer)
+            guard let channel = buffer.floatChannelData?[0] else {
+                throw AudioWavWriterError.unableToAccessOutputChannelData
             }
-            active.samples.append(contentsOf: samples)
-            session = active
+            return Array(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
         }
 
         private func setPhase(_ phase: MacMeetingRecordingPhase) async {
@@ -221,14 +206,22 @@
             await phaseHandler(phase)
         }
 
-        private func writeRecord(_ record: MeetingSessionRecord, to url: URL) throws {
-            try record.jsonData().write(to: url)
+        private func writeRecord(
+            for active: ActiveSession, status: String, duration: Double, recordingStatus: String,
+            failure: String? = nil, endedAt: Date? = nil, speakerCount: Int = 0
+        ) throws {
+            let record = MeetingSessionRecord(
+                startedAt: active.startedAt, endedAt: endedAt, durationSeconds: duration, status: status,
+                failureMessage: failure, speakerCount: speakerCount, metadata: active.metadata,
+                recordingStatus: recordingStatus
+            )
+            try record.jsonData().write(to: active.directory.sessionURL, options: .atomic)
         }
     }
 
     extension MacMeetingRecordingRuntime {
+        @MainActor
         static func live(
-            captureService: MacAudioCaptureService,
             beginExclusiveCapture: @escaping @Sendable () async -> Void,
             endExclusiveCapture: @escaping @Sendable () async -> Void
         ) -> MacMeetingRecordingRuntime {
@@ -271,14 +264,9 @@
             return MacMeetingRecordingRuntime(
                 dependencies: Dependencies(
                     store: MeetingRecordingStore(),
-                    ensureCaptureRunning: {
-                        try await captureService.startContinuousCapture()
-                    },
+                    makeRecording: { MacMeetingAudioRecorder() },
                     beginExclusiveCapture: beginExclusiveCapture,
                     endExclusiveCapture: endExclusiveCapture,
-                    makeFrameStream: {
-                        await captureService.makeAudioCaptureFrameStream()
-                    },
                     processor: processor,
                     now: { Date() }
                 )

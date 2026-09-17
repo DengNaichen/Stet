@@ -28,6 +28,9 @@
                         .foregroundStyle(.secondary)
                 } header: {
                     Text("Recording")
+                } footer: {
+                    Text(
+                        "Records your selected microphone and system audio, including calls played through headphones.")
                 }
 
                 Section {

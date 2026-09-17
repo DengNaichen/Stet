@@ -1,4 +1,5 @@
 #if os(macOS)
+    import AVFoundation
     import Foundation
     import StetCore
     import Testing
@@ -6,342 +7,226 @@
     @testable import Stet
 
     @Suite("Mac Meeting Recording Runtime")
+    @MainActor
     struct MacMeetingRecordingRuntimeTests {
-        @Test func stopWritesAudioTranscriptAndSessionWithoutRewrite() async throws {
+        @Test func stopFinalizesAudioBeforeExistingProcessingCompletes() async throws {
             let root = TestSupport.temporaryDirectoryURL()
-            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-            let (stream, continuation) = AsyncStream<AudioCaptureFrame>.makeStream()
-            let exclusive = CallCounter()
-            let startedAt = Date(timeIntervalSince1970: 1_704_067_200)
-            let runtime = MacMeetingRecordingRuntime(
-                dependencies: MacMeetingRecordingRuntime.Dependencies(
-                    store: MeetingRecordingStore(rootDirectory: root),
-                    ensureCaptureRunning: {},
-                    beginExclusiveCapture: { exclusive.increment() },
-                    endExclusiveCapture: { exclusive.increment() },
-                    makeFrameStream: { stream },
-                    processor: MeetingSessionProcessor(
-                        sampleRate: 16_000,
-                        diarize: { _ in
-                            [
-                                PassiveDiarizedRegion(
-                                    speakerTrack: 0,
-                                    startSample: 0,
-                                    endSample: 2,
-                                    activityConfidence: 1,
-                                    isOverlap: false
-                                )
-                            ]
-                        },
-                        transcribe: { _ in "hello from the room" },
-                        identify: { _ in PassiveSpeakerMatch(identity: .self, similarity: 0.92) }
-                    ),
-                    now: { startedAt }
-                )
-            )
-
+            defer { try? FileManager.default.removeItem(at: root) }
+            let recording = RecordingFixture()
+            let released = CallCounter()
+            let hold = AsyncHold()
+            let runtime = makeRuntime(
+                root: root, recording: recording, released: released,
+                diarize: { _ in
+                    await hold.wait()
+                    return []
+                })
             await runtime.start()
-            continuation.yield(
-                AudioCaptureFrame(epoch: 1, startSample: 0, samples: [0.25, -0.25])
-            )
+            await runtime.toggle()
+            #expect(await runtime.currentPhase() == .processing)
+            #expect(released.value == 1)
+            #expect(await recording.stopCount == 1)
+            let directory = try #require(try MeetingRecordingStore(rootDirectory: root).sessionDirectories().first)
+            let record = try MeetingSessionRecord.fromJSON(
+                Data(contentsOf: directory.appendingPathComponent("session.json")))
+            #expect(record.recordingStatus == "recorded")
+            let audio = try AVAudioFile(forReading: directory.appendingPathComponent("audio.wav"))
+            #expect(audio.length == 1_600)
+            #expect(FileManager.default.fileExists(atPath: directory.appendingPathComponent("microphone.wav").path))
+            #expect(FileManager.default.fileExists(atPath: directory.appendingPathComponent("system.wav").path))
+            await runtime.toggle()
+            #expect(await recording.startCount == 1)
+            await hold.resume()
+            await runtime.stop()
+            #expect(await runtime.currentPhase() == .idle)
+            let transcript = try String(contentsOf: directory.appendingPathComponent("transcript.md"), encoding: .utf8)
+            #expect(transcript.contains("test meeting"))
+        }
+
+        @Test func recordingFailurePreservesAudioAndDoesNotStartProcessing() async throws {
+            let root = TestSupport.temporaryDirectoryURL()
+            defer { try? FileManager.default.removeItem(at: root) }
+            let recording = RecordingFixture()
+            let processed = CallCounter()
+            let runtime = makeRuntime(
+                root: root, recording: recording,
+                diarize: { _ in
+                    processed.increment()
+                    return []
+                })
+            await runtime.start()
+            await recording.fail("System audio disconnected.")
             #expect(
                 await TestSupport.eventuallyAsync {
-                    await runtime.recordedSampleCount() == 2
-                }
-            )
-            continuation.finish()
+                    if case .failed = await runtime.currentPhase() { return true }
+                    return false
+                })
+            #expect(processed.value == 0)
+            #expect(await recording.stopCount == 1)
+            let directory = try #require(try MeetingRecordingStore(rootDirectory: root).sessionDirectories().first)
+            let record = try MeetingSessionRecord.fromJSON(
+                Data(contentsOf: directory.appendingPathComponent("session.json")))
+            #expect(record.recordingStatus == "failed")
+            #expect(record.failureMessage == "System audio disconnected.")
+            #expect(try AVAudioFile(forReading: directory.appendingPathComponent("audio.wav")).length == 1_600)
+        }
+
+        @Test func processingFailureDoesNotChangeSuccessfulRecordingStatus() async throws {
+            let root = TestSupport.temporaryDirectoryURL()
+            defer { try? FileManager.default.removeItem(at: root) }
+            let runtime = makeRuntime(
+                root: root, recording: RecordingFixture(),
+                diarize: { _ in
+                    throw MeetingRecordingError.failed("The test processor is unavailable.")
+                })
+            await runtime.start()
             await runtime.stop()
+            let directory = try #require(try MeetingRecordingStore(rootDirectory: root).sessionDirectories().first)
+            let record = try MeetingSessionRecord.fromJSON(
+                Data(contentsOf: directory.appendingPathComponent("session.json")))
+            #expect(record.recordingStatus == "recorded")
+            if case .failed(let message) = await runtime.currentPhase() {
+                #expect(message.hasPrefix("Recording saved."))
+            } else {
+                Issue.record("Expected the processing failure to be reported separately.")
+            }
+        }
 
-            #expect(await runtime.currentPhase() == .idle)
-            #expect(exclusive.value == 2)
+        @Test func repeatedStartWhileHardwareIsStartingDoesNotCreateAnotherRecording() async throws {
+            let root = TestSupport.temporaryDirectoryURL()
+            defer { try? FileManager.default.removeItem(at: root) }
+            let hold = AsyncHold()
+            let recording = RecordingFixture(startHold: hold)
+            let runtime = makeRuntime(root: root, recording: recording)
+            let start = Task { await runtime.start() }
+            #expect(await TestSupport.eventuallyAsync { await recording.startCount == 1 })
+            #expect(await runtime.isBusy())
+            #expect(await runtime.currentPhase() == .starting)
+            await runtime.toggle()
+            #expect(await recording.startCount == 1)
+            await hold.resume()
+            await start.value
+            await runtime.stop()
+        }
 
-            let folders = try FileManager.default.contentsOfDirectory(
-                at: root,
-                includingPropertiesForKeys: nil
-            ).filter(\.hasDirectoryPath)
-            let folder = try #require(folders.first)
-            let audio = folder.appendingPathComponent("audio.wav")
-            let transcript = folder.appendingPathComponent("transcript.md")
-            let session = folder.appendingPathComponent("session.json")
-            #expect(FileManager.default.fileExists(atPath: audio.path))
-            #expect(FileManager.default.fileExists(atPath: transcript.path))
-            #expect(FileManager.default.fileExists(atPath: session.path))
-
-            let markdown = try String(contentsOf: transcript, encoding: .utf8)
-            #expect(markdown.contains("**Me**"))
-            #expect(markdown.contains("hello from the room"))
-            #expect(!markdown.localizedCaseInsensitiveContains("rewrite"))
-
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let record = try decoder.decode(
-                MeetingSessionRecord.self,
-                from: Data(contentsOf: session)
-            )
-            #expect(record.status == "completed")
+        @Test func failedStartReleasesExclusiveCaptureAndKeepsPartialAudio() async throws {
+            let root = TestSupport.temporaryDirectoryURL()
+            defer { try? FileManager.default.removeItem(at: root) }
+            let recording = RecordingFixture(startError: "System audio permission denied.")
+            let released = CallCounter()
+            let runtime = makeRuntime(root: root, recording: recording, released: released)
+            await runtime.start()
+            #expect(released.value == 1)
+            #expect(!((await runtime.isBusy())))
+            if case .failed = await runtime.currentPhase() {
+            } else {
+                Issue.record("Expected a visible recording failure.")
+            }
+            let directory = try #require(try MeetingRecordingStore(rootDirectory: root).sessionDirectories().first)
+            #expect(try AVAudioFile(forReading: directory.appendingPathComponent("microphone.wav")).length > 0)
         }
 
         @Test func expectedMeetingMetadataIsSavedWithRecording() async throws {
             let root = TestSupport.temporaryDirectoryURL()
-            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-            let (stream, continuation) = AsyncStream<AudioCaptureFrame>.makeStream()
-            let startedAt = Date(timeIntervalSince1970: 1_704_067_200)
+            defer { try? FileManager.default.removeItem(at: root) }
+            let date = Date(timeIntervalSince1970: 1_704_067_200)
             let expected = ExpectedMeeting(
-                id: UUID(),
-                source: "calendar",
-                externalID: "event-1",
-                scheduledStartAt: startedAt,
-                scheduledEndAt: startedAt.addingTimeInterval(1_800),
-                title: "Project sync",
-                attendees: [MeetingAttendee(name: "Taylor", email: nil)],
-                meetingURL: nil,
-                notes: nil,
-                sourceModifiedAt: nil,
-                status: .scheduled,
-                recordedMeetingID: nil
+                id: UUID(), source: "calendar", externalID: "event-1", scheduledStartAt: date,
+                scheduledEndAt: date.addingTimeInterval(1_800), title: "Project sync",
+                attendees: [MeetingAttendee(name: "Taylor", email: nil)], meetingURL: nil, notes: nil,
+                sourceModifiedAt: nil, status: .scheduled, recordedMeetingID: nil
             )
-            let runtime = MacMeetingRecordingRuntime(
-                dependencies: MacMeetingRecordingRuntime.Dependencies(
-                    store: MeetingRecordingStore(rootDirectory: root),
-                    ensureCaptureRunning: {},
-                    beginExclusiveCapture: {},
-                    endExclusiveCapture: {},
-                    makeFrameStream: { stream },
-                    processor: MeetingSessionProcessor(
-                        sampleRate: 16_000,
-                        diarize: { _ in [] },
-                        transcribe: { _ in "" },
-                        identify: { _ in PassiveSpeakerMatch(identity: .other, similarity: nil) }
-                    ),
-                    now: { startedAt }
-                )
-            )
-
+            let runtime = makeRuntime(root: root, recording: RecordingFixture())
             await runtime.start(expectedMeeting: expected)
-            continuation.finish()
             await runtime.stop()
-
-            let directory = try #require(
-                try MeetingRecordingStore(rootDirectory: root).sessionDirectories().first
-            )
-            let session = try JSONDecoder.iso8601.decode(
-                MeetingSessionRecord.self,
-                from: Data(contentsOf: directory.appendingPathComponent("session.json"))
-            )
-            #expect(session.metadata?.expectedMeetingID == expected.id)
-            #expect(session.metadata?.title == "Project sync")
-            #expect(session.metadata?.attendees.first?.name == "Taylor")
+            let directory = try #require(try MeetingRecordingStore(rootDirectory: root).sessionDirectories().first)
+            let record = try MeetingSessionRecord.fromJSON(
+                Data(contentsOf: directory.appendingPathComponent("session.json")))
+            #expect(record.metadata?.expectedMeetingID == expected.id)
+            #expect(record.metadata?.title == "Project sync")
+            #expect(record.recordingStatus == "recorded")
         }
 
-        @Test func stopCompletesWhileCaptureStreamKeepsProducing() async throws {
-            let root = TestSupport.temporaryDirectoryURL()
-            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-            let (stream, continuation) = AsyncStream<AudioCaptureFrame>.makeStream()
-            let exclusive = CallCounter()
-            let runtime = MacMeetingRecordingRuntime(
-                dependencies: MacMeetingRecordingRuntime.Dependencies(
-                    store: MeetingRecordingStore(rootDirectory: root),
-                    ensureCaptureRunning: {},
-                    beginExclusiveCapture: { exclusive.increment() },
-                    endExclusiveCapture: { exclusive.increment() },
-                    makeFrameStream: { stream },
+        private func makeRuntime(
+            root: URL, recording: RecordingFixture, released: CallCounter = CallCounter(),
+            diarize: @escaping @Sendable ([Float]) async throws -> [PassiveDiarizedRegion] = { _ in [] }
+        ) -> MacMeetingRecordingRuntime {
+            MacMeetingRecordingRuntime(
+                dependencies: .init(
+                    store: MeetingRecordingStore(rootDirectory: root), makeRecording: { recording },
+                    beginExclusiveCapture: {}, endExclusiveCapture: { released.increment() },
                     processor: MeetingSessionProcessor(
-                        sampleRate: 16_000,
-                        diarize: { _ in [] },
-                        transcribe: { _ in "kept going" },
+                        sampleRate: 16_000, diarize: diarize, transcribe: { _ in "test meeting" },
                         identify: { _ in PassiveSpeakerMatch(identity: .other, similarity: nil) }
-                    ),
-                    now: { Date(timeIntervalSince1970: 1_704_067_200) }
-                )
-            )
-
-            await runtime.start()
-            continuation.yield(
-                AudioCaptureFrame(epoch: 1, startSample: 0, samples: [0.1, -0.1])
-            )
-            #expect(
-                await TestSupport.eventuallyAsync {
-                    await runtime.recordedSampleCount() == 2
-                }
-            )
-
-            await runtime.stop()
-
-            #expect(await runtime.currentPhase() == .idle)
-            #expect(exclusive.value == 2)
-            continuation.finish()
-        }
-
-        @Test func toggleDuringProcessingDoesNotStartAnotherMeeting() async throws {
-            let root = TestSupport.temporaryDirectoryURL()
-            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-            let (stream, continuation) = AsyncStream<AudioCaptureFrame>.makeStream()
-            let exclusive = CallCounter()
-            let hold = AsyncHold()
-            let runtime = MacMeetingRecordingRuntime(
-                dependencies: MacMeetingRecordingRuntime.Dependencies(
-                    store: MeetingRecordingStore(rootDirectory: root),
-                    ensureCaptureRunning: {},
-                    beginExclusiveCapture: { exclusive.increment() },
-                    endExclusiveCapture: { exclusive.increment() },
-                    makeFrameStream: { stream },
-                    processor: MeetingSessionProcessor(
-                        sampleRate: 16_000,
-                        diarize: { _ in
-                            await hold.wait()
-                            return [
-                                PassiveDiarizedRegion(
-                                    speakerTrack: 0,
-                                    startSample: 0,
-                                    endSample: 2,
-                                    activityConfidence: 1,
-                                    isOverlap: false
-                                )
-                            ]
-                        },
-                        transcribe: { _ in "held" },
-                        identify: { _ in PassiveSpeakerMatch(identity: .self, similarity: 0.9) }
-                    ),
-                    now: { Date(timeIntervalSince1970: 1_704_067_200) }
-                )
-            )
-
-            await runtime.start()
-            continuation.yield(
-                AudioCaptureFrame(epoch: 1, startSample: 0, samples: [0.2, -0.2])
-            )
-            #expect(
-                await TestSupport.eventuallyAsync {
-                    await runtime.recordedSampleCount() == 2
-                }
-            )
-
-            let firstToggle = Task { await runtime.toggle() }
-            #expect(
-                await TestSupport.eventuallyAsync {
-                    await runtime.currentPhase() == .processing
-                }
-            )
-
-            await runtime.toggle()
-            await hold.waitUntilWaiting()
-            await hold.resume()
-            await firstToggle.value
-
-            #expect(
-                await TestSupport.eventuallyAsync {
-                    await runtime.currentPhase() == .idle
-                }
-            )
-            #expect(exclusive.value == 2)
-
-            let folders = try FileManager.default.contentsOfDirectory(
-                at: root,
-                includingPropertiesForKeys: nil
-            ).filter(\.hasDirectoryPath)
-            #expect(folders.count == 1)
-            continuation.finish()
-        }
-
-        @Test func stopReleasesExclusiveCaptureBeforeProcessingFinishes() async throws {
-            let root = TestSupport.temporaryDirectoryURL()
-            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-            let (stream, continuation) = AsyncStream<AudioCaptureFrame>.makeStream()
-            let exclusive = CallCounter()
-            let hold = AsyncHold()
-            let runtime = MacMeetingRecordingRuntime(
-                dependencies: MacMeetingRecordingRuntime.Dependencies(
-                    store: MeetingRecordingStore(rootDirectory: root),
-                    ensureCaptureRunning: {},
-                    beginExclusiveCapture: { exclusive.increment() },
-                    endExclusiveCapture: { exclusive.increment() },
-                    makeFrameStream: { stream },
-                    processor: MeetingSessionProcessor(
-                        sampleRate: 16_000,
-                        diarize: { _ in
-                            await hold.wait()
-                            return []
-                        },
-                        transcribe: { _ in "held" },
-                        identify: { _ in PassiveSpeakerMatch(identity: .other, similarity: nil) }
-                    ),
-                    now: { Date(timeIntervalSince1970: 1_704_067_200) }
-                )
-            )
-
-            await runtime.start()
-            continuation.yield(
-                AudioCaptureFrame(epoch: 1, startSample: 0, samples: [0.2, -0.2])
-            )
-            #expect(
-                await TestSupport.eventuallyAsync {
-                    await runtime.recordedSampleCount() == 2
-                }
-            )
-
-            let stopTask = Task { await runtime.toggle() }
-            #expect(
-                await TestSupport.eventuallyAsync {
-                    await runtime.currentPhase() == .processing
-                }
-            )
-            #expect(exclusive.value == 2)
-
-            await hold.waitUntilWaiting()
-            await hold.resume()
-            await stopTask.value
-            #expect(
-                await TestSupport.eventuallyAsync {
-                    await runtime.currentPhase() == .idle
-                }
-            )
-            continuation.finish()
+                    ), now: { Date(timeIntervalSince1970: 1_704_067_200) }
+                ))
         }
     }
 
-    private extension JSONDecoder {
-        static var iso8601: JSONDecoder {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            return decoder
+    private actor RecordingFixture: MeetingAudioRecording {
+        var startCount = 0
+        var stopCount = 0
+        private var session: MeetingAudioFileSession?
+        private var failureHandler: (@Sendable (String) -> Void)?
+        private var failure: String?
+        private let startHold: AsyncHold?
+        private let startError: String?
+
+        init(startHold: AsyncHold? = nil, startError: String? = nil) {
+            self.startHold = startHold
+            self.startError = startError
+        }
+
+        func start(in directory: URL, onFailure: @escaping @Sendable (String) -> Void) async throws {
+            startCount += 1
+            await startHold?.wait()
+            failureHandler = onFailure
+            let session = try MeetingAudioFileSession(directory: directory, startTime: 100)
+            self.session = session
+            let format = try #require(
+                AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false))
+            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1_600))
+            buffer.frameLength = 1_600
+            let channel = try #require(buffer.floatChannelData?[0])
+            channel.update(repeating: 0.25, count: 1_600)
+            try session.append(buffer, source: .microphone, hostTime: 100)
+            try session.append(buffer, source: .system, hostTime: 100)
+            if let startError { throw MeetingRecordingError.failed(startError) }
+        }
+
+        func stop() async throws -> MeetingAudioRecordingResult {
+            stopCount += 1
+            let session = try #require(session)
+            self.session = nil
+            return try session.finish(at: 100.1, failure: failure)
+        }
+
+        func fail(_ message: String) {
+            failure = message
+            failureHandler?(message)
         }
     }
 
     private actor AsyncHold {
         private var continuation: CheckedContinuation<Void, Never>?
-        private var isWaiting = false
+        private var resumed = false
 
         func wait() async {
-            await withCheckedContinuation { continuation in
-                self.continuation = continuation
-                self.isWaiting = true
-            }
-        }
-
-        func waitUntilWaiting() async {
-            while !isWaiting {
-                await Task.yield()
-            }
+            guard !resumed else { return }
+            await withCheckedContinuation { continuation = $0 }
         }
 
         func resume() {
-            guard let continuation else { return }
-            self.continuation = nil
-            isWaiting = false
-            continuation.resume()
+            resumed = true
+            continuation?.resume()
+            continuation = nil
         }
     }
 
     private final class CallCounter: @unchecked Sendable {
         private let lock = NSLock()
         private var count = 0
-
-        var value: Int {
-            lock.withLock { count }
-        }
-
-        func increment() {
-            lock.withLock { count += 1 }
-        }
+        var value: Int { lock.withLock { count } }
+        func increment() { lock.withLock { count += 1 } }
     }
 #endif

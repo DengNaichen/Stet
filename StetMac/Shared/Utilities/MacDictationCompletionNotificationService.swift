@@ -197,9 +197,10 @@
             switch (previous, phase) {
             case (.recording, .processing):
                 return Payload(
-                    title: String(localized: "Meeting recording stopped"),
+                    title: String(localized: "Meeting recording saved"),
                     body: String(
-                        localized: "The microphone is off. The transcript will be saved when it is ready."
+                        localized:
+                            "Microphone and system audio have been saved. You can open the recording in Meetings."
                     )
                 )
             case (_, .recording):
@@ -209,6 +210,8 @@
                 )
             case (.processing, .idle):
                 return Payload(title: String(localized: "Meeting saved"), body: nil)
+            case (.processing, .failed(let message)):
+                return Payload(title: String(localized: "Meeting processing failed"), body: message)
             case (_, .failed(let message)):
                 return Payload(title: String(localized: "Meeting failed"), body: message)
             default:
