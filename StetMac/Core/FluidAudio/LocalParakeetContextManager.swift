@@ -44,7 +44,7 @@
             do {
                 let models = try await modelLoader(version)
                 let manager = AsrManager(config: .default)
-                try await manager.initialize(models: models)
+                try await manager.loadModels(models)
                 asrManager = manager
                 loadedVersion = version
                 isModelLoaded = true

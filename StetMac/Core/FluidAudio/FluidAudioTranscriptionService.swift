@@ -107,7 +107,7 @@
             } else {
                 let models = try await modelLoader(modelVersion)
                 let transient = AsrManager(config: .default)
-                try await transient.initialize(models: models)
+                try await transient.loadModels(models)
                 asrManager = transient
                 isTransient = true
             }
@@ -115,7 +115,8 @@
             let inferenceStartedAt = ProcessInfo.processInfo.systemUptime
             let resultText: String
             do {
-                let result = try await asrManager.transcribe(paddedSamples, source: .microphone)
+                var decoderState = try TdtDecoderState()
+                let result = try await asrManager.transcribe(paddedSamples, decoderState: &decoderState)
                 resultText = result.text
             } catch {
                 if isTransient {

@@ -148,7 +148,7 @@
                     speakerTrack: $0.speakerIndex,
                     startSample: Int((Double($0.startTime) * Double(Self.sampleRate)).rounded()),
                     endSample: Int((Double($0.endTime) * Double(Self.sampleRate)).rounded()),
-                    activityConfidence: Double($0.confidence),
+                    activityConfidence: Double($0.activity),
                     isFinalized: $0.isFinalized
                 )
             }

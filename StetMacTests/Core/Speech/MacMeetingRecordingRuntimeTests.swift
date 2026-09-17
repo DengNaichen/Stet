@@ -1,5 +1,6 @@
 #if os(macOS)
     import AVFoundation
+    import FluidAudio
     import Foundation
     import StetCore
     import Testing
@@ -9,6 +10,11 @@
     @Suite("Mac Meeting Recording Runtime")
     @MainActor
     struct MacMeetingRecordingRuntimeTests {
+        @Test func completedMeetingsUseEfficientDiarizationChunks() {
+            #expect(MacMeetingRecordingRuntime.diarizationConfig.chunkLen == 25)
+            #expect(MacMeetingRecordingRuntime.diarizationConfig.modelVariant == .efficientV2_1)
+        }
+
         @Test func stopFinalizesAudioBeforeExistingProcessingCompletes() async throws {
             let root = TestSupport.temporaryDirectoryURL()
             defer { try? FileManager.default.removeItem(at: root) }
