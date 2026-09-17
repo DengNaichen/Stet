@@ -98,5 +98,67 @@
             #expect(markdown.contains("Meeting: https://example.com/meeting"))
             #expect(markdown.contains("Scheduled:"))
         }
+
+        @Test func continuousSpeakerMergesAcrossWindowsAndLongPauses() {
+            let texts = ["第一句。", "Second sentence.", String(repeating: "长", count: 401)]
+            let turns = zip([0.0, 20, 180], texts).map { start, text in
+                MeetingTranscriptTurn(
+                    startSeconds: start, endSeconds: start + 20,
+                    speakerLabel: "Speaker 1", text: text, isOverlap: false)
+            }
+            let markdown = render(turns)
+            #expect(markdown.components(separatedBy: "**Speaker 1**").count - 1 == 1)
+            #expect(markdown.contains("**Speaker 1** (0:00–3:20)"))
+            #expect(markdown.contains(texts.joined(separator: "\n")))
+        }
+
+        @Test func emptySameSpeakerTurnsAreHiddenWithoutInterruptingText() {
+            let markdown = render([
+                turn("Speaker 1", "Hello"), turn("Speaker 1", " \n\t"), turn("Speaker 1", "world"),
+            ])
+            #expect(markdown.contains("Hello\nworld"))
+            #expect(markdown.components(separatedBy: "**Speaker 1**").count - 1 == 1)
+            #expect(!markdown.contains("_No text_"))
+        }
+
+        @Test func hiddenSpeakerChangesAndOverlapStillInterruptParagraphs() {
+            for interruption in [turn("Speaker 2", ""), turn("Unresolved", "", overlap: true)] {
+                let markdown = render([
+                    turn("Speaker 1", "before"), interruption,
+                    turn("Speaker 1", ""), turn("Speaker 1", "after"),
+                ])
+                #expect(markdown.components(separatedBy: "**Speaker 1**").count - 1 == 2)
+                #expect(!markdown.contains("_No text_"))
+            }
+        }
+
+        @Test func speakerChangesAndConsecutiveOverlapRemainSeparate() {
+            let markdown = render([
+                turn("Speaker 1", "A"), turn("Speaker 2", "嗯"), turn("Speaker 1", "B"),
+                turn("Unresolved", "overlap one", overlap: true),
+                turn("Unresolved", "overlap two", overlap: true),
+            ])
+            #expect(markdown.components(separatedBy: "**Speaker 1**").count - 1 == 2)
+            #expect(markdown.contains("嗯"))
+            #expect(markdown.components(separatedBy: " · overlapping").count - 1 == 2)
+        }
+
+        @Test func allEmptyTurnsRenderNoSpeechMessage() {
+            let markdown = render([turn("Speaker 1", ""), turn("Unresolved", " \n", overlap: true)])
+            #expect(markdown.contains("No speech was recognized in this recording."))
+            #expect(!markdown.contains("**Speaker"))
+            #expect(!markdown.contains("_No text_"))
+        }
+
+        private func turn(_ speaker: String, _ text: String, overlap: Bool = false) -> MeetingTranscriptTurn {
+            MeetingTranscriptTurn(
+                startSeconds: 0, endSeconds: 1, speakerLabel: speaker, text: text, isOverlap: overlap)
+        }
+
+        private func render(_ turns: [MeetingTranscriptTurn]) -> String {
+            let start = Date(timeIntervalSince1970: 1_704_067_200)
+            return MeetingTranscriptDocument.markdown(
+                startedAt: start, endedAt: start.addingTimeInterval(200), turns: turns)
+        }
     }
 #endif
