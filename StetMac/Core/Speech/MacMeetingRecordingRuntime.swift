@@ -1,5 +1,6 @@
 #if os(macOS)
     @preconcurrency import AVFoundation
+    import FluidAudio
     import Foundation
     import StetCore
 
@@ -12,6 +13,9 @@
     }
 
     actor MacMeetingRecordingRuntime {
+        // Completed recordings can use larger chunks without adding live-capture latency.
+        nonisolated static var diarizationConfig: SortformerConfig { .efficientV2_1 }
+
         struct Dependencies: Sendable {
             var store: MeetingRecordingStore
             var makeRecording: @Sendable () -> any MeetingAudioRecording
@@ -240,7 +244,9 @@
                     await nano?.releaseContextLease()
                 },
                 diarize: { samples in
-                    let analyzer = try await FluidAudioPassiveSpeechAnalyzer.load()
+                    let analyzer = try await FluidAudioPassiveSpeechAnalyzer.load(
+                        sortformerConfig: diarizationConfig
+                    )
                     _ = try await analyzer.addAcceptedAudio(samples)
                     return try await analyzer.finalizeAcceptedAudio()
                 },
