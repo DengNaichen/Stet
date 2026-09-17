@@ -7,6 +7,7 @@ public protocol DictationHistoryRecording: AnyObject {
     func recordRaw(_ text: String)
     func recordLLM(_ text: String)
     func recordRawWithoutHotwords(_ text: String)
+    func recordHotwordLearningTerms(_ terms: [HotwordLearningTerm])
     @discardableResult
     func commitPending() -> UUID?
 }
@@ -28,6 +29,7 @@ public final class DictationHistoryService: DictationHistoryRecording {
     private struct PendingSession {
         var rawText: String
         var rawTextWithoutHotwords: String?
+        var hotwordLearningTerms: [HotwordLearningTerm] = []
         var llmText: String?
         var finalText: String?
         var targetBundleID: String?
@@ -120,6 +122,10 @@ public final class DictationHistoryService: DictationHistoryRecording {
         pending?.llmText = text
     }
 
+    public func recordHotwordLearningTerms(_ terms: [HotwordLearningTerm]) {
+        pending?.hotwordLearningTerms = terms
+    }
+
     public func recordRawWithoutHotwords(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -199,6 +205,96 @@ public final class DictationHistoryService: DictationHistoryRecording {
         try context.save()
     }
 
+    // MARK: - Hot-word learning queue
+
+    public func fetchHotwordLearningCandidates(limit: Int = 20) throws -> [HotwordLearningHistory] {
+        let context = try persistenceContext()
+        let pending = HotwordLearningState.pending.rawValue
+        let retryable = HotwordLearningState.retryable.rawValue
+        var descriptor = FetchDescriptor<HistoryEntry>(
+            predicate: #Predicate { entry in
+                entry.captureModeRawValue == "active"
+                    && (entry.hotwordLearningStateRawValue == pending
+                        || entry.hotwordLearningStateRawValue == retryable)
+                    && entry.rawTextWithoutHotwords != nil
+            },
+            sortBy: [SortDescriptor(\.timestamp, order: .forward)]
+        )
+        descriptor.fetchLimit = min(max(limit, 0), HotwordLearningBatchValidator.maximumBatchSize)
+        return try context.fetch(descriptor).compactMap(Self.makeLearningSample)
+    }
+
+    public func recoverInterruptedHotwordLearning() throws {
+        let context = try persistenceContext()
+        let inFlight = HotwordLearningState.inFlight.rawValue
+        let descriptor = FetchDescriptor<HistoryEntry>(
+            predicate: #Predicate { $0.hotwordLearningStateRawValue == inFlight }
+        )
+        for entry in try context.fetch(descriptor) {
+            entry.hotwordLearningStateRawValue = HotwordLearningState.retryable.rawValue
+            entry.hotwordLearningFailureCode = "interrupted"
+        }
+        try save(context)
+    }
+
+    public func markHotwordLearningInFlight(ids: [UUID], at date: Date = Date()) throws {
+        try mutateLearningEntries(ids: ids) { entry in
+            entry.hotwordLearningStateRawValue = HotwordLearningState.inFlight.rawValue
+            entry.hotwordLearningAttemptCount += 1
+            entry.hotwordLearningLastAttemptAt = date
+            entry.hotwordLearningFailureCode = nil
+        }
+    }
+
+    public func markHotwordLearningRetryable(ids: [UUID], failureCode: String) throws {
+        try mutateLearningEntries(ids: ids) { entry in
+            guard entry.hotwordLearningState != .completed else { return }
+            entry.hotwordLearningStateRawValue = HotwordLearningState.retryable.rawValue
+            entry.hotwordLearningFailureCode = failureCode
+        }
+    }
+
+    public func markHotwordLearningPermanentFailure(ids: [UUID], failureCode: String) throws {
+        try mutateLearningEntries(ids: ids) { entry in
+            guard entry.hotwordLearningState != .completed else { return }
+            entry.hotwordLearningStateRawValue = HotwordLearningState.permanentFailure.rawValue
+            entry.hotwordLearningFailureCode = failureCode
+        }
+    }
+
+    /// Stores each result and completes its task atomically. Reapplying the same result is a no-op.
+    public func completeHotwordLearning(
+        ids: [UUID],
+        suggestedTerms: [String],
+        at date: Date = Date()
+    ) throws {
+        try mutateLearningEntries(ids: ids) { entry in
+            guard entry.hotwordLearningState != .completed else { return }
+            let relevant = Set(entry.hotwordLearningTerms.map { $0.term.lowercased() })
+            let suggestions = suggestedTerms.filter { relevant.contains($0.lowercased()) }
+            entry.hotwordLearningResultData = try JSONEncoder().encode(suggestions)
+            entry.hotwordLearningStateRawValue = HotwordLearningState.completed.rawValue
+            entry.hotwordLearningCompletedAt = date
+            entry.hotwordLearningFailureCode = nil
+        }
+    }
+
+    public func oldestPendingHotwordLearningDate() throws -> Date? {
+        let context = try persistenceContext()
+        let pending = HotwordLearningState.pending.rawValue
+        let retryable = HotwordLearningState.retryable.rawValue
+        var descriptor = FetchDescriptor<HistoryEntry>(
+            predicate: #Predicate { entry in
+                (entry.hotwordLearningStateRawValue == pending
+                    || entry.hotwordLearningStateRawValue == retryable)
+                    && entry.rawTextWithoutHotwords != nil
+            },
+            sortBy: [SortDescriptor(\.timestamp, order: .forward)]
+        )
+        descriptor.fetchLimit = 1
+        return try context.fetch(descriptor).first?.timestamp
+    }
+
     // MARK: - Passive capture API
 
     @discardableResult
@@ -276,6 +372,32 @@ public final class DictationHistoryService: DictationHistoryRecording {
 
     // MARK: - Private helpers
 
+    private static func makeLearningSample(from entry: HistoryEntry) -> HotwordLearningHistory? {
+        guard !entry.hotwordLearningTerms.isEmpty,
+            let without = entry.rawTextWithoutHotwords
+        else { return nil }
+        return HotwordLearningHistory(
+            id: entry.id,
+            hotwords: entry.hotwordLearningTerms,
+            withHotwords: entry.rawText,
+            withoutHotwords: without
+        )
+    }
+
+    private func mutateLearningEntries(
+        ids: [UUID],
+        mutation: (HistoryEntry) throws -> Void
+    ) throws {
+        let context = try persistenceContext()
+        for id in Set(ids) {
+            guard let entry = try entry(id: id, in: context) else {
+                throw PassiveHistoryError.entryNotFound
+            }
+            try mutation(entry)
+        }
+        try save(context)
+    }
+
     private func persistEntry(from session: PendingSession, id: UUID, status: HistoryEntryStatus) {
         guard let container else { return }
 
@@ -291,11 +413,15 @@ public final class DictationHistoryService: DictationHistoryRecording {
                 timestamp: timestamp,
                 rawText: rawText,
                 rawTextWithoutHotwords: rawTextWithoutHotwords,
+                hotwordLearningTerms: session.hotwordLearningTerms,
                 llmText: llmText,
                 status: status
             )
             context.insert(entry)
             try? context.save()
+            if rawTextWithoutHotwords != nil, !session.hotwordLearningTerms.isEmpty {
+                NotificationCenter.default.post(name: .hotwordLearningCandidateDidChange, object: nil)
+            }
         }
     }
 
@@ -312,6 +438,7 @@ public final class DictationHistoryService: DictationHistoryRecording {
                 if let entry = try? context.fetch(descriptor).first {
                     entry.rawTextWithoutHotwords = text
                     try? context.save()
+                    NotificationCenter.default.post(name: .hotwordLearningCandidateDidChange, object: nil)
                     return
                 }
                 try? await Task.sleep(for: .milliseconds(50))
@@ -340,6 +467,7 @@ public final class DictationHistoryService: DictationHistoryRecording {
             entry.targetAppName = targetAppName
             entry.status = status
             try? context.save()
+            NotificationCenter.default.post(name: .hotwordLearningCandidateDidChange, object: nil)
         }
     }
 
@@ -429,4 +557,12 @@ public final class DictationHistoryService: DictationHistoryRecording {
             previousEnd = region.endMilliseconds
         }
     }
+}
+
+public extension Notification.Name {
+    static let hotwordLearningCandidateDidChange = Notification.Name("hotwordLearningCandidateDidChange")
+}
+
+public extension DictationHistoryRecording {
+    func recordHotwordLearningTerms(_: [HotwordLearningTerm]) {}
 }

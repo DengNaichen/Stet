@@ -441,7 +441,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             return SpeechTranscriptionResult(
                 rawText: wasRewritten ? intermediateTranscript : trimmedTranscript,
                 text: trimmedTranscript,
-                wasRewritten: wasRewritten
+                wasRewritten: wasRewritten,
+                injectedHotwords: pipeline.injectedHotwords
             )
         } catch is CancellationError {
             throw CancellationError()
