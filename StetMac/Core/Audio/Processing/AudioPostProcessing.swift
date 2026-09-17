@@ -1,6 +1,6 @@
 import Foundation
 
-protocol AudioPostProcessing: Sendable {
+nonisolated protocol AudioPostProcessing: Sendable {
     func processAudioFile(at sourceURL: URL, duration: TimeInterval?) async throws -> AudioPostProcessingResult
 }
 

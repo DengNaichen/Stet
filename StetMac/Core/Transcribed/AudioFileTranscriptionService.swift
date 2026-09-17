@@ -5,7 +5,7 @@ struct TranscriptionResult: Sendable, Equatable {
     let languageCode: String?
 }
 
-protocol AudioFileTranscriptionService: Sendable {
+nonisolated protocol AudioFileTranscriptionService: Sendable {
     func prewarm() async throws
     func transcribe(
         audioFileAt fileURL: URL,

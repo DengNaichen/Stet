@@ -1,5 +1,5 @@
 import Foundation
 
-protocol AudioLevelSource: Sendable {
+nonisolated protocol AudioLevelSource: Sendable {
     func makeAudioLevelStream() async -> AsyncStream<Double>
 }

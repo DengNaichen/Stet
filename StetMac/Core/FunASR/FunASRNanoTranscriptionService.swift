@@ -4,7 +4,7 @@
     import StetASR
     import os
 
-    protocol FunASRNanoEngine: Sendable {
+    nonisolated protocol FunASRNanoEngine: Sendable {
         func prepare() async throws
         func transcribe(audioFileURL: URL, hotwords: String?) async throws -> String
         func releaseResources() async

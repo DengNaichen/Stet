@@ -28,7 +28,8 @@ struct SpeechTranscriptionResult: Equatable, Sendable, ExpressibleByStringLitera
     }
 }
 
-protocol SpeechService: Sendable {
+// Implementations own their isolation; this service boundary must also support independent actors.
+nonisolated protocol SpeechService: Sendable {
     func startRecording() async throws
     func startRecordingAndActivate() async throws
     func activateRecordingWindow() async throws
