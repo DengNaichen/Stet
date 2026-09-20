@@ -306,10 +306,6 @@
 				TargetAttributes = {
 					6D29DC7C2F5FA23000267DEA = {
 						CreatedOnToolsVersion = 26.3;
-						SystemCapabilities = {
-							com.apple.Push = { enabled = 1; };
-							com.apple.iCloud = { enabled = 1; };
-						};
 					};
 					6D29DC8B2F5FA23100267DEA = {
 						CreatedOnToolsVersion = 26.3;
@@ -633,8 +629,6 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 0.7.2;
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.Stet.Debug;
-				STET_ICLOUD_ENVIRONMENT = Development;
-				STET_APNS_ENVIRONMENT = development;
 				PRODUCT_MODULE_NAME = Stet;
 				PRODUCT_NAME = "Stet Debug";
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
@@ -689,8 +683,6 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 0.7.2;
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.Stet;
-				STET_ICLOUD_ENVIRONMENT = Production;
-				STET_APNS_ENVIRONMENT = production;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "$(STET_RELEASE_PROVISIONING_PROFILE_SPECIFIER)";
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;

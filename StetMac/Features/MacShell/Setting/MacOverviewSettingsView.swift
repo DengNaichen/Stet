@@ -1,7 +1,5 @@
 #if os(macOS)
     import SwiftUI
-    import CoreData
-    import Combine
 
     struct MacOverviewSettingsView: View {
         @Environment(\.scenePhase) private var scenePhase
@@ -27,16 +25,6 @@
             }
             .macSettingsTracksTitleScroll()
             .task { reload() }
-            .onReceive(
-                NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange).receive(on: RunLoop.main)
-            ) {
-                _ in reload()
-            }
-            .onReceive(
-                NotificationCenter.default.publisher(for: .dictationStatisticsDidChange).receive(on: RunLoop.main)
-            ) {
-                _ in reload()
-            }
             .onChange(of: scenePhase) { _, phase in if phase == .active { reload() } }
         }
 

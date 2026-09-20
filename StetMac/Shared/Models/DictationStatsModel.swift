@@ -10,24 +10,12 @@
 
     nonisolated private let sharedDictationStatsModelContainer: ModelContainer? = {
         do {
-            if ProcessInfo.processInfo.isRunningTests {
-                return try DictationStatsModel.makeInMemoryModelContainer()
-            }
             return try DictationStatsModel.makePersistentModelContainer()
         } catch {
-            logger.error("Failed to open cloud statistics store; retrying locally. error=\(error)")
-            do {
-                return try DictationStatsModel.makePersistentModelContainer(cloudKitDatabase: .none)
-            } catch {
-                logger.error("Failed to create DictationStatsModel container. error=\(error)")
-                return nil
-            }
+            logger.error("Failed to create DictationStatsModel container. error=\(error)")
+            return nil
         }
     }()
-
-    extension Notification.Name {
-        static let dictationStatisticsDidChange = Notification.Name("Stet.DictationStatisticsDidChange")
-    }
 
     @Model
     final class DictationSessionRecord {
@@ -192,7 +180,7 @@
                     targetAppName: Self.normalized(targetAppName)
                 )
             )
-            save(context)
+            try? context.save()
         }
 
         struct HistoryTranscript: Sendable {
@@ -235,7 +223,7 @@
             }
 
             if updated > 0 {
-                save(context)
+                try? context.save()
             }
             return RecountResult(updated: updated, unmatched: unmatched)
         }
@@ -396,7 +384,7 @@
 
         nonisolated static func makeInMemoryModelContainer() throws -> ModelContainer {
             let schema = Schema([DictationSessionRecord.self])
-            let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+            let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
             return try ModelContainer(for: schema, configurations: [configuration])
         }
 
@@ -404,40 +392,17 @@
             appSupportDirectory: URL? = FileManager.default.urls(
                 for: .applicationSupportDirectory, in: .userDomainMask
             ).first,
-            bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "NaichengDeng.Stet",
-            cloudKitDatabase: ModelConfiguration.CloudKitDatabase = .private("iCloud.NaichengDeng.Stet")
+            bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "NaichengDeng.Stet"
         ) throws -> ModelContainer {
-            let configuration = try persistentConfiguration(
-                appSupportDirectory: appSupportDirectory, bundleIdentifier: bundleIdentifier,
-                cloudKitDatabase: cloudKitDatabase)
-            return try ModelContainer(for: Schema([DictationSessionRecord.self]), configurations: [configuration])
-        }
-
-        nonisolated static func persistentConfiguration(
-            appSupportDirectory: URL?,
-            bundleIdentifier: String,
-            cloudKitDatabase: ModelConfiguration.CloudKitDatabase = .private("iCloud.NaichengDeng.Stet")
-        ) throws -> ModelConfiguration {
             let schema = Schema([DictationSessionRecord.self])
-            // Keep the existing store and its object identities. Mirroring uploads old rows
-            // in place and owns retry deduplication; never copy or reinsert those sessions.
-            return ModelConfiguration(
+            let configuration = ModelConfiguration(
                 schema: schema,
                 url: try persistentStoreURL(
                     appSupportDirectory: appSupportDirectory,
                     bundleIdentifier: bundleIdentifier
-                ),
-                cloudKitDatabase: cloudKitDatabase
+                )
             )
-        }
-
-        nonisolated private func save(_ context: ModelContext) {
-            do {
-                try context.save()
-                NotificationCenter.default.post(name: .dictationStatisticsDidChange, object: nil)
-            } catch {
-                logger.error("Failed to save dictation statistics. error=\(error)")
-            }
+            return try ModelContainer(for: schema, configurations: [configuration])
         }
 
         nonisolated private var modelContext: ModelContext? {

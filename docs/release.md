@@ -96,7 +96,7 @@ Variables:
 
 ## Developer ID Provisioning Profile
 
-The macOS app uses iCloud key-value storage and CloudKit statistics sync, so the Developer ID archive requires a
+The macOS app uses iCloud key-value storage, so the Developer ID archive requires a
 manually managed distribution provisioning profile.
 
 Store the single-line base64 encoding of the downloaded `.provisionprofile` file in
@@ -107,43 +107,8 @@ Swift package resource bundles and the StetVisuals framework do not inherit an a
 provisioning profile.
 
 When the profile is regenerated, validate its App ID, Developer ID certificate,
-iCloud KVS and CloudKit entitlements, push notification entitlement, distribution type, and UUID. Then update the matching GitHub
+iCloud KVS entitlement, distribution type, and UUID. Then update the matching GitHub
 Environment secrets together.
-
-### Statistics sync rollout (#114)
-
-Before shipping statistics sync, register `iCloud.NaichengDeng.Stet` in the Apple
-Developer account and associate it with both `NaichengDeng.Stet` and
-`NaichengDeng.Stet.Debug`. Enable CloudKit and Push Notifications for those App IDs
-and regenerate the development and Developer ID distribution profiles. The release
-profile must authorize the production CloudKit environment and macOS APNs.
-
-Run a signed development build, record a dictation, and verify that CloudKit creates
-the `DictationSessionRecord` schema in the container's development environment.
-Deploy that schema to production in CloudKit Console before distributing a release.
-Debug builds use the development environment; release builds use production.
-Do not initialize or reset the production schema from app startup.
-
-Validate with two signed Macs on the same iCloud account:
-
-1. Upgrade a Mac with existing statistics; verify counts, durations, activity, and
-   per-app totals survive, then appear on the second Mac.
-2. Dictate on both Macs, including while offline. Reconnect and verify the combined
-   totals, then restart both apps and verify totals do not grow again.
-3. Keep Overview open on one Mac while dictating on the other; verify the imported
-   statistics appear without reopening the page.
-4. Verify local recording still works while signed out of iCloud. Re-sign in and
-   allow the system's eventual sync to complete.
-5. Confirm that history/transcript records are absent from the CloudKit schema.
-
-The existing statistics store is enabled for mirroring in place; no rows are copied
-to a new store or reconstructed from history. CloudKit owns record identity and
-retry/import deduplication. Local persistence tests cannot validate server-side
-schema, provisioning, or actual two-device delivery; complete the signed checks
-above before marking rollout verified. Device backups cloned to multiple Macs
-are outside the independent-device test scenario.
-
-Reference: [Apple's SwiftData synchronization guide](https://developer.apple.com/documentation/swiftdata/syncing-model-data-across-a-persons-devices).
 
 ## Important Sparkle Note
 

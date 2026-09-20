@@ -87,10 +87,7 @@ public final class DictationHistoryService: DictationHistoryRecording {
             }
         }
         let schema = Schema([HistoryEntry.self])
-        // History remains local even when the host app enables CloudKit for statistics.
-        return try ModelContainer(
-            for: schema,
-            configurations: [ModelConfiguration(schema: schema, url: destination, cloudKitDatabase: .none)])
+        return try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: destination)])
     }
 
     init(container: ModelContainer?) {

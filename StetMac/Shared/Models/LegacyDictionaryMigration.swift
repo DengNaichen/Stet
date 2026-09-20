@@ -137,7 +137,7 @@ enum LegacyDictionaryMigration {
             let entities = metadata[NSStoreModelVersionHashesKey] as? [String: Any] ?? [:]
             guard entities["LegacyDictionaryEntryRecord"] != nil else { return nil }
             let schema = Schema([LegacyDictionaryEntryRecord.self])
-            let configuration = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .none)
+            let configuration = ModelConfiguration(schema: schema, url: storeURL)
             let container = try ModelContainer(for: schema, configurations: [configuration])
             let context = ModelContext(container)
             let descriptor = FetchDescriptor<LegacyDictionaryEntryRecord>(
