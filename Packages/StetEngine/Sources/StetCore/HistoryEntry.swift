@@ -88,6 +88,27 @@ public final class HistoryEntry {
     /// Nil when the engine is not Nano or the background pass was skipped.
     public var rawTextWithoutHotwords: String?
 
+    /// Persisted counterfactual-learning task state. Raw strings keep schema migration additive.
+    public var hotwordLearningStateRawValue: String = HotwordLearningState.notEligible.rawValue
+    public var hotwordLearningTermsData: Data = Data()
+    public var hotwordLearningResultData: Data = Data()
+    public var hotwordLearningAttemptCount: Int = 0
+    public var hotwordLearningLastAttemptAt: Date?
+    public var hotwordLearningCompletedAt: Date?
+    public var hotwordLearningFailureCode: String?
+
+    public var hotwordLearningState: HotwordLearningState {
+        HotwordLearningState(rawValue: hotwordLearningStateRawValue) ?? .notEligible
+    }
+
+    public var hotwordLearningTerms: [HotwordLearningTerm] {
+        (try? JSONDecoder().decode([HotwordLearningTerm].self, from: hotwordLearningTermsData)) ?? []
+    }
+
+    public var hotwordLearningSuggestedTerms: [String] {
+        (try? JSONDecoder().decode([String].self, from: hotwordLearningResultData)) ?? []
+    }
+
     /// LLM-refined text, if a rewrite transformer was active. Nil when rewrite is off.
     public var llmText: String?
 
@@ -132,6 +153,7 @@ public final class HistoryEntry {
         timestamp: Date = Date(),
         rawText: String,
         rawTextWithoutHotwords: String? = nil,
+        hotwordLearningTerms: [HotwordLearningTerm] = [],
         llmText: String? = nil,
         finalText: String? = nil,
         targetBundleID: String? = nil,
@@ -148,6 +170,10 @@ public final class HistoryEntry {
         self.timestamp = timestamp
         self.rawText = rawText
         self.rawTextWithoutHotwords = rawTextWithoutHotwords
+        self.hotwordLearningTermsData = (try? JSONEncoder().encode(hotwordLearningTerms)) ?? Data()
+        self.hotwordLearningStateRawValue =
+            hotwordLearningTerms.isEmpty
+            ? HotwordLearningState.notEligible.rawValue : HotwordLearningState.pending.rawValue
         self.llmText = llmText
         self.finalText = finalText
         self.targetBundleID = targetBundleID

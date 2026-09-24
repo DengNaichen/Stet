@@ -7,9 +7,12 @@
     final class DictionaryViewModel: ObservableObject {
         private let dictionaryModel: DictionaryModel
         private var syncObserver: NSObjectProtocol?
+        private var reviewObserver: NSObjectProtocol?
+        private let hotwordReviewStore: HotwordLearningReviewStore
 
         @Published private(set) var isEnabled = true
         @Published private(set) var records: [GlossaryEntry] = []
+        @Published private(set) var hotwordReviewTerms: [String] = []
         var entries: [String] { records.map(\.term) }
 
         func source(for term: String) -> GlossaryEntry.Source {
@@ -45,8 +48,12 @@
             }
         }
 
-        init(dictionaryModel: DictionaryModel = DictionaryModel()) {
+        init(
+            dictionaryModel: DictionaryModel = DictionaryModel(),
+            hotwordReviewStore: HotwordLearningReviewStore = HotwordLearningReviewStore()
+        ) {
             self.dictionaryModel = dictionaryModel
+            self.hotwordReviewStore = hotwordReviewStore
             self.syncObserver = NotificationCenter.default.addObserver(
                 forName: .dictionaryDidSync,
                 object: nil,
@@ -54,6 +61,14 @@
             ) { [weak self] _ in
                 guard let self else { return }
                 self.records = self.dictionaryModel.loadRecords()
+            }
+            self.reviewObserver = NotificationCenter.default.addObserver(
+                forName: .hotwordLearningReviewDidChange,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                guard let self else { return }
+                self.hotwordReviewTerms = self.hotwordReviewStore.pendingTerms()
             }
         }
 
@@ -68,6 +83,17 @@
         func load() {
             isEnabled = dictionaryModel.loadIsEnabled()
             records = dictionaryModel.loadRecords()
+            hotwordReviewTerms = hotwordReviewStore.pendingTerms()
+        }
+
+        func excludeHotwordSuggestions(_ terms: [String]) {
+            hotwordReviewStore.exclude(terms)
+            hotwordReviewTerms = hotwordReviewStore.pendingTerms()
+        }
+
+        func keepHotwordSuggestions(_ terms: [String]) {
+            hotwordReviewStore.keep(terms)
+            hotwordReviewTerms = hotwordReviewStore.pendingTerms()
         }
 
         func setEnabled(_ enabled: Bool) {
