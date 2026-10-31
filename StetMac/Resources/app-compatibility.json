@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 3,
+  "revision": 4,
   "bundleIDs": [
     "com.microsoft.vscode",
     "com.microsoft.vscodeinsiders",
@@ -19,6 +19,8 @@
     "co.anysphere.cursor.nightly",
     "com.tencent.xinwechat",
     "com.mitchellh.ghostty",
+    "dev.herdr.app",
+    "com.stablyai.orca",
     "com.electron.lark",
     "com.bytedance.macos.feishu",
     "com.larksuite.larkapp",
