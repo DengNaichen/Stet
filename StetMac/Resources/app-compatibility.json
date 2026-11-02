@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 4,
+  "revision": 5,
   "bundleIDs": [
     "com.microsoft.vscode",
     "com.microsoft.vscodeinsiders",
@@ -21,6 +21,7 @@
     "com.mitchellh.ghostty",
     "dev.herdr.app",
     "com.stablyai.orca",
+    "ai.multica.desktop",
     "com.electron.lark",
     "com.bytedance.macos.feishu",
     "com.larksuite.larkapp",
