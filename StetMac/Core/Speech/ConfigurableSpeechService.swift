@@ -11,10 +11,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     private let locale: Locale
     private let pipelineFactory: DictationPipelineFactory
     private let audienceProvider: @Sendable () -> AppAudience
-    private let captureServiceFactory: @Sendable () -> any AudioCaptureService
     private let audioPostProcessor: any AudioPostProcessing
-    private let beginActiveCapture: (@Sendable () async -> Void)?
-    private let resumePassiveCapture: (@Sendable () async -> Void)?
     private let audioLevelBridge = AudioLevelBridge()
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "SpeechService")
@@ -22,29 +19,20 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         private let audioFeatureBridge = AudioFeatureBridge()
     #endif
 
+    private let capture: DictationCaptureLifecycle
     private var activePipeline: DictationPipeline?
-    private var activeCaptureService: (any AudioCaptureService)?
     private var audioLevelTask: Task<Void, Never>?
     private var transcriptionPrewarmTask: Task<Void, Never>?
     private var rewritePrewarmTask: Task<Void, Never>?
     #if os(macOS)
         private var audioFeatureTask: Task<Void, Never>?
     #endif
-    private var reusableCaptureService: (any AudioCaptureService)?
-    private var ownsActiveCapture = false
-    // The session is reserved before the first suspension. Hardware operations are
-    // drained before reuse; cancelled ASR work may finish independently.
-    private var activeCaptureSessionID: UInt64?
-    private var captureTransitionTask: Task<Void, Error>?
-    private var captureStopTask: Task<(url: URL, duration: TimeInterval?), Error>?
-    private var cancellationTask: Task<Void, Never>?
-    private var contextCleanupTask: Task<Void, Never>?
-    private var processingSessions: Set<UInt64> = []
-    private var retiringPrewarmTasks: [Task<Void, Never>] = []
-    private var nextCaptureSessionID: UInt64 = 0
-    private var invalidatedThroughCaptureSessionID: UInt64 = 0
-    private var noHotwordPassTask: Task<Void, Never>?
-    private var noHotwordPassGeneration: UInt64 = 0
+    private let processing = DictationProcessingLifetime {
+        #if os(macOS)
+            await LocalParakeetContextManager.shared.cleanupResources()
+            await FunASRNanoContextManager.shared.cleanupResources()
+        #endif
+    }
     private let recordNoHotwordTranscript: @Sendable (String) async -> Void
 
     init(
@@ -72,24 +60,18 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 AppBranchMonitor.shared.currentApp?.audience ?? .ai
             }
         self.audioPostProcessor = audioPostProcessor ?? DefaultAudioPostProcessor()
-        self.beginActiveCapture = beginActiveCapture
-        self.resumePassiveCapture = resumePassiveCapture
         self.recordNoHotwordTranscript =
             recordNoHotwordTranscript ?? { text in
                 await MainActor.run {
                     DictationHistoryService.shared.recordRawWithoutHotwords(text)
                 }
             }
-        if let captureService {
-            self.captureServiceFactory = { captureService }
-            self.reusableCaptureService = captureService
-        } else if let captureServiceFactory {
-            self.captureServiceFactory = captureServiceFactory
-        } else {
-            let defaultCaptureService = MacAudioCaptureService()
-            self.captureServiceFactory = { defaultCaptureService }
-            self.reusableCaptureService = defaultCaptureService
-        }
+        self.capture = DictationCaptureLifecycle(
+            recorder: captureService,
+            factory: captureServiceFactory,
+            beginActiveCapture: beginActiveCapture,
+            resumePassiveCapture: resumePassiveCapture
+        )
     }
 
     func makeAudioLevelStream() async -> AsyncStream<Double> {
@@ -111,54 +93,25 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     }
 
     private func startRecording(activateRecordingWindow: Bool) async throws {
-        if noHotwordPassTask != nil {
-            noHotwordPassTask?.cancel()
+        if processing.cancelComparison() {
             await MainActor.run {
                 DictationHistoryService.shared.discardUncommittedNoHotwordTranscript()
             }
         }
-        let sessionID = try beginCaptureSession()
-        // Recheck after every wait: another cancellation may have been queued.
-        while let cancellationTask { await cancellationTask.value }
-        while let contextCleanupTask { await contextCleanupTask.value }
-        try Task.checkCancellation()
-        guard activeCaptureSessionID == nil else {
-            throw SpeechServiceError.alreadyRecording
-        }
-        guard sessionID > invalidatedThroughCaptureSessionID else { throw CancellationError() }
-        activeCaptureSessionID = sessionID
-        let operation = Task {
-            try await prepareCapture(sessionID: sessionID, activateRecordingWindow: activateRecordingWindow)
-        }
-        captureTransitionTask = operation
-        do {
-            try await withTaskCancellationHandler {
-                try await operation.value
-            } onCancel: {
-                operation.cancel()
-            }
-            try ensureCaptureSessionIsActive(sessionID)
-            captureTransitionTask = nil
-        } catch {
-            if activeCaptureSessionID == sessionID, cancellationTask == nil {
-                await cancelRecording()
-            }
-            throw error
-        }
+        try await capture.start(
+            isolation: self,
+            waitForProcessingCleanup: {
+                await self.processing.waitForCleanup(isolation: self)
+            },
+            prepare: { sessionID in
+                try await self.prepareCapture(sessionID: sessionID, activateRecordingWindow: activateRecordingWindow)
+            },
+            didCancel: { self.didCancelCapture($0) }
+        )
     }
 
     private func prepareCapture(sessionID: UInt64, activateRecordingWindow: Bool) async throws {
-        try ensureCaptureSessionIsActive(sessionID)
-        if let beginActiveCapture {
-            await beginActiveCapture()
-            ownsActiveCapture = true
-            do {
-                try ensureCaptureSessionIsActive(sessionID)
-            } catch {
-                await resumePassiveCaptureIfNeeded()
-                throw error
-            }
-        }
+        try await capture.acquireActiveCapture(sessionID: sessionID, isolation: self)
         let snapshot = settingsStore.loadSnapshot()
         let pipelineStartedAt = ProcessInfo.processInfo.systemUptime
         let pipeline: DictationPipeline
@@ -166,7 +119,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             pipeline = try await pipelineFactory.makePipeline(from: snapshot)
             try ensureCaptureSessionIsActive(sessionID)
         } catch {
-            await resumePassiveCaptureIfNeeded()
+            await capture.resumePassiveIfNeeded(isolation: self)
             throw error
         }
         activePipeline = pipeline
@@ -176,15 +129,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             .pipelineReady,
             note: "pipelineFactoryMs=\(Self.formatMilliseconds(pipelineFactoryMs))"
         )
-        let captureService: any AudioCaptureService
-        if let reusableCaptureService {
-            captureService = reusableCaptureService
-        } else {
-            let newCaptureService = captureServiceFactory()
-            reusableCaptureService = newCaptureService
-            captureService = newCaptureService
-        }
-        activeCaptureService = captureService
+        let captureService = capture.recorderForSession()
 
         try ensureCaptureSessionIsActive(sessionID)
         let captureServiceStartedAt = ProcessInfo.processInfo.systemUptime
@@ -212,75 +157,26 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     }
 
     func activateRecordingWindow() async throws {
-        guard let sessionID = activeCaptureSessionID,
-            let captureService = activeCaptureService,
-            captureTransitionTask == nil
-        else { throw SpeechServiceError.notRecording }
-        try ensureCaptureSessionIsActive(sessionID)
-        let operation = Task { try await captureService.activateRecordingWindow() }
-        captureTransitionTask = operation
-        defer {
-            if activeCaptureSessionID == sessionID { captureTransitionTask = nil }
-        }
-        do {
-            try await withTaskCancellationHandler {
-                try await operation.value
-            } onCancel: {
-                operation.cancel()
-            }
-            try ensureCaptureSessionIsActive(sessionID)
-        } catch {
-            if activeCaptureSessionID == sessionID, cancellationTask == nil {
-                await cancelRecording()
-            }
-            throw error
-        }
+        try await capture.activateRecordingWindow(isolation: self, didCancel: { self.didCancelCapture($0) })
     }
 
     func stopRecording(
         onCaptureStopped: (@Sendable () async -> Void)? = nil
     ) async throws -> SpeechTranscriptionResult {
-        guard let sessionID = activeCaptureSessionID,
-            let pipeline = activePipeline,
-            let captureService = activeCaptureService,
-            !processingSessions.contains(sessionID),
-            captureTransitionTask == nil
-        else {
-            throw SpeechServiceError.notRecording
-        }
-        try ensureCaptureSessionIsActive(sessionID)
-        processingSessions.insert(sessionID)
+        guard let pipeline = activePipeline else { throw SpeechServiceError.notRecording }
+        let sessionID = try capture.beginProcessing()
+        processing.begin(sessionID)
 
-        var cleanupURLs: Set<URL> = []
+        var audioFiles = DictationAudioFiles()
         defer {
-            for url in cleanupURLs { try? FileManager.default.removeItem(at: url) }
-            processingSessions.remove(sessionID)
+            audioFiles.removeAll()
+            processing.finish(sessionID)
             finishCaptureSession(sessionID)
             scheduleContextCleanupIfIdle()
         }
 
-        let stopTask = Task {
-            let result = try await captureService.stopRecording()
-            await resumePassiveCaptureIfNeeded()
-            return result
-        }
-        captureStopTask = stopTask
-        let captureResult: (url: URL, duration: TimeInterval?)
-        do {
-            captureResult = try await withTaskCancellationHandler {
-                try await stopTask.value
-            } onCancel: {
-                stopTask.cancel()
-            }
-            // Register ownership before any cancellation check or callback.
-            cleanupURLs.insert(captureResult.url)
-            try ensureCaptureSessionIsActive(sessionID)
-            captureStopTask = nil
-        } catch {
-            if activeCaptureSessionID == sessionID {
-                await resumePassiveCaptureIfNeeded()
-            }
-            throw error
+        let captureResult = try await capture.stop(sessionID: sessionID, isolation: self) { url in
+            audioFiles.own(url)
         }
         if let onCaptureStopped {
             await onCaptureStopped()
@@ -298,7 +194,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                     duration: captureResult.duration
                 )
             }
-        cleanupURLs.formUnion(processedCaptureResult.cleanupURLs)
+        audioFiles.own(processedCaptureResult.cleanupURLs)
         try ensureCaptureSessionIsActive(sessionID)
 
         guard !processedCaptureResult.shouldDiscardAsNoSpeech else {
@@ -309,7 +205,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         await DictationLatencyProbe.shared.beginSession(audioDurationSeconds: processedCaptureResult.duration)
         let processingStartedAt = ProcessInfo.processInfo.systemUptime
 
-        await waitForNoHotwordPass()
+        await processing.waitForComparison(isolation: self)
 
         var transcriptionPrompt: String? = nil
         if let provider = pipeline.promptProvider {
@@ -428,13 +324,16 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             )
 
             if pipeline.recordsNoHotwordTranscript {
-                cleanupURLs.remove(processedCaptureResult.url)
+                audioFiles.transfer(processedCaptureResult.url)
                 logger.info("Starting background no-hotword transcription.")
-                startNoHotwordPass(
+                processing.startComparison(
                     audioURL: processedCaptureResult.url,
                     languageCode: pipeline.transcriptionLanguageCode,
                     duration: processedCaptureResult.duration,
-                    transcriptionService: pipeline.transcriptionService
+                    transcriptionService: pipeline.transcriptionService,
+                    record: recordNoHotwordTranscript,
+                    isolation: self,
+                    didFinish: { self.scheduleContextCleanupIfIdle() }
                 )
             }
 
@@ -453,39 +352,17 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     }
 
     func cancelRecording() async {
-        invalidateActiveCaptureSession()
-        if let cancellationTask {
-            await cancellationTask.value
-            return
-        }
-        guard let sessionID = activeCaptureSessionID else { return }
-        let transition = captureTransitionTask
-        let stop = captureStopTask
-        transition?.cancel()
-        stop?.cancel()
-        let cleanup = Task {
-            // A delayed start must finish before cancel touches the reusable recorder.
-            _ = await transition?.result
-            _ = await stop?.result
-            if let captureService = activeCaptureService {
-                await captureService.cancelRecording()
-            }
-            await resumePassiveCaptureIfNeeded()
-            finishCaptureSession(sessionID)
-            cancellationTask = nil
-            scheduleContextCleanupIfIdle()
-        }
-        cancellationTask = cleanup
-        await cleanup.value
+        await capture.cancel(isolation: self, didCancel: { self.didCancelCapture($0) })
+    }
+
+    private func didCancelCapture(_ sessionID: UInt64) {
+        finishCaptureSession(sessionID)
+        scheduleContextCleanupIfIdle()
     }
 
     private func finishCaptureSession(_ sessionID: UInt64) {
-        guard activeCaptureSessionID == sessionID else { return }
-        activeCaptureSessionID = nil
+        guard capture.finish(sessionID) else { return }
         activePipeline = nil
-        activeCaptureService = nil
-        captureTransitionTask = nil
-        captureStopTask = nil
         stopTranscriptionPrewarm()
         stopRewritePrewarm()
         stopAudioLevelForwarding()
@@ -495,103 +372,15 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     }
 
     private func scheduleContextCleanupIfIdle() {
-        guard activeCaptureSessionID == nil, processingSessions.isEmpty,
-            cancellationTask == nil, contextCleanupTask == nil,
-            noHotwordPassTask == nil
-        else { return }
-        let prewarms = retiringPrewarmTasks
-        retiringPrewarmTasks.removeAll()
-        // New sessions wait for this task, so global model cleanup cannot unload
-        // a new session's context. Late cancelled processing defers it until idle.
-        contextCleanupTask = Task {
-            for task in prewarms { await task.value }
-            #if os(macOS)
-                await LocalParakeetContextManager.shared.cleanupResources()
-                await FunASRNanoContextManager.shared.cleanupResources()
-            #endif
-            contextCleanupTask = nil
-        }
-    }
-
-    private func waitForNoHotwordPass() async {
-        await noHotwordPassTask?.value
-    }
-
-    private func startNoHotwordPass(
-        audioURL: URL,
-        languageCode: String?,
-        duration: TimeInterval?,
-        transcriptionService: any AudioFileTranscriptionService
-    ) {
-        noHotwordPassGeneration += 1
-        let generation = noHotwordPassGeneration
-        let record = recordNoHotwordTranscript
-        noHotwordPassTask = Task {
-            defer { try? FileManager.default.removeItem(at: audioURL) }
-            if !Task.isCancelled {
-                do {
-                    let result = try await transcriptionService.transcribe(
-                        audioFileAt: audioURL,
-                        languageCode: languageCode,
-                        prompt: nil,
-                        audioDurationSeconds: duration
-                    )
-                    let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !Task.isCancelled, !text.isEmpty {
-                        await record(text)
-                    }
-                } catch {
-                    // The user-facing transcript already succeeded. Skip quietly.
-                }
-            }
-            await self.finishNoHotwordPass(generation: generation)
-        }
-    }
-
-    private func finishNoHotwordPass(generation: UInt64) {
-        if noHotwordPassGeneration == generation {
-            noHotwordPassTask = nil
-        }
-        scheduleContextCleanupIfIdle()
-    }
-
-    private func resumePassiveCaptureIfNeeded() async {
-        guard ownsActiveCapture else { return }
-        ownsActiveCapture = false
-        await resumePassiveCapture?()
-    }
-
-    private func beginCaptureSession() throws -> UInt64 {
-        try Task.checkCancellation()
-        nextCaptureSessionID += 1
-        return nextCaptureSessionID
-    }
-
-    private func invalidateActiveCaptureSession() {
-        invalidatedThroughCaptureSessionID = max(
-            invalidatedThroughCaptureSessionID,
-            nextCaptureSessionID
-        )
+        processing.scheduleCleanupIfIdle(captureIsIdle: capture.isIdle, isolation: self)
     }
 
     private func ensureCaptureSessionIsActive(_ sessionID: UInt64) throws {
-        try Task.checkCancellation()
-        guard sessionID == activeCaptureSessionID, sessionID > invalidatedThroughCaptureSessionID else {
-            throw CancellationError()
-        }
+        try capture.ensureActive(sessionID)
     }
 
     func prewarm() async {
-        let captureService: any AudioCaptureService
-        if let reusableCaptureService {
-            captureService = reusableCaptureService
-        } else {
-            let newCaptureService = captureServiceFactory()
-            reusableCaptureService = newCaptureService
-            captureService = newCaptureService
-        }
-
-        await captureService.prewarm()
+        await capture.prewarm(isolation: self)
     }
 
     private func startTranscriptionPrewarm(using pipeline: DictationPipeline) {
@@ -653,14 +442,12 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     }
 
     private func stopTranscriptionPrewarm() {
-        if let transcriptionPrewarmTask { retiringPrewarmTasks.append(transcriptionPrewarmTask) }
-        transcriptionPrewarmTask?.cancel()
+        processing.retirePrewarm(transcriptionPrewarmTask)
         transcriptionPrewarmTask = nil
     }
 
     private func stopRewritePrewarm() {
-        if let rewritePrewarmTask { retiringPrewarmTasks.append(rewritePrewarmTask) }
-        rewritePrewarmTask?.cancel()
+        processing.retirePrewarm(rewritePrewarmTask)
         rewritePrewarmTask = nil
     }
 
