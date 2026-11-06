@@ -75,7 +75,7 @@ TelemetryDeck 的 `parameters` 要求值为 `String`，数值类型转换后传�
 
 ### 3. 错误追踪
 
-文件：`stet/Features/Dictation/DictationFailure.swift`
+文件：`StetMac/Core/Dictation/DictationFailure.swift`
 
 `DictationFailure.classification` 已分好类别，直接作为属性上报。重点关注：
 
