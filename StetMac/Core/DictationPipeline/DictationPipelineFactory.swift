@@ -12,6 +12,7 @@ struct DictationPipeline: Sendable {
     let preferredSpellings: [String]
     let usesAudienceAwareLocalPrompts: Bool
     let recordsNoHotwordTranscript: Bool
+    let injectedHotwords: [HotwordLearningTerm]
 }
 
 struct DictationPipelineFactory: Sendable {
@@ -76,6 +77,7 @@ struct DictationPipelineFactory: Sendable {
         let rewriteProvider: DictationProvider?
         let preferredSpellings: [String]
         let usesAudienceAwareLocalPrompts: Bool
+        let injectedHotwords: [HotwordLearningTerm]
 
         let networkSession = URLSession(configuration: .ephemeral)
 
@@ -89,8 +91,15 @@ struct DictationPipelineFactory: Sendable {
                 snapshot.personalDictionaryRecords.isEmpty
                 ? FunASRNanoHotwordPrompt.records(from: preferredSpellings)
                 : snapshot.personalDictionaryRecords
+            let excludedHotwordKeys = Set(HotwordLearningReviewStore().excludedTerms().map { $0.lowercased() })
+            let injectableRecords = records.filter { !excludedHotwordKeys.contains($0.term.lowercased()) }
+            injectedHotwords =
+                snapshot.transcriptionEngine == .funASRNano
+                ? FunASRNanoHotwordPrompt.selectedRecords(from: injectableRecords).map {
+                    HotwordLearningTerm(term: $0.term, source: $0.source)
+                } : []
             promptProvider = Self.makePromptProvider(
-                records: records,
+                records: injectableRecords,
                 engine: snapshot.transcriptionEngine
             )
             usesAudienceAwareLocalPrompts = true
@@ -113,7 +122,8 @@ struct DictationPipelineFactory: Sendable {
             preferredSpellings: preferredSpellings,
             usesAudienceAwareLocalPrompts: usesAudienceAwareLocalPrompts,
             recordsNoHotwordTranscript: recordsNoHotwordTranscript
-                ?? (snapshot.transcriptionEngine == .funASRNano)
+                ?? (snapshot.transcriptionEngine == .funASRNano),
+            injectedHotwords: injectedHotwords
         )
     }
 

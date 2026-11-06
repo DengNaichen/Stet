@@ -22,3 +22,4 @@
 ### Archived
 
 Legacy specs removed from Git tracking; local-only copies may exist under `docs/archive/specs-legacy/` (gitignored). See [archive/README.md](../archive/README.md).
+- [hotword-pruning-learning](hotword-pruning-learning.md) — 用带/不带 hot words 的双转写批量建议排除冗余 Nano 注入词。

@@ -67,6 +67,23 @@
             await post(content, identifier: MacMeetingRecordingNotification.requestIdentifier)
         }
 
+        func notifyHotwordSuggestions(count: Int) async {
+            guard count > 0 else { return }
+            let content = UNMutableNotificationContent()
+            content.title = String(localized: "Hot words ready to review")
+            content.body =
+                count == 1
+                ? String(
+                    localized:
+                        "Stet found 1 word that may not need hot-word assistance. Review it in Dictionary settings.")
+                : String(
+                    format: String(
+                        localized:
+                            "Stet found %lld words that may not need hot-word assistance. Review them in Dictionary settings."
+                    ), count)
+            await post(content, identifier: "stet.hotword-learning.review")
+        }
+
         private func post(_ content: UNMutableNotificationContent, identifier: String) async {
             await requestAuthorizationIfNeeded()
             let settings = await center.notificationSettings()

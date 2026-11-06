@@ -51,6 +51,35 @@
                     Text("Personal Dictionary")
                 }
 
+                if !viewModel.hotwordReviewTerms.isEmpty {
+                    Section {
+                        Text(
+                            "These words were recognized without hot-word assistance. Excluding them frees Nano injection slots while keeping them in your personal dictionary and rewrite preferences."
+                        )
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        ForEach(viewModel.hotwordReviewTerms, id: \.self) { term in
+                            HStack {
+                                Text(term)
+                                Spacer()
+                                Button("Keep") { viewModel.keepHotwordSuggestions([term]) }
+                                Button("Exclude from Nano") { viewModel.excludeHotwordSuggestions([term]) }
+                            }
+                        }
+                        HStack {
+                            Spacer()
+                            Button("Keep All") {
+                                viewModel.keepHotwordSuggestions(viewModel.hotwordReviewTerms)
+                            }
+                            Button("Exclude All from Nano") {
+                                viewModel.excludeHotwordSuggestions(viewModel.hotwordReviewTerms)
+                            }
+                        }
+                    } header: {
+                        Text("Hot Words to Review")
+                    }
+                }
+
                 Section {
                     HStack {
                         Text("\(viewModel.entries.count) words and phrases").foregroundStyle(.secondary)
