@@ -7,6 +7,7 @@
         @EnvironmentObject private var settingsShellViewModel: MacSettingsShellViewModel
         @EnvironmentObject private var appUpdateViewModel: MacAppUpdateViewModel
         @Environment(\.openWindow) private var openWindow
+        @StateObject private var deviceList = AudioInputDeviceListViewModel()
 
         var body: some View {
             Group {
@@ -47,7 +48,7 @@
                 Divider()
 
                 Menu("Select Microphone") {
-                    AudioInputDeviceMenuSection()
+                    AudioInputDeviceMenuSection(deviceList: deviceList)
                 }
 
                 Button(appUpdateMenuTitle) {
@@ -60,13 +61,12 @@
                 }
             }
             .task {
-                AudioDeviceSelectionManager.shared.refreshDevices()
-                AudioDeviceChangeMonitor.shared.startMonitoring()
+                deviceList.startMonitoring()
 
                 await MacDictationVisualsRuntime.prewarmIfAvailable()
             }
             .onDisappear {
-                AudioDeviceChangeMonitor.shared.stopMonitoring()
+                deviceList.stopMonitoring()
             }
         }
 

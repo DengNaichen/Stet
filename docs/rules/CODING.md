@@ -34,6 +34,8 @@
 - Presentation 不引用 App 的任何类型。协议由使用方（Presentation）定义，App 实现。
 - View 不存储 Core 的 class / actor / protocol 服务对象；由 ViewModel 持有，View 只读状态、转发操作。
   值类型（struct / enum）可以。
+- View 不直接访问 Core / Shared 的单例（`Type.shared`）；放进 ViewModel，init 参数默认值可以是 `.shared`，
+  这样测试能替换。ViewModel 里的单例默认值目前允许，但新代码优先由 App 注入。
 - Core 和 Shared 不 import SwiftUI；Core 不引用 `Shared/UI/`；Shared 不引用 app 内其他层的类型。
 - 每个 Swift 文件必须落在已声明的层里。新增顶层目录先在 `LAYER_OF_PATH` 中声明。
 
@@ -41,4 +43,4 @@
 `scripts/arch-baseline.json` 只能收缩：修复后用 `--write-baseline` 重新生成，不手动添加条目。
 
 脚本的盲区：只识别类型名的语法引用，看不到类型推断得到的引用、typealias，
-也不检查生命周期、所有权和状态转换。
+`Type.shared` 用文本匹配（R7），不识别别名；也不检查生命周期、所有权和状态转换。

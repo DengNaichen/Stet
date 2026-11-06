@@ -2,7 +2,7 @@
     import SwiftUI
 
     struct AudioInputDeviceMenuSection: View {
-        @StateObject private var deviceList = AudioInputDeviceListViewModel()
+        @ObservedObject var deviceList: AudioInputDeviceListViewModel
 
         var body: some View {
             Group {

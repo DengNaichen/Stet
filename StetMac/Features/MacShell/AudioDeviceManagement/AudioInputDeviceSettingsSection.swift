@@ -20,10 +20,10 @@
                 MicrophoneTestView(viewModel: microphoneTestViewModel)
             }
             .onAppear {
-                AudioDeviceChangeMonitor.shared.startMonitoring()
+                deviceList.startMonitoring()
             }
             .onDisappear {
-                AudioDeviceChangeMonitor.shared.stopMonitoring()
+                deviceList.stopMonitoring()
             }
             .onReceive(NotificationCenter.default.publisher(for: AudioDeviceChangeMonitor.devicesDidChangeNotification))
             { _ in

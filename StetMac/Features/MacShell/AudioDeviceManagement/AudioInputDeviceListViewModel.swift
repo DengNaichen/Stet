@@ -22,6 +22,16 @@
             deviceManager.availableDevices.filter { !$0.isBuiltIn }
         }
 
+        /// Refreshes the device list and keeps it current while a device UI is visible.
+        func startMonitoring() {
+            deviceManager.refreshDevices()
+            AudioDeviceChangeMonitor.shared.startMonitoring()
+        }
+
+        func stopMonitoring() {
+            AudioDeviceChangeMonitor.shared.stopMonitoring()
+        }
+
         func refreshDevices() {
             deviceManager.refreshDevices()
         }
