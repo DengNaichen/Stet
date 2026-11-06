@@ -166,6 +166,35 @@ struct ConfigurableSpeechServiceTests {
         #expect(try await service.stopRecording().text == "new")
     }
 
+    @Test func cancellationDrainsDelayedStopBeforeRecorderReuseAndDeletesItsAudio() async throws {
+        let (store, _, _) = try makeSettingsStore()
+        let stopGate = TestSuspensionGate()
+        let source = makeAudioFileURL()
+        let capture = TestAudioCaptureService(audioFileURL: source, stopGate: stopGate)
+        let direct = TestTranscriptionService(result: "new")
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                makeLocalTranscriptionService: { direct },
+                makeRewriteService: { _, _ in RecordingRewriteService() }),
+            captureService: capture)
+        try await service.startRecordingAndActivate()
+        let stop = Task { try await service.stopRecording() }
+        try #require(await TestSupport.eventuallyAsync { await stopGate.hasWaiter })
+        let cancel = Task { await service.cancelRecording() }
+        try #require(await TestSupport.eventuallyAsync { await stopGate.observedCancellation })
+        let restart = Task { try await service.startRecordingAndActivate() }
+        #expect(await capture.counts().start == 1)
+        #expect(await capture.counts().cancel == 0)
+        await stopGate.open()
+        await cancel.value
+        await #expect(throws: CancellationError.self) { try await stop.value }
+        #expect(!FileManager.default.fileExists(atPath: source.path))
+        try await restart.value
+        #expect(await capture.counts().start == 2)
+        await service.cancelRecording()
+    }
+
     @Test func cancelDuringPostProcessingDeletesAllOwnedAudio() async throws {
         let (store, _, _) = try makeSettingsStore()
         store.saveTranscriptionEngine(.fluidAudio)
@@ -1601,13 +1630,16 @@ private actor TestAudioCaptureService: AudioCaptureService, AudioLevelSource {
     private let audioDurationSeconds: TimeInterval?
     private let startGate: TestSuspensionGate?
     private let cancelGate: TestSuspensionGate?
+    private let stopGate: TestSuspensionGate?
 
     init(
         audioFileURL: URL, audioDurationSeconds: TimeInterval? = 1.2,
-        startGate: TestSuspensionGate? = nil, cancelGate: TestSuspensionGate? = nil
+        startGate: TestSuspensionGate? = nil, cancelGate: TestSuspensionGate? = nil,
+        stopGate: TestSuspensionGate? = nil
     ) {
         self.startGate = startGate
         self.cancelGate = cancelGate
+        self.stopGate = stopGate
         self.audioFileURL = audioFileURL
         self.audioDurationSeconds = audioDurationSeconds
     }
@@ -1623,6 +1655,7 @@ private actor TestAudioCaptureService: AudioCaptureService, AudioLevelSource {
 
     func stopRecording() async throws -> (url: URL, duration: TimeInterval?) {
         stopCount += 1
+        await stopGate?.wait()
         return (audioFileURL, audioDurationSeconds)
     }
 
