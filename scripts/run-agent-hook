@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+
+# Desktop hosts need not inherit the login shell's user-installed tool paths.
+# Keep explicitly configured tools first; do not source interactive profiles.
+PATH=${PATH:-/usr/bin:/bin}
+for hook_bin in "${HOME:?HOME is required}/.local/bin" /opt/homebrew/bin; do
+	if [ -d "$hook_bin" ]; then
+		case ":$PATH:" in
+			*:"$hook_bin":*) ;;
+			*) PATH="$PATH:$hook_bin" ;;
+		esac
+	fi
+done
+export PATH
+exec "$@"
