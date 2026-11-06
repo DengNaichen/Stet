@@ -1,25 +1,17 @@
 #if os(macOS)
     import SwiftUI
 
-    @MainActor
-    protocol MacCalendarSettingsAppModeling: AnyObject {
-        var isCalendarMeetingsEnabled: Bool { get }
-        var calendarAuthorizationStatus: CalendarAuthorizationStatus { get }
-        var calendarSyncState: CalendarSyncState { get }
-        var selectedCalendarIDs: Set<String> { get }
-        func availableCalendars() throws -> [CalendarRecord]
-        func setCalendarMeetingsEnabled(_ enabled: Bool) async
-        func setSelectedCalendarIDs(_ ids: Set<String>) async
-    }
-
     struct MacCalendarMeetingSettingsView: View {
-        let appModel: any MacCalendarSettingsAppModeling
+        // Live status comes from the parent; the model owns only editing and loading.
+        private let syncState: CalendarSyncState
+        private let showsCalendars: Bool
+        @StateObject private var viewModel: MacCalendarMeetingSettingsViewModel
 
-        @State private var calendars: [CalendarRecord] = []
-        @State private var selectedIDs: Set<String> = []
-        @State private var isEnabled = false
-        @State private var isChanging = false
-        @State private var errorMessage: String?
+        init(appModel: any MacCalendarSettingsAppModeling) {
+            syncState = appModel.calendarSyncState
+            showsCalendars = appModel.calendarAuthorizationStatus == .fullAccess && appModel.isCalendarMeetingsEnabled
+            _viewModel = StateObject(wrappedValue: MacCalendarMeetingSettingsViewModel(appModel: appModel))
+        }
 
         var body: some View {
             Group {
@@ -27,20 +19,11 @@
                     Toggle(
                         "Calendar Meetings",
                         isOn: Binding(
-                            get: { isEnabled },
-                            set: { enabled in
-                                isEnabled = enabled
-                                isChanging = true
-                                Task {
-                                    await appModel.setCalendarMeetingsEnabled(enabled)
-                                    isEnabled = appModel.isCalendarMeetingsEnabled
-                                    isChanging = false
-                                    reload()
-                                }
-                            }
+                            get: { viewModel.isEnabled },
+                            set: { viewModel.setEnabled($0) }
                         )
                     )
-                    .disabled(isChanging)
+                    .disabled(viewModel.isChanging)
 
                     HStack(spacing: 6) {
                         Circle()
@@ -56,20 +39,18 @@
                     Text("Sync selected calendars and remind you five minutes before meetings.")
                 }
 
-                if appModel.calendarAuthorizationStatus == .fullAccess,
-                    appModel.isCalendarMeetingsEnabled
-                {
+                if showsCalendars {
                     Section {
-                        if calendars.isEmpty {
+                        if viewModel.calendars.isEmpty {
                             Text("No calendars available")
                                 .foregroundStyle(.secondary)
                         } else {
-                            ForEach(calendars) { calendar in
+                            ForEach(viewModel.calendars) { calendar in
                                 Toggle(
                                     calendar.title,
                                     isOn: Binding(
-                                        get: { selectedIDs.contains(calendar.id) },
-                                        set: { selected in update(calendar.id, selected: selected) }
+                                        get: { viewModel.selectedIDs.contains(calendar.id) },
+                                        set: { selected in viewModel.update(calendar.id, selected: selected) }
                                     )
                                 )
                             }
@@ -77,7 +58,7 @@
                     } header: {
                         Text("Calendars")
                     } footer: {
-                        if let errorMessage {
+                        if let errorMessage = viewModel.errorMessage {
                             Text(errorMessage)
                         } else {
                             Text("Only selected calendars are synced into Stet meetings and Calendar MCP tools.")
@@ -85,11 +66,11 @@
                     }
                 }
             }
-            .onAppear(perform: reload)
+            .onAppear(perform: viewModel.reload)
         }
 
         private var statusText: LocalizedStringKey {
-            switch appModel.calendarSyncState {
+            switch syncState {
             case .disabled:
                 "Off"
             case .permissionRequired:
@@ -106,7 +87,7 @@
         }
 
         private var statusColor: Color {
-            switch appModel.calendarSyncState {
+            switch syncState {
             case .active:
                 .green
             case .failed:
@@ -120,29 +101,5 @@
             }
         }
 
-        private func reload() {
-            isEnabled = appModel.isCalendarMeetingsEnabled
-            selectedIDs = appModel.selectedCalendarIDs
-            guard appModel.calendarAuthorizationStatus == .fullAccess else {
-                calendars = []
-                return
-            }
-            do {
-                calendars = try appModel.availableCalendars()
-                errorMessage = nil
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
-
-        private func update(_ id: String, selected: Bool) {
-            if selected {
-                selectedIDs.insert(id)
-            } else {
-                selectedIDs.remove(id)
-            }
-            let ids = selectedIDs
-            Task { await appModel.setSelectedCalendarIDs(ids) }
-        }
     }
 #endif

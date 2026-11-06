@@ -75,7 +75,7 @@
         @StateObject private var dictionaryViewModel = DictionaryViewModel()
         @StateObject private var openAISettingsViewModel = MacOpenAISettingsViewModel()
         @State private var selectedTab: MacSettingsTab = .general
-        @State private var titleScrollStore = MacSettingsTitleScrollStore()
+        @StateObject private var titleScrollStore = MacSettingsTitleScrollStore()
 
         var body: some View {
             HStack(spacing: 0) {
