@@ -49,7 +49,7 @@ venv/
 sparkle-private-key
 
 # Editor / agent local tooling
-.claude/settings.json
+.claude/settings.local.json
 .vscode/
 .idea/
 /HANDOFF.md

@@ -3,12 +3,15 @@
 Repository-local OpenAI Codex lifecycle configuration. Agent routing and project
 knowledge live in [`AGENTS.md`](../AGENTS.md) — not here.
 
-## Planned layout
+## Layout
 
-- `hooks.json` — formatting and lint hooks (not configured yet)
-- `hooks/` — hook scripts
-- `agents/` — custom Codex subagents
-- `environments/` — managed worktree environment setup
+- `hooks.json` — Stop runs the architecture check on changed `StetMac/` sources;
+  on new violations it blocks once and feeds back the violations together with
+  the rules. Nothing is injected at session start. Codex asks to trust hooks again whenever this file changes.
+- `hooks/arch.py` — hook adapter shared with Claude Code (`.claude/settings.json`);
+  rules and checks live in `scripts/arch-check.py`.
+- `agents/` — custom Codex subagents (placeholder)
+- `environments/` — managed worktree environment setup (placeholder)
 
-Wire these when Codex workflow is adopted; until then this directory is a
-placeholder skeleton only.
+Hook commands run through `scripts/run-agent-hook`, which adds `~/.local/bin`
+and `/opt/homebrew/bin` to `PATH` for desktop hosts.

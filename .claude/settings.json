@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/sh \"${CLAUDE_PROJECT_DIR}/scripts/run-agent-hook\" python3 \"${CLAUDE_PROJECT_DIR}/.codex/hooks/arch.py\"",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}
