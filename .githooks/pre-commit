@@ -1,21 +1,30 @@
 #!/bin/sh
-
 set -eu
 
-repo_root=$(git rev-parse --show-toplevel)
-cd "$repo_root"
+# Use Git's NUL-delimited output: paths may contain spaces or newlines.
+# A missing tool or a failed Git command must fail the hook, not skip checks.
+exec python3 - <<'PY'
+import os
+import subprocess
+import sys
 
-staged_swift_files=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.swift$' || true)
-
-if [ -z "$staged_swift_files" ]; then
-    exit 0
-fi
-
-echo "pre-commit: formatting Swift sources"
-make format
-
-echo "pre-commit: re-staging formatted Swift files"
-printf '%s\n' "$staged_swift_files" | xargs git add --
-
-echo "pre-commit: running SwiftLint"
-make swiftlint
+try:
+    root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"]).rstrip(b"\n")
+    os.chdir(os.fsdecode(root))
+    staged = subprocess.check_output(
+        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z"]
+    )
+    swift_files = [os.fsdecode(path) for path in staged.split(b"\0") if path.endswith(b".swift")]
+    if swift_files:
+        print("pre-commit: formatting Swift sources", flush=True)
+        subprocess.run(["make", "format"], check=True)
+        print("pre-commit: re-staging formatted Swift files", flush=True)
+        subprocess.run(["git", "add", "--", *swift_files], check=True)
+        print("pre-commit: running SwiftLint", flush=True)
+        subprocess.run(["make", "swiftlint"], check=True)
+except subprocess.CalledProcessError as error:
+    sys.exit(error.returncode if error.returncode > 0 else 1)
+except OSError as error:
+    print(f"pre-commit: {error}", file=sys.stderr)
+    sys.exit(1)
+PY

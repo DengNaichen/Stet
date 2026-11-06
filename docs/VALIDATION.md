@@ -71,3 +71,8 @@ Agent 必须区分：
 - `failed`：至少一个适用命令运行失败。
 - `skipped`：有意跳过并记录原因。
 - `not_run`：验证适用但未执行。
+
+## Worktree preparation
+
+See [worktrees](worktrees.md) for shared architecture-tool caches, independent build artifacts and host setup entrypoints.
+Run `python3 -m unittest discover -s scripts/tests -p 'test_worktree_*.py' -v` for cache, setup, hook and pre-commit behavior. Actual multi-worktree build measurements are recorded under `docs/research/`.

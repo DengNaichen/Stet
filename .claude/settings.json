@@ -10,6 +10,18 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/sh \"$(git rev-parse --show-toplevel)/scripts/run-agent-hook\" \"$(git rev-parse --show-toplevel)/scripts/setup-worktree\" --if-needed",
+            "timeout": 600
+          }
+        ]
+      }
     ]
   }
 }

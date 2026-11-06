@@ -1,12 +1,16 @@
 IOS_DEVELOPER_DIR ?= /Applications/Xcode-beta.app/Contents/Developer
 CI_XCODEBUILD_FLAGS ?=
+# Xcode owns the content-addressed compilation cache; each checkout keeps its
+# own DerivedData and mutable package artifacts. Set NO for comparison runs.
+MACOS_COMPILATION_CACHE ?= YES
+MACOS_CACHE_FLAGS = COMPILATION_CACHE_ENABLE_CACHING=$(MACOS_COMPILATION_CACHE) -showBuildTimingSummary
 
 IOS_XCODEBUILD := $(IOS_DEVELOPER_DIR)/usr/bin/xcodebuild
 
 MACOS_SWIFT_DIRS := StetMac StetMacTests StetMacUITests StetVisuals
 IOS_SWIFT_DIRS := StetMobile/StetKeyboard StetMobile/StetLiveActivity StetMobile/StetMobile StetMobile/StetMobileTests StetMobile/StetMobileUITests
 
-.PHONY: help swiftlint format format-lint lint whisper-deps build ci-build test ios-bootstrap ios-build doctor clean-derived-data release-github notary-setup
+.PHONY: help swiftlint format format-lint lint whisper-deps build ci-build test ios-bootstrap ios-build setup-worktree doctor clean-derived-data release-github notary-setup
 
 help:
 	@echo "Available targets:"
@@ -19,6 +23,7 @@ help:
 	@echo "  test            Run macOS tests"
 	@echo "  ios-bootstrap   Download the ignored iOS runtime frameworks"
 	@echo "  ios-build       Build the iOS app for the simulator"
+	@echo "  setup-worktree  Prepare tools; reuse validated worktree caches"
 	@echo "  doctor          Report Xcode and project build-cache usage"
 	@echo "  clean-derived-data  Remove only Stet/StetMobile build caches"
 	@echo "  release-github  Build signed GitHub release artifacts"
@@ -40,19 +45,22 @@ whisper-deps:
 	@echo "whisper is resolved through Swift Package Manager; no local dependency preparation is required."
 
 build:
-	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' build
+	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' $(MACOS_CACHE_FLAGS) $(CI_XCODEBUILD_FLAGS) build
 
 ci-build:
-	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' $(CI_XCODEBUILD_FLAGS) build
+	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' $(MACOS_CACHE_FLAGS) $(CI_XCODEBUILD_FLAGS) build
 
 test:
-	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' -only-testing:StetTests $(CI_XCODEBUILD_FLAGS) test
+	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' -only-testing:StetTests $(MACOS_CACHE_FLAGS) $(CI_XCODEBUILD_FLAGS) test
 
 ios-bootstrap:
 	StetMobile/scripts/bootstrap-sherpa-runtime.sh
 
 ios-build: ios-bootstrap
 	DEVELOPER_DIR=$(IOS_DEVELOPER_DIR) $(IOS_XCODEBUILD) -project StetMobile/StetMobile.xcodeproj -scheme StetMobile -sdk iphonesimulator27.0 -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+
+setup-worktree:
+	./scripts/setup-worktree --if-needed
 
 doctor:
 	./scripts/xcode-storage.sh doctor
