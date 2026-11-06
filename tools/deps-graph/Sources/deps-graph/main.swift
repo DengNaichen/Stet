@@ -230,7 +230,10 @@ guard args.count == 2 else {
     exit(2)
 }
 let root = URL(fileURLWithPath: args[1]).standardizedFileURL
-let cwd = FileManager.default.currentDirectoryPath + "/"
+// Normalize the working directory the same way as file paths: `standardizedFileURL`
+// rewrites /private/tmp to /tmp, so a raw `currentDirectoryPath` would never match
+// and every path would stay absolute for checkouts under a symlinked directory.
+let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).standardizedFileURL.path + "/"
 
 var decls: [Decl] = []
 var rawRefs: [RawRef] = []
