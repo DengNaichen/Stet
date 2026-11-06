@@ -7,7 +7,7 @@
         var body: some View {
             Form {
                 AudioInputDeviceSettingsSection(
-                    deviceManager: viewModel.deviceManager,
+                    deviceList: viewModel.deviceList,
                     microphoneTestViewModel: viewModel.microphoneTestViewModel
                 )
             }

@@ -6,15 +6,10 @@
     import Sparkle
 
     @MainActor
-    final class AppUpdateManager: NSObject, ObservableObject, SPUStandardUserDriverDelegate, SPUUpdaterDelegate {
-        enum State: Equatable {
-            case unavailable(String)
-            case idle
-            case checking
-            case upToDate(version: String)
-            case updateAvailable(currentVersion: String, latestVersion: String)
-            case failed(String)
-        }
+    final class AppUpdateManager: NSObject, ObservableObject, MacAppUpdateCoordinating, SPUStandardUserDriverDelegate,
+        SPUUpdaterDelegate
+    {
+        typealias State = MacAppUpdateState
 
         @Published private(set) var state: State
         @Published private(set) var canCheckForUpdates = false
@@ -46,6 +41,10 @@
                 configureUpdaterDefaults()
                 syncFromUpdater()
             }
+        }
+
+        var updates: AnyPublisher<Void, Never> {
+            objectWillChange.eraseToAnyPublisher()
         }
 
         var supportsGentleScheduledUpdateReminders: Bool { true }

@@ -2,43 +2,38 @@
     import SwiftUI
 
     struct AudioInputDeviceMenuSection: View {
-        @ObservedObject private var deviceManager: AudioDeviceSelectionManager
-
-        @MainActor
-        init(deviceManager: AudioDeviceSelectionManager? = nil) {
-            self._deviceManager = ObservedObject(wrappedValue: deviceManager ?? .shared)
-        }
+        @StateObject private var deviceList = AudioInputDeviceListViewModel()
 
         var body: some View {
             Group {
                 Button {
-                    deviceManager.selectBuiltInDefault()
+                    deviceList.selectBuiltInDefault()
                 } label: {
                     menuRow(
                         title: "Default (Built-in Microphone)",
-                        isSelected: deviceManager.selectedDevice?.isBuiltIn ?? true
+                        isSelected: deviceList.selectedDevice?.isBuiltIn ?? true
                     )
                 }
 
                 ForEach(externalDevices, id: \.uid) { device in
                     Button {
-                        deviceManager.selectDevice(device)
+                        deviceList.selectDevice(device)
                     } label: {
                         menuRow(
                             title: device.name,
-                            isSelected: device.uid == deviceManager.selectedDevice?.uid
+                            isSelected: device.uid == deviceList.selectedDevice?.uid
                         )
                     }
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: AudioDeviceChangeMonitor.devicesDidChangeNotification))
             { _ in
-                deviceManager.refreshDevices()
+                deviceList.refreshDevices()
             }
         }
 
         private var externalDevices: [AudioHardwareDevice] {
-            deviceManager.availableDevices.filter { !$0.isBuiltIn }
+            deviceList.externalDevices
         }
 
         private func menuRow(title: String, isSelected: Bool) -> some View {

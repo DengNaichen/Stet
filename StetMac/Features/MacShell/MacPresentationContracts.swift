@@ -89,4 +89,37 @@
 
     @MainActor
     protocol MacAppPresentationModeling: MacDictationPanelCoordinating, MacPermissionsCoordinating {}
+
+    enum MacAppUpdateState: Equatable {
+        case unavailable(String)
+        case idle
+        case checking
+        case upToDate(version: String)
+        case updateAvailable(currentVersion: String, latestVersion: String)
+        case failed(String)
+    }
+
+    @MainActor
+    protocol MacAppUpdateCoordinating: MacAppStatusObserving {
+        var state: MacAppUpdateState { get }
+        var isConfigured: Bool { get }
+        var isChecking: Bool { get }
+        var canCheckForUpdates: Bool { get }
+        var automaticallyChecksForUpdates: Bool { get }
+        func checkForUpdates()
+        func setAutomaticallyChecksForUpdates(_ enabled: Bool)
+    }
+
+    @MainActor
+    protocol MacMeetingCoordinating: MacAppStatusObserving, MacCalendarSettingsAppModeling {
+        var meetingRecordingPhase: MacMeetingRecordingPhase { get }
+        var isMeetingBusy: Bool { get }
+        var meetingStatusText: String { get }
+        var meetingMenuSymbolName: String { get }
+        var meetingToggleTitle: String { get }
+        var canToggleMeetingRecording: Bool { get }
+        var passiveListeningStatusText: String { get }
+        var isPassiveMicrophoneActive: Bool { get }
+        func toggleMeetingRecording()
+    }
 #endif

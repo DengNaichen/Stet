@@ -11,7 +11,8 @@
             "Only enroll a speaker after you have permission. Stet deletes each recording immediately after creating an aggregate voice profile stored only on this Mac."
         static let requiredEnrollmentClipCount = 3
 
-        let deviceManager: AudioDeviceSelectionManager
+        private let deviceManager: AudioDeviceSelectionManager
+        let deviceList: AudioInputDeviceListViewModel
         let microphoneTestViewModel: MicrophoneTestViewModel
         @Published var localTranscriptionEngine: StoredTranscriptionEngine = .default {
             didSet {
@@ -65,6 +66,7 @@
         ) {
             let defaultEmbeddingService = SpeakerEnrollmentEmbeddingService()
             self.deviceManager = deviceManager
+            self.deviceList = AudioInputDeviceListViewModel(deviceManager: deviceManager)
             self.microphoneTestViewModel = MicrophoneTestViewModel(microphoneTestService: microphoneTestService)
             self.microphoneTestService = microphoneTestService
             self.settingsStore = settingsStore

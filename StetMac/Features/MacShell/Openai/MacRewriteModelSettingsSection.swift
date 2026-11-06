@@ -72,7 +72,10 @@
                             }
                         }
 
-                        MacModelCatalogUpdateControls(store: viewModel.catalogStore) {
+                        MacModelCatalogUpdateControls(
+                            refreshState: viewModel.catalogRefreshState,
+                            revision: viewModel.catalogRevision
+                        ) {
                             Task { await viewModel.refreshModelCatalog() }
                         }
                     }

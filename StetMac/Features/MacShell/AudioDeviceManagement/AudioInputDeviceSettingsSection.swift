@@ -2,7 +2,7 @@
     import SwiftUI
 
     struct AudioInputDeviceSettingsSection: View {
-        @ObservedObject var deviceManager: AudioDeviceSelectionManager
+        @ObservedObject var deviceList: AudioInputDeviceListViewModel
         @ObservedObject var microphoneTestViewModel: MicrophoneTestViewModel
 
         var body: some View {
@@ -27,7 +27,7 @@
             }
             .onReceive(NotificationCenter.default.publisher(for: AudioDeviceChangeMonitor.devicesDidChangeNotification))
             { _ in
-                deviceManager.refreshDevices()
+                deviceList.refreshDevices()
             }
         }
 
@@ -41,11 +41,11 @@
         }
 
         private var externalDevices: [AudioHardwareDevice] {
-            deviceManager.availableDevices.filter { !$0.isBuiltIn }
+            deviceList.externalDevices
         }
 
         private var selectedMicrophoneSelection: String? {
-            guard let selected = deviceManager.selectedDevice else {
+            guard let selected = deviceList.selectedDevice else {
                 return nil
             }
 
@@ -54,12 +54,12 @@
 
         private func applyMicrophoneSelection(_ uid: String?) {
             guard let uid else {
-                deviceManager.selectBuiltInDefault()
+                deviceList.selectBuiltInDefault()
                 return
             }
 
             if let device = externalDevices.first(where: { $0.uid == uid }) {
-                deviceManager.selectDevice(device)
+                deviceList.selectDevice(device)
             }
         }
     }

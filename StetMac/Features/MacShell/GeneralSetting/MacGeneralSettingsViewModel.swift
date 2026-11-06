@@ -58,7 +58,7 @@
         private var cancellables = Set<AnyCancellable>()
 
         private weak var appModel: (any MacGeneralSettingsAppModeling)?
-        private weak var appUpdateManager: AppUpdateManager?
+        private weak var appUpdateManager: (any MacAppUpdateCoordinating)?
 
         private var hasLoadedManagedSettings = false
         private var hasLoadedDebugSettings = false
@@ -75,13 +75,13 @@
 
         func configure(
             appModel: any MacGeneralSettingsAppModeling,
-            appUpdateManager: AppUpdateManager
+            appUpdateManager: any MacAppUpdateCoordinating
         ) {
             self.appModel = appModel
             self.appUpdateManager = appUpdateManager
 
             cancellables.removeAll()
-            appUpdateManager.objectWillChange
+            appUpdateManager.updates
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] in
                     self?.syncUpdateSettingsFromManager()

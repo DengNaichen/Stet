@@ -7,7 +7,7 @@
 
     @MainActor
     final class MacAppModel: ObservableObject, MacDictationCommandsCoordinating, MacSettingsShellCoordinating,
-        MacAppPresentationModeling, MacCalendarSettingsAppModeling
+        MacAppPresentationModeling, MacCalendarSettingsAppModeling, MacMeetingCoordinating
     {
         static let logger = Logger(
             subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet",

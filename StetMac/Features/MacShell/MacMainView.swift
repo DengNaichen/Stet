@@ -30,11 +30,7 @@
     }
 
     struct MacMainView: View {
-        @EnvironmentObject private var appModel: MacAppModel
-        @EnvironmentObject private var compatibilityStore: AppCompatibilityStore
-        @EnvironmentObject private var rewriteModelCatalogStore: RewriteModelCatalogStore
         @EnvironmentObject private var settingsShellViewModel: MacSettingsShellViewModel
-        @EnvironmentObject private var appUpdateManager: AppUpdateManager
         @StateObject private var dictionaryViewModel = DictionaryViewModel()
         @State private var selectedTab: MacMainTab = .overview
         @State private var showingSettings = false
