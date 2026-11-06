@@ -3,6 +3,10 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "$0")" && pwd -P)"
 project_root="$(cd "$script_dir/.." && pwd -P)"
+# Explicit checkout target for repository-owned worktree cleanup.
+if [[ -n "${2:-}" ]]; then
+  project_root="$(cd "$2" && pwd -P)"
+fi
 user_home="${HOME:?HOME must be set}"
 derived_data_root="$user_home/Library/Developer/Xcode/DerivedData"
 archives_root="$user_home/Library/Developer/Xcode/Archives"
@@ -203,6 +207,22 @@ clean_project() {
   done < <(project_derived_data_paths)
 
   echo "Deleting only allowlisted, reproducible Stet build caches:"
+  # Running apps may still load frameworks from a worktree's DerivedData.
+  # Validate every target before deleting the first one.
+  for cache_path in "${deletion_paths[@]}"; do
+    [[ -e "$cache_path" || -L "$cache_path" ]] || continue
+    validate_deletion_target "$cache_path"
+    if /usr/bin/pgrep -f "$cache_path/" >/dev/null 2>&1; then
+      echo "A process is using $cache_path. Stop it before cleanup." >&2
+      exit 2
+    else
+      local probe_status=$?
+      if [[ "$probe_status" -ne 1 ]]; then
+        echo "Unable to inspect processes; preserving $cache_path." >&2
+        exit 2
+      fi
+    fi
+  done
   for cache_path in "${deletion_paths[@]}"; do
     [[ -e "$cache_path" || -L "$cache_path" ]] || continue
     validate_deletion_target "$cache_path"
@@ -221,7 +241,7 @@ case "${1:-doctor}" in
     clean_project
     ;;
   *)
-    echo "Usage: $0 {doctor|clean-project}" >&2
+    echo "Usage: $0 {doctor|clean-project} [checkout-path]" >&2
     exit 64
     ;;
 esac

@@ -1,0 +1,119 @@
+#!/usr/bin/env sh
+set -eu
+
+script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+repo_root=$(dirname -- "$script_dir")
+
+usage() {
+	printf '%s\n' "usage: scripts/new-worktree <branch> [--base <ref>] [--no-setup]" >&2
+	exit 2
+}
+
+fail() {
+	printf 'scripts/new-worktree: %s\n' "$1" >&2
+	exit 1
+}
+
+branch=""
+base=""
+base_given=0
+run_setup=1
+while [ "$#" -gt 0 ]; do
+	case "$1" in
+		--base)
+			[ "$#" -ge 2 ] || usage
+			base=$2
+			base_given=1
+			shift 2
+			;;
+		--no-setup)
+			run_setup=0
+			shift
+			;;
+		-*) usage ;;
+		*)
+			[ -z "$branch" ] || usage
+			branch=$1
+			shift
+			;;
+	esac
+done
+[ -n "$branch" ] || usage
+
+normalized=$(git -C "$repo_root" check-ref-format --branch "$branch" 2>/dev/null) || fail "invalid branch name: $branch"
+[ "$normalized" = "$branch" ] || fail "invalid branch name: $branch"
+
+worktree_list=$(git -C "$repo_root" worktree list --porcelain)
+primary=$(printf '%s\n' "$worktree_list" | sed -n '1s/^worktree //p')
+[ -n "$primary" ] || fail "cannot determine the primary checkout from git worktree list"
+# Reuse the worktree already assigned to this branch, including host-managed paths.
+existing=$(printf '%s\n' "$worktree_list" | awk -v ref="refs/heads/$branch" '
+  /^worktree / { path=substr($0, 10) }
+  /^branch / && substr($0, 8)==ref { print path }
+')
+if [ -n "$existing" ]; then
+	[ "$base_given" -eq 0 ] || fail "branch $branch already exists; omit --base when resuming"
+	[ -d "$existing" ] || fail "registered worktree is missing: $existing"
+	if [ "$run_setup" -eq 1 ]; then
+		(cd "$existing" && scripts/setup-worktree --if-needed) >&2 || fail "setup failed at $existing; files preserved"
+	fi
+	printf '%s\n' "$existing"
+	exit 0
+fi
+slug=$(printf '%s' "$branch" | tr '/' '-')
+target="$(dirname -- "$primary")/stet-worktrees/$slug"
+
+if [ -e "$target" ] || [ -L "$target" ]; then
+	fail "target path already exists: $target"
+fi
+
+if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$branch"; then
+	[ "$base_given" -eq 0 ] || fail "branch $branch already exists; --base only applies to new branches"
+	if printf '%s\n' "$worktree_list" | grep -Fqx "branch refs/heads/$branch"; then
+		fail "branch $branch is already checked out in another worktree"
+	fi
+	git -C "$repo_root" worktree add "$target" "$branch" >&2
+else
+	[ "$base_given" -eq 1 ] || base=origin/main
+	remote_base=${base#refs/remotes/}
+	fetch_remote=""
+	for remote in $(git -C "$repo_root" remote); do
+		case "$remote_base" in
+			"$remote"/*)
+				# Prefer the most specific remote name, including names with slashes.
+				[ "${#remote}" -le "${#fetch_remote}" ] || fetch_remote=$remote
+				;;
+		esac
+	done
+	if [ -n "$fetch_remote" ]; then
+		remote_revision=${remote_base#"$fetch_remote"/}
+		# These characters cannot occur in branch names; keep Git revision suffixes
+		# (e.g. ~1, ^{commit}, @{0}) for resolution after refreshing the branch.
+		fetch_branch=${remote_revision%%[~^:]*}
+		fetch_branch=${fetch_branch%%@\{*}
+		remote_ref="refs/remotes/$fetch_remote/$fetch_branch"
+		resolved_ref=$(git -C "$repo_root" symbolic-ref --quiet "$remote_ref") || resolved_ref=$remote_ref
+		case "$resolved_ref" in
+			"refs/remotes/$fetch_remote/"*) fetch_branch=${resolved_ref#"refs/remotes/$fetch_remote/"} ;;
+			*) fail "remote base points outside $fetch_remote: $base" ;;
+		esac
+		# Fetch only the selected branch. Broad fetches can fail on unrelated stale
+		# refs, and a successful broad fetch does not prove this branch still exists.
+		git -C "$repo_root" fetch --no-tags "$fetch_remote" \
+			"+refs/heads/$fetch_branch:$resolved_ref" >&2 || fail "git fetch $fetch_remote failed for $base; not creating $branch from a stale base"
+		base="refs/remotes/$remote_base"
+	fi
+	git -C "$repo_root" rev-parse --verify --quiet --end-of-options "$base^{commit}" >/dev/null || fail "base ref not found: $base"
+	if ! git -C "$repo_root" worktree add --no-track -b "$branch" "$target" "$base" >&2; then
+		# Failure cannot tell us whether Git or a concurrent writer created the branch.
+		fail "git worktree add failed for $target; existing branches and checkout state are preserved. Inspect git worktree list and branch $branch before retrying; omit --base when reusing an existing branch."
+	fi
+fi
+
+if [ "$run_setup" -eq 1 ]; then
+	if ! (cd "$target" && scripts/setup-worktree) >&2; then
+		printf '%s\n' "scripts/new-worktree: worktree created at $target, but setup failed; fix the cause, then run scripts/setup-worktree in that worktree." >&2
+		exit 1
+	fi
+fi
+printf '%s\n' "$target"

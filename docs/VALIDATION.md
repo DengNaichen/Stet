@@ -6,6 +6,13 @@
 
 ## 常用入口
 
+Git/worktree 工具：`python3 -m unittest discover -s scripts/tests -p 'test_*.py'`
+包含临时本地 Git 仓库中的创建、合并、清理及并发更新保护测试；不会操作实际远端。
+`/bin/sh -n scripts/new-worktree` 与 `/bin/zsh -n scripts/xcode-storage.sh`
+检查 shell 语法。真实工作区资源回收仍受运行进程和文件归属检查约束，测试通过不代表
+已经回收了当前机器的 DerivedData。使用流程见
+[git-workflow](../.agents/skills/git-workflow/SKILL.md)。
+
 | 范围 | 直接命令 | 详细入口 |
 |------|----------|----------|
 | macOS build | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make build` | [`AGENTS.md`](../AGENTS.md) |

@@ -27,6 +27,9 @@ CLAUDE.md
 .claude/README.md
 .codex/README.md
 scripts/setup-worktree
+scripts/new-worktree
+scripts/cleanup-branches.py
+.agents/skills/git-workflow/SKILL.md
 "
 
 missing=0
