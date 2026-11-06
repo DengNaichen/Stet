@@ -18,88 +18,20 @@
         private let interactionSoundPlayer: InteractionSoundPlayer
         private let appearanceSettingsViewModel: MacAppearanceSettingsViewModel
         private let mcpServerController: StetMCPServerController?
-        private let liveMeetingPhaseStore: MCPLiveMeetingPhaseStore?
-        private let expectedMeetingCoordinator: (any ExpectedMeetingServing)?
+        private let meetingWorkflow: MacMeetingWorkflowController
+        private let meetingRecordingRuntime: MacMeetingRecordingRuntime?
         private let calendarSyncController: CalendarSyncController?
         private var passiveListeningRuntime: MacPassiveListeningRuntime?
-        private var meetingRecordingRuntime: MacMeetingRecordingRuntime?
-        private var activeExpectedMeetingID: UUID?
         private var mcpServerStateHandler: (@MainActor (StetMCPServerState) -> Void)?
 
         @Published private(set) var passiveListeningState: MacPassiveListeningState =
             .unavailable("Preparing passive listening")
         @Published private(set) var isPassiveListeningEnabled = true
-        @Published private(set) var meetingRecordingPhase: MacMeetingRecordingPhase = .idle
+        var meetingRecordingPhase: MacMeetingRecordingPhase { meetingWorkflow.phase }
         @Published private(set) var mcpServerState: StetMCPServerState = .disabled
         @Published private(set) var calendarSyncState: CalendarSyncState = .disabled
 
         private var cancellables = Set<AnyCancellable>()
-
-        convenience init(
-            compatibilityStore: AppCompatibilityStore? = nil,
-            rewriteModelCatalog: RewriteModelCatalogSource? = nil
-        ) {
-            let settingsStore = DictationSettingsStore(
-                defaults: .standard, secretStore: KeychainSecretStore(),
-                rewriteModelCatalog: rewriteModelCatalog)
-            let captureService = MacAudioCaptureService()
-            let liveMeetingPhaseStore = MCPLiveMeetingPhaseStore()
-            let notificationService = MacDictationCompletionNotificationService.shared
-            let expectedMeetingCoordinator = ExpectedMeetingCoordinator(
-                reminders: notificationService
-            )
-            let calendarClient = LiveEventKitClient()
-            let calendarSelectionStore = SelectedCalendarStore()
-            let scopedCalendarClient = ScopedCalendarClient(
-                client: calendarClient,
-                selectionStore: calendarSelectionStore
-            )
-            let calendarSyncController = CalendarSyncController(
-                client: calendarClient,
-                selectionStore: calendarSelectionStore,
-                synchronizer: expectedMeetingCoordinator
-            )
-            let passiveListeningRuntime = MacPassiveListeningRuntime(captureService: captureService)
-            let meetingRecordingRuntime = MacMeetingRecordingRuntime.live(
-                beginExclusiveCapture: { await passiveListeningRuntime.beginActive() },
-                endExclusiveCapture: { await passiveListeningRuntime.resumePassive() }
-            )
-            let pasteboardRestoreCoordinator = PasteboardRestoreCoordinator()
-            let clipboardService = SystemClipboardService()
-            let textInjectionService = SystemTextInjectionService(
-                clipboardService: clipboardService,
-                pasteboardRestoreCoordinator: pasteboardRestoreCoordinator
-            )
-            self.init(
-                speechService: ConfigurableSpeechService.live(
-                    settingsStore: settingsStore,
-                    captureService: captureService,
-                    beginActiveCapture: { await passiveListeningRuntime.beginActive() },
-                    resumePassiveCapture: { await passiveListeningRuntime.resumePassive() }
-                ),
-                clipboardService: clipboardService,
-                textInjectionService: textInjectionService,
-                mediaPlaybackController: MacMediaPlaybackController(),
-                systemAudioMuting: SystemAudioMuteController(),
-                settingsStore: settingsStore,
-                captureCoordinator: MacDictationCaptureCoordinator(
-                    clipboardService: clipboardService,
-                    textInjectionService: textInjectionService,
-                    compatibilityStore: compatibilityStore ?? AppCompatibilityStore.live(),
-                    pasteboardRestoreCoordinator: pasteboardRestoreCoordinator
-                ),
-                mcpServerController: StetMCPServerController.live(
-                    livePhaseStore: liveMeetingPhaseStore,
-                    expectedMeetings: expectedMeetingCoordinator,
-                    calendarClient: scopedCalendarClient
-                ),
-                passiveListeningRuntime: passiveListeningRuntime,
-                meetingRecordingRuntime: meetingRecordingRuntime,
-                liveMeetingPhaseStore: liveMeetingPhaseStore,
-                expectedMeetingCoordinator: expectedMeetingCoordinator,
-                calendarSyncController: calendarSyncController
-            )
-        }
 
         init(
             speechService: any SpeechService,
@@ -144,8 +76,15 @@
             self.interactionSoundPlayer = interactionSoundPlayer
             self.appearanceSettingsViewModel = .shared
             self.mcpServerController = mcpServerController
-            self.liveMeetingPhaseStore = liveMeetingPhaseStore
-            self.expectedMeetingCoordinator = expectedMeetingCoordinator
+            self.meetingRecordingRuntime = meetingRecordingRuntime
+            self.meetingWorkflow = MacMeetingWorkflowController(
+                recording: meetingRecordingRuntime,
+                expectedMeetings: expectedMeetingCoordinator,
+                publishLivePhase: { liveMeetingPhaseStore?.update($0) },
+                notifyPhase: { previous, phase in
+                    await MacDictationCompletionNotificationService.shared.notifyMeetingPhase(from: previous, to: phase)
+                }
+            )
             self.calendarSyncController = calendarSyncController
             self.mcpServerState = mcpServerController?.state ?? .disabled
             self.isPassiveListeningEnabled = MacFeatureAvailability.isPassiveListeningEnabled(
@@ -173,15 +112,12 @@
 
             let notificationService = MacDictationCompletionNotificationService.shared
             notificationService.onStartExpectedMeeting = { [weak self] id in
-                self?.startExpectedMeeting(id: id)
+                self?.meetingWorkflow.startExpectedMeeting(id: id)
             }
             notificationService.onSkipExpectedMeeting = { [weak self] id in
-                guard let coordinator = self?.expectedMeetingCoordinator else { return }
-                Task { try? await coordinator.skip(id: id) }
+                self?.meetingWorkflow.skipExpectedMeeting(id: id)
             }
-            if let expectedMeetingCoordinator {
-                Task { await expectedMeetingCoordinator.restoreReminders() }
-            }
+            meetingWorkflow.restoreReminders()
             if let calendarSyncController {
                 calendarSyncController.onStateChange = { [weak self] state in
                     self?.calendarSyncState = state
@@ -198,31 +134,11 @@
                 self?.toggleMeetingRecording()
             }
 
-            if let meetingRecordingRuntime {
-                self.meetingRecordingRuntime = meetingRecordingRuntime
-                Task { [weak self] in
-                    await meetingRecordingRuntime.setPhaseHandler { [weak self] phase in
-                        guard let self else { return }
-                        let previous = self.meetingRecordingPhase
-                        self.meetingRecordingPhase = phase
-                        self.liveMeetingPhaseStore?.update(phase)
-                        if case .processing = previous,
-                            phase == .idle || phase.isFailure,
-                            let id = self.activeExpectedMeetingID,
-                            let coordinator = self.expectedMeetingCoordinator
-                        {
-                            self.activeExpectedMeetingID = nil
-                            Task { try? await coordinator.markCompleted(id: id) }
-                        }
-                        Task {
-                            await MacDictationCompletionNotificationService.shared.notifyMeetingPhase(
-                                from: previous,
-                                to: phase
-                            )
-                        }
-                    }
-                }
-            }
+            meetingWorkflow.objectWillChange
+                .sink { [weak self] _ in self?.objectWillChange.send() }
+                .store(in: &cancellables)
+            let meetingWorkflow = meetingWorkflow
+            Task { await meetingWorkflow.observeRecording() }
 
             if let passiveListeningRuntime {
                 self.passiveListeningRuntime = passiveListeningRuntime
@@ -449,14 +365,7 @@
             }
         }
 
-        var isMeetingBusy: Bool {
-            switch meetingRecordingPhase {
-            case .starting, .recording, .processing:
-                return true
-            case .idle, .failed:
-                return false
-            }
-        }
+        var isMeetingBusy: Bool { meetingWorkflow.isBusy }
 
         var isMeetingRecording: Bool {
             if case .recording = meetingRecordingPhase {
@@ -619,26 +528,7 @@
         }
 
         func toggleMeetingRecording() {
-            guard let meetingRecordingRuntime else { return }
-            Task { await meetingRecordingRuntime.toggle() }
-        }
-
-        private func startExpectedMeeting(id: UUID) {
-            guard !isMeetingBusy, let expectedMeetingCoordinator, let meetingRecordingRuntime else {
-                return
-            }
-            Task { [weak self] in
-                guard let meeting = await expectedMeetingCoordinator.meeting(id: id),
-                    meeting.status == .scheduled,
-                    meeting.scheduledEndAt > Date()
-                else { return }
-                await meetingRecordingRuntime.start(expectedMeeting: meeting)
-                guard case .recording(_, let folderName) = await meetingRecordingRuntime.currentPhase() else {
-                    return
-                }
-                self?.activeExpectedMeetingID = id
-                try? await expectedMeetingCoordinator.markRecorded(id: id, meetingID: folderName)
-            }
+            meetingWorkflow.toggle()
         }
 
         func previewInteractionSound(_ preset: InteractionSoundPreset) {
@@ -740,10 +630,4 @@
         }
     }
 
-    private extension MacMeetingRecordingPhase {
-        var isFailure: Bool {
-            if case .failed = self { return true }
-            return false
-        }
-    }
 #endif
