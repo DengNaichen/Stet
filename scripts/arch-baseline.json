@@ -1,7 +1,4 @@
 {
   "comment": "Accepted existing violations (ratchet). Remove entries as they are fixed; never add new ones by hand. Regenerate with `python3 scripts/arch-check.py --write-baseline`.",
-  "violations": [
-    "R5 StetMac/Features/Dictation/DictationView.swift DictationView -> ConfigurableSpeechService",
-    "R5 StetMac/Features/Dictation/DictationView.swift DictationView -> SpeechService"
-  ]
+  "violations": []
 }

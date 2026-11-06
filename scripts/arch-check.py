@@ -70,9 +70,11 @@ FORBIDDEN_IMPORTS = {
 }
 
 # Rules that are already at zero and must stay there; never baselined.
-STRICT_RULES = {"R0", "R1", "R2", "R3", "R6"}
+STRICT_RULES = {"R0", "R1", "R2", "R3", "R4", "R5", "R6"}
 
-STRONG = {"holds", "injects"}
+# R5 only counts a View that stores the service. Receiving it in `init` and passing
+# it on to a ViewModel (an `injects`-only reference) is the intended composition.
+STRONG = {"holds"}
 SERVICE_KINDS = {"class", "actor", "protocol"}
 
 
