@@ -7,7 +7,7 @@ human or an agent can act on it directly.
 
 Baseline (ratchet): existing R4/R5 violations are listed in
 scripts/arch-baseline.json. Only violations not in the baseline fail the check;
-fixed entries are reported so the baseline can shrink. Strict rules (R0-R3, R6)
+fixed entries are reported so the baseline can shrink. Strict rules (R0-R6)
 can never be baselined.
 
 Usage:
@@ -32,6 +32,7 @@ import argparse
 import contextlib
 import io
 import json
+import re
 import subprocess
 import sys
 from collections import defaultdict
@@ -70,9 +71,12 @@ FORBIDDEN_IMPORTS = {
 }
 
 # Rules that are already at zero and must stay there; never baselined.
-STRICT_RULES = {"R0", "R1", "R2", "R3", "R6"}
+STRICT_RULES = {"R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7"}
 
-STRONG = {"holds", "injects"}
+# R5 only counts a View that stores the service. Receiving it in `init` and passing
+# it on to a ViewModel (an `injects`-only reference) is the intended composition.
+SHARED_ACCESS = re.compile(r"\b([A-Z]\w*)\.shared\b")
+STRONG = {"holds"}
 SERVICE_KINDS = {"class", "actor", "protocol"}
 
 
@@ -116,6 +120,12 @@ RULES = {
         "R5", "View 不持有 Core 的服务对象（值类型可以）",
         "MVVM：View 只渲染状态、转发意图；调用服务是 ViewModel 的职责。",
         "在 ViewModel 中持有该服务，View 只读 ViewModel 暴露的状态和方法。",
+    ),
+    "R7": Rule(
+        "R7", "View 不直接访问 Core 的单例（Type.shared）",
+        "单例让依赖在 View 里隐形，Preview 和测试无法替换；调用单例是 ViewModel 的职责，"
+        "那里的依赖可以通过 init 参数注入。",
+        "把 .shared 的使用移到 ViewModel（init 参数默认值可以是 .shared），View 只读 ViewModel。",
     ),
     "R6": Rule(
         "R6", "Core 和 Shared 不 import SwiftUI",
@@ -253,6 +263,29 @@ def check(facts: dict) -> list[Violation]:
         if (src_layer == "Presentation" and dst_layer == "Core" and r["kind"] in STRONG
                 and target["kind"] in SERVICE_KINDS and in_view(r["from"])):
             found.append(v("R5"))
+
+    # R7: a View file reaches for a Core/Shared singleton. The dependency graph does
+    # not record member access, so this is a text scan (blind to aliases and to
+    # `shared` obtained through inference). Under --assume it only sees files that
+    # still exist at their original path.
+    view_files: dict[str, str] = {}
+    for d in facts["decls"]:
+        if layer_of(d["file"]) == "Presentation" and "View" in d["inherits"]:
+            view_files.setdefault(d["file"], d["name"])
+    singleton_types = {d["name"] for d in facts["decls"]
+                       if layer_of(d["file"]) in ("Core", "Shared")
+                       and d["kind"] in ("class", "actor", "struct", "enum")}
+    for file, view in sorted(view_files.items()):
+        path = ROOT / file
+        if not path.exists():
+            continue
+        for n, line in enumerate(path.read_text().splitlines(), 1):
+            if line.lstrip().startswith("//"):
+                continue
+            for m in SHARED_ACCESS.finditer(line):
+                if m.group(1) in singleton_types:
+                    found.append(Violation("R7", file, n, view, m.group(1),
+                                           "shared", "singleton"))
     return found
 
 

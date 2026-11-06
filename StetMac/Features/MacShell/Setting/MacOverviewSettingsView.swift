@@ -3,16 +3,14 @@
 
     struct MacOverviewSettingsView: View {
         @Environment(\.scenePhase) private var scenePhase
-        @State private var usageSummary = DictationUsageSummary.empty
-        @State private var activityDetails: [Date: DictationDailySummary] = [:]
-        @State private var appUsage: [DictationAppUsage] = []
+        @StateObject private var viewModel = MacOverviewViewModel()
 
         var body: some View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    MacDictationUsageStatsView(summary: usageSummary)
-                    MacDictationActivityHeatmapView(details: activityDetails)
-                    MacDictationAppUsageView(apps: appUsage)
+                    MacDictationUsageStatsView(summary: viewModel.usageSummary)
+                    MacDictationActivityHeatmapView(details: viewModel.activityDetails)
+                    MacDictationAppUsageView(apps: viewModel.appUsage)
 
                     Text("Time saved is compared with typing at 40 WPM.")
                         .font(.caption)
@@ -24,14 +22,8 @@
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .macSettingsTracksTitleScroll()
-            .task { reload() }
-            .onChange(of: scenePhase) { _, phase in if phase == .active { reload() } }
-        }
-
-        private func reload() {
-            usageSummary = DictationStatsModel.shared.usageSummary()
-            activityDetails = DictationStatsModel.shared.activityDetails()
-            appUsage = DictationStatsModel.shared.appUsage()
+            .task { viewModel.reload() }
+            .onChange(of: scenePhase) { _, phase in if phase == .active { viewModel.reload() } }
         }
     }
 #endif

@@ -72,7 +72,8 @@
         private let settingsStore: DictationSettingsStore
         private let modelProbe: any OpenAICompatibleModelProbing
         private let credentialValidator: any ProviderCredentialValidating
-        let catalogStore: RewriteModelCatalogStore
+        private let catalogStore: RewriteModelCatalogStore
+        private var catalogStateCancellable: AnyCancellable?
         private var hasLoadedState = false
         private var catalogCancellable: AnyCancellable?
 
@@ -93,7 +94,15 @@
                     selectedModelID = effectiveModelID(for: rewriteProvider)
                     objectWillChange.send()
                 }
+            catalogStateCancellable = catalogStore.$refreshState
+                .dropFirst()
+                .sink { [weak self] _ in
+                    self?.objectWillChange.send()
+                }
         }
+
+        var catalogRefreshState: RewriteModelCatalogStore.RefreshState { catalogStore.refreshState }
+        var catalogRevision: Int { catalogStore.revision }
 
         var connectionNeedsAttention: Bool {
             guard isRewriteEnabled else { return false }

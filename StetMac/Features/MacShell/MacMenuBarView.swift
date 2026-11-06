@@ -3,25 +3,26 @@
     import SwiftUI
 
     struct MacMenuBarView: View {
-        @EnvironmentObject private var appModel: MacAppModel
+        @EnvironmentObject private var meetingViewModel: MacMeetingViewModel
         @EnvironmentObject private var settingsShellViewModel: MacSettingsShellViewModel
-        @EnvironmentObject private var appUpdateManager: AppUpdateManager
+        @EnvironmentObject private var appUpdateViewModel: MacAppUpdateViewModel
         @Environment(\.openWindow) private var openWindow
+        @StateObject private var deviceList = AudioInputDeviceListViewModel()
 
         var body: some View {
             Group {
                 Button {
-                    appModel.toggleMeetingRecording()
+                    meetingViewModel.toggleMeetingRecording()
                 } label: {
                     Label(
-                        appModel.meetingToggleTitle,
-                        systemImage: appModel.meetingMenuSymbolName
+                        meetingViewModel.meetingToggleTitle,
+                        systemImage: meetingViewModel.meetingMenuSymbolName
                     )
                 }
-                .disabled(!appModel.canToggleMeetingRecording)
+                .disabled(!meetingViewModel.canToggleMeetingRecording)
 
-                if appModel.isMeetingBusy {
-                    Text(appModel.meetingStatusText)
+                if meetingViewModel.isMeetingBusy {
+                    Text(meetingViewModel.meetingStatusText)
                         .foregroundStyle(.secondary)
                 }
 
@@ -29,8 +30,8 @@
 
                 if MacFeatureAvailability.isPassiveListeningVisible {
                     Label(
-                        appModel.passiveListeningStatusText,
-                        systemImage: appModel.isPassiveMicrophoneActive ? "mic.fill" : "mic.slash"
+                        meetingViewModel.passiveListeningStatusText,
+                        systemImage: meetingViewModel.isPassiveMicrophoneActive ? "mic.fill" : "mic.slash"
                     )
                     .disabled(true)
 
@@ -47,31 +48,30 @@
                 Divider()
 
                 Menu("Select Microphone") {
-                    AudioInputDeviceMenuSection()
+                    AudioInputDeviceMenuSection(deviceList: deviceList)
                 }
 
                 Button(appUpdateMenuTitle) {
-                    appUpdateManager.checkForUpdates()
+                    appUpdateViewModel.checkForUpdates()
                 }
-                .disabled(appUpdateManager.isChecking || !appUpdateManager.canCheckForUpdates)
+                .disabled(appUpdateViewModel.isChecking || !appUpdateViewModel.canCheckForUpdates)
 
                 Button("Quit") {
                     NSApplication.shared.terminate(nil)
                 }
             }
             .task {
-                AudioDeviceSelectionManager.shared.refreshDevices()
-                AudioDeviceChangeMonitor.shared.startMonitoring()
+                deviceList.startMonitoring()
 
                 await MacDictationVisualsRuntime.prewarmIfAvailable()
             }
             .onDisappear {
-                AudioDeviceChangeMonitor.shared.stopMonitoring()
+                deviceList.stopMonitoring()
             }
         }
 
         private var appUpdateMenuTitle: LocalizedStringKey {
-            switch appUpdateManager.state {
+            switch appUpdateViewModel.state {
             case .updateAvailable(_, let latestVersion):
                 return "Update Available (\(latestVersion))"
             case .checking:

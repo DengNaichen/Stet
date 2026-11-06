@@ -3,8 +3,8 @@
 
     struct MacGeneralSettingsView: View {
         @EnvironmentObject private var settingsShellViewModel: MacSettingsShellViewModel
-        @EnvironmentObject private var appUpdateManager: AppUpdateManager
-        @EnvironmentObject private var compatibilityStore: AppCompatibilityStore
+        @EnvironmentObject private var appUpdateViewModel: MacAppUpdateViewModel
+        @EnvironmentObject private var compatibilityViewModel: MacCompatibilityViewModel
 
         @StateObject private var viewModel = MacGeneralSettingsViewModel()
 
@@ -21,7 +21,7 @@
             .macSettingsFormStyle()
             .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
-                viewModel.configure(appModel: settingsShellViewModel, appUpdateManager: appUpdateManager)
+                viewModel.configure(appModel: settingsShellViewModel, appUpdateManager: appUpdateViewModel)
                 viewModel.load()
             }
         }
@@ -60,8 +60,8 @@
 
         private var compatibilitySection: some View {
             Section {
-                MacCompatibilityUpdateControls(state: compatibilityStore.refreshState) {
-                    Task { await compatibilityStore.refresh() }
+                MacCompatibilityUpdateControls(state: compatibilityViewModel.refreshState) {
+                    Task { await compatibilityViewModel.refresh() }
                 }
             } header: {
                 Text("App Compatibility")
