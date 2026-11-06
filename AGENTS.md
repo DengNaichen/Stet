@@ -22,6 +22,10 @@ are referenced by both platforms.
 
 ## Build and validation
 
+开始代码修改、创建分支/worktree、提交 PR 或清理已合并工作时，读取
+[git-workflow](.agents/skills/git-workflow/SKILL.md)。它拥有跨 agent 的 Git 流程；
+环境初始化继续由 `scripts/setup-worktree` 负责。
+
 - Stable macOS build: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make build`
 - macOS tests: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make test`
 - iOS 27 simulator build: `make ios-build`; it uses Xcode Beta per-command and
