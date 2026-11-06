@@ -58,15 +58,5 @@
                 #expect(!device.name.isEmpty)
             }
         }
-
-        @Test func hasInputChannelsReturnsBoolForValidDevice() {
-            guard let deviceID = AudioInputDeviceManager.defaultInputDeviceID() else {
-                return
-            }
-
-            let hasChannels = AudioInputDeviceManager.hasInputChannels(deviceID: deviceID)
-
-            #expect(hasChannels == true || hasChannels == false)
-        }
     }
 #endif

@@ -1,0 +1,2910 @@
+{
+  "scope": "purposefully selected behavior mutations; not a random sample or whole-project mutation score",
+  "snapshot": "/tmp/stet-mutation-audit-20261106",
+  "baseline": {
+    "methods": 641,
+    "passed": 627,
+    "failed": 14
+  },
+  "mutants": [
+    {
+      "id": "M01",
+      "file": "StetMac/Core/Audio/Devices/AudioDeviceProviding.swift",
+      "marker": "struct SystemAudioDeviceProvider: AudioDeviceProviding {\n        func allInputDevices()",
+      "new": "[]",
+      "suites": [
+        "SystemAudioDeviceProviderTests"
+      ],
+      "description": "System provider never enumerates any input devices",
+      "kind": "replace",
+      "old": "AudioInputDeviceManager.allInputDevices()",
+      "exit": 0,
+      "seconds": 23.88,
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "failures": [],
+      "outcome": "survived",
+      "tests": [
+        {
+          "id": "SystemAudioDeviceProviderTests/defaultInputDeviceReturnsDevice()",
+          "result": "Passed"
+        },
+        {
+          "id": "SystemAudioDeviceProviderTests/allInputDevicesReturnsDeviceList()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M02",
+      "file": "StetMac/Core/Audio/Devices/AudioDeviceProviding.swift",
+      "marker": "func defaultInputDevice()",
+      "new": "nil",
+      "suites": [
+        "SystemAudioDeviceProviderTests"
+      ],
+      "description": "System provider always returns nil default device",
+      "kind": "replace",
+      "old": "AudioInputDeviceManager.defaultInputDevice()",
+      "exit": 0,
+      "seconds": 14.06,
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "failures": [],
+      "outcome": "survived",
+      "tests": [
+        {
+          "id": "SystemAudioDeviceProviderTests/allInputDevicesReturnsDeviceList()",
+          "result": "Passed"
+        },
+        {
+          "id": "SystemAudioDeviceProviderTests/defaultInputDeviceReturnsDevice()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M03",
+      "file": "StetMac/Core/Audio/Devices/AudioInputDeviceManager.swift",
+      "marker": "private static func defaultDeviceID(",
+      "new": "return nil",
+      "suites": [
+        "AudioInputDeviceManagerTests",
+        "SystemAudioDeviceProviderTests"
+      ],
+      "description": "All default input/output device IDs become nil",
+      "kind": "body",
+      "exit": 0,
+      "seconds": 11.92,
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "failures": [],
+      "outcome": "survived",
+      "tests": [
+        {
+          "id": "AudioInputDeviceManagerTests/builtInInputDeviceReturnsBuiltInOrNil()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/defaultInputDeviceIDReturnsValidIDOrNil()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/defaultInputDeviceReturnsDeviceOrNil()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/defaultOutputDeviceIDReturnsValidIDOrNil()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/defaultOutputDeviceReturnsDeviceOrNil()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/allInputDevicesReturnsNonEmptyListOnMostSystems()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/hasInputChannelsReturnsBoolForValidDevice()",
+          "result": "Passed"
+        },
+        {
+          "id": "SystemAudioDeviceProviderTests/allInputDevicesReturnsDeviceList()",
+          "result": "Passed"
+        },
+        {
+          "id": "SystemAudioDeviceProviderTests/defaultInputDeviceReturnsDevice()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M04",
+      "file": "StetMac/Core/Audio/Devices/AudioInputDeviceManager.swift",
+      "marker": "static func allInputDevices()",
+      "new": "return []",
+      "suites": [
+        "AudioInputDeviceManagerTests",
+        "SystemAudioDeviceProviderTests"
+      ],
+      "description": "Device enumeration always returns empty",
+      "kind": "body",
+      "exit": 0,
+      "seconds": 10.14,
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "failures": [],
+      "outcome": "survived",
+      "tests": [
+        {
+          "id": "AudioInputDeviceManagerTests/defaultOutputDeviceReturnsDeviceOrNil()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/defaultInputDeviceReturnsDeviceOrNil()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/defaultOutputDeviceIDReturnsValidIDOrNil()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/allInputDevicesReturnsNonEmptyListOnMostSystems()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/hasInputChannelsReturnsBoolForValidDevice()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/builtInInputDeviceReturnsBuiltInOrNil()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/defaultInputDeviceIDReturnsValidIDOrNil()",
+          "result": "Passed"
+        },
+        {
+          "id": "SystemAudioDeviceProviderTests/allInputDevicesReturnsDeviceList()",
+          "result": "Passed"
+        },
+        {
+          "id": "SystemAudioDeviceProviderTests/defaultInputDeviceReturnsDevice()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M05",
+      "file": "StetMac/Core/Audio/Devices/AudioInputDeviceManager.swift",
+      "marker": "static func hasInputChannels(",
+      "new": "return false",
+      "suites": [
+        "AudioInputDeviceManagerTests",
+        "SystemAudioDeviceProviderTests"
+      ],
+      "description": "Every audio device reports no input channels",
+      "kind": "body",
+      "exit": 0,
+      "seconds": 9.4,
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "failures": [],
+      "outcome": "survived",
+      "tests": [
+        {
+          "id": "AudioInputDeviceManagerTests/defaultOutputDeviceIDReturnsValidIDOrNil()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/allInputDevicesReturnsNonEmptyListOnMostSystems()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/defaultInputDeviceReturnsDeviceOrNil()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/hasInputChannelsReturnsBoolForValidDevice()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/defaultInputDeviceIDReturnsValidIDOrNil()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/builtInInputDeviceReturnsBuiltInOrNil()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioInputDeviceManagerTests/defaultOutputDeviceReturnsDeviceOrNil()",
+          "result": "Passed"
+        },
+        {
+          "id": "SystemAudioDeviceProviderTests/allInputDevicesReturnsDeviceList()",
+          "result": "Passed"
+        },
+        {
+          "id": "SystemAudioDeviceProviderTests/defaultInputDeviceReturnsDevice()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M06",
+      "file": "StetMac/Core/Audio/Devices/AudioDeviceChangeMonitor.swift",
+      "marker": "func startMonitoring()",
+      "new": "return",
+      "suites": [
+        "AudioDeviceChangeMonitorTests"
+      ],
+      "description": "Audio device monitor never registers listener",
+      "kind": "body",
+      "exit": 0,
+      "seconds": 9.32,
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "failures": [],
+      "outcome": "survived",
+      "tests": [
+        {
+          "id": "AudioDeviceChangeMonitorTests/startMonitoringCanBeCalledMultipleTimes()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceChangeMonitorTests/sharedInstanceExists()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceChangeMonitorTests/stopMonitoringWithoutStartIsHarmless()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceChangeMonitorTests/notificationNameIsCorrect()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M07",
+      "file": "StetMac/Core/Audio/Devices/AudioDeviceChangeMonitor.swift",
+      "marker": "func stopMonitoring()",
+      "new": "return",
+      "suites": [
+        "AudioDeviceChangeMonitorTests"
+      ],
+      "description": "Audio device monitor never releases listener",
+      "kind": "body",
+      "exit": 0,
+      "seconds": 9.11,
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "failures": [],
+      "outcome": "survived",
+      "tests": [
+        {
+          "id": "AudioDeviceChangeMonitorTests/startMonitoringCanBeCalledMultipleTimes()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceChangeMonitorTests/sharedInstanceExists()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceChangeMonitorTests/notificationNameIsCorrect()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceChangeMonitorTests/stopMonitoringWithoutStartIsHarmless()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M08",
+      "file": "StetMac/Core/AppBranch/AppBranchMonitor.swift",
+      "marker": "func addObserver(",
+      "new": "return UUID()",
+      "suites": [
+        "AppBranchTests"
+      ],
+      "description": "Return observer ID but never store callback",
+      "kind": "body",
+      "exit": 65,
+      "seconds": 16.43,
+      "total": 53,
+      "passed": 50,
+      "failed": 3,
+      "failures": [
+        {
+          "failureText": "Issue recorded: Confirmation was confirmed 0 times, but expected to be confirmed 1 time\ninitial snapshot",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/observerReceivesInitialSnapshotWhenMonitoringStarts()",
+          "testName": "observer receives initial snapshot when monitoring starts"
+        },
+        {
+          "failureText": "Expectation failed: (receivedApps.map(\\.bundleIdentifier) → []) == [\"com.apple.Safari\", \"com.apple.Terminal\"]",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/observerReceivesUpdatesWhenWorkspaceChanges()",
+          "testName": "observer receives updates when workspace changes"
+        },
+        {
+          "failureText": "Expectation failed: observer2Called",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/removeObserverRemovesCorrectObserver()",
+          "testName": "removeObserver removes the correct observer"
+        }
+      ],
+      "outcome": "killed",
+      "tests": [
+        {
+          "id": "AppBranchTests/appInfoInitializesWithAllProvidedValues()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForBundleIdentifiers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/multipleObserversCanBeRegistered()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/rapidStartStopCallsLeaveMonitorStopped()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenProcessIdentifiersDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesCodexStyleAICodingAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringIsIdempotent()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReflectsWorkspaceChangesImmediately()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceIsAIPropertyReturnsTrueForAIAudience()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesPartialMatchesInBundleIdentifiers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringInitializesCurrentApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/isOwnHostApplicationIsSetCorrectly()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverRemovesCorrectObserver()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverReturnsHumanForUnknownApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverHandlesWhitespaceInNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/excludedAppFallsBackToPreviousNonExcludedApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoAudiencePropertyReturnsCorrectValue()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringSetsIsMonitoringToFalse()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForLocalizedNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentCurrentAppReadsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReturnsCorrectAppWhenNotMonitoring()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAntiGravityStyleAIAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringSetsIsMonitoringToTrue()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/excludedAppReturnsNilWhenNoPreviousNonExcludedApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverHandlesInvalidUUIDGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesPartialMatchesInLocalizedNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentStartStopCallsAreSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceCanBeEncodedAndDecoded()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/setExcludedBundleIDCanBeCalledMultipleTimes()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenLocalizedNamesDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAIFacingAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringIsIdempotent()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringHandlesInitializationErrorsGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentAddObserverCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverPreventsLaterCallbacks()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/previousAppIsTrackedCorrectlyAcrossAppSwitches()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringIsSafeWhenNotMonitoring()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentRemoveObserverCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentSetExcludedBundleIDCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/setExcludedBundleIDConfiguresExclusion()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoEqualityComparesAllRelevantFields()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenBundleIdentifiersDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesCommonIDEsAsAIFacingTargets()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReturnsNilWhenBundleIdentifierMissing()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenIsOwnHostApplicationDiffers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceDefaultsToHumanForOrdinaryApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/isOwnHostApplicationIsFalseForOtherApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/observerReceivesUpdatesWhenWorkspaceChanges()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesAllDocumentedAITools()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAIFacingAppsByBundleIdentifier()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/addObserverReturnsValidUUID()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppHandlesNilFrontmostAppGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/observerReceivesInitialSnapshotWhenMonitoringStarts()",
+          "result": "Failed"
+        }
+      ]
+    },
+    {
+      "id": "M09",
+      "file": "StetMac/Core/AppBranch/AppBranchMonitor.swift",
+      "marker": "func removeObserver(",
+      "new": "return",
+      "suites": [
+        "AppBranchTests"
+      ],
+      "description": "Never remove registered observer",
+      "kind": "body",
+      "exit": 65,
+      "seconds": 17.69,
+      "total": 53,
+      "passed": 51,
+      "failed": 2,
+      "failures": [
+        {
+          "failureText": "Expectation failed: (callbackCount → 1) == 0",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/removeObserverPreventsLaterCallbacks()",
+          "testName": "removeObserver prevents later callbacks"
+        },
+        {
+          "failureText": "Expectation failed: !(observer1Called → <not evaluated>)",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/removeObserverRemovesCorrectObserver()",
+          "testName": "removeObserver removes the correct observer"
+        }
+      ],
+      "outcome": "killed",
+      "tests": [
+        {
+          "id": "AppBranchTests/stopMonitoringIsIdempotent()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReflectsWorkspaceChangesImmediately()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesCodexStyleAICodingAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentAddObserverCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverRemovesCorrectObserver()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesPartialMatchesInLocalizedNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/isOwnHostApplicationIsFalseForOtherApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverHandlesWhitespaceInNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceIsAIPropertyReturnsTrueForAIAudience()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/excludedAppFallsBackToPreviousNonExcludedApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenIsOwnHostApplicationDiffers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/addObserverReturnsValidUUID()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringInitializesCurrentApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppHandlesNilFrontmostAppGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/rapidStartStopCallsLeaveMonitorStopped()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringSetsIsMonitoringToTrue()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInitializesWithAllProvidedValues()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoEqualityComparesAllRelevantFields()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringHandlesInitializationErrorsGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesPartialMatchesInBundleIdentifiers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/previousAppIsTrackedCorrectlyAcrossAppSwitches()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/multipleObserversCanBeRegistered()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/observerReceivesInitialSnapshotWhenMonitoringStarts()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/setExcludedBundleIDCanBeCalledMultipleTimes()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceDefaultsToHumanForOrdinaryApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForLocalizedNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/setExcludedBundleIDConfiguresExclusion()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesCommonIDEsAsAIFacingTargets()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReturnsNilWhenBundleIdentifierMissing()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverHandlesInvalidUUIDGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenLocalizedNamesDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverReturnsHumanForUnknownApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceCanBeEncodedAndDecoded()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringIsIdempotent()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentCurrentAppReadsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/excludedAppReturnsNilWhenNoPreviousNonExcludedApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/isOwnHostApplicationIsSetCorrectly()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenBundleIdentifiersDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringIsSafeWhenNotMonitoring()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAntiGravityStyleAIAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentStartStopCallsAreSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAIFacingAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringSetsIsMonitoringToFalse()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoAudiencePropertyReturnsCorrectValue()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReturnsCorrectAppWhenNotMonitoring()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAIFacingAppsByBundleIdentifier()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenProcessIdentifiersDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverPreventsLaterCallbacks()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/concurrentRemoveObserverCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForBundleIdentifiers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/observerReceivesUpdatesWhenWorkspaceChanges()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesAllDocumentedAITools()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentSetExcludedBundleIDCallsAreThreadSafe()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M10",
+      "file": "StetMac/Core/AppBranch/AppBranchMonitor.swift",
+      "marker": "func setExcludedBundleID(",
+      "new": "return",
+      "suites": [
+        "AppBranchTests"
+      ],
+      "description": "Ignore excluded app setter",
+      "kind": "body",
+      "exit": 65,
+      "seconds": 17.69,
+      "total": 53,
+      "passed": 48,
+      "failed": 5,
+      "failures": [
+        {
+          "failureText": "Expectation failed: (appInfo?.bundleIdentifier → \"com.apple.Safari\") == \"com.apple.Mail\"",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/excludedAppFallsBackToPreviousNonExcludedApp()",
+          "testName": "excluded app falls back to the previous non-excluded app"
+        },
+        {
+          "failureText": "Expectation failed: (monitor.currentApp → AppInfo(bundleIdentifier: \"com.apple.Safari\", localizedName: \"Safari\", processIdentifier: 42, isOwnHostApplication: false, runningApplication: nil)) == nil",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/excludedAppReturnsNilWhenNoPreviousNonExcludedApp()",
+          "testName": "excluded app returns nil when there is no previous non-excluded app"
+        },
+        {
+          "failureText": "Expectation failed: (monitor.currentApp?.bundleIdentifier → \"com.apple.Mail\") == \"com.apple.Safari\"",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/previousAppIsTrackedCorrectlyAcrossAppSwitches()",
+          "testName": "previousApp is tracked correctly across app switches"
+        },
+        {
+          "failureText": "Expectation failed: (monitor.excludedBundleID → nil) == \"com.apple.Safari\"",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/setExcludedBundleIDCanBeCalledMultipleTimes()",
+          "testName": "setExcludedBundleID can be called multiple times"
+        },
+        {
+          "failureText": "Expectation failed: (monitor.excludedBundleID → nil) == \"com.apple.Safari\"",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/setExcludedBundleIDConfiguresExclusion()",
+          "testName": "setExcludedBundleID configures exclusion"
+        }
+      ],
+      "outcome": "killed",
+      "tests": [
+        {
+          "id": "AppBranchTests/setExcludedBundleIDConfiguresExclusion()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/multipleObserversCanBeRegistered()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReflectsWorkspaceChangesImmediately()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesCommonIDEsAsAIFacingTargets()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenBundleIdentifiersDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/excludedAppFallsBackToPreviousNonExcludedApp()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesPartialMatchesInLocalizedNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceCanBeEncodedAndDecoded()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInitializesWithAllProvidedValues()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentStartStopCallsAreSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppHandlesNilFrontmostAppGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoEqualityComparesAllRelevantFields()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoAudiencePropertyReturnsCorrectValue()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringHandlesInitializationErrorsGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesPartialMatchesInBundleIdentifiers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverRemovesCorrectObserver()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringSetsIsMonitoringToTrue()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentSetExcludedBundleIDCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForBundleIdentifiers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/observerReceivesUpdatesWhenWorkspaceChanges()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentCurrentAppReadsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/previousAppIsTrackedCorrectlyAcrossAppSwitches()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAIFacingAppsByBundleIdentifier()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceDefaultsToHumanForOrdinaryApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringIsIdempotent()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/isOwnHostApplicationIsSetCorrectly()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAntiGravityStyleAIAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesCodexStyleAICodingAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringIsSafeWhenNotMonitoring()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringInitializesCurrentApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForLocalizedNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenProcessIdentifiersDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentRemoveObserverCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringSetsIsMonitoringToFalse()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverHandlesWhitespaceInNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenIsOwnHostApplicationDiffers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReturnsNilWhenBundleIdentifierMissing()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesAllDocumentedAITools()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/excludedAppReturnsNilWhenNoPreviousNonExcludedApp()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/rapidStartStopCallsLeaveMonitorStopped()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentAddObserverCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/isOwnHostApplicationIsFalseForOtherApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringIsIdempotent()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceIsAIPropertyReturnsTrueForAIAudience()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/addObserverReturnsValidUUID()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/observerReceivesInitialSnapshotWhenMonitoringStarts()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReturnsCorrectAppWhenNotMonitoring()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverHandlesInvalidUUIDGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenLocalizedNamesDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverPreventsLaterCallbacks()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverReturnsHumanForUnknownApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAIFacingAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/setExcludedBundleIDCanBeCalledMultipleTimes()",
+          "result": "Failed"
+        }
+      ]
+    },
+    {
+      "id": "M11",
+      "file": "StetMac/Core/Audio/Recording/MacRecordingFileStabilizer.swift",
+      "marker": "static func waitForFileToStabilize(",
+      "new": "return",
+      "suites": [
+        "MacRecordingFileStabilizerTests",
+        "MacRecordingFileSupportTests"
+      ],
+      "description": "Never wait for recording file availability or stability",
+      "kind": "body",
+      "exit": 0,
+      "seconds": 10.38,
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "failures": [],
+      "outcome": "survived",
+      "tests": [
+        {
+          "id": "MacRecordingFileStabilizerTests/waitForFileToStabilizeHandlesExistingFile()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacRecordingFileStabilizerTests/waitForFileToStabilizeWaitsForFileToExist()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacRecordingFileSupportTests/boundedFramesTrimAndSplitAtExactSampleBoundary()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacRecordingFileSupportTests/recordingFileStabilizerWaitsUntilFileBecomesReadable()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacRecordingFileSupportTests/recordingOutcomeIncludesVoiceProcessingFallbackDetails()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacRecordingFileSupportTests/recordingSessionBuffersAudioBeforeActivationAndWritesItOnceActivated()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacRecordingFileSupportTests/preActivationBufferRetainsExactBoundedSuffix()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M12",
+      "file": "StetMac/Core/Audio/Devices/AudioDeviceSelectionManager.swift",
+      "marker": "private func persistPreferredDeviceUID()",
+      "new": "return",
+      "suites": [
+        "AudioDeviceSelectionManagerTests"
+      ],
+      "description": "Selected microphone preference never persists",
+      "kind": "body",
+      "exit": 65,
+      "seconds": 16.53,
+      "total": 4,
+      "passed": 2,
+      "failed": 2,
+      "failures": [
+        {
+          "failureText": "Expectation failed: (defaults.string(forKey: MacPreferences.preferredAudioInputDeviceUID) → nil) == (usb.uid → \"usb\")",
+          "targetName": "StetTests",
+          "testIdentifierString": "AudioDeviceSelectionManagerTests/refreshDevicesFallsBackToBuiltInButPreservesExternalPreference()",
+          "testName": "refreshDevicesFallsBackToBuiltInButPreservesExternalPreference()"
+        },
+        {
+          "failureText": "Expectation failed: (defaults.string(forKey: MacPreferences.preferredAudioInputDeviceUID) → nil) == (usb.uid → \"usb\")",
+          "targetName": "StetTests",
+          "testIdentifierString": "AudioDeviceSelectionManagerTests/selectingBuiltInDefaultDuringFallbackClearsStoredExternalPreference()",
+          "testName": "selectingBuiltInDefaultDuringFallbackClearsStoredExternalPreference()"
+        }
+      ],
+      "outcome": "killed",
+      "tests": [
+        {
+          "id": "AudioDeviceSelectionManagerTests/refreshDevicesFallsBackToBuiltInButPreservesExternalPreference()",
+          "result": "Failed"
+        },
+        {
+          "id": "AudioDeviceSelectionManagerTests/selectingBuiltInDefaultDuringFallbackClearsStoredExternalPreference()",
+          "result": "Failed"
+        },
+        {
+          "id": "AudioDeviceSelectionManagerTests/refreshDevicesRestoresExternalDeviceWhenItReturns()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceSelectionManagerTests/currentRecordingDeviceMatchesActiveDevice()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M13",
+      "file": "StetMac/Core/Clipboard/PasteboardRestoreCoordinator.swift",
+      "old": "guard temporarySnapshot.matches(pasteboard) else {",
+      "new": "guard true else {",
+      "suites": [
+        "PasteboardRestoreCoordinatorTests"
+      ],
+      "description": "Restore old clipboard even after user copies new content",
+      "kind": "replace",
+      "exit": 65,
+      "seconds": 16.82,
+      "total": 11,
+      "passed": 8,
+      "failed": 3,
+      "failures": [
+        {
+          "failureText": "Expectation failed: (subject.pasteboard.string(forType: .string) → \"original\") == \"user-copy\"",
+          "targetName": "StetTests",
+          "testIdentifierString": "PasteboardRestoreCoordinatorTests/delayOverrideStillSkipsRestoreAfterExternalClipboardChange()",
+          "testName": "delayOverrideStillSkipsRestoreAfterExternalClipboardChange()"
+        },
+        {
+          "failureText": "Expectation failed: (subject.pasteboard.string(forType: .string) → \"original\") == \"external-change\"",
+          "targetName": "StetTests",
+          "testIdentifierString": "PasteboardRestoreCoordinatorTests/restoreSkippedWhenClipboardChangesExternally()",
+          "testName": "restoreSkippedWhenClipboardChangesExternally()"
+        },
+        {
+          "failureText": "Expectation failed: (subject.pasteboard.string(forType: .string) → \"original\") == \"user-copy\"",
+          "targetName": "StetTests",
+          "testIdentifierString": "PasteboardRestoreCoordinatorTests/userClipboardChangesAreNotOverwrittenByDelayedRestore()",
+          "testName": "userClipboardChangesAreNotOverwrittenByDelayedRestore()"
+        }
+      ],
+      "outcome": "killed",
+      "tests": [
+        {
+          "id": "PasteboardRestoreCoordinatorTests/rapidSuccessiveOverridesRestoreOriginalClipboard()",
+          "result": "Passed"
+        },
+        {
+          "id": "PasteboardRestoreCoordinatorTests/userClipboardChangesAreNotOverwrittenByDelayedRestore()",
+          "result": "Failed"
+        },
+        {
+          "id": "PasteboardRestoreCoordinatorTests/delayOverrideKeepsTemporaryClipboardUntilOverrideExpires()",
+          "result": "Passed"
+        },
+        {
+          "id": "PasteboardRestoreCoordinatorTests/delayOverrideStillSkipsRestoreAfterExternalClipboardChange()",
+          "result": "Failed"
+        },
+        {
+          "id": "PasteboardRestoreCoordinatorTests/discardPendingRestoreKeepsLatestClipboardValue()",
+          "result": "Passed"
+        },
+        {
+          "id": "PasteboardRestoreCoordinatorTests/restoringSameTemporaryContentsDoesNotCancelDelayedRestore()",
+          "result": "Passed"
+        },
+        {
+          "id": "PasteboardRestoreCoordinatorTests/restoreSkippedWhenClipboardChangesExternally()",
+          "result": "Failed"
+        },
+        {
+          "id": "PasteboardRestoreCoordinatorTests/restorePreservesMultiItemPayloads()",
+          "result": "Passed"
+        },
+        {
+          "id": "PasteboardRestoreCoordinatorTests/immediateRestoreOnFailureClearsPendingState()",
+          "result": "Passed"
+        },
+        {
+          "id": "PasteboardRestoreCoordinatorTests/restoreHandlesEmptyClipboardGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "PasteboardRestoreCoordinatorTests/multiplePrepareCallsPreserveFirstSnapshot()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M14",
+      "file": "StetMac/Core/Audio/Devices/AudioDeviceSelectionResolver.swift",
+      "old": "availableDevices.first(where: \\.isBuiltIn)",
+      "new": "availableDevices.first(where: { !$0.isBuiltIn })",
+      "suites": [
+        "AudioDeviceSelectionResolverTests",
+        "AudioDeviceSelectionManagerTests"
+      ],
+      "description": "Prefer external device instead of built-in route",
+      "kind": "replace",
+      "exit": 65,
+      "seconds": 17.27,
+      "total": 10,
+      "passed": 5,
+      "failed": 5,
+      "failures": [
+        {
+          "failureText": "Expectation failed: (resolution.activeDevice → AudioHardwareDevice(id: 2, uid: \"usb\", name: \"USB Mic\", transportType: 1970496032)) == (bluetooth → AudioHardwareDevice(id: 3, uid: \"bt\", name: \"AirPods\", transportType: 1651275109))",
+          "targetName": "StetTests",
+          "testIdentifierString": "AudioDeviceSelectionResolverTests/builtInDefaultFallsBackToSystemDefaultWhenNoBuiltInExists()",
+          "testName": "builtInDefaultFallsBackToSystemDefaultWhenNoBuiltInExists()"
+        },
+        {
+          "failureText": "Expectation failed: (resolution.activeDevice → AudioHardwareDevice(id: 2, uid: \"usb\", name: \"USB Mic\", transportType: 1970496032)) == (builtIn → AudioHardwareDevice(id: 1, uid: \"built-in\", name: \"MacBook Microphone\", transportType: 1651274862))",
+          "targetName": "StetTests",
+          "testIdentifierString": "AudioDeviceSelectionResolverTests/builtInDefaultPrefersBuiltInWhenPresent()",
+          "testName": "builtInDefaultPrefersBuiltInWhenPresent()"
+        },
+        {
+          "failureText": "Expectation failed: (subject.activeDevice → AudioHardwareDevice(id: 2, uid: \"usb\", name: \"USB Mic\", transportType: 1970496032)) == (builtIn → AudioHardwareDevice(id: 1, uid: \"built-in\", name: \"MacBook Microphone\", transportType: 1651274862))",
+          "targetName": "StetTests",
+          "testIdentifierString": "AudioDeviceSelectionManagerTests/currentRecordingDeviceMatchesActiveDevice()",
+          "testName": "currentRecordingDeviceMatchesActiveDevice()"
+        },
+        {
+          "failureText": "Expectation failed: (resolution.activeDevice → AudioHardwareDevice(id: 2, uid: \"usb\", name: \"USB Mic\", transportType: 1970496032)) == (builtIn → AudioHardwareDevice(id: 1, uid: \"built-in\", name: \"MacBook Microphone\", transportType: 1651274862))",
+          "targetName": "StetTests",
+          "testIdentifierString": "AudioDeviceSelectionResolverTests/resolveWithPreferenceEnumUsesBuiltInDefault()",
+          "testName": "resolveWithPreferenceEnumUsesBuiltInDefault()"
+        },
+        {
+          "failureText": "Expectation failed: (subject.activeDevice → AudioHardwareDevice(id: 2, uid: \"usb\", name: \"USB Mic\", transportType: 1970496032)) == (builtIn → AudioHardwareDevice(id: 1, uid: \"built-in\", name: \"MacBook Microphone\", transportType: 1651274862))",
+          "targetName": "StetTests",
+          "testIdentifierString": "AudioDeviceSelectionManagerTests/selectingBuiltInDefaultDuringFallbackClearsStoredExternalPreference()",
+          "testName": "selectingBuiltInDefaultDuringFallbackClearsStoredExternalPreference()"
+        }
+      ],
+      "outcome": "killed",
+      "tests": [
+        {
+          "id": "AudioDeviceSelectionManagerTests/currentRecordingDeviceMatchesActiveDevice()",
+          "result": "Failed"
+        },
+        {
+          "id": "AudioDeviceSelectionManagerTests/refreshDevicesRestoresExternalDeviceWhenItReturns()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceSelectionManagerTests/refreshDevicesFallsBackToBuiltInButPreservesExternalPreference()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceSelectionManagerTests/selectingBuiltInDefaultDuringFallbackClearsStoredExternalPreference()",
+          "result": "Failed"
+        },
+        {
+          "id": "AudioDeviceSelectionResolverTests/builtInDefaultPrefersBuiltInWhenPresent()",
+          "result": "Failed"
+        },
+        {
+          "id": "AudioDeviceSelectionResolverTests/resolveWithPreferenceEnumUsesBuiltInDefault()",
+          "result": "Failed"
+        },
+        {
+          "id": "AudioDeviceSelectionResolverTests/externalPreferenceUsesMatchingAvailableDevice()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceSelectionResolverTests/missingExternalPreferenceFallsBackToBuiltIn()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceSelectionResolverTests/builtInDefaultFallsBackToSystemDefaultWhenNoBuiltInExists()",
+          "result": "Failed"
+        },
+        {
+          "id": "AudioDeviceSelectionResolverTests/resolveWithPreferenceEnumUsesExternalDevice()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M15",
+      "file": "StetMac/Features/MacShell/DictationPanel/MacDictationPanelLayout.swift",
+      "old": "scale: 0.66",
+      "new": "scale: 0",
+      "suites": [
+        "MacDictationPanelLayoutTests"
+      ],
+      "description": "Panel scale becomes zero",
+      "kind": "replace",
+      "exit": 65,
+      "seconds": 20.17,
+      "total": 3,
+      "passed": 1,
+      "failed": 2,
+      "failures": [
+        {
+          "failureText": "Expectation failed: (layout.scale → 0.0) == 0.66",
+          "targetName": "StetTests",
+          "testIdentifierString": "MacDictationPanelLayoutTests/fixedLayoutUsesExpectedPanelMetrics()",
+          "testName": "fixedLayoutUsesExpectedPanelMetrics()"
+        },
+        {
+          "failureText": "Expectation failed: (MacDictationPanelLayout.fixed.scale → 0.0) > (0 → 0.0)",
+          "targetName": "StetTests",
+          "testIdentifierString": "MacDictationPanelLayoutTests/fixedLayoutUsesPositiveDisplayScale()",
+          "testName": "fixedLayoutUsesPositiveDisplayScale()"
+        }
+      ],
+      "outcome": "killed",
+      "tests": [
+        {
+          "id": "MacDictationPanelLayoutTests/fixedLayoutUsesExpectedPanelMetrics()",
+          "result": "Failed"
+        },
+        {
+          "id": "MacDictationPanelLayoutTests/fixedLayoutUsesPositiveDisplayScale()",
+          "result": "Failed"
+        },
+        {
+          "id": "MacDictationPanelLayoutTests/fixedLayoutBottomInsetKeepsPanelAnchoredAboveScreenEdge()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M16",
+      "file": "StetMac/Features/MacShell/DictationPanel/MacDictationPanelLayout.swift",
+      "old": "bottomInset: 12",
+      "new": "bottomInset: -1",
+      "suites": [
+        "MacDictationPanelLayoutTests"
+      ],
+      "description": "Panel bottom inset becomes negative",
+      "kind": "replace",
+      "exit": 65,
+      "seconds": 22.81,
+      "total": 3,
+      "passed": 1,
+      "failed": 2,
+      "failures": [
+        {
+          "failureText": "Expectation failed: (MacDictationPanelLayout.fixed.bottomInset → -1.0) >= (0 → 0.0)",
+          "targetName": "StetTests",
+          "testIdentifierString": "MacDictationPanelLayoutTests/fixedLayoutBottomInsetKeepsPanelAnchoredAboveScreenEdge()",
+          "testName": "fixedLayoutBottomInsetKeepsPanelAnchoredAboveScreenEdge()"
+        },
+        {
+          "failureText": "Expectation failed: (layout.bottomInset → -1.0) == (12 → 12.0)",
+          "targetName": "StetTests",
+          "testIdentifierString": "MacDictationPanelLayoutTests/fixedLayoutUsesExpectedPanelMetrics()",
+          "testName": "fixedLayoutUsesExpectedPanelMetrics()"
+        }
+      ],
+      "outcome": "killed",
+      "tests": [
+        {
+          "id": "MacDictationPanelLayoutTests/fixedLayoutUsesExpectedPanelMetrics()",
+          "result": "Failed"
+        },
+        {
+          "id": "MacDictationPanelLayoutTests/fixedLayoutUsesPositiveDisplayScale()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationPanelLayoutTests/fixedLayoutBottomInsetKeepsPanelAnchoredAboveScreenEdge()",
+          "result": "Failed"
+        }
+      ]
+    },
+    {
+      "id": "M17",
+      "file": "StetMac/Features/Onboarding/OnboardingViewModel.swift",
+      "old": "settingsStore.saveTranscriptionPrimaryLanguage(transcriptionPrimaryLanguage)",
+      "new": "// mutation: omit primary language persistence",
+      "suites": [
+        "OnboardingViewModelTests"
+      ],
+      "description": "Changing onboarding primary language no longer persists it",
+      "kind": "replace",
+      "exit": 0,
+      "seconds": 22.33,
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "failures": [],
+      "outcome": "survived",
+      "tests": [
+        {
+          "id": "OnboardingViewModelTests/testLanguageSelectionUpdatesRouting()",
+          "result": "Passed"
+        },
+        {
+          "id": "OnboardingViewModelTests/testEnginePreparationFlow()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M18",
+      "file": "StetMac/App/Workflows/MacDictationCaptureCoordinator.swift",
+      "old": "} else if settings.shouldRevealPanelOnCapture {",
+      "new": "} else if true {",
+      "suites": [
+        "MacDictationCaptureCoordinatorTests"
+      ],
+      "description": "Show result panel despite reveal preference disabled",
+      "kind": "replace",
+      "exit": 0,
+      "seconds": 10.25,
+      "total": 22,
+      "passed": 22,
+      "failed": 0,
+      "failures": [],
+      "outcome": "survived",
+      "tests": [
+        {
+          "id": "MacDictationCaptureCoordinatorTests/remoteCompatibilityChangesApplyToExistingCoordinator()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/completedCaptureCopiesTextWithoutAutoPaste()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/completedCaptureAutoPasteSucceedsAndCopiesInSamePath()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/completedCaptureCopiesAndPastesWhenEnabled()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/completedCaptureAutoPasteFailureWhenCopyIsEnabledRevealsPanelAndReturnsCompleted()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/completedCaptureRequestsAccessibilityWhenPasteUnavailable()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/completedCaptureRevealsPanelWhenAutoPasteDisabled()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/copyToClipboardCopiesText()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/completedCaptureTreatsVerificationUnavailableAsDistinctFailure()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/vsCodeVerificationUnavailableCompletesWithoutFallbackOrPanel()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/nonProfiledLikelyTextInputVerificationUnavailableCompletesWithoutFallbackOrPanel()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/vsCodeVerificationFailureCompletesWithoutFallbackOrPanel()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/vsCodeGenericVerificationUnavailableCompletesWithoutFallbackOrPanel()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/otherOptimisticAppsVerificationUnavailableCompleteWithoutFallbackOrPanel()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/unverifiablePasteAppsCompleteWithoutClipboardRecovery()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/nonProfiledGenericVerificationUnavailableFallsBackToClipboardRecovery()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/verificationUnavailableRequestsMissingAccessibilityAccess()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/completedCaptureSkipsClipboardWhenCopyAndPasteAreDisabled()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/completedCaptureSkipsEmptyText()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/cancelledPasteRestoresOnlyItsOwnClipboardOverride(userCopied:)",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/cancellationDuringInjectionDoesNotFallbackToClipboard()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationCaptureCoordinatorTests/cancelledTaskDoesNotAutoPaste()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M19",
+      "file": "StetMac/Features/MacShell/HotKeySetting/MacDictationSettingsViewModel.swift",
+      "old": "            hasLoadedPreferences = false",
+      "new": "            hasLoadedPreferences = true",
+      "suites": [
+        "MacDictationSettingsViewModelTests"
+      ],
+      "description": "Preference loading incorrectly writes settings back",
+      "kind": "replace",
+      "exit": 0,
+      "seconds": 9.85,
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "failures": [],
+      "outcome": "survived",
+      "tests": [
+        {
+          "id": "MacDictationSettingsViewModelTests/dictationCompletionNotificationTogglePersists()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationSettingsViewModelTests/interactionSoundsAndMuteTogglesPersist()",
+          "result": "Passed"
+        },
+        {
+          "id": "MacDictationSettingsViewModelTests/loadUsesStoredDefaultsWithoutWritingUntilChanged()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M20",
+      "file": "StetMac/Core/AppBranch/AppAudience.swift",
+      "old": "            \"chatgpt\",",
+      "new": "            \"__disabled_chatgpt__\",",
+      "suites": [
+        "AppBranchTests"
+      ],
+      "description": "ChatGPT no longer classified as AI-facing",
+      "kind": "replace",
+      "exit": 65,
+      "seconds": 20.85,
+      "total": 53,
+      "passed": 46,
+      "failed": 7,
+      "failures": [
+        {
+          "failureText": "Expectation failed: (audience → .human) == .ai",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/appAudienceRecognizesAIFacingAppsByBundleIdentifier()",
+          "testName": "App audience recognizes AI-facing apps by bundle identifier"
+        },
+        {
+          "failureText": "Expectation failed: (appInfo.audience → .human) == .ai",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/appAudienceRecognizesAIFacingAppsByName()",
+          "testName": "App audience recognizes AI-facing apps by name"
+        },
+        {
+          "failureText": "Expectation failed: (audience1 → .human) == .ai",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/appAudienceResolverHandlesWhitespaceInNames()",
+          "testName": "AppAudienceResolver handles whitespace in names"
+        },
+        {
+          "failureText": "Expectation failed: (audience1 → .human) == .ai",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForBundleIdentifiers()",
+          "testName": "AppAudienceResolver is case-insensitive for bundle identifiers"
+        },
+        {
+          "failureText": "Expectation failed: (audience1 → .human) == .ai",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForLocalizedNames()",
+          "testName": "AppAudienceResolver is case-insensitive for localized names"
+        },
+        {
+          "failureText": "Expectation failed: (audienceByBundle → .human) == .ai: Expected com.openai.chatgpt to be recognized as AI",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/appAudienceResolverRecognizesAllDocumentedAITools()",
+          "testName": "AppAudienceResolver recognizes all documented AI tools"
+        },
+        {
+          "failureText": "Expectation failed: (aiApp.audience → .human) == .ai",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/appInfoAudiencePropertyReturnsCorrectValue()",
+          "testName": "AppInfo audience property returns correct value"
+        }
+      ],
+      "outcome": "killed",
+      "tests": [
+        {
+          "id": "AppBranchTests/observerReceivesInitialSnapshotWhenMonitoringStarts()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppHandlesNilFrontmostAppGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceCanBeEncodedAndDecoded()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/isOwnHostApplicationIsFalseForOtherApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesCommonIDEsAsAIFacingTargets()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInitializesWithAllProvidedValues()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesCodexStyleAICodingAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/rapidStartStopCallsLeaveMonitorStopped()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringSetsIsMonitoringToFalse()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverPreventsLaterCallbacks()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceDefaultsToHumanForOrdinaryApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReturnsCorrectAppWhenNotMonitoring()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForLocalizedNames()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenIsOwnHostApplicationDiffers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAIFacingAppsByName()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/excludedAppFallsBackToPreviousNonExcludedApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/setExcludedBundleIDConfiguresExclusion()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentCurrentAppReadsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringHandlesInitializationErrorsGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverReturnsHumanForUnknownApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForBundleIdentifiers()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/concurrentAddObserverCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverHandlesInvalidUUIDGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentStartStopCallsAreSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/setExcludedBundleIDCanBeCalledMultipleTimes()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/excludedAppReturnsNilWhenNoPreviousNonExcludedApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenLocalizedNamesDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenProcessIdentifiersDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringInitializesCurrentApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverHandlesWhitespaceInNames()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/isOwnHostApplicationIsSetCorrectly()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringSetsIsMonitoringToTrue()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/observerReceivesUpdatesWhenWorkspaceChanges()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesPartialMatchesInLocalizedNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentSetExcludedBundleIDCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesAllDocumentedAITools()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/addObserverReturnsValidUUID()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenBundleIdentifiersDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/multipleObserversCanBeRegistered()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringIsIdempotent()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/previousAppIsTrackedCorrectlyAcrossAppSwitches()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceIsAIPropertyReturnsTrueForAIAudience()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReflectsWorkspaceChangesImmediately()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoEqualityComparesAllRelevantFields()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverRemovesCorrectObserver()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoAudiencePropertyReturnsCorrectValue()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAIFacingAppsByBundleIdentifier()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAntiGravityStyleAIAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringIsIdempotent()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringIsSafeWhenNotMonitoring()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesPartialMatchesInBundleIdentifiers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReturnsNilWhenBundleIdentifierMissing()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentRemoveObserverCallsAreThreadSafe()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M21",
+      "file": "StetMac/Core/AppBranch/AppAudience.swift",
+      "old": "            \"antigravity\",",
+      "new": "            \"__disabled_antigravity__\",",
+      "suites": [
+        "AppBranchTests"
+      ],
+      "description": "AntiGravity no longer classified as AI-facing",
+      "kind": "replace",
+      "exit": 65,
+      "seconds": 20.25,
+      "total": 53,
+      "passed": 51,
+      "failed": 2,
+      "failures": [
+        {
+          "failureText": "Expectation failed: (audience → .human) == .ai",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/appAudienceRecognizesAntiGravityStyleAIAppsByName()",
+          "testName": "App audience recognizes AntiGravity-style AI apps by name"
+        },
+        {
+          "failureText": "Expectation failed: (audienceByBundle → .human) == .ai: Expected dev.antigravity.app to be recognized as AI",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/appAudienceResolverRecognizesAllDocumentedAITools()",
+          "testName": "AppAudienceResolver recognizes all documented AI tools"
+        }
+      ],
+      "outcome": "killed",
+      "tests": [
+        {
+          "id": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForBundleIdentifiers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/setExcludedBundleIDCanBeCalledMultipleTimes()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringIsIdempotent()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/isOwnHostApplicationIsSetCorrectly()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenBundleIdentifiersDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAntiGravityStyleAIAppsByName()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/previousAppIsTrackedCorrectlyAcrossAppSwitches()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenIsOwnHostApplicationDiffers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringSetsIsMonitoringToTrue()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesPartialMatchesInBundleIdentifiers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/observerReceivesInitialSnapshotWhenMonitoringStarts()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceCanBeEncodedAndDecoded()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForLocalizedNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInitializesWithAllProvidedValues()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/rapidStartStopCallsLeaveMonitorStopped()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentSetExcludedBundleIDCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentAddObserverCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/setExcludedBundleIDConfiguresExclusion()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesCodexStyleAICodingAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringInitializesCurrentApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAIFacingAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReflectsWorkspaceChangesImmediately()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentCurrentAppReadsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverRemovesCorrectObserver()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringIsSafeWhenNotMonitoring()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverReturnsHumanForUnknownApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesAllDocumentedAITools()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverPreventsLaterCallbacks()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenLocalizedNamesDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringHandlesInitializationErrorsGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentRemoveObserverCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenProcessIdentifiersDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/excludedAppReturnsNilWhenNoPreviousNonExcludedApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesPartialMatchesInLocalizedNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverHandlesInvalidUUIDGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoAudiencePropertyReturnsCorrectValue()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringIsIdempotent()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentStartStopCallsAreSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReturnsNilWhenBundleIdentifierMissing()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceIsAIPropertyReturnsTrueForAIAudience()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/multipleObserversCanBeRegistered()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppHandlesNilFrontmostAppGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringSetsIsMonitoringToFalse()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAIFacingAppsByBundleIdentifier()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/excludedAppFallsBackToPreviousNonExcludedApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverHandlesWhitespaceInNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/addObserverReturnsValidUUID()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceDefaultsToHumanForOrdinaryApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/isOwnHostApplicationIsFalseForOtherApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoEqualityComparesAllRelevantFields()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/observerReceivesUpdatesWhenWorkspaceChanges()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesCommonIDEsAsAIFacingTargets()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReturnsCorrectAppWhenNotMonitoring()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M22",
+      "file": "StetMac/Core/AppBranch/AppBranchMonitor.swift",
+      "marker": "func startMonitoring()",
+      "new": "return",
+      "suites": [
+        "AppBranchTests"
+      ],
+      "description": "App monitor never starts or registers workspace observation",
+      "kind": "body",
+      "exit": 65,
+      "seconds": 19.52,
+      "total": 53,
+      "passed": 44,
+      "failed": 9,
+      "failures": [
+        {
+          "failureText": "Expectation failed: (appInfo?.bundleIdentifier → nil) == \"com.apple.Mail\"",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/excludedAppFallsBackToPreviousNonExcludedApp()",
+          "testName": "excluded app falls back to the previous non-excluded app"
+        },
+        {
+          "failureText": "Issue recorded: Confirmation was confirmed 0 times, but expected to be confirmed 1 time\ninitial snapshot",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/observerReceivesInitialSnapshotWhenMonitoringStarts()",
+          "testName": "observer receives initial snapshot when monitoring starts"
+        },
+        {
+          "failureText": "Expectation failed: (receivedApps.map(\\.bundleIdentifier) → []) == [\"com.apple.Safari\", \"com.apple.Terminal\"]",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/observerReceivesUpdatesWhenWorkspaceChanges()",
+          "testName": "observer receives updates when workspace changes"
+        },
+        {
+          "failureText": "Expectation failed: observer2Called",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/removeObserverRemovesCorrectObserver()",
+          "testName": "removeObserver removes the correct observer"
+        },
+        {
+          "failureText": "Expectation failed: (monitor → Stet.AppBranchMonitor).isMonitoring → false",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/startMonitoringHandlesInitializationErrorsGracefully()",
+          "testName": "startMonitoring handles initialization errors gracefully"
+        },
+        {
+          "failureText": "Expectation failed: (monitor → Stet.AppBranchMonitor).isMonitoring → false",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/startMonitoringIsIdempotent()",
+          "testName": "startMonitoring is idempotent"
+        },
+        {
+          "failureText": "Expectation failed: (monitor → Stet.AppBranchMonitor).isMonitoring → false",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/startMonitoringSetsIsMonitoringToTrue()",
+          "testName": "startMonitoring sets isMonitoring to true"
+        },
+        {
+          "failureText": "Expectation failed: (harness.workspace.removedObserverCount → 0) == 1",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/stopMonitoringIsIdempotent()",
+          "testName": "stopMonitoring is idempotent"
+        },
+        {
+          "failureText": "Expectation failed: (monitor → Stet.AppBranchMonitor).isMonitoring → false",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/stopMonitoringSetsIsMonitoringToFalse()",
+          "testName": "stopMonitoring sets isMonitoring to false"
+        }
+      ],
+      "outcome": "killed",
+      "tests": [
+        {
+          "id": "AppBranchTests/previousAppIsTrackedCorrectlyAcrossAppSwitches()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReturnsCorrectAppWhenNotMonitoring()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenBundleIdentifiersDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/rapidStartStopCallsLeaveMonitorStopped()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/excludedAppReturnsNilWhenNoPreviousNonExcludedApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoAudiencePropertyReturnsCorrectValue()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenProcessIdentifiersDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/setExcludedBundleIDConfiguresExclusion()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/observerReceivesInitialSnapshotWhenMonitoringStarts()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAIFacingAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringIsIdempotent()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverHandlesWhitespaceInNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceDefaultsToHumanForOrdinaryApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesCodexStyleAICodingAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForBundleIdentifiers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInitializesWithAllProvidedValues()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentSetExcludedBundleIDCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenLocalizedNamesDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenIsOwnHostApplicationDiffers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/isOwnHostApplicationIsFalseForOtherApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentRemoveObserverCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceCanBeEncodedAndDecoded()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoEqualityComparesAllRelevantFields()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/isOwnHostApplicationIsSetCorrectly()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverPreventsLaterCallbacks()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentCurrentAppReadsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/addObserverReturnsValidUUID()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringIsSafeWhenNotMonitoring()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/observerReceivesUpdatesWhenWorkspaceChanges()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesAllDocumentedAITools()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAntiGravityStyleAIAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentAddObserverCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/excludedAppFallsBackToPreviousNonExcludedApp()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringSetsIsMonitoringToFalse()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/setExcludedBundleIDCanBeCalledMultipleTimes()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForLocalizedNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringSetsIsMonitoringToTrue()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceIsAIPropertyReturnsTrueForAIAudience()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverRemovesCorrectObserver()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/concurrentStartStopCallsAreSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppHandlesNilFrontmostAppGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesPartialMatchesInBundleIdentifiers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesCommonIDEsAsAIFacingTargets()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringHandlesInitializationErrorsGracefully()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesPartialMatchesInLocalizedNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/multipleObserversCanBeRegistered()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAIFacingAppsByBundleIdentifier()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReflectsWorkspaceChangesImmediately()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReturnsNilWhenBundleIdentifierMissing()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringIsIdempotent()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringInitializesCurrentApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverHandlesInvalidUUIDGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverReturnsHumanForUnknownApps()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M23",
+      "file": "StetMac/Core/AppBranch/AppAudience.swift",
+      "old": "            \"xcode\",",
+      "new": "            \"__disabled_xcode__\",",
+      "suites": [
+        "AppBranchTests"
+      ],
+      "description": "Xcode no longer classified as AI-facing",
+      "kind": "replace",
+      "exit": 65,
+      "seconds": 27.49,
+      "total": 53,
+      "passed": 51,
+      "failed": 2,
+      "failures": [
+        {
+          "failureText": "Expectation failed: (xcodeAudience → .human) == .ai",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/appAudienceRecognizesCommonIDEsAsAIFacingTargets()",
+          "testName": "App audience recognizes common IDEs as AI-facing targets"
+        },
+        {
+          "failureText": "Expectation failed: (audienceByBundle → .human) == .ai: Expected com.apple.dt.xcode to be recognized as AI",
+          "targetName": "StetTests",
+          "testIdentifierString": "AppBranchTests/appAudienceResolverRecognizesAllDocumentedAITools()",
+          "testName": "AppAudienceResolver recognizes all documented AI tools"
+        }
+      ],
+      "outcome": "killed",
+      "tests": [
+        {
+          "id": "AppBranchTests/isOwnHostApplicationIsSetCorrectly()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForLocalizedNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenIsOwnHostApplicationDiffers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringIsIdempotent()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/observerReceivesInitialSnapshotWhenMonitoringStarts()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/addObserverReturnsValidUUID()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentSetExcludedBundleIDCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInitializesWithAllProvidedValues()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesPartialMatchesInBundleIdentifiers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverIsCaseInsensitiveForBundleIdentifiers()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenProcessIdentifiersDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesPartialMatchesInLocalizedNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/observerReceivesUpdatesWhenWorkspaceChanges()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringSetsIsMonitoringToTrue()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/rapidStartStopCallsLeaveMonitorStopped()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringHandlesInitializationErrorsGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/excludedAppFallsBackToPreviousNonExcludedApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenLocalizedNamesDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesCommonIDEsAsAIFacingTargets()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/appInfoEqualityComparesAllRelevantFields()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringIsIdempotent()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppHandlesNilFrontmostAppGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAIFacingAppsByBundleIdentifier()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoInequalityWhenBundleIdentifiersDiffer()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/isOwnHostApplicationIsFalseForOtherApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appInfoAudiencePropertyReturnsCorrectValue()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverRemovesCorrectObserver()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentStartStopCallsAreSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverHandlesWhitespaceInNames()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceIsAIPropertyReturnsTrueForAIAudience()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverHandlesInvalidUUIDGracefully()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceDefaultsToHumanForOrdinaryApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/excludedAppReturnsNilWhenNoPreviousNonExcludedApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAIFacingAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/startMonitoringInitializesCurrentApp()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesCodexStyleAICodingAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentRemoveObserverCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringIsSafeWhenNotMonitoring()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/multipleObserversCanBeRegistered()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentAddObserverCallsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/concurrentCurrentAppReadsAreThreadSafe()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReflectsWorkspaceChangesImmediately()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/stopMonitoringSetsIsMonitoringToFalse()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverRecognizesAllDocumentedAITools()",
+          "result": "Failed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReturnsCorrectAppWhenNotMonitoring()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/previousAppIsTrackedCorrectlyAcrossAppSwitches()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/currentAppReturnsNilWhenBundleIdentifierMissing()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/setExcludedBundleIDConfiguresExclusion()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceResolverReturnsHumanForUnknownApps()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceCanBeEncodedAndDecoded()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/removeObserverPreventsLaterCallbacks()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/appAudienceRecognizesAntiGravityStyleAIAppsByName()",
+          "result": "Passed"
+        },
+        {
+          "id": "AppBranchTests/setExcludedBundleIDCanBeCalledMultipleTimes()",
+          "result": "Passed"
+        }
+      ]
+    },
+    {
+      "id": "M24",
+      "file": "StetMac/Core/Audio/Devices/AudioDeviceSelectionResolver.swift",
+      "old": "activeDevice: preferredDevice,",
+      "new": "activeDevice: nil,",
+      "suites": [
+        "AudioDeviceSelectionResolverTests",
+        "AudioDeviceSelectionManagerTests"
+      ],
+      "description": "Preferred available external microphone is discarded",
+      "kind": "replace",
+      "exit": 65,
+      "seconds": 19.65,
+      "total": 10,
+      "passed": 6,
+      "failed": 4,
+      "failures": [
+        {
+          "failureText": "Expectation failed: (resolution.activeDevice → nil) == (usb → AudioHardwareDevice(id: 2, uid: \"usb\", name: \"USB Mic\", transportType: 1970496032))",
+          "targetName": "StetTests",
+          "testIdentifierString": "AudioDeviceSelectionResolverTests/externalPreferenceUsesMatchingAvailableDevice()",
+          "testName": "externalPreferenceUsesMatchingAvailableDevice()"
+        },
+        {
+          "failureText": "Expectation failed: (subject.activeDevice → nil) == (usb → AudioHardwareDevice(id: 2, uid: \"usb\", name: \"USB Mic\", transportType: 1970496032))",
+          "targetName": "StetTests",
+          "testIdentifierString": "AudioDeviceSelectionManagerTests/refreshDevicesFallsBackToBuiltInButPreservesExternalPreference()",
+          "testName": "refreshDevicesFallsBackToBuiltInButPreservesExternalPreference()"
+        },
+        {
+          "failureText": "Expectation failed: (subject.activeDevice → nil) == (usb → AudioHardwareDevice(id: 2, uid: \"usb\", name: \"USB Mic\", transportType: 1970496032))",
+          "targetName": "StetTests",
+          "testIdentifierString": "AudioDeviceSelectionManagerTests/refreshDevicesRestoresExternalDeviceWhenItReturns()",
+          "testName": "refreshDevicesRestoresExternalDeviceWhenItReturns()"
+        },
+        {
+          "failureText": "Expectation failed: (resolution.activeDevice → nil) == (usb → AudioHardwareDevice(id: 2, uid: \"usb\", name: \"USB Mic\", transportType: 1970496032))",
+          "targetName": "StetTests",
+          "testIdentifierString": "AudioDeviceSelectionResolverTests/resolveWithPreferenceEnumUsesExternalDevice()",
+          "testName": "resolveWithPreferenceEnumUsesExternalDevice()"
+        }
+      ],
+      "outcome": "killed",
+      "tests": [
+        {
+          "id": "AudioDeviceSelectionResolverTests/missingExternalPreferenceFallsBackToBuiltIn()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceSelectionResolverTests/externalPreferenceUsesMatchingAvailableDevice()",
+          "result": "Failed"
+        },
+        {
+          "id": "AudioDeviceSelectionResolverTests/resolveWithPreferenceEnumUsesExternalDevice()",
+          "result": "Failed"
+        },
+        {
+          "id": "AudioDeviceSelectionResolverTests/builtInDefaultPrefersBuiltInWhenPresent()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceSelectionResolverTests/builtInDefaultFallsBackToSystemDefaultWhenNoBuiltInExists()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceSelectionResolverTests/resolveWithPreferenceEnumUsesBuiltInDefault()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceSelectionManagerTests/selectingBuiltInDefaultDuringFallbackClearsStoredExternalPreference()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceSelectionManagerTests/currentRecordingDeviceMatchesActiveDevice()",
+          "result": "Passed"
+        },
+        {
+          "id": "AudioDeviceSelectionManagerTests/refreshDevicesRestoresExternalDeviceWhenItReturns()",
+          "result": "Failed"
+        },
+        {
+          "id": "AudioDeviceSelectionManagerTests/refreshDevicesFallsBackToBuiltInButPreservesExternalPreference()",
+          "result": "Failed"
+        }
+      ]
+    }
+  ],
+  "post_deletion_comparison": [
+    {
+      "id": "M01",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 1,
+      "post_failed": 0
+    },
+    {
+      "id": "M02",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 1,
+      "post_failed": 0
+    },
+    {
+      "id": "M03",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 7,
+      "post_failed": 0
+    },
+    {
+      "id": "M04",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 7,
+      "post_failed": 0
+    },
+    {
+      "id": "M05",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 7,
+      "post_failed": 0
+    },
+    {
+      "id": "M06",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 3,
+      "post_failed": 0
+    },
+    {
+      "id": "M07",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 3,
+      "post_failed": 0
+    },
+    {
+      "id": "M08",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 48,
+      "post_failed": 3
+    },
+    {
+      "id": "M09",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 48,
+      "post_failed": 2
+    },
+    {
+      "id": "M10",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 48,
+      "post_failed": 5
+    },
+    {
+      "id": "M14",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 8,
+      "post_failed": 4
+    },
+    {
+      "id": "M15",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 1,
+      "post_failed": 1
+    },
+    {
+      "id": "M16",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 1,
+      "post_failed": 1
+    },
+    {
+      "id": "M20",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 48,
+      "post_failed": 6
+    },
+    {
+      "id": "M21",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 48,
+      "post_failed": 1
+    },
+    {
+      "id": "M22",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 48,
+      "post_failed": 8
+    },
+    {
+      "id": "M23",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 48,
+      "post_failed": 1
+    },
+    {
+      "id": "M24",
+      "outcome_unchanged": true,
+      "remaining_failure_set_exactly_preserved": true,
+      "post_total": 8,
+      "post_failed": 3
+    }
+  ],
+  "unchanged_test_scopes_not_rerun": [
+    "M11",
+    "M12",
+    "M13",
+    "M17",
+    "M18",
+    "M19"
+  ],
+  "production_mutations_restored": true,
+  "final_validation": {
+    "totalTestCount": 626,
+    "passedTests": 612,
+    "failedTests": 14,
+    "skippedTests": 0,
+    "make_exit_code": 2,
+    "xcodebuild_exit_code": 65,
+    "same_failure_identifiers_as_baseline": true,
+    "failure_identifiers": [
+      "AudioSignalAnalyzerTests/analyzeCalculatesNoiseFloor()",
+      "AudioSignalAnalyzerTests/analyzeCalculatesSpeechLevel()",
+      "AudioSignalAnalyzerTests/analyzeSilenceDetectsNoSpeech()",
+      "AudioSignalAnalyzerTests/analyzeSpeechDetectsSpeechPresence()",
+      "AudioSignalAnalyzerTests/analyzeStationaryNoiseDetectsNoSpeech()",
+      "ConfigurableSpeechServiceTests/silentAudioIsDiscardedBeforeTranscription()",
+      "DefaultAudioPostProcessorTests/captureWithLongPauseIsTrimmed()",
+      "DefaultAudioPostProcessorTests/keyboardLikeClickTrackIsDiscarded()",
+      "DefaultAudioPostProcessorTests/keyboardLikeClicksMixedWithStationaryNoiseAreDiscarded()",
+      "DefaultAudioPostProcessorTests/loudSpeechCaptureIsPassedThroughWithoutFurtherAmplification()",
+      "DefaultAudioPostProcessorTests/quietSpeechCaptureIsRewrittenAndPreserved()",
+      "DefaultAudioPostProcessorTests/silenceOnlyCaptureIsDiscarded()",
+      "DefaultAudioPostProcessorTests/stationaryNoiseOnlyCaptureIsDiscarded()",
+      "DefaultAudioPostProcessorTests/stationaryNoiseWithSpeechIsRewrittenAndPreserved()"
+    ]
+  },
+  "pr_validation": {
+    "base": "2c6a918",
+    "totalTestCount": 626,
+    "passedTests": 612,
+    "failedTests": 14,
+    "same_failure_identifiers_as_audit_baseline": true,
+    "make_lint": "passed"
+  }
+}

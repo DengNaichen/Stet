@@ -5,16 +5,6 @@
     @testable import Stet
 
     extension AppBranchTests {
-        @Test("addObserver returns valid UUID")
-        func addObserverReturnsValidUUID() {
-            let harness = AppBranchTestSupport.makeHarness()
-            let observerID = harness.monitor.addObserver { _ in }
-
-            #expect(!observerID.uuidString.isEmpty)
-
-            harness.monitor.removeObserver(observerID)
-        }
-
         @Test("removeObserver handles invalid UUID gracefully")
         func removeObserverHandlesInvalidUUIDGracefully() {
             let harness = AppBranchTestSupport.makeHarness()

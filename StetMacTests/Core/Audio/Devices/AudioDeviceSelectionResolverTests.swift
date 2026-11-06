@@ -69,36 +69,6 @@
             #expect(resolution.activeDevice == builtIn)
             #expect(resolution.isUsingFallbackBuiltIn)
         }
-
-        @Test func resolveWithPreferenceEnumUsesBuiltInDefault() {
-            let builtIn = makeDevice(
-                id: 1, uid: "built-in", name: "MacBook Microphone", transportType: kAudioDeviceTransportTypeBuiltIn)
-            let usb = makeDevice(id: 2, uid: "usb", name: "USB Mic", transportType: kAudioDeviceTransportTypeUSB)
-
-            let resolution = AudioDeviceSelectionResolver.resolve(
-                availableDevices: [builtIn, usb],
-                defaultInputDevice: usb,
-                preference: .builtInDefault
-            )
-
-            #expect(resolution.preference == .builtInDefault)
-            #expect(resolution.activeDevice == builtIn)
-        }
-
-        @Test func resolveWithPreferenceEnumUsesExternalDevice() {
-            let builtIn = makeDevice(
-                id: 1, uid: "built-in", name: "MacBook Microphone", transportType: kAudioDeviceTransportTypeBuiltIn)
-            let usb = makeDevice(id: 2, uid: "usb", name: "USB Mic", transportType: kAudioDeviceTransportTypeUSB)
-
-            let resolution = AudioDeviceSelectionResolver.resolve(
-                availableDevices: [builtIn, usb],
-                defaultInputDevice: builtIn,
-                preference: .external(uid: "usb")
-            )
-
-            #expect(resolution.preference == .external(uid: "usb"))
-            #expect(resolution.activeDevice == usb)
-        }
     }
 
     private func makeDevice(
