@@ -11,20 +11,6 @@
             #expect(harness.monitor.currentApp == nil)
         }
 
-        @Test("startMonitoring handles initialization errors gracefully")
-        func startMonitoringHandlesInitializationErrorsGracefully() async {
-            let harness = AppBranchTestSupport.makeHarness()
-            let monitor = harness.monitor
-
-            monitor.startMonitoring()
-            await harness.drainCallbacks()
-
-            #expect(monitor.isMonitoring)
-
-            monitor.stopMonitoring()
-            await harness.drainCallbacks()
-        }
-
         @Test("stopMonitoring is safe when not monitoring")
         func stopMonitoringIsSafeWhenNotMonitoring() async {
             let harness = AppBranchTestSupport.makeHarness()

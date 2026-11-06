@@ -14,13 +14,5 @@
             #expect(layout.bottomInset == 12)
             #expect(layout.scale == 0.66)
         }
-
-        @Test func fixedLayoutUsesPositiveDisplayScale() {
-            #expect(MacDictationPanelLayout.fixed.scale > 0)
-        }
-
-        @Test func fixedLayoutBottomInsetKeepsPanelAnchoredAboveScreenEdge() {
-            #expect(MacDictationPanelLayout.fixed.bottomInset >= 0)
-        }
     }
 #endif

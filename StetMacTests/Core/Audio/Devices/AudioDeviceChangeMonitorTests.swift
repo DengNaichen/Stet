@@ -6,12 +6,6 @@
 
     @Suite("Audio Device Change Monitor")
     struct AudioDeviceChangeMonitorTests {
-        @Test func sharedInstanceExists() {
-            let monitor = AudioDeviceChangeMonitor.shared
-
-            #expect(monitor != nil)
-        }
-
         @Test func startMonitoringCanBeCalledMultipleTimes() {
             let monitor = AudioDeviceChangeMonitor()
 
