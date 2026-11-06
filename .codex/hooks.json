@@ -1,5 +1,5 @@
 {
-  "description": "Repository-local architecture check on changed StetMac sources at turn end (read-only); on new violations, feeds back the errors plus the rules.",
+  "description": "Prepare cached worktree tools at session start; run read-only architecture checks at turn end.",
   "hooks": {
     "Stop": [
       {
@@ -9,6 +9,19 @@
             "command": "/bin/sh \"$(git rev-parse --show-toplevel)/scripts/run-agent-hook\" python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/arch.py\"",
             "timeout": 120,
             "statusMessage": "Checking architecture rules (read-only)"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/sh \"$(git rev-parse --show-toplevel)/scripts/run-agent-hook\" \"$(git rev-parse --show-toplevel)/scripts/setup-worktree\" --if-needed",
+            "timeout": 600,
+            "statusMessage": "Preparing cached worktree tools"
           }
         ]
       }

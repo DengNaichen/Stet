@@ -18,7 +18,7 @@ class PreCommitTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         bin_dir = self.root / "bin"
         bin_dir.mkdir()
-        for command in ("git", "grep", "xargs"):
+        for command in ("git", "grep", "xargs", "python3"):
             executable = shutil.which(command)
             self.assertIsNotNone(executable, command)
             (bin_dir / command).symlink_to(executable)

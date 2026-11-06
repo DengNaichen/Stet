@@ -41,8 +41,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "StetMac"
-TOOL_DIR = ROOT / "tools" / "deps-graph"
-TOOL_BIN = TOOL_DIR / ".build" / "release" / "deps-graph"
 BASELINE = ROOT / "scripts" / "arch-baseline.json"
 
 # --- Architecture definition -------------------------------------------------
@@ -154,13 +152,26 @@ def module_of(file: str) -> str:
 
 
 def load_facts() -> dict:
-    if not TOOL_BIN.exists():
-        print("building tools/deps-graph (first run only)…", file=sys.stderr)
-        subprocess.run(["swift", "build", "-c", "release", "--package-path", str(TOOL_DIR)],
-                       check=True, stdout=sys.stderr)
-    out = subprocess.run([str(TOOL_BIN), str(SRC)], cwd=ROOT, check=True,
+    tool = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "worktree-cache.py"), "deps-graph"],
+        cwd=ROOT, check=True, stdout=subprocess.PIPE, text=True,
+    ).stdout.strip()
+    out = subprocess.run([tool, str(SRC)], cwd=ROOT, check=True,
                          capture_output=True, text=True).stdout
-    return json.loads(out)
+    facts = json.loads(out)
+    # Foundation may report /tmp while Python resolves /private/tmp (or another
+    # worktree symlink). Rules operate on repository-relative paths, not aliases.
+    canonical_root = ROOT.resolve()
+    for kind in ("decls", "refs", "imports"):
+        for record in facts.get(kind, []):
+            path = Path(record["file"])
+            if not path.is_absolute():
+                path = canonical_root / path
+            try:
+                record["file"] = path.resolve().relative_to(canonical_root).as_posix()
+            except ValueError as error:
+                raise RuntimeError(f"architecture tool returned a path outside this checkout: {path}") from error
+    return facts
 
 
 # --- Checks -------------------------------------------------------------------

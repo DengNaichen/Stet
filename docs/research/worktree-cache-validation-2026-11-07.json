@@ -1,0 +1,193 @@
+{
+  "date": "2026-11-07",
+  "base_commit": "a0bfe3f",
+  "platform": {
+    "xcode": "26.6 (17F113)",
+    "swift": "6.3.3",
+    "sdk": "macOS 26.5",
+    "architecture": "arm64",
+    "logical_cpus": 12,
+    "memory_gib": 24
+  },
+  "final_builder_sha256": "70da8fa4d71c95a83462e960ac69255271458fe1342c3b79467ab2ff6a49eb1e",
+  "final_setup": [
+    {
+      "label": "final-default-cold-a",
+      "seconds": 160.571,
+      "exit": 0
+    },
+    {
+      "label": "final-default-cold-implementation",
+      "seconds": 160.853,
+      "exit": 0
+    },
+    {
+      "label": "final-default-warm-b",
+      "seconds": 0.625,
+      "exit": 0
+    },
+    {
+      "label": "final-default-new-c",
+      "seconds": 0.622,
+      "exit": 0
+    }
+  ],
+  "early_setup_before_final_guard_fixes": [
+    {
+      "label": "cold-concurrent-a",
+      "repo": "/tmp/stet-worktree-probe-a",
+      "seconds": 153.46,
+      "exit": 0
+    },
+    {
+      "label": "cold-concurrent-b",
+      "repo": "/tmp/stet-worktree-probe-b",
+      "seconds": 153.181,
+      "exit": 0
+    },
+    {
+      "label": "warm-b",
+      "repo": "/tmp/stet-worktree-probe-b",
+      "seconds": 0.613,
+      "exit": 0
+    },
+    {
+      "label": "new-checkout-warm-c",
+      "repo": "/tmp/stet-worktree-probe-c",
+      "seconds": 0.917,
+      "exit": 0
+    }
+  ],
+  "native_source_invalidation_probe": {
+    "changed_tool_rebuild_seconds": 202.425,
+    "old_binary": "/private/tmp/stet-worktree-measurements-20261107/tool-cache/deps-graph/entries/9b68aba3d018ae204539497d7f8e347a09d159c525f04c3bd7fe867dde57c4c6/deps-graph",
+    "new_binary": "/private/tmp/stet-worktree-measurements-20261107/tool-cache/deps-graph/entries/ca17a388234bb7d97dea5b7e10d70f3b0371227985dc22d21916c9027c861d76/deps-graph",
+    "B_marker_present": true,
+    "A_marker_absent": true,
+    "A_retains_original_key": true,
+    "B_revert_reuses_original_key": true
+  },
+  "native_source_probe_note": "Executed before final builder-script-edit and empty-XDG guards; final regression tests cover those guards. Tool source invalidation algorithm unchanged.",
+  "xcode_builds": [
+    {
+      "label": "concurrent-cold-a",
+      "worktree": "/tmp/stet-worktree-probe-a",
+      "derived_data": "/tmp/stet-worktree-measurements-20261107/derived-a",
+      "cache_enabled": true,
+      "seconds": 74.315,
+      "exit": 0,
+      "remark_lines": 1790,
+      "cache_hit_status_lines": 74,
+      "cache_miss_status_lines": 554
+    },
+    {
+      "label": "concurrent-cold-b",
+      "worktree": "/tmp/stet-worktree-probe-b",
+      "derived_data": "/tmp/stet-worktree-measurements-20261107/derived-b",
+      "cache_enabled": true,
+      "seconds": 74.631,
+      "exit": 0,
+      "remark_lines": 1809,
+      "cache_hit_status_lines": 66,
+      "cache_miss_status_lines": 562
+    },
+    {
+      "label": "fresh-path-warm-cache-c",
+      "worktree": "/tmp/stet-worktree-probe-c",
+      "derived_data": "/tmp/stet-worktree-measurements-20261107/derived-c",
+      "cache_enabled": true,
+      "seconds": 40.996,
+      "exit": 0,
+      "remark_lines": 1614,
+      "cache_hit_status_lines": 288,
+      "cache_miss_status_lines": 340
+    },
+    {
+      "label": "fresh-path-cache-off-d",
+      "worktree": "/tmp/stet-worktree-probe-d",
+      "derived_data": "/tmp/stet-worktree-measurements-20261107/derived-d",
+      "cache_enabled": false,
+      "seconds": 41.582,
+      "exit": 0,
+      "remark_lines": 33,
+      "cache_hit_status_lines": 0,
+      "cache_miss_status_lines": 0
+    },
+    {
+      "label": "full-tests-a",
+      "worktree": "/tmp/stet-worktree-probe-a",
+      "derived_data": "/tmp/stet-worktree-measurements-20261107/derived-a",
+      "cache_enabled": true,
+      "seconds": 62.261,
+      "exit": 0,
+      "remark_lines": 73,
+      "cache_hit_status_lines": 0,
+      "cache_miss_status_lines": 24
+    }
+  ],
+  "artifact_isolation": {
+    "signed_artifact_inodes_differ": true,
+    "package_trees_are_private": true,
+    "cross_tree_probe_visible": false
+  },
+  "final_architecture_checks": [
+    {
+      "worktree": "a",
+      "exit": 0,
+      "seconds": 1.316
+    },
+    {
+      "worktree": "b",
+      "exit": 0,
+      "seconds": 0.768
+    },
+    {
+      "worktree": "c",
+      "exit": 0,
+      "seconds": 1.037
+    },
+    {
+      "worktree": "d",
+      "exit": 0,
+      "seconds": 1.582
+    }
+  ],
+  "tests": {
+    "script_tests": 50,
+    "script_failures": 0,
+    "macos_methods": 626,
+    "macos_failures": 0,
+    "macos_skipped": 0,
+    "lint": "passed"
+  },
+  "measurement_limits": [
+    "Single samples, not statistical performance estimates.",
+    "A/B build concurrently with a dirty-tool compile; C/D run sequentially after those complete.",
+    "Downloaded dependencies were seeded as private verified-APFS-clone copies; network download time excluded.",
+    "Fresh Build directories, existing machine/toolchain/download caches; not a first-ever machine install.",
+    "Cached executable validity is not a test result; checks and tests were executed.",
+    "GUI host event delivery not tested; configured hook commands were executed."
+  ],
+  "raw_evidence_directory": "/tmp/stet-worktree-measurements-20261107",
+  "cleanup": {
+    "owned_probe_worktrees_removed": [
+      "a",
+      "b",
+      "c",
+      "d"
+    ],
+    "private_derived_data_removed": true,
+    "experiment_xcode_cas_removed": true,
+    "user_shared_tool_cache_preserved": true,
+    "logs_and_xcresult_preserved": true
+  },
+  "pr_rebase_validation": {
+    "base_commit": "b9638d2",
+    "script_tests": 54,
+    "script_failures": 0,
+    "lint": "passed",
+    "architecture_rules": "R0-R7 zero",
+    "native_tool_recompiled_for_updated_main_source": true,
+    "app_benchmarks_rerun_after_rebase": false
+  }
+}

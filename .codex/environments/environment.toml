@@ -1,0 +1,8 @@
+version = 1
+name = "Stet"
+
+[setup]
+script = ""
+
+[setup.darwin]
+script = "./scripts/setup-worktree --if-needed"
