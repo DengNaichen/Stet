@@ -1,11 +1,17 @@
 @preconcurrency import AVFoundation
 import Foundation
+import StetCore
 import os
 #if os(macOS)
     import StetVisuals
 #endif
 
 actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
+    private nonisolated let executor = DispatchQueueSerialExecutor(
+        label: "Stet.AudioCapture.control"
+    )
+    nonisolated var unownedExecutor: UnownedSerialExecutor { executor.asUnownedSerialExecutor() }
+
     private let audioLevelBridge: AudioLevelBridge
     #if os(macOS)
         private let audioFeatureBridge: AudioFeatureBridge

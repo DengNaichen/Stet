@@ -32,6 +32,8 @@
         private var sessionStartDate: Date?
         private var pendingSessionDuration: TimeInterval?
         private let statsModel: DictationStatsModel?
+        private let notificationCenter: NotificationCenter
+        private var terminationObserver: NSObjectProtocol?
 
         init(
             dictationViewModel: DictationViewModel,
@@ -41,6 +43,7 @@
             settingsStore: DictationSettingsStore,
             interactionSoundPlayer: any InteractionSoundPlaying,
             statsModel: DictationStatsModel? = nil,
+            notificationCenter: NotificationCenter = .default,
             mediaResumeDelay: Duration = .seconds(1),
             startPromptActivationDeadline: Duration = .milliseconds(350),
             mediaResumeSleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
@@ -55,9 +58,18 @@
             self.mediaResumeDelay = mediaResumeDelay
             self.mediaResumeSleep = mediaResumeSleep
             self.startPromptActivationDeadline = startPromptActivationDeadline
+            self.notificationCenter = notificationCenter
+            terminationObserver = notificationCenter.addObserver(
+                forName: NSApplication.willTerminateNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.systemAudioMuting?.restoreMuteIfNeeded()
+                }
+            }
         }
 
         deinit {
+            if let terminationObserver { notificationCenter.removeObserver(terminationObserver) }
             mediaResumeTask?.cancel()
             startActivationTask?.cancel()
             let systemAudioMuting = self.systemAudioMuting

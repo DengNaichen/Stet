@@ -1,5 +1,6 @@
 #if os(macOS)
     import Foundation
+    import StetCore
     import FunASRRuntime
 
     public struct FunASRNanoModelFiles: Equatable, Sendable {
@@ -36,6 +37,11 @@
     }
 
     public actor FunASRNanoRecognizer {
+        private nonisolated let executor = DispatchQueueSerialExecutor(
+            label: "Stet.FunASRNano.runtime"
+        )
+        public nonisolated var unownedExecutor: UnownedSerialExecutor { executor.asUnownedSerialExecutor() }
+
         private let modelFiles: FunASRNanoModelFiles
         private let threadCount: Int32
         private var context: OpaquePointer?
