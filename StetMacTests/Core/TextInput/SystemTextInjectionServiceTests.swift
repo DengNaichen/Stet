@@ -8,6 +8,66 @@
     @MainActor
     @Suite("System Text Injection Service", .serialized)
     struct SystemTextInjectionServiceTests {
+        @Test func simulatedCopyWaitsForDelayedClipboardAndRestoresOriginal() async {
+            let pasteboard = NSPasteboard(name: .init(UUID().uuidString))
+            defer { pasteboard.releaseGlobally() }
+            pasteboard.setString("original", forType: .string)
+            let service = SystemTextInjectionService(
+                clipboardService: TestClipboardService(), pasteboard: pasteboard)
+            var polls = 0
+
+            let selected = await service.selectedTextBySimulatedCopy(
+                simulateCopyCommand: { true },
+                sleep: { _ in
+                    polls += 1
+                    if polls == 3 {
+                        pasteboard.clearContents()
+                        pasteboard.setString(" selected ", forType: .string)
+                    }
+                }
+            )
+
+            #expect(selected == "selected")
+            #expect(polls == 3)
+            #expect(pasteboard.string(forType: .string) == "original")
+        }
+
+        @Test func simulatedCopyTimeoutLeavesClipboardUntouched() async {
+            let pasteboard = NSPasteboard(name: .init(UUID().uuidString))
+            defer { pasteboard.releaseGlobally() }
+            pasteboard.setString("original", forType: .string)
+            let originalChangeCount = pasteboard.changeCount
+            let service = SystemTextInjectionService(
+                clipboardService: TestClipboardService(), pasteboard: pasteboard)
+            var polls = 0
+
+            let selected = await service.selectedTextBySimulatedCopy(
+                simulateCopyCommand: { true }, sleep: { _ in polls += 1 }, attempts: 3)
+
+            #expect(selected == nil)
+            #expect(polls == 3)
+            #expect(pasteboard.changeCount == originalChangeCount)
+        }
+
+        @Test func simulatedCopyCancellationStopsPolling() async {
+            let pasteboard = NSPasteboard(name: .init(UUID().uuidString))
+            defer { pasteboard.releaseGlobally() }
+            pasteboard.setString("original", forType: .string)
+            let service = SystemTextInjectionService(
+                clipboardService: TestClipboardService(), pasteboard: pasteboard)
+            var polls = 0
+            let selected = await service.selectedTextBySimulatedCopy(
+                simulateCopyCommand: { true },
+                sleep: { _ in
+                    polls += 1
+                    throw CancellationError()
+                }
+            )
+            #expect(selected == nil)
+            #expect(polls == 1)
+            #expect(pasteboard.string(forType: .string) == "original")
+        }
+
         @Test func cancellationDuringPasteDelayNeverPostsCommand() async throws {
             let service = SystemTextInjectionService(clipboardService: TestClipboardService())
             let gate = TestSuspensionGate()

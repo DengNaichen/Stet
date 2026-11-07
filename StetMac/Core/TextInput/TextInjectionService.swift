@@ -52,7 +52,7 @@
         func openAccessibilitySettings()
         func pasteClipboard(into application: NSRunningApplication?) async -> TextInjectionOutcome
         func stopCorrectionLearning()
-        func selectedText() -> String?
+        func selectedText() async -> String?
         func replaceSelectedText(
             _ text: String,
             into application: NSRunningApplication?,
@@ -253,14 +253,17 @@
             correctionLearning.stop()
         }
 
-        func selectedText() -> String? {
+        func selectedText() async -> String? {
             if let axSelected = selectedTextFromAXFocusedElement(),
                 !axSelected.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
                 return axSelected
             }
 
-            return selectedTextBySimulatedCopy()
+            guard accessState.canSimulateInput else { return nil }
+            return await selectedTextBySimulatedCopy(
+                simulateCopyCommand: { self.simulateCommandKey(KeyCode.copy) }
+            )
         }
 
         func replaceSelectedText(
@@ -307,23 +310,7 @@
         }
 
         private func selectedTextFromAXFocusedElement() -> String? {
-            guard accessState.hasAccessibilityAccess else { return nil }
-
-            let systemWide = AXUIElementCreateSystemWide()
-            var focusedElementRef: CFTypeRef?
-            let focusedStatus = AXUIElementCopyAttributeValue(
-                systemWide,
-                kAXFocusedUIElementAttribute as CFString,
-                &focusedElementRef
-            )
-            guard focusedStatus == .success,
-                let focusedElementRef,
-                CFGetTypeID(focusedElementRef) == AXUIElementGetTypeID()
-            else {
-                return nil
-            }
-
-            let focusedElement = unsafeBitCast(focusedElementRef, to: AXUIElement.self)
+            guard accessState.hasAccessibilityAccess, let focusedElement = focusedAXElement() else { return nil }
             var selectedTextRef: CFTypeRef?
             let selectedStatus = AXUIElementCopyAttributeValue(
                 focusedElement,
@@ -349,14 +336,26 @@
             return nil
         }
 
-        private func selectedTextBySimulatedCopy() -> String? {
-            guard accessState.canSimulateInput else { return nil }
-
+        func selectedTextBySimulatedCopy(
+            simulateCopyCommand: () -> Bool,
+            sleep: (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+            pollInterval: Duration = .milliseconds(20),
+            attempts: Int = 15
+        ) async -> String? {
+            guard !Task.isCancelled else { return nil }
             let snapshot = PasteboardSnapshot.capture(from: pasteboard)
             let originalChangeCount = pasteboard.changeCount
 
-            guard simulateCommandKey(KeyCode.copy) else { return nil }
-            Thread.sleep(forTimeInterval: 0.06)
+            guard simulateCopyCommand() else { return nil }
+            for _ in 0..<max(0, attempts) {
+                if pasteboard.changeCount != originalChangeCount { break }
+                do {
+                    try await sleep(pollInterval)
+                } catch {
+                    return nil
+                }
+                guard !Task.isCancelled else { return nil }
+            }
 
             let copiedChangeCount = pasteboard.changeCount
             guard copiedChangeCount != originalChangeCount else {
@@ -645,6 +644,8 @@
 
         private func focusedAXElement() -> AXUIElement? {
             let systemWide = AXUIElementCreateSystemWide()
+            // Bound IPC to an unresponsive target; do not inherit the multi-second default.
+            AXUIElementSetMessagingTimeout(systemWide, 0.1)
             var focusedElementRef: CFTypeRef?
             let status = AXUIElementCopyAttributeValue(
                 systemWide,
@@ -659,7 +660,9 @@
                 return nil
             }
 
-            return unsafeBitCast(focusedElementRef, to: AXUIElement.self)
+            let focusedElement = unsafeBitCast(focusedElementRef, to: AXUIElement.self)
+            AXUIElementSetMessagingTimeout(focusedElement, 0.1)
+            return focusedElement
         }
 
         private func stringAttribute(_ attribute: CFString, from element: AXUIElement) -> String? {
