@@ -1,7 +1,7 @@
 #if os(macOS)
     import Foundation
 
-    enum MCPMeetingStatus: String, Codable, Sendable {
+    nonisolated enum MCPMeetingStatus: String, Codable, Sendable {
         case recording
         case processing
         case ready
@@ -9,7 +9,7 @@
         case failed
     }
 
-    struct MCPMeetingSummary: Codable, Equatable, Sendable {
+    nonisolated struct MCPMeetingSummary: Codable, Equatable, Sendable {
         let id: String
         let startedAt: String
         let endedAt: String?
@@ -31,11 +31,11 @@
         }
     }
 
-    struct MCPMeetingListOutput: Codable, Equatable, Sendable {
+    nonisolated struct MCPMeetingListOutput: Codable, Equatable, Sendable {
         let meetings: [MCPMeetingSummary]
     }
 
-    struct MCPMeetingTranscriptOutput: Codable, Equatable, Sendable {
+    nonisolated struct MCPMeetingTranscriptOutput: Codable, Equatable, Sendable {
         let id: String
         let startedAt: String
         let endedAt: String?
@@ -59,7 +59,7 @@
         }
     }
 
-    struct MCPMeetingMetadata: Codable, Equatable, Sendable {
+    nonisolated struct MCPMeetingMetadata: Codable, Equatable, Sendable {
         let expectedMeetingID: UUID?
         let source: String?
         let externalID: String?
@@ -98,7 +98,7 @@
         }
     }
 
-    enum MCPMeetingError: LocalizedError, Equatable, Sendable {
+    nonisolated enum MCPMeetingError: LocalizedError, Equatable, Sendable {
         case meetingNotFound(String)
         case noReadyMeeting
         case invalidLimit
@@ -121,7 +121,7 @@
         func meetingTranscript(meetingID: String?) throws -> MCPMeetingTranscriptOutput
     }
 
-    final class MCPLiveMeetingPhaseStore: @unchecked Sendable {
+    nonisolated final class MCPLiveMeetingPhaseStore: @unchecked Sendable {
         private let lock = NSLock()
         private var phase: MacMeetingRecordingPhase = .idle
 
@@ -138,7 +138,7 @@
         }
     }
 
-    struct MCPMeetingCatalog: MCPMeetingServing {
+    nonisolated struct MCPMeetingCatalog: MCPMeetingServing {
         static let defaultLimit = 20
         static let maxLimit = 100
 
@@ -251,7 +251,7 @@
         }
     }
 
-    private struct ResolvedMeeting {
+    private nonisolated struct ResolvedMeeting {
         let id: String
         let startedAt: Date
         let endedAt: Date?

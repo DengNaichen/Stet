@@ -10,7 +10,6 @@
         init(coordinator: any MacAppUpdateCoordinating) {
             self.coordinator = coordinator
             coordinator.updates
-                .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
                     self?.objectWillChange.send()
                 }

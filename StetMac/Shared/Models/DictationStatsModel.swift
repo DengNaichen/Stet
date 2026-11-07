@@ -154,7 +154,7 @@
         }
     }
 
-    struct DictationStatsModel: @unchecked Sendable {
+    struct DictationStatsModel: Sendable {
         static let shared = DictationStatsModel()
 
         nonisolated private let modelContainer: ModelContainer?

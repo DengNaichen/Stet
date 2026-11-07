@@ -2,7 +2,7 @@
     @preconcurrency import AVFoundation
     import Foundation
 
-    struct CaptureResources {
+    nonisolated struct CaptureResources {
         let session: AVCaptureSession
         let output: AVCaptureAudioDataOutput
         let device: AVCaptureDevice

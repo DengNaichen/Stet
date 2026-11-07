@@ -32,6 +32,8 @@
         private var sessionStartDate: Date?
         private var pendingSessionDuration: TimeInterval?
         private let statsModel: DictationStatsModel?
+        private let notificationCenter: NotificationCenter
+        private var terminationObserver: NSObjectProtocol?
 
         init(
             dictationViewModel: DictationViewModel,
@@ -41,6 +43,7 @@
             settingsStore: DictationSettingsStore,
             interactionSoundPlayer: any InteractionSoundPlaying,
             statsModel: DictationStatsModel? = nil,
+            notificationCenter: NotificationCenter = .default,
             mediaResumeDelay: Duration = .seconds(1),
             startPromptActivationDeadline: Duration = .milliseconds(350),
             mediaResumeSleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
@@ -55,9 +58,18 @@
             self.mediaResumeDelay = mediaResumeDelay
             self.mediaResumeSleep = mediaResumeSleep
             self.startPromptActivationDeadline = startPromptActivationDeadline
+            self.notificationCenter = notificationCenter
+            terminationObserver = notificationCenter.addObserver(
+                forName: NSApplication.willTerminateNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.systemAudioMuting?.restoreMuteIfNeeded()
+                }
+            }
         }
 
         deinit {
+            if let terminationObserver { notificationCenter.removeObserver(terminationObserver) }
             mediaResumeTask?.cancel()
             startActivationTask?.cancel()
             let systemAudioMuting = self.systemAudioMuting
@@ -99,9 +111,8 @@
             showTransientPanel: @escaping @MainActor () -> Void
         ) {
             captureCoordinator.stopCorrectionLearning()
-            Task {
-                await DictationRuntimeProbe.shared.markAction("startDictationCapture")
-            }
+            DictationRuntimeProbe.shared.markAction("startDictationCapture")
+
             AnalyticsService.track(
                 "dictation_started", parameters: ["source": source == .hotkey ? "hotkey" : "interface"])
             refreshTargetApplication(allowingCurrentAppTarget: allowCurrentAppTarget)
@@ -148,9 +159,8 @@
             activeRecordingSource = nil
             startActivationTask?.cancel()
             startActivationTask = nil
-            Task {
-                await DictationRuntimeProbe.shared.markAction("stopActiveCapture")
-            }
+            DictationRuntimeProbe.shared.markAction("stopActiveCapture")
+
             dictationViewModel.stopCapture()
         }
 
@@ -161,16 +171,14 @@
             activeRecordingSource = nil
             startActivationTask?.cancel()
             startActivationTask = nil
-            Task {
-                await DictationRuntimeProbe.shared.markAction("cancelActiveCapture")
-            }
+            DictationRuntimeProbe.shared.markAction("cancelActiveCapture")
+
             dictationViewModel.send(.resetTapped)
         }
 
         func handleStateTransition(from previousState: DictationState, to newState: DictationState) {
-            Task {
-                await DictationRuntimeProbe.shared.markAction("workflowHandleStateTransition")
-            }
+            DictationRuntimeProbe.shared.markAction("workflowHandleStateTransition")
+
             handleMediaTransition(from: previousState, to: newState)
 
             if newState.isCaptureInFlight {
@@ -192,9 +200,8 @@
             text: String,
             showTransientPanel: @escaping @MainActor () -> Void
         ) async -> CompletionOutcome {
-            Task {
-                await DictationRuntimeProbe.shared.markAction("handleCompletedResult")
-            }
+            DictationRuntimeProbe.shared.markAction("handleCompletedResult")
+
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 await DictationLatencyProbe.shared.record(.systemWriteSkipped, note: "empty_text")
                 pendingSessionDuration = nil
@@ -243,9 +250,8 @@
         }
 
         func copyPendingResultToClipboard(_ text: String) -> Bool {
-            Task {
-                await DictationRuntimeProbe.shared.markAction("copyPendingResultToClipboard")
-            }
+            DictationRuntimeProbe.shared.markAction("copyPendingResultToClipboard")
+
             let copied = captureCoordinator.copyToClipboard(text)
             if copied {
                 finalizePendingResultHistory(text)

@@ -1,4 +1,5 @@
 #if os(macOS)
+    import AppKit
     import Foundation
     import StetCore
     import Testing
@@ -86,6 +87,7 @@
             textInjectionService: TestTextInjectionService? = nil,
             mediaPlaybackController: TestMediaPlaybackController? = nil,
             systemAudioMuting: TestSystemAudioMuting? = nil,
+            notificationCenter: NotificationCenter = .default,
             interactionSoundPlayer: TestInteractionSoundPlayer? = nil,
             frontmostBundleIdentifier: String? = nil,
             mediaResumeDelay: Duration = .zero,
@@ -130,6 +132,7 @@
                 systemAudioMuting: systemAudioMuting,
                 settingsStore: settingsStore,
                 interactionSoundPlayer: interactionSoundPlayer,
+                notificationCenter: notificationCenter,
                 mediaResumeDelay: mediaResumeDelay,
                 startPromptActivationDeadline: promptActivationDeadline,
                 mediaResumeSleep: mediaResumeSleep
@@ -228,6 +231,19 @@
                 })
 
             subject.viewModel.send(.resetTapped)
+        }
+
+        @Test func applicationTerminationRestoresMuteBeforeNotificationReturns() {
+            let notifications = NotificationCenter()
+            let muting = TestSystemAudioMuting()
+            let subject = makeController(systemAudioMuting: muting, notificationCenter: notifications)
+            _ = muting.activateMuteIfNeeded()
+
+            notifications.post(name: NSApplication.willTerminateNotification, object: nil)
+
+            // Process exit cannot wait for a Task scheduled by deinit.
+            #expect(muting.restoreCallCount == 1)
+            withExtendedLifetime(subject) {}
         }
 
         @Test func completedDictationUsesCaptureCoordinatorPath() async {

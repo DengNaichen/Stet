@@ -159,8 +159,7 @@
             )
             let permissionManager = MacPermissionManager(textInjectionService: textInjectionService)
             let appBranchMonitor = AppBranchMonitor(
-                workspace: TestAppBranchWorkspace(),
-                callbackQueue: DispatchQueue(label: "com.stet.tests.sessioncontroller.settings.appbranch")
+                workspace: TestAppBranchWorkspace()
             )
 
             let sessionController = MacAppSessionController(

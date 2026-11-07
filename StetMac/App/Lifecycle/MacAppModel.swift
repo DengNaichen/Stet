@@ -152,6 +152,11 @@
             objectWillChange.eraseToAnyPublisher()
         }
 
+        var meteringUpdates: AnyPublisher<Void, Never> {
+            sessionController.workflowController.dictationViewModel.metering.objectWillChange
+                .eraseToAnyPublisher()
+        }
+
         var statusText: String {
             guard hasRequiredPermissions else {
                 return "Permissions Required"

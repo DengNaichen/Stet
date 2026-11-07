@@ -55,7 +55,7 @@
             deviceManager: AudioDeviceSelectionManager = .shared,
             microphoneTestService: MicrophoneTestService = DefaultMicrophoneTestService.shared,
             settingsStore: DictationSettingsStore = DictationSettingsStore(),
-            speakerProfileStore: SpeakerProfileStore = SpeakerProfileStore(),
+            speakerProfileStore: SpeakerProfileStore = .shared,
             extractEnrollmentEmbedding: (@Sendable (URL) async throws -> SpeakerEnrollmentEmbedding)? = nil
         ) {
             let defaultEmbeddingService = SpeakerEnrollmentEmbeddingService()
@@ -200,15 +200,11 @@
             Task { [fluidAudioModelManager] in
                 do {
                     try await fluidAudioModelManager.downloadModel()
-                    await MainActor.run {
-                        self.isParakeetDownloaded = fluidAudioModelManager.isModelDownloaded()
-                        self.isParakeetDownloading = false
-                    }
+                    self.isParakeetDownloaded = fluidAudioModelManager.isModelDownloaded()
+                    self.isParakeetDownloading = false
                 } catch {
-                    await MainActor.run {
-                        self.parakeetErrorMessage = error.localizedDescription
-                        self.isParakeetDownloading = false
-                    }
+                    self.parakeetErrorMessage = error.localizedDescription
+                    self.isParakeetDownloading = false
                 }
             }
         }
@@ -221,15 +217,11 @@
             Task { [funASRNanoModelManager] in
                 do {
                     try await funASRNanoModelManager.installDefaultModel()
-                    await MainActor.run {
-                        self.isFunASRNanoDownloaded = funASRNanoModelManager.isModelDownloaded()
-                        self.isFunASRNanoDownloading = false
-                    }
+                    self.isFunASRNanoDownloaded = funASRNanoModelManager.isModelDownloaded()
+                    self.isFunASRNanoDownloading = false
                 } catch {
-                    await MainActor.run {
-                        self.funASRNanoErrorMessage = error.localizedDescription
-                        self.isFunASRNanoDownloading = false
-                    }
+                    self.funASRNanoErrorMessage = error.localizedDescription
+                    self.isFunASRNanoDownloading = false
                 }
             }
         }

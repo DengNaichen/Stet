@@ -201,8 +201,7 @@
             let permissionGate = FakePermissionGatePresenter()
             let hotkeyRegistrar = FakeHotkeyRegistrar()
             let appBranchMonitor = AppBranchMonitor(
-                workspace: TestAppBranchWorkspace(),
-                callbackQueue: DispatchQueue(label: "com.stet.tests.sessioncontroller.action.appbranch")
+                workspace: TestAppBranchWorkspace()
             )
 
             let session = MacAppSessionController(
@@ -230,6 +229,24 @@
                 clipboardService: clipboardService,
                 textInjectionService: textInjectionService
             )
+        }
+
+        @Test func microphoneLevelsDoNotPublishAppWideChanges() async throws {
+            let subject = makeSubject()
+            subject.workflow.dictationViewModel.startCapture()
+            try #require(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .listening })
+            try await Task.sleep(for: .milliseconds(30))
+            var appWideChanges = 0
+            subject.session.onChange = { appWideChanges += 1 }
+            await subject.speechService.emitLevel(0.73)
+            try #require(
+                await TestSupport.eventually {
+                    subject.workflow.dictationViewModel.recordingLevel == 0.73
+                })
+            try await Task.sleep(for: .milliseconds(30))
+            #expect(appWideChanges == 0)
+            subject.workflow.dictationViewModel.send(.resetTapped)
+            #expect(await TestSupport.eventually { appWideChanges > 0 })
         }
 
         @Test func hotkeyActionsStartAndStopExactlyOneActiveCapture() async {
@@ -621,8 +638,7 @@
             let permissionGate = FakePermissionGatePresenter()
             let hotkeyRegistrar = FakeHotkeyRegistrar()
             let appBranchMonitor = AppBranchMonitor(
-                workspace: TestAppBranchWorkspace(),
-                callbackQueue: DispatchQueue(label: "com.stet.tests.sessioncontroller.action.appbranch")
+                workspace: TestAppBranchWorkspace()
             )
 
             let session = MacAppSessionController(
@@ -686,9 +702,7 @@
             let permissionGate = FakePermissionGatePresenter()
             let hotkeyRegistrar = FakeHotkeyRegistrar()
             let appBranchMonitor = AppBranchMonitor(
-                workspace: TestAppBranchWorkspace(),
-                callbackQueue: DispatchQueue(
-                    label: "com.stet.tests.sessioncontroller.action.appbranch.verificationfailed")
+                workspace: TestAppBranchWorkspace()
             )
 
             let session = MacAppSessionController(
@@ -752,9 +766,7 @@
             let permissionGate = FakePermissionGatePresenter()
             let hotkeyRegistrar = FakeHotkeyRegistrar()
             let appBranchMonitor = AppBranchMonitor(
-                workspace: TestAppBranchWorkspace(),
-                callbackQueue: DispatchQueue(
-                    label: "com.stet.tests.sessioncontroller.action.appbranch.genericunavailable")
+                workspace: TestAppBranchWorkspace()
             )
 
             let session = MacAppSessionController(
@@ -818,8 +830,7 @@
             let permissionGate = FakePermissionGatePresenter()
             let hotkeyRegistrar = FakeHotkeyRegistrar()
             let appBranchMonitor = AppBranchMonitor(
-                workspace: TestAppBranchWorkspace(),
-                callbackQueue: DispatchQueue(label: "com.stet.tests.sessioncontroller.action.appbranch.fallback")
+                workspace: TestAppBranchWorkspace()
             )
 
             let session = MacAppSessionController(

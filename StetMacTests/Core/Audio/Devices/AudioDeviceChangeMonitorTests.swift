@@ -4,6 +4,7 @@
 
     @testable import Stet
 
+    @MainActor
     @Suite("Audio Device Change Monitor")
     struct AudioDeviceChangeMonitorTests {
         @Test func startMonitoringCanBeCalledMultipleTimes() {

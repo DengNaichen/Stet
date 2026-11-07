@@ -12,7 +12,7 @@
 
             await withTaskGroup(of: UUID.self) { group in
                 for _ in 0..<100 {
-                    group.addTask {
+                    group.addTask { @MainActor in
                         monitor.addObserver { _ in }
                     }
                 }
@@ -42,7 +42,7 @@
 
             await withTaskGroup(of: Void.self) { group in
                 for observerID in observerIDs {
-                    group.addTask {
+                    group.addTask { @MainActor in
                         monitor.removeObserver(observerID)
                     }
                 }
@@ -58,7 +58,7 @@
 
             await withTaskGroup(of: Void.self) { group in
                 for i in 0..<50 {
-                    group.addTask {
+                    group.addTask { @MainActor in
                         if i % 2 == 0 {
                             monitor.startMonitoring()
                         } else {
@@ -89,7 +89,7 @@
 
             await withTaskGroup(of: Void.self) { group in
                 for _ in 0..<100 {
-                    group.addTask {
+                    group.addTask { @MainActor in
                         let randomID = bundleIDs.randomElement() ?? nil
                         monitor.setExcludedBundleID(randomID)
                     }
@@ -113,7 +113,7 @@
 
             await withTaskGroup(of: AppInfo?.self) { group in
                 for _ in 0..<100 {
-                    group.addTask {
+                    group.addTask { @MainActor in
                         monitor.currentApp
                     }
                 }

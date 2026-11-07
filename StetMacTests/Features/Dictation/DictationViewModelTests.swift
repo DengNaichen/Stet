@@ -67,25 +67,6 @@ struct DictationViewModelTests {
         #expect(history.rawTexts == ["new"])
     }
 
-    @Test func lateExternalOperationFailureDoesNotResetNewRecording() async throws {
-        let speech = ControllableSpeechService()
-        let gate = TestSuspensionGate()
-        let viewModel = DictationViewModel(speechService: speech)
-        viewModel.runProcessingOperation {
-            await gate.wait()
-            throw CancellationError()
-        }
-        try #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
-        viewModel.send(.resetTapped)
-        viewModel.startCapture()
-        try #require(await TestSupport.eventually { viewModel.state == .listening })
-        await gate.open()
-        try await Task.sleep(for: .milliseconds(50))
-        #expect(viewModel.state == .listening)
-        viewModel.stopCapture()
-        #expect(await TestSupport.eventually { viewModel.state == .result("transcript") })
-    }
-
     @Test func startAndStopCaptureProducesResult() async throws {
         let speechService = ControllableSpeechService()
         await speechService.setStopBehavior(.immediate("hello world"))
@@ -334,19 +315,26 @@ struct DictationViewModelTests {
         #expect(await speechService.counts().activate == 1)
     }
 
-    @Test func processingOperationFailurePublishesError() async {
-        let speechService = ControllableSpeechService()
+    @Test func manualActivationFallbackFailureClearsPreparedCaptureAndMetering() async throws {
+        let speech = ControllableSpeechService()
+        await speech.setActivationBehavior(.fail(SpeechServiceError.failedToStart))
         let viewModel = DictationViewModel(
-            speechService: speechService,
-            manualActivationFallbackDelay: fallbackDelay
+            speechService: speech,
+            manualActivationFallbackDelay: .milliseconds(1)
         )
-
-        viewModel.runProcessingOperation {
-            throw TestError.expected
-        }
-        await Task.yield()
-
-        #expect(viewModel.state == .error(.unknown(message: TestError.expected.localizedDescription)))
+        viewModel.startCapture(activateWhenReady: false)
+        try #require(await TestSupport.eventuallyAsync { await speech.counts().activate == 1 })
+        #expect(
+            await TestSupport.eventually {
+                viewModel.state == .error(.from(SpeechServiceError.failedToStart))
+            })
+        #expect(viewModel.recordingLevel == 0)
+        await speech.emitLevel(0.9)
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(viewModel.recordingLevel == 0)
+        viewModel.activateCaptureWindow()
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(await speech.counts().activate == 1)
     }
 
     @Test func clipboardPendingActionPublishesClipboardPendingState() {

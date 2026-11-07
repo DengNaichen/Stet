@@ -51,6 +51,26 @@
             #expect(stopped)
         }
 
+        @Test func enablingWhileStopIsSuspendedRestartsAfterOldRuntimeStops() async throws {
+            let defaults = TestSupport.makeUserDefaults()
+            let runtime = SuspendedStopRuntime()
+            let controller = StetMCPServerController(defaults: defaults) { runtime }
+            await controller.setEnabled(true)
+            #expect(await TestSupport.eventuallyAsync { await runtime.runCount == 1 })
+
+            let stopping = Task { await controller.setEnabled(false) }
+            #expect(await TestSupport.eventuallyAsync { await runtime.isStopping })
+            await controller.setEnabled(true)
+            await runtime.finishStop()
+            await stopping.value
+
+            #expect(await TestSupport.eventuallyAsync { await runtime.runCount == 2 })
+            #expect(await TestSupport.eventually { controller.state == .running })
+            #expect(defaults.bool(forKey: MacPreferences.mcpServerEnabled))
+            await runtime.allowImmediateStops()
+            await controller.stop()
+        }
+
         @Test func runtimeStartupFailureDoesNotEscapeIntoAppLifecycle() async {
             let defaults = TestSupport.makeUserDefaults()
             defaults.set(true, forKey: MacPreferences.mcpServerEnabled)
@@ -84,6 +104,36 @@
             #expect(!defaults.bool(forKey: MacPreferences.mcpServerEnabled))
             #expect(await runtime.stopCount == 1)
         }
+    }
+
+    private actor SuspendedStopRuntime: StetMCPRuntimeServing {
+        private(set) var runCount = 0
+        private(set) var isStopping = false
+        private var stopContinuation: CheckedContinuation<Void, Never>?
+        private var immediateStops = false
+        private var runContinuation: CheckedContinuation<Void, Never>?
+
+        func run(onReady: @Sendable () async -> Void) async throws {
+            runCount += 1
+            await onReady()
+            await withCheckedContinuation { runContinuation = $0 }
+        }
+
+        func stop() async {
+            if !immediateStops {
+                isStopping = true
+                await withCheckedContinuation { stopContinuation = $0 }
+            }
+            runContinuation?.resume()
+            runContinuation = nil
+        }
+
+        func finishStop() {
+            stopContinuation?.resume()
+            stopContinuation = nil
+        }
+
+        func allowImmediateStops() { immediateStops = true }
     }
 
     private actor MCPRuntimeRecorder: StetMCPRuntimeServing {

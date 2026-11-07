@@ -73,6 +73,10 @@ nonisolated enum SpeakerProfileStoreError: Error, Equatable, Sendable {
 }
 
 actor SpeakerProfileStore {
+    // All production readers and writers share this actor. Serializing only an
+    // individual Keychain read or write cannot protect a read-modify-write operation.
+    static let shared = SpeakerProfileStore()
+
     private let loadData: @Sendable () throws -> Data?
     private let saveData: @Sendable (Data) throws -> Void
     private let deleteData: @Sendable () throws -> Void

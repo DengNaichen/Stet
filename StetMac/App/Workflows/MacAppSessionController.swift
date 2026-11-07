@@ -63,7 +63,7 @@
             onboardingWindowController: MacOnboardingWindowController,
             permissionManager: MacPermissionManager,
             pipelineFactory: DictationPipelineFactory,
-            appBranchMonitor: AppBranchMonitor = .shared,
+            appBranchMonitor: AppBranchMonitor? = nil,
             defaults: UserDefaults = .standard,
             notificationCenter: NotificationCenter = .default,
             hotkeyRegistrar: any MacDictationHotkeyRegistering
@@ -74,7 +74,7 @@
             self.onboardingWindowController = onboardingWindowController
             self.permissionManager = permissionManager
             self.pipelineFactory = pipelineFactory
-            self.appBranchMonitor = appBranchMonitor
+            self.appBranchMonitor = appBranchMonitor ?? .shared
             self.defaults = defaults
             self.notificationCenter = notificationCenter
             self.hotkeyRegistrar = hotkeyRegistrar
@@ -87,7 +87,7 @@
             configure()
         }
 
-        deinit {
+        isolated deinit {
             if let appBranchObserverID {
                 appBranchMonitor.removeObserver(appBranchObserverID)
             }
@@ -97,7 +97,7 @@
             workflowController: MacDictationWorkflowController,
             permissionManager: MacPermissionManager,
             pipelineFactory: DictationPipelineFactory,
-            appBranchMonitor: AppBranchMonitor = .shared,
+            appBranchMonitor: AppBranchMonitor? = nil,
             defaults: UserDefaults = .standard,
             notificationCenter: NotificationCenter = .default
         ) {
@@ -127,7 +127,7 @@
             onboardingWindowController: MacOnboardingWindowController? = nil,
             permissionManager: MacPermissionManager,
             pipelineFactory: DictationPipelineFactory,
-            appBranchMonitor: AppBranchMonitor = .shared,
+            appBranchMonitor: AppBranchMonitor? = nil,
             defaults: UserDefaults = .standard,
             notificationCenter: NotificationCenter = .default,
             hotkeyRegistrar: (any MacDictationHotkeyRegistering)? = nil

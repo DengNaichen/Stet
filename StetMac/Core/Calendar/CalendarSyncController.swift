@@ -31,6 +31,7 @@
         private var observationTask: Task<Void, Never>?
         private var periodicTask: Task<Void, Never>?
         private var refreshTask: Task<Void, Error>?
+        private var refreshID: UUID?
         private var refreshPending = false
         private var generation = 0
         private var wakeObserver: NSObjectProtocol?
@@ -82,10 +83,14 @@
             let selectionGeneration = generation
             selectionStore.save(ids)
             let task = refreshTask
+            let cancelledID = refreshID
             task?.cancel()
             try? await task?.value
             guard selectionGeneration == generation else { return }
-            refreshTask = nil
+            if refreshID == cancelledID {
+                refreshTask = nil
+                refreshID = nil
+            }
             if state != .disabled { try? await refresh() }
         }
 
@@ -125,6 +130,7 @@
             periodicTask = nil
             refreshTask?.cancel()
             refreshTask = nil
+            refreshID = nil
             refreshPending = false
             if let wakeObserver {
                 NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
@@ -140,15 +146,22 @@
             }
             repeat {
                 refreshPending = false
+                let id = UUID()
                 let task = Task { try await performRefresh() }
                 refreshTask = task
+                refreshID = id
                 do {
                     try await task.value
                 } catch {
-                    refreshTask = nil
+                    if refreshID == id {
+                        refreshTask = nil
+                        refreshID = nil
+                    }
                     throw error
                 }
+                guard refreshID == id else { return }
                 refreshTask = nil
+                refreshID = nil
             } while refreshPending
         }
 
@@ -179,14 +192,20 @@
             } catch is CancellationError {
                 throw CancellationError()
             } catch let error as CalendarClientError {
+                try Task.checkCancellation()
+                guard refreshGeneration == generation else { throw CancellationError() }
                 if case .accessNotGranted(let status) = error {
                     await clearCalendarMeetings()
+                    try Task.checkCancellation()
+                    guard refreshGeneration == generation else { throw CancellationError() }
                     updateState(.permissionRequired(status))
                 } else {
                     updateState(.failed(error.localizedDescription))
                 }
                 throw error
             } catch {
+                try Task.checkCancellation()
+                guard refreshGeneration == generation else { throw CancellationError() }
                 updateState(.failed(error.localizedDescription))
                 throw error
             }

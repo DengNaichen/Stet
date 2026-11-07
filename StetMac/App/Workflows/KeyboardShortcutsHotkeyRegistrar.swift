@@ -9,7 +9,7 @@
 
         func registerDictationKeyDown(_ handler: @escaping () -> Void) {
             KeyboardShortcuts.onKeyDown(for: .dictationHotkey) {
-                Task { @MainActor in
+                MainActor.assumeIsolated {
                     handler()
                 }
             }
@@ -21,7 +21,7 @@
 
         func registerMeetingKeyDown(_ handler: @escaping () -> Void) {
             KeyboardShortcuts.onKeyDown(for: .meetingRecordingHotkey) {
-                Task { @MainActor in
+                MainActor.assumeIsolated {
                     handler()
                 }
             }
