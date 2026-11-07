@@ -28,11 +28,11 @@
 
 | 路径 | 职责 |
 |------|------|
-| 根 `docs/` | 跨端 harness：架构、specs、研究记录、验证口径 |
+| 根 [docs/](.) | 跨端 harness：架构、specs、研究记录、验证口径 |
 | 根 macOS 文件夹 | macOS 应用、共享包、macOS release |
-| `StetMobile/` | iOS 应用及扩展 |
-| `Packages/` | 跨端共享 Swift 包（iOS 通过相对路径引用） |
-| `reference/` | Apple API 参考，按需打开 topic 文件 |
+| [StetMobile/](../StetMobile) | iOS 应用及扩展 |
+| [Packages/](../Packages) | 跨端共享 Swift 包（iOS 通过相对路径引用） |
+| [reference/](../reference) | Apple API 参考，按需打开 topic 文件 |
 
 ## 核心领域
 
@@ -59,12 +59,12 @@
 
 ## 放置规则
 
-- macOS app 逻辑：`StetMac/`（`App/`、`Core/`、`Features/`、`Shared/`）。
-- iOS app 逻辑：`StetMobile/StetMobile/`。
-- 跨端共享类型与 ASR：`Packages/StetEngine/Sources/`。
-- 共享视觉：`StetVisuals/`。
-- 新 feature spec：`docs/specs/`；研究与验证记录：`docs/research/`。
-- 根目录承载 macOS 源码、共享包与跨端治理文件；iOS 代码位于 `StetMobile/`。
+- macOS app 逻辑：[StetMac/](../StetMac)（[App/](../StetMac/App)、[Core/](../StetMac/Core)、[Features/](../StetMac/Features)、[Shared/](../StetMac/Shared)）。
+- iOS app 逻辑：[StetMobile/StetMobile/](../StetMobile/StetMobile)。
+- 跨端共享类型与 ASR：[Packages/StetEngine/Sources/](../Packages/StetEngine/Sources)。
+- 共享视觉：[StetVisuals/](../StetVisuals)。
+- 新 feature spec：[docs/specs/](specs)；研究与验证记录：[docs/research/](research)。
+- 根目录承载 macOS 源码、共享包与跨端治理文件；iOS 代码位于 [StetMobile/](../StetMobile)。
 
 ## 硬约束
 

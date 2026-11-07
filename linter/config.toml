@@ -1,0 +1,4 @@
+# Scan all tracked and non-ignored Markdown, including historical specs and skills.
+# The imported Apple reference library remains outside the maintained-doc scope.
+[markdown]
+exclude = ["reference/**"]

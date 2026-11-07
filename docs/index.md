@@ -1,6 +1,6 @@
 # docs 索引
 
-本目录是 Stet monorepo 的 durable context 入口：架构地图、实践规则、验证规范、软件需求与研究记录。研究与实验记录集中在 `research/`，按历史证据阅读，不自动作为当前行为或已采纳决策。
+本目录是 Stet monorepo 的 durable context 入口：架构地图、实践规则、验证规范、软件需求与研究记录。研究与实验记录集中在 [research/](research)，按历史证据阅读，不自动作为当前行为或已采纳决策。
 
 ## 入口
 
@@ -17,8 +17,8 @@
 端内细节见 [ARCHITECTURE.md](ARCHITECTURE.md) 仓库地图；各端 agent 入口如下。
 
 - macOS：仓库根目录 — 入口 [`../AGENTS.md`](../AGENTS.md)
-- iOS：`StetMobile/` — 入口 [`StetMobile/AGENTS.md`](../StetMobile/AGENTS.md)
-- 共享包：`Packages/`（StetEngine 等；iOS 通过相对路径引用）
+- iOS：[StetMobile/](../StetMobile) — 入口 [`StetMobile/AGENTS.md`](../StetMobile/AGENTS.md)
+- 共享包：[Packages/](../Packages)（StetEngine 等；iOS 通过相对路径引用）
 
 ## 其他文档
 

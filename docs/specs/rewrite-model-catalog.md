@@ -1,10 +1,10 @@
 # Remote rewrite model catalog
 
-The macOS app loads `StetMac/Resources/rewrite-models.json` as its bundled offline baseline and checks the same file on GitHub `main` at launch and every 24 hours. Settings can also request a refresh. The manual control stays disabled while checking and shows a fixed-height Updated or failure result, matching the App Compatibility updater. A newer valid catalog is cached atomically in Application Support; invalid, stale, or unavailable responses preserve the last known good catalog.
+The macOS app loads [StetMac/Resources/rewrite-models.json](../../StetMac/Resources/rewrite-models.json) as its bundled offline baseline and checks the same file on GitHub `main` at launch and every 24 hours. Settings can also request a refresh. The manual control stays disabled while checking and shows a fixed-height Updated or failure result, matching the App Compatibility updater. A newer valid catalog is cached atomically in Application Support; invalid, stale, or unavailable responses preserve the last known good catalog.
 
 ## Maintaining the catalog
 
-1. Add, disable, or remove models under an existing provider in `rewrite-models.json`.
+1. Add, disable, or remove models under an existing provider in [rewrite-models.json](../../StetMac/Resources/rewrite-models.json).
 2. Configure each model's optional `thinkingLevels` and `defaultThinkingLevel`; the default must appear in its supported list.
 3. Ensure every provider's `defaultModelID` references an enabled model.
 4. Increment `revision`; never reuse or decrease it.

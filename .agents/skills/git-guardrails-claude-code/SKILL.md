@@ -21,7 +21,7 @@ When blocked, Claude sees a message telling it that it does not have authority t
 
 ### 1. Ask scope
 
-Ask the user: install for **this project only** (`.claude/settings.json`) or **all projects** (`~/.claude/settings.json`)?
+Ask the user: install for **this project only** ([.claude/settings.json](../../../.claude/settings.json)) or **all projects** (`~/.claude/settings.json`)?
 
 ### 2. Copy the hook script
 
@@ -38,7 +38,7 @@ Make it executable with `chmod +x`.
 
 Add to the appropriate settings file:
 
-**Project** (`.claude/settings.json`):
+**Project** ([.claude/settings.json](../../../.claude/settings.json)):
 
 ```json
 {

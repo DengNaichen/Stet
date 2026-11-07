@@ -104,7 +104,7 @@ No existing artwork was replaced. Final prompt:
 
 Base flow adapted from [Rare UI's Fluid Orb](https://www.rareui.com/components/fluidorb)
 by Swami Malode. The [upstream MIT license](https://github.com/swamimalode07/rare-ui/blob/main/LICENSE)
-is included as `StetVisuals/RareUI-LICENSE.txt` and bundled with the framework.
+is included as [StetVisuals/RareUI-LICENSE.txt](../../StetVisuals/RareUI-LICENSE.txt) and bundled with the framework.
 
 ## Initial implementation validation (2026-09-11)
 

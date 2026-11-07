@@ -3,7 +3,7 @@
 **Feature Branch**: `006-text-output-handling`  
 **Created**: 2026-03-27  
 **Status**: Draft  
-**Input**: Current implementation, current Constitution, and the legacy `.kiro/specs/text-output-handling/` docs
+**Input**: Current implementation, current Constitution, and the legacy [.kiro/specs/text-output-handling/](../../.kiro/specs/text-output-handling) docs
 
 ## User Scenarios & Testing *(mandatory)*
 

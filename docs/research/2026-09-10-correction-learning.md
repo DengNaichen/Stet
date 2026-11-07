@@ -89,8 +89,8 @@ TypeWhisper 实验使用原始 `TextDiffService.swift`，追加对 `TextDiffServ
 2. 初始可试 30 秒观察窗口、约 1–2 秒稳定等待；这些是参考参数，需真实应用验证。优先 AX 值变化通知，必要时有界轮询；失焦、目标变化、读取失败时停止或跳过。不把回车、清空等当作“已发送”的证明。
 3. 比较 Stet 实际输出和用户修订，以字符变化定位，保留拉丁词完整边界；不能只按空格分中文，也不能要求跨脚本纠正字符相似。修正与词典候选分开：清楚的短技术词可一次入库；追加、删除、整句重写不学习；普通词语或不确定意图先累积证据。
 4. “拍图→Python”保留为证据，优先把 Python 加入词典，避免全局硬替换拍图。稳定读到的修订文本不能自动标为已发送。IME 中间态、鼠标选择、撤销、多处编辑、同一句出现两次应加入验收样例；短暂稳定也不能完全证明 IME 已提交。
-5. 不需要改训 ASR。现有词典已经进入转写 prompt 和重写 preferredSpellings；实际收益取决于引擎、上下文和提示效果，不能保证入库即识别正确。[prompt 构造](../StetMac/Core/DictationPipeline/DictationPipelineFactory.swift)、[Nano hotwords](../StetMac/Core/FunASR/FunASRNanoTranscriptionService.swift)、[重写提示](../Packages/StetEngine/Sources/StetRewrite/TextRewriteService.swift)。
-6. 观察快照建议仅存在内存，记录必要的修正证据。现有 `DictionaryModel` 会同步 iCloud，词典还可能随选定云端服务的 prompt 发送，因此不能把“本地差分”描述成整条学习链路完全不出设备。[实际词典存储](../Packages/StetEngine/Sources/StetCore/DictionaryModel.swift)。
+5. 不需要改训 ASR。现有词典已经进入转写 prompt 和重写 preferredSpellings；实际收益取决于引擎、上下文和提示效果，不能保证入库即识别正确。[prompt 构造](../../StetMac/Core/DictationPipeline/DictationPipelineFactory.swift)、[Nano hotwords](../../StetMac/Core/FunASR/FunASRNanoTranscriptionService.swift)、[重写提示](../../Packages/StetEngine/Sources/StetRewrite/TextRewriteService.swift)。
+6. 观察快照建议仅存在内存，记录必要的修正证据。现有 `DictionaryModel` 会同步 iCloud，词典还可能随选定云端服务的 prompt 发送，因此不能把“本地差分”描述成整条学习链路完全不出设备。[实际词典存储](../../Packages/StetEngine/Sources/StetCore/DictionaryModel.swift)。
 
 辅助功能 API 提供值变化通知，但目标对象可能不支持订阅；源码样例不能替代目标应用兼容性测试。[Apple 值变化通知](https://developer.apple.com/documentation/applicationservices/kaxvaluechangednotification)、[订阅与错误返回](https://developer.apple.com/documentation/applicationservices/1462089-axobserveraddnotification)。
 
