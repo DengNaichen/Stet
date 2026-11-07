@@ -49,12 +49,12 @@ struct StetApp: App {
         @ViewBuilder
         private var menuBarExtraLabel: some View {
             if appModel.isMeetingRecording {
-                Image(systemName: "record.circle.fill")
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(Color.red, Color.primary)
+                Image("meetingRecordingIcon")
+                    .renderingMode(.original)
                     .accessibilityLabel("Recording meeting")
             } else if appModel.isMeetingBusy {
-                Image(systemName: "hourglass")
+                Image("meetingProcessingIcon")
+                    .renderingMode(.template)
                     .accessibilityLabel("Processing meeting")
             } else {
                 Image("menuBarIcon")
