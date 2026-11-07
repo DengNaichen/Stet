@@ -4,8 +4,8 @@
 **状态**：Draft（待产品确认）
 **输入**：定义一次听写得到最终文本后，Stet 怎样把它送进目标应用、什么时候算完成、什么时候退回剪贴板，以及怎样保护用户原来的剪贴板。替代 旧 spec「006 文本输出」 中仍适用的部分。
 
-**范围**：macOS。iOS 键盘内插入见『iOS 键盘听写』spec。
-**边界**：本 spec 拥有粘贴流程、剪贴板兜底与恢复、乐观完成的判定、“待复制”状态和空文本的处理。目标应用是谁见『目标应用上下文』spec；兼容名单的数据格式与分发见 [应用兼容名单](app-compatibility.md)；输入控制权限的要求与恢复见 [权限与恢复](permissions-and-recovery.md)；无语音、转写失败、改写失败的结果见『听写结果与失败处理』spec；历史记录中 `finalText` 的含义见『听写历史与统计』spec；粘贴后的修正观察见 [修正学习](correction-learning.md)。
+**范围**：macOS。iOS 键盘内插入见[iOS 键盘听写](ios-keyboard-dictation.md) spec。
+**边界**：本 spec 拥有粘贴流程、剪贴板兜底与恢复、乐观完成的判定、“待复制”状态和空文本的处理。目标应用是谁见[目标应用上下文](target-app-context.md) spec；兼容名单的数据格式与分发见 [应用兼容名单](app-compatibility.md)；输入控制权限的要求与恢复见 [权限与恢复](permissions-and-recovery.md)；无语音、转写失败、改写失败的结果见[听写结果与失败处理](dictation-outcomes.md) spec；历史记录中 `finalText` 的含义见[听写历史与统计](dictation-history-and-stats.md) spec；粘贴后的修正观察见 [修正学习](correction-learning.md)。
 
 ## 术语
 
@@ -82,7 +82,7 @@
 
 ### 边界情况
 
-- 文本为空或只有空白：不写剪贴板、不粘贴、不激活应用；本 spec 视为无操作，用户看到的结果见『听写结果与失败处理』spec。
+- 文本为空或只有空白：不写剪贴板、不粘贴、不激活应用；本 spec 视为无操作，用户看到的结果见[听写结果与失败处理](dictation-outcomes.md) spec。
 - 没有目标应用，或目标应用已退出：不激活任何应用，直接向当时的前台应用发送粘贴；兼容名单按当时的前台应用匹配。
 - 目标应用就是 Stet 自身：不激活，直接发送粘贴（仅首次引导时可能出现）。
 - 上一次交付的恢复尚未执行时开始新的交付：保留最早的原剪贴板快照，最终恢复的是用户真正的原内容。
@@ -157,7 +157,7 @@
 ## 假设
 
 - 交付总是自动粘贴；“只复制不粘贴”“完成后显示面板”等旧设置不是当前用户可见选项。
-- 目标应用由『目标应用上下文』spec 在开始听写时确定。
+- 目标应用由[目标应用上下文](target-app-context.md) spec 在开始听写时确定。
 - 交付不读取、不上传剪贴板内容；原剪贴板快照只在内存中。
 
 ## 待产品确认
@@ -178,5 +178,5 @@
 - 交付设置固定为“自动粘贴、不保留剪贴板、不显示面板”（[MacDictationWorkflowController](../../StetMac/App/Workflows/MacDictationWorkflowController.swift) 的 `captureSettings`），协调器中“只复制”“显示面板”等分支不可达。
 - 交付途中失去输入控制时，Stet 会直接调用系统授权请求（`requestAccessIfNeeded`），不经过权限 spec 的恢复界面。
 - 待复制界面只显示文本和“OK”（[MacDictationClipboardSurface](../../StetMac/Features/MacShell/DictationPanel/MacDictationClipboardSurface.swift)），[DictationFailure](../../StetMac/Core/Dictation/DictationFailure.swift) 中按原因区分的 `message`（含“Input Monitoring or Accessibility”措辞）不在该界面显示。
-- 交付协调器对空文本返回完成且无副作用；上层工作流在此之前已把空文本记为“无语音”失败（[MacDictationWorkflowController](../../StetMac/App/Workflows/MacDictationWorkflowController.swift) 的 `handleCompletedResult`）。用户可见结果归『听写结果与失败处理』spec。
+- 交付协调器对空文本返回完成且无副作用；上层工作流在此之前已把空文本记为“无语音”失败（[MacDictationWorkflowController](../../StetMac/App/Workflows/MacDictationWorkflowController.swift) 的 `handleCompletedResult`）。用户可见结果归[听写结果与失败处理](dictation-outcomes.md) spec。
 - 剪贴板写入失败时进入错误面板，面板只显示错误说明、不显示文本（[MacAppSessionController+Dictation](../../StetMac/App/Workflows/MacAppSessionController+Dictation.swift) 的 `handleResultLifecycle`）。

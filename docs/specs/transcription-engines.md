@@ -6,7 +6,7 @@
 **替代**：旧 spec「009 FunASR Nano」「004 音频后处理」中仍适用的部分，以及「005 转写详情」中关于转写的部分。
 
 **范围**：macOS 与 iOS。macOS 使用本机引擎；iOS 只单列平台独有的引擎与配置（FR-021 至 FR-023）。
-**边界**：本 spec 拥有引擎选择与回退、模型下载 / 镜像 / 存储 / 预热、各引擎的音频后处理规则、各引擎如何使用热词。其他规则只引用：词典向转写提供哪些词见『个人词典』spec；无语音、转写失败时用户看到什么见『听写结果与失败处理』spec；录音与临时文件的产生见『macOS 听写会话』spec；会议转写与说话人模型的使用见『会议转写与说话人』spec（其模型的下载与镜像沿用本 spec FR-009）；iOS 采集生命周期见『iOS 常驻麦克风与 Live Activity』spec；权限见 [权限与恢复](permissions-and-recovery.md)。macOS 远程转写（OpenAI / Groq）、Whisper、SenseVoice 已移除，不在范围内。
+**边界**：本 spec 拥有引擎选择与回退、模型下载 / 镜像 / 存储 / 预热、各引擎的音频后处理规则、各引擎如何使用热词。其他规则只引用：词典向转写提供哪些词见[个人词典](personal-dictionary.md) spec；无语音、转写失败时用户看到什么见[听写结果与失败处理](dictation-outcomes.md) spec；录音与临时文件的产生见[macOS 听写会话](macos-dictation-session.md) spec；会议转写与说话人模型的使用见[会议转写与说话人](meeting-transcription-and-speakers.md) spec（其模型的下载与镜像沿用本 spec FR-009）；iOS 采集生命周期见[iOS 常驻麦克风与 Live Activity](ios-persistent-capture.md) spec；权限见 [权限与恢复](permissions-and-recovery.md)。macOS 远程转写（OpenAI / Groq）、Whisper、SenseVoice 已移除，不在范围内。
 
 ## 术语
 
@@ -63,7 +63,7 @@
 
 1. **Given** 选择了 Parakeet 且其模型未下载，**When** 我听写，**Then** 本次用 Fun-ASR Nano 转写；设置中提示“下载前会回退到 Fun-ASR Nano”。
 2. **Given** 选择了 Apple Speech 但系统低于 macOS 26 或系统语音转写不可用，**When** 我听写，**Then** 本次用 Fun-ASR Nano 转写，设置中的选择保持不变。
-3. **Given** 需要回退但 Fun-ASR Nano 的模型也未下载，**When** 我触发听写，**Then** 听写不开始，结果见『听写结果与失败处理』spec。
+3. **Given** 需要回退但 Fun-ASR Nano 的模型也未下载，**When** 我触发听写，**Then** 听写不开始，结果见[听写结果与失败处理](dictation-outcomes.md) spec。
 
 ---
 
@@ -115,7 +115,7 @@
 - **FR-002**：引擎选择保存在本机偏好中。已退役的旧取值（Whisper、SenseVoice）在读取时改为默认引擎。
 - **FR-003**：每次听写在开始录音时按当时的选择创建引擎；录音期间修改选择，从下一次听写起生效。
 - **FR-004**：所选引擎在本次听写不可用时临时回退到 Fun-ASR Nano，不改写保存的选择：Parakeet 模型未下载或无法创建时回退；Apple Speech 因系统版本或系统能力不可用时回退。回退在听写过程中不提示；设置页对 Parakeet 未下载显示回退说明，对 Apple Speech 显示资源状态（待产品确认）。
-- **FR-005**：最终要使用的 Fun-ASR Nano 缺少任一模型文件时，听写不得开始录音；设置页在选中 Fun-ASR Nano 且未下载时提示“听写前先下载”。用户可见结果见『听写结果与失败处理』spec。
+- **FR-005**：最终要使用的 Fun-ASR Nano 缺少任一模型文件时，听写不得开始录音；设置页在选中 Fun-ASR Nano 且未下载时提示“听写前先下载”。用户可见结果见[听写结果与失败处理](dictation-outcomes.md) spec。
 - **FR-006**：Apple Speech 按用户的主要转写语言选择系统语言区域；Fun-ASR Nano 与 Parakeet 自行识别语言，Stet 不强制指定语言。主要转写语言目前只在首次引导中设置，默认英文（待产品确认）。
 
 **模型下载、镜像与存储**
@@ -151,9 +151,9 @@
 
 **热词**
 
-- **FR-018**：Fun-ASR Nano 把个人词典提供的热词串作为识别提示；选哪些词、顺序与数量上限见『个人词典』spec。没有提供热词时不传。改写阶段如何使用词典见『改写执行』spec。
+- **FR-018**：Fun-ASR Nano 把个人词典提供的热词串作为识别提示；选哪些词、顺序与数量上限见[个人词典](personal-dictionary.md) spec。没有提供热词时不传。改写阶段如何使用词典见[改写执行](rewrite-execution.md) spec。
 - **FR-019**：Parakeet V3 与 Apple Speech 当前不使用热词（待产品确认）。
-- **FR-020**：使用 Fun-ASR Nano 完成一次听写后，Stet 在后台用同一段音频再做一次不带热词的转写，结果交给听写历史作为对照（保存方式见『听写历史与统计』spec）。下一次听写开始时取消尚未完成的对照转写；对照转写失败时静默跳过；音频在对照结束后删除（待产品确认）。
+- **FR-020**：使用 Fun-ASR Nano 完成一次听写后，Stet 在后台用同一段音频再做一次不带热词的转写，结果交给听写历史作为对照（保存方式见[听写历史与统计](dictation-history-and-stats.md) spec）。下一次听写开始时取消尚未完成的对照转写；对照转写失败时静默跳过；音频在对照结束后删除（待产品确认）。
 
 **iOS**
 
@@ -167,7 +167,7 @@
 - **模型资产**：某引擎所需的模型文件集合、存放位置与下载状态。
 - **下载来源列表**：按 FR-009 为一个官方地址生成的有序候选地址。
 - **后处理结果**：用于转写的音频、音频时长、需要清理的中间文件、是否判定为无语音。
-- **热词**：由『个人词典』spec 规定选出的词条串。
+- **热词**：由[个人词典](personal-dictionary.md) spec 规定选出的词条串。
 
 ## 成功标准 *(必填)*
 
@@ -184,7 +184,7 @@
 - Fun-ASR Nano 在进程内运行，不依赖 Python 或外部命令行程序；只在 macOS 上链接，支持 Apple 芯片与 Intel Mac。
 - Fun-ASR Nano 自带语言识别，Stet 不强制语言标记。
 - 本机 Apple Speech 不需要单独的语音识别授权（见 [权限与恢复](permissions-and-recovery.md) 假设）。
-- 会议转写固定使用 Fun-ASR Nano，是否跟随听写引擎由『会议转写与说话人』spec 决定。
+- 会议转写固定使用 Fun-ASR Nano，是否跟随听写引擎由[会议转写与说话人](meeting-transcription-and-speakers.md) spec 决定。
 
 ## 待产品确认
 

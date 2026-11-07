@@ -5,7 +5,7 @@
 **输入**：按当前实现整理个人词典的词条管理、来源、iCloud 同步，以及向转写和改写提供哪些词。无可吸收的旧 spec。
 
 **范围**：macOS 与 iOS。两端共用同一套词条数据模型；iOS 只单列平台独有的行为。
-**边界**：本 spec 拥有词条的增删改与导入、启用开关、`manual` / `automatic` 来源的存储、iCloud 同步与冲突，以及“向转写 prompt、Nano hotwords、改写 preferredSpellings 提供哪些词”。自动学习怎样产生词条、以及关闭词典时停止学习，见 [修正学习](correction-learning.md)；各转写引擎怎样使用收到的词，见『转写引擎与模型准备』spec；改写提示词怎样使用这些词，见『改写执行』spec。
+**边界**：本 spec 拥有词条的增删改与导入、启用开关、`manual` / `automatic` 来源的存储、iCloud 同步与冲突，以及“向转写 prompt、Nano hotwords、改写 preferredSpellings 提供哪些词”。自动学习怎样产生词条、以及关闭词典时停止学习，见 [修正学习](correction-learning.md)；各转写引擎怎样使用收到的词，见[转写引擎与模型准备](transcription-engines.md) spec；改写提示词怎样使用这些词，见[改写执行](rewrite-execution.md) spec。
 
 ## 术语
 
@@ -114,7 +114,7 @@
 - **FR-010**：启用开关关闭时，向转写 prompt、Nano hotwords 和改写 preferredSpellings 提供的词条均为空。
 - **FR-011**：改写 preferredSpellings：提供全部词条（手动与自动），不设数量上限，按列表顺序；macOS 与 iOS 相同，与选用哪个改写服务无关。
 - **FR-012**：Fun-ASR Nano hotwords：先排列全部手动词条，再排列自动词条；依次选入，跳过会使逗号拼接后的总长度超过 400 个字符的词条，最多选 50 个。
-- **FR-013**：其他 macOS 本地引擎的转写 prompt：Parakeet（FluidAudio）提供全部词条的逗号拼接；Apple Speech 提供与 FR-012 相同的选择结果，以便运行时回退到 Nano 时仍有热词。各引擎是否、怎样使用，见『转写引擎与模型准备』spec。
+- **FR-013**：其他 macOS 本地引擎的转写 prompt：Parakeet（FluidAudio）提供全部词条的逗号拼接；Apple Speech 提供与 FR-012 相同的选择结果，以便运行时回退到 Nano 时仍有热词。各引擎是否、怎样使用，见[转写引擎与模型准备](transcription-engines.md) spec。
 - **FR-014**：iOS 的转写不使用词典；iOS 只把词条提供给改写。
 - **FR-015**：会议转写不使用词典。（当前行为）
 

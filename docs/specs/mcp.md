@@ -5,7 +5,7 @@
 **输入**：定义 Stet 在本机提供的 MCP 服务：何时开启、怎样连接、暴露哪些工具、出错时返回什么，以及 agent 能接触到的数据范围。吸收 旧 spec「008 MCP 转写」 中仍适用的边界（仅本机、默认关闭、监听失败不影响应用）。
 
 **范围**：macOS。iOS 不提供 MCP 服务。
-**边界**：本 spec 负责服务开关、传输、工具清单与输入输出、错误语义和数据边界。会议文件与会话状态的来源见「会议录制与保存」spec；转写文档内容见「会议转写与说话人」spec；预期会议的生成与状态、所选日历见「日历与预期会议」spec；MCP 日历工具需要的系统权限见 [权限与恢复](permissions-and-recovery.md)。
+**边界**：本 spec 负责服务开关、传输、工具清单与输入输出、错误语义和数据边界。会议文件与会话状态的来源见[会议录制与保存](meeting-recording.md) spec；转写文档内容见[会议转写与说话人](meeting-transcription-and-speakers.md) spec；预期会议的生成与状态、所选日历见[日历与预期会议](calendar-and-expected-meetings.md) spec；MCP 日历工具需要的系统权限见 [权限与恢复](permissions-and-recovery.md)。
 **替代**：替代 008。旧的按需转写工具（传入音频路径、用 SenseVoice 转写）已移除，不在范围内。
 
 ## 术语
