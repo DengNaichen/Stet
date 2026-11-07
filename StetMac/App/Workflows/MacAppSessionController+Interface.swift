@@ -59,16 +59,14 @@
         }
 
         func hidePanel() {
-            Task {
-                await DictationRuntimeProbe.shared.markPanelHidden()
-            }
+            DictationRuntimeProbe.shared.markPanelHidden()
+
             shellPresentationController.hidePanel()
         }
 
         func dismissPendingCopy() {
-            Task {
-                await DictationRuntimeProbe.shared.markPendingCopyDismissed()
-            }
+            DictationRuntimeProbe.shared.markPendingCopyDismissed()
+
             guard case .clipboardPending = dictationState else {
                 hidePanel()
                 return
@@ -197,10 +195,7 @@
             let from = appLifecycleState
             guard from != newState else { return }
             appLifecycleState = newState
-
-            Task {
-                await DictationRuntimeProbe.shared.markAppStateChange(from: from, to: newState)
-            }
+            DictationRuntimeProbe.shared.markAppStateChange(from: from, to: newState)
         }
 
         func notifyChange() {

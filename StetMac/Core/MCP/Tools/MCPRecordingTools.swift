@@ -1,7 +1,7 @@
 import Foundation
 import MCP
 
-struct MCPRecordingTools: Sendable {
+nonisolated struct MCPRecordingTools: Sendable {
     nonisolated static let listMeetingsToolName = "stet_list_meetings"
     nonisolated static let listUnorganizedMeetingsToolName = "stet_list_unorganized_meetings"
     nonisolated static let getMeetingTranscriptToolName = "stet_get_meeting_transcript"
@@ -15,6 +15,7 @@ struct MCPRecordingTools: Sendable {
         [listMeetingsTool, listUnorganizedMeetingsTool, getTranscriptTool]
     }
 
+    @concurrent
     func call(_ parameters: CallTool.Parameters) async -> CallTool.Result {
         switch parameters.name {
         case Self.listMeetingsToolName:

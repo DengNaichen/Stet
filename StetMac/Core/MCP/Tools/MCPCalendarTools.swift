@@ -1,7 +1,7 @@
 import Foundation
 import MCP
 
-struct MCPCalendarTools: Sendable {
+nonisolated struct MCPCalendarTools: Sendable {
     nonisolated static let listCalendarsToolName = "calendar_calendars_list"
     nonisolated static let fetchEventsToolName = "calendar_events_fetch"
     nonisolated static let getEventToolName = "calendar_events_get"
@@ -29,17 +29,18 @@ struct MCPCalendarTools: Sendable {
         Self.readTools + (writeClient == nil ? [] : Self.writeTools)
     }
 
-    @MainActor
+    @concurrent
     func call(_ parameters: CallTool.Parameters) async -> CallTool.Result {
         do {
+            try Task.checkCancellation()
             switch parameters.name {
-            case Self.listCalendarsToolName: return try listCalendars()
-            case Self.fetchEventsToolName: return try fetchEvents(parameters.arguments)
-            case Self.getEventToolName: return try getEvent(parameters.arguments)
-            case Self.freeBusyToolName: return try freeBusy(parameters.arguments)
-            case Self.createEventToolName: return try createEvent(parameters.arguments)
-            case Self.updateEventToolName: return try updateEvent(parameters.arguments)
-            case Self.deleteEventToolName: return try deleteEvent(parameters.arguments)
+            case Self.listCalendarsToolName: return try await listCalendars()
+            case Self.fetchEventsToolName: return try await fetchEvents(parameters.arguments)
+            case Self.getEventToolName: return try await getEvent(parameters.arguments)
+            case Self.freeBusyToolName: return try await freeBusy(parameters.arguments)
+            case Self.createEventToolName: return try await createEvent(parameters.arguments)
+            case Self.updateEventToolName: return try await updateEvent(parameters.arguments)
+            case Self.deleteEventToolName: return try await deleteEvent(parameters.arguments)
             default: return MCPToolSupport.error("Unknown tool: \(parameters.name)")
             }
         } catch {
@@ -47,21 +48,21 @@ struct MCPCalendarTools: Sendable {
         }
     }
 
-    private func listCalendars() throws -> CallTool.Result {
-        let output = CalendarListOutput(calendars: try readClient.calendars().map(CalendarOutput.init))
+    private func listCalendars() async throws -> CallTool.Result {
+        let output = CalendarListOutput(calendars: try await readClient.queryCalendars().map(CalendarOutput.init))
         return try MCPToolSupport.result(text: "Found \(output.calendars.count) calendars.", output: output)
     }
 
-    private func fetchEvents(_ arguments: [String: Value]?) throws -> CallTool.Result {
+    private func fetchEvents(_ arguments: [String: Value]?) async throws -> CallTool.Result {
         let values = arguments ?? [:]
-        let query = try eventQuery(values)
+        let query = try await eventQuery(values)
         let includeAllDay = try MCPToolSupport.bool("include_all_day", in: values, default: true)
         let status = try enumValue(CalendarEventStatus.self, key: "status", in: values)
         let availability = try enumValue(CalendarEventAvailability.self, key: "availability", in: values)
         let hasAlarms = try optionalBool("has_alarms", in: values)
         let recurring = try optionalBool("is_recurring", in: values)
         let search = values["query"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let events = try readClient.events(matching: query).filter { event in
+        let events = try await readClient.queryEvents(matching: query).filter { event in
             (includeAllDay || !event.isAllDay)
                 && (status == nil || event.status == status)
                 && (availability == nil || event.availability == availability)
@@ -73,20 +74,20 @@ struct MCPCalendarTools: Sendable {
         return try MCPToolSupport.result(text: "Found \(events.count) calendar events.", output: output)
     }
 
-    private func getEvent(_ arguments: [String: Value]?) throws -> CallTool.Result {
-        let event = try readClient.event(identity(arguments ?? [:]))
+    private func getEvent(_ arguments: [String: Value]?) async throws -> CallTool.Result {
+        let event = try await readClient.queryEvent(identity(arguments ?? [:]))
         return try MCPToolSupport.result(text: event.title ?? "Untitled event", output: EventOutput(event))
     }
 
-    private func freeBusy(_ arguments: [String: Value]?) throws -> CallTool.Result {
+    private func freeBusy(_ arguments: [String: Value]?) async throws -> CallTool.Result {
         let values = arguments ?? [:]
         let includeAllDay = try MCPToolSupport.bool("include_all_day", in: values, default: true)
         let includeTentative = try MCPToolSupport.bool("include_tentative", in: values, default: true)
-        let query = try eventQuery(values)
+        let query = try await eventQuery(values)
         guard query.endAt.timeIntervalSince(query.startAt) <= 31 * 86_400 else {
             throw MCPToolInputError.invalid("Free/busy ranges cannot exceed 31 days.")
         }
-        let candidates = try readClient.events(matching: query).filter {
+        let candidates = try await readClient.queryEvents(matching: query).filter {
             $0.status != .canceled && $0.availability != .free && $0.endAt > $0.startAt
                 && (includeAllDay || !$0.isAllDay)
                 && (includeTentative || ($0.status != .tentative && $0.availability != .tentative))
@@ -105,7 +106,9 @@ struct MCPCalendarTools: Sendable {
         return try MCPToolSupport.result(text: "Found \(windows.count) busy windows.", output: output)
     }
 
+    @MainActor
     private func createEvent(_ arguments: [String: Value]?) throws -> CallTool.Result {
+        try Task.checkCancellation()
         let client = try requiredWriteClient()
         let values = arguments ?? [:]
         let timeZoneIdentifier = try timeZone("time_zone", in: values)
@@ -138,7 +141,9 @@ struct MCPCalendarTools: Sendable {
         return try MCPToolSupport.result(text: "Created calendar event.", output: EventOutput(event))
     }
 
+    @MainActor
     private func updateEvent(_ arguments: [String: Value]?) throws -> CallTool.Result {
+        try Task.checkCancellation()
         let client = try requiredWriteClient()
         let values = arguments ?? [:]
         let identity = try identity(values)
@@ -177,7 +182,9 @@ struct MCPCalendarTools: Sendable {
         return try MCPToolSupport.result(text: "Updated calendar event.", output: EventOutput(event))
     }
 
+    @MainActor
     private func deleteEvent(_ arguments: [String: Value]?) throws -> CallTool.Result {
+        try Task.checkCancellation()
         let client = try requiredWriteClient()
         let values = arguments ?? [:]
         guard try MCPToolSupport.bool("confirm", in: values, default: false) else {
@@ -204,7 +211,7 @@ struct MCPCalendarTools: Sendable {
         return writeClient
     }
 
-    private func eventQuery(_ values: [String: Value]) throws -> CalendarEventQuery {
+    private func eventQuery(_ values: [String: Value]) async throws -> CalendarEventQuery {
         let parsedFrom = try dateInput("from", in: values)
         let parsedTo = try dateInput("to", in: values)
         var from = parsedFrom?.date ?? Date()
@@ -214,7 +221,7 @@ struct MCPCalendarTools: Sendable {
         if parsedTo == nil, parsedFrom?.dateOnly == true {
             to = Calendar.current.date(byAdding: .day, value: 1, to: from)!
         }
-        let calendarIDs = try resolveReadCalendars(values)
+        let calendarIDs = try await resolveReadCalendars(values)
         return CalendarEventQuery(startAt: from, endAt: to, calendarIDs: Set(calendarIDs))
     }
 
@@ -341,10 +348,10 @@ struct MCPCalendarTools: Sendable {
         return .set(url)
     }
 
-    private func resolveReadCalendars(_ values: [String: Value]) throws -> [String] {
+    private func resolveReadCalendars(_ values: [String: Value]) async throws -> [String] {
         let ids = try stringArray("calendar_ids", in: values)
         let names = try stringArray("list_names", in: values)
-        let calendars = try readClient.calendars()
+        let calendars = try await readClient.queryCalendars()
         var result = ids
         for name in names {
             let matches = calendars.filter { $0.title.caseInsensitiveCompare(name) == .orderedSame }
@@ -358,6 +365,7 @@ struct MCPCalendarTools: Sendable {
         return Array(Set(result)).sorted()
     }
 
+    @MainActor
     private func resolveWriteCalendar(_ values: [String: Value]) throws -> String {
         if let id = try resolveOptionalWriteCalendar(values) { return id }
         if let id = try readClient.defaultCalendarID(),
@@ -368,6 +376,7 @@ struct MCPCalendarTools: Sendable {
         throw CalendarClientError.defaultCalendarUnavailable
     }
 
+    @MainActor
     private func resolveOptionalWriteCalendar(_ values: [String: Value]) throws -> String? {
         let id = values["calendar_id"]?.stringValue
         let name = values["list_name"]?.stringValue

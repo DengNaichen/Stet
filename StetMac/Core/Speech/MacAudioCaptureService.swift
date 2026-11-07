@@ -43,9 +43,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
                 },
 
                 onFirstRecordedBufferWritten: {
-                    Task {
-                        await DictationStartupProbe.shared.record(.firstBufferWritten)
-                    }
+                    DictationStartupProbe.shared.record(.firstBufferWritten)
                 }
             )
         #endif
@@ -63,13 +61,11 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     #endif
 
     func startRecording() async throws {
-        Task {
-            await DictationRuntimeProbe.shared.markAction("startRecordingRequested")
-        }
+        DictationRuntimeProbe.shared.markAction("startRecordingRequested")
+
         guard !isRecording else {
-            Task {
-                await DictationRuntimeProbe.shared.markCaptureStartError("alreadyRecording")
-            }
+            DictationRuntimeProbe.shared.markCaptureStartError("alreadyRecording")
+
             throw SpeechServiceError.alreadyRecording
         }
 
@@ -81,16 +77,15 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         Self.logStartupTiming(
             "microphonePermissionMs=\(Self.formatMilliseconds(microphonePermissionMs)) granted=\(microphoneGranted)"
         )
-        await DictationStartupProbe.shared.record(
+        DictationStartupProbe.shared.record(
             .microphonePermissionResolved,
             note:
                 "granted=\(microphoneGranted) microphonePermissionMs=\(Self.formatMilliseconds(microphonePermissionMs))"
         )
         guard microphoneGranted else {
             logger.warning("Microphone permission denied before recording start")
-            Task {
-                await DictationRuntimeProbe.shared.markCaptureStartError("permissionDenied")
-            }
+            DictationRuntimeProbe.shared.markCaptureStartError("permissionDenied")
+
             throw SpeechServiceError.microphonePermissionDenied
         }
 
@@ -124,11 +119,10 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             startMetering(with: recorder)
         #endif
         logger.info("Audio capture started successfully")
-        Task {
-            await DictationRuntimeProbe.shared.markCaptureStarted()
-        }
+        DictationRuntimeProbe.shared.markCaptureStarted()
+
         let startRecordingMs = Self.elapsedMilliseconds(since: startRecordingStartedAt)
-        await DictationStartupProbe.shared.record(
+        DictationStartupProbe.shared.record(
             .audioCaptureStarted,
             note: "startRecordingMs=\(Self.formatMilliseconds(startRecordingMs))"
         )
@@ -145,9 +139,8 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     }
 
     func stopRecording() async throws -> (url: URL, duration: TimeInterval?) {
-        Task {
-            await DictationRuntimeProbe.shared.markAudioStopRequested()
-        }
+        DictationRuntimeProbe.shared.markAudioStopRequested()
+
         guard isRecording, let recordingFileURL else {
             throw SpeechServiceError.notRecording
         }
@@ -170,12 +163,11 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
                         """
                     )
                 }
-                Task {
-                    await DictationRuntimeProbe.shared.markAction(
-                        "frontendCaptureSummary",
-                        details: captureDiagnosticsSummary
-                    )
-                }
+                DictationRuntimeProbe.shared.markAction(
+                    "frontendCaptureSummary",
+                    details: captureDiagnosticsSummary
+                )
+
             }
 
             guard recordingOutcome.didWriteAudio else {
@@ -214,9 +206,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             }())
             """
         )
-        Task {
-            await DictationRuntimeProbe.shared.markCaptureStopped()
-        }
+        DictationRuntimeProbe.shared.markCaptureStopped()
 
         if (audioDurationSeconds ?? 0) < 0.1 || (recordingFileSizeBytes ?? 0) <= 64 {
             logger.warning("Skipping file because audio frames were insignificant.")
@@ -229,9 +219,8 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
 
     func cancelRecording() async {
         logger.info("Cancelling active audio capture")
-        Task {
-            await DictationRuntimeProbe.shared.markCaptureCancelled()
-        }
+        DictationRuntimeProbe.shared.markCaptureCancelled()
+
         #if os(macOS)
             macAudioFileRecorder.cancelRecording()
             recorder = nil
@@ -356,9 +345,8 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     }
 
     private func finishCaptureStreams() {
-        Task {
-            await DictationRuntimeProbe.shared.markMeteringStopped()
-        }
+        DictationRuntimeProbe.shared.markMeteringStopped()
+
         meteringTask?.cancel()
         meteringTask = nil
         // The capture service is reused across sessions. Emitting silence keeps

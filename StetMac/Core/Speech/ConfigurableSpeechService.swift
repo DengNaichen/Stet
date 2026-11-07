@@ -114,7 +114,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         activePipeline = pipeline
         let pipelineFactoryMs = Self.elapsedMilliseconds(since: pipelineStartedAt)
         Self.logStartupTiming("pipelineFactoryMs=\(Self.formatMilliseconds(pipelineFactoryMs))")
-        await DictationStartupProbe.shared.record(
+        DictationStartupProbe.shared.record(
             .pipelineReady,
             note: "pipelineFactoryMs=\(Self.formatMilliseconds(pipelineFactoryMs))"
         )

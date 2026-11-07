@@ -1,7 +1,7 @@
 import Foundation
 import MCP
 
-enum MCPToolSupport {
+nonisolated enum MCPToolSupport {
     nonisolated static func error(_ message: String) -> CallTool.Result {
         CallTool.Result(
             content: [.text(text: message, annotations: nil, _meta: nil)],
@@ -68,7 +68,7 @@ enum MCPToolSupport {
     }
 }
 
-enum MCPToolInputError: LocalizedError, Sendable {
+nonisolated enum MCPToolInputError: LocalizedError, Sendable {
     case invalid(String)
 
     var errorDescription: String? {

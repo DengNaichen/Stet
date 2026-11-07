@@ -6,6 +6,26 @@ import Testing
 @MainActor
 @Suite("Stet MCP Protocol Server")
 struct StetMCPProtocolServerTests {
+    @Test func stoppingCancelsAndDrainsToolHandlers() async throws {
+        let calendar = MCPCalendarStub()
+        let gate = CalendarQueryGate()
+        calendar.queryGate = gate
+        let server = StetMCPProtocolServer(catalog: MCPStubMeetingCatalog(), calendarWriteClient: calendar)
+        try await server.start()
+        try await initialize(server)
+        let body = try jsonData([
+            "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+            "params": ["name": MCPCalendarTools.listCalendarsToolName, "arguments": [:]],
+        ])
+        let request = Task {
+            await server.handleRawRequest(method: "POST", headers: protocolHeaders, body: body)
+        }
+        #expect(await TestSupport.eventuallyAsync { await gate.started })
+        await server.stop()
+        #expect(await gate.cancelled)
+        _ = await request.value
+    }
+
     @Test func listsMeetingTools() async throws {
         let server = StetMCPProtocolServer(catalog: MCPStubMeetingCatalog())
         try await server.start()
@@ -611,6 +631,13 @@ private actor MCPExpectedMeetingStub: ExpectedMeetingServing {
 
 @MainActor
 private final class MCPCalendarStub: CalendarWriteClient {
+    var queryGate: CalendarQueryGate?
+
+    nonisolated func queryCalendars() async throws -> [CalendarRecord] {
+        if let gate = await queryGate { return try await gate.query() }
+        return try await calendars()
+    }
+
     private(set) var lastQuery: CalendarEventQuery?
     private(set) var createdRequest: CalendarEventCreateRequest?
     private(set) var updatedIdentity: CalendarEventIdentity?
@@ -713,4 +740,18 @@ private func jsonData(_ object: [String: Any]) throws -> Data {
 private func responseJSON(_ response: StetMCPHTTPResult) throws -> [String: Any] {
     let body = try #require(response.body)
     return try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+}
+
+private actor CalendarQueryGate {
+    private(set) var started = false
+    private(set) var cancelled = false
+
+    func query() async throws -> [CalendarRecord] {
+        started = true
+        do { try await Task.sleep(for: .seconds(60)) } catch {
+            cancelled = Task.isCancelled
+            throw error
+        }
+        return []
+    }
 }

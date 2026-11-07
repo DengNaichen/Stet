@@ -11,9 +11,7 @@
 
     extension MacAppSessionController {
         func performPrimaryAction(source: PrimaryActionSource) {
-            Task {
-                await DictationRuntimeProbe.shared.markAction("performPrimaryAction:\(source)")
-            }
+            DictationRuntimeProbe.shared.markAction("performPrimaryAction:\(source)")
 
             if requiresOnboarding && !onboardingStepState.allowsAudioCapture {
                 presentRequiredPermissionsGateIfNeeded()
@@ -23,9 +21,7 @@
             switch dictationState {
             case .idle, .result, .error:
                 if source == .interface {
-                    Task {
-                        await DictationStartupProbe.shared.begin(trigger: .interface)
-                    }
+                    DictationStartupProbe.shared.begin(trigger: .interface)
                 }
                 requestDictationCaptureStart(from: source)
             case .clipboardPending(let text):
@@ -40,9 +36,7 @@
         func handleHotkeyPressed() {
             let action = hotkeyInteraction.handleKeyDown(for: dictationState)
             if action == .startCapture {
-                Task {
-                    await DictationStartupProbe.shared.begin(trigger: .hotkey)
-                }
+                DictationStartupProbe.shared.begin(trigger: .hotkey)
             }
             performHotkeyAction(action)
         }
@@ -50,12 +44,8 @@
         func showTransientPanel() {
             guard let presentationModel else { return }
             shellPresentationController.showTransientPanel(appModel: presentationModel)
-            Task {
-                await DictationRuntimeProbe.shared.markPanelShown()
-            }
-            Task {
-                await DictationStartupProbe.shared.record(.panelShown)
-            }
+            DictationRuntimeProbe.shared.markPanelShown()
+            DictationStartupProbe.shared.record(.panelShown)
         }
 
         func bindState() {
@@ -81,13 +71,12 @@
         func handleStateTransitionObservation(for state: DictationState) {
             let previousState = previousDictationState
             previousDictationState = state
-            Task {
-                await DictationRuntimeProbe.shared.markStateTransition(from: previousState, to: state)
-                if state == .idle, previousState != .idle {
-                    await DictationRuntimeProbe.shared.endRun(
-                        reason: "state_idle", details: "from=\(stateLabel(previousState))")
-                }
+            DictationRuntimeProbe.shared.markStateTransition(from: previousState, to: state)
+            if state == .idle, previousState != .idle {
+                DictationRuntimeProbe.shared.endRun(
+                    reason: "state_idle", details: "from=\(stateLabel(previousState))")
             }
+
             cancelPendingStateTasks()
             updateOnboardingProgress(previousState: previousState, state: state)
             workflowController.handleStateTransition(from: previousState, to: state)
@@ -131,12 +120,10 @@
                     } else {
                         false
                     }
-                Task {
-                    await DictationRuntimeProbe.shared.markResultHandled(
-                        clipboardPending: outcome == .clipboardPending || recoveredTextPreserved,
-                        textLength: text.count
-                    )
-                }
+                DictationRuntimeProbe.shared.markResultHandled(
+                    clipboardPending: outcome == .clipboardPending || recoveredTextPreserved,
+                    textLength: text.count
+                )
 
                 guard !Task.isCancelled else {
                     Self.logger.info(
@@ -246,32 +233,26 @@
             }
 
             if requiresOnboarding && !onboardingStepState.allowsAudioCapture {
-                Task {
-                    await DictationStartupProbe.shared.record(.failed, note: "onboarding_gate")
-                }
+                DictationStartupProbe.shared.record(.failed, note: "onboarding_gate")
+
                 presentRequiredPermissionsGateIfNeeded()
                 return
             }
 
             guard hasRequiredPermissions else {
-                Task {
-                    await DictationStartupProbe.shared.record(.failed, note: "permissions_gate")
-                }
+                DictationStartupProbe.shared.record(.failed, note: "permissions_gate")
 
                 presentRequiredPermissionsGateIfNeeded()
                 return
             }
-
-            Task {
-                await DictationStartupProbe.shared.record(.permissionsVerified)
-                await DictationRuntimeProbe.shared.endRun(reason: "start_requested_after_previous")
-                await DictationRuntimeProbe.shared.markCaptureStartRequested()
-                await DictationRuntimeProbe.shared.beginRun(
-                    trigger: "captureStart",
-                    source: "MacAppSessionController",
-                    panelVisible: isPanelVisible
-                )
-            }
+            DictationStartupProbe.shared.record(.permissionsVerified)
+            DictationRuntimeProbe.shared.endRun(reason: "start_requested_after_previous")
+            DictationRuntimeProbe.shared.beginRun(
+                trigger: "captureStart",
+                source: "MacAppSessionController",
+                panelVisible: isPanelVisible
+            )
+            DictationRuntimeProbe.shared.markCaptureStartRequested()
 
             switch dictationState {
             case .idle:
@@ -298,15 +279,12 @@
                     self?.showTransientPanel()
                 }
             )
-            Task {
-                await DictationRuntimeProbe.shared.markAction("startDictationCapture")
-            }
+            DictationRuntimeProbe.shared.markAction("startDictationCapture")
         }
 
         func requestDictationCaptureStopIfNeeded() {
-            Task {
-                await DictationRuntimeProbe.shared.markCaptureStopRequested()
-            }
+            DictationRuntimeProbe.shared.markCaptureStopRequested()
+
             guard dictationState.isCaptureInFlight else { return }
             workflowController.stopActiveCapture()
         }
@@ -330,9 +308,7 @@
 
             hidePanel()
             workflowController.dictationViewModel.send(.resetTapped)
-            Task {
-                await DictationRuntimeProbe.shared.markPendingCopyCommitted()
-            }
+            DictationRuntimeProbe.shared.markPendingCopyCommitted()
         }
 
         func stateLabel(_ state: DictationState) -> String {

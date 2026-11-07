@@ -111,9 +111,8 @@
             showTransientPanel: @escaping @MainActor () -> Void
         ) {
             captureCoordinator.stopCorrectionLearning()
-            Task {
-                await DictationRuntimeProbe.shared.markAction("startDictationCapture")
-            }
+            DictationRuntimeProbe.shared.markAction("startDictationCapture")
+
             AnalyticsService.track(
                 "dictation_started", parameters: ["source": source == .hotkey ? "hotkey" : "interface"])
             refreshTargetApplication(allowingCurrentAppTarget: allowCurrentAppTarget)
@@ -160,9 +159,8 @@
             activeRecordingSource = nil
             startActivationTask?.cancel()
             startActivationTask = nil
-            Task {
-                await DictationRuntimeProbe.shared.markAction("stopActiveCapture")
-            }
+            DictationRuntimeProbe.shared.markAction("stopActiveCapture")
+
             dictationViewModel.stopCapture()
         }
 
@@ -173,16 +171,14 @@
             activeRecordingSource = nil
             startActivationTask?.cancel()
             startActivationTask = nil
-            Task {
-                await DictationRuntimeProbe.shared.markAction("cancelActiveCapture")
-            }
+            DictationRuntimeProbe.shared.markAction("cancelActiveCapture")
+
             dictationViewModel.send(.resetTapped)
         }
 
         func handleStateTransition(from previousState: DictationState, to newState: DictationState) {
-            Task {
-                await DictationRuntimeProbe.shared.markAction("workflowHandleStateTransition")
-            }
+            DictationRuntimeProbe.shared.markAction("workflowHandleStateTransition")
+
             handleMediaTransition(from: previousState, to: newState)
 
             if newState.isCaptureInFlight {
@@ -204,9 +200,8 @@
             text: String,
             showTransientPanel: @escaping @MainActor () -> Void
         ) async -> CompletionOutcome {
-            Task {
-                await DictationRuntimeProbe.shared.markAction("handleCompletedResult")
-            }
+            DictationRuntimeProbe.shared.markAction("handleCompletedResult")
+
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 await DictationLatencyProbe.shared.record(.systemWriteSkipped, note: "empty_text")
                 pendingSessionDuration = nil
@@ -255,9 +250,8 @@
         }
 
         func copyPendingResultToClipboard(_ text: String) -> Bool {
-            Task {
-                await DictationRuntimeProbe.shared.markAction("copyPendingResultToClipboard")
-            }
+            DictationRuntimeProbe.shared.markAction("copyPendingResultToClipboard")
+
             let copied = captureCoordinator.copyToClipboard(text)
             if copied {
                 finalizePendingResultHistory(text)
