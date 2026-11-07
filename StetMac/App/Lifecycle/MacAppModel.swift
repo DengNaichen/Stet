@@ -19,6 +19,7 @@
         private let appearanceSettingsViewModel: MacAppearanceSettingsViewModel
         private let mcpServerController: StetMCPServerController?
         private let meetingWorkflow: MacMeetingWorkflowController
+        let meetingSpeakerSettings: MeetingSpeakerSettings
         private let meetingRecordingRuntime: MacMeetingRecordingRuntime?
         private let calendarSyncController: CalendarSyncController?
         private var mcpServerStateHandler: (@MainActor (StetMCPServerState) -> Void)?
@@ -41,7 +42,8 @@
             meetingRecordingRuntime: MacMeetingRecordingRuntime? = nil,
             liveMeetingPhaseStore: MCPLiveMeetingPhaseStore? = nil,
             expectedMeetingCoordinator: (any ExpectedMeetingServing)? = nil,
-            calendarSyncController: CalendarSyncController? = nil
+            calendarSyncController: CalendarSyncController? = nil,
+            meetingSpeakerSettings: MeetingSpeakerSettings? = nil
         ) {
             let bootstrapper = MacAppBootstrapper(settingsStore: settingsStore)
             let captureCoordinator =
@@ -72,13 +74,16 @@
             self.appearanceSettingsViewModel = .shared
             self.mcpServerController = mcpServerController
             self.meetingRecordingRuntime = meetingRecordingRuntime
+            let speakerSettings = meetingSpeakerSettings ?? MeetingSpeakerSettings(store: MeetingSpeakerModelStore())
+            self.meetingSpeakerSettings = speakerSettings
             self.meetingWorkflow = MacMeetingWorkflowController(
                 recording: meetingRecordingRuntime,
                 expectedMeetings: expectedMeetingCoordinator,
                 publishLivePhase: { liveMeetingPhaseStore?.update($0) },
                 notifyPhase: { previous, phase in
                     await MacDictationCompletionNotificationService.shared.notifyMeetingPhase(from: previous, to: phase)
-                }
+                },
+                prepareSpeakers: { await MacMeetingSpeakerPreflight.prepare(speakerSettings) }
             )
             self.calendarSyncController = calendarSyncController
             self.mcpServerState = mcpServerController?.state ?? .disabled
@@ -299,7 +304,11 @@
             case .recording(_, let folderName):
                 return "Recording meeting · \(folderName)"
             case .processing:
-                return "Recording saved · Processing meeting"
+                return String(localized: "Recording saved · Preparing transcription")
+            case .separatingSpeakers:
+                return String(localized: "Recording saved · Separating speakers")
+            case .transcribing:
+                return String(localized: "Recording saved · Transcribing")
             case .failed(let message):
                 return message
             }
@@ -309,7 +318,7 @@
             switch meetingRecordingPhase {
             case .recording:
                 return "record.circle.fill"
-            case .starting, .processing:
+            case .starting, .processing, .separatingSpeakers, .transcribing:
                 return "hourglass"
             case .failed:
                 return "exclamationmark.triangle"
@@ -326,14 +335,14 @@
                 return "Starting meeting recording"
             case .recording:
                 return "Stop Meeting Recording"
-            case .processing:
+            case .processing, .separatingSpeakers, .transcribing:
                 return "Processing meeting"
             }
         }
 
         var canToggleMeetingRecording: Bool {
             switch meetingRecordingPhase {
-            case .starting, .processing:
+            case .starting, .processing, .separatingSpeakers, .transcribing:
                 return false
             case .idle, .recording, .failed:
                 return true

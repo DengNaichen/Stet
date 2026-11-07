@@ -7,6 +7,21 @@
 
     @Suite("Meeting Session Processor")
     struct MeetingSessionProcessorTests {
+        @Test func ordinaryTranscriptionSkipsDiarizationAndSpeakerIdentity() async throws {
+            let processor = MeetingSessionProcessor(
+                sampleRate: 100,
+                diarize: { _ in
+                    Issue.record("Unexpected diarization"); return []
+                },
+                transcribe: { _ in "ordinary meeting" },
+                identify: { _ in
+                    Issue.record("Unexpected speaker identity"); return SpeakerMatch(identity: .other, similarity: nil)
+                }
+            )
+            let turns = try await processor.process(samples: [0.1], separateSpeakers: false)
+            #expect(turns.map(\.text) == ["ordinary meeting"])
+        }
+
         @Test func emptySamplesProduceNoTurns() async throws {
             let processor = MeetingSessionProcessor(
                 sampleRate: 16_000,

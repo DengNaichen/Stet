@@ -18,6 +18,8 @@
                 .store(in: &cancellables)
         }
 
+        var meetingSpeakerSettings: MeetingSpeakerSettings { coordinator.meetingSpeakerSettings }
+
         var updates: AnyPublisher<Void, Never> { objectWillChange.eraseToAnyPublisher() }
 
         var meetingRecordingPhase: MacMeetingRecordingPhase { coordinator.meetingRecordingPhase }

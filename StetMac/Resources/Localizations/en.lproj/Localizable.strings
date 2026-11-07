@@ -295,3 +295,51 @@
 
 /* History */
 "Transcription" = "Transcription";
+
+"Separate Speakers" = "Separate Speakers";
+
+"Speaker Separation" = "Speaker Separation";
+
+"Label different speakers in the meeting transcript. Changes apply to the next meeting." = "Label different speakers in the meeting transcript. Changes apply to the next meeting.";
+
+"Download Speaker Separation Model?" = "Download Speaker Separation Model?";
+
+"Download and Enable" = "Download and Enable";
+
+"Not Now" = "Not Now";
+
+"Download approximately 241 MB once to separate speakers on this Mac. You can record ordinary meetings while it downloads." = "Download approximately 241 MB once to separate speakers on this Mac. You can record ordinary meetings while it downloads.";
+
+"Download Speaker Separation Model" = "Download Speaker Separation Model";
+
+"Checking model…" = "Checking model…";
+
+"Downloading speaker model: %lld%%" = "Downloading speaker model: %lld%%";
+
+"Cancel Download" = "Cancel Download";
+
+"Verifying model…" = "Verifying model…";
+
+"Model ready. Changes take effect next meeting." = "Model ready. Changes take effect next meeting.";
+
+"Speaker separation model ready" = "Speaker separation model ready";
+
+"Retry Download and Enable" = "Retry Download and Enable";
+
+"Speaker separation needs a model" = "Speaker separation needs a model";
+
+"Download or repair the model, or record this meeting without separating speakers. Your saved preference will not change." = "Download or repair the model, or record this meeting without separating speakers. Your saved preference will not change.";
+
+"Download and Repair" = "Download and Repair";
+
+"Record Without Speaker Separation" = "Record Without Speaker Separation";
+
+"Recording saved · Preparing transcription" = "Recording saved · Preparing transcription";
+
+"Recording saved · Separating speakers" = "Recording saved · Separating speakers";
+
+"Recording saved · Transcribing" = "Recording saved · Transcribing";
+
+"The speaker separation model is incomplete. Download it before enabling speaker separation." = "The speaker separation model is incomplete. Download it before enabling speaker separation.";
+
+"The model download was incomplete or invalid. Retry to download the missing files." = "The model download was incomplete or invalid. Retry to download the missing files.";

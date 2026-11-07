@@ -208,9 +208,10 @@
                     title: String(localized: "Recording meeting"),
                     body: String(localized: "Press the shortcut again to stop.")
                 )
-            case (.processing, .idle):
+            case (.processing, .idle), (.separatingSpeakers, .idle), (.transcribing, .idle):
                 return Payload(title: String(localized: "Meeting saved"), body: nil)
-            case (.processing, .failed(let message)):
+            case (.processing, .failed(let message)), (.separatingSpeakers, .failed(let message)),
+                (.transcribing, .failed(let message)):
                 return Payload(title: String(localized: "Meeting processing failed"), body: message)
             case (_, .failed(let message)):
                 return Payload(title: String(localized: "Meeting failed"), body: message)

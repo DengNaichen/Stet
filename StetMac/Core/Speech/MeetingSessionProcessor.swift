@@ -115,12 +115,16 @@
         var transcribe: @Sendable ([Float]) async throws -> String
         var identify: @Sendable ([Float]) async throws -> SpeakerMatch
 
-        func process(samples: [Float]) async throws -> [MeetingTranscriptTurn] {
+        func process(
+            samples: [Float], separateSpeakers: Bool = true,
+            progress: @Sendable (MacMeetingRecordingPhase) async -> Void = { _ in }
+        ) async throws -> [MeetingTranscriptTurn] {
             guard !samples.isEmpty else { return [] }
 
             try await prepareTranscription()
             do {
-                let turns = try await processPrepared(samples: samples)
+                let turns = try await processPrepared(
+                    samples: samples, separateSpeakers: separateSpeakers, progress: progress)
                 await finishTranscription()
                 return turns
             } catch {
@@ -129,9 +133,13 @@
             }
         }
 
-        private func processPrepared(samples: [Float]) async throws -> [MeetingTranscriptTurn] {
+        private func processPrepared(
+            samples: [Float], separateSpeakers: Bool, progress: @Sendable (MacMeetingRecordingPhase) async -> Void
+        ) async throws -> [MeetingTranscriptTurn] {
             try Task.checkCancellation()
-            let regions = try await diarize(samples)
+            if separateSpeakers { await progress(.separatingSpeakers) }
+            let regions = separateSpeakers ? try await diarize(samples) : []
+            await progress(.transcribing)
             let planner = MeetingTurnPostProcessor(
                 sampleRate: sampleRate,
                 configuration: turnPostProcessingConfiguration

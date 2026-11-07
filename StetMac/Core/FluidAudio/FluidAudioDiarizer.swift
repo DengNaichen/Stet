@@ -48,12 +48,18 @@
         nonisolated static func load(
             sortformerConfig: SortformerConfig = .default
         ) async throws -> FluidAudioDiarizer {
-            FluidAudioModelManager.configureDownloadRegistry()
+            let store = MeetingSpeakerModelStore()
+            guard store.isComplete else { throw MeetingSpeakerModelStore.ModelError.incomplete }
+            let models = try await Task.detached(priority: .utility) {
+                try SortformerModels(
+                    config: sortformerConfig,
+                    main: MeetingSpeakerModelStore.loadLocalModel(at: store.directory)
+                )
+            }.value
             let diarizer = SortformerDiarizer(
                 config: sortformerConfig,
                 timelineConfig: .sortformerDefault
             )
-            let models = try await SortformerModels.loadFromHuggingFace(config: sortformerConfig)
             diarizer.initialize(models: models)
 
             return FluidAudioDiarizer(diarizer: diarizer)

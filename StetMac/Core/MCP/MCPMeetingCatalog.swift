@@ -234,7 +234,7 @@
             switch overlay {
             case .recording(_, let folderName) where folderName == id:
                 return .recording
-            case .processing:
+            case .processing, .separatingSpeakers, .transcribing:
                 if record == nil { return .processing }
             default:
                 break
