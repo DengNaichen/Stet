@@ -116,7 +116,7 @@ xcodebuild -project Stet.xcodeproj -scheme Stet -destination 'platform=macOS' te
 3. 从 GitHub Actions 下载 DMG artifact 做发布前验证。
 4. 正式发布时，从 `main` 对应 commit 推送 `v*` tag，让 `macOS Release` 生成签名、公证后的正式产物。
 
-发布产物写入 `dist/github-release/<tag>/`，更完整的 CI/CD 发布说明见：[release.zh-CN.md](release.zh-CN.md)。
+发布产物写入 `dist/github-release/<tag>/`，发布操作见：[release skill](../.agents/skills/release/SKILL.md)。
 
 ## 许可证
 

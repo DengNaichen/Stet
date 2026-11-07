@@ -8,12 +8,10 @@ repo_root=$(dirname -- "$script_dir")
 
 required_files="
 docs/index.md
-docs/HARNESS.md
 docs/ARCHITECTURE.md
 docs/VALIDATION.md
 docs/GLOSSARY.md
 docs/specs/index.md
-docs/exec-plans/README.md
 docs/rules/index.md
 docs/rules/CODING.md
 docs/rules/SECURITY.md
@@ -22,10 +20,7 @@ AGENTS.md
 reference/README.md
 reference/apple-platform/index.md
 CLAUDE.md
-.cursor/README.md
 .cursor/worktrees.json
-.claude/README.md
-.codex/README.md
 scripts/setup-worktree
 scripts/new-worktree
 scripts/cleanup-branches.py
@@ -39,16 +34,6 @@ for rel_path in $required_files; do
     missing=1
   fi
 done
-
-if [ ! -d "$repo_root/docs/exec-plans/active" ]; then
-  printf 'missing directory: docs/exec-plans/active\n' >&2
-  missing=1
-fi
-
-if [ ! -d "$repo_root/docs/exec-plans/completed" ]; then
-  printf 'missing directory: docs/exec-plans/completed\n' >&2
-  missing=1
-fi
 
 scan_paths='docs AGENTS.md README.md .github/WORKFLOWS.md'
 grep_scan='grep -R --exclude-dir=.git --exclude-dir=archive'

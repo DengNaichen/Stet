@@ -9,6 +9,7 @@ import json
 import os
 import ssl
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -230,7 +231,11 @@ def write_report(
 def main() -> int:
     parser = argparse.ArgumentParser(description="Smoke test DeepSeek V4 rewrite models.")
     parser.add_argument("--env", default=".env", help="Path to the root env file.")
-    parser.add_argument("--report", default="docs/deepseek-smoke-2026-06-13.md")
+    parser.add_argument(
+        "--report",
+        default=str(Path(tempfile.gettempdir()) / "stet-deepseek-smoke.md"),
+        help="Report output path (default: stet-deepseek-smoke.md in the system temp directory).",
+    )
     parser.add_argument("--prompt", default=DEFAULT_PROMPT)
     parser.add_argument("--models", nargs="+", default=list(DEFAULT_MODELS))
     args = parser.parse_args()

@@ -36,7 +36,28 @@ setup 失败保留目录，在该目录修复并重跑。不要另建 `/tmp` clo
 `main` 和登记过的 `future/*` 为长期分支。未来实验用对应 issue 或仓库文档记录
 保留原因、起点和退出条件；进入实现时另开普通任务分支。
 
+## 环境准备与缓存边界
+
+在目标 checkout 执行 `scripts/setup-worktree --if-needed`；不要假定桌面宿主的
+初始化 hook 已在 CLI 会话运行。setup 成功只表示架构工具已就绪，不代表 App
+构建依赖齐全；缺少本地 FunASR runtime 时仍需运行
+`Packages/StetEngine/Vendor/FunASRPackage/build-xcframework.sh`。
+
+并行 worktree 的 DerivedData 和可写 SourcePackages 必须独立：
+`normalize-binary-frameworks.sh` 会修改并签名 Sherpa framework，共用可写产物
+会让一个构建改变另一个构建的输入。只复用工具支持的下载或编译缓存。
+
+架构工具由 `scripts/worktree-cache.py` 按源码与工具链校验缓存；不要直接复用
+旧的 checkout-local `.build` 可执行文件。隔离实验可设置 `STET_WORKTREE_CACHE_DIR`。
+setup 或架构检查运行期间不删除共享缓存；移除 worktree 不意味着应清理共享缓存。
+缓存命中不能代替对当前 checkout 执行架构检查和测试。
+
+修改 setup/cache 或宿主入口时，按 [VALIDATION.md](../../../docs/VALIDATION.md#worktree-preparation)
+验证；适配器测试通过不代表真实 GUI hook 生命周期已验收。
+
 ## 提交与 PR
+
+提交不要求生成或刷新 `HANDOFF.md`。
 
 按路径 stage，只提交当前任务；使用简洁的 conventional commit 描述行为变化。
 按改动运行验证并区分本地测试、模拟依赖和实际 App 验证。
@@ -72,6 +93,9 @@ apply 会在 main 可快进时更新它，重新计算并核对候选；同时�
 `scripts/xcode-storage.sh clean-project <worktree路径>` 清理。其他 ignored 文件
 （模型、运行时、环境、HANDOFF 等）先保存或由用户明确处置，脚本不会强制删除。
 工作区干净后，apply 在移除目录前调用相同缓存入口清理归属该路径的 DerivedData；
+资源占用检查只匹配目标 checkout 和待删缓存的路径、工作目录及构建进程打开的文件；
+其他 checkout 的 Zed/SourceKit 或构建进程不阻止清理。目标资源仍被占用或无法读取
+进程信息时保留资源，脚本不会停止编辑器或构建进程。
 资源清理失败则停止，不删该工作区或分支。宿主拥有的工作区先按宿主生命周期关闭。
 共享下载/编译缓存、Archives、签名数据和其他 worktree 的资源不属于清理范围。
 

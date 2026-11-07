@@ -2,7 +2,7 @@
 
 调查日期：2026-09-10。范围：macOS 粘贴后的手动修正、术语提取、词典学习。本文是调查记录，尚未成为实施方案。只检查源码、文档和算法；没有安装运行第三方 GUI，也没有验证微信、Chrome 等应用中的实际捕获成功率。
 
-后续决策：用户已明确选择“不做意图识别，直接学习替换结果，来源区分 manual / automatic”。本文关于置信度和候选累计的建议不再是实施要求。已落地的 Python 参考及边界样例见 [correction_learning](../scripts/correction_learning/README.md)。
+后续决策：用户已明确选择“不做意图识别，直接学习替换结果，来源区分 manual / automatic”。本文关于置信度和候选累计的建议不再是实施要求。已落地的 Python 参考及边界样例见 [correction_learning](../../scripts/correction_learning/README.md)。
 
 ## 结论
 
