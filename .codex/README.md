@@ -3,6 +3,8 @@
 Repository-local OpenAI Codex lifecycle configuration. Agent routing and project
 knowledge live in [`AGENTS.md`](../AGENTS.md) — not here.
 
+Commits do not require generating or refreshing `HANDOFF.md`.
+
 ## Layout
 
 - `hooks.json` — SessionStart prepares cached tools in the current checkout; Stop runs the architecture check on changed `StetMac/` sources;
