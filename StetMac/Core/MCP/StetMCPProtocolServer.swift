@@ -25,8 +25,9 @@ actor StetMCPProtocolServer {
     private let transport = StatelessHTTPServerTransport()
     private let server: Server
     private var started = false
+    private var toolTasks: [UUID: Task<CallTool.Result, Never>] = [:]
 
-    nonisolated init(
+    init(
         catalog: any MCPMeetingServing,
         expectedMeetings: (any ExpectedMeetingServing)? = nil,
         calendarReadClient: (any CalendarReadClient)? = nil,
@@ -47,17 +48,35 @@ actor StetMCPProtocolServer {
 
     func start() async throws {
         guard !started else { return }
-        let recordings = self.recordings
-        let expectedMeetings = self.expectedMeetings
-        let calendar = self.calendar
-        let tools = await MainActor.run {
-            MCPRecordingTools.tools + MCPExpectedMeetingTools.tools + (calendar?.tools ?? [])
-        }
+        let tools = MCPRecordingTools.tools + MCPExpectedMeetingTools.tools + (calendar?.tools ?? [])
         await server.withMethodHandler(ListTools.self) { _ in .init(tools: tools) }
-        await server.withMethodHandler(CallTool.self) { parameters in
-            if MCPRecordingTools.names.contains(parameters.name) {
-                return await recordings.call(parameters)
-            }
+        await server.withMethodHandler(CallTool.self) { [weak self] parameters in
+            guard let self else { return MCPToolSupport.error("Server stopped.") }
+            return await self.callTool(parameters)
+        }
+        try await server.start(transport: transport)
+        await server.withMethodHandler(Initialize.self) { params in
+            Self.initializeResult(requestedProtocolVersion: params.protocolVersion)
+        }
+        started = true
+    }
+
+    func stop() async {
+        guard started else { return }
+        started = false
+        let tasks = Array(toolTasks.values)
+        toolTasks.removeAll()
+        for task in tasks { task.cancel() }
+        await server.stop()
+        for task in tasks { _ = await task.value }
+    }
+
+    private func callTool(_ parameters: CallTool.Parameters) async -> CallTool.Result {
+        guard started else { return MCPToolSupport.error("Server stopped.") }
+        let id = UUID()
+        let task = Task { [recordings, expectedMeetings, calendar] in
+            guard !Task.isCancelled else { return MCPToolSupport.error("Request cancelled.") }
+            if MCPRecordingTools.names.contains(parameters.name) { return await recordings.call(parameters) }
             if MCPExpectedMeetingTools.names.contains(parameters.name) {
                 return await expectedMeetings.call(parameters)
             }
@@ -69,17 +88,13 @@ actor StetMCPProtocolServer {
             }
             return MCPToolSupport.error("Unknown tool: \(parameters.name)")
         }
-        try await server.start(transport: transport)
-        await server.withMethodHandler(Initialize.self) { params in
-            Self.initializeResult(requestedProtocolVersion: params.protocolVersion)
+        toolTasks[id] = task
+        defer { toolTasks.removeValue(forKey: id) }
+        return await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
         }
-        started = true
-    }
-
-    func stop() async {
-        guard started else { return }
-        await server.stop()
-        started = false
     }
 
     func handleHTTPRequest(_ request: HTTPRequest) async -> HTTPResponse {

@@ -24,6 +24,24 @@
             return try client.calendars().filter { selected.contains($0.id) }
         }
 
+        nonisolated func queryCalendars() async throws -> [CalendarRecord] {
+            let selected = await selectedIDs()
+            let calendars = try await client.queryCalendars()
+            try Task.checkCancellation()
+            return calendars.filter { selected.contains($0.id) }
+        }
+
+        nonisolated func queryEvents(matching query: CalendarEventQuery) async throws -> [CalendarEvent] {
+            try await client.queryEvents(matching: scoped(query))
+        }
+
+        nonisolated func queryEvent(_ identity: CalendarEventIdentity) async throws -> CalendarEvent {
+            try await requireSelected(identity.calendarID)
+            return try await client.queryEvent(identity)
+        }
+
+        private func selectedIDs() -> Set<String> { selectionStore.load() }
+
         func defaultCalendarID() throws -> String? {
             guard let id = try client.defaultCalendarID(), selectionStore.load().contains(id) else { return nil }
             return id

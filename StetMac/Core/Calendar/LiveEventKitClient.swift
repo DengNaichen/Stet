@@ -7,12 +7,15 @@
     @MainActor
     final class LiveEventKitClient: CalendarWriteClient {
         private let store: EKEventStore
+        nonisolated private let queryWorker = EventKitQueryWorker()
 
         init(store: EKEventStore = EKEventStore()) {
             self.store = store
         }
 
-        func authorizationStatus() -> CalendarAuthorizationStatus {
+        func authorizationStatus() -> CalendarAuthorizationStatus { Self.currentAuthorizationStatus() }
+
+        nonisolated private static func currentAuthorizationStatus() -> CalendarAuthorizationStatus {
             switch EKEventStore.authorizationStatus(for: .event) {
             case .notDetermined: .notDetermined
             case .fullAccess: .fullAccess
@@ -39,7 +42,7 @@
         }
 
         func changes() -> AsyncStream<Void> {
-            AsyncStream { continuation in
+            AsyncStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
                 let token = NotificationCenter.default.addObserver(
                     forName: .EKEventStoreChanged,
                     object: store,
@@ -53,15 +56,19 @@
             }
         }
 
-        func calendars() throws -> [CalendarRecord] {
-            try requireAccess()
-            return store.calendars(for: .event)
-                .map(Self.mapCalendar)
-                .sorted {
-                    let comparison = $0.title.localizedCaseInsensitiveCompare($1.title)
-                    return comparison == .orderedSame ? $0.id < $1.id : comparison == .orderedAscending
-                }
+        nonisolated func queryCalendars() async throws -> [CalendarRecord] {
+            try await queryWorker.calendars()
         }
+
+        nonisolated func queryEvents(matching query: CalendarEventQuery) async throws -> [CalendarEvent] {
+            try await queryWorker.events(matching: query)
+        }
+
+        nonisolated func queryEvent(_ identity: CalendarEventIdentity) async throws -> CalendarEvent {
+            try await queryWorker.event(identity)
+        }
+
+        func calendars() throws -> [CalendarRecord] { try Self.readCalendars(store: store) }
 
         func defaultCalendarID() throws -> String? {
             try requireAccess()
@@ -69,25 +76,52 @@
         }
 
         func events(matching query: CalendarEventQuery) throws -> [CalendarEvent] {
-            try requireAccess()
-            try validate(query)
-            if query.calendarIDs.isEmpty { return [] }
-            let selected = try query.calendarIDs.map(resolveCalendar)
-            let predicate = store.predicateForEvents(
-                withStart: query.startAt,
-                end: query.endAt,
-                calendars: selected
-            )
-            return store.events(matching: predicate)
-                .map(Self.mapEvent)
-                .sorted {
-                    $0.startAt == $1.startAt ? $0.id < $1.id : $0.startAt < $1.startAt
-                }
+            try Self.readEvents(matching: query, store: store)
         }
 
         func event(_ identity: CalendarEventIdentity) throws -> CalendarEvent {
-            try requireAccess()
-            return Self.mapEvent(try resolveEvent(identity))
+            try Self.readEvent(identity, store: store)
+        }
+
+        nonisolated fileprivate static func readCalendars(store: EKEventStore) throws -> [CalendarRecord] {
+            try requireReadAccess()
+            return store.calendars(for: .event).map(mapCalendar).sorted {
+                let comparison = $0.title.localizedCaseInsensitiveCompare($1.title)
+                return comparison == .orderedSame ? $0.id < $1.id : comparison == .orderedAscending
+            }
+        }
+
+        nonisolated fileprivate static func readEvents(
+            matching query: CalendarEventQuery, store: EKEventStore
+        ) throws -> [CalendarEvent] {
+            try requireReadAccess()
+            guard query.endAt > query.startAt else { throw CalendarClientError.invalidRange }
+            guard query.endAt.timeIntervalSince(query.startAt) <= CalendarEventQuery.maximumDuration else {
+                throw CalendarClientError.rangeTooLarge
+            }
+            if query.calendarIDs.isEmpty { return [] }
+            let selected = try query.calendarIDs.map { id in
+                guard let calendar = store.calendar(withIdentifier: id) else {
+                    throw CalendarClientError.calendarNotFound(id)
+                }
+                return calendar
+            }
+            let predicate = store.predicateForEvents(withStart: query.startAt, end: query.endAt, calendars: selected)
+            return store.events(matching: predicate).map(mapEvent).sorted {
+                $0.startAt == $1.startAt ? $0.id < $1.id : $0.startAt < $1.startAt
+            }
+        }
+
+        nonisolated fileprivate static func readEvent(
+            _ identity: CalendarEventIdentity, store: EKEventStore
+        ) throws -> CalendarEvent {
+            try requireReadAccess()
+            return mapEvent(try resolveEvent(identity, store: store))
+        }
+
+        nonisolated private static func requireReadAccess() throws {
+            let status = currentAuthorizationStatus()
+            guard status == .fullAccess else { throw CalendarClientError.accessNotGranted(status) }
         }
 
         func create(_ request: CalendarEventCreateRequest) throws -> CalendarEvent {
@@ -126,7 +160,7 @@
             guard request.hasChanges else {
                 throw CalendarClientError.invalidInput("At least one event field must be updated.")
             }
-            let event = try resolveEvent(identity)
+            let event = try Self.resolveEvent(identity, store: store)
             guard event.calendar.allowsContentModifications else {
                 throw CalendarClientError.calendarNotWritable(event.calendar.calendarIdentifier)
             }
@@ -163,7 +197,7 @@
 
         func delete(_ identity: CalendarEventIdentity, span: CalendarEventMutationSpan) throws {
             try requireAccess()
-            let event = try resolveEvent(identity)
+            let event = try Self.resolveEvent(identity, store: store)
             guard event.calendar.allowsContentModifications else {
                 throw CalendarClientError.calendarNotWritable(event.calendar.calendarIdentifier)
             }
@@ -200,13 +234,6 @@
         private func requireAccess() throws {
             let status = authorizationStatus()
             guard status == .fullAccess else { throw CalendarClientError.accessNotGranted(status) }
-        }
-
-        private func validate(_ query: CalendarEventQuery) throws {
-            guard query.endAt > query.startAt else { throw CalendarClientError.invalidRange }
-            guard query.endAt.timeIntervalSince(query.startAt) <= CalendarEventQuery.maximumDuration else {
-                throw CalendarClientError.rangeTooLarge
-            }
         }
 
         private func resolveCalendar(_ id: String) throws -> EKCalendar {
@@ -367,7 +394,9 @@
             }
         }
 
-        private func resolveEvent(_ identity: CalendarEventIdentity) throws -> EKEvent {
+        nonisolated private static func resolveEvent(_ identity: CalendarEventIdentity, store: EKEventStore) throws
+            -> EKEvent
+        {
             if let direct = store.event(withIdentifier: identity.eventID), Self.matches(direct, identity) {
                 return direct
             }
@@ -384,7 +413,7 @@
             throw CalendarClientError.eventNotFound(identity)
         }
 
-        private static func matches(_ event: EKEvent, _ identity: CalendarEventIdentity) -> Bool {
+        nonisolated private static func matches(_ event: EKEvent, _ identity: CalendarEventIdentity) -> Bool {
             guard event.eventIdentifier == identity.eventID || event.calendarItemIdentifier == identity.eventID else {
                 return false
             }
@@ -400,7 +429,7 @@
             return actualMatches && originalMatches
         }
 
-        private static func mapCalendar(_ calendar: EKCalendar) -> CalendarRecord {
+        nonisolated private static func mapCalendar(_ calendar: EKCalendar) -> CalendarRecord {
             CalendarRecord(
                 id: calendar.calendarIdentifier,
                 title: calendar.title,
@@ -415,7 +444,7 @@
             )
         }
 
-        private static func mapEvent(_ event: EKEvent) -> CalendarEvent {
+        nonisolated private static func mapEvent(_ event: EKEvent) -> CalendarEvent {
             let calendar = event.calendar
             let occurrenceDate = event.hasRecurrenceRules || event.isDetached ? event.occurrenceDate : nil
             let occurrence = occurrenceDate.map {
@@ -458,7 +487,7 @@
             )
         }
 
-        private static func mapAlarm(_ alarm: EKAlarm) -> CalendarAlarm {
+        nonisolated private static func mapAlarm(_ alarm: EKAlarm) -> CalendarAlarm {
             let proximity: CalendarAlarmProximity? =
                 alarm.proximity == .enter ? .enter : alarm.proximity == .leave ? .leave : nil
             let kind: CalendarAlarmKind =
@@ -472,7 +501,7 @@
                 emailAddress: alarm.emailAddress, soundName: alarm.soundName)
         }
 
-        private static func mapRecurrence(_ rule: EKRecurrenceRule) -> CalendarRecurrenceRule {
+        nonisolated private static func mapRecurrence(_ rule: EKRecurrenceRule) -> CalendarRecurrenceRule {
             let end: CalendarRecurrenceEnd?
             if let recurrenceEnd = rule.recurrenceEnd, let date = recurrenceEnd.endDate {
                 end = .endDate(date)
@@ -496,7 +525,7 @@
                 end: end)
         }
 
-        private static func mapParticipant(_ participant: EKParticipant) -> CalendarParticipant {
+        nonisolated private static func mapParticipant(_ participant: EKParticipant) -> CalendarParticipant {
             let url = participant.url
             let email =
                 url.scheme?.lowercased() == "mailto"
@@ -513,7 +542,7 @@
             )
         }
 
-        private static func colorHex(_ color: CGColor) -> String? {
+        nonisolated private static func colorHex(_ color: CGColor) -> String? {
             guard
                 let converted = color.converted(
                     to: CGColorSpace(name: CGColorSpace.sRGB)!,
@@ -528,8 +557,28 @@
         }
     }
 
+    // This store is never shared with the MainActor client; EK objects stay inside this actor.
+    private actor EventKitQueryWorker {
+        private let store = EKEventStore()
+
+        func calendars() throws -> [CalendarRecord] {
+            try Task.checkCancellation()
+            return try LiveEventKitClient.readCalendars(store: store)
+        }
+
+        func events(matching query: CalendarEventQuery) throws -> [CalendarEvent] {
+            try Task.checkCancellation()
+            return try LiveEventKitClient.readEvents(matching: query, store: store)
+        }
+
+        func event(_ identity: CalendarEventIdentity) throws -> CalendarEvent {
+            try Task.checkCancellation()
+            return try LiveEventKitClient.readEvent(identity, store: store)
+        }
+    }
+
     private extension EKSourceType {
-        var modelValue: CalendarSourceType {
+        nonisolated var modelValue: CalendarSourceType {
             switch self {
             case .local: .local
             case .exchange: .exchange
@@ -543,7 +592,7 @@
     }
 
     private extension EKEventStatus {
-        var modelValue: CalendarEventStatus {
+        nonisolated var modelValue: CalendarEventStatus {
             switch self {
             case .none: .none
             case .tentative: .tentative
@@ -555,7 +604,7 @@
     }
 
     private extension EKEventAvailability {
-        var modelValue: CalendarEventAvailability {
+        nonisolated var modelValue: CalendarEventAvailability {
             switch self {
             case .notSupported: .unknown
             case .busy: .busy
@@ -568,7 +617,7 @@
     }
 
     private extension CalendarEventAvailability {
-        var eventKitValue: EKEventAvailability {
+        nonisolated var eventKitValue: EKEventAvailability {
             switch self {
             case .unknown: .notSupported
             case .busy: .busy
@@ -580,7 +629,7 @@
     }
 
     private extension EKParticipantStatus {
-        var modelValue: CalendarParticipantStatus {
+        nonisolated var modelValue: CalendarParticipantStatus {
             switch self {
             case .unknown: .unknown
             case .pending: .pending
@@ -596,7 +645,7 @@
     }
 
     private extension EKParticipantRole {
-        var modelValue: CalendarParticipantRole {
+        nonisolated var modelValue: CalendarParticipantRole {
             switch self {
             case .unknown: .unknown
             case .required: .required
@@ -609,7 +658,7 @@
     }
 
     private extension EKParticipantType {
-        var modelValue: CalendarParticipantType {
+        nonisolated var modelValue: CalendarParticipantType {
             switch self {
             case .unknown: .unknown
             case .person: .person
@@ -622,7 +671,7 @@
     }
 
     private extension CalendarEventMutationSpan {
-        var eventKitValue: EKSpan {
+        nonisolated var eventKitValue: EKSpan {
             switch self {
             case .thisEvent: .thisEvent
             case .futureEvents: .futureEvents
@@ -631,11 +680,11 @@
     }
 
     private extension Array {
-        var nilIfEmpty: Self? { isEmpty ? nil : self }
+        nonisolated var nilIfEmpty: Self? { isEmpty ? nil : self }
     }
 
     private extension CalendarRecurrenceFrequency {
-        var eventKitValue: EKRecurrenceFrequency {
+        nonisolated var eventKitValue: EKRecurrenceFrequency {
             switch self {
             case .daily: .daily;
             case .weekly: .weekly;
@@ -646,7 +695,7 @@
     }
 
     private extension EKRecurrenceFrequency {
-        var modelValue: CalendarRecurrenceFrequency {
+        nonisolated var modelValue: CalendarRecurrenceFrequency {
             switch self {
             case .daily: .daily;
             case .weekly: .weekly;
@@ -658,7 +707,7 @@
     }
 
     private extension CalendarWeekday {
-        var eventKitValue: EKWeekday {
+        nonisolated var eventKitValue: EKWeekday {
             switch self {
             case .sunday: .sunday;
             case .monday: .monday;
@@ -672,7 +721,7 @@
     }
 
     private extension EKWeekday {
-        var modelValue: CalendarWeekday {
+        nonisolated var modelValue: CalendarWeekday {
             switch self {
             case .sunday: .sunday;
             case .monday: .monday;
@@ -687,7 +736,7 @@
     }
 
     private extension EKAlarmType {
-        var modelValue: CalendarAlarmAction {
+        nonisolated var modelValue: CalendarAlarmAction {
             switch self {
             case .display: .display;
             case .audio: .audio;

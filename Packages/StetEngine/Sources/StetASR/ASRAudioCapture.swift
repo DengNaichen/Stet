@@ -362,19 +362,6 @@ nonisolated final class PersistentASRAudioCapture: ASRAudioCapturing, @unchecked
     }
 }
 
-nonisolated private final class ASRConverterInputGate: @unchecked Sendable {
-    private let lock = NSLock()
-    private var hasProvidedInput = false
-
-    func claimInput() -> Bool {
-        lock.withLock {
-            guard !hasProvidedInput else { return false }
-            hasProvidedInput = true
-            return true
-        }
-    }
-}
-
 nonisolated final class AVAudioEngineASRAudioCaptureHardware:
     ASRAudioCaptureHardware, @unchecked Sendable
 {
@@ -538,12 +525,14 @@ nonisolated final class AVAudioEngineASRAudioCaptureHardware:
             return
         }
 
-        let inputGate = ASRConverterInputGate()
+        // AVAudioConverter invokes this input block synchronously during convert.
+        var hasProvidedInput = false
         let inputBlock: AVAudioConverterInputBlock = { _, status in
-            guard inputGate.claimInput() else {
+            guard !hasProvidedInput else {
                 status.pointee = .noDataNow
                 return nil
             }
+            hasProvidedInput = true
             status.pointee = .haveData
             return buffer
         }

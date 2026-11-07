@@ -6,12 +6,17 @@
     import os
     import StetVisuals
 
-    nonisolated final class MacCaptureAudioFileRecorder: NSObject, @unchecked Sendable {
+    nonisolated final class MacCaptureAudioFileRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
+        @unchecked Sendable
+    {
         private enum Configuration {
             nonisolated static let startupRetryCount = 4
             nonisolated static let startupRetryDelaySeconds = 0.15
         }
 
+        private static let teardownQueue = DispatchQueue(label: "Stet.MacCaptureAudioFileRecorder.teardown")
+        private let captureQueueKey = DispatchSpecificKey<Bool>()
+        // Reset on the control executor; claimed by the capture callback queue.
         private let firstBufferLock = NSLock()
         private let stateLock = NSLock()
         private let captureQueue = DispatchQueue(
@@ -39,6 +44,7 @@
             self.audioFeatureHandler = audioFeatureHandler
             self.onFirstRecordedBufferWritten = onFirstRecordedBufferWritten
             super.init()
+            captureQueue.setSpecific(key: captureQueueKey, value: true)
         }
 
         nonisolated func startRecording(
@@ -220,10 +226,10 @@
 
             for attempt in 1...Configuration.startupRetryCount {
                 let attemptStartedAt = ProcessInfo.processInfo.systemUptime
-                captureQueue.sync {
-                    if !resources.session.isRunning {
-                        resources.session.startRunning()
-                    }
+                // The owning MacAudioCaptureService runs on its dedicated executor.
+                // Starting capture on the callback queue only adds a blocking hop.
+                if !resources.session.isRunning {
+                    resources.session.startRunning()
                 }
                 let attemptMs = Self.elapsedMilliseconds(since: attemptStartedAt)
 
@@ -353,10 +359,15 @@
             }
 
             resources.output.setSampleBufferDelegate(nil, queue: nil)
-            captureQueue.sync {
-                if resources.session.isRunning {
-                    resources.session.stopRunning()
+            if DispatchQueue.getSpecific(key: captureQueueKey) == true {
+                // A delegate callback can release the last reference. Never drain
+                // its own queue or ask AVFoundation to stop from that callback.
+                Self.teardownQueue.async {
+                    if resources.session.isRunning { resources.session.stopRunning() }
                 }
+            } else {
+                if resources.session.isRunning { resources.session.stopRunning() }
+                captureQueue.sync {}
             }
         }
 
@@ -431,7 +442,7 @@
         }
     }
 
-    extension MacCaptureAudioFileRecorder: AVCaptureAudioDataOutputSampleBufferDelegate {
+    extension MacCaptureAudioFileRecorder {
         nonisolated func captureOutput(
             _ output: AVCaptureOutput,
             didOutput sampleBuffer: CMSampleBuffer,

@@ -6,6 +6,14 @@
 
 <!-- TODO: 生成源头与 Swift 包边界约定 -->
 
+### Swift 隔离标注
+
+macOS app target 默认隔离到 `MainActor`；`async` 和 `@unchecked Sendable` 都不表示后台执行。
+同步阻塞工作应使用专用执行队列；需要脱离调用方 actor 的异步计算明确使用 `@concurrent`。
+显式 `@MainActor` 可以保留来说明 UI 所有权。共享 Swift 包没有默认主 actor 隔离，
+其中的 `nonisolated` 可保留作意图说明，但不能作为线程安全或后台执行的证明。
+`@unchecked Sendable` 只用于有明确同步保护、编译器无法验证的状态。
+
 ## 硬约束
 
 以下规则必须始终成立，违反即为错误：

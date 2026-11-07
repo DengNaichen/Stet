@@ -33,7 +33,7 @@ nonisolated struct AppBranchWorkspaceApplicationSnapshot {
 ///
 /// This keeps the monitor deterministic in tests by allowing the frontmost app
 /// snapshot and activation observation to be supplied by a fake workspace.
-nonisolated protocol AppBranchWorkspaceObserving {
+@MainActor protocol AppBranchWorkspaceObserving {
     var frontmostApplication: AppBranchWorkspaceApplicationSnapshot? { get }
 
     func observeFrontmostApplicationChanges(_ handler: @escaping () -> Void) -> AppBranchWorkspaceObservationToken
@@ -52,7 +52,7 @@ nonisolated final class AppBranchWorkspaceObservationToken {
 }
 
 /// Live `NSWorkspace` implementation used by the app at runtime.
-nonisolated final class LiveAppBranchWorkspace: AppBranchWorkspaceObserving {
+@MainActor final class LiveAppBranchWorkspace: AppBranchWorkspaceObserving {
     private let workspace: NSWorkspace
 
     init(workspace: NSWorkspace = .shared) {
@@ -71,9 +71,9 @@ nonisolated final class LiveAppBranchWorkspace: AppBranchWorkspaceObserving {
         let observer = workspace.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
-            queue: nil
+            queue: .main
         ) { _ in
-            handler()
+            MainActor.assumeIsolated { handler() }
         }
 
         return AppBranchWorkspaceObservationToken(observer: observer)

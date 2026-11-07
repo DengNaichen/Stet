@@ -1,6 +1,5 @@
 #if os(macOS)
     import Combine
-    import Combine
     import Foundation
 
     @MainActor

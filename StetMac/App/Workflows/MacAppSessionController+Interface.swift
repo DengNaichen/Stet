@@ -59,16 +59,14 @@
         }
 
         func hidePanel() {
-            Task {
-                await DictationRuntimeProbe.shared.markPanelHidden()
-            }
+            DictationRuntimeProbe.shared.markPanelHidden()
+
             shellPresentationController.hidePanel()
         }
 
         func dismissPendingCopy() {
-            Task {
-                await DictationRuntimeProbe.shared.markPendingCopyDismissed()
-            }
+            DictationRuntimeProbe.shared.markPendingCopyDismissed()
+
             guard case .clipboardPending = dictationState else {
                 hidePanel()
                 return
@@ -147,25 +145,21 @@
             appBranchMonitor.setExcludedBundleID(Bundle.main.bundleIdentifier)
             detectedTargetApplicationState = appBranchMonitor.currentApp
             appBranchObserverID = appBranchMonitor.addObserver { [weak self] appInfo in
-                Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    detectedTargetApplicationState = appInfo
-                    notifyChange()
-                }
+                guard let self else { return }
+                detectedTargetApplicationState = appInfo
+                notifyChange()
             }
             appBranchMonitor.startMonitoring()
         }
 
         func bindLifecycleNotifications() {
             notificationCenter.publisher(for: NSApplication.willResignActiveNotification)
-                .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
                     self?.handleAppLifecycleChange(to: "inactive")
                 }
                 .store(in: &cancellables)
 
             notificationCenter.publisher(for: NSApplication.didBecomeActiveNotification)
-                .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
                     self?.refreshPermissionIndicators()
                     self?.handleAppLifecycleChange(to: "active")
@@ -201,10 +195,7 @@
             let from = appLifecycleState
             guard from != newState else { return }
             appLifecycleState = newState
-
-            Task {
-                await DictationRuntimeProbe.shared.markAppStateChange(from: from, to: newState)
-            }
+            DictationRuntimeProbe.shared.markAppStateChange(from: from, to: newState)
         }
 
         func notifyChange() {

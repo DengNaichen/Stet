@@ -10,7 +10,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     private let settingsStore: DictationSettingsStore
     private let locale: Locale
     private let pipelineFactory: DictationPipelineFactory
-    private let audienceProvider: @Sendable () -> AppAudience
+    private let audienceProvider: @Sendable () async -> AppAudience
     private let audioPostProcessor: any AudioPostProcessing
     private let audioLevelBridge = AudioLevelBridge()
     private let logger = Logger(
@@ -39,7 +39,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         settingsStore: DictationSettingsStore = DictationSettingsStore(),
         locale: Locale = .autoupdatingCurrent,
         pipelineFactory: DictationPipelineFactory,
-        audienceProvider: (@Sendable () -> AppAudience)? = nil,
+        audienceProvider: (@Sendable () async -> AppAudience)? = nil,
         audioPostProcessor: (any AudioPostProcessing)? = nil,
         captureService: (any AudioCaptureService)? = nil,
         captureServiceFactory: (@Sendable () -> any AudioCaptureService)? = nil,
@@ -55,7 +55,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         self.pipelineFactory = pipelineFactory
         self.audienceProvider =
             audienceProvider ?? {
-                AppBranchMonitor.shared.currentApp?.audience ?? .ai
+                await MainActor.run { AppBranchMonitor.shared.currentApp?.audience ?? .ai }
             }
         self.audioPostProcessor = audioPostProcessor ?? DefaultAudioPostProcessor()
         self.recordNoHotwordTranscript =
@@ -114,7 +114,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         activePipeline = pipeline
         let pipelineFactoryMs = Self.elapsedMilliseconds(since: pipelineStartedAt)
         Self.logStartupTiming("pipelineFactoryMs=\(Self.formatMilliseconds(pipelineFactoryMs))")
-        await DictationStartupProbe.shared.record(
+        DictationStartupProbe.shared.record(
             .pipelineReady,
             note: "pipelineFactoryMs=\(Self.formatMilliseconds(pipelineFactoryMs))"
         )
@@ -243,8 +243,9 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             let rewriteStartedAt = ProcessInfo.processInfo.systemUptime
             do {
                 if let rewriteService = pipeline.rewriteService {
-                    let rewriteAudience = pipeline.usesAudienceAwareLocalPrompts ? audienceProvider() : nil
-                    let appName = AppBranchMonitor.shared.currentApp?.localizedName
+                    let rewriteAudience = pipeline.usesAudienceAwareLocalPrompts ? await audienceProvider() : nil
+                    let appName = await MainActor.run { AppBranchMonitor.shared.currentApp?.localizedName }
+                    try ensureCaptureSessionIsActive(sessionID)
                     let request = TextRewriteRequest.cleanup(
                         intermediateTranscript,
                         audience: rewriteAudience,
@@ -401,8 +402,8 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             return
         }
 
-        let rewriteAudience = pipeline.usesAudienceAwareLocalPrompts ? audienceProvider() : nil
         rewritePrewarmTask = Task(priority: .utility) {
+            let rewriteAudience = pipeline.usesAudienceAwareLocalPrompts ? await audienceProvider() : nil
             // Delay pre-warm by 1s to allow UI animations to settle after button press
             try? await Task.sleep(for: .seconds(1))
             guard !Task.isCancelled else { return }

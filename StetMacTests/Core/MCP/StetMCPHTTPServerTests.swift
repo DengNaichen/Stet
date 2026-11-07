@@ -27,6 +27,24 @@
             #expect(!(await server.isListening()))
         }
 
+        @Test func stoppingCancelsInFlightRequestsAndClosesClientConnections() async throws {
+            let work = HTTPRequestWork()
+            let server = StetMCPHTTPServer(configuration: .init(host: "127.0.0.1", port: 0, endpoint: "/mcp")) { _ in
+                await work.handle()
+            }
+            let run = Task { try await server.run() }
+            #expect(await TestSupport.eventuallyAsync { await server.isListening() })
+            let port = try #require(await server.listeningPort())
+            let url = try #require(URL(string: "http://127.0.0.1:\(port)/mcp"))
+            let request = Task { try? await URLSession.shared.data(from: url) }
+            #expect(await TestSupport.eventuallyAsync { await work.started })
+
+            await server.stop()
+            try await run.value
+            #expect(await TestSupport.eventuallyAsync { await work.cancelled })
+            _ = await request.value
+        }
+
         @Test func occupiedPortFailsToBind() async throws {
             let reservation = try LocalPortReservation()
             defer { reservation.close() }
@@ -46,6 +64,17 @@
             ) { _ in
                 .ok()
             }
+        }
+    }
+
+    private actor HTTPRequestWork {
+        private(set) var started = false
+        private(set) var cancelled = false
+
+        func handle() async -> HTTPResponse {
+            started = true
+            do { try await Task.sleep(for: .seconds(60)) } catch { cancelled = Task.isCancelled }
+            return .ok()
         }
     }
 

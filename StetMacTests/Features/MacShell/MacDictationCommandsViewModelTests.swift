@@ -53,7 +53,7 @@
             #expect(viewModel.panelButtonTitle == "Show Panel")
         }
 
-        @Test func updatesDriveViewRefreshForCoordinatorChanges() async {
+        @Test func updatesDriveViewRefreshForCoordinatorChanges() {
             let coordinator = TestMacDictationCommandsCoordinator()
             let viewModel = MacDictationCommandsViewModel(coordinator: coordinator)
 
@@ -68,7 +68,7 @@
             coordinator.panelButtonTitle = "Hide Panel"
             coordinator.emitUpdate()
 
-            #expect(await TestSupport.eventually { changeCount == 1 })
+            #expect(changeCount == 1)
 
             _ = cancellable
 

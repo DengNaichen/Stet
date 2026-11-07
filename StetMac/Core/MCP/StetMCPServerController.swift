@@ -14,7 +14,7 @@
         case failed(String)
     }
 
-    actor StetMCPServer: StetMCPRuntimeServing {
+    nonisolated struct StetMCPServer: StetMCPRuntimeServing {
         private let protocolServer: StetMCPProtocolServer
         private let httpServer: StetMCPHTTPServer
 
@@ -52,6 +52,8 @@
         private let logger: Logger
         private var server: (any StetMCPRuntimeServing)?
         private var serverTask: Task<Void, Never>?
+        private var stoppingTask: Task<Void, Never>?
+        private var wantsRunning = false
         private var runID = UUID()
         private(set) var state: StetMCPServerState = .disabled
         var onStateChange: ((StetMCPServerState) -> Void)?
@@ -111,7 +113,8 @@
         }
 
         private func start() {
-            guard serverTask == nil else { return }
+            wantsRunning = true
+            guard stoppingTask == nil, serverTask == nil else { return }
 
             let server = makeServer()
             let logger = self.logger
@@ -121,7 +124,7 @@
             updateState(.starting)
             serverTask = Task { [weak self] in
                 do {
-                    try await server.run {
+                    try await server.run { [weak self] in
                         await self?.markRunning(runID: runID)
                     }
                     logger.info("Stet MCP server stopped.")
@@ -137,26 +140,38 @@
         }
 
         func stop() async {
+            wantsRunning = false
+            if let stoppingTask {
+                await stoppingTask.value
+                return
+            }
             guard let server else {
                 updateState(.disabled)
                 return
             }
             let task = serverTask
-            task?.cancel()
-            await server.stop()
-            await task?.value
-            serverTask = nil
-            self.server = nil
-            updateState(.disabled)
+            let stoppingTask = Task { [weak self] in
+                task?.cancel()
+                await server.stop()
+                await task?.value
+                guard let self else { return }
+                self.serverTask = nil
+                self.server = nil
+                self.stoppingTask = nil
+                self.updateState(.disabled)
+                if self.wantsRunning { self.start() }
+            }
+            self.stoppingTask = stoppingTask
+            await stoppingTask.value
         }
 
         private func markRunning(runID: UUID) {
-            guard self.runID == runID else { return }
+            guard self.runID == runID, stoppingTask == nil else { return }
             updateState(.running)
         }
 
         private func finish(runID: UUID, state: StetMCPServerState) {
-            guard self.runID == runID else { return }
+            guard self.runID == runID, stoppingTask == nil else { return }
             serverTask = nil
             server = nil
             updateState(state)
@@ -170,6 +185,7 @@
 
         deinit {
             serverTask?.cancel()
+            stoppingTask?.cancel()
         }
     }
 #endif

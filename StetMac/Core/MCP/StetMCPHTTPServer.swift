@@ -22,7 +22,9 @@ actor StetMCPHTTPServer {
     private let configuration: Configuration
     private let requestHandler: RequestHandler
     private var channel: Channel?
-    private var eventLoopGroup: MultiThreadedEventLoopGroup?
+    private var connections: MCPHTTPConnections?
+    private var runID: UUID?
+    private var isStopping = false
 
     init(
         configuration: Configuration = .default,
@@ -33,7 +35,19 @@ actor StetMCPHTTPServer {
     }
 
     func run(onReady: @Sendable () async -> Void = {}) async throws {
-        guard channel == nil else { return }
+        guard runID == nil else { return }
+        let id = UUID()
+        runID = id
+        isStopping = false
+        let connections = MCPHTTPConnections()
+        self.connections = connections
+        defer {
+            if runID == id {
+                runID = nil
+                channel = nil
+                self.connections = nil
+            }
+        }
 
         let group = MultiThreadedEventLoopGroup(numberOfThreads: max(1, min(2, System.coreCount)))
         let endpoint = configuration.endpoint
@@ -42,7 +56,8 @@ actor StetMCPHTTPServer {
             .serverChannelOption(ChannelOptions.backlog, value: 16)
             .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .childChannelInitializer { channel in
-                channel.pipeline.configureHTTPServerPipeline().flatMap {
+                connections.insert(channel)
+                return channel.pipeline.configureHTTPServerPipeline().flatMap {
                     channel.pipeline.addHandler(
                         StetMCPNIOHTTPHandler(endpoint: endpoint, requestHandler: requestHandler)
                     )
@@ -58,43 +73,58 @@ actor StetMCPHTTPServer {
                 port: configuration.port
             ).get()
         } catch {
+            await connections.closeAll()
             try? await group.shutdownGracefully()
             throw error
         }
+        guard runID == id, !isStopping, !Task.isCancelled else {
+            try? await boundChannel.close().get()
+            await connections.closeAll()
+            try? await group.shutdownGracefully()
+            throw CancellationError()
+        }
 
         channel = boundChannel
-        eventLoopGroup = group
         await onReady()
 
         do {
             try await withTaskCancellationHandler {
                 try await boundChannel.closeFuture.get()
             } onCancel: {
-                Task { await self.stop() }
+                Task { await self.stop(runID: id) }
             }
         } catch {
             channel = nil
-            eventLoopGroup = nil
+            await connections.closeAll()
             try? await group.shutdownGracefully()
             throw error
         }
 
         channel = nil
-        eventLoopGroup = nil
+        await connections.closeAll()
         try await group.shutdownGracefully()
     }
 
-    func stop() async {
-        guard let channel else { return }
-        try? await channel.close().get()
+    private func stop(runID: UUID) async {
+        guard self.runID == runID else { return }
+        await stop()
     }
+
+    func stop() async {
+        isStopping = true
+        let connections = self.connections
+        if let channel { try? await channel.close().get() }
+        await connections?.closeAll()
+    }
+
+    func listeningPort() -> Int? { channel?.localAddress?.port }
 
     func isListening() -> Bool {
         channel != nil
     }
 }
 
-private final class StetMCPNIOHTTPHandler: ChannelInboundHandler, @unchecked Sendable {
+private nonisolated final class StetMCPNIOHTTPHandler: ChannelInboundHandler, @unchecked Sendable {
     typealias InboundIn = HTTPServerRequestPart
     typealias OutboundOut = HTTPServerResponsePart
 
@@ -106,6 +136,7 @@ private final class StetMCPNIOHTTPHandler: ChannelInboundHandler, @unchecked Sen
     private let endpoint: String
     private let requestHandler: StetMCPHTTPServer.RequestHandler
     private var requestState: RequestState?
+    private var requestTasks: [UUID: Task<Void, Never>] = [:]
 
     init(
         endpoint: String,
@@ -128,34 +159,37 @@ private final class StetMCPNIOHTTPHandler: ChannelInboundHandler, @unchecked Sen
             guard let state = requestState else { return }
             requestState = nil
 
+            let path = state.head.uri.split(separator: "?").first.map(String.init) ?? state.head.uri
+            guard path == endpoint else {
+                writeResponse(
+                    .error(statusCode: 404, .invalidRequest("Not Found")),
+                    version: state.head.version, context: context
+                )
+                return
+            }
+            let request = makeHTTPRequest(from: state, path: path)
+            let id = UUID()
             nonisolated(unsafe) let context = context
-            Task { @MainActor in
-                await self.handleRequest(state: state, context: context)
+            requestTasks[id] = Task { [requestHandler] in
+                let response = await requestHandler(request)
+                guard !Task.isCancelled else { return }
+                context.eventLoop.execute {
+                    guard self.requestTasks.removeValue(forKey: id) != nil, context.channel.isActive else { return }
+                    self.writeResponse(response, version: state.head.version, context: context)
+                }
             }
         }
     }
 
-    func errorCaught(context: ChannelHandlerContext, error: Error) {
-        context.close(promise: nil)
+    func channelInactive(context: ChannelHandlerContext) {
+        for task in requestTasks.values { task.cancel() }
+        requestTasks.removeAll()
+        requestState = nil
+        context.fireChannelInactive()
     }
 
-    private func handleRequest(
-        state: RequestState,
-        context: ChannelHandlerContext
-    ) async {
-        let path = state.head.uri.split(separator: "?").first.map(String.init) ?? state.head.uri
-        guard path == endpoint else {
-            await writeResponse(
-                .error(statusCode: 404, .invalidRequest("Not Found")),
-                version: state.head.version,
-                context: context
-            )
-            return
-        }
-
-        let request = makeHTTPRequest(from: state, path: path)
-        let response = await requestHandler(request)
-        await writeResponse(response, version: state.head.version, context: context)
+    func errorCaught(context: ChannelHandlerContext, error: Error) {
+        context.close(promise: nil)
     }
 
     private func makeHTTPRequest(from state: RequestState, path: String) -> HTTPRequest {
@@ -192,32 +226,61 @@ private final class StetMCPNIOHTTPHandler: ChannelInboundHandler, @unchecked Sen
         _ response: HTTPResponse,
         version: HTTPVersion,
         context: ChannelHandlerContext
-    ) async {
-        nonisolated(unsafe) let context = context
-        let eventLoop = context.eventLoop
+    ) {
+        context.eventLoop.preconditionInEventLoop()
         let body = response.bodyData
 
-        eventLoop.execute {
-            var head = HTTPResponseHead(
-                version: version,
-                status: HTTPResponseStatus(statusCode: response.statusCode)
-            )
-            for (name, value) in response.headers {
-                head.headers.add(name: name, value: value)
-            }
-            if let body {
-                head.headers.replaceOrAdd(name: "Content-Length", value: String(body.count))
-            } else {
-                head.headers.replaceOrAdd(name: "Content-Length", value: "0")
-            }
-
-            context.write(self.wrapOutboundOut(.head(head)), promise: nil)
-            if let body {
-                var buffer = context.channel.allocator.buffer(capacity: body.count)
-                buffer.writeBytes(body)
-                context.write(self.wrapOutboundOut(.body(.byteBuffer(buffer))), promise: nil)
-            }
-            context.writeAndFlush(self.wrapOutboundOut(.end(nil)), promise: nil)
+        var head = HTTPResponseHead(
+            version: version,
+            status: HTTPResponseStatus(statusCode: response.statusCode)
+        )
+        for (name, value) in response.headers {
+            head.headers.add(name: name, value: value)
         }
+        if let body {
+            head.headers.replaceOrAdd(name: "Content-Length", value: String(body.count))
+        } else {
+            head.headers.replaceOrAdd(name: "Content-Length", value: "0")
+        }
+
+        context.write(self.wrapOutboundOut(.head(head)), promise: nil)
+        if let body {
+            var buffer = context.channel.allocator.buffer(capacity: body.count)
+            buffer.writeBytes(body)
+            context.write(self.wrapOutboundOut(.body(.byteBuffer(buffer))), promise: nil)
+        }
+        context.writeAndFlush(self.wrapOutboundOut(.end(nil)), promise: nil)
+    }
+}
+
+// Membership is shared by NIO event loops and the server actor, never by the main actor.
+private nonisolated final class MCPHTTPConnections: @unchecked Sendable {
+    private let lock = NSLock()
+    private var channels: [ObjectIdentifier: Channel] = [:]
+    private var stopped = false
+
+    func insert(_ channel: Channel) {
+        let accepted = lock.withLock {
+            guard !stopped else { return false }
+            channels[ObjectIdentifier(channel)] = channel
+            return true
+        }
+        guard accepted else {
+            channel.close(promise: nil)
+            return
+        }
+        channel.closeFuture.whenComplete { [weak self] _ in
+            _ = self?.lock.withLock { self?.channels.removeValue(forKey: ObjectIdentifier(channel)) }
+        }
+    }
+
+    func closeAll() async {
+        let pending = lock.withLock {
+            stopped = true
+            let pending = Array(channels.values)
+            channels.removeAll()
+            return pending
+        }
+        for channel in pending { try? await channel.close().get() }
     }
 }

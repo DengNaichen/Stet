@@ -66,7 +66,6 @@
                 secondary: transcriptionSecondaryLanguage
             )
             coordinator.updates
-                .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
                     self?.objectWillChange.send()
                 }
@@ -297,7 +296,7 @@
                         engineDownloadFraction = 1
                         engineDownloadState = .ready
                         settingsStore.saveTranscriptionEngine(.fluidAudio)
-                        Task.detached(priority: .userInitiated) {
+                        Task(priority: .userInitiated) {
                             try? await LocalParakeetContextManager.shared.loadModel(version: .v3) { version in
                                 try await AsrModels.loadFromCache(configuration: nil, version: version)
                             }
@@ -312,7 +311,7 @@
                     engineDownloadState = .ready
                     settingsStore.saveTranscriptionEngine(.fluidAudio)
 
-                    Task.detached(priority: .userInitiated) {
+                    Task(priority: .userInitiated) {
                         try? await LocalParakeetContextManager.shared.loadModel(version: .v3) { version in
                             try await AsrModels.loadFromCache(configuration: nil, version: version)
                         }

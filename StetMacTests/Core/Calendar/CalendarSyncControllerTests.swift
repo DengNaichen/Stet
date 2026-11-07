@@ -93,6 +93,34 @@
             #expect(await synchronizer.inputs.isEmpty)
         }
 
+        @Test func cancelledRefreshCannotClearTheReplacementTask() async throws {
+            let client = FakeCalendarClient()
+            let synchronizer = SuspendedCalendarSynchronizer()
+            let controller = CalendarSyncController(
+                client: client,
+                selectionStore: SelectedCalendarStore(
+                    defaults: try #require(UserDefaults(suiteName: UUID().uuidString)), key: "selected"
+                ),
+                synchronizer: synchronizer
+            )
+            let first = Task { try? await controller.refresh() }
+            #expect(await TestSupport.eventuallyAsync { await synchronizer.callCount == 1 })
+            controller.stop()
+            let second = Task { try? await controller.refresh() }
+            #expect(await TestSupport.eventuallyAsync { await synchronizer.callCount == 2 })
+            await synchronizer.release(1)
+            await first.value
+
+            let third = Task { try? await controller.refresh() }
+            // Give the third caller a chance to join the replacement refresh.
+            for _ in 0..<20 { await Task.yield() }
+            #expect(await synchronizer.callCount == 2)
+            await synchronizer.releaseAll()
+            await second.value
+            await third.value
+            controller.stop()
+        }
+
         @Test func eventStoreChangeTriggersRefresh() async throws {
             let now = Date(timeIntervalSince1970: 1_700_000_000)
             let client = FakeCalendarClient(events: [makeSyncEvent(start: now.addingTimeInterval(60))])
@@ -148,6 +176,29 @@
 
         func sendChange() {
             changeContinuation?.yield()
+        }
+    }
+
+    private actor SuspendedCalendarSynchronizer: CalendarMeetingSyncing {
+        private(set) var callCount = 0
+        private var continuations: [Int: CheckedContinuation<Void, Never>] = [:]
+        private var immediate = false
+
+        func reconcileCalendarMeetings(
+            windowStart: Date, windowEnd: Date, inputs: [ExpectedMeetingInput]
+        ) async throws {
+            callCount += 1
+            let call = callCount
+            if !immediate { await withCheckedContinuation { continuations[call] = $0 } }
+            try Task.checkCancellation()
+        }
+
+        func release(_ call: Int) { continuations.removeValue(forKey: call)?.resume() }
+        func releaseAll() {
+            immediate = true
+            let pending = continuations.values
+            continuations.removeAll()
+            for continuation in pending { continuation.resume() }
         }
     }
 

@@ -2,9 +2,9 @@ import Foundation
 import StetCore
 import OSLog
 
-private let subsystem = "com.openwhispr.Stet"
+nonisolated private let subsystem = "com.openwhispr.Stet"
 
-struct DictationTranscriptComparison: Codable, Sendable {
+nonisolated struct DictationTranscriptComparison: Codable, Sendable {
     enum Outcome: String, Codable, Sendable {
         case rewritten
         case fallbackAfterRewriteFailure = "fallback_after_rewrite_failure"
@@ -239,7 +239,19 @@ actor DictationLatencyProbe {
     ]
 }
 
-actor DictationStartupProbe {
+nonisolated final class DictationStartupProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private let now: @Sendable () -> TimeInterval
+    private let onTrace: (@Sendable (String) -> Void)?
+
+    init(
+        now: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
+        onTrace: (@Sendable (String) -> Void)? = nil
+    ) {
+        self.now = now
+        self.onTrace = onTrace
+    }
+
     enum Trigger: String {
         case hotkey
         case interface
@@ -270,12 +282,15 @@ actor DictationStartupProbe {
     private let logger = Logger(subsystem: subsystem, category: "dictation")
 
     private var activeSession: Session?
+    private let fileQueue = DispatchQueue(label: "Stet.startup-trace")
     private let traceFileURL = FileManager.default.temporaryDirectory
         .appendingPathComponent("stet-startup-trace")
         .appendingPathExtension("log")
 
     func begin(trigger: Trigger) {
-        let now = ProcessInfo.processInfo.systemUptime
+        lock.lock()
+        defer { lock.unlock() }
+        let now = now()
         let id = String(UUID().uuidString.prefix(8))
         activeSession = Session(
             id: id,
@@ -291,10 +306,12 @@ actor DictationStartupProbe {
     }
 
     func record(_ stage: Stage, note: String? = nil) {
+        lock.lock()
+        defer { lock.unlock() }
         guard var session = activeSession else { return }
         guard !session.reachedStages.contains(stage) else { return }
 
-        let now = ProcessInfo.processInfo.systemUptime
+        let now = now()
         let sinceStartMs = (now - session.startedAt) * 1_000
         let sincePreviousStageMs = (now - session.lastStageAt) * 1_000
 
@@ -316,7 +333,7 @@ actor DictationStartupProbe {
     }
 
     func resetTraceFile() {
-        try? FileManager.default.removeItem(at: traceFileURL)
+        fileQueue.sync { try? FileManager.default.removeItem(at: traceFileURL) }
     }
 
     func traceFilePath() -> String {
@@ -324,12 +341,14 @@ actor DictationStartupProbe {
     }
 
     private func emitTraceLine(_ line: String) {
+        onTrace?(line)
         logger.info("\(line, privacy: .public)")
-        appendTraceLine(line)
+        let date = Date()
+        fileQueue.async { self.appendTraceLine(line, at: date) }
     }
 
-    private func appendTraceLine(_ line: String) {
-        let timestamp = ISO8601DateFormatter().string(from: Date())
+    private func appendTraceLine(_ line: String, at date: Date) {
+        let timestamp = ISO8601DateFormatter().string(from: date)
         let payload = "\(timestamp) \(line)\n"
 
         if !FileManager.default.fileExists(atPath: traceFileURL.path) {
@@ -362,7 +381,19 @@ actor DictationStartupProbe {
     }
 }
 
-actor DictationRuntimeProbe {
+nonisolated final class DictationRuntimeProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private let now: @Sendable () -> TimeInterval
+    private let onTrace: (@Sendable (String) -> Void)?
+
+    init(
+        now: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
+        onTrace: (@Sendable (String) -> Void)? = nil
+    ) {
+        self.now = now
+        self.onTrace = onTrace
+    }
+
     enum Stage: String, Hashable {
         case runBegan = "run_began"
         case runEnded = "run_ended"
@@ -402,9 +433,11 @@ actor DictationRuntimeProbe {
     private let logger = Logger(subsystem: subsystem, category: "perftrace")
 
     func beginRun(trigger: String, source: String, panelVisible: Bool) {
+        lock.lock()
+        defer { lock.unlock() }
         guard activeRun == nil else { return }
 
-        let now = ProcessInfo.processInfo.systemUptime
+        let now = now()
         runCounter += 1
         let id = String(format: "run_%04d_%d", runCounter, Int(now))
         activeRun = Run(
@@ -425,8 +458,10 @@ actor DictationRuntimeProbe {
     }
 
     func endRun(reason: String, details: String? = nil) {
+        lock.lock()
+        defer { lock.unlock() }
         guard let run = activeRun else { return }
-        let now = ProcessInfo.processInfo.systemUptime
+        let now = now()
         emit(
             runId: run.id,
             stage: .runEnded,
@@ -437,92 +472,84 @@ actor DictationRuntimeProbe {
     }
 
     func markAppStateChange(from: String, to: String) {
-        Task {
-            await log(.appStateChange, details: "from=\(from) to=\(to)")
-        }
+        log(.appStateChange, details: "from=\(from) to=\(to)")
     }
 
     func markAction(_ action: String, details: String? = nil) {
-        Task {
-            await log(.actionDispatched, details: "action=\(action)\(details.map { " \($0)" } ?? "")")
-        }
+        log(.actionDispatched, details: "action=\(action)\(details.map { " \($0)" } ?? "")")
     }
 
     func markPanelShown() {
-        Task { await log(.panelShown) }
+        log(.panelShown)
     }
 
     func markPanelHidden() {
-        Task { await log(.panelHidden) }
+        log(.panelHidden)
     }
 
     func markPendingCopyDismissed() {
-        Task { await log(.pendingCopyDismissed) }
+        log(.pendingCopyDismissed)
     }
 
     func markPendingCopyCommitted() {
-        Task { await log(.pendingCopyCommitted) }
+        log(.pendingCopyCommitted)
     }
 
     func markStateTransition(from: DictationState, to: DictationState) {
         let fromLabel = "\(from)"
         let toLabel = "\(to)"
-        Task {
-            await log(.stateTransition, details: "from=\(fromLabel) to=\(toLabel)")
-        }
+        log(.stateTransition, details: "from=\(fromLabel) to=\(toLabel)")
     }
 
     func markResultHandled(clipboardPending: Bool, textLength: Int) {
-        Task {
-            await log(
-                .resultHandled,
-                details: "clipboardPending=\(clipboardPending) textLength=\(textLength)"
-            )
-        }
+        log(
+            .resultHandled,
+            details: "clipboardPending=\(clipboardPending) textLength=\(textLength)"
+        )
     }
 
     func markCaptureStartRequested() {
-        Task { await log(.captureStartRequested) }
+        log(.captureStartRequested)
     }
 
     func markCaptureStopRequested() {
-        Task { await log(.captureStopRequested) }
+        log(.captureStopRequested)
     }
 
     func markCaptureStarted() {
-        Task { await log(.captureStarted) }
+        log(.captureStarted)
     }
 
     func markCaptureStopped() {
-        Task { await log(.captureStopped) }
+        log(.captureStopped)
     }
 
     func markCaptureCancelled() {
-        Task { await log(.captureCancelled) }
+        log(.captureCancelled)
     }
 
     func markCaptureStartError(_ message: String) {
-        Task {
-            await log(.captureStartError, details: message)
-        }
+        log(.captureStartError, details: message)
     }
 
     func markAudioStopRequested() {
-        Task { await log(.audioStopRequested) }
+        log(.audioStopRequested)
     }
 
     func markMeteringStarted() {
-        Task { await log(.meteringStarted) }
+        log(.meteringStarted)
     }
 
     func markMeteringStopped() {
-        Task { await log(.meteringStopped) }
+        log(.meteringStopped)
     }
 
-    private func log(_ stage: Stage, details: String? = nil) async {
+    private func log(_ stage: Stage, details: String? = nil) {
+        lock.lock()
+        defer { lock.unlock() }
         guard var run = activeRun else { return }
 
-        let now = ProcessInfo.processInfo.systemUptime
+        let now = now()
         emit(
             runId: run.id,
             stage: stage,
@@ -547,14 +574,14 @@ actor DictationRuntimeProbe {
         let sinceLastMs = (now - run.lastEventAt) * 1_000
         let detailsSuffix = details.map { " \(self.clamp($0))" } ?? ""
 
-        logger.info(
-            """
+        let line = """
             RuntimeTrace id=\(runId) stage=\(stage.rawValue) \
             sinceRunMs=\(String(format: "%.1f", sinceRunMs)) \
             sincePrevMs=\(String(format: "%.1f", sinceLastMs)) \
             source=\(run.source) panelAtStart=\(run.panelWasVisibleAtStart)\(detailsSuffix)
             """
-        )
+        onTrace?(line)
+        logger.info("\(line, privacy: .public)")
     }
 
     private func clamp(_ value: String) -> String {

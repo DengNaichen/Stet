@@ -2,7 +2,7 @@
     @preconcurrency import AVFoundation
     import Foundation
 
-    struct InputDeviceCandidate {
+    nonisolated struct InputDeviceCandidate {
         let device: AudioHardwareDevice?
         let reason: Reason
 

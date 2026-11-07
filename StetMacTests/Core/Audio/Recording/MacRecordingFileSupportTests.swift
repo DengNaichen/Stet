@@ -34,12 +34,8 @@
                 voiceProcessingFallbackReason: nil
             )
             let inputBuffer = try #require(Self.makeInputBuffer(format: inputFormat))
-            let snapshot = try #require(try session.snapshot(for: inputFormat))
-            let convertedBuffer = try LinearPCMConversion.convert(
-                inputBuffer,
-                using: snapshot.converter,
-                outputFormat: outputFormat
-            )
+            let normalization = MacNormalizedAudioCaptureSession(outputFormat: outputFormat)
+            let convertedBuffer = try normalization.convert(inputBuffer).buffer
 
             let beforeActivation = try #require(try session.ingestConvertedBuffer(convertedBuffer))
             #expect(!beforeActivation.didWriteAudioFrames)

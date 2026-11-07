@@ -3,8 +3,8 @@
     import Darwin
     import Foundation
 
-    private let mediaRemotePlayCommand: UInt32 = 0
-    private let mediaRemotePauseCommand: UInt32 = 1
+    nonisolated private let mediaRemotePlayCommand: UInt32 = 0
+    nonisolated private let mediaRemotePauseCommand: UInt32 = 1
 
     private typealias MediaRemoteSendCommand = @convention(c) (UInt32, Optional<AnyObject>) -> Bool
     private typealias MediaRemoteIsPlaying = @convention(c) (DispatchQueue, @escaping (Bool) -> Void) -> Void
@@ -17,12 +17,12 @@
 
     @MainActor
     final class MacMediaPlaybackController: MediaPlaybackControlling {
-        struct MediaRemoteClient {
+        nonisolated struct MediaRemoteClient: Sendable {
             let send: @Sendable (UInt32) -> Bool
             let isPlaying: @Sendable () -> Bool
         }
 
-        struct Dependencies {
+        nonisolated struct Dependencies: Sendable {
             let loadMediaRemoteClient: @Sendable () -> MediaRemoteClient?
             let sendMediaKey: @Sendable () -> Bool
 
@@ -52,47 +52,80 @@
             }
         }
 
-        private let dependencies: Dependencies
-        private var didPausePlayback = false
-        private lazy var mediaRemote = dependencies.loadMediaRemoteClient()
+        private let worker: PlaybackWorker
 
         init(
             callbackQueue: DispatchQueue = DispatchQueue(label: "Stet.media-remote"),
+            operationQueue: DispatchQueue = DispatchQueue(label: "Stet.media-playback", qos: .userInitiated),
             dependencies: Dependencies? = nil
         ) {
-            self.dependencies = dependencies ?? .live(callbackQueue: callbackQueue)
+            worker = PlaybackWorker(
+                queue: operationQueue,
+                dependencies: dependencies ?? .live(callbackQueue: callbackQueue)
+            )
         }
 
         func pausePlaybackIfNeeded() {
-            didPausePlayback = false
-
-            if let mediaRemote {
-                guard mediaRemote.isPlaying() else {
-                    return
-                }
-
-                didPausePlayback = mediaRemote.send(mediaRemotePauseCommand)
-                if didPausePlayback {
-                    return
-                }
-            }
-
-            didPausePlayback = dependencies.sendMediaKey()
+            worker.setPaused(true)
         }
 
         func resumePlaybackIfNeeded() {
-            let shouldResumePlayback = didPausePlayback
-            didPausePlayback = false
+            worker.setPaused(false)
+        }
 
-            guard shouldResumePlayback else {
-                return
+        // MediaRemote and osascript may block. Only this dedicated queue owns the
+        // playback commands; neither MainActor nor the cooperative pool waits for them.
+        nonisolated private final class PlaybackWorker: @unchecked Sendable {
+            private let queue: DispatchQueue
+            private let dependencies: Dependencies
+            private let intentLock = NSLock()
+            private var wantsPause = false
+            private var didPausePlayback = false
+            private var mediaRemote: MediaRemoteClient?
+            private var didLoadMediaRemote = false
+
+            init(queue: DispatchQueue, dependencies: Dependencies) {
+                self.queue = queue
+                self.dependencies = dependencies
             }
 
-            if let mediaRemote, mediaRemote.send(mediaRemotePlayCommand) {
-                return
+            func setPaused(_ paused: Bool) {
+                intentLock.withLock { wantsPause = paused }
+                queue.async { self.reconcilePlayback() }
             }
 
-            _ = dependencies.sendMediaKey()
+            private var shouldPause: Bool { intentLock.withLock { wantsPause } }
+
+            private func reconcilePlayback() {
+                dispatchPrecondition(condition: .onQueue(queue))
+                if !didLoadMediaRemote {
+                    mediaRemote = dependencies.loadMediaRemoteClient()
+                    didLoadMediaRemote = true
+                }
+                if shouldPause {
+                    guard !didPausePlayback else { return }
+                    if let mediaRemote {
+                        guard mediaRemote.isPlaying(), shouldPause else { return }
+                        didPausePlayback = mediaRemote.send(mediaRemotePauseCommand)
+                        if didPausePlayback { return }
+                    }
+                    guard shouldPause else { return }
+                    didPausePlayback = dependencies.sendMediaKey()
+                } else {
+                    guard didPausePlayback else { return }
+                    didPausePlayback = false
+                    if let mediaRemote, mediaRemote.send(mediaRemotePlayCommand) { return }
+                    _ = dependencies.sendMediaKey()
+                }
+            }
+        }
+
+        nonisolated private final class PlaybackQueryResult: @unchecked Sendable {
+            private let lock = NSLock()
+            private var isPlaying = false
+
+            func set(_ value: Bool) { lock.withLock { isPlaying = value } }
+            func get() -> Bool { lock.withLock { isPlaying } }
         }
 
         nonisolated private static func loadMediaRemote() -> (
@@ -117,15 +150,15 @@
             callbackQueue: DispatchQueue
         ) -> Bool {
             let semaphore = DispatchSemaphore(value: 0)
-            var isPlaying = false
+            let result = PlaybackQueryResult()
 
             callback(callbackQueue) { playing in
-                isPlaying = playing
+                result.set(playing)
                 semaphore.signal()
             }
 
             _ = semaphore.wait(timeout: .now() + 2)
-            return isPlaying
+            return result.get()
         }
 
         nonisolated private static func sendMediaKey() -> Bool {

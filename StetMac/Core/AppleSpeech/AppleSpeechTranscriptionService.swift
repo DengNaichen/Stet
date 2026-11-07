@@ -141,7 +141,7 @@
     }
 
     @available(macOS 26.0, *)
-    actor AppleSpeechAssetManager {
+    nonisolated struct AppleSpeechAssetManager: Sendable {
         static let shared = AppleSpeechAssetManager()
 
         func ensureInstalled(for transcriber: SpeechTranscriber, locale: Locale) async throws {

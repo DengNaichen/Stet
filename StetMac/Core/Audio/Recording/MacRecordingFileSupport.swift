@@ -45,6 +45,7 @@
             let didCreateConverter: Bool
         }
 
+        // Conversion runs on the callback queue; close runs on the control executor.
         private let lock = NSLock()
         nonisolated let outputFormat: AVAudioFormat
         private var converter: AVAudioConverter?
@@ -111,8 +112,6 @@
         nonisolated let outputFormat: AVAudioFormat
         nonisolated private let voiceProcessingEnabled: Bool
         nonisolated private let voiceProcessingFallbackReason: String?
-        private var converter: AVAudioConverter?
-        private var converterInputFormatSignature: String?
         private var recordingFile: AVAudioFile?
         private var writtenFrameCount: AVAudioFramePosition = 0
         private var didWriteAudio = false
@@ -131,43 +130,6 @@
             self.outputFormat = outputFormat
             self.voiceProcessingEnabled = voiceProcessingEnabled
             self.voiceProcessingFallbackReason = voiceProcessingFallbackReason
-        }
-
-        nonisolated func snapshot(
-            for inputFormat: AVAudioFormat
-        ) throws -> (converter: AVAudioConverter, recordingFile: AVAudioFile, didCreateConverter: Bool)? {
-            lock.lock()
-            defer { lock.unlock() }
-
-            guard let recordingFile else {
-                return nil
-            }
-
-            let inputFormatSignature = Self.formatSignature(inputFormat)
-            let didCreateConverter: Bool
-
-            if converterInputFormatSignature != inputFormatSignature || converter == nil {
-                guard
-                    let converter = LinearPCMConversion.makeConverter(
-                        from: inputFormat,
-                        to: outputFormat
-                    )
-                else {
-                    throw LinearPCMConversion.ConversionError.conversionFailed
-                }
-
-                self.converter = converter
-                self.converterInputFormatSignature = inputFormatSignature
-                didCreateConverter = true
-            } else {
-                didCreateConverter = false
-            }
-
-            guard let converter else {
-                throw LinearPCMConversion.ConversionError.conversionFailed
-            }
-
-            return (converter, recordingFile, didCreateConverter)
         }
 
         nonisolated func ingestConvertedBuffer(_ buffer: AVAudioPCMBuffer) throws -> BufferIngestionResult? {
@@ -228,8 +190,6 @@
 
         nonisolated func close() {
             lock.lock()
-            converter = nil
-            converterInputFormatSignature = nil
             recordingFile = nil
             lock.unlock()
         }
@@ -251,10 +211,6 @@
                 didWriteAudio: didWriteAudio,
                 captureDiagnosticsSummary: diagnostics
             )
-        }
-
-        private nonisolated static func formatSignature(_ format: AVAudioFormat) -> String {
-            "\(String(describing: format.commonFormat)):\(Int(format.sampleRate)):\(format.channelCount):\(format.isInterleaved)"
         }
 
         private nonisolated func appendPendingBuffer(_ buffer: AVAudioPCMBuffer) {
