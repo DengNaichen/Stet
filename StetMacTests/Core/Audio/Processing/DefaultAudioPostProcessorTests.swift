@@ -6,6 +6,40 @@ import Testing
 @Suite("Default Audio Post Processor", .serialized)
 @MainActor
 struct DefaultAudioPostProcessorTests {
+    // Synchronous by design: this is the bounded MainActor obstruction used by the regression test.
+    @MainActor private func waitForBackgroundWork(_ finished: DispatchSemaphore) -> Bool {
+        finished.wait(timeout: .now() + 10) == .success
+    }
+
+    @Test func speechProcessingCanFinishWhileMainActorIsOccupied() async throws {
+        // Exercise analysis, gain rewriting, and silence trimming with a real PCM file.
+        let speech = Self.makeSpeechLikeSamples(amplitude: 1_050)
+        let fileURL = try Self.makePCMFileURL(
+            samples: speech + Array(repeating: 0, count: 32_000) + speech)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let processor = Self.makePostProcessor(interactionSoundsEnabled: false)
+        let finished = DispatchSemaphore(value: 0)
+        let processing = Task.detached {
+            defer { finished.signal() }
+            return try await processor.processAudioFile(at: fileURL, duration: 4)
+        }
+        // MainActor cannot execute work during this wait. A hidden hop to it must fail,
+        // while file I/O, VAD and DSP running in the background can finish normally.
+        let completedWithoutMainActor = waitForBackgroundWork(finished)
+        let result = try await processing.value
+        defer {
+            for url in result.cleanupURLs { try? FileManager.default.removeItem(at: url) }
+        }
+        #expect(completedWithoutMainActor)
+        #expect(!result.shouldDiscardAsNoSpeech)
+        #expect(result.url != fileURL)
+        let output = try Self.audioSummary(at: result.url)
+        #expect(output.duration < 3)
+        #expect(output.duration > 1.8)
+        #expect(output.sampleRate == TranscriptionUploadAudioFormat.macSampleRate)
+        #expect(output.channelCount == TranscriptionUploadAudioFormat.macChannelCount)
+    }
+
     @Test func silenceOnlyCaptureIsDiscarded() async throws {
         let fileURL = try Self.makePCMFileURL(
             samples: Array(repeating: 0, count: 16_000)

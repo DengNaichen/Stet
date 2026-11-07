@@ -1,7 +1,7 @@
 import FluidAudio
 import Foundation
 
-enum VadSilenceTrimmer {
+nonisolated enum VadSilenceTrimmer {
     struct Result: Sendable {
         let samples: [Float]
         let duration: TimeInterval

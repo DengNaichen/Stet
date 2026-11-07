@@ -2,7 +2,9 @@
     @preconcurrency import AVFoundation
     import Foundation
 
-    enum MacRecordingFileStabilizer {
+    nonisolated enum MacRecordingFileStabilizer {
+        // File probing must leave the caller's actor, including callers on MainActor.
+        @concurrent
         static func waitForFileToStabilize(at fileURL: URL) async {
             var previousFileSize: Int64?
 
