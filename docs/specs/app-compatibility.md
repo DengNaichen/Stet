@@ -1,26 +1,150 @@
-# App compatibility list
+# 功能规格：应用兼容名单
 
-The macOS app downloads its paste compatibility list directly from GitHub:
+**创建**：2026-11-07（在原有“App compatibility list”文档基础上改写为完整模板）
+**状态**：Draft（待产品确认）
+**输入**：原 app-compatibility.md 中经批准的名单格式、维护流程与客户端行为全部保留，补充为完整 spec。
 
-https://raw.githubusercontent.com/DengNaichen/Stet/main/StetMac/Resources/app-compatibility.json
+**范围**：macOS。
+**边界**：本 spec 只拥有兼容名单的数据格式、维护流程、远程分发、本地缓存和手动检查界面。名单中的应用在交付时怎样被判定为完成，归『文本交付』spec（乐观完成规则）；本 spec 只提供名单数据。远程配置分发的通用约定（内置基线、定期检查、revision 只增不减）归 INDEX；为不丢失已批准的规则，本 spec 仍完整写出名单自己的参数。
 
-[StetMac/Resources/app-compatibility.json](../../StetMac/Resources/app-compatibility.json) is the single source for both the remotely distributed list and the bundled offline default. Entries identify apps whose posted paste command can be treated as completed when verification is unavailable or fails. This does not bypass input permissions or treat a failed event post as success. Recovery timings and paste behavior remain in Swift code.
+## 术语
 
-## Maintaining the list
+- **兼容名单**：一组小写 Bundle ID。名单中的应用在“粘贴快捷键已发出、但无法确认或确认失败”时，可由『文本交付』spec 视为完成。
+- **revision**：名单的版本号，正整数，只增不减。
+- **内置名单**：随应用打包的离线默认名单。
+- **缓存名单**：上一次成功下载并通过校验的名单，保存在本机 Application Support 中。
 
-1. Add or remove the app's lowercase Bundle ID in `bundleIDs`.
-2. Increment `revision`. Keep `schemaVersion` at 1.
-3. Run `python3 scripts/validate-app-compatibility.py` and open a PR.
-4. Merge after CI passes. GitHub serves the new file; no tag, DMG, or application release is needed for subsequent list changes.
+## 用户场景与测试 *(必填)*
 
-To undo a bad entry, remove it and increment `revision` again. Do not restore an older revision number: clients ignore older or equal revisions. An empty list with a higher revision revokes all app-specific exceptions.
+### 用户故事 1 - 维护者无需发版即可更新名单（优先级：P1）
 
-## Client behavior
+作为维护者，我发现某个应用在粘贴后总是误报失败，希望改一份文件、合并 PR，用户就能拿到修复，不需要打 tag、出 DMG 或发新版本。
 
-The app loads the bundled list and a newer valid cache from Application Support before use. It checks GitHub in the background at launch and every 24 hours while running. Paste queries use only the in-memory set and never wait for networking. A successful refresh replaces the whole set and atomically saves the validated configuration. Invalid responses, unsupported schemas, HTTP errors, cancellation, and network or cache-write failures preserve the current list.
+**为什么是这个优先级**：名单的存在意义就是快速修复兼容问题。
 
-Settings → General → App Compatibility provides a manual check button. The button keeps its label and is disabled while checking. A fixed-height status area displays “Updated” after a successful check (including an already-current list), or an explicit failure message while retaining the current list. Settings and the paste workflow share the same store, so manual updates affect subsequent pastes immediately.
+**独立测试**：按“维护流程”加入一个 Bundle ID 并提升 revision，合并后在已安装的客户端中手动检查，确认后续交付使用新名单。
 
-The request downloads the same public file for every user; it does not send transcripts, clipboard content, or installed app lists. The repository's HTTPS endpoint is the configuration trust source. GitHub unavailability or CDN caching can delay updates; existing cached/bundled behavior remains available.
+**验收场景**：
 
-One app release is required to introduce this loader. Older versions, including 0.5.11, still use their compiled list. New compatibility behaviors or schema changes may also require an app release.
+1. **Given** PR 修改了名单但没有提升 revision，**When** CI 运行校验，**Then** 校验失败。
+2. **Given** PR 加入了大写或不含点的 Bundle ID，**When** CI 运行校验，**Then** 校验失败。
+3. **Given** 新名单已合并到 main，**When** 客户端下一次检查，**Then** 客户端整体替换为新名单，无需应用发版。
+
+---
+
+### 用户故事 2 - 用户在设置中手动检查更新（优先级：P2）
+
+作为用户，我听说名单已经修复了我用的应用，希望能马上更新，而不是等 24 小时。
+
+**为什么是这个优先级**：自动检查已经覆盖大多数情况，手动检查是补充。
+
+**独立测试**：在“设置 → 通用 → App Compatibility”中点击检查按钮，分别在网络正常、已是最新、网络失败三种情况下观察状态区域。
+
+**验收场景**：
+
+1. **Given** 远程有更高 revision，**When** 我点击检查，**Then** 按钮在检查期间不可点击且文案不变，完成后状态区域显示“Updated”，之后的粘贴立即使用新名单。
+2. **Given** 远程 revision 不高于本地，**When** 我点击检查，**Then** 状态区域同样显示“Updated”。
+3. **Given** 网络失败或远程内容无效，**When** 我点击检查，**Then** 状态区域显示明确的失败信息，并继续使用当前名单。
+
+---
+
+### 用户故事 3 - 撤回错误条目（优先级：P2）
+
+作为维护者，我误加了一个条目，希望能安全撤回。
+
+**为什么是这个优先级**：错误条目会让真实的粘贴失败被当作完成，必须能撤回。
+
+**独立测试**：删除条目并再次提升 revision，确认客户端更新后该应用不再被视为名单内应用。
+
+**验收场景**：
+
+1. **Given** 名单中有错误条目，**When** 维护者删除它并提升 revision，**Then** 客户端更新后不再包含该条目。
+2. **Given** 维护者想“回退”到旧版本，**When** 他恢复旧的 revision 数字，**Then** 客户端忽略该版本；必须用更高的 revision 发布。
+3. **Given** 发布一个更高 revision 的空名单，**When** 客户端更新，**Then** 所有应用特例都被撤销。
+
+### 边界情况
+
+- 远程返回非 200、内容无效、schemaVersion 不受支持、请求被取消、网络失败、缓存写入失败：一律保留当前名单。
+- 缓存文件损坏或 revision 不高于内置名单：忽略缓存，使用内置名单。
+- 内置名单本身无法解析：使用 revision 1 的空名单。
+- GitHub 不可用或 CDN 缓存延迟：更新推迟，已有缓存或内置行为照常可用。
+- 检查进行中再次触发检查：不发起第二个请求。
+
+## 需求 *(必填)*
+
+### 功能需求
+
+**数据格式**
+
+- **FR-001**：[StetMac/Resources/app-compatibility.json](../../StetMac/Resources/app-compatibility.json) 是远程分发名单和内置离线默认名单的唯一来源。
+- **FR-002**：名单文件包含三个字段：`schemaVersion`（当前固定为 1）、`revision`（正整数）、`bundleIDs`（字符串数组）。
+- **FR-003**：校验规则（客户端与维护脚本一致）：文件不超过 256 KiB（262,144 字节）；`bundleIDs` 最多 1,000 项、不得重复；每项 1–255 个字符，只含小写字母、数字、`.`、`-`、`_`，且至少含一个 `.`。
+- **FR-004**：名单条目只表示“粘贴快捷键已发出但无法确认或确认失败时可视为完成”；它不绕过输入权限，也不把粘贴事件发送失败当作成功。判定细节见『文本交付』spec。
+- **FR-005**：恢复时序与粘贴行为留在应用代码中，不进入名单；新的兼容行为或格式变化可能需要应用发版。
+
+**维护流程**
+
+- **FR-006**：修改名单的步骤：
+  1. 在 `bundleIDs` 中加入或删除该应用的小写 Bundle ID。
+  2. 提升 `revision`，`schemaVersion` 保持为 1。
+  3. 运行 `python3 scripts/validate-app-compatibility.py` 并开 PR。
+  4. CI 通过后合并。GitHub 直接提供新文件；之后的名单变更不需要 tag、DMG 或应用发版。
+- **FR-007**：撤回错误条目时，删除条目并再次提升 `revision`。不得恢复旧的 revision 数字：客户端忽略不高于当前的 revision。更高 revision 的空名单撤销全部应用特例。
+- **FR-008**：CI 必须以变更的基准提交（PR 的目标分支当前提交，push 时为推送前的提交）为基准运行校验脚本；名单内容有变化而 revision 未提升时校验失败。只改名单的合并不需要 macOS runner。
+
+**客户端行为**
+
+- **FR-009**：客户端启动时载入内置名单；Application Support 中存在有效且 revision 更高的缓存时改用缓存。
+- **FR-010**：客户端在启动时和运行期间每 24 小时，于后台从以下地址检查一次：
+  https://raw.githubusercontent.com/DengNaichen/Stet/main/StetMac/Resources/app-compatibility.json
+- **FR-011**：交付查询只使用内存中的名单，永不等待网络；查询时把目标 Bundle ID 转为小写再匹配。
+- **FR-012**：检查成功且 revision 更高时，整体替换名单，并以原子写入保存通过校验的配置；revision 相同或更低时保持现状并视为“已是最新”。
+- **FR-013**：无效响应、不支持的 schema、HTTP 错误、取消、网络或缓存写入失败时，保留当前名单。
+- **FR-014**：下载请求忽略本地 HTTP 缓存，超时 15 秒，只接受 HTTP 200。
+
+**手动检查界面**
+
+- **FR-015**：“设置 → 通用 → App Compatibility”提供手动检查按钮。检查期间按钮文案不变、不可点击。
+- **FR-016**：按钮下方是固定高度的状态区域：检查成功（包括已是最新）显示“Updated”；失败显示明确的失败信息（当前为“Check failed. Using current list.”），并继续使用当前名单。
+- **FR-017**：设置界面与交付流程共用同一份名单，手动更新后立即影响之后的粘贴。
+
+**数据去向**
+
+- **FR-018**：请求对所有用户下载同一份公开文件，不发送转写内容、剪贴板内容或已安装应用列表。仓库的 HTTPS 地址是配置的信任来源。
+
+### 关键实体
+
+- **名单配置**：`schemaVersion`、`revision`、`bundleIDs`。
+- **内置名单**：随应用打包，作为离线默认值。
+- **缓存名单**：`Application Support/<应用 Bundle ID>/app-compatibility.json`，只保存通过校验的配置。
+- **检查状态**：空闲、检查中、已更新、已是最新、失败。
+
+## 成功标准 *(必填)*
+
+### 可衡量结果
+
+- **SC-001**：名单变更合并后，无需应用发版，在线客户端最迟在下一次 24 小时检查时生效；手动检查可立即生效。
+- **SC-002**：任何网络或内容错误都不会让客户端失去当前名单。
+- **SC-003**：粘贴流程因名单查询而等待网络的次数为 0。
+- **SC-004**：revision 未提升的名单变更 100% 被 CI 拦截。
+
+## 假设
+
+- 引入远程加载器需要一次应用发版；更早的版本（包括 0.5.11）仍使用编译进应用的名单。
+- GitHub 的公开 raw 地址长期可用；不可用时只影响更新时效。
+- 名单只按 Bundle ID 匹配，不按应用版本或窗口类型细分。
+
+## 待产品确认
+
+1. **状态区域是否反映自动检查**：当前启动时和每 24 小时的后台检查也会更新状态区域，用户打开设置时可能看到“Updated”或失败信息，尽管没有点过按钮。可选方向：只显示手动检查的结果；保持现状。
+2. **自动检查失败后的重试**：当前失败后要等下一个 24 小时周期。可选方向：保持；失败后缩短重试间隔。
+
+## 与当前实现的已知差异（非规范，供评审）
+
+以下只记录核对基线 `b327f54` 的代码状态，不代表产品决定。
+
+- 后台检查与手动检查共用同一个状态（[AppCompatibilityStore](../../StetMac/Core/TextInput/AppCompatibilityStore.swift) 的 `refreshState`），设置界面（[MacGeneralSettingsView](../../StetMac/Features/MacShell/GeneralSetting/MacGeneralSettingsView.swift) 的 `MacCompatibilityUpdateControls`）会显示后台检查的结果（待产品确认 1）。
+- 检查被取消时状态显示为失败（`refresh` 的统一错误分支），而不是回到空闲。
+- 后台检查进行中点击按钮不会发起新请求（`refresh` 开头的 `isRefreshing` 判断），按钮此时本已不可点击，与 FR-015 一致。
+- 客户端校验（[AppCompatibilityStore](../../StetMac/Core/TextInput/AppCompatibilityStore.swift) 的 `Configuration.decode`）与 [维护脚本](../../scripts/validate-app-compatibility.py) 的规则一致；CI 入口见 [monorepo-ci](../../.github/workflows/monorepo-ci.yml) 与 [WORKFLOWS](../../.github/WORKFLOWS.md)。
+- 名单命中后的交付判定（10 秒恢复窗口、名单外文本输入框也可乐观完成）见『文本交付』spec 的差异记录。
