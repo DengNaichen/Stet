@@ -10,6 +10,7 @@
 - [app-compatibility](app-compatibility.md) — 粘贴兼容清单的分发与更新。
 - [correction-learning](correction-learning.md) — 用户修正学习与词条来源。
 - [rewrite-model-catalog](rewrite-model-catalog.md) — 改写模型目录与配置。
+- [permissions-and-recovery](permissions-and-recovery.md) — Draft：各功能的系统权限要求、缺失时的阻止或降级，以及恢复界面；确认后替代 002。
 
 ## 旧 Specs 阅读说明
 
