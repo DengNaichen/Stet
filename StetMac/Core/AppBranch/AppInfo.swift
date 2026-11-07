@@ -69,7 +69,7 @@ public nonisolated struct AppInfo: Equatable, @unchecked Sendable {
 /// The callback receives an optional AppInfo representing the new foreground
 /// application. A nil value indicates that no application is currently in the
 /// foreground.
-public typealias AppChangeCallback = (AppInfo?) -> Void
+public typealias AppChangeCallback = @MainActor (AppInfo?) -> Void
 
 /// Represents a registered observer for application change events.
 public nonisolated struct AppChangeObserver {

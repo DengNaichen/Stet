@@ -201,8 +201,7 @@
             let permissionGate = FakePermissionGatePresenter()
             let hotkeyRegistrar = FakeHotkeyRegistrar()
             let appBranchMonitor = AppBranchMonitor(
-                workspace: TestAppBranchWorkspace(),
-                callbackQueue: DispatchQueue(label: "com.stet.tests.sessioncontroller.action.appbranch")
+                workspace: TestAppBranchWorkspace()
             )
 
             let session = MacAppSessionController(
@@ -621,8 +620,7 @@
             let permissionGate = FakePermissionGatePresenter()
             let hotkeyRegistrar = FakeHotkeyRegistrar()
             let appBranchMonitor = AppBranchMonitor(
-                workspace: TestAppBranchWorkspace(),
-                callbackQueue: DispatchQueue(label: "com.stet.tests.sessioncontroller.action.appbranch")
+                workspace: TestAppBranchWorkspace()
             )
 
             let session = MacAppSessionController(
@@ -686,9 +684,7 @@
             let permissionGate = FakePermissionGatePresenter()
             let hotkeyRegistrar = FakeHotkeyRegistrar()
             let appBranchMonitor = AppBranchMonitor(
-                workspace: TestAppBranchWorkspace(),
-                callbackQueue: DispatchQueue(
-                    label: "com.stet.tests.sessioncontroller.action.appbranch.verificationfailed")
+                workspace: TestAppBranchWorkspace()
             )
 
             let session = MacAppSessionController(
@@ -752,9 +748,7 @@
             let permissionGate = FakePermissionGatePresenter()
             let hotkeyRegistrar = FakeHotkeyRegistrar()
             let appBranchMonitor = AppBranchMonitor(
-                workspace: TestAppBranchWorkspace(),
-                callbackQueue: DispatchQueue(
-                    label: "com.stet.tests.sessioncontroller.action.appbranch.genericunavailable")
+                workspace: TestAppBranchWorkspace()
             )
 
             let session = MacAppSessionController(
@@ -818,8 +812,7 @@
             let permissionGate = FakePermissionGatePresenter()
             let hotkeyRegistrar = FakeHotkeyRegistrar()
             let appBranchMonitor = AppBranchMonitor(
-                workspace: TestAppBranchWorkspace(),
-                callbackQueue: DispatchQueue(label: "com.stet.tests.sessioncontroller.action.appbranch.fallback")
+                workspace: TestAppBranchWorkspace()
             )
 
             let session = MacAppSessionController(

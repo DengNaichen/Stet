@@ -147,25 +147,21 @@
             appBranchMonitor.setExcludedBundleID(Bundle.main.bundleIdentifier)
             detectedTargetApplicationState = appBranchMonitor.currentApp
             appBranchObserverID = appBranchMonitor.addObserver { [weak self] appInfo in
-                Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    detectedTargetApplicationState = appInfo
-                    notifyChange()
-                }
+                guard let self else { return }
+                detectedTargetApplicationState = appInfo
+                notifyChange()
             }
             appBranchMonitor.startMonitoring()
         }
 
         func bindLifecycleNotifications() {
             notificationCenter.publisher(for: NSApplication.willResignActiveNotification)
-                .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
                     self?.handleAppLifecycleChange(to: "inactive")
                 }
                 .store(in: &cancellables)
 
             notificationCenter.publisher(for: NSApplication.didBecomeActiveNotification)
-                .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
                     self?.refreshPermissionIndicators()
                     self?.handleAppLifecycleChange(to: "active")

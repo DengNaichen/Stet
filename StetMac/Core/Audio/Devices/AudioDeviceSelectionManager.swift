@@ -4,35 +4,13 @@
 
     @MainActor
     final class AudioDeviceSelectionManager: ObservableObject {
-        private nonisolated final class RecordingDeviceCache: @unchecked Sendable {
-            private let lock = NSLock()
-            private var device: AudioHardwareDevice?
-
-            func load() -> AudioHardwareDevice? {
-                lock.lock()
-                defer { lock.unlock() }
-                return device
-            }
-
-            func store(_ device: AudioHardwareDevice?) {
-                lock.lock()
-                self.device = device
-                lock.unlock()
-            }
-        }
-
         static let shared = AudioDeviceSelectionManager(provider: SystemAudioDeviceProvider())
 
         private let provider: AudioDeviceProviding
         private let defaults: UserDefaults
-        private let recordingDeviceCache = RecordingDeviceCache()
         private var preferredAudioInputDeviceUID: String?
 
-        @Published private(set) var selectedDevice: AudioHardwareDevice? {
-            didSet {
-                updateRecordingDeviceCache(selectedDevice)
-            }
-        }
+        @Published private(set) var selectedDevice: AudioHardwareDevice?
 
         @Published private(set) var availableDevices: [AudioHardwareDevice] = []
 
@@ -50,8 +28,8 @@
             refreshDevices()
         }
 
-        nonisolated func currentRecordingDevice() -> AudioHardwareDevice? {
-            recordingDeviceCache.load()
+        func currentRecordingDevice() -> AudioHardwareDevice? {
+            selectedDevice
         }
 
         func refreshDevices() {
@@ -82,10 +60,6 @@
             } else {
                 defaults.removeObject(forKey: MacPreferences.preferredAudioInputDeviceUID)
             }
-        }
-
-        private func updateRecordingDeviceCache(_ device: AudioHardwareDevice?) {
-            recordingDeviceCache.store(device)
         }
 
         private func applyResolvedSelection() {

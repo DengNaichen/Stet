@@ -88,7 +88,7 @@
             // Only completion keys trigger a final sample; characters are never retained.
             keyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 guard [36, 76, 48].contains(event.keyCode), !event.modifierFlags.contains(.shift) else { return }
-                Task { @MainActor [weak self] in
+                MainActor.assumeIsolated { [weak self] in
                     guard let self, self.generation == id else { return }
                     self.sample(at: ProcessInfo.processInfo.systemUptime, finishing: true)
                 }
