@@ -6,6 +6,36 @@
 
     @Suite("Mac Recording File Stabilizer")
     struct MacRecordingFileStabilizerTests {
+        // Synchronous by design: this is the bounded MainActor obstruction used by the regression test.
+        @MainActor private func waitForBackgroundWork(_ finished: DispatchSemaphore) -> Bool {
+            finished.wait(timeout: .now() + 2) == .success
+        }
+
+        @Test @MainActor func existingFileCanStabilizeWhileMainActorIsOccupied() async throws {
+            let fileURL = TestSupport.temporaryFileURL(ext: "wav")
+            defer { try? FileManager.default.removeItem(at: fileURL) }
+            let format = try #require(TranscriptionUploadAudioFormat.makeMacOutputFormat())
+            let buffer = try #require(makeOutputBuffer(format: format))
+            do {
+                let file = try AVAudioFile(
+                    forWriting: fileURL, settings: format.settings,
+                    commonFormat: format.commonFormat, interleaved: format.isInterleaved)
+                try file.write(from: buffer)
+            }
+
+            let finished = DispatchSemaphore(value: 0)
+            let check = Task.detached {
+                await MacRecordingFileStabilizer.waitForFileToStabilize(at: fileURL)
+                finished.signal()
+            }
+            // Deliberately occupy MainActor: background file I/O must not need it to finish.
+            // The timeout bounds failure; it is not an audio performance benchmark.
+            let completedWithoutMainActor = waitForBackgroundWork(finished)
+            await check.value
+            #expect(completedWithoutMainActor)
+            #expect(try AVAudioFile(forReading: fileURL).length > 0)
+        }
+
         @Test func waitForFileToStabilizeWaitsForFileToExist() async throws {
             let fileURL = TestSupport.temporaryFileURL(ext: "wav")
             try? FileManager.default.removeItem(at: fileURL)

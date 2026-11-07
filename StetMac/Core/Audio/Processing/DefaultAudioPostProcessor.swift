@@ -3,7 +3,7 @@ import FluidAudio
 import Foundation
 import os
 
-final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable {
+nonisolated final class DefaultAudioPostProcessor: AudioPostProcessing {
     private let speechEnhancer: any SpeechEnhancing
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "AudioProcessing")
@@ -15,6 +15,8 @@ final class DefaultAudioPostProcessor: AudioPostProcessing, @unchecked Sendable 
         self.speechEnhancer = speechEnhancer ?? SpeechAwareGainProcessor()
     }
 
+    // File I/O and DSP must run off the caller's actor, even when invoked by the UI.
+    @concurrent
     func processAudioFile(at sourceURL: URL, duration: TimeInterval?) async throws -> AudioPostProcessingResult {
         guard sourceURL.pathExtension.lowercased() == "wav" else {
             return .passthrough(url: sourceURL, duration: duration)
