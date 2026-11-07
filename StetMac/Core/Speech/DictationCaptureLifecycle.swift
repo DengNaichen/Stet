@@ -6,11 +6,8 @@ nonisolated final class DictationCaptureLifecycle {
     typealias CaptureResult = (url: URL, duration: TimeInterval?)
 
     private let factory: @Sendable () -> any AudioCaptureService
-    private let beginActiveCapture: (@Sendable () async -> Void)?
-    private let resumePassiveCapture: (@Sendable () async -> Void)?
     private var reusableRecorder: (any AudioCaptureService)?
     private var activeRecorder: (any AudioCaptureService)?
-    private var ownsActiveCapture = false
     private var activeSessionID: UInt64?
     private var nextSessionID: UInt64 = 0
     private var invalidatedThroughSessionID: UInt64 = 0
@@ -21,9 +18,7 @@ nonisolated final class DictationCaptureLifecycle {
 
     init(
         recorder: (any AudioCaptureService)?,
-        factory: (@Sendable () -> any AudioCaptureService)?,
-        beginActiveCapture: (@Sendable () async -> Void)?,
-        resumePassiveCapture: (@Sendable () async -> Void)?
+        factory: (@Sendable () -> any AudioCaptureService)?
     ) {
         if let recorder {
             reusableRecorder = recorder
@@ -35,8 +30,6 @@ nonisolated final class DictationCaptureLifecycle {
             reusableRecorder = recorder
             self.factory = { recorder }
         }
-        self.beginActiveCapture = beginActiveCapture
-        self.resumePassiveCapture = resumePassiveCapture
     }
 
     var isIdle: Bool { activeSessionID == nil && cancellationTask == nil }
@@ -75,20 +68,6 @@ nonisolated final class DictationCaptureLifecycle {
                 await cancel(isolation: isolation, didCancel: didCancel)
             }
             throw error
-        }
-    }
-
-    func acquireActiveCapture(sessionID: UInt64, isolation: isolated (any Actor)) async throws {
-        try ensureActive(sessionID)
-        if let beginActiveCapture {
-            await beginActiveCapture()
-            ownsActiveCapture = true
-            do {
-                try ensureActive(sessionID)
-            } catch {
-                await resumePassiveIfNeeded(isolation: isolation)
-                throw error
-            }
         }
     }
 
@@ -148,27 +127,19 @@ nonisolated final class DictationCaptureLifecycle {
         let operation = Task {
             _ = isolation
             let result = try await activeRecorder.stopRecording()
-            await resumePassiveIfNeeded(isolation: isolation)
             return result
         }
         stopTask = operation
-        do {
-            let result = try await withTaskCancellationHandler {
-                try await operation.value
-            } onCancel: {
-                operation.cancel()
-            }
-            // Claim the file even when the stop finished after cancellation.
-            ownAudio(result.url)
-            try ensureActive(sessionID)
-            stopTask = nil
-            return result
-        } catch {
-            if activeSessionID == sessionID {
-                await resumePassiveIfNeeded(isolation: isolation)
-            }
-            throw error
+        let result = try await withTaskCancellationHandler {
+            try await operation.value
+        } onCancel: {
+            operation.cancel()
         }
+        // Claim the file even when the stop finished after cancellation.
+        ownAudio(result.url)
+        try ensureActive(sessionID)
+        stopTask = nil
+        return result
     }
 
     func cancel(isolation: isolated (any Actor), didCancel: @escaping (UInt64) -> Void) async {
@@ -188,7 +159,6 @@ nonisolated final class DictationCaptureLifecycle {
             _ = await transition?.result
             _ = await stop?.result
             if let activeRecorder { await activeRecorder.cancelRecording() }
-            await resumePassiveIfNeeded(isolation: isolation)
             cancellationTask = nil
             didCancel(sessionID)
         }
@@ -213,12 +183,6 @@ nonisolated final class DictationCaptureLifecycle {
         guard sessionID == activeSessionID, sessionID > invalidatedThroughSessionID else {
             throw CancellationError()
         }
-    }
-
-    func resumePassiveIfNeeded(isolation: isolated (any Actor)) async {
-        guard ownsActiveCapture else { return }
-        ownsActiveCapture = false
-        await resumePassiveCapture?()
     }
 
     func prewarm(isolation: isolated (any Actor)) async {

@@ -26,11 +26,7 @@
                 selectionStore: calendarSelectionStore,
                 synchronizer: expectedMeetingCoordinator
             )
-            let passiveListeningRuntime = MacPassiveListeningRuntime(captureService: captureService)
-            let meetingRecordingRuntime = MacMeetingRecordingRuntime.live(
-                beginExclusiveCapture: { await passiveListeningRuntime.beginActive() },
-                endExclusiveCapture: { await passiveListeningRuntime.resumePassive() }
-            )
+            let meetingRecordingRuntime = MacMeetingRecordingRuntime.live()
             let pasteboardRestoreCoordinator = PasteboardRestoreCoordinator()
             let clipboardService = SystemClipboardService()
             let textInjectionService = SystemTextInjectionService(
@@ -40,9 +36,7 @@
             self.init(
                 speechService: ConfigurableSpeechService.live(
                     settingsStore: settingsStore,
-                    captureService: captureService,
-                    beginActiveCapture: { await passiveListeningRuntime.beginActive() },
-                    resumePassiveCapture: { await passiveListeningRuntime.resumePassive() }
+                    captureService: captureService
                 ),
                 clipboardService: clipboardService,
                 textInjectionService: textInjectionService,
@@ -60,7 +54,6 @@
                     expectedMeetings: expectedMeetingCoordinator,
                     calendarClient: scopedCalendarClient
                 ),
-                passiveListeningRuntime: passiveListeningRuntime,
                 meetingRecordingRuntime: meetingRecordingRuntime,
                 liveMeetingPhaseStore: liveMeetingPhaseStore,
                 expectedMeetingCoordinator: expectedMeetingCoordinator,

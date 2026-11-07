@@ -28,16 +28,6 @@
 
                 Divider()
 
-                if MacFeatureAvailability.isPassiveListeningVisible {
-                    Label(
-                        meetingViewModel.passiveListeningStatusText,
-                        systemImage: meetingViewModel.isPassiveMicrophoneActive ? "mic.fill" : "mic.slash"
-                    )
-                    .disabled(true)
-
-                    Divider()
-                }
-
                 Button("Settings…") {
                     settingsShellViewModel.openSettings {
                         openWindow(id: MacWindowSceneID.preferences)

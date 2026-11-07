@@ -9,7 +9,6 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
     private let audioLevelBridge: AudioLevelBridge
     #if os(macOS)
         private let audioFeatureBridge: AudioFeatureBridge
-        private let audioCaptureEventBridge: AudioCaptureEventBridge
     #endif
     #if os(macOS)
         private let macAudioFileRecorder: MacCaptureAudioFileRecorder
@@ -28,9 +27,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
         self.audioLevelBridge = audioLevelBridge
         #if os(macOS)
             let audioFeatureBridge = AudioFeatureBridge()
-            let audioCaptureEventBridge = AudioCaptureEventBridge()
             self.audioFeatureBridge = audioFeatureBridge
-            self.audioCaptureEventBridge = audioCaptureEventBridge
             self.macAudioFileRecorder = MacCaptureAudioFileRecorder(
                 audioLevelHandler: { level in
                     audioLevelBridge.emit(level)
@@ -38,9 +35,7 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
                 audioFeatureHandler: { features in
                     audioFeatureBridge.emit(features)
                 },
-                audioFrameHandler: { samples in
-                    audioCaptureEventBridge.emit(samples: samples)
-                },
+
                 onFirstRecordedBufferWritten: {
                     Task {
                         await DictationStartupProbe.shared.record(.firstBufferWritten)
@@ -59,45 +54,6 @@ actor MacAudioCaptureService: AudioCaptureService, AudioLevelSource {
             audioFeatureBridge.makeStream()
         }
 
-        func makeAudioCaptureFrameStream() -> AsyncStream<AudioCaptureFrame> {
-            audioCaptureEventBridge.makeStream()
-        }
-
-        @discardableResult
-        func beginNextAudioCaptureEpoch() -> Int64 {
-            audioCaptureEventBridge.beginNextEpoch()
-        }
-
-        func currentAudioCaptureEpoch() -> UInt64 {
-            audioCaptureEventBridge.currentEpoch()
-        }
-
-        func currentAudioCaptureSamplePosition() -> Int64 {
-            audioCaptureEventBridge.currentSamplePosition()
-        }
-
-        func startContinuousCapture() async throws {
-            guard await requestMicrophonePermission() else {
-                throw SpeechServiceError.microphonePermissionDenied
-            }
-            guard let outputFormat = TranscriptionUploadAudioFormat.makeMacOutputFormat() else {
-                throw SpeechServiceError.failedToStart
-            }
-            let selectedInputDevice =
-                await MainActor.run {
-                    AudioDeviceSelectionManager.shared.currentRecordingDevice()
-                }
-                ?? AudioInputDeviceManager.defaultInputDevice()
-            try macAudioFileRecorder.startCapture(
-                outputFormat: outputFormat,
-                selectedDevice: selectedInputDevice
-            )
-        }
-
-        func stopContinuousCapture() {
-            macAudioFileRecorder.stopCapture()
-            audioCaptureEventBridge.finish()
-        }
     #endif
 
     func startRecording() async throws {

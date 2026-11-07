@@ -21,12 +21,8 @@
         private let meetingWorkflow: MacMeetingWorkflowController
         private let meetingRecordingRuntime: MacMeetingRecordingRuntime?
         private let calendarSyncController: CalendarSyncController?
-        private var passiveListeningRuntime: MacPassiveListeningRuntime?
         private var mcpServerStateHandler: (@MainActor (StetMCPServerState) -> Void)?
 
-        @Published private(set) var passiveListeningState: MacPassiveListeningState =
-            .unavailable("Preparing passive listening")
-        @Published private(set) var isPassiveListeningEnabled = true
         var meetingRecordingPhase: MacMeetingRecordingPhase { meetingWorkflow.phase }
         @Published private(set) var mcpServerState: StetMCPServerState = .disabled
         @Published private(set) var calendarSyncState: CalendarSyncState = .disabled
@@ -42,7 +38,6 @@
             settingsStore: DictationSettingsStore = DictationSettingsStore(),
             captureCoordinator: MacDictationCaptureCoordinator? = nil,
             mcpServerController: StetMCPServerController? = nil,
-            passiveListeningRuntime: MacPassiveListeningRuntime? = nil,
             meetingRecordingRuntime: MacMeetingRecordingRuntime? = nil,
             liveMeetingPhaseStore: MCPLiveMeetingPhaseStore? = nil,
             expectedMeetingCoordinator: (any ExpectedMeetingServing)? = nil,
@@ -87,9 +82,6 @@
             )
             self.calendarSyncController = calendarSyncController
             self.mcpServerState = mcpServerController?.state ?? .disabled
-            self.isPassiveListeningEnabled = MacFeatureAvailability.isPassiveListeningEnabled(
-                preference: settingsStore.loadPassiveListeningEnabled()
-            )
             let launchConfiguration = bootstrapper.prepareForLaunch()
             if !ProcessInfo.processInfo.isRunningTests {
                 DictationWordCountMigration.migrateIfNeeded()
@@ -140,60 +132,14 @@
             let meetingWorkflow = meetingWorkflow
             Task { await meetingWorkflow.observeRecording() }
 
-            if let passiveListeningRuntime {
-                self.passiveListeningRuntime = passiveListeningRuntime
-                Task { [weak self] in
-                    await passiveListeningRuntime.setStateHandler { [weak self] state in
-                        self?.passiveListeningState = state
-                    }
-                    guard let self else { return }
-                    await passiveListeningRuntime.setEnabled(self.isPassiveListeningEnabled)
-                }
-                NotificationCenter.default.publisher(for: .speakerProfilesDidChange)
-                    .receive(on: DispatchQueue.main)
-                    .sink { [weak self] _ in
-                        guard self?.isPassiveListeningEnabled == true else { return }
-                        Task { await passiveListeningRuntime.restart() }
-                    }
-                    .store(in: &cancellables)
-                NotificationCenter.default.publisher(
-                    for: AudioDeviceChangeMonitor.devicesDidChangeNotification
-                )
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] _ in
-                    guard self?.isPassiveListeningEnabled == true else { return }
-                    Task { await passiveListeningRuntime.restart() }
-                }
-                .store(in: &cancellables)
-                NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
-                    .receive(on: DispatchQueue.main)
-                    .sink { [weak self] _ in
-                        guard self?.isPassiveListeningEnabled == true else { return }
-                        Task { await passiveListeningRuntime.revalidatePermission() }
-                    }
-                    .store(in: &cancellables)
-                NotificationCenter.default.publisher(for: .passiveListeningPreferenceDidChange)
-                    .receive(on: DispatchQueue.main)
-                    .sink { [weak self] _ in
-                        guard let self else { return }
-                        let isEnabled = MacFeatureAvailability.isPassiveListeningEnabled(
-                            preference: self.settingsStore.loadPassiveListeningEnabled()
-                        )
-                        self.isPassiveListeningEnabled = isEnabled
-                        Task { await passiveListeningRuntime.setEnabled(isEnabled) }
-                    }
-                    .store(in: &cancellables)
-            }
         }
 
         deinit {
-            let passiveListeningRuntime = passiveListeningRuntime
             let meetingRecordingRuntime = meetingRecordingRuntime
             let calendarSyncController = calendarSyncController
             Task {
                 await calendarSyncController?.stop()
                 await meetingRecordingRuntime?.stop()
-                await passiveListeningRuntime?.stop()
             }
         }
 
@@ -333,36 +279,6 @@
 
         var menuBarSymbolName: String {
             return "mic"
-        }
-
-        var passiveListeningStatusText: String {
-            guard isPassiveListeningEnabled else {
-                return "Passive listening off"
-            }
-
-            switch passiveListeningState {
-            case .unavailable(let reason):
-                return "Passive unavailable: \(reason)"
-            case .passiveArmed:
-                return "Passive microphone active"
-            case .passivePending:
-                return "Checking nearby speech"
-            case .passiveRelevant:
-                return "Recording relevant conversation"
-            case .active:
-                return "Active dictation"
-            }
-        }
-
-        var isPassiveMicrophoneActive: Bool {
-            guard isPassiveListeningEnabled else { return false }
-
-            switch passiveListeningState {
-            case .passiveArmed, .passivePending, .passiveRelevant:
-                return true
-            case .unavailable, .active:
-                return false
-            }
         }
 
         var isMeetingBusy: Bool { meetingWorkflow.isBusy }

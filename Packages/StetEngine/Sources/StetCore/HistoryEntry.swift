@@ -16,6 +16,7 @@ public enum HistoryEntryStatus: String, Codable, Sendable {
 
 public enum CaptureMode: String, Codable, Sendable {
     case active
+    // Retained for decoding and exporting records created before passive listening was removed.
     case passive
 }
 
@@ -61,15 +62,6 @@ public struct CapturedSpeakerRegion: Codable, Equatable, Identifiable, Sendable 
         self.activityConfidence = activityConfidence
         self.isOverlap = isOverlap
     }
-}
-
-public enum PassiveHistoryError: Error, Equatable, Sendable {
-    case invalidInterval
-    case invalidRegionOrder
-    case regionOutsideCapture
-    case invalidOverlapIdentity
-    case entryNotFound
-    case persistenceUnavailable
 }
 
 // MARK: - HistoryEntry
@@ -161,19 +153,6 @@ public final class HistoryEntry {
         self.speakerRegionsData = (try? JSONEncoder().encode(speakerRegions)) ?? Data()
     }
 
-    func updatePassiveFields(
-        endedAt: Date?,
-        processingState: TranscriptProcessingState,
-        failureCode: String?,
-        rawText: String,
-        speakerRegions: [CapturedSpeakerRegion]
-    ) throws {
-        captureEndedAt = endedAt
-        processingStateRawValue = processingState.rawValue
-        processingFailureCode = failureCode
-        self.rawText = rawText
-        speakerRegionsData = try JSONEncoder().encode(speakerRegions)
-    }
 }
 
 // MARK: - Codable export support
