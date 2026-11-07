@@ -6,8 +6,8 @@ import SwiftUI
 struct DictationView: View {
     @StateObject private var viewModel: DictationViewModel
 
-    init(speechService: any SpeechService = ConfigurableSpeechService.live()) {
-        _viewModel = StateObject(wrappedValue: DictationViewModel(speechService: speechService))
+    init(viewModel: DictationViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel)
     }
 
     var body: some View {
@@ -217,6 +217,6 @@ struct DictationView: View {
 
 struct DictationView_Previews: PreviewProvider {
     static var previews: some View {
-        DictationView(speechService: MockSpeechService())
+        DictationView(viewModel: DictationViewModel(session: DictationSession(speechService: MockSpeechService())))
     }
 }

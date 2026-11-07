@@ -138,7 +138,7 @@
             let hotkeyRegistrar = TestHotkeyRegistrar()
 
             let speechService = ControllableSpeechService()
-            let dictationViewModel = DictationViewModel(speechService: speechService)
+            let dictationViewModel = DictationViewModel(session: DictationSession(speechService: speechService))
             let clipboardService = TestClipboardService()
             let captureCoordinator = MacDictationCaptureCoordinator(
                 clipboardService: clipboardService,

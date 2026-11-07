@@ -55,7 +55,7 @@
             let interactionSoundPlayer = InteractionSoundPlayer()
             MacDictationCompletionNotificationService.shared.installDelegateIfNeeded()
             let workflowController = MacDictationWorkflowController(
-                dictationViewModel: DictationViewModel(speechService: speechService),
+                dictationViewModel: DictationViewModel(session: DictationSession(speechService: speechService)),
                 captureCoordinator: captureCoordinator,
                 mediaPlaybackController: mediaPlaybackController,
                 systemAudioMuting: systemAudioMuting,
