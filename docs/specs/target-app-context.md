@@ -5,7 +5,7 @@
 **输入**：定义听写期间 Stet 怎样确定“用户正在为哪个应用输入”，以及这个上下文交给哪些功能使用。吸收 旧 spec「007 App Branch」 中仍适用的意图；旧文档中的 `.kiro`、Constitution、branch plan 流程和 API 细节不再作为约束。
 
 **范围**：macOS。iOS 不识别目标应用：主 App 改写固定按“面向人”处理，也不提供应用名称；键盘内插入由 iOS 键盘听写 spec 负责。
-**边界**：本 spec 拥有“目标应用是谁、怎样排除 Stet 自身、怎样记住最近的外部应用、audience 怎样分类、哪些功能消费这个上下文”。粘贴、激活目标应用和完成判定见『文本交付』spec；改写提示词怎样使用 audience 和应用名称见『改写执行』spec；历史记录怎样保存目标应用见『听写历史与统计』spec。
+**边界**：本 spec 拥有“目标应用是谁、怎样排除 Stet 自身、怎样记住最近的外部应用、audience 怎样分类、哪些功能消费这个上下文”。粘贴、激活目标应用和完成判定见[文本交付](text-delivery.md) spec；改写提示词怎样使用 audience 和应用名称见[改写执行](rewrite-execution.md) spec；历史记录怎样保存目标应用见[听写历史与统计](dictation-history-and-stats.md) spec。
 
 ## 术语
 
@@ -44,7 +44,7 @@
 **验收场景**：
 
 1. **Given** 前台是 Stet，且之前已有一次听写的目标应用 A，**When** 我开始听写，**Then** 目标应用仍为 A（待产品确认，见 FR-004）。
-2. **Given** 前台是 Stet，且本次运行中从未记录过目标应用，**When** 我开始听写，**Then** 本次没有目标应用，交付按『文本交付』spec 对“无目标应用”的规则处理。
+2. **Given** 前台是 Stet，且本次运行中从未记录过目标应用，**When** 我开始听写，**Then** 本次没有目标应用，交付按[文本交付](text-delivery.md) spec 对“无目标应用”的规则处理。
 3. **Given** 首次引导停在“首次成功”步骤，**When** 我在 Stet 的引导窗口中开始听写，**Then** Stet 允许以自身为目标，使引导内的输入框能收到文字。
 
 ---
@@ -69,7 +69,7 @@
 - 前台应用没有 Bundle ID：最近外部应用跟踪视同无法识别、不产生新的上下文；开始听写时的目标应用读取不检查 Bundle ID（见“与当前实现的已知差异”）。
 - 前台应用没有本地化名称：最近外部应用跟踪用 Bundle ID 作为显示名称；目标应用的名称则为空。
 - 只经过 Stet、没有其他外部应用的情况下启动：最近外部应用为空。
-- 目标应用在处理期间退出：目标应用记录不变，交付时的处理见『文本交付』spec。
+- 目标应用在处理期间退出：目标应用记录不变，交付时的处理见[文本交付](text-delivery.md) spec。
 - 快速连续切换应用：以每次切换后实际的前台应用为准，不要求保留中间状态。
 - 目标应用上下文只保存在内存中，退出 Stet 后不保留。
 
@@ -148,7 +148,7 @@
 - `refreshTargetApplication` 遇到前台是 Stet 时直接返回，保留上一次听写的目标；它不使用 AppBranchMonitor 记住的最近外部应用（待产品确认 1）。
 - 无外部应用时 [ConfigurableSpeechService](../../StetMac/Core/Speech/ConfigurableSpeechService.swift) 默认 audience 为 AI，而 [TextRewriteService](../../Packages/StetEngine/Sources/StetRewrite/TextRewriteService.swift) 的 `PreparedCloudRewritePayload` 在请求未带 audience 时默认 human（待产品确认 3）。
 - Apple Intelligence 改写只使用应用名称，不读取 audience（[AppleIntelligenceRewriteService](../../StetMac/Core/Rewrite/AppleIntelligenceRewriteService.swift)）；audience 对该服务没有效果。
-- 两种 audience 的云端改写提示词差别很小，都写有“适合粘贴到 AI 或编程工具”，主要区别在换行规则（[TextRewriteService](../../Packages/StetEngine/Sources/StetRewrite/TextRewriteService.swift) 的 `baseSystemPrompt`）。提示词内容归『改写执行』spec。
+- 两种 audience 的云端改写提示词差别很小，都写有“适合粘贴到 AI 或编程工具”，主要区别在换行规则（[TextRewriteService](../../Packages/StetEngine/Sources/StetRewrite/TextRewriteService.swift) 的 `baseSystemPrompt`）。提示词内容归[改写执行](rewrite-execution.md) spec。
 - 听写面板的视图模型会发布当前检测到的目标应用（[MacDictationPanelViewModel](../../StetMac/Features/MacShell/DictationPanel/MacDictationPanelViewModel.swift)），但没有任何视图显示它。
 - audience 名单写死在 [AppAudienceResolver](../../StetMac/Core/AppBranch/AppAudience.swift)，与远程分发的应用兼容名单互不相关。
 - iOS 主 App 改写固定传 human、不传应用名称（[TranscriptPostProcessor](../../StetMobile/StetMobile/Core/Dictation/TranscriptPostProcessor.swift)）。
