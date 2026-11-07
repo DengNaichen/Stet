@@ -1,0 +1,4 @@
+# Exact pure-Python wheels from HarnessKit's validated lock; Python 3.11.
+github-slugger==0.0.3 --hash=sha256:2d531ff0e439762900bf0ec3be10771b1d3635a6d4486113f1352fa19c091a91
+markdown-it-py==4.2.0 --hash=sha256:9f7ebbcd14fe59494226453aed97c1070d83f8d24b6fc3a3bcf9a38092641c4a
+mdurl==0.1.2 --hash=sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8

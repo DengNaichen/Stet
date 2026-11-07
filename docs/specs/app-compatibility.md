@@ -4,7 +4,7 @@ The macOS app downloads its paste compatibility list directly from GitHub:
 
 https://raw.githubusercontent.com/DengNaichen/Stet/main/StetMac/Resources/app-compatibility.json
 
-`StetMac/Resources/app-compatibility.json` is the single source for both the remotely distributed list and the bundled offline default. Entries identify apps whose posted paste command can be treated as completed when verification is unavailable or fails. This does not bypass input permissions or treat a failed event post as success. Recovery timings and paste behavior remain in Swift code.
+[StetMac/Resources/app-compatibility.json](../../StetMac/Resources/app-compatibility.json) is the single source for both the remotely distributed list and the bundled offline default. Entries identify apps whose posted paste command can be treated as completed when verification is unavailable or fails. This does not bypass input permissions or treat a failed event post as success. Recovery timings and paste behavior remain in Swift code.
 
 ## Maintaining the list
 

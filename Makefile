@@ -1,4 +1,6 @@
 IOS_DEVELOPER_DIR ?= /Applications/Xcode-beta.app/Contents/Developer
+DOCS_BOOTSTRAP_PYTHON ?= python3.11
+DOCS_PYTHON ?= linter/.venv/bin/python
 CI_XCODEBUILD_FLAGS ?=
 # Xcode owns the content-addressed compilation cache; each checkout keeps its
 # own DerivedData and mutable package artifacts. Set NO for comparison runs.
@@ -10,14 +12,17 @@ IOS_XCODEBUILD := $(IOS_DEVELOPER_DIR)/usr/bin/xcodebuild
 MACOS_SWIFT_DIRS := StetMac StetMacTests StetMacUITests StetVisuals
 IOS_SWIFT_DIRS := StetMobile/StetKeyboard StetMobile/StetLiveActivity StetMobile/StetMobile StetMobile/StetMobileTests StetMobile/StetMobileUITests
 
-.PHONY: help swiftlint format format-lint lint whisper-deps build ci-build test ios-bootstrap ios-build setup-worktree doctor clean-derived-data release-github notary-setup
+.PHONY: docs-lint docs-lint-setup docs-lint-test help swiftlint format format-lint lint whisper-deps build ci-build test ios-bootstrap ios-build setup-worktree doctor clean-derived-data release-github notary-setup
 
 help:
 	@echo "Available targets:"
 	@echo "  swiftlint       Run SwiftLint"
 	@echo "  format          Format Swift sources with swift-format"
 	@echo "  format-lint     Lint Swift formatting with swift-format"
-	@echo "  lint            Run SwiftLint and swift-format lint"
+	@echo "  lint            Run Swift and documentation link checks"
+	@echo "  docs-lint       Check local Markdown links and heading anchors (offline)"
+	@echo "  docs-lint-setup Install pinned link-checker dependencies (Python 3.11)"
+	@echo "  docs-lint-test  Test the link checker"
 	@echo "  build           Build the macOS app"
 	@echo "  ci-build        Build without code signing for CI"
 	@echo "  test            Run macOS tests"
@@ -39,7 +44,17 @@ format:
 format-lint:
 	xcrun swift-format lint --strict --recursive --parallel --configuration .swift-format $(MACOS_SWIFT_DIRS) $(IOS_SWIFT_DIRS)
 
-lint: swiftlint format-lint
+lint: swiftlint format-lint docs-lint
+
+docs-lint-setup:
+	$(DOCS_BOOTSTRAP_PYTHON) -m venv linter/.venv
+	$(DOCS_PYTHON) -m pip install --require-hashes --only-binary=:all: -r linter/requirements.txt
+
+docs-lint:
+	$(DOCS_PYTHON) -B linter/lint.py
+
+docs-lint-test:
+	$(DOCS_PYTHON) -B -m unittest discover -s linter/tests -v
 
 whisper-deps:
 	@echo "whisper is resolved through Swift Package Manager; no local dependency preparation is required."

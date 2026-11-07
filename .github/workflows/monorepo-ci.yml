@@ -49,6 +49,19 @@ jobs:
       - name: Validate harness entrypoints
         run: scripts/validate-agent-entrypoints
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Prepare documentation lint
+        run: make docs-lint-setup DOCS_BOOTSTRAP_PYTHON=python
+
+      - name: Test documentation lint
+        run: make docs-lint-test
+
+      - name: Check documentation links
+        run: make docs-lint
+
       - name: Validate workflow syntax
         if: steps.scope.outputs.workflows == 'true'
         uses: docker://rhysd/actionlint:1.7.12
@@ -73,7 +86,7 @@ jobs:
         run: brew install swiftlint
 
       - name: Run lint checks
-        run: make lint
+        run: make swiftlint format-lint
 
   macos:
     # `make test` builds the Stet app and its dependencies before running tests.

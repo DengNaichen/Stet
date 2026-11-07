@@ -5,7 +5,7 @@
 ## 已实现
 
 - `deps-graph` 按输入内容共享只读可执行产物：源码/锁文件/工具链/SDK/架构/构建器失效判断，每键进程锁，私有编译目录，原子发布和产物哈希校验。
-- `arch-check.py` 每次验证工具版本；统一 `/tmp` 与 `/private/tmp` 等别名路径，仍拒绝仓库外路径。
+- [arch-check.py](../../scripts/arch-check.py) 每次验证工具版本；统一 `/tmp` 与 `/private/tmp` 等别名路径，仍拒绝仓库外路径。
 - `setup-worktree --if-needed` 真正准备架构工具，输出阶段、命中/等待状态和耗时；Claude/Codex SessionStart、Codex Darwin environment 与已有 Cursor 入口调用同一脚本。
 - 本地 build/ci-build/test 打开 Xcode 原生编译缓存并输出 timing，保留 CI 配置和每个工作区独立的可写产物。
 - pre-commit 去掉对 `rg` 的依赖，用 Git NUL 路径和 Python 选择文件，Git/format/lint 失败明确退出。
@@ -40,7 +40,7 @@
 
 A/B期间还运行了工具源码失效编译，是并发压力验收，不可与C/D直接计算提速倍率。C/D是相近条件的单次顺序样本：虽然C有缓存命中，41.00 vs 41.58秒不足以证明显著加速。没有宣称解决Xcode新路径的全部冷编译。
 
-`Cache hit/miss`是日志中的独立状态行计数，不是代码覆盖率、唯一源码文件数或测试通过数量。共享CAS不会让整个构建目录可共享：`normalize-binary-frameworks.sh`确实会修改并签名Sherpa artifact。A/B签名产物inode不同，工作区私有树写入不会出现在另一树。
+`Cache hit/miss`是日志中的独立状态行计数，不是代码覆盖率、唯一源码文件数或测试通过数量。共享CAS不会让整个构建目录可共享：[normalize-binary-frameworks.sh](../../scripts/normalize-binary-frameworks.sh)确实会修改并签名Sherpa artifact。A/B签名产物inode不同，工作区私有树写入不会出现在另一树。
 
 默认DerivedData下，本机Xcode把编译缓存放在父级 `CompilationCache.noindex`；指定 `-derivedDataPath` 后CAS跟随该目录。本实验显式指定统一的独立实验CAS路径，保持Build/ModuleCache/SourcePackages各自独立。CI现有 `.build/ci/CompilationCache.noindex` 配置不变。
 

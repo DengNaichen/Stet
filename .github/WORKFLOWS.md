@@ -4,9 +4,9 @@
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `monorepo-ci.yml` | PR + push to `main`, `migration/**` | Linux repository checks, affected Swift lint/format and macOS build/tests, aggregate result |
-| `macos-release.yml` | Tags `v*` + manual | Signed macOS release (runs at repository root) |
-| `macos-release-candidate.yml` | Manual | Release candidate build (runs at repository root) |
+| [monorepo-ci.yml](workflows/monorepo-ci.yml) | PR + push to `main`, `migration/**` | Linux repository checks, affected Swift lint/format and macOS build/tests, aggregate result |
+| [macos-release.yml](workflows/macos-release.yml) | Tags `v*` + manual | Signed macOS release (runs at repository root) |
+| [macos-release-candidate.yml](workflows/macos-release-candidate.yml) | Manual | Release candidate build (runs at repository root) |
 
 Release jobs run at the repository root, where the scripts and Xcode project now live.
 
@@ -15,19 +15,19 @@ macOS CI cache design, measured baseline, and cold/warm validation results: [CI 
 ## Change-based CI scope
 
 Every event starts `Repository Checks` on Linux. It computes the complete Git
-diff with `scripts/ci-changes.py`, validates the compatibility list and revision,
+diff with [scripts/ci-changes.py](../scripts/ci-changes.py), validates the compatibility list and revision,
 runs the CI helper regression tests, and checks harness entrypoints. Workflow
 changes also run actionlint 1.7.12. No workflow-level path filters are used.
 
 | Changed files | Additional jobs |
 | --- | --- |
-| `StetMac/Resources/app-compatibility.json`, root/docs/reference Markdown, agent docs | None |
+| [StetMac/Resources/app-compatibility.json](../StetMac/Resources/app-compatibility.json), root/docs/reference Markdown, agent docs | None |
 | macOS Swift files in `StetMac`, `StetMacTests`, `StetMacUITests`, `StetVisuals` | Swift Quality + macOS Tests |
-| macOS resources, Metal, entitlements, `Info.plist`, Xcode project, shared packages | macOS Tests |
+| macOS resources, Metal, entitlements, [Info.plist](../Info.plist), Xcode project, shared packages | macOS Tests |
 | iOS Swift files in the existing lint directories | Swift Quality |
 | Other iOS-only files | None; simulator builds remain local |
-| `.swiftlint.yml`, `.swift-format` | Swift Quality |
-| `Makefile`, main CI workflow, routing helper or its tests | Swift Quality + macOS Tests + actionlint |
+| [.swiftlint.yml](../.swiftlint.yml), `.swift-format` | Swift Quality |
+| [Makefile](../Makefile), main CI workflow, routing helper or its tests | Swift Quality + macOS Tests + actionlint |
 | Other workflows | actionlint on Linux |
 | Unclassified paths | Swift Quality + macOS Tests (conservative fallback) |
 
@@ -58,3 +58,12 @@ Build** requirement. This workflow change does not edit repository protection.
 Local verification: `python3 -m unittest discover -s scripts/tests -p 'test_*.py'`,
 `python3 scripts/validate-app-compatibility.py --base-ref origin/main`,
 `scripts/validate-agent-entrypoints`, and `actionlint`.
+
+## Documentation links
+
+Repository Checks installs the hash-pinned Python 3.11 dependencies with `make docs-lint-setup`,
+runs `make docs-lint-test`, then checks all in-scope Markdown with `make docs-lint` on every run.
+The imported reference library is excluded from source scanning; legacy specs are included.
+Existing broken links fail the check without a baseline waiver. This validates local targets and
+Markdown headings, not document accuracy or external URLs. See [validation scope](../docs/VALIDATION.md#文档链接-lint).
+Swift Quality runs `make swiftlint format-lint`; local `make lint` also includes documentation checks.

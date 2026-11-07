@@ -37,7 +37,7 @@ Keep the same checks, test suite, coverage, runner and Xcode selection. Separate
 
 Enable Xcode's input-addressed Swift/Clang compilation cache, isolated by toolchain and build/test mode, with a per-commit key and compatible fallback. Cache compiler results even on test failure. The first experiment cached only compiler results. The incremental follow-up also caches unsigned Build products and ModuleCache, validating tracked input SHA-256 hashes before restoring nanosecond mtimes. Test result logs, signing material and app data are not cached. Local Makefile behavior is unchanged unless `CI_XCODEBUILD_FLAGS` is supplied.
 
-The package cache stays in DerivedData/SourcePackages because `normalize-binary-frameworks.sh` locates the Sherpa framework there. Do not independently move that directory without updating its consumer.
+The package cache stays in DerivedData/SourcePackages because [normalize-binary-frameworks.sh](../scripts/normalize-binary-frameworks.sh) locates the Sherpa framework there. Do not independently move that directory without updating its consumer.
 
 Validation: run the modified workflow cold, then rerun the same commit warm. Compare job elapsed times including cache transfer overhead, dependency resolution, compilation cache hits, and the number/result of executed tests. Follow with a changed-source run to check invalidation. No estimated speedup is a measured result.
 

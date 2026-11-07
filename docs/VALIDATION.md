@@ -25,9 +25,9 @@ macOS-only 目标（`ci-build`、`release-github`、`doctor` 等）见根 [`Make
 
 ## Hook 与 CI
 
-- Pre-commit：`.githooks/`（若已安装）。
+- Pre-commit：[.githooks/](../.githooks)（若已安装）。
 - GitHub Actions 总览：[`.github/WORKFLOWS.md`](../.github/WORKFLOWS.md)。
-- 根 `Makefile` 直接构建根 `Stet.xcodeproj`，iOS 目标构建 `StetMobile/StetMobile.xcodeproj`。
+- 根 [Makefile](../Makefile) 直接构建根 `Stet.xcodeproj`，iOS 目标构建 `StetMobile/StetMobile.xcodeproj`。
 
 ### monorepo-ci.yml
 
@@ -40,7 +40,7 @@ macOS-only 目标（`ci-build`、`release-github`、`doctor` 等）见根 [`Make
 | macOS Tests（包含 app 构建） | `make test` |
 | CI Result（Linux，始终运行） | 汇总：所有选中的任务必须成功，未选中的任务必须跳过 |
 
-`scripts/ci-changes.py` 按完整 Git diff 选择任务：名单和文档改动只跑
+[scripts/ci-changes.py](../scripts/ci-changes.py) 按完整 Git diff 选择任务：名单和文档改动只跑
 Linux 检查，iOS Swift 改动跑现有 lint，macOS／共享包改动跑完整构建和
 测试。独立 Debug Build 与 `make test` 重复，已移除；本地 `make ci-build`
 仍可使用。具体路径、保守回退和 PR／push 差异语义见
@@ -57,7 +57,7 @@ actionlint
 
 ### Release workflows
 
-签名 release 与 RC 构建在根 [`.github/workflows/`](../.github/workflows/)（`macos-release.yml`、`macos-release-candidate.yml`），job 在仓库根执行。
+签名 release 与 RC 构建在根 [`.github/workflows/`](../.github/workflows/)（[macos-release.yml](../.github/workflows/macos-release.yml)、[macos-release-candidate.yml](../.github/workflows/macos-release-candidate.yml)），job 在仓库根执行。
 
 ### 本地-only
 
@@ -75,4 +75,22 @@ Agent 必须区分：
 ## Worktree preparation
 
 See the [git-workflow skill](../.agents/skills/git-workflow/SKILL.md#环境准备与缓存边界) for setup and cache isolation constraints.
-Run `python3 -m unittest discover -s scripts/tests -p 'test_worktree_*.py' -v` for cache, setup, hook and pre-commit behavior. Actual multi-worktree build measurements are recorded under `docs/research/`.
+Run `python3 -m unittest discover -s scripts/tests -p 'test_worktree_*.py' -v` for cache, setup, hook and pre-commit behavior. Actual multi-worktree build measurements are recorded under [docs/research/](research).
+
+## 文档链接 lint
+
+首次执行 `make docs-lint-setup`，使用 Python 3.11 在 `linter/.venv` 安装固定版本与哈希的依赖。
+随后运行 `make docs-lint`；`make lint` 也包含此检查。修改检查器时运行 `make docs-lint-test`。
+依赖清单见 [requirements.txt](../linter/requirements.txt)，扫描配置见 [config.toml](../linter/config.toml)。
+
+检查当前工作树中 Git 跟踪和未忽略的 Markdown，含 skills、研究和旧 specs；跳过 symlink 文档副本。
+[reference/](../reference/) 正文不扫描，但链接到它的文件仍检查存在性，目标锚点明确计为跳过。
+使用 CommonMark 解析链接、图片、引用式链接及 HTML href/src，校验本地目标、精确大小写和 Markdown 标题锚点。
+非 Markdown 目标的 fragment 只计跳过；不执行命令、不请求外网、不检查内容正确性。
+
+正文中的具体文件引用写成 Markdown 链接；命令、代码示例、待创建的模板路径和本机生成文件保留代码形式。
+未定义的 reference label 由 CommonMark 当成普通文本，不会被推断成文件链接。外部 URL、代码块及 frontmatter 不作为本地引用检查。
+
+无历史豁免清单：断链返回退出码 1（Make 显示失败）；配置或依赖问题返回 2。
+旧文档存在断链时，本地 lint 和 CI 会失败，逐项修正文档后自然恢复通过；失败不等于检查器本身损坏。
+CI 的 Repository Checks 每次运行检查器测试和全量文档链接检查，不因仅修改文档而跳过，也不使用 continue-on-error。

@@ -34,7 +34,7 @@
 
 1. 对 `xcodebuild` 打开编译缓存（`COMPILATION_CACHE_ENABLE_CACHING=YES`），先在一个新 worktree 上
    对比冷构建耗时，有效再写进 Makefile。
-2. 让 `scripts/arch-check.py` 把 deps-graph 的构建目录放到所有 checkout 共用的位置
+2. 让 [scripts/arch-check.py](../../scripts/arch-check.py) 把 deps-graph 的构建目录放到所有 checkout 共用的位置
    （例如按 `Package.resolved` 的哈希命名），避免每个 worktree 重编 swift-syntax。
 3. 用 `-clonedSourcePackagesDirPath` 让多个 worktree 共用 Swift 包检出。
 4. 定期 `git worktree prune`，并删除对应的 DerivedData；把常用的 worktree 数量控制在个位数。

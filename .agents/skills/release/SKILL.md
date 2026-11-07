@@ -23,9 +23,9 @@ description: 发布 Stet macOS 正式版本或候选版本，处理版本号、�
 1. 在主 checkout 刷新 `origin/main`，确认当前为干净的 `main`，仅以 fast-forward 同步。
    不从任务 worktree 切换或强占 main，不搬移其他任务的未提交改动。
 2. 检查本地 `refs/tags/vX.Y.Z` 和远端同名 tag。已存在时核对已有发布状态，不覆盖 tag。
-3. 检查 `Stet.xcodeproj/project.pbxproj`：版本写入 `MARKETING_VERSION`，
+3. 检查 [Stet.xcodeproj/project.pbxproj](../../../Stet.xcodeproj/project.pbxproj)：版本写入 `MARKETING_VERSION`，
    build 为 `major * 1_000_000 + minor * 1_000 + patch`，必须高于已发布 build。
-   `Info.plist` 引用这些设置，不直接修改它。版本已相同时先核对状态：bump 脚本会直接退出，不会补发 tag。
+   [Info.plist](../../../Info.plist) 引用这些设置，不直接修改它。版本已相同时先核对状态：bump 脚本会直接退出，不会补发 tag。
 4. 在用户已授权正式发布后运行 `./scripts/bump-version.sh X.Y.Z`。
    先读 [脚本](../../../scripts/bump-version.sh) 确认行为；它会修改项目、提交、推送 main，再创建并推送 tag。
 5. 核对本地 `HEAD`、`refs/tags/vX.Y.Z^{commit}` 与远端 main、tag 指向本次版本提交。
@@ -37,11 +37,11 @@ description: 发布 Stet macOS 正式版本或候选版本，处理版本号、�
 
 ## 候选与手动测试
 
-- 候选使用 `macos-release-candidate.yml` 的 `workflow_dispatch`，指定 `git_ref` 和
+- 候选使用 [macos-release-candidate.yml](../../../.github/workflows/macos-release-candidate.yml) 的 `workflow_dispatch`，指定 `git_ref` 和
   `release_tag`（例如 `vX.Y.Z-rc1`）。目标 commit 的版本设置仍须对应 `X.Y.Z` 及其 build。
   通过普通任务分支 / PR 准备版本；不要用会推正式 tag 的 bump 脚本准备候选。
 - 候选 workflow 使用 `release-candidate` environment，只上传 artifact，不创建 GitHub Release，也不生成 Sparkle appcast。
-- 只有要验证发布链路时才使用 `macos-release.yml` 的手动模式：它使用 `production`，
+- 只有要验证发布链路时才使用 [macos-release.yml](../../../.github/workflows/macos-release.yml) 的手动模式：它使用 `production`，
   创建 draft/prerelease，`latest=false`、`verify_tag=false`。这是远端写入，须在用户授权范围内。
 - 跟踪 run 至完成，核对所构建 commit、签名、公证和 artifact。产物在 `dist/github-release/<release_tag>/`。
 
@@ -57,7 +57,7 @@ description: 发布 Stet macOS 正式版本或候选版本，处理版本号、�
 - `SPARKLE_PRIVATE_KEY_BASE64` 使用 Sparkle `generate_keys -x` 导出文件的原始内容；
   文件已是所需 base64，不再次解码，也不用 Keychain UI 复制的密码替代。不要输出私钥内容。
 - CI 按 `Package.resolved` 的 Sparkle 版本构建 `generate_appcast`；SwiftPM binary target 不提供该 CLI。
-- 二进制 framework 的预复制规范化由 `scripts/normalize-binary-frameworks.sh` 负责，
-  最终重签和打包由 `scripts/release-macos-github.sh` 负责，发布由 `scripts/publish-github-release.sh` 负责。
+- 二进制 framework 的预复制规范化由 [scripts/normalize-binary-frameworks.sh](../../../scripts/normalize-binary-frameworks.sh) 负责，
+  最终重签和打包由 [scripts/release-macos-github.sh](../../../scripts/release-macos-github.sh) 负责，发布由 [scripts/publish-github-release.sh](../../../scripts/publish-github-release.sh) 负责。
   排查具体嵌入组件时读取脚本当前列表。
 - CI 中 DMG 的 `spctl` 可能返回 `source=Insufficient Context`；结合公证和 `stapler validate` 结果判断。
