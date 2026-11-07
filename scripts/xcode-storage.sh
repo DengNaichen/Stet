@@ -161,47 +161,6 @@ validate_deletion_target() {
 clean_project() {
   local cache_path
   local deletion_paths=("${local_cache_paths[@]}")
-  local process_name
-  local process_pattern
-  local busy_processes=()
-  local build_process_names=(
-    Xcode
-    xcodebuild
-    xcode-build-server
-    XCBBuildService
-    SWBBuildService
-    sourcekit-lsp
-    SourceKitService
-    swift
-    swift-build
-    swift-test
-    swift-package
-    swift-driver
-    swiftc
-    swift-frontend
-    xctest
-  )
-  local build_process_patterns=(
-    '/xcode-build-server([[:space:]]|$)'
-  )
-
-  for process_name in "${build_process_names[@]}"; do
-    if /usr/bin/pgrep -x "$process_name" >/dev/null 2>&1; then
-      busy_processes+=("$process_name")
-    fi
-  done
-
-  for process_pattern in "${build_process_patterns[@]}"; do
-    if /usr/bin/pgrep -f "$process_pattern" >/dev/null 2>&1; then
-      busy_processes+=(xcode-build-server)
-    fi
-  done
-
-  if (( ${#busy_processes[@]} > 0 )); then
-    echo "Build tooling is running: ${(j:, :)busy_processes}. Quit it before cleaning DerivedData." >&2
-    exit 2
-  fi
-
   while IFS= read -r cache_path; do
     [[ -n "$cache_path" ]] && deletion_paths+=("$cache_path")
   done < <(project_derived_data_paths)
@@ -212,17 +171,9 @@ clean_project() {
   for cache_path in "${deletion_paths[@]}"; do
     [[ -e "$cache_path" || -L "$cache_path" ]] || continue
     validate_deletion_target "$cache_path"
-    if /usr/bin/pgrep -f "$cache_path/" >/dev/null 2>&1; then
-      echo "A process is using $cache_path. Stop it before cleanup." >&2
-      exit 2
-    else
-      local probe_status=$?
-      if [[ "$probe_status" -ne 1 ]]; then
-        echo "Unable to inspect processes; preserving $cache_path." >&2
-        exit 2
-      fi
-    fi
   done
+  python3 "$script_dir/check-build-cache-usage.py" "$project_root" "${deletion_paths[@]}"
+
   for cache_path in "${deletion_paths[@]}"; do
     [[ -e "$cache_path" || -L "$cache_path" ]] || continue
     validate_deletion_target "$cache_path"

@@ -93,6 +93,9 @@ apply 会在 main 可快进时更新它，重新计算并核对候选；同时�
 `scripts/xcode-storage.sh clean-project <worktree路径>` 清理。其他 ignored 文件
 （模型、运行时、环境、HANDOFF 等）先保存或由用户明确处置，脚本不会强制删除。
 工作区干净后，apply 在移除目录前调用相同缓存入口清理归属该路径的 DerivedData；
+资源占用检查只匹配目标 checkout 和待删缓存的路径、工作目录及构建进程打开的文件；
+其他 checkout 的 Zed/SourceKit 或构建进程不阻止清理。目标资源仍被占用或无法读取
+进程信息时保留资源，脚本不会停止编辑器或构建进程。
 资源清理失败则停止，不删该工作区或分支。宿主拥有的工作区先按宿主生命周期关闭。
 共享下载/编译缓存、Archives、签名数据和其他 worktree 的资源不属于清理范围。
 
