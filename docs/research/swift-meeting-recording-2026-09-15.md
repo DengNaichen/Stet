@@ -107,9 +107,9 @@ Whisper 长音频需要窗口推进或分块拼接；实时 UI、分段文字时
 |---|---|---|
 | app 部署目标 macOS 15 | [project.pbxproj](../../Stet.xcodeproj/project.pbxproj) | 两条现代采集 API 都可评估，无需为当前产品引入旧系统驱动路径 |
 | 会话订阅 MacAudioCaptureService，其生产者使用 AVCaptureSession / AVCaptureDeviceInput | [Meeting runtime](../../StetMac/Core/Speech/MacMeetingRecordingRuntime.swift)、[SessionFactory](../../StetMac/Core/Audio/Capture/MacCaptureAudioSessionFactory.swift) | 已有麦克风录制；没有系统音频独立轨道。外部扬声器被麦克风收进来不等于系统音频捕获 |
-| 帧为 16 kHz、单声道，身份是 epoch 与累计 sample index | [AudioCaptureFrame](../../StetMac/Core/Speech/AudioCaptureEvent.swift)、[EventBridge](../../StetMac/Core/Speech/AudioCaptureEventBridge.swift) | 现有类型没有音源标签或原始 host time/PTS；不能直接拿两条独立回调按顺序拼起来 |
+| 帧为 16 kHz、单声道，身份是 epoch 与累计 sample index | [AudioCaptureFrame](https://github.com/DengNaichen/Stet/blob/5163643603651b4ffffb48b3ef81fdedebaa8305/StetMac/Core/Speech/AudioCaptureEvent.swift)、[EventBridge](https://github.com/DengNaichen/Stet/blob/5163643603651b4ffffb48b3ef81fdedebaa8305/StetMac/Core/Speech/AudioCaptureEventBridge.swift) | 现有类型没有音源标签或原始 host time/PTS；不能直接拿两条独立回调按顺序拼起来 |
 | 录中写 PCM16 WAV，同时把全部 Float samples 累积在内存 | [MeetingAudioWriter](../../StetMac/Core/Speech/MeetingAudioWriter.swift)、[runtime append](../../StetMac/Core/Speech/MacMeetingRecordingRuntime.swift) | 16k Float32 一路每小时约 230.4 MB（约 220 MiB），不含副本、模型与其他对象；双路会进一步增加 |
-| 停止后才跑 Sortformer，再规划最长 20 秒的 Nano 转写窗 | [MeetingSessionProcessor](../../StetMac/Core/Speech/MeetingSessionProcessor.swift)、[FluidAudio adapter](../../StetMac/Core/FluidAudio/FluidAudioPassiveSpeechAnalyzer.swift)、[live wiring](../../StetMac/Core/Speech/MacMeetingRecordingRuntime.swift) | 已有会后转写，不是实时会议转写；“20 秒分块”也没有消除采集期全量内存占用 |
+| 停止后才跑 Sortformer，再规划最长 20 秒的 Nano 转写窗 | [MeetingSessionProcessor](../../StetMac/Core/Speech/MeetingSessionProcessor.swift)、[FluidAudio adapter](https://github.com/DengNaichen/Stet/blob/5163643603651b4ffffb48b3ef81fdedebaa8305/StetMac/Core/FluidAudio/FluidAudioPassiveSpeechAnalyzer.swift)、[live wiring](../../StetMac/Core/Speech/MacMeetingRecordingRuntime.swift) | 已有会后转写，不是实时会议转写；“20 秒分块”也没有消除采集期全量内存占用 |
 | 保存音频、Markdown 与 session JSON，处理失败时尽量保留音频和失败记录 | [MeetingRecordingStore](../../StetMac/Core/Speech/MeetingRecordingStore.swift)、[runtime](../../StetMac/Core/Speech/MacMeetingRecordingRuntime.swift) | 可继续复用持久化入口，增加分轨索引和可恢复处理状态 |
 
 ### 建议接入次序（工程判断，尚未实施）

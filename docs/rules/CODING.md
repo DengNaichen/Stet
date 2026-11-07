@@ -26,8 +26,8 @@
 | Core | [Core/](../../StetMac/Core) | 能力与流程：采集、转写、存储、系统适配。 |
 | Shared | [Shared/](../../StetMac/Shared)（除 [UI/](../../StetMac/Shared/UI)） | 不含业务知识的基础代码。 |
 
-依赖只能向内：App → Presentation → Core → Shared。与 [docs/macos-architecture-draft.md](../macos-architecture-draft.md) 的三层
-（展示 / 应用流程 / 能力）的关系：脚本把"应用流程"按所在目录分别归入 App 或 Core。
+依赖只能向内：App → Presentation → Core → Shared。仓库地图见 [ARCHITECTURE.md](../ARCHITECTURE.md)。
+脚本把“应用流程”按所在目录分别归入 App 或 Core。
 
 硬约束（违反即为错误，脚本零容忍，不设基线）：
 

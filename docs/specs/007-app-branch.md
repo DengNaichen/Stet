@@ -117,7 +117,7 @@ As the runtime, I can classify the active app as human-oriented or AI-oriented s
 - **SC-003**: Excluding the host app causes the detected app to fall back to the previous non-excluded app when one exists, and to `nil` otherwise.
 - **SC-004**: Known AI tools resolve to AI-oriented classification and can drive AI-oriented downstream cleanup behavior.
 - **SC-005**: The feature does not persist app-branch state across app relaunches.
-- **SC-006**: The documented behavior matches the current implementation, with any intentional deviations from the old `.kiro` draft called out in [plan.md](plan.md).
+- **SC-006**: The documented behavior matches the current implementation, with any intentional deviations from the old `.kiro` draft called out in the implementation plan (`plan.md` was referenced by the original draft but is not present in this repository).
 
 ## Assumptions
 
