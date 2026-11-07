@@ -3,7 +3,7 @@
     import SwiftUI
 
     struct MacMeetingSettingsView: View {
-        @EnvironmentObject private var meetingViewModel: MacMeetingViewModel
+        @Environment(MacMeetingViewModel.self) private var meetingViewModel
         @State private var recentFolders: [URL] = []
         @State private var revealMessage: String?
 

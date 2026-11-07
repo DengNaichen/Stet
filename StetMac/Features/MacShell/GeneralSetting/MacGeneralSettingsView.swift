@@ -3,8 +3,8 @@
 
     struct MacGeneralSettingsView: View {
         @EnvironmentObject private var settingsShellViewModel: MacSettingsShellViewModel
-        @EnvironmentObject private var appUpdateViewModel: MacAppUpdateViewModel
-        @EnvironmentObject private var compatibilityViewModel: MacCompatibilityViewModel
+        @Environment(MacAppUpdateViewModel.self) private var appUpdateViewModel
+        @Environment(MacCompatibilityViewModel.self) private var compatibilityViewModel
 
         @StateObject private var viewModel = MacGeneralSettingsViewModel()
 

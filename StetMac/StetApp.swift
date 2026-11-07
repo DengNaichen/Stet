@@ -15,32 +15,32 @@ struct StetApp: App {
         @StateObject private var appModel: MacAppModel
         @StateObject private var dictationCommandsViewModel: MacDictationCommandsViewModel
         @StateObject private var settingsShellViewModel: MacSettingsShellViewModel
-        @StateObject private var meetingViewModel: MacMeetingViewModel
+        @State private var meetingViewModel: MacMeetingViewModel
         @StateObject private var appUpdateManager: AppUpdateManager
-        @StateObject private var appUpdateViewModel: MacAppUpdateViewModel
+        @State private var appUpdateViewModel: MacAppUpdateViewModel
         @StateObject private var compatibilityStore: AppCompatibilityStore
         @StateObject private var rewriteModelCatalogStore: RewriteModelCatalogStore
-        @StateObject private var compatibilityViewModel: MacCompatibilityViewModel
+        @State private var compatibilityViewModel: MacCompatibilityViewModel
 
         init() {
             AnalyticsService.initialize()
             let appUpdateManager = AppUpdateManager()
             _appUpdateManager = StateObject(wrappedValue: appUpdateManager)
-            _appUpdateViewModel = StateObject(wrappedValue: MacAppUpdateViewModel(coordinator: appUpdateManager))
+            _appUpdateViewModel = State(initialValue: MacAppUpdateViewModel(coordinator: appUpdateManager))
             FluidAudioModelManager.configureDownloadRegistry()
             RetiredLocalWhisperCleanup.removeInstalledAssets()
             let compatibilityStore = AppCompatibilityStore.live()
             let rewriteModelCatalogStore = RewriteModelCatalogStore.shared
             _rewriteModelCatalogStore = StateObject(wrappedValue: rewriteModelCatalogStore)
             _compatibilityStore = StateObject(wrappedValue: compatibilityStore)
-            _compatibilityViewModel = StateObject(wrappedValue: MacCompatibilityViewModel(store: compatibilityStore))
+            _compatibilityViewModel = State(initialValue: MacCompatibilityViewModel(store: compatibilityStore))
             let appModel = MacAppModel(
                 compatibilityStore: compatibilityStore, rewriteModelCatalog: rewriteModelCatalogStore.source)
             _appModel = StateObject(wrappedValue: appModel)
             _dictationCommandsViewModel = StateObject(
                 wrappedValue: MacDictationCommandsViewModel(coordinator: appModel)
             )
-            _meetingViewModel = StateObject(wrappedValue: MacMeetingViewModel(coordinator: appModel))
+            _meetingViewModel = State(initialValue: MacMeetingViewModel(coordinator: appModel))
             _settingsShellViewModel = StateObject(
                 wrappedValue: MacSettingsShellViewModel(coordinator: appModel)
             )
@@ -66,9 +66,9 @@ struct StetApp: App {
         #if os(macOS)
             MenuBarExtra {
                 MacMenuBarView()
-                    .environmentObject(meetingViewModel)
+                    .environment(meetingViewModel)
                     .environmentObject(settingsShellViewModel)
-                    .environmentObject(appUpdateViewModel)
+                    .environment(appUpdateViewModel)
                     .onOpenURL { url in
                         appModel.handleDeepLink(url)
                     }
@@ -79,10 +79,10 @@ struct StetApp: App {
 
             Window("Settings", id: MacWindowSceneID.preferences) {
                 MacMainView()
-                    .environmentObject(compatibilityViewModel)
-                    .environmentObject(meetingViewModel)
+                    .environment(compatibilityViewModel)
+                    .environment(meetingViewModel)
                     .environmentObject(settingsShellViewModel)
-                    .environmentObject(appUpdateViewModel)
+                    .environment(appUpdateViewModel)
             }
             .windowStyle(.hiddenTitleBar)
             .defaultLaunchBehavior(.suppressed)

@@ -1,30 +1,31 @@
 #if os(macOS)
     import Combine
     import Foundation
+    import Observation
 
     @MainActor
-    final class MacAppUpdateViewModel: ObservableObject, MacAppUpdateCoordinating {
+    @Observable
+    final class MacAppUpdateViewModel: MacAppUpdateCoordinating {
         private let coordinator: any MacAppUpdateCoordinating
-        private var cancellables = Set<AnyCancellable>()
+        private var snapshot: MacAppUpdateSnapshot
+        @ObservationIgnored private var cancellable: AnyCancellable?
 
         init(coordinator: any MacAppUpdateCoordinating) {
             self.coordinator = coordinator
-            coordinator.updates
-                .sink { [weak self] _ in
-                    self?.objectWillChange.send()
-                }
-                .store(in: &cancellables)
+            snapshot = coordinator.updateSnapshot
+            cancellable = coordinator.updateSnapshots.sink { [weak self] in
+                self?.snapshot = $0
+            }
         }
 
-        var updates: AnyPublisher<Void, Never> {
-            objectWillChange.eraseToAnyPublisher()
-        }
+        var updateSnapshot: MacAppUpdateSnapshot { snapshot }
+        var updateSnapshots: AnyPublisher<MacAppUpdateSnapshot, Never> { coordinator.updateSnapshots }
 
-        var state: MacAppUpdateState { coordinator.state }
-        var isConfigured: Bool { coordinator.isConfigured }
-        var isChecking: Bool { coordinator.isChecking }
-        var canCheckForUpdates: Bool { coordinator.canCheckForUpdates }
-        var automaticallyChecksForUpdates: Bool { coordinator.automaticallyChecksForUpdates }
+        var state: MacAppUpdateState { snapshot.state }
+        var isConfigured: Bool { snapshot.isConfigured }
+        var isChecking: Bool { snapshot.isChecking }
+        var canCheckForUpdates: Bool { snapshot.canCheckForUpdates }
+        var automaticallyChecksForUpdates: Bool { snapshot.automaticallyChecksForUpdates }
 
         func checkForUpdates() {
             coordinator.checkForUpdates()
