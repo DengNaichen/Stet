@@ -131,4 +131,3 @@ def safe_target(root: Path, relative: str, allow_symlinks: bool = False) -> Path
             raise ValueError(f"target is not a regular file or directory: {relative}")
         current = candidate
     return current
-
