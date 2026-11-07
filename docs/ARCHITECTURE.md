@@ -8,7 +8,7 @@
 .
 ├── AGENTS.md / CLAUDE.md     # 根 agent 入口（统一 monorepo 路由）
 ├── Makefile                  # 跨端 build / test / lint / ios-build 编排
-├── docs/                     # Harness：specs、exec-plans、rules、VALIDATION
+├── docs/                     # Harness：specs、research、rules、VALIDATION
 ├── reference/                # Apple 平台参考库（按需读，非项目真相）
 ├── scripts/                  # 根级校验与编排脚本
 ├── .github/                  # CI workflows
@@ -28,7 +28,7 @@
 
 | 路径 | 职责 |
 |------|------|
-| 根 `docs/` | 跨端 harness：架构、specs、exec-plans、验证口径 |
+| 根 `docs/` | 跨端 harness：架构、specs、研究记录、验证口径 |
 | 根 macOS 文件夹 | macOS 应用、共享包、macOS release |
 | `StetMobile/` | iOS 应用及扩展 |
 | `Packages/` | 跨端共享 Swift 包（iOS 通过相对路径引用） |
@@ -63,7 +63,7 @@
 - iOS app 逻辑：`StetMobile/StetMobile/`。
 - 跨端共享类型与 ASR：`Packages/StetEngine/Sources/`。
 - 共享视觉：`StetVisuals/`。
-- 新 feature spec：`docs/specs/`；实现方案：`docs/exec-plans/active/`。
+- 新 feature spec：`docs/specs/`；研究与验证记录：`docs/research/`。
 - 根目录承载 macOS 源码、共享包与跨端治理文件；iOS 代码位于 `StetMobile/`。
 
 ## 硬约束
@@ -71,4 +71,4 @@
 - 模型 payload、下载的 runtime framework、build 产物不得入 Git。
 - iOS 构建使用 Xcode Beta（`make ios-build`），不改变全局 `xcode-select`。
 - macOS 构建使用 stable Xcode（`/Applications/Xcode.app`）。
-- 行为真相以代码为准；spec 与 exec-plan 为设计记录，冲突时以代码 + 本文件路由为准。
+- 行为真相以代码为准；spec 与研究文档为需求和设计记录，冲突时以代码 + 本文件路由为准。

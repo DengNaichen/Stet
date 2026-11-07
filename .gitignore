@@ -81,6 +81,3 @@ sherpa-onnx/
 
 # iOS model payloads (never commit ONNX weights)
 /StetMobile/**/*.onnx
-
-# Harness archive (local-only legacy specs)
-/docs/archive/specs-legacy/

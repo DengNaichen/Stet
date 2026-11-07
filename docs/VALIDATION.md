@@ -74,5 +74,5 @@ Agent 必须区分：
 
 ## Worktree preparation
 
-See [worktrees](worktrees.md) for shared architecture-tool caches, independent build artifacts and host setup entrypoints.
+See the [git-workflow skill](../.agents/skills/git-workflow/SKILL.md#环境准备与缓存边界) for setup and cache isolation constraints.
 Run `python3 -m unittest discover -s scripts/tests -p 'test_worktree_*.py' -v` for cache, setup, hook and pre-commit behavior. Actual multi-worktree build measurements are recorded under `docs/research/`.
