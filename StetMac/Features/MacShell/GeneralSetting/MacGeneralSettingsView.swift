@@ -91,7 +91,7 @@
             if let feedback = viewModel.feedback {
                 Section {
                     Text(feedback.message)
-                        .foregroundStyle(feedback.isError ? .red : .secondary)
+                        .foregroundStyle(feedback.isError ? MacUI.Foreground.error : MacUI.Foreground.secondaryColor)
                 }
             }
         }
@@ -101,17 +101,17 @@
         let check: () -> Void
 
         var body: some View {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.controlSpacing) {
                 Button("Check for Compatibility List Updates", action: check)
                     .disabled(state == .checking)
-                HStack(spacing: 6) {
-                    Image(systemName: statusIcon).frame(width: 16)
+                HStack(spacing: MacUI.SettingsViewMetrics.labelSpacing) {
+                    Image(systemName: statusIcon).frame(width: MacUI.SettingsViewMetrics.statusIconWidth)
                     Text(statusText)
                 }
-                .font(.callout)
+                .font(MacUI.Typography.status)
                 .foregroundStyle(statusColor)
                 .lineLimit(1)
-                .frame(height: 20, alignment: .leading)
+                .frame(height: MacUI.SettingsViewMetrics.statusRowHeight, alignment: .leading)
                 .opacity(state == .idle ? 0 : 1)
                 .accessibilityHidden(state == .idle)
             }
@@ -136,9 +136,9 @@
 
         private var statusColor: Color {
             switch state {
-            case .updated, .upToDate: .green
-            case .failed: .red
-            case .idle, .checking: .secondary
+            case .updated, .upToDate: MacUI.Foreground.success
+            case .failed: MacUI.Foreground.error
+            case .idle, .checking: MacUI.Foreground.secondaryColor
             }
         }
     }

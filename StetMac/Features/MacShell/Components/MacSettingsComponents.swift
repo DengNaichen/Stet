@@ -22,12 +22,12 @@
             GroupBox {
                 VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
                     Text(LocalizedStringKey(title))
-                        .font(.headline)
+                        .font(MacUI.Typography.heading)
 
                     if let description {
                         Text(LocalizedStringKey(description))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(MacUI.Typography.caption)
+                            .foregroundStyle(MacUI.Foreground.secondary)
                     }
 
                     content()
@@ -45,9 +45,9 @@
 
         var body: some View {
             VStack(alignment: .leading, spacing: MacUI.EditorMetrics.spacing) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(title).font(.headline)
-                    Text(subtitle).font(.callout).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.labelSpacing) {
+                    Text(title).font(MacUI.Typography.heading)
+                    Text(subtitle).font(MacUI.Typography.status).foregroundStyle(MacUI.Foreground.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 content()
@@ -76,7 +76,7 @@
         var body: some View {
             HStack(alignment: .firstTextBaseline, spacing: MacUI.SettingsViewMetrics.valueRowSpacing) {
                 Text(LocalizedStringKey(title))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MacUI.Foreground.secondary)
 
                 Spacer()
 
@@ -120,7 +120,7 @@
 
         func update(_ newValue: CGFloat) {
             let clamped = max(0, newValue)
-            guard abs(offset - clamped) >= 0.5 else { return }
+            guard abs(offset - clamped) >= MacUI.SettingsViewMetrics.titleScrollUpdateTolerance else { return }
             offset = clamped
         }
 
@@ -153,12 +153,7 @@
                 / MacUI.SettingsViewMetrics.detailTitleExpandedSize
 
             Text(LocalizedStringKey(title))
-                .font(
-                    .system(
-                        size: MacUI.SettingsViewMetrics.detailTitleExpandedSize,
-                        weight: .semibold
-                    )
-                )
+                .font(MacUI.Typography.detailTitle)
                 .foregroundStyle(MacUI.Surfaces.ink)
                 .scaleEffect(1 - ((1 - collapsedScale) * progress), anchor: .leading)
                 .frame(
@@ -166,7 +161,7 @@
                     minHeight: MacUI.SettingsViewMetrics.headerHeight,
                     alignment: .leading
                 )
-                .padding(.bottom, 20)
+                .padding(.bottom, MacUI.SettingsViewMetrics.detailTitleBottomPadding)
                 .padding(.horizontal, horizontalPadding)
         }
     }
@@ -194,7 +189,9 @@
         var viewportHeight: CGFloat = 0
         var contentHeight: CGFloat = 0
 
-        var overflows: Bool { contentHeight > viewportHeight + 1 && viewportHeight > 0 }
+        var overflows: Bool {
+            contentHeight > viewportHeight + MacUI.SettingsViewMetrics.scrollOverflowTolerance && viewportHeight > 0
+        }
     }
 
     /// Draw outside the Form's margins, without reserving a gutter or changing
@@ -234,13 +231,22 @@
                     GeometryReader { proxy in
                         let height = min(proxy.size.height, metrics.viewportHeight)
                         let thumbHeight = min(
-                            height, max(24, height * metrics.viewportHeight / max(1, metrics.contentHeight)))
+                            height,
+                            max(
+                                MacUI.SettingsViewMetrics.overlayScrollerMinimumKnobHeight,
+                                height * metrics.viewportHeight / max(1, metrics.contentHeight)))
                         let progress = min(
                             1, max(0, metrics.offset / max(1, metrics.contentHeight - metrics.viewportHeight)))
                         let width = MacUI.SettingsViewMetrics.overlayScrollerKnobWidth
 
                         Capsule()
-                            .fill(Color.primary.opacity(colorScheme == .dark ? 0.32 : 0.22))
+                            .fill(
+                                MacUI.Foreground.primary.opacity(
+                                    colorScheme == .dark
+                                        ? MacUI.SettingsViewMetrics.overlayScrollerDarkOpacity
+                                        : MacUI.SettingsViewMetrics.overlayScrollerLightOpacity
+                                )
+                            )
                             .frame(width: width, height: thumbHeight)
                             .offset(y: progress * (height - thumbHeight))
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -253,12 +259,12 @@
                 .task(id: activity) {
                     guard activity > 0 else { return }
                     do {
-                        try await Task.sleep(for: .milliseconds(650))
+                        try await Task.sleep(for: MacUI.Motion.scrollIndicatorHideDelay)
                     } catch {
                         return
                     }
                     guard !phase.isScrolling else { return }
-                    withAnimation(.easeOut(duration: 0.2)) {
+                    withAnimation(MacUI.Motion.scrollIndicatorFade) {
                         isVisible = false
                     }
                 }
@@ -276,17 +282,19 @@
 
         var body: some View {
             Text(text)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(MacUI.Typography.statusBadge)
                 .foregroundStyle(tint)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
+                .padding(.horizontal, MacUI.SettingsViewMetrics.badgeHorizontalPadding)
+                .padding(.vertical, MacUI.SettingsViewMetrics.badgeVerticalPadding)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(tint.opacity(0.12))
+                        .fill(tint.opacity(MacUI.SettingsViewMetrics.badgeFillOpacity))
                 )
                 .overlay(
                     Capsule(style: .continuous)
-                        .strokeBorder(tint.opacity(0.22), lineWidth: 1)
+                        .strokeBorder(
+                            tint.opacity(MacUI.SettingsViewMetrics.badgeStrokeOpacity),
+                            lineWidth: MacUI.SettingsViewMetrics.badgeStrokeLineWidth)
                 )
         }
     }

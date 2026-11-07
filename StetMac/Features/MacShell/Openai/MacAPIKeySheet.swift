@@ -17,8 +17,8 @@
                 title: "\(provider.displayName) API Key",
                 subtitle: "Your key is stored securely in Keychain. Verify it to check whether the provider accepts it."
             ) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("API key").font(.subheadline)
+                VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.labelSpacing) {
+                    Text("API key").font(MacUI.Typography.fieldLabel)
                     SecureField("Paste your API key", text: $draft)
                         .textFieldStyle(.roundedBorder)
                         .labelsHidden()
@@ -26,12 +26,14 @@
                         .disabled(isVerifying)
                     if viewModel.hasAPIKey(for: provider) {
                         Text("Current key: \(viewModel.credentialPreview(for: provider))")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(MacUI.Typography.caption).foregroundStyle(MacUI.Foreground.secondary)
                     }
                 }
                 if let message {
                     Label(message, systemImage: verified ? "checkmark.circle" : "info.circle")
-                        .font(.callout).foregroundStyle(verified ? Color.primary : Color.secondary)
+                        .font(MacUI.Typography.status).foregroundStyle(
+                            verified ? MacUI.Foreground.primary : MacUI.Foreground.secondaryColor
+                        )
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 HStack {

@@ -9,7 +9,7 @@
         var body: some View {
             Form { content() }
                 .macSettingsFormStyle()
-                .padding(.bottom, 32)
+                .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
         }
     }
 

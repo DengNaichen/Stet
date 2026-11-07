@@ -8,22 +8,22 @@
         let check: () -> Void
 
         var body: some View {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.controlSpacing) {
                 HStack {
                     Button("Check for Model Updates", action: check)
                         .disabled(refreshState == .checking)
                     Text("Catalog revision \(revision)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(MacUI.Typography.caption)
+                        .foregroundStyle(MacUI.Foreground.secondary)
                 }
-                HStack(spacing: 6) {
-                    Image(systemName: statusIcon).frame(width: 16)
+                HStack(spacing: MacUI.SettingsViewMetrics.labelSpacing) {
+                    Image(systemName: statusIcon).frame(width: MacUI.SettingsViewMetrics.statusIconWidth)
                     Text(statusText)
                 }
-                .font(.callout)
+                .font(MacUI.Typography.status)
                 .foregroundStyle(statusColor)
                 .lineLimit(1)
-                .frame(height: 20, alignment: .leading)
+                .frame(height: MacUI.SettingsViewMetrics.statusRowHeight, alignment: .leading)
                 .opacity(refreshState == .idle ? 0 : 1)
                 .accessibilityHidden(refreshState == .idle)
             }
@@ -48,9 +48,9 @@
 
         private var statusColor: Color {
             switch refreshState {
-            case .updated, .upToDate: .green
-            case .failed: .red
-            case .idle, .checking: .secondary
+            case .updated, .upToDate: MacUI.Foreground.success
+            case .failed: MacUI.Foreground.error
+            case .idle, .checking: MacUI.Foreground.secondaryColor
             }
         }
     }

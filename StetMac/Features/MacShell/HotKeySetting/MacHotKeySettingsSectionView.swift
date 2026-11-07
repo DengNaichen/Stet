@@ -14,7 +14,7 @@ struct MacHotKeySettingsSectionView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
             LabeledContent(LocalizedStringKey(hotkey.title)) {
                 KeyboardShortcuts.Recorder(
                     for: hotkey.name,
@@ -23,14 +23,14 @@ struct MacHotKeySettingsSectionView: View {
                         onChange?(shortcut)
                     }
                 )
-                .frame(width: 240, alignment: .trailing)
+                .frame(width: MacUI.SettingsViewMetrics.controlWidth, alignment: .trailing)
             }
 
             Text(
                 "Use a modifier-plus-key shortcut, for example Control + Space or Command + K. Two plain character keys will not register here."
             )
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            .font(MacUI.Typography.caption)
+            .foregroundStyle(MacUI.Foreground.secondary)
         }
     }
 }

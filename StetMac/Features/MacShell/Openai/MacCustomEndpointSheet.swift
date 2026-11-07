@@ -36,20 +36,20 @@
             MacSettingsEditor(
                 title: "Custom Connection", subtitle: "Connect your server, then choose a model for Stet to use."
             ) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Base URL").font(.subheadline)
+                VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.labelSpacing) {
+                    Text("Base URL").font(MacUI.Typography.fieldLabel)
                     TextField("https://api.example.com/v1", text: baseURLBinding, axis: .horizontal)
                         .lineLimit(1)
                         .labelsHidden()
                     Text("Include the API version path if your provider requires one.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(MacUI.Typography.caption).foregroundStyle(MacUI.Foreground.secondary)
                 }
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("API key (optional)").font(.subheadline)
+                VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.labelSpacing) {
+                    Text("API key (optional)").font(MacUI.Typography.fieldLabel)
                     SecureField("Leave empty for a server without authentication", text: $key).labelsHidden()
                 }
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Model").font(.subheadline)
+                VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.labelSpacing) {
+                    Text("Model").font(MacUI.Typography.fieldLabel)
                     Picker("Model", selection: $modelID) {
                         Text(models.isEmpty ? "Verify connection to load models" : "Choose a model").tag("")
                         ForEach(models, id: \.self) { Text($0).tag($0) }
@@ -63,7 +63,7 @@
                     .disabled(models.isEmpty)
                 }
                 if let message {
-                    Text(message).font(.callout).foregroundStyle(.secondary)
+                    Text(message).font(MacUI.Typography.status).foregroundStyle(MacUI.Foreground.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 HStack {
