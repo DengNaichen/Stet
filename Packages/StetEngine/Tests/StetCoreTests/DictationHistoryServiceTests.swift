@@ -7,6 +7,70 @@ import Testing
 @MainActor
 @Suite("Dictation history service", .serialized)
 struct DictationHistoryServiceTests {
+    @Test func finalDeliverySurvivesDelayedInsertion() async throws {
+        let schema = Schema([HistoryEntry.self])
+        let container = try ModelContainer(
+            for: schema, configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)])
+        let service = DictationHistoryService(container: container) { isUpdate in
+            if !isUpdate { try? await Task.sleep(for: .milliseconds(300)) }
+        }
+        service.recordRaw("original")
+        let id = try #require(service.commitPending())
+        service.updateFinal("delivered", targetBundleID: "com.example.editor", targetAppName: "Editor")
+        await service.waitForWrites()
+        let entry = try #require(service.fetchRecent().first { $0.id == id })
+        #expect(entry.finalText == "delivered")
+        #expect(entry.targetBundleID == "com.example.editor")
+        #expect(entry.targetAppName == "Editor")
+        #expect(entry.status == .completed)
+    }
+
+    @Test func lateNoHotwordTranscriptSurvivesInsertionBeyondFormerRetryWindow() async throws {
+        let schema = Schema([HistoryEntry.self])
+        let container = try ModelContainer(
+            for: schema, configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)])
+        let service = DictationHistoryService(container: container) { isUpdate in
+            if !isUpdate { try? await Task.sleep(for: .milliseconds(1200)) }
+        }
+        service.recordRaw("with hotwords")
+        let id = try #require(service.commitPending())
+        service.updateFinal("delivered", targetBundleID: nil, targetAppName: nil)
+        service.recordRawWithoutHotwords("without hotwords")
+        await service.waitForWrites()
+        let entry = try #require(service.fetchRecent().first { $0.id == id })
+        #expect(entry.rawTextWithoutHotwords == "without hotwords")
+        #expect(entry.finalText == "delivered")
+        #expect(entry.status == .completed)
+    }
+
+    @Test func consecutiveSessionsKeepTheirOwnDeliveryAndNoHotwordText() async throws {
+        let service = try makeService()
+        service.recordRaw("first raw")
+        let firstID = try #require(service.commitPending())
+        service.updateFinal("first final", targetBundleID: "first.app", targetAppName: "First")
+        service.recordRawWithoutHotwords("first without")
+        service.recordRaw("second raw")
+        let secondID = try #require(service.commitPending())
+        service.recordRawWithoutHotwords("second without")
+        service.updateFinal(
+            "second final", targetBundleID: "second.app", targetAppName: "Second",
+            status: .clipboardPending)
+        await service.waitForWrites()
+        let entries = try service.fetchRecent()
+        let first = try #require(entries.first { $0.id == firstID })
+        let second = try #require(entries.first { $0.id == secondID })
+        #expect(first.finalText == "first final")
+        #expect(first.targetBundleID == "first.app")
+        #expect(first.targetAppName == "First")
+        #expect(first.rawTextWithoutHotwords == "first without")
+        #expect(first.status == .completed)
+        #expect(second.finalText == "second final")
+        #expect(second.targetBundleID == "second.app")
+        #expect(second.targetAppName == "Second")
+        #expect(second.rawTextWithoutHotwords == "second without")
+        #expect(second.status == .clipboardPending)
+    }
+
     @Test func persistentHistorySurvivesAnotherSchemaOpeningLegacyStore() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
