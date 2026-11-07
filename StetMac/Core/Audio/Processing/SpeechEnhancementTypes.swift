@@ -1,6 +1,6 @@
 import Foundation
 
-struct SpeechEnhancementPlan: Sendable {
+nonisolated struct SpeechEnhancementPlan: Sendable {
     let shouldEnhance: Bool
     let targetSpeechLevelDBFS: Double
     let estimatedSpeechLevelDBFS: Double
@@ -26,12 +26,12 @@ struct SpeechEnhancementPlan: Sendable {
     )
 }
 
-struct SpeechEnhancementResult: Sendable {
+nonisolated struct SpeechEnhancementResult: Sendable {
     let outputURL: URL
     let didRewriteAudio: Bool
 }
 
-protocol SpeechEnhancing: Sendable {
+nonisolated protocol SpeechEnhancing: Sendable {
     func enhanceAudioFile(
         at sourceURL: URL,
         analysis: AudioAnalysis

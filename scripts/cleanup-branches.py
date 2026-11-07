@@ -14,7 +14,6 @@ import re
 import shutil
 import subprocess
 import sys
-import uuid
 from urllib.parse import urlsplit
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -292,7 +291,6 @@ class GitRepository:
         self.root = root.resolve()
         self.runner = runner or CommandRunner()
         self._remote_url: Optional[str] = None
-        self.archive_id = uuid.uuid4().hex
         self._pr_cache: Dict[str, Tuple[List[dict], Optional[str]]] = {}
 
     @classmethod
@@ -455,12 +453,7 @@ class GitRepository:
             if action.branch in checked_out:
                 raise SafetyError("branch is still checked out: {}".format(action.branch))
 
-    def archive(self, scope: str, branch: str, oid: str) -> None:
-        ref = "refs/archive/branch-cleanup/{}/{}/{}".format(self.archive_id, scope, branch)
-        self._run_git(["update-ref", ref, oid])
-
     def remove_worktree(self, action: WorktreeAction) -> None:
-        self.archive("heads", action.branch, action.oid)
         if (action.path / "Stet.xcodeproj").is_dir():
             # Use the caller's trusted cleanup implementation, not code from the old branch.
             cleaner = Path(__file__).resolve().parent / "xcode-storage.sh"
@@ -470,7 +463,6 @@ class GitRepository:
 
     def delete_local_branch(self, action: BranchAction) -> None:
         ref = "refs/heads/{}".format(action.branch)
-        self.archive("heads", action.branch, action.oid)
         self._run_git(
             [
                 "update-ref",
@@ -528,8 +520,6 @@ class GitRepository:
         if not actions:
             return
         self.ensure_remote_delete_target()
-        for action in actions:
-            self.archive("remotes/origin", action.branch, action.oid)
         self._run_git(
             ["push", "--atomic"]
             + [
@@ -796,8 +786,6 @@ def run_cleanup(
     render_plan(plan, base_status, apply, include_remote, output)
     if apply:
         apply_cleanup_plan(repository, plan)
-        if hasattr(repository, "archive_id"):
-            print("Recovery refs: refs/archive/branch-cleanup/" + repository.archive_id + "/", file=output)
     return plan
 
 

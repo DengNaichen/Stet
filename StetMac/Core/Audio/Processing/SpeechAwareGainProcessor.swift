@@ -2,7 +2,7 @@
 import FluidAudio
 import Foundation
 
-struct SpeechAwareGainProcessor: SpeechEnhancing {
+nonisolated struct SpeechAwareGainProcessor: SpeechEnhancing {
     private enum Configuration {
         static let frameDuration: TimeInterval = 0.02
         static let hopDuration: TimeInterval = 0.01

@@ -1,7 +1,7 @@
 import FluidAudio
 import Foundation
 
-struct AudioAnalysis: Sendable {
+nonisolated struct AudioAnalysis: Sendable {
     let shouldDiscardAsNoSpeech: Bool
     let speechFrameRatio: Double
     let noiseFloorDBFS: Double
@@ -26,7 +26,7 @@ struct AudioAnalysis: Sendable {
     }
 }
 
-enum AudioSignalAnalyzer {
+nonisolated enum AudioSignalAnalyzer {
     private actor SharedVadService {
         static let shared = SharedVadService()
 
@@ -84,6 +84,7 @@ enum AudioSignalAnalyzer {
         let segments: [VadSegment]
     }
 
+    @concurrent
     static func analyze(
         samples: [Float],
         sampleRate: Double
@@ -92,6 +93,7 @@ enum AudioSignalAnalyzer {
         return result.analysis
     }
 
+    @concurrent
     static func analyzeForPostProcessing(
         samples: [Float],
         sampleRate: Double
@@ -161,6 +163,7 @@ enum AudioSignalAnalyzer {
         return (analysis: analysis, segmentation: segmentation)
     }
 
+    @concurrent
     static func segmentSpeechForVad(
         samples: [Float],
         sampleRate: Double,

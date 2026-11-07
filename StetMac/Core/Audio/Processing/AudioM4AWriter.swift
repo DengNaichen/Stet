@@ -2,7 +2,7 @@
 import AudioToolbox
 import Foundation
 
-enum AudioM4AWriter {
+nonisolated enum AudioM4AWriter {
     static func writeAACM4A(
         samples: [Float],
         sampleRate: Double,
