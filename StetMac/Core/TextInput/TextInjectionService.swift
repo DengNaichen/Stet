@@ -347,14 +347,19 @@
             let originalChangeCount = pasteboard.changeCount
 
             guard simulateCopyCommand() else { return nil }
+            var wasCancelled = false
             for _ in 0..<max(0, attempts) {
                 if pasteboard.changeCount != originalChangeCount { break }
                 do {
                     try await sleep(pollInterval)
                 } catch {
-                    return nil
+                    wasCancelled = true
+                    break
                 }
-                guard !Task.isCancelled else { return nil }
+                if Task.isCancelled {
+                    wasCancelled = true
+                    break
+                }
             }
 
             let copiedChangeCount = pasteboard.changeCount
@@ -366,6 +371,9 @@
                 snapshot.restore(to: pasteboard)
             }
 
+            // Cmd-C can complete in the same turn that cancels our wait. Restore
+            // its temporary clipboard override even when no selection is returned.
+            guard !wasCancelled else { return nil }
             let copied = pasteboard.string(forType: .string)?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 

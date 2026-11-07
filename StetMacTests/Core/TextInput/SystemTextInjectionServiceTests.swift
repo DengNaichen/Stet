@@ -49,6 +49,24 @@
             #expect(pasteboard.changeCount == originalChangeCount)
         }
 
+        @Test func simulatedCopyCancellationRestoresCopyThatAlreadyCompleted() async {
+            let pasteboard = NSPasteboard(name: .init(UUID().uuidString))
+            defer { pasteboard.releaseGlobally() }
+            pasteboard.setString("original", forType: .string)
+            let service = SystemTextInjectionService(
+                clipboardService: TestClipboardService(), pasteboard: pasteboard)
+            let selected = await service.selectedTextBySimulatedCopy(
+                simulateCopyCommand: { true },
+                sleep: { _ in
+                    pasteboard.clearContents()
+                    pasteboard.setString("selected", forType: .string)
+                    throw CancellationError()
+                }
+            )
+            #expect(selected == nil)
+            #expect(pasteboard.string(forType: .string) == "original")
+        }
+
         @Test func simulatedCopyCancellationStopsPolling() async {
             let pasteboard = NSPasteboard(name: .init(UUID().uuidString))
             defer { pasteboard.releaseGlobally() }
