@@ -1,6 +1,7 @@
 import Foundation
 import CoreData
 import SwiftData
+import OSLog
 
 @MainActor
 public protocol DictationHistoryRecording: AnyObject {
@@ -45,6 +46,15 @@ public final class DictationHistoryService: DictationHistoryRecording {
     // MARK: - Private state
 
     private let container: ModelContainer?
+    private var lastWrite: Task<Void, Never>?
+    private nonisolated static let logger = Logger(subsystem: "StetCore", category: "DictationHistory")
+    // Internal scheduling seam for persistence regression tests.
+    private var beforeWrite: @Sendable (Bool) async -> Void = { _ in }
+
+    func waitForWrites() async {
+        await lastWrite?.value
+    }
+
     private var initializationError: Error?
     private var pending: PendingSession?
     private var lastCommittedEntryID: UUID?
@@ -90,8 +100,9 @@ public final class DictationHistoryService: DictationHistoryRecording {
         return try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: destination)])
     }
 
-    init(container: ModelContainer?) {
+    init(container: ModelContainer?, beforeWrite: @escaping @Sendable (Bool) async -> Void = { _ in }) {
         self.container = container
+        self.beforeWrite = beforeWrite
     }
 
     // MARK: - Pipeline recording API
@@ -206,7 +217,7 @@ public final class DictationHistoryService: DictationHistoryRecording {
         let llmText = session.llmText
         let timestamp = session.timestamp
 
-        Task.detached(priority: .background) {
+        enqueueWrite(isUpdate: false) {
             let context = ModelContext(container)
             let entry = HistoryEntry(
                 id: id,
@@ -217,27 +228,22 @@ public final class DictationHistoryService: DictationHistoryRecording {
                 status: status
             )
             context.insert(entry)
-            try? context.save()
+            try context.save()
         }
     }
 
     private func updateRawTextWithoutHotwords(id: UUID, text: String) {
         guard let container else { return }
 
-        Task.detached(priority: .background) {
-            for _ in 0..<20 {
-                let context = ModelContext(container)
-                var descriptor = FetchDescriptor<HistoryEntry>(
-                    predicate: #Predicate { $0.id == id }
-                )
-                descriptor.fetchLimit = 1
-                if let entry = try? context.fetch(descriptor).first {
-                    entry.rawTextWithoutHotwords = text
-                    try? context.save()
-                    return
-                }
-                try? await Task.sleep(for: .milliseconds(50))
+        enqueueWrite(isUpdate: true) {
+            let context = ModelContext(container)
+            var descriptor = FetchDescriptor<HistoryEntry>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            guard let entry = try context.fetch(descriptor).first else {
+                throw HistoryPersistenceError.entryNotFound
             }
+            entry.rawTextWithoutHotwords = text
+            try context.save()
         }
     }
 
@@ -250,18 +256,35 @@ public final class DictationHistoryService: DictationHistoryRecording {
     ) {
         guard let container else { return }
 
-        Task.detached(priority: .background) {
+        enqueueWrite(isUpdate: true) {
             let context = ModelContext(container)
             var descriptor = FetchDescriptor<HistoryEntry>(
                 predicate: #Predicate { $0.id == id }
             )
             descriptor.fetchLimit = 1
-            guard let entry = try? context.fetch(descriptor).first else { return }
+            guard let entry = try context.fetch(descriptor).first else {
+                throw HistoryPersistenceError.entryNotFound
+            }
             entry.finalText = finalText
             entry.targetBundleID = targetBundleID
             entry.targetAppName = targetAppName
             entry.status = status
-            try? context.save()
+            try context.save()
+        }
+    }
+
+    /// MainActor establishes submission order; each background write waits for its predecessor.
+    /// The operation is synchronous so a ModelContext never crosses a suspension point.
+    private func enqueueWrite(isUpdate: Bool, operation: @escaping @Sendable () throws -> Void) {
+        let predecessor = lastWrite
+        lastWrite = Task.detached(priority: .background) { [beforeWrite] in
+            await predecessor?.value
+            await beforeWrite(isUpdate)
+            do {
+                try operation()
+            } catch {
+                Self.logger.error("History write failed: \(String(describing: error), privacy: .private)")
+            }
         }
     }
 
@@ -276,4 +299,5 @@ public final class DictationHistoryService: DictationHistoryRecording {
 
 private enum HistoryPersistenceError: Error {
     case unavailable
+    case entryNotFound
 }
