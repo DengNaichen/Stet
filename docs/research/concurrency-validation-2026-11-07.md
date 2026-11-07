@@ -4,6 +4,7 @@
 [#177 审计索引](https://github.com/DengNaichen/Stet/issues/177) 核查 #156–#176 共 21 项。
 复核基线为 main `98d8bbc`；原始 issue 基于 `b9638d2`，中间的被动监听删除和既有修复必须计入结论。
 本记录针对本分支的代码与自动测试，不把模拟依赖的结果等同于物理设备或实际 UI 性能验收。
+本轮验收范围仅为 macOS 及其共享代码，使用稳定版 Xcode；iOS 不纳入本轮工作。
 
 ## 逐项结论
 
@@ -70,4 +71,4 @@ AX 超时限制单次 IPC，不代表完整多属性读取耗时为 100ms。已�
 | `make ios-build` | failed，退出码 2 | runtime 下载完成；本机只有 stable Xcode，缺少命令要求的 `/Applications/Xcode-beta.app`，因此未执行 iOS 27 编译。 |
 
 三位子 agent 分别验证音频、服务、听写与持久化，并交叉审查；所有补丁统一集成后重新跑上述 macOS 全量测试。
-失败的 iOS 环境检查没有被标为 passed，也没有为绕过它而更改全局 Xcode 选择或目标 SDK。
+表中的 iOS 结果保留此前附加尝试的记录，不作为 macOS 交付的阻塞项。按用户澄清已停止 iOS 组件下载、撤回临时 iOS 构建配置改动，原配置保持不变。
