@@ -373,7 +373,7 @@
 
             // Cmd-C can complete in the same turn that cancels our wait. Restore
             // its temporary clipboard override even when no selection is returned.
-            guard !wasCancelled else { return nil }
+            guard !wasCancelled, !Task.isCancelled else { return nil }
             let copied = pasteboard.string(forType: .string)?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 

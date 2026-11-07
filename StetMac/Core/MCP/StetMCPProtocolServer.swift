@@ -90,7 +90,11 @@ actor StetMCPProtocolServer {
         }
         toolTasks[id] = task
         defer { toolTasks.removeValue(forKey: id) }
-        return await task.value
+        return await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
     }
 
     func handleHTTPRequest(_ request: HTTPRequest) async -> HTTPResponse {

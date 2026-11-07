@@ -6,6 +6,37 @@ import Testing
 @MainActor
 @Suite("Stet MCP Protocol Server")
 struct StetMCPProtocolServerTests {
+    @Test func clientCancellationReachesTheRunningToolQuery() async throws {
+        let calendar = MCPCalendarStub()
+        let gate = CalendarQueryGate()
+        calendar.queryGate = gate
+        let server = StetMCPProtocolServer(catalog: MCPStubMeetingCatalog(), calendarWriteClient: calendar)
+        try await server.start()
+        try await initialize(server)
+        let body = try jsonData([
+            "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+            "params": ["name": MCPCalendarTools.listCalendarsToolName, "arguments": [:]],
+        ])
+        let request = Task {
+            await server.handleRawRequest(method: "POST", headers: protocolHeaders, body: body)
+        }
+        #expect(await TestSupport.eventuallyAsync { await gate.started })
+
+        let cancellation = await server.handleRawRequest(
+            method: "POST", headers: protocolHeaders,
+            body: try jsonData([
+                "jsonrpc": "2.0", "method": "notifications/cancelled",
+                "params": ["requestId": 2, "reason": "Client no longer needs this query"],
+            ])
+        )
+        #expect(cancellation.statusCode == 202)
+        // Assert before stop() so server-wide cleanup cannot hide lost client cancellation.
+        #expect(await TestSupport.eventuallyAsync { await gate.cancelled })
+
+        await server.stop()
+        _ = await request.value
+    }
+
     @Test func stoppingCancelsAndDrainsToolHandlers() async throws {
         let calendar = MCPCalendarStub()
         let gate = CalendarQueryGate()
