@@ -313,11 +313,11 @@ class CleanupPlanTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            runner.calls[1][0],
+            runner.calls[0][0],
             ["git", "update-ref", "-d", "refs/heads/topic", "tip"],
         )
         self.assertEqual(
-            runner.calls[4][0],
+            runner.calls[2][0],
             ["git", "update-ref", "-d", "refs/heads/normal", "tip"],
         )
 
@@ -334,7 +334,7 @@ class CleanupPlanTests(unittest.TestCase):
         repository.delete_remote_branches(actions)
 
         self.assertEqual(
-            runner.calls[2][0],
+            runner.calls[0][0],
             [
                 "git",
                 "push",
@@ -348,7 +348,7 @@ class CleanupPlanTests(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            runner.calls[3][0], ["git", "fetch", "--prune", "origin"]
+            runner.calls[1][0], ["git", "fetch", "--prune", "origin"]
         )
 
     def test_github_remote_parser_accepts_common_forms(self):
@@ -468,18 +468,23 @@ class GitIntegrationTests(unittest.TestCase):
             self.git(repo, "update-ref", "refs/remotes/origin/main", base)
             self.assertIsNone(repository.merge_check("topic", tip).evidence)
 
-    def test_scoped_cleanup_preserves_other_branches_and_archives_deleted_tip(self):
+    def test_scoped_cleanup_removes_worktree_and_branches_without_archive_refs(self):
         with tempfile.TemporaryDirectory() as directory:
             repo, _ = self.initialize_repository(Path(directory))
-            self.git(repo, "branch", "one")
+            target = Path(directory) / "one"
+            self.git(repo, "worktree", "add", "-b", "one", str(target), "main")
+            self.git(repo, "push", "origin", "one")
             self.git(repo, "branch", "two")
-            tip = self.git(repo, "rev-parse", "one").stdout.strip()
             repository = cleanup.GitRepository(repo)
-            cleanup.run_cleanup(repository, True, False, io.StringIO(), ["one"])
+            output = io.StringIO()
+            cleanup.run_cleanup(repository, True, True, output, ["one"])
+            self.assertFalse(target.exists())
             self.assertNotIn("one", self.local_branches(repo))
             self.assertIn("two", self.local_branches(repo))
-            self.assertEqual(self.git(repo, "rev-parse", "refs/archive/branch-cleanup/"
-                                     + repository.archive_id + "/heads/one").stdout.strip(), tip)
+            self.assertEqual(self.git(repo, "ls-remote", "--heads", "origin", "one").stdout.strip(), "")
+            self.assertEqual(self.git(repo, "for-each-ref", "--format=%(refname)",
+                                     "refs/archive/").stdout.strip(), "")
+            self.assertNotIn("Recovery refs:", output.getvalue())
 
     def test_primary_and_locked_worktrees_are_protected(self):
         with tempfile.TemporaryDirectory() as directory:
