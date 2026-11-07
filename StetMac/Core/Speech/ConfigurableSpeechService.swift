@@ -245,6 +245,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 if let rewriteService = pipeline.rewriteService {
                     let rewriteAudience = pipeline.usesAudienceAwareLocalPrompts ? await audienceProvider() : nil
                     let appName = await MainActor.run { AppBranchMonitor.shared.currentApp?.localizedName }
+                    try ensureCaptureSessionIsActive(sessionID)
                     let request = TextRewriteRequest.cleanup(
                         intermediateTranscript,
                         audience: rewriteAudience,

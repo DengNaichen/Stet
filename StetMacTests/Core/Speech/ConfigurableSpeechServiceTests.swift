@@ -100,6 +100,36 @@ private func makeProcessedAudioResult(
 
 @Suite("Configurable Speech Service", .serialized)
 struct ConfigurableSpeechServiceTests {
+    @Test func cancellationDuringTargetLookupDoesNotStartRewrite() async throws {
+        let (store, _, _) = try makeSettingsStore(rewriteEnabled: true)
+        let gate = TestSuspensionGate()
+        let direct = TestTranscriptionService(result: "old transcript")
+        let rewrite = RecordingRewriteService()
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                makeLocalTranscriptionService: { direct },
+                makeRewriteService: { _, _ in rewrite }),
+            audienceProvider: {
+                if await direct.callCount() > 0 { await gate.wait() }
+                return .ai
+            },
+            captureService: TestAudioCaptureService(audioFileURL: makeAudioFileURL())
+        )
+        try await service.startRecordingAndActivate()
+        // Let the independent warm-up finish so the gate identifies processing lookup.
+        try #require(
+            await TestSupport.eventuallyAsync(timeout: .seconds(3)) {
+                !(await rewrite.recordedPrewarmRequests()).isEmpty
+            })
+        let stop = Task { try await service.stopRecording() }
+        try #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+        await service.cancelRecording()
+        await gate.open()
+        await #expect(throws: CancellationError.self) { try await stop.value }
+        #expect(await rewrite.recordedRequests().isEmpty)
+    }
+
     @Test(arguments: [false, true])
     func cancelledTranscriptionCannotClearRestartedCapture(fails: Bool) async throws {
         let (store, _, _) = try makeSettingsStore()
