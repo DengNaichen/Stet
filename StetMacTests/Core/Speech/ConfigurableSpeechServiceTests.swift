@@ -523,7 +523,7 @@ struct ConfigurableSpeechServiceTests {
         #expect(await eventLog.snapshot() == ["captureStopped", "postProcess", "stopCompleted"])
     }
 
-    @Test func activeOwnershipResumesPassiveImmediatelyAfterCaptureStops() async throws {
+    @Test func captureStoppedHookRunsBeforePostProcessing() async throws {
         let sourceAudioURL = makeAudioFileURL()
         let processedAudioURL = TestSupport.temporaryFileURL("processed-speech", ext: "wav")
         defer {
@@ -546,9 +546,7 @@ struct ConfigurableSpeechServiceTests {
                 ),
                 onProcessAudioFile: { await eventLog.append("postProcess") }
             ),
-            captureService: TestAudioCaptureService(audioFileURL: sourceAudioURL),
-            beginActiveCapture: { await eventLog.append("active") },
-            resumePassiveCapture: { await eventLog.append("passive") }
+            captureService: TestAudioCaptureService(audioFileURL: sourceAudioURL)
         )
 
         try await service.startRecording()
@@ -558,47 +556,8 @@ struct ConfigurableSpeechServiceTests {
 
         #expect(
             await eventLog.snapshot()
-                == ["active", "passive", "captureStoppedHook", "postProcess"]
+                == ["captureStoppedHook", "postProcess"]
         )
-    }
-
-    @Test func activeOwnershipResumesPassiveAfterStartFailureAndCancellation() async throws {
-        let eventLog = EventLog()
-        let (store, _, _) = try makeSettingsStore()
-        let failingSourceURL = makeAudioFileURL()
-        defer { try? FileManager.default.removeItem(at: failingSourceURL) }
-        let failing = ConfigurableSpeechService(
-            settingsStore: store,
-            pipelineFactory: DictationPipelineFactory(
-                makeLocalTranscriptionService: { throw TestError.expected },
-                makeRewriteService: { _, _ in RecordingRewriteService() }
-            ),
-            captureService: TestAudioCaptureService(audioFileURL: failingSourceURL),
-            beginActiveCapture: { await eventLog.append("active") },
-            resumePassiveCapture: { await eventLog.append("passive") }
-        )
-        await #expect(throws: TestError.expected) {
-            try await failing.startRecording()
-        }
-
-        let cancellationLog = EventLog()
-        let sourceURL = makeAudioFileURL()
-        defer { try? FileManager.default.removeItem(at: sourceURL) }
-        let cancellableWithOwnership = ConfigurableSpeechService(
-            settingsStore: store,
-            pipelineFactory: DictationPipelineFactory(
-                makeLocalTranscriptionService: { TestTranscriptionService(result: "unused") },
-                makeRewriteService: { _, _ in RecordingRewriteService() }
-            ),
-            captureService: TestAudioCaptureService(audioFileURL: sourceURL),
-            beginActiveCapture: { await cancellationLog.append("active") },
-            resumePassiveCapture: { await cancellationLog.append("passive") }
-        )
-        try await cancellableWithOwnership.startRecording()
-        await cancellableWithOwnership.cancelRecording()
-
-        #expect(await eventLog.snapshot() == ["active", "passive"])
-        #expect(await cancellationLog.snapshot() == ["active", "passive"])
     }
 
     @Test func funASRNanoKeepsFullCaptureAndSkipsPrecisePostProcessing() async throws {

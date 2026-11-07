@@ -2,7 +2,7 @@
     import Combine
     import Foundation
 
-    /// Presentation facade over the app's meeting and passive-listening state.
+    /// Presentation facade over the app's meeting state.
     @MainActor
     final class MacMeetingViewModel: ObservableObject, MacMeetingCoordinating {
         private let coordinator: any MacMeetingCoordinating
@@ -26,8 +26,6 @@
         var meetingMenuSymbolName: String { coordinator.meetingMenuSymbolName }
         var meetingToggleTitle: String { coordinator.meetingToggleTitle }
         var canToggleMeetingRecording: Bool { coordinator.canToggleMeetingRecording }
-        var passiveListeningStatusText: String { coordinator.passiveListeningStatusText }
-        var isPassiveMicrophoneActive: Bool { coordinator.isPassiveMicrophoneActive }
 
         func toggleMeetingRecording() {
             coordinator.toggleMeetingRecording()

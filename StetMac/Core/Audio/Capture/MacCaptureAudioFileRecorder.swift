@@ -20,14 +20,12 @@
         )
         private let audioLevelHandler: @Sendable (Double) -> Void
         private let audioFeatureHandler: @Sendable (MacDictationCapsuleVisualSignals) -> Void
-        private let audioFrameHandler: @Sendable ([Float]) -> Void
         private let onFirstRecordedBufferWritten: @Sendable () -> Void
         private let audioFeatureAnalyzer = MacDictationAudioFeatureAnalyzer()
 
         private var captureResources: CaptureResources?
         private var normalizedCaptureSession: MacNormalizedAudioCaptureSession?
         private var activeSession: MacAudioFileRecordingSession?
-        private var stopCaptureAfterRecording = false
         private var hasWrittenFirstRecordedBuffer = false
         private let logger = Logger(
             subsystem: Bundle.main.bundleIdentifier ?? "com.openwhispr.Stet", category: "AudioRecorder")
@@ -35,12 +33,10 @@
         nonisolated init(
             audioLevelHandler: @escaping @Sendable (Double) -> Void = { _ in },
             audioFeatureHandler: @escaping @Sendable (MacDictationCapsuleVisualSignals) -> Void = { _ in },
-            audioFrameHandler: @escaping @Sendable ([Float]) -> Void = { _ in },
             onFirstRecordedBufferWritten: @escaping @Sendable () -> Void = {}
         ) {
             self.audioLevelHandler = audioLevelHandler
             self.audioFeatureHandler = audioFeatureHandler
-            self.audioFrameHandler = audioFrameHandler
             self.onFirstRecordedBufferWritten = onFirstRecordedBufferWritten
             super.init()
         }
@@ -52,10 +48,7 @@
         ) throws {
             precondition(currentSession() == nil, "MacCaptureAudioFileRecorder is already recording.")
 
-            let startedCaptureForRecording = currentNormalizedCaptureSession() == nil
-            if startedCaptureForRecording {
-                try startCapture(outputFormat: outputFormat, selectedDevice: selectedDevice)
-            }
+            try startCapture(outputFormat: outputFormat, selectedDevice: selectedDevice)
 
             do {
                 let recordingFile = try AVAudioFile(
@@ -72,11 +65,8 @@
                         voiceProcessingFallbackReason: "input-only avcapture capture"
                     )
                 )
-                setStopCaptureAfterRecording(startedCaptureForRecording)
             } catch {
-                if startedCaptureForRecording {
-                    stopCapture()
-                }
+                stopCapture()
                 throw error
             }
 
@@ -85,7 +75,7 @@
             }
         }
 
-        nonisolated func startCapture(
+        nonisolated private func startCapture(
             outputFormat: AVAudioFormat,
             selectedDevice: AudioHardwareDevice?
         ) throws {
@@ -153,9 +143,7 @@
 
         nonisolated func stopRecording(writtenFileAt fileURL: URL) async -> MacAudioFileRecordingOutcome {
             let outcome = finishRecordingSession()
-            if shouldStopCaptureAfterRecording() {
-                stopCapture()
-            }
+            stopCapture()
             if outcome.didWriteAudio {
                 await MacRecordingFileStabilizer.waitForFileToStabilize(at: fileURL)
             }
@@ -164,16 +152,13 @@
 
         nonisolated func cancelRecording() {
             _ = finishRecordingSession()
-            if shouldStopCaptureAfterRecording() {
-                stopCapture()
-            }
+            stopCapture()
         }
 
-        nonisolated func stopCapture() {
+        nonisolated private func stopCapture() {
             _ = finishRecordingSession()
             clearNormalizedCaptureSession()?.close()
             tearDownCaptureSession()
-            setStopCaptureAfterRecording(false)
         }
 
         nonisolated func prewarm() {
@@ -317,8 +302,6 @@
                     return
                 }
 
-                audioFrameHandler(MacNormalizedAudioSamples.samples(from: convertedBuffer))
-
                 guard let session = currentSession(),
                     let ingestionResult = try session.ingestConvertedBuffer(convertedBuffer)
                 else {
@@ -424,14 +407,6 @@
                 defer { normalizedCaptureSession = nil }
                 return normalizedCaptureSession
             }
-        }
-
-        nonisolated private func setStopCaptureAfterRecording(_ value: Bool) {
-            stateLock.withLock { stopCaptureAfterRecording = value }
-        }
-
-        nonisolated private func shouldStopCaptureAfterRecording() -> Bool {
-            stateLock.withLock { stopCaptureAfterRecording }
         }
 
         private nonisolated static func describe(candidate: InputDeviceCandidate) -> String {

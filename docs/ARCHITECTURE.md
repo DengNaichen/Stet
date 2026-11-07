@@ -36,21 +36,23 @@
 
 ## 核心领域
 
-- **Dictation session**：一次语音输入会话（主动 hotkey 或被动 listening）。
-- **Transcript / HistoryEntry**：SwiftData 持久化的转写元数据；被动模式含 speaker regions。
+- **Dictation session**：一次由用户主动启动的语音输入会话。
+- **Transcript / HistoryEntry**：SwiftData 持久化的听写转写元数据；保留旧被动记录的字段与导出兼容。
 - **Audio pipeline**：采集 → 归一化帧 → VAD / diarization → ASR（Nano / Realtime 等）。
-- **Speaker profiles**：Keychain 本地存储的 enrollment 与 identity gate（被动模式）。
+- **Speaker profiles**：Keychain 本地存储的声纹档案，供会议说话人身份匹配使用。
 
 ## 关键运行链路
 
 1. **主动 dictation（macOS）**：hotkey → capture → ASR → rewrite（可选）→ 文本输出。
-2. **被动 speech gate（macOS）**：continuous capture → speaker gate → Sortformer regions → per-turn Nano → HistoryEntry。
+2. **会议录制（macOS）**：显式启动 → 麦克风和系统音频 → `FluidAudioDiarizer` 分段 → Nano 转写与 `SpeakerIdentityService` 身份匹配 → 音频、session.json 与 transcript.md。
+
+   被动监听运行时、持续帧广播、主人验证门及暂停/恢复接线已移除；会议和主动听写不经过被动会话协调器。
 3. **iOS dictation**：session coordinator → Realtime / 本地引擎 → 文本输出。
 
 ## 依赖与外部边界
 
 - **FunASR / Nano**：macOS 与 iOS 本地 ASR runtime（`StetEngine` / Vendor）。
-- **FluidAudio**：流式 VAD 与 Sortformer diarization（macOS 被动模式）。
+- **FluidAudio**：macOS 本地转写、音频处理与会议 Sortformer diarization。
 - **SherpaOnnxPackage**：speaker embedding（CAMPPlus）。
 - **OpenAI-compatible providers**：rewrite 与云端 Realtime。
 - **系统框架**：AVFoundation、SwiftUI、SwiftData、Security/Keychain、Metal（StetVisuals）。

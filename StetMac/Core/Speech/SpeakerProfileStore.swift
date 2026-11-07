@@ -2,10 +2,6 @@ import Foundation
 import Security
 import StetASR
 
-extension Notification.Name {
-    static let speakerProfilesDidChange = Notification.Name("speakerProfilesDidChange")
-}
-
 nonisolated enum SpeakerProfileRole: String, Codable, Sendable {
     case owner
     case known
@@ -139,7 +135,6 @@ actor SpeakerProfileStore {
 
         profiles.append(profile)
         try persist(profiles)
-        NotificationCenter.default.post(name: .speakerProfilesDidChange, object: nil)
     }
 
     func delete(id: UUID) throws {
@@ -153,12 +148,10 @@ actor SpeakerProfileStore {
         } else {
             try persist(profiles)
         }
-        NotificationCenter.default.post(name: .speakerProfilesDidChange, object: nil)
     }
 
     func deleteAll() throws {
         try deleteData()
-        NotificationCenter.default.post(name: .speakerProfilesDidChange, object: nil)
     }
 
     private func decodedProfiles() throws -> [SpeakerProfile] {

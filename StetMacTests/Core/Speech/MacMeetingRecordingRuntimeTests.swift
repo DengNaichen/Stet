@@ -19,10 +19,9 @@
             let root = TestSupport.temporaryDirectoryURL()
             defer { try? FileManager.default.removeItem(at: root) }
             let recording = RecordingFixture()
-            let released = CallCounter()
             let hold = AsyncHold()
             let runtime = makeRuntime(
-                root: root, recording: recording, released: released,
+                root: root, recording: recording,
                 diarize: { _ in
                     await hold.wait()
                     return []
@@ -30,7 +29,6 @@
             await runtime.start()
             await runtime.toggle()
             #expect(await runtime.currentPhase() == .processing)
-            #expect(released.value == 1)
             #expect(await recording.stopCount == 1)
             let directory = try #require(try MeetingRecordingStore(rootDirectory: root).sessionDirectories().first)
             let record = try MeetingSessionRecord.fromJSON(
@@ -115,14 +113,13 @@
             await runtime.stop()
         }
 
-        @Test func failedStartReleasesExclusiveCaptureAndKeepsPartialAudio() async throws {
+        @Test func failedStartStopsRecorderAndKeepsPartialAudio() async throws {
             let root = TestSupport.temporaryDirectoryURL()
             defer { try? FileManager.default.removeItem(at: root) }
             let recording = RecordingFixture(startError: "System audio permission denied.")
-            let released = CallCounter()
-            let runtime = makeRuntime(root: root, recording: recording, released: released)
+            let runtime = makeRuntime(root: root, recording: recording)
             await runtime.start()
-            #expect(released.value == 1)
+            #expect(await recording.stopCount == 1)
             #expect(!((await runtime.isBusy())))
             if case .failed = await runtime.currentPhase() {
             } else {
@@ -154,16 +151,15 @@
         }
 
         private func makeRuntime(
-            root: URL, recording: RecordingFixture, released: CallCounter = CallCounter(),
-            diarize: @escaping @Sendable ([Float]) async throws -> [PassiveDiarizedRegion] = { _ in [] }
+            root: URL, recording: RecordingFixture,
+            diarize: @escaping @Sendable ([Float]) async throws -> [DiarizedRegion] = { _ in [] }
         ) -> MacMeetingRecordingRuntime {
             MacMeetingRecordingRuntime(
                 dependencies: .init(
                     store: MeetingRecordingStore(rootDirectory: root), makeRecording: { recording },
-                    beginExclusiveCapture: {}, endExclusiveCapture: { released.increment() },
                     processor: MeetingSessionProcessor(
                         sampleRate: 16_000, diarize: diarize, transcribe: { _ in "test meeting" },
-                        identify: { _ in PassiveSpeakerMatch(identity: .other, similarity: nil) }
+                        identify: { _ in SpeakerMatch(identity: .other, similarity: nil) }
                     ), now: { Date(timeIntervalSince1970: 1_704_067_200) }
                 ))
         }

@@ -7,17 +7,6 @@
 
         var body: some View {
             Form {
-                Section("Passive Transcription") {
-                    VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
-                        Toggle("Enable passive transcription", isOn: $viewModel.isPassiveListeningEnabled)
-
-                        Text(
-                            "When enabled, Stet listens locally for conversations that include your enrolled voice. Turning it off stops passive microphone capture; active hotkey dictation remains available."
-                        )
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    }
-                }
 
                 Section("Speaker Profiles") {
                     VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {

@@ -12,7 +12,7 @@
                 sampleRate: 16_000,
                 diarize: { _ in [] },
                 transcribe: { _ in "should not run" },
-                identify: { _ in PassiveSpeakerMatch(identity: .self, similarity: 1) }
+                identify: { _ in SpeakerMatch(identity: .self, similarity: 1) }
             )
 
             let turns = try await processor.process(samples: [])
@@ -24,7 +24,7 @@
                 sampleRate: 16_000,
                 diarize: { _ in [] },
                 transcribe: { _ in "solo" },
-                identify: { _ in PassiveSpeakerMatch(identity: .other, similarity: nil) }
+                identify: { _ in SpeakerMatch(identity: .other, similarity: nil) }
             )
 
             let turns = try await processor.process(samples: [0, 0, 0, 0])
@@ -40,28 +40,28 @@
                 sampleRate: 16_000,
                 diarize: { _ in
                     [
-                        PassiveDiarizedRegion(
+                        DiarizedRegion(
                             speakerTrack: 0,
                             startSample: 0,
                             endSample: 2,
                             activityConfidence: 1,
                             isOverlap: false
                         ),
-                        PassiveDiarizedRegion(
+                        DiarizedRegion(
                             speakerTrack: 0,
                             startSample: 2,
                             endSample: 4,
                             activityConfidence: 1,
                             isOverlap: false
                         ),
-                        PassiveDiarizedRegion(
+                        DiarizedRegion(
                             speakerTrack: nil,
                             startSample: 4,
                             endSample: 6,
                             activityConfidence: 1,
                             isOverlap: true
                         ),
-                        PassiveDiarizedRegion(
+                        DiarizedRegion(
                             speakerTrack: 1,
                             startSample: 6,
                             endSample: 8,
@@ -74,9 +74,9 @@
                 identify: { _ in
                     let count = identifyCount.increment()
                     if count == 1 {
-                        return PassiveSpeakerMatch(identity: .self, similarity: 0.9)
+                        return SpeakerMatch(identity: .self, similarity: 0.9)
                     }
-                    return PassiveSpeakerMatch(identity: .other, similarity: 0.2)
+                    return SpeakerMatch(identity: .other, similarity: 0.2)
                 }
             )
 
@@ -96,7 +96,7 @@
                 finishTranscription: { successFinish.increment() },
                 diarize: { _ in [] },
                 transcribe: { _ in "ok" },
-                identify: { _ in PassiveSpeakerMatch(identity: .other, similarity: nil) }
+                identify: { _ in SpeakerMatch(identity: .other, similarity: nil) }
             )
             _ = try await success.process(samples: [0.1])
             #expect(successPrepare.value == 1)
@@ -110,7 +110,7 @@
                 finishTranscription: { failureFinish.increment() },
                 diarize: { _ in throw TestFailure.expected },
                 transcribe: { _ in "unused" },
-                identify: { _ in PassiveSpeakerMatch(identity: .other, similarity: nil) }
+                identify: { _ in SpeakerMatch(identity: .other, similarity: nil) }
             )
             await #expect(throws: TestFailure.expected) {
                 _ = try await failure.process(samples: [0.1])
@@ -125,14 +125,14 @@
                 sampleRate: 100,
                 diarize: { _ in
                     [
-                        PassiveDiarizedRegion(
+                        DiarizedRegion(
                             speakerTrack: 0,
                             startSample: 0,
                             endSample: 100,
                             activityConfidence: 0.8,
                             isOverlap: false
                         ),
-                        PassiveDiarizedRegion(
+                        DiarizedRegion(
                             speakerTrack: 0,
                             startSample: 125,
                             endSample: 200,
@@ -146,7 +146,7 @@
                     #expect(samples.count == 200)
                     return "one turn"
                 },
-                identify: { _ in PassiveSpeakerMatch(identity: .self, similarity: 0.9) }
+                identify: { _ in SpeakerMatch(identity: .self, similarity: 0.9) }
             )
 
             let turns = try await processor.process(samples: Array(repeating: 0.1, count: 200))
@@ -159,28 +159,28 @@
 
         @Test func preservesSpeakerChangesShortTurnsAndOverlap() {
             let regions = [
-                PassiveDiarizedRegion(
+                DiarizedRegion(
                     speakerTrack: 0,
                     startSample: 0,
                     endSample: 100,
                     activityConfidence: 1,
                     isOverlap: false
                 ),
-                PassiveDiarizedRegion(
+                DiarizedRegion(
                     speakerTrack: 1,
                     startSample: 100,
                     endSample: 110,
                     activityConfidence: 1,
                     isOverlap: false
                 ),
-                PassiveDiarizedRegion(
+                DiarizedRegion(
                     speakerTrack: nil,
                     startSample: 110,
                     endSample: 120,
                     activityConfidence: 1,
                     isOverlap: true
                 ),
-                PassiveDiarizedRegion(
+                DiarizedRegion(
                     speakerTrack: 0,
                     startSample: 120,
                     endSample: 200,
@@ -200,21 +200,21 @@
 
         @Test func mergeThresholdIsInclusiveAndLongerGapRemainsSeparate() {
             let regions = [
-                PassiveDiarizedRegion(
+                DiarizedRegion(
                     speakerTrack: 0,
                     startSample: 0,
                     endSample: 100,
                     activityConfidence: 1,
                     isOverlap: false
                 ),
-                PassiveDiarizedRegion(
+                DiarizedRegion(
                     speakerTrack: 0,
                     startSample: 130,
                     endSample: 200,
                     activityConfidence: 1,
                     isOverlap: false
                 ),
-                PassiveDiarizedRegion(
+                DiarizedRegion(
                     speakerTrack: 0,
                     startSample: 231,
                     endSample: 300,
@@ -234,14 +234,14 @@
 
         @Test func clipsInvalidRegionsAndCapsTranscriptionWindows() {
             let regions = [
-                PassiveDiarizedRegion(
+                DiarizedRegion(
                     speakerTrack: 0,
                     startSample: -20,
                     endSample: 250,
                     activityConfidence: 0.7,
                     isOverlap: false
                 ),
-                PassiveDiarizedRegion(
+                DiarizedRegion(
                     speakerTrack: 1,
                     startSample: 250,
                     endSample: 500,

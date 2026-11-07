@@ -19,8 +19,6 @@
         struct Dependencies: Sendable {
             var store: MeetingRecordingStore
             var makeRecording: @Sendable () -> any MeetingAudioRecording
-            var beginExclusiveCapture: @Sendable () async -> Void
-            var endExclusiveCapture: @Sendable () async -> Void
             var processor: MeetingSessionProcessor
             var now: @Sendable () -> Date
         }
@@ -73,7 +71,6 @@
             isStarting = true
             captureFailure = nil
             await setPhase(.starting)
-            var exclusive = false
             do {
                 let startedAt = dependencies.now()
                 let directory = try dependencies.store.makeSessionDirectory(startedAt: startedAt)
@@ -85,8 +82,6 @@
                 )
                 session = active
                 pendingExpectedMeeting = nil
-                await dependencies.beginExclusiveCapture()
-                exclusive = true
                 let sessionID = active.id
                 try await active.recording.start(in: directory.url) { [weak self] message in
                     Task { await self?.recordingFailed(id: sessionID, message: message) }
@@ -106,7 +101,6 @@
                 }
                 session = nil
                 pendingExpectedMeeting = nil
-                if exclusive { await dependencies.endExclusiveCapture() }
                 isStarting = false
                 await setPhase(.failed("Recording failed: \(error.localizedDescription)"))
             }
@@ -142,7 +136,6 @@
                     for: active, status: failure == nil ? "processing" : "failed", duration: audio.duration,
                     recordingStatus: failure == nil ? "recorded" : "failed", failure: failure, endedAt: endedAt
                 )
-                await dependencies.endExclusiveCapture()
                 if let failure {
                     await setPhase(.failed("Recording failed: \(failure)"))
                 } else {
@@ -154,7 +147,6 @@
                     for: active, status: "failed", duration: endedAt.timeIntervalSince(active.startedAt),
                     recordingStatus: "failed", failure: error.localizedDescription, endedAt: endedAt
                 )
-                await dependencies.endExclusiveCapture()
                 await setPhase(
                     .failed("Could not finish the recording: \(error.localizedDescription). Source audio was kept."))
             }
@@ -225,17 +217,14 @@
 
     extension MacMeetingRecordingRuntime {
         @MainActor
-        static func live(
-            beginExclusiveCapture: @escaping @Sendable () async -> Void,
-            endExclusiveCapture: @escaping @Sendable () async -> Void
-        ) -> MacMeetingRecordingRuntime {
-            let identity = MacPassiveSpeakerIdentityRuntime(
+        static func live() -> MacMeetingRecordingRuntime {
+            let identity = SpeakerIdentityService(
                 profileStore: SpeakerProfileStore(),
                 modelManager: SpeakerEmbeddingModelManager()
             )
             let nano = try? FunASRNanoTranscriptionService()
             let processor = MeetingSessionProcessor(
-                sampleRate: FluidAudioPassiveSpeechAnalyzer.sampleRate,
+                sampleRate: FluidAudioDiarizer.sampleRate,
                 prepareTranscription: {
                     guard let nano else { throw SpeechServiceError.failedToStart }
                     try await nano.acquireContextLease()
@@ -244,7 +233,7 @@
                     await nano?.releaseContextLease()
                 },
                 diarize: { samples in
-                    let analyzer = try await FluidAudioPassiveSpeechAnalyzer.load(
+                    let analyzer = try await FluidAudioDiarizer.load(
                         sortformerConfig: diarizationConfig
                     )
                     _ = try await analyzer.addAcceptedAudio(samples)
@@ -262,7 +251,7 @@
                         languageCode: nil,
                         prompt: nil,
                         audioDurationSeconds: Double(samples.count)
-                            / Double(FluidAudioPassiveSpeechAnalyzer.sampleRate)
+                            / Double(FluidAudioDiarizer.sampleRate)
                     ).text
                 },
                 identify: { try await identity.identify($0) }
@@ -271,8 +260,6 @@
                 dependencies: Dependencies(
                     store: MeetingRecordingStore(),
                     makeRecording: { MacMeetingAudioRecorder() },
-                    beginExclusiveCapture: beginExclusiveCapture,
-                    endExclusiveCapture: endExclusiveCapture,
                     processor: processor,
                     now: { Date() }
                 )

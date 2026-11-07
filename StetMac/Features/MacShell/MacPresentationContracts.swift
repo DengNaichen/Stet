@@ -118,8 +118,6 @@
         var meetingMenuSymbolName: String { get }
         var meetingToggleTitle: String { get }
         var canToggleMeetingRecording: Bool { get }
-        var passiveListeningStatusText: String { get }
-        var isPassiveMicrophoneActive: Bool { get }
         func toggleMeetingRecording()
     }
 #endif

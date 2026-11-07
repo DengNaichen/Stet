@@ -79,27 +79,6 @@
             #expect(defaults.string(forKey: MacPreferences.transcriptionEngine) == "funASRNano")
         }
 
-        @Test func passiveListeningDefaultsOnAndPersistsExplicitChanges() {
-            let defaults = TestSupport.makeUserDefaults()
-            let settingsStore = DictationSettingsStore(
-                defaults: defaults,
-                secretStore: TestSecretStore()
-            )
-            let viewModel = MacAudioSettingsViewModel(
-                settingsStore: settingsStore
-            )
-
-            viewModel.onAppear()
-            defer { viewModel.onDisappear() }
-
-            #expect(viewModel.isPassiveListeningEnabled)
-
-            viewModel.isPassiveListeningEnabled = false
-
-            #expect(!settingsStore.loadPassiveListeningEnabled())
-            #expect(defaults.object(forKey: MacPreferences.passiveListeningEnabled) as? Bool == false)
-        }
-
         @Test func enrollsOwnerAndConsentedKnownSpeakerThenDeletesKnownProfile() async throws {
             let persistence = SettingsSpeakerProfilePersistence()
             let microphone = SettingsMicrophoneTestService(recordingCount: 6)

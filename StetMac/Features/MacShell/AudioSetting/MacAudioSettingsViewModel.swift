@@ -20,12 +20,6 @@
                 settingsStore.saveTranscriptionEngine(localTranscriptionEngine)
             }
         }
-        @Published var isPassiveListeningEnabled = true {
-            didSet {
-                guard hasLoadedState, oldValue != isPassiveListeningEnabled else { return }
-                settingsStore.savePassiveListeningEnabled(isPassiveListeningEnabled)
-            }
-        }
 
         @Published private(set) var isParakeetDownloaded = false
         @Published private(set) var isParakeetDownloading = false
@@ -89,7 +83,6 @@
             // Keep the persisted choice even when Apple Speech is temporarily unavailable.
             // The pipeline applies a transient Fun-ASR Nano fallback at execution time.
             localTranscriptionEngine = settingsStore.loadTranscriptionEngine()
-            isPassiveListeningEnabled = settingsStore.loadPassiveListeningEnabled()
             hasLoadedState = true
             refreshAppleSpeechAssetState()
         }

@@ -20,7 +20,7 @@
         var configuration = MeetingTurnPostProcessingConfiguration()
 
         func plan(
-            regions: [PassiveDiarizedRegion],
+            regions: [DiarizedRegion],
             sampleCount: Int
         ) -> [PlannedMeetingTurn] {
             guard sampleRate > 0, sampleCount > 0 else { return [] }
@@ -111,9 +111,9 @@
         var turnPostProcessingConfiguration = MeetingTurnPostProcessingConfiguration()
         var prepareTranscription: @Sendable () async throws -> Void = {}
         var finishTranscription: @Sendable () async -> Void = {}
-        var diarize: @Sendable ([Float]) async throws -> [PassiveDiarizedRegion]
+        var diarize: @Sendable ([Float]) async throws -> [DiarizedRegion]
         var transcribe: @Sendable ([Float]) async throws -> String
-        var identify: @Sendable ([Float]) async throws -> PassiveSpeakerMatch
+        var identify: @Sendable ([Float]) async throws -> SpeakerMatch
 
         func process(samples: [Float]) async throws -> [MeetingTranscriptTurn] {
             guard !samples.isEmpty else { return [] }
@@ -137,7 +137,7 @@
                 configuration: turnPostProcessingConfiguration
             )
             if regions.isEmpty {
-                let fallbackRegion = PassiveDiarizedRegion(
+                let fallbackRegion = DiarizedRegion(
                     speakerTrack: nil,
                     startSample: 0,
                     endSample: samples.count,
@@ -215,16 +215,16 @@
             }
         }
 
-        private func identifyRecoveringNonCancellation(_ samples: [Float]) async throws -> PassiveSpeakerMatch {
+        private func identifyRecoveringNonCancellation(_ samples: [Float]) async throws -> SpeakerMatch {
             do {
                 let match = try await identify(samples)
                 return match.identity == .unresolved
-                    ? PassiveSpeakerMatch(identity: .other, similarity: match.similarity)
+                    ? SpeakerMatch(identity: .other, similarity: match.similarity)
                     : match
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
-                return PassiveSpeakerMatch(identity: .other, similarity: nil)
+                return SpeakerMatch(identity: .other, similarity: nil)
             }
         }
 

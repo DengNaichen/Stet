@@ -14,48 +14,6 @@
         )
     }
 
-    struct BoundedAudioFrameBuffer: Sendable {
-        let capacitySamples: Int64
-        private(set) var frames: [AudioCaptureFrame] = []
-
-        init(capacitySamples: Int64) {
-            self.capacitySamples = max(capacitySamples, 0)
-        }
-
-        mutating func append(_ frame: AudioCaptureFrame) {
-            guard !frame.samples.isEmpty, capacitySamples > 0 else { return }
-            frames.append(frame)
-
-            var overflow = frames.reduce(Int64(0)) { $0 + Int64($1.samples.count) } - capacitySamples
-            while overflow > 0, let first = frames.first {
-                let firstCount = Int64(first.samples.count)
-                if firstCount <= overflow {
-                    frames.removeFirst()
-                    overflow -= firstCount
-                } else {
-                    frames[0] = first.split(at: first.startSample + overflow).after!
-                    overflow = 0
-                }
-            }
-        }
-
-        func split(at boundary: Int64) -> (before: [AudioCaptureFrame], after: [AudioCaptureFrame]) {
-            var before: [AudioCaptureFrame] = []
-            var after: [AudioCaptureFrame] = []
-
-            for frame in frames {
-                let split = frame.split(at: boundary)
-                if let part = split.before { before.append(part) }
-                if let part = split.after { after.append(part) }
-            }
-            return (before, after)
-        }
-
-        mutating func removeAll() {
-            frames.removeAll(keepingCapacity: false)
-        }
-    }
-
     enum MacNormalizedAudioSamples {
         nonisolated static func samples(from buffer: AVAudioPCMBuffer) -> [Float] {
             let count = Int(buffer.frameLength)
