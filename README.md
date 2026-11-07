@@ -56,7 +56,7 @@ make lint
 make ios-build
 ```
 
-See the [`Makefile`](Makefile) for all available targets. For repository conventions and the agent-facing documentation, start with [`AGENTS.md`](AGENTS.md) and [`docs/HARNESS.md`](docs/HARNESS.md).
+See the [`Makefile`](Makefile) for all available targets. For repository conventions and the agent-facing documentation, start with [`AGENTS.md`](AGENTS.md) and [`docs/index.md`](docs/index.md).
 
 ## Repository layout
 
@@ -72,7 +72,7 @@ API keys, signing material, and provider credentials belong in the local Keychai
 
 ## Release process
 
-Official release artifacts are built by GitHub Actions. See the [release guide](docs/release.md) for the macOS release and notarization workflow.
+Official release artifacts are built by GitHub Actions. See the [release skill](.agents/skills/release/SKILL.md) for the macOS release and notarization workflow.
 
 ## License
 

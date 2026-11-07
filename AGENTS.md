@@ -14,8 +14,8 @@ are referenced by both platforms.
 ## Entry points
 
 - [`CLAUDE.md`](CLAUDE.md) symlinks to this file for Claude Code; it is not a separate guide.
-- Tool adapters (no agent knowledge): [`.cursor/`](.cursor/README.md), [`.claude/`](.claude/README.md), [`.codex/`](.codex/README.md).
-- Harness and durable docs: [`docs/HARNESS.md`](docs/HARNESS.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/specs/`](docs/specs/index.md), [`docs/exec-plans/`](docs/exec-plans/README.md).
+- Tool adapters (no agent knowledge): [`.cursor/`](.cursor/), [`.claude/`](.claude/), [`.codex/`](.codex/).
+- Project docs: [`docs/index.md`](docs/index.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/specs/`](docs/specs/index.md).
 - Apple platform reference (read on demand): [`reference/apple-platform/index.md`](reference/apple-platform/index.md).
 - For macOS or shared code, work from the repository root and read the relevant module docs under `docs/`.
 - For iOS code, read [`StetMobile/AGENTS.md`](StetMobile/AGENTS.md) and work from `StetMobile/`.
