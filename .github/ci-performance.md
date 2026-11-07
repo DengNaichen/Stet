@@ -2,7 +2,7 @@
 
 ## Current routing — September 11, 2026
 
-The workflow now selects jobs by changed paths; see [CI scope](README.md#change-based-ci-scope).
+The workflow now selects jobs by changed paths; see [CI scope](WORKFLOWS.md#change-based-ci-scope).
 Compatibility-list and documentation changes use Linux checks without starting
 macOS runners. App changes run the existing full `make test` command, which builds
 the app; the duplicate standalone Debug build is removed. Existing test cache
