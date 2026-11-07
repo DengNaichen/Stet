@@ -10,8 +10,8 @@
                 Section {
                     VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
                         Text("Choose which on-device model handles transcription.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+                            .font(MacUI.Typography.detail)
+                            .foregroundStyle(MacUI.Foreground.secondary)
 
                         MacSettingsValueRow(title: "Engine") {
                             Picker("", selection: $viewModel.localTranscriptionEngine) {
@@ -21,15 +21,15 @@
                             }
                             .labelsHidden()
                             .pickerStyle(.menu)
-                            .frame(width: 240, alignment: .trailing)
+                            .frame(width: MacUI.SettingsViewMetrics.controlWidth, alignment: .trailing)
                         }
 
                         if viewModel.localTranscriptionEngine == .fluidAudio, !viewModel.isParakeetDownloaded {
                             Text(
                                 "Parakeet model isn't downloaded yet. Stet will fall back to Fun-ASR Nano until you download it below."
                             )
-                            .font(.system(size: 11))
-                            .foregroundStyle(.orange)
+                            .font(MacUI.Typography.detail)
+                            .foregroundStyle(MacUI.Foreground.warning)
                         }
 
                         if viewModel.localTranscriptionEngine == .funASRNano,
@@ -38,21 +38,21 @@
                             Text(
                                 "Fun-ASR Nano isn't downloaded yet. Download it below before dictating."
                             )
-                            .font(.system(size: 11))
-                            .foregroundStyle(.orange)
+                            .font(MacUI.Typography.detail)
+                            .foregroundStyle(MacUI.Foreground.warning)
                         }
 
                         if viewModel.localTranscriptionEngine == .appleSpeech,
                             !viewModel.appleSpeechAssetState.isInstalled
                         {
                             Text(viewModel.appleSpeechAssetState.statusText)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.orange)
+                                .font(MacUI.Typography.detail)
+                                .foregroundStyle(MacUI.Foreground.warning)
                         }
 
-                        Divider().padding(.vertical, 4)
+                        Divider().padding(.vertical, MacUI.SettingsViewMetrics.dividerVerticalPadding)
 
-                        VStack(spacing: 12) {
+                        VStack(spacing: MacUI.SettingsViewMetrics.rowContentSpacing) {
                             TranscriptionModelRow(
                                 name: "Fun-ASR Nano (Chinese / English / Japanese)",
                                 isDownloaded: viewModel.isFunASRNanoDownloaded,
@@ -100,17 +100,17 @@
             let onDownload: () -> Void
 
             var body: some View {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.detailSpacing) {
+                    HStack(spacing: MacUI.SettingsViewMetrics.rowContentSpacing) {
+                        VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.compactDetailSpacing) {
                             Text("Apple Speech (Experimental)")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(MacUI.Typography.itemTitle)
                             Text("On-device SpeechAnalyzer / SpeechTranscriber")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
+                                .font(MacUI.Typography.detail)
+                                .foregroundStyle(MacUI.Foreground.secondary)
                             Text(state.statusText)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
+                                .font(MacUI.Typography.detail)
+                                .foregroundStyle(MacUI.Foreground.secondary)
                         }
 
                         Spacer()
@@ -128,8 +128,8 @@
 
                     if let message = state.errorMessage {
                         Text(message)
-                            .font(.system(size: 10))
-                            .foregroundStyle(.red)
+                            .font(MacUI.Typography.footnote)
+                            .foregroundStyle(MacUI.Foreground.error)
                     }
                 }
             }
@@ -144,14 +144,14 @@
             let onReveal: () -> Void
 
             var body: some View {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.detailSpacing) {
+                    HStack(spacing: MacUI.SettingsViewMetrics.rowContentSpacing) {
+                        VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.compactDetailSpacing) {
                             Text(name)
-                                .font(.system(size: 12, weight: .medium))
+                                .font(MacUI.Typography.itemTitle)
                             Text(isDownloaded ? "Downloaded" : "Available")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
+                                .font(MacUI.Typography.detail)
+                                .foregroundStyle(MacUI.Foreground.secondary)
                         }
 
                         Spacer()
@@ -161,10 +161,10 @@
                                 .controlSize(.small)
                         }
 
-                        HStack(spacing: 8) {
+                        HStack(spacing: MacUI.SettingsViewMetrics.controlSpacing) {
                             Button(action: onReveal) {
                                 Image(systemName: "folder")
-                                    .font(.system(size: 12))
+                                    .font(MacUI.Typography.actionIcon)
                             }
                             .buttonStyle(.bordered)
                             .help("Reveal in Finder")
@@ -178,8 +178,8 @@
 
                     if let message = errorMessage {
                         Text(message)
-                            .font(.system(size: 10))
-                            .foregroundStyle(.red)
+                            .font(MacUI.Typography.footnote)
+                            .foregroundStyle(MacUI.Foreground.error)
                     }
                 }
             }

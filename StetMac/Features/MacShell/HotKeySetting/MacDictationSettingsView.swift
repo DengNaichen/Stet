@@ -33,7 +33,7 @@
                 if let message {
                     Section {
                         Text(message)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MacUI.Foreground.secondary)
                     }
                 }
             }

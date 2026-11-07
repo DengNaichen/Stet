@@ -5,19 +5,19 @@ struct MicrophoneTestView: View {
     @ObservedObject var viewModel: MicrophoneTestViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
             HStack {
                 Label("Test your microphone", systemImage: "mic")
-                    .font(.subheadline.weight(.medium))
+                    .font(MacUI.Typography.emphasizedFieldLabel)
                 Spacer()
                 Text(viewModel.isRecording ? "Recording" : viewModel.isPlaying ? "Playing" : "Ready")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(MacUI.Typography.caption).foregroundStyle(MacUI.Foreground.secondary)
             }
             // Audio level indicator
             MicrophoneAudioLevelMeter(level: viewModel.audioLevel)
 
             // Recording controls
-            HStack(spacing: 12) {
+            HStack(spacing: MacUI.SettingsViewMetrics.rowContentSpacing) {
                 Button {
                     Task {
                         if viewModel.isRecording {
@@ -58,24 +58,24 @@ struct MicrophoneTestView: View {
             if viewModel.hasRecording && !viewModel.isRecording {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MacUI.Foreground.secondary)
                     Text("Play back your test to check the sound.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(MacUI.Typography.caption)
+                        .foregroundStyle(MacUI.Foreground.secondary)
                 }
             } else if viewModel.isRecording {
                 HStack {
                     ProgressView()
-                        .scaleEffect(0.7)
+                        .scaleEffect(MacUI.SettingsViewMetrics.compactProgressScale)
                     Text("Recording...")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(MacUI.Typography.caption)
+                        .foregroundStyle(MacUI.Foreground.secondary)
                 }
             } else {
                 Text("Record a short phrase, then play it back to check your input.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(MacUI.Typography.caption).foregroundStyle(MacUI.Foreground.secondary)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, MacUI.SettingsViewMetrics.microphoneTestVerticalPadding)
     }
 }

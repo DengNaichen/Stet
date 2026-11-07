@@ -5,16 +5,16 @@
         @Environment(\.openWindow) private var openWindow
 
         var body: some View {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
                 GroupBox {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.controlSpacing) {
                         Text("Shader Debug Window")
-                            .font(.headline)
+                            .font(MacUI.Typography.heading)
 
                         Text(
                             "Open a large shader workbench window for screenshot capture and color tuning."
                         )
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MacUI.Foreground.secondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -23,14 +23,14 @@
                     openWindow(id: MacWindowSceneID.shaderDebug)
                 } label: {
                     Text("Open Shader Debug Window")
-                        .frame(minWidth: 220)
+                        .frame(minWidth: MacUI.SettingsViewMetrics.prominentActionMinimumWidth)
                 }
                 .buttonStyle(.borderedProminent)
 
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(20)
+            .padding(MacUI.SettingsViewMetrics.standaloneContentPadding)
         }
     }
 #endif

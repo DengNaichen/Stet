@@ -41,14 +41,53 @@
             static var ink: Color {
                 Color(nsColor: Palette.adaptive(light: Palette.inkLight, dark: Palette.inkDark))
             }
+            static var secondaryInk: Color { ink.opacity(0.72) }
             static var selection: Color {
                 Color(nsColor: Palette.adaptive(light: Palette.selectionLight, dark: Palette.selectionDark))
             }
         }
 
+        /// Keep native text styles and fixed-size text distinct to preserve the current Settings typography.
+        enum Typography {
+            static let heading: Font = .headline
+            static let fieldLabel: Font = .subheadline
+            static let emphasizedFieldLabel: Font = .subheadline.weight(.medium)
+            static let status: Font = .callout
+            static let caption: Font = .caption
+            static let instructionNumber: Font = .caption.weight(.semibold)
+            static let description: Font = .system(size: 12)
+            static let detail: Font = .system(size: 11)
+            static let footnote: Font = .system(size: 10)
+            static let itemTitle: Font = .system(size: 12, weight: .medium)
+            static let actionIcon: Font = .system(size: 12)
+            static let credential: Font = .system(.body, design: .monospaced)
+            static let backButton: Font = .system(size: 16, weight: .medium)
+            static let brand: Font = .system(size: 13, weight: .semibold)
+            static let sidebarSection: Font = .system(size: 12, weight: .semibold)
+            static let sidebarItem: Font = .system(size: 13, weight: .regular)
+            static let selectedSidebarItem: Font = .system(size: 13, weight: .medium)
+            static let detailTitle: Font = .system(size: SettingsViewMetrics.detailTitleExpandedSize, weight: .semibold)
+            static let statusBadge: Font = .system(size: 11, weight: .semibold, design: .rounded)
+        }
+
+        enum Foreground {
+            static let primary = Color.primary
+            // Hierarchical secondary follows the enclosing foreground style; Color.secondary is an explicit color.
+            static let secondary = HierarchicalShapeStyle.secondary
+            static let secondaryColor = Color.secondary
+            static let success = Color.green
+            static let warning = Color.orange
+            static let error = Color.red
+        }
+
         enum SettingsViewMetrics {
+            static let minimumWidth: CGFloat = 720
+            static let minimumHeight: CGFloat = 520
             static let sidebarWidth: CGFloat = 192
             static let headerHeight: CGFloat = 40
+            static let backButtonSize: CGFloat = 24
+            static let backButtonLeadingPadding: CGFloat = 18
+            static let brandMarkHeight: CGFloat = 14
             static let sidebarHeaderHorizontalPadding: CGFloat = 24
             static let sidebarItemInset: CGFloat = 12
             static let sidebarNavHorizontalPadding: CGFloat = 12
@@ -56,6 +95,8 @@
             static let sidebarSectionItemSpacing: CGFloat = 6
             static let sidebarRowVerticalPadding: CGFloat = 8
             static let sidebarRowCornerRadius: CGFloat = 8
+            static let sidebarRowSpacing: CGFloat = 2
+            static let sidebarVerticalPadding: CGFloat = 20
             static let trafficLightLeading: CGFloat = 20
             static let trafficLightTop: CGFloat = 18
             static let detailHorizontalPadding: CGFloat = 36
@@ -66,13 +107,48 @@
             static let cardContentSpacing: CGFloat = 16
             static let cardInnerPadding: CGFloat = 12
             static let valueRowSpacing: CGFloat = 16
+            static let controlWidth: CGFloat = 240
+            static let rowContentSpacing: CGFloat = 12
+            static let controlSpacing: CGFloat = 8
+            static let labelSpacing: CGFloat = 6
+            static let detailSpacing: CGFloat = 4
+            static let compactDetailSpacing: CGFloat = 2
+            static let dividerVerticalPadding: CGFloat = 4
+            static let statusIconWidth: CGFloat = 16
+            static let statusRowHeight: CGFloat = 20
+            static let statusDotDiameter: CGFloat = 7
+            static let instructionRowSpacing: CGFloat = 10
+            static let instructionBadgeDiameter: CGFloat = 22
+            static let prominentActionMinimumWidth: CGFloat = 220
+            static let standaloneContentPadding: CGFloat = 20
+            static let microphoneTestVerticalPadding: CGFloat = 8
+            static let compactProgressScale: CGFloat = 0.7
+            static let audioMeterHeight: CGFloat = 5
+            static let audioMeterFillOpacity: Double = 0.7
             static let sidebarAccountRowHorizontalPadding: CGFloat = 16
             static let sidebarAccountRowVerticalPadding: CGFloat = 12
             static let overlayScrollerWidth: CGFloat = 15
             static let overlayScrollerKnobWidth: CGFloat = 10
+            static let overlayScrollerMinimumKnobHeight: CGFloat = 24
+            static let overlayScrollerLightOpacity: Double = 0.22
+            static let overlayScrollerDarkOpacity: Double = 0.32
+            static let scrollOverflowTolerance: CGFloat = 1
+            static let titleScrollUpdateTolerance: CGFloat = 0.5
             static let detailTitleExpandedSize: CGFloat = 24
             static let detailTitleCollapsedSize: CGFloat = 15
             static let detailTitleCollapseDistance: CGFloat = 32
+            static let detailTitleBottomPadding: CGFloat = 20
+            static let badgeHorizontalPadding: CGFloat = 10
+            static let badgeVerticalPadding: CGFloat = 5
+            static let badgeFillOpacity: Double = 0.12
+            static let badgeStrokeOpacity: Double = 0.22
+            static let badgeStrokeLineWidth: CGFloat = 1
+        }
+
+        enum Motion {
+            static let audioMeter = Animation.easeOut(duration: 0.1)
+            static let scrollIndicatorFade = Animation.easeOut(duration: 0.2)
+            static let scrollIndicatorHideDelay: Duration = .milliseconds(650)
         }
 
         enum EditorMetrics {

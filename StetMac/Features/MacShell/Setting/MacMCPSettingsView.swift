@@ -75,14 +75,16 @@
                     )
                     .disabled(viewModel.isTransitioning)
 
-                    HStack(spacing: 6) {
+                    HStack(spacing: MacUI.SettingsViewMetrics.labelSpacing) {
                         Circle()
                             .fill(statusColor)
-                            .frame(width: 7, height: 7)
+                            .frame(
+                                width: MacUI.SettingsViewMetrics.statusDotDiameter,
+                                height: MacUI.SettingsViewMetrics.statusDotDiameter)
                         Text(statusText)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MacUI.Foreground.secondary)
                     }
-                    .font(.callout)
+                    .font(MacUI.Typography.status)
                 } footer: {
                     Text("Let your coding agent access Stet through MCP.")
                 }
@@ -101,7 +103,7 @@
 
                 Section("Calendar Tools") {
                     Text("Connected agents can read and modify calendars selected in Meetings settings.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MacUI.Foreground.secondary)
                 }
             }
             .macSettingsFormStyle()
@@ -112,10 +114,13 @@
         }
 
         private func instructionRow(number: Int, text: LocalizedStringKey) -> some View {
-            HStack(spacing: 10) {
+            HStack(spacing: MacUI.SettingsViewMetrics.instructionRowSpacing) {
                 Text("\(number)")
-                    .font(.caption.weight(.semibold))
-                    .frame(width: 22, height: 22)
+                    .font(MacUI.Typography.instructionNumber)
+                    .frame(
+                        width: MacUI.SettingsViewMetrics.instructionBadgeDiameter,
+                        height: MacUI.SettingsViewMetrics.instructionBadgeDiameter
+                    )
                     .background(MacUI.Surfaces.selection, in: Circle())
                 Text(text)
             }
@@ -137,13 +142,13 @@
         private var statusColor: Color {
             switch viewModel.state {
             case .running:
-                .green
+                MacUI.Foreground.success
             case .failed:
-                .red
+                MacUI.Foreground.error
             case .starting:
-                .orange
+                MacUI.Foreground.warning
             case .disabled:
-                .secondary
+                MacUI.Foreground.secondaryColor
             }
         }
     }

@@ -92,7 +92,7 @@
                 .allowsHitTesting(false)
             }
             .containerBackground(MacUI.Surfaces.hub, for: .window)
-            .frame(minWidth: 720, minHeight: 520)
+            .frame(minWidth: MacUI.SettingsViewMetrics.minimumWidth, minHeight: MacUI.SettingsViewMetrics.minimumHeight)
             .task {
                 reloadStateFromPreferences()
                 synchronizeSelection()
@@ -110,8 +110,10 @@
                         onBack?()
                     } label: {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .medium))
-                            .frame(width: 24, height: 24)
+                            .font(MacUI.Typography.backButton)
+                            .frame(
+                                width: MacUI.SettingsViewMetrics.backButtonSize,
+                                height: MacUI.SettingsViewMetrics.backButtonSize)
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(MacUI.Surfaces.ink)
@@ -120,7 +122,7 @@
                     .accessibilityLabel("Back to Stet")
                     .help("Back to Stet")
                 }
-                .padding(.leading, 18)
+                .padding(.leading, MacUI.SettingsViewMetrics.backButtonLeadingPadding)
                 .frame(height: MacUI.SettingsViewMetrics.headerHeight, alignment: .leading)
                 sidebarNav
             }
@@ -130,15 +132,15 @@
         }
 
         private var brandHeader: some View {
-            HStack(spacing: 8) {
+            HStack(spacing: MacUI.SettingsViewMetrics.controlSpacing) {
                 Image("stetMark")
                     .resizable()
                     .interpolation(.high)
                     .scaledToFit()
-                    .frame(height: 14)
+                    .frame(height: MacUI.SettingsViewMetrics.brandMarkHeight)
                     .accessibilityHidden(true)
                 Text("Stet")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(MacUI.Typography.brand)
                     .foregroundStyle(MacUI.Surfaces.ink)
             }
             .padding(.horizontal, MacUI.SettingsViewMetrics.sidebarHeaderHorizontalPadding)
@@ -152,11 +154,11 @@
                         if !tabs.isEmpty {
                             VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.sidebarSectionItemSpacing) {
                                 Text(LocalizedStringKey(section.title))
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .font(MacUI.Typography.sidebarSection)
                                     .foregroundStyle(MacUI.Surfaces.ink)
                                     .padding(.horizontal, MacUI.SettingsViewMetrics.sidebarItemInset)
 
-                                VStack(spacing: 2) {
+                                VStack(spacing: MacUI.SettingsViewMetrics.sidebarRowSpacing) {
                                     ForEach(tabs) { tab in
                                         sidebarRow(for: tab)
                                     }
@@ -165,9 +167,9 @@
                         }
                     }
                 }
-                .padding(.top, 20)
+                .padding(.top, MacUI.SettingsViewMetrics.sidebarVerticalPadding)
                 .padding(.horizontal, MacUI.SettingsViewMetrics.sidebarNavHorizontalPadding)
-                .padding(.bottom, 20)
+                .padding(.bottom, MacUI.SettingsViewMetrics.sidebarVerticalPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .scrollIndicators(.hidden)
@@ -180,8 +182,8 @@
             } label: {
                 HStack(spacing: 0) {
                     Text(LocalizedStringKey(tab.title))
-                        .font(.system(size: 13, weight: selected ? .medium : .regular))
-                        .foregroundStyle(selected ? MacUI.Surfaces.ink : MacUI.Surfaces.ink.opacity(0.72))
+                        .font(selected ? MacUI.Typography.selectedSidebarItem : MacUI.Typography.sidebarItem)
+                        .foregroundStyle(selected ? MacUI.Surfaces.ink : MacUI.Surfaces.secondaryInk)
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, MacUI.SettingsViewMetrics.sidebarItemInset)

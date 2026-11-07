@@ -12,12 +12,12 @@ struct MicrophoneAudioLevelMeter: View {
                 .fill(MacUI.Surfaces.selection)
                 .overlay(alignment: .leading) {
                     Capsule()
-                        .fill(MacUI.Surfaces.ink.opacity(0.7))
+                        .fill(MacUI.Surfaces.ink.opacity(MacUI.SettingsViewMetrics.audioMeterFillOpacity))
                         .frame(width: geometry.size.width * normalizedLevel)
                 }
         }
-        .frame(height: 5)
-        .animation(.easeOut(duration: 0.1), value: normalizedLevel)
+        .frame(height: MacUI.SettingsViewMetrics.audioMeterHeight)
+        .animation(MacUI.Motion.audioMeter, value: normalizedLevel)
         .accessibilityLabel("Microphone input level")
         .accessibilityValue("\(Int(normalizedLevel * 100)) percent")
     }

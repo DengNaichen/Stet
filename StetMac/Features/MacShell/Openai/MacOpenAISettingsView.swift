@@ -20,8 +20,8 @@
                                 "Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac.",
                                 comment: "")
                         )
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .font(MacUI.Typography.description)
+                        .foregroundStyle(MacUI.Foreground.secondary)
                     } header: {
                         Text(NSLocalizedString("Apple Intelligence", comment: ""))
                     }
@@ -29,9 +29,9 @@
 
                 if viewModel.isRewriteEnabled, viewModel.unifiedProvider == .custom {
                     Section {
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.rowContentSpacing) {
                             Text("Connect a service that supports the OpenAI API format.")
-                                .font(.callout).foregroundStyle(.secondary)
+                                .font(MacUI.Typography.status).foregroundStyle(MacUI.Foreground.secondary)
                             MacSettingsValueRow(title: "Server") {
                                 Text(viewModel.customBaseURL.isEmpty ? "Not configured" : viewModel.customBaseURL)
                                     .lineLimit(1).truncationMode(.middle)
@@ -53,7 +53,7 @@
                         VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
                             apiKeyStatusRow(for: provider)
 
-                            HStack(spacing: 12) {
+                            HStack(spacing: MacUI.SettingsViewMetrics.rowContentSpacing) {
                                 apiKeyActions(for: provider)
                             }
                         }
@@ -91,16 +91,16 @@
 
         private func apiKeyStatusRow(for provider: DictationProvider) -> some View {
             MacSettingsValueRow(title: NSLocalizedString("API key", comment: "")) {
-                VStack(alignment: .trailing, spacing: 4) {
+                VStack(alignment: .trailing, spacing: MacUI.SettingsViewMetrics.detailSpacing) {
                     Text(viewModel.credentialPreview(for: provider))
-                        .font(.system(.body, design: .monospaced))
+                        .font(MacUI.Typography.credential)
                     Text(
                         viewModel.hasAPIKey(for: provider)
                             ? "Saved securely in Keychain"
                             : provider == .custom
                                 ? "Optional for servers without authentication" : "Add a key to connect this provider"
                     )
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(MacUI.Typography.caption).foregroundStyle(MacUI.Foreground.secondary)
                 }
 
             }
@@ -122,7 +122,7 @@
                         credentialError = "The key could not be removed from Keychain. Please try again."
                     }
                 }
-                .foregroundStyle(.red)
+                .foregroundStyle(MacUI.Foreground.error)
             }
         }
     }

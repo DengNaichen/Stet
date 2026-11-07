@@ -5,7 +5,6 @@
 
     struct MacRewriteModelSettingsSection: View {
         @ObservedObject var viewModel: MacOpenAISettingsViewModel
-        private let controlWidth: CGFloat = 240
 
         var body: some View {
             Section {
@@ -18,11 +17,11 @@
                             "Stet can refine and improve the precision of your transcriptions using AI.",
                             comment: "")
                     )
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .font(MacUI.Typography.detail)
+                    .foregroundStyle(MacUI.Foreground.secondary)
 
                     if viewModel.isRewriteEnabled {
-                        Divider().padding(.vertical, 4)
+                        Divider().padding(.vertical, MacUI.SettingsViewMetrics.dividerVerticalPadding)
 
                         MacSettingsValueRow(title: NSLocalizedString("Refine Model", comment: "")) {
                             Picker("", selection: $viewModel.unifiedProvider) {
@@ -37,7 +36,7 @@
                             }
                             .labelsHidden()
                             .pickerStyle(.menu)
-                            .frame(width: controlWidth, alignment: .trailing)
+                            .frame(width: MacUI.SettingsViewMetrics.controlWidth, alignment: .trailing)
                         }
 
                         if !viewModel.availableModels.isEmpty {
@@ -55,7 +54,7 @@
                                 }
                                 .labelsHidden()
                                 .pickerStyle(.menu)
-                                .frame(width: controlWidth, alignment: .trailing)
+                                .frame(width: MacUI.SettingsViewMetrics.controlWidth, alignment: .trailing)
                             }
                         }
 
@@ -68,7 +67,7 @@
                                 }
                                 .labelsHidden()
                                 .pickerStyle(.menu)
-                                .frame(width: controlWidth, alignment: .trailing)
+                                .frame(width: MacUI.SettingsViewMetrics.controlWidth, alignment: .trailing)
                             }
                         }
 
