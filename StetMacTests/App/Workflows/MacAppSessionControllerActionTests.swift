@@ -178,7 +178,7 @@
                 defaults: defaults,
                 secretStore: TestSecretStore()
             )
-            let dictationViewModel = DictationViewModel(speechService: speechService)
+            let dictationViewModel = DictationViewModel(session: DictationSession(speechService: speechService))
             let captureCoordinator = MacDictationCaptureCoordinator(
                 clipboardService: clipboardService,
                 textInjectionService: textInjectionService,
@@ -616,7 +616,7 @@
                 defaults: defaults,
                 secretStore: TestSecretStore()
             )
-            let dictationViewModel = DictationViewModel(speechService: speechService)
+            let dictationViewModel = DictationViewModel(session: DictationSession(speechService: speechService))
             let captureCoordinator = MacDictationCaptureCoordinator(
                 clipboardService: clipboardService,
                 textInjectionService: textInjectionService,
@@ -680,7 +680,7 @@
                 defaults: defaults,
                 secretStore: TestSecretStore()
             )
-            let dictationViewModel = DictationViewModel(speechService: speechService)
+            let dictationViewModel = DictationViewModel(session: DictationSession(speechService: speechService))
             let captureCoordinator = MacDictationCaptureCoordinator(
                 clipboardService: clipboardService,
                 textInjectionService: textInjectionService,
@@ -744,7 +744,7 @@
                 defaults: defaults,
                 secretStore: TestSecretStore()
             )
-            let dictationViewModel = DictationViewModel(speechService: speechService)
+            let dictationViewModel = DictationViewModel(session: DictationSession(speechService: speechService))
             let captureCoordinator = MacDictationCaptureCoordinator(
                 clipboardService: clipboardService,
                 textInjectionService: textInjectionService,
@@ -808,7 +808,7 @@
                 defaults: defaults,
                 secretStore: TestSecretStore()
             )
-            let dictationViewModel = DictationViewModel(speechService: speechService)
+            let dictationViewModel = DictationViewModel(session: DictationSession(speechService: speechService))
             let captureCoordinator = MacDictationCaptureCoordinator(
                 clipboardService: clipboardService,
                 textInjectionService: textInjectionService,

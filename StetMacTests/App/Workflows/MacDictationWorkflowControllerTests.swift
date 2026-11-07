@@ -115,9 +115,10 @@
                 secretStore: TestSecretStore()
             )
             let viewModel = DictationViewModel(
-                speechService: speechService,
-                manualActivationFallbackDelay: .milliseconds(20)
-            )
+                session: DictationSession(
+                    speechService: speechService,
+                    manualActivationFallbackDelay: .milliseconds(20)
+                ))
             let clipboard = TestClipboardService()
             let captureCoordinator = MacDictationCaptureCoordinator(
                 clipboardService: clipboard,
