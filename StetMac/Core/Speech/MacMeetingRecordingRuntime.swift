@@ -232,8 +232,8 @@
         @MainActor
         static func live() -> MacMeetingRecordingRuntime {
             let identity = SpeakerIdentityService(
-                profileStore: SpeakerProfileStore(),
-                modelManager: SpeakerEmbeddingModelManager()
+                profileStore: .shared,
+                modelManager: .shared
             )
             let nano = try? FunASRNanoTranscriptionService()
             let processor = MeetingSessionProcessor(

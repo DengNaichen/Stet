@@ -19,6 +19,7 @@
 
     @MainActor
     protocol MacDictationPanelCoordinating: MacAppStatusObserving {
+        var meteringUpdates: AnyPublisher<Void, Never> { get }
         var dictationState: DictationState { get }
         var statusText: String { get }
         var recordingLevel: Double { get }
@@ -28,6 +29,12 @@
         func dismissPendingCopy()
         func cancelActiveCapture()
         func performPrimaryAction()
+    }
+
+    extension MacDictationPanelCoordinating {
+        var meteringUpdates: AnyPublisher<Void, Never> {
+            Empty().eraseToAnyPublisher()
+        }
     }
 
     @MainActor

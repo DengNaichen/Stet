@@ -5,17 +5,24 @@ import Combine
     import StetVisuals
 #endif
 
+/// High-frequency visualization changes are observed only by the capsule.
+@MainActor
+final class DictationMeteringState: ObservableObject {
+    @Published var recordingLevel = 0.0
+    #if os(macOS)
+        @Published var audioFeatures = MacDictationCapsuleVisualSignals.zero
+    #endif
+}
+
 @MainActor
 final class DictationViewModel: ObservableObject {
     typealias ResultTransformer = @MainActor @Sendable (String) async throws -> String
-    typealias ExternalOperation = @MainActor @Sendable () async throws -> String
 
     private let speechService: any SpeechService
     private let historyService: any DictationHistoryRecording
     private let manualActivationFallbackDelay: Duration
     private var activeTask: Task<Void, Never>?
     private var cancellationTask: Task<Void, Never>?
-    private var captureStartupTask: Task<Void, Error>?
     private var activationFallbackTask: Task<Void, Never>?
     private var levelTask: Task<Void, Never>?
     #if os(macOS)
@@ -24,7 +31,7 @@ final class DictationViewModel: ObservableObject {
 
     private var isStartingRecording = false
     private var isActivatingRecordingWindow = false
-    private var hasPreparedCapture = false
+    @Published private var hasPreparedCapture = false
     private var pendingStopAfterStart = false
     private var pendingActivationAfterStart = false
     private var pendingCaptureStoppedHandler: (@MainActor @Sendable () -> Void)?
@@ -32,9 +39,16 @@ final class DictationViewModel: ObservableObject {
     private(set) var captureSessionID: UInt64 = 0
 
     @Published private(set) var state: DictationState = .idle
-    @Published private(set) var recordingLevel = 0.0
+    let metering = DictationMeteringState()
+    private(set) var recordingLevel: Double {
+        get { metering.recordingLevel }
+        set { metering.recordingLevel = newValue }
+    }
     #if os(macOS)
-        @Published private(set) var audioFeatures = MacDictationCapsuleVisualSignals.zero
+        private(set) var audioFeatures: MacDictationCapsuleVisualSignals {
+            get { metering.audioFeatures }
+            set { metering.audioFeatures = newValue }
+        }
     #endif
 
     init(
@@ -93,7 +107,6 @@ final class DictationViewModel: ObservableObject {
         }
 
         activeTask?.cancel()
-        captureStartupTask?.cancel()
         activationFallbackTask?.cancel()
         levelTask?.cancel()
         #if os(macOS)
@@ -113,22 +126,16 @@ final class DictationViewModel: ObservableObject {
         let shouldActivateAfterStart = activateWhenReady
         let speechService = self.speechService
         let pendingCancellation = cancellationTask
-        let captureStartupTask = Task.detached(priority: .userInitiated) {
-            await pendingCancellation?.value
-            try Task.checkCancellation()
-            if shouldActivateAfterStart {
-                try await speechService.startRecordingAndActivate()
-            } else {
-                try await speechService.startRecording()
-            }
-        }
-        self.captureStartupTask = captureStartupTask
-
         activeTask = Task {
             do {
-                try await captureStartupTask.value
+                await pendingCancellation?.value
+                try Task.checkCancellation()
+                if shouldActivateAfterStart {
+                    try await speechService.startRecordingAndActivate()
+                } else {
+                    try await speechService.startRecording()
+                }
                 guard isCurrentCaptureSession(sessionID) else { return }
-                self.captureStartupTask = nil
 
                 isStartingRecording = false
                 hasPreparedCapture = true
@@ -162,8 +169,6 @@ final class DictationViewModel: ObservableObject {
                 }
             } catch is CancellationError {
                 guard isCurrentCaptureSession(sessionID) else { return }
-                captureStartupTask.cancel()
-                self.captureStartupTask = nil
                 activationFallbackTask?.cancel()
                 activationFallbackTask = nil
                 isStartingRecording = false
@@ -187,8 +192,6 @@ final class DictationViewModel: ObservableObject {
                 }
             } catch {
                 guard isCurrentCaptureSession(sessionID) else { return }
-                captureStartupTask.cancel()
-                self.captureStartupTask = nil
                 activationFallbackTask?.cancel()
                 activationFallbackTask = nil
                 isStartingRecording = false
@@ -324,7 +327,6 @@ final class DictationViewModel: ObservableObject {
         #if os(macOS)
             finishAudioFeatureMonitoring()
         #endif
-        // finishCaptureEventMonitoring()
         state = .processing
         let captureStoppedHandler = pendingCaptureStoppedHandler
         pendingCaptureStoppedHandler = nil
@@ -415,61 +417,12 @@ final class DictationViewModel: ObservableObject {
         }
     }
 
-    func runProcessingOperation(_ operation: @escaping ExternalOperation) {
-        activeTask?.cancel()
-        captureStartupTask?.cancel()
-        captureStartupTask = nil
-        activationFallbackTask?.cancel()
-        activationFallbackTask = nil
-        finishLevelMonitoring()
-        #if os(macOS)
-            finishAudioFeatureMonitoring()
-        #endif
-        // finishCaptureEventMonitoring()
-        isStartingRecording = false
-        isActivatingRecordingWindow = false
-        hasPreparedCapture = false
-        pendingStopAfterStart = false
-        pendingActivationAfterStart = false
-        pendingCaptureStoppedHandler = nil
-        resultTransformer = nil
-        let sessionID = beginCaptureSession()
-        state = .processing
-
-        activeTask = Task {
-            do {
-                let text = try await operation()
-                guard isCurrentCaptureSession(sessionID) else { return }
-                send(.transcriptionSucceeded(text))
-            } catch is CancellationError {
-                guard isCurrentCaptureSession(sessionID) else { return }
-                finishLevelMonitoring()
-                #if os(macOS)
-                    finishAudioFeatureMonitoring()
-                #endif
-
-                state = .idle
-            } catch {
-                guard isCurrentCaptureSession(sessionID) else { return }
-                finishLevelMonitoring()
-                #if os(macOS)
-                    finishAudioFeatureMonitoring()
-                #endif
-
-                send(.transcriptionFailed(.from(error)))
-            }
-
-        }
-    }
-
     private func reset() {
         Task {
             await DictationRuntimeProbe.shared.markAction("reset")
         }
         invalidateCaptureSession()
         activeTask?.cancel()
-        captureStartupTask?.cancel()
-        captureStartupTask = nil
         activationFallbackTask?.cancel()
         activationFallbackTask = nil
         finishLevelMonitoring()
@@ -518,7 +471,8 @@ final class DictationViewModel: ObservableObject {
             }
 
             self.activationFallbackTask = nil
-            try? await self.activateCaptureWindowInline()
+            // Use the same error and cancellation cleanup as explicit activation.
+            self.activateCaptureWindow()
         }
     }
 

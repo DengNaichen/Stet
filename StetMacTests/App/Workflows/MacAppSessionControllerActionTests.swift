@@ -231,6 +231,24 @@
             )
         }
 
+        @Test func microphoneLevelsDoNotPublishAppWideChanges() async throws {
+            let subject = makeSubject()
+            subject.workflow.dictationViewModel.startCapture()
+            try #require(await TestSupport.eventually { subject.workflow.dictationViewModel.state == .listening })
+            try await Task.sleep(for: .milliseconds(30))
+            var appWideChanges = 0
+            subject.session.onChange = { appWideChanges += 1 }
+            await subject.speechService.emitLevel(0.73)
+            try #require(
+                await TestSupport.eventually {
+                    subject.workflow.dictationViewModel.recordingLevel == 0.73
+                })
+            try await Task.sleep(for: .milliseconds(30))
+            #expect(appWideChanges == 0)
+            subject.workflow.dictationViewModel.send(.resetTapped)
+            #expect(await TestSupport.eventually { appWideChanges > 0 })
+        }
+
         @Test func hotkeyActionsStartAndStopExactlyOneActiveCapture() async {
             let subject = makeSubject()
 

@@ -11,6 +11,8 @@ import Testing
 struct MacDictationPanelViewModelTests {
     final class StubPanelModel: MacDictationPanelCoordinating {
         private let updatesSubject = PassthroughSubject<Void, Never>()
+        let meterSubject = PassthroughSubject<Void, Never>()
+        var meteringUpdates: AnyPublisher<Void, Never> { meterSubject.eraseToAnyPublisher() }
 
         var updates: AnyPublisher<Void, Never> {
             updatesSubject.eraseToAnyPublisher()
@@ -119,6 +121,24 @@ struct MacDictationPanelViewModelTests {
                     && viewModel.visualSignals == appModel.audioFeatures
                     && viewModel.detectedTargetApplication?.bundleIdentifier == "com.apple.Terminal"
             })
+    }
+
+    @Test func meteringUpdatesRefreshCapsuleWithoutAppWidePublication() async {
+        let appModel = StubPanelModel(dictationState: .listening)
+        let viewModel = MacDictationPanelViewModel(appModel: appModel)
+        var appWideChanges = 0
+        let subscription = appModel.updates.sink { appWideChanges += 1 }
+        appModel.recordingLevel = 0.73
+        appModel.audioFeatures = MacDictationCapsuleVisualSignals(
+            body: 0.2, presence: 0.4, pulse: 0.6, articulation: 0.8
+        )
+        appModel.meterSubject.send(())
+        #expect(
+            await TestSupport.eventually {
+                viewModel.recordingLevel == 0.73 && viewModel.visualSignals == appModel.audioFeatures
+            })
+        #expect(appWideChanges == 0)
+        withExtendedLifetime(subscription) {}
     }
 
     @Test func forwardingActionsCallThroughToAppModel() {

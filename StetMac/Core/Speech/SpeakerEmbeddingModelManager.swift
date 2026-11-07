@@ -29,6 +29,8 @@
     }
 
     actor SpeakerEmbeddingModelManager {
+        static let shared = SpeakerEmbeddingModelManager()
+
         private static let modelFileName = "3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx"
         private static let githubModelDownloadURL = URL(
             string:
@@ -40,10 +42,29 @@
         )!
 
         private var loadedRecognizer: SpeakerEmbeddingRecognizer?
+        private var loadingTask: Task<SpeakerEmbeddingRecognizer, Error>?
+        private let loadRecognizer: @Sendable () async throws -> SpeakerEmbeddingRecognizer
+
+        init(loadRecognizer: (@Sendable () async throws -> SpeakerEmbeddingRecognizer)? = nil) {
+            self.loadRecognizer = loadRecognizer ?? { try await Self.loadModel() }
+        }
 
         func recognizer() async throws -> SpeakerEmbeddingRecognizer {
             if let loadedRecognizer { return loadedRecognizer }
 
+            if let loadingTask { return try await loadingTask.value }
+
+            // Publish the task before suspending so enrollment and meeting callers
+            // share both the download and recognizer construction.
+            let task = Task { try await loadRecognizer() }
+            loadingTask = task
+            defer { loadingTask = nil }
+            let recognizer = try await task.value
+            loadedRecognizer = recognizer
+            return recognizer
+        }
+
+        private static func loadModel() async throws -> SpeakerEmbeddingRecognizer {
             let modelURL = try await Self.resolveModelURL()
             let data = try Data(contentsOf: modelURL, options: .mappedIfSafe)
             let revision = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
@@ -51,7 +72,6 @@
                 modelURL: modelURL,
                 revision: revision
             )
-            loadedRecognizer = recognizer
             return recognizer
         }
 
@@ -117,7 +137,7 @@
     actor SpeakerEnrollmentEmbeddingService {
         private let modelManager: SpeakerEmbeddingModelManager
 
-        init(modelManager: SpeakerEmbeddingModelManager = SpeakerEmbeddingModelManager()) {
+        init(modelManager: SpeakerEmbeddingModelManager = .shared) {
             self.modelManager = modelManager
         }
 
