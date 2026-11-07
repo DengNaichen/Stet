@@ -26,9 +26,9 @@
                     await hold.wait()
                     return []
                 })
-            await runtime.start()
+            await runtime.start(separateSpeakers: true)
             await runtime.toggle()
-            #expect(await runtime.currentPhase() == .processing)
+            #expect(await runtime.currentPhase().isProcessing)
             #expect(await recording.stopCount == 1)
             let directory = try #require(try MeetingRecordingStore(rootDirectory: root).sessionDirectories().first)
             let record = try MeetingSessionRecord.fromJSON(
@@ -83,7 +83,7 @@
                 diarize: { _ in
                     throw MeetingRecordingError.failed("The test processor is unavailable.")
                 })
-            await runtime.start()
+            await runtime.start(separateSpeakers: true)
             await runtime.stop()
             let directory = try #require(try MeetingRecordingStore(rootDirectory: root).sessionDirectories().first)
             let record = try MeetingSessionRecord.fromJSON(
@@ -148,6 +148,20 @@
             #expect(record.metadata?.expectedMeetingID == expected.id)
             #expect(record.metadata?.title == "Project sync")
             #expect(record.recordingStatus == "recorded")
+        }
+
+        @Test func ordinaryMeetingDoesNotLoadSpeakerModels() async throws {
+            let root = TestSupport.temporaryDirectoryURL()
+            defer { try? FileManager.default.removeItem(at: root) }
+            let runtime = makeRuntime(
+                root: root, recording: RecordingFixture(),
+                diarize: { _ in
+                    Issue.record("Ordinary recording must not load speaker models")
+                    throw MeetingRecordingError.failed("Model not downloaded")
+                })
+            await runtime.start()
+            await runtime.stop()
+            #expect(await runtime.currentPhase() == .idle)
         }
 
         private func makeRuntime(

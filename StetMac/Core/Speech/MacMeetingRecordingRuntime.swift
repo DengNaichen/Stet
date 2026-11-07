@@ -9,6 +9,15 @@
         case starting
         case recording(startedAt: Date, folderName: String)
         case processing
+        case separatingSpeakers
+        case transcribing
+
+        var isProcessing: Bool {
+            switch self {
+            case .processing, .separatingSpeakers, .transcribing: true
+            default: false
+            }
+        }
         case failed(String)
     }
 
@@ -39,6 +48,7 @@
             var recording: any MeetingAudioRecording
             var startedAt: Date
             var metadata: MeetingMetadata?
+            var separateSpeakers: Bool
         }
 
         init(dependencies: Dependencies) { self.dependencies = dependencies }
@@ -52,21 +62,21 @@
         func isBusy() -> Bool {
             if isStarting || isStopping { return true }
             switch phase {
-            case .starting, .recording, .processing: return true
+            case .starting, .recording, .processing, .separatingSpeakers, .transcribing: return true
             case .idle, .failed: return false
             }
         }
 
-        func toggle() async {
+        func toggle(separateSpeakers: Bool = false) async {
             guard !isStarting, !isStopping else { return }
             switch phase {
             case .recording: await requestStop()
-            case .starting, .processing: break
-            case .idle, .failed: await start()
+            case .starting, .processing, .separatingSpeakers, .transcribing: break
+            case .idle, .failed: await start(separateSpeakers: separateSpeakers)
             }
         }
 
-        func start() async {
+        func start(separateSpeakers: Bool = false) async {
             guard !isBusy() else { return }
             isStarting = true
             captureFailure = nil
@@ -78,7 +88,7 @@
                 let metadata = await MainActor.run { expectedMeeting.map(MeetingMetadata.init) }
                 let active = ActiveSession(
                     id: UUID(), directory: directory, recording: dependencies.makeRecording(), startedAt: startedAt,
-                    metadata: metadata
+                    metadata: metadata, separateSpeakers: separateSpeakers
                 )
                 session = active
                 pendingExpectedMeeting = nil
@@ -106,10 +116,10 @@
             }
         }
 
-        func start(expectedMeeting: ExpectedMeeting) async {
+        func start(expectedMeeting: ExpectedMeeting, separateSpeakers: Bool = false) async {
             guard !isBusy() else { return }
             pendingExpectedMeeting = expectedMeeting
-            await start()
+            await start(separateSpeakers: separateSpeakers)
         }
 
         func stop() async {
@@ -159,7 +169,10 @@
                 let samples = try await Task.detached(priority: .utility) {
                     try Self.readSamples(at: audio.audioURL)
                 }.value
-                let turns = try await dependencies.processor.process(samples: samples)
+                let turns = try await dependencies.processor.process(
+                    samples: samples, separateSpeakers: active.separateSpeakers,
+                    progress: { phase in await self.setPhase(phase) }
+                )
                 let markdown = MeetingTranscriptDocument.markdown(
                     startedAt: active.startedAt, endedAt: endedAt, turns: turns, metadata: active.metadata
                 )

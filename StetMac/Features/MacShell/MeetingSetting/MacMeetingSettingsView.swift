@@ -33,6 +33,11 @@
                         "Records your selected microphone and system audio, including calls played through headphones.")
                 }
 
+                MeetingSpeakerSettingsSection(
+                    settings: meetingViewModel.meetingSpeakerSettings,
+                    isRecording: meetingViewModel.isMeetingBusy
+                )
+
                 Section {
                     MacHotKeySettingsSectionView(hotkey: .meeting)
                 } header: {

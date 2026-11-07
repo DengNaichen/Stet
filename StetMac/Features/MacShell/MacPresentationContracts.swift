@@ -112,6 +112,7 @@
 
     @MainActor
     protocol MacMeetingCoordinating: MacAppStatusObserving, MacCalendarSettingsAppModeling {
+        var meetingSpeakerSettings: MeetingSpeakerSettings { get }
         var meetingRecordingPhase: MacMeetingRecordingPhase { get }
         var isMeetingBusy: Bool { get }
         var meetingStatusText: String { get }

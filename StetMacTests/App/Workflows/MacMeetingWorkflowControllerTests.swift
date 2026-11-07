@@ -158,7 +158,7 @@
             self.handler = handler
         }
         @MainActor func currentPhase() async -> MacMeetingRecordingPhase { phase }
-        @MainActor func start(expectedMeeting: ExpectedMeeting) async {
+        @MainActor func start(expectedMeeting: ExpectedMeeting, separateSpeakers: Bool) async {
             startedIDs.append(expectedMeeting.id)
             emit(
                 startFails
@@ -166,7 +166,7 @@
                     : .recording(
                         startedAt: expectedMeeting.scheduledStartAt, folderName: "session-folder"))
         }
-        @MainActor func toggle() async { toggleCount += 1 }
+        @MainActor func toggle(separateSpeakers: Bool) async { toggleCount += 1 }
         @MainActor func emit(_ phase: MacMeetingRecordingPhase) {
             self.phase = phase
             handler?(phase)

@@ -297,3 +297,51 @@
 
 /* History */
 "Transcription" = "转写";
+
+"Separate Speakers" = "区分说话人";
+
+"Speaker Separation" = "说话人区分";
+
+"Label different speakers in the meeting transcript. Changes apply to the next meeting." = "在会议转写中标注不同发言者。设置更改从下一次会议生效。";
+
+"Download Speaker Separation Model?" = "下载说话人区分模型？";
+
+"Download and Enable" = "下载并开启";
+
+"Not Now" = "暂不开启";
+
+"Download approximately 241 MB once to separate speakers on this Mac. You can record ordinary meetings while it downloads." = "首次使用需下载约 241 MB 的模型，下载后可在本机区分说话人。下载期间仍可录制普通会议。";
+
+"Download Speaker Separation Model" = "下载说话人区分模型";
+
+"Checking model…" = "正在检查模型…";
+
+"Downloading speaker model: %lld%%" = "正在下载说话人模型：%lld%%";
+
+"Cancel Download" = "取消下载";
+
+"Verifying model…" = "正在验证模型…";
+
+"Model ready. Changes take effect next meeting." = "模型已就绪，设置更改从下一次会议生效。";
+
+"Speaker separation model ready" = "说话人区分模型已就绪";
+
+"Retry Download and Enable" = "重试下载并开启";
+
+"Speaker separation needs a model" = "区分说话人需要下载模型";
+
+"Download or repair the model, or record this meeting without separating speakers. Your saved preference will not change." = "请下载或修复模型，也可以本次不区分说话人直接录制。选择本次不区分不会更改已保存的偏好。";
+
+"Download and Repair" = "下载修复";
+
+"Record Without Speaker Separation" = "本次不区分说话人";
+
+"Recording saved · Preparing transcription" = "录音已保存 · 正在准备转写";
+
+"Recording saved · Separating speakers" = "录音已保存 · 正在区分说话人";
+
+"Recording saved · Transcribing" = "录音已保存 · 正在转写";
+
+"The speaker separation model is incomplete. Download it before enabling speaker separation." = "说话人区分模型尚未下载完整，请下载后再开启此功能。";
+
+"The model download was incomplete or invalid. Retry to download the missing files." = "模型下载不完整或无效，请重试以补齐缺失文件。";
