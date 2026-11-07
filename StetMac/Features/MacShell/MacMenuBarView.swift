@@ -3,11 +3,11 @@
     import SwiftUI
 
     struct MacMenuBarView: View {
-        @EnvironmentObject private var meetingViewModel: MacMeetingViewModel
+        @Environment(MacMeetingViewModel.self) private var meetingViewModel
         @EnvironmentObject private var settingsShellViewModel: MacSettingsShellViewModel
-        @EnvironmentObject private var appUpdateViewModel: MacAppUpdateViewModel
+        @Environment(MacAppUpdateViewModel.self) private var appUpdateViewModel
         @Environment(\.openWindow) private var openWindow
-        @StateObject private var deviceList = AudioInputDeviceListViewModel()
+        @State private var deviceList = AudioInputDeviceListViewModel()
 
         var body: some View {
             Group {

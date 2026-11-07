@@ -81,10 +81,9 @@
             self.appUpdateManager = appUpdateManager
 
             cancellables.removeAll()
-            appUpdateManager.updates
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] in
-                    self?.syncUpdateSettingsFromManager()
+            appUpdateManager.updateSnapshots
+                .sink { [weak self] snapshot in
+                    self?.syncUpdateSettings(snapshot)
                 }
                 .store(in: &cancellables)
 
@@ -210,11 +209,15 @@
                 return
             }
 
+            syncUpdateSettings(appUpdateManager.updateSnapshot)
+        }
+
+        private func syncUpdateSettings(_ snapshot: MacAppUpdateSnapshot) {
             updateSettings = UpdateSettingsState(
-                isConfigured: appUpdateManager.isConfigured,
-                canCheckForUpdates: appUpdateManager.canCheckForUpdates,
-                isCheckingForUpdates: appUpdateManager.isChecking,
-                automaticallyChecksForUpdates: appUpdateManager.automaticallyChecksForUpdates
+                isConfigured: snapshot.isConfigured,
+                canCheckForUpdates: snapshot.canCheckForUpdates,
+                isCheckingForUpdates: snapshot.isChecking,
+                automaticallyChecksForUpdates: snapshot.automaticallyChecksForUpdates
             )
         }
 

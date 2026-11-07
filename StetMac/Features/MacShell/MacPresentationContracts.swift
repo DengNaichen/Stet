@@ -106,26 +106,20 @@
         case failed(String)
     }
 
+    /// Publishers deliver the new value synchronously on MainActor, including the initial snapshot.
     @MainActor
-    protocol MacAppUpdateCoordinating: MacAppStatusObserving {
-        var state: MacAppUpdateState { get }
-        var isConfigured: Bool { get }
-        var isChecking: Bool { get }
-        var canCheckForUpdates: Bool { get }
-        var automaticallyChecksForUpdates: Bool { get }
+    protocol MacAppUpdateCoordinating: AnyObject {
+        var updateSnapshot: MacAppUpdateSnapshot { get }
+        var updateSnapshots: AnyPublisher<MacAppUpdateSnapshot, Never> { get }
         func checkForUpdates()
         func setAutomaticallyChecksForUpdates(_ enabled: Bool)
     }
 
     @MainActor
-    protocol MacMeetingCoordinating: MacAppStatusObserving, MacCalendarSettingsAppModeling {
+    protocol MacMeetingCoordinating: MacCalendarSettingsAppModeling {
         var meetingSpeakerSettings: MeetingSpeakerSettings { get }
-        var meetingRecordingPhase: MacMeetingRecordingPhase { get }
-        var isMeetingBusy: Bool { get }
-        var meetingStatusText: String { get }
-        var meetingMenuSymbolName: String { get }
-        var meetingToggleTitle: String { get }
-        var canToggleMeetingRecording: Bool { get }
+        var meetingSnapshot: MacMeetingSnapshot { get }
+        var meetingSnapshots: AnyPublisher<MacMeetingSnapshot, Never> { get }
         func toggleMeetingRecording()
     }
 #endif

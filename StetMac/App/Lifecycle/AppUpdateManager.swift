@@ -43,8 +43,23 @@
             }
         }
 
-        var updates: AnyPublisher<Void, Never> {
-            objectWillChange.eraseToAnyPublisher()
+        var updateSnapshot: MacAppUpdateSnapshot {
+            MacAppUpdateSnapshot(
+                state: state, isConfigured: isConfigured,
+                canCheckForUpdates: canCheckForUpdates,
+                automaticallyChecksForUpdates: automaticallyChecksForUpdates
+            )
+        }
+
+        var updateSnapshots: AnyPublisher<MacAppUpdateSnapshot, Never> {
+            $state.combineLatest($canCheckForUpdates, $automaticallyChecksForUpdates)
+                .map { [self] state, canCheck, automaticallyChecks in
+                    MacAppUpdateSnapshot(
+                        state: state, isConfigured: isConfigured,
+                        canCheckForUpdates: canCheck, automaticallyChecksForUpdates: automaticallyChecks
+                    )
+                }
+                .eraseToAnyPublisher()
         }
 
         var supportsGentleScheduledUpdateReminders: Bool { true }

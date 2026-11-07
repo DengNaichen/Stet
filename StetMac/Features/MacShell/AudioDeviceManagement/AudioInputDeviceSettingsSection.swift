@@ -2,7 +2,7 @@
     import SwiftUI
 
     struct AudioInputDeviceSettingsSection: View {
-        @ObservedObject var deviceList: AudioInputDeviceListViewModel
+        let deviceList: AudioInputDeviceListViewModel
         @ObservedObject var microphoneTestViewModel: MicrophoneTestViewModel
 
         var body: some View {
