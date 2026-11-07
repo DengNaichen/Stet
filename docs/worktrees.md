@@ -59,6 +59,15 @@ Sharing download data or enabling the cache does not guarantee compilation hits
 across source paths. Use cache diagnostics and real elapsed times to assess a
 new setup, and continue to execute tests even when compilation is cached.
 
+## Cache cleanup
+
+`scripts/xcode-storage.sh clean-project <checkout>` only removes that checkout's
+allowlisted caches and matching DerivedData. The process guard checks command
+lines plus build tools' working directories and open files against those paths.
+Zed/SourceKit or a build in another checkout does not block cleanup. A process
+using the target checkout or caches still blocks it, and unavailable process
+inspection preserves resources. The script never stops editor/build processes.
+
 ## Agent adapters
 
 - Cursor's existing worktree setup calls the same script.
