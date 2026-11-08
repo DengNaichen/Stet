@@ -15,7 +15,7 @@ let package = Package(
         .library(name: "StetASR", targets: ["StetASR"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/MacPaw/OpenAI.git", exact: "0.4.7"),
+        .package(url: "https://github.com/MacPaw/OpenAI.git", exact: "0.6.0"),
         .package(url: "https://github.com/mattt/EventSource.git", exact: "1.4.1"),
         .package(path: "Vendor/SherpaOnnxPackage"),
         .package(path: "Vendor/FunASRPackage"),
