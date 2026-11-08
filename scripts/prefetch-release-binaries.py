@@ -8,6 +8,7 @@ revision. SwiftPM still verifies the archives when resolving the packages.
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -52,6 +53,10 @@ def download_asset(api_url, size, archive):
     # Check every range and the final manifest checksum before exposing the cache.
     chunk_size = 4 * 1024 * 1024
     chunk = archive.with_suffix(".part")
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    # Supply credentials on stdin, never in argv or logs. curl strips this
+    # Authorization header when GitHub redirects to the asset storage host.
+    config = f'header = "Authorization: Bearer {token}"\n' if token else ""
     with archive.open("wb") as output:
         for start in range(0, size, chunk_size):
             end = min(start + chunk_size, size) - 1
@@ -61,8 +66,11 @@ def download_asset(api_url, size, archive):
                 "--connect-timeout", "20", "--max-time", "120",
                 "--header", "Accept: application/octet-stream",
                 "--range", f"{start}-{end}", "--write-out", "%{http_code}",
-                "--output", str(chunk), api_url,
-            ], check=True, capture_output=True, text=True)
+                "--config", "-", "--output", str(chunk), api_url,
+            ], input=config, capture_output=True, text=True)
+            if result.returncode:
+                detail = result.stderr.replace(token, "<REDACTED>") if token else result.stderr
+                raise RuntimeError(f"Asset range {start}-{end} download failed: {detail.strip()}")
             if result.stdout != "206" or chunk.stat().st_size != end - start + 1:
                 raise ValueError(f"Invalid asset range {start}-{end}")
             with chunk.open("rb") as source:
