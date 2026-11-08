@@ -15,6 +15,7 @@
 | [Worktree 构建耗时调查](worktree-build-time-2026-11-06.md) | 当时机器的路径、磁盘和编译成本调查 | “方案未实施”是历史状态；后续由下一份缓存报告承接，不应解释为当前仍未实施 | 保存问题来源；不能把机器数量、耗时和旧缓存行为当作现状 |
 | [Worktree 缓存验证](worktree-cache-validation-2026-11-07.md) | 基于 a0bfe3f 的实现与并发测量记录 | 结果受机器、工具链、缓存状态与实现版本限制；本轮未重跑 | 保存实验依据；操作入口及隔离约束见 [git-workflow](../../.agents/skills/git-workflow/SKILL.md#环境准备与缓存边界) |
 | [修正学习开源调查](2026-09-10-correction-learning.md) | 固定上游 commit 的源码调查及部分提取样例实验 | 文中已注明后续放弃置信度 / 候选累计建议；未验证实际 App 捕获率 | 保留候选与取舍依据；现行需求见 [correction-learning](../specs/correction-learning.md)，运行说明见 [Python 参考](../../scripts/correction_learning/README.md) |
+| [Core Audio Swift API 调查](coreaudio-swift-api-issue-216-2026-11-08.md) | Issue 216；官方 API、stable SDK 双架构编译与本机新旧查询对比 | 附同日实现、20 个定向变异及测试收敛；未验收物理热插拔或录音 | 查询迁移及生命周期测试证据，不是硬件验收 |
 
 ## 如何引用这些证据
 
