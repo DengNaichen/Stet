@@ -69,6 +69,6 @@
 ## 硬约束
 
 - 模型 payload、下载的 runtime framework、build 产物不得入 Git。
-- iOS 构建使用 Xcode Beta（`make ios-build`），不改变全局 `xcode-select`。
+- iOS 构建默认使用正式版 Xcode 及其 simulator SDK（`make ios-build`），不改变全局 `xcode-select`。
 - macOS 构建使用 stable Xcode（`/Applications/Xcode.app`）。
 - 行为真相以代码为准；spec 与研究文档为需求和设计记录，冲突时以代码 + 本文件路由为准。

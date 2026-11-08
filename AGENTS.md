@@ -28,8 +28,9 @@ are referenced by both platforms.
 
 - Stable macOS build: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make build`
 - macOS tests: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer make test`
-- iOS 27 simulator build: `make ios-build`; it uses Xcode Beta per-command and
-  does not change the global Xcode selection.
+- iOS simulator build: `make ios-build`; it uses stable Xcode per-command and
+  the selected Xcode’s simulator SDK. Override `IOS_DEVELOPER_DIR` when needed;
+  it does not change the global Xcode selection.
 - Formatting and lint: `make lint` (first prepare documentation dependencies with `make docs-lint-setup`).
 - File references in prose use Markdown links; commands, templates and generated/local-only paths remain code. `make docs-lint` checks local links and headings, including legacy specs; imported `reference/` content is excluded.
 

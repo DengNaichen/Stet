@@ -32,7 +32,7 @@ public struct OpenAICompatibleProviderEndpointConfiguration: Sendable, Equatable
         timeoutInterval: TimeInterval? = nil
     ) throws -> OpenAI.Configuration {
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedKey.isEmpty else {
+        guard !trimmedKey.isEmpty || provider == .custom else {
             throw OpenAIError.missingAPIKey(provider: provider)
         }
 
@@ -61,7 +61,7 @@ public struct OpenAICompatibleProviderEndpointConfiguration: Sendable, Equatable
         }
 
         return OpenAI.Configuration(
-            token: trimmedKey,
+            token: trimmedKey.isEmpty ? nil : trimmedKey,
             organizationIdentifier: trimmedValue(organizationID),
             host: host,
             port: components.port ?? Self.defaultPort(for: scheme),
