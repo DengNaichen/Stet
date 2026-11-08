@@ -9,6 +9,11 @@ struct CloudStructuredRewriteTests {
     @Test func openAIRequestsStrictSchemaAndExtractsText() async throws {
         let session = TestHTTP.makeSession { request in
             let body = try TestHTTP.jsonBody(from: request)
+            #expect(request.url?.absoluteString == "https://api.example.com:443/v1/responses")
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer sk-test")
+            #expect(request.timeoutInterval == 60)
+            #expect(body["model"] as? String == DictationProviderDefaults.rewriteModel(for: .openAI))
+            #expect(body["store"] as? Bool == false)
             let textConfiguration = try #require(body["text"] as? [String: Any])
             let format = try #require(textConfiguration["format"] as? [String: Any])
             #expect(format["type"] as? String == "json_schema")
@@ -33,6 +38,63 @@ struct CloudStructuredRewriteTests {
         let text = try await service.rewrite(.cleanup("hello"))
 
         #expect(text == "OpenAI rewrite")
+    }
+
+    @Test(arguments: [401, 429, 500, 503])
+    func openAIPreservesHTTPError(statusCode: Int) async {
+        let session = TestHTTP.makeSession { request in
+            try TestHTTP.response(
+                for: request,
+                body: #"{"error":{"message":"provider failure","type":"server_error","param":null,"code":null}}"#,
+                statusCode: statusCode
+            )
+        }
+        defer { session.invalidateAndCancel() }
+        let service = OpenAIRewriteService(configuration: makeConfiguration(provider: .openAI), session: session)
+
+        await #expect(throws: OpenAIError.api(provider: .openAI, statusCode: statusCode, message: "provider failure")) {
+            try await service.rewrite(.cleanup("hello"))
+        }
+    }
+
+    @Test func openAIRejectsInvalidJSON() async {
+        let session = TestHTTP.makeSession { request in
+            try TestHTTP.response(for: request, body: "not JSON")
+        }
+        defer { session.invalidateAndCancel() }
+        let service = OpenAIRewriteService(configuration: makeConfiguration(provider: .openAI), session: session)
+
+        await #expect(throws: OpenAIError.invalidResponse(provider: .openAI)) {
+            try await service.rewrite(.cleanup("hello"))
+        }
+    }
+
+    @Test func openAIRejectsEmptyRewriteText() async {
+        let session = TestHTTP.makeSession { request in
+            try TestHTTP.response(
+                for: request,
+                body: #"{"output":[{"content":[{"type":"output_text","text":"{\"text\":\"\"}"}]}]}"#
+            )
+        }
+        defer { session.invalidateAndCancel() }
+        let service = OpenAIRewriteService(configuration: makeConfiguration(provider: .openAI), session: session)
+
+        await #expect(throws: OpenAIError.missingRewriteText) {
+            try await service.rewrite(.cleanup("hello"))
+        }
+    }
+
+    @Test(arguments: [URLError.timedOut, URLError.cancelled])
+    func openAIPreservesTransportError(code: URLError.Code) async {
+        let session = TestHTTP.makeSession { _ in throw URLError(code) }
+        defer { session.invalidateAndCancel() }
+        let service = OpenAIRewriteService(configuration: makeConfiguration(provider: .openAI), session: session)
+
+        await #expect {
+            try await service.rewrite(.cleanup("hello"))
+        } throws: { error in
+            (error as? URLError)?.code == code
+        }
     }
 
     @Test func deepSeekRequestsJSONObjectAndExtractsText() async throws {

@@ -9,7 +9,7 @@ extension ResponseObject {
             }
 
             for content in message.content {
-                guard case .OutputTextContent(let outputText) = content else {
+                guard case .outputTextContent(let outputText) = content else {
                     continue
                 }
 
