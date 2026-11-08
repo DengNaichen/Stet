@@ -38,7 +38,7 @@ def classify(paths):
             selected["macos"] = True
             selected["quality"] |= path.endswith(".swift")
         elif path.startswith("StetMobile/"):
-            # iOS simulator builds remain a local Xcode Beta check.
+            # iOS simulator builds remain a local stable Xcode check.
             selected["quality"] |= path.startswith(IOS_SWIFT_ROOTS) and path.endswith(".swift")
         elif path.startswith(("docs/", "reference/", "research/", ".agents/", ".claude/", ".codex/", ".cursor/")):
             continue

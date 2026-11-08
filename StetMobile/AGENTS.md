@@ -3,7 +3,7 @@
 This directory contains the iOS app, keyboard extension, and Live Activity.
 
 - Project: `StetMobile.xcodeproj` (scheme `StetMobile`).
-- Build from repo root: `make ios-build` (uses Xcode Beta per-command; bootstraps ignored runtime).
+- Build from repo root: `make ios-build` (uses stable Xcode per-command; bootstraps ignored runtime).
 - Shared package code: `../Packages/StetEngine`.
 - Shared visual code: `../StetVisuals`.
 - Documentation index: [`docs/index.md`](../docs/index.md).

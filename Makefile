@@ -1,4 +1,4 @@
-IOS_DEVELOPER_DIR ?= /Applications/Xcode-beta.app/Contents/Developer
+IOS_DEVELOPER_DIR ?= /Applications/Xcode.app/Contents/Developer
 DOCS_BOOTSTRAP_PYTHON ?= python3.11
 DOCS_PYTHON ?= linter/.venv/bin/python
 CI_XCODEBUILD_FLAGS ?=
@@ -72,7 +72,7 @@ ios-bootstrap:
 	StetMobile/scripts/bootstrap-sherpa-runtime.sh
 
 ios-build: ios-bootstrap
-	DEVELOPER_DIR=$(IOS_DEVELOPER_DIR) $(IOS_XCODEBUILD) -project StetMobile/StetMobile.xcodeproj -scheme StetMobile -sdk iphonesimulator27.0 -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+	DEVELOPER_DIR=$(IOS_DEVELOPER_DIR) $(IOS_XCODEBUILD) -project StetMobile/StetMobile.xcodeproj -scheme StetMobile -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 
 setup-worktree:
 	./scripts/setup-worktree --if-needed

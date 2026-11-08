@@ -130,6 +130,13 @@ struct CloudStructuredRewriteTests {
             #expect(responseFormat["type"] as? String == "json_schema")
             let jsonSchema = try #require(responseFormat["json_schema"] as? [String: Any])
             #expect(jsonSchema["strict"] as? Bool == true)
+            #expect(jsonSchema["name"] as? String == "rewrite_output")
+            let schema = try #require(jsonSchema["schema"] as? [String: Any])
+            #expect(schema["type"] as? String == "object")
+            #expect(schema["required"] as? [String] == ["text"])
+            #expect(schema["additionalProperties"] as? Bool == false)
+            let properties = try #require(schema["properties"] as? [String: [String: String]])
+            #expect(properties["text"]?["type"] == "string")
 
             return try TestHTTP.response(
                 for: request,
@@ -290,6 +297,223 @@ struct CloudStructuredRewriteTests {
         #expect(models == ["gpt-4o-mini", "openrouter/auto"])
     }
 
+    @Test(arguments: [
+        (DictationProvider.groq, "https://api.groq.com/openai/v1/chat/completions"),
+        (.deepSeek, "https://api.deepseek.com/v1/chat/completions"),
+        (.qwen, "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
+        (.glm, "https://open.bigmodel.cn/api/paas/v4/chat/completions"),
+        (.doubao, "https://ark.cn-beijing.volces.com/api/v3/chat/completions"),
+    ])
+    func compatibleProviderRequests(provider: DictationProvider, url: String) async throws {
+        let session = TestHTTP.makeSession { request in
+            #expect(request.url?.absoluteString == url)
+            #expect(request.httpMethod == "POST")
+            #expect(request.timeoutInterval == 60)
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer key")
+            #expect(request.value(forHTTPHeaderField: "Accept") == "application/json")
+            #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+            let body = try TestHTTP.jsonBody(from: request)
+            #expect(body["model"] as? String == "override-model")
+            let messages = try #require(body["messages"] as? [[String: Any]])
+            #expect(messages.count == 2)
+            #expect(messages.first?["role"] as? String == "system")
+            #expect(messages.last?["role"] as? String == "user")
+            #expect((body["response_format"] as? [String: Any])?["type"] as? String == "json_object")
+            #expect(body["reasoning_effort"] == nil)
+            if provider != .deepSeek { #expect(body["thinking"] == nil) }
+            return try TestHTTP.response(for: request, body: Self.standardChatResponse)
+        }
+        let configuration = DictationProviderConfigurationResolver.rewriteConfiguration(
+            provider: provider, apiKey: " key "
+        )
+        let service = OpenAIRewriteService(configuration: configuration, session: session)
+        #expect(try await service.rewrite(.init(text: "hello", model: "override-model")) == "OK")
+    }
+
+    @Test(arguments: [nil, .off, .minimal, .low, .medium, .high, .max] as [RewriteThinkingLevel?])
+    func deepSeekThinkingLevels(level: RewriteThinkingLevel?) async throws {
+        let session = TestHTTP.makeSession { request in
+            let body = try TestHTTP.jsonBody(from: request)
+            let thinking = try #require(body["thinking"] as? [String: Any])
+            #expect(thinking["type"] as? String == (level == .off ? "disabled" : "enabled"))
+            let effort: String? =
+                switch level {
+                case .low: "low"
+                case .high: "high"
+                case .max: "max"
+                default: nil
+                }
+            #expect(body["reasoning_effort"] as? String == effort)
+            return try TestHTTP.response(for: request, body: Self.standardChatResponse)
+        }
+        let configuration = DictationProviderConfigurationResolver.rewriteConfiguration(
+            provider: .deepSeek, apiKey: "key", thinkingLevel: level
+        )
+        #expect(
+            try await OpenAIRewriteService(configuration: configuration, session: session)
+                .rewrite(.cleanup("hello")) == "OK")
+    }
+
+    @Test(
+        arguments: [
+            "http://localhost:11434/nested/v1", "http://localhost:11434/nested/v1/",
+            "https://example.com/v1", "https://example.com:443/v1", "http://localhost/v1",
+        ],
+        ["", "  ", " key "])
+    func customURLAndAuthentication(baseURL: String, key: String) async throws {
+        let expectedURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/chat/completions"
+        let session = TestHTTP.makeSession { request in
+            #expect(request.url?.absoluteString == expectedURL)
+            #expect(request.value(forHTTPHeaderField: "Authorization") == (key == " key " ? "Bearer key" : nil))
+            return try TestHTTP.response(for: request, body: Self.standardChatResponse)
+        }
+        let configuration = DictationProviderConfigurationResolver.rewriteConfiguration(
+            provider: .custom, apiKey: key, customModel: "local", baseURL: URL(string: baseURL)!
+        )
+        #expect(
+            try await OpenAIRewriteService(configuration: configuration, session: session)
+                .rewrite(.cleanup("hello")) == "OK")
+    }
+
+    @Test func customEndpointPreservesEncodedPathAndQuery() async throws {
+        let session = TestHTTP.makeSession { request in
+            #expect(request.url?.absoluteString == "https://example.com/proxy%20name/v1/chat/completions?tenant=one")
+            #expect(request.value(forHTTPHeaderField: "OpenAI-Organization") == nil)
+            #expect(request.value(forHTTPHeaderField: "OpenAI-Project") == nil)
+            return try TestHTTP.response(for: request, body: Self.standardChatResponse)
+        }
+        let endpoint = OpenAICompatibleProviderEndpointConfiguration(
+            provider: .custom, apiKey: "key",
+            baseURL: URL(string: "https://example.com/proxy%20name/v1?tenant=one")!,
+            organizationID: "openai-org", projectID: "openai-project"
+        )
+        let configuration = RewriteProviderConfiguration(provider: .custom, model: "local", backend: .remote(endpoint))
+        #expect(
+            try await OpenAIRewriteService(configuration: configuration, session: session)
+                .rewrite(.cleanup("hello")) == "OK")
+    }
+
+    @Test(arguments: [DictationProvider.groq, .deepSeek, .qwen, .glm, .doubao, .openAI])
+    func missingKeyDoesNotSendRequest(provider: DictationProvider) async {
+        let session = TestHTTP.makeSession { request in
+            Issue.record("Missing key must fail before transport")
+            return try TestHTTP.response(for: request, body: Self.standardChatResponse)
+        }
+        let configuration = DictationProviderConfigurationResolver.rewriteConfiguration(
+            provider: provider, apiKey: "  ")
+        await #expect(throws: OpenAIError.missingAPIKey(provider: provider)) {
+            try await OpenAIRewriteService(configuration: configuration, session: session).rewrite(.cleanup("hello"))
+        }
+    }
+
+    @Test(
+        arguments: [401, 429, 500, 503],
+        [
+            #"{"error":{"message":"  rejected  "}}"#,
+            #"{"error":{"message":"  rejected  ","type":"api_error","code":42}}"#,
+            #"{"error":{"message":"  rejected  ","type":"api_error","code":"bad"}}"#,
+            #"{"error":{"message":"  "}}"#,
+            "not JSON",
+            standardChatResponse,
+        ])
+    func chatErrorsPreserveStatusAndMessage(status: Int, body: String) async {
+        let session = TestHTTP.makeSession { request in
+            try TestHTTP.response(for: request, body: body, statusCode: status)
+        }
+        let expectedMessage =
+            body.contains("rejected") ? "rejected" : HTTPURLResponse.localizedString(forStatusCode: status)
+        await #expect(throws: OpenAIError.api(provider: .deepSeek, statusCode: status, message: expectedMessage)) {
+            try await OpenAIRewriteService(configuration: makeConfiguration(provider: .deepSeek), session: session)
+                .rewrite(.cleanup("hello"))
+        }
+    }
+
+    @Test(arguments: [
+        "not JSON", "{}", #"{"choices":[{}]}"#,
+        #"{"choices":[{"message":{"content":42}}]}"#,
+        #"{"choices":[{"message":{"content":"{\"text\":\"OK\"}"}},{"message":null}]}"#,
+        #"{"choices":[{"message":{"content":"invalid structured output"}}]}"#,
+        #"{"error":{"message":"error in 200","type":"api_error"}}"#,
+    ])
+    func invalidChatResponse(body: String) async {
+        let session = TestHTTP.makeSession { request in try TestHTTP.response(for: request, body: body) }
+        await #expect(throws: OpenAIError.invalidResponse(provider: .deepSeek)) {
+            try await OpenAIRewriteService(configuration: makeConfiguration(provider: .deepSeek), session: session)
+                .rewrite(.cleanup("hello"))
+        }
+    }
+
+    @Test(arguments: [
+        #"{"choices":[]}"#, #"{"choices":[{"message":{}}]}"#,
+        #"{"choices":[{"message":{"content":null}}]}"#,
+        #"{"choices":[{"message":{"content":"  "}}]}"#,
+        #"{"choices":[{"message":{"content":"{\"text\":\"  \"}"}}]}"#,
+    ])
+    func emptyChatResponse(body: String) async {
+        let session = TestHTTP.makeSession { request in try TestHTTP.response(for: request, body: body) }
+        await #expect(throws: OpenAIError.missingRewriteText) {
+            try await OpenAIRewriteService(configuration: makeConfiguration(provider: .deepSeek), session: session)
+                .rewrite(.cleanup("hello"))
+        }
+    }
+
+    @Test(arguments: [
+        #"{"choices":[{"message":{"content":null}},{"message":{"content":"  "}},{"message":{"content":"{\"text\":\"OK\"}"}}]}"#,
+        #"{"created":1,"choices":[{"index":0,"message":{"content":"{\"text\":\"OK\"}"}}]}"#,
+    ])
+    func partialChatResponsesPreserveFirstNonemptyText(body: String) async throws {
+        let calls = RequestCounter()
+        let session = TestHTTP.makeSession { request in
+            calls.increment()
+            return try TestHTTP.response(for: request, body: body)
+        }
+        #expect(
+            try await OpenAIRewriteService(configuration: makeConfiguration(provider: .deepSeek), session: session)
+                .rewrite(.cleanup("hello")) == "OK")
+        #expect(calls.value == 1)
+    }
+
+    @Test(arguments: [URLError.timedOut, URLError.cancelled])
+    func chatTransportErrorsAreNotRetried(code: URLError.Code) async {
+        let calls = RequestCounter()
+        let session = TestHTTP.makeSession { _ in
+            calls.increment()
+            throw URLError(code)
+        }
+        do {
+            _ = try await OpenAIRewriteService(configuration: makeConfiguration(provider: .deepSeek), session: session)
+                .rewrite(.cleanup("hello"))
+            Issue.record("Expected transport failure")
+        } catch {
+            #expect((error as? URLError)?.code == code)
+        }
+        #expect(calls.value == 1)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func cancellingChatStopsTheUnderlyingRequest() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [PendingChatURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let service = OpenAIRewriteService(configuration: makeConfiguration(provider: .deepSeek), session: session)
+        let task = Task { try await service.rewrite(.cleanup("hello")) }
+        var events = PendingChatURLProtocol.events.makeAsyncIterator()
+        #expect(await events.next() == "started")
+        task.cancel()
+        do {
+            _ = try await task.value
+            Issue.record("Cancelled request must fail")
+        } catch {
+            #expect((error as? URLError)?.code == .cancelled || error is CancellationError)
+        }
+        #expect(await events.next() == "stopped")
+        #expect(PendingChatURLProtocol.requests.value == 1)
+    }
+
+    private static let standardChatResponse =
+        #"{"id":"chat-test","object":"chat.completion","created":1,"model":"test","choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"text\":\"OK\"}"}}]}"#
+
     private func makeConfiguration(provider: DictationProvider) -> RewriteProviderConfiguration {
         let thinkingLevel: RewriteThinkingLevel? =
             switch provider {
@@ -423,4 +647,35 @@ private final class URLProtocolStub: URLProtocol, @unchecked Sendable {
     }
 
     override func stopLoading() {}
+}
+
+private final class RequestCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    var value: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return count
+    }
+    func increment() {
+        lock.lock()
+        defer { lock.unlock() }
+        count += 1
+    }
+}
+
+/// Deliberately leaves the URL load pending until the owning task cancels it.
+private final class PendingChatURLProtocol: URLProtocol, @unchecked Sendable {
+    static let requests = RequestCounter()
+    private static let channel = AsyncStream<String>.makeStream()
+    static var events: AsyncStream<String> { channel.stream }
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        Self.requests.increment()
+        Self.channel.continuation.yield("started")
+    }
+    override func stopLoading() {
+        Self.channel.continuation.yield("stopped")
+    }
 }
