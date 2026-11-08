@@ -126,7 +126,7 @@ jobs:
             RELEASE_PRERELEASE=true
             RELEASE_LATEST=false
             RELEASE_VERIFY_TAG=false
-            RELEASE_TARGET="${{ inputs.git_ref }}"
+            RELEASE_TARGET="$(git rev-parse HEAD)"
           else
             RELEASE_TAG="${GITHUB_REF_NAME}"
             RELEASE_DRAFT=false
@@ -210,9 +210,6 @@ jobs:
           python3 "$RUNNER_TEMP/prefetch-release-binaries.py"
           ./scripts/release-macos-github.sh
 
-      - name: Publish GitHub Release
-        run: ./scripts/publish-github-release.sh
-
       - name: Prepare Release Artifact Payload
         run: |
           RELEASE_DIR="dist/github-release/${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}"
@@ -238,6 +235,9 @@ jobs:
           done
 
           echo "RELEASE_ARTIFACT_DIR=$ARTIFACT_DIR" >> "$GITHUB_ENV"
+
+      - name: Publish GitHub Release
+        run: ./scripts/publish-github-release.sh
 
       - name: Upload Release Artifacts
         if: always()
