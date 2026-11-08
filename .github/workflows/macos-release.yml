@@ -201,7 +201,14 @@ jobs:
           echo "SPARKLE_GENERATE_APPCAST=$SPARKLE_BINARY" >> "$GITHUB_ENV"
 
       - name: Build Release
-        run: ./scripts/release-macos-github.sh
+        # Recovery can use a newer workflow to build an unchanged release tag.
+        # Fetch the helper from the workflow commit, not the application checkout.
+        env:
+          RELEASE_WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          git show "$RELEASE_WORKFLOW_SHA:scripts/prefetch-release-binaries.py" > "$RUNNER_TEMP/prefetch-release-binaries.py"
+          python3 "$RUNNER_TEMP/prefetch-release-binaries.py"
+          ./scripts/release-macos-github.sh
 
       - name: Publish GitHub Release
         run: ./scripts/publish-github-release.sh
