@@ -50,7 +50,7 @@ def sha256(path):
 def download_asset(api_url, size, archive):
     # Large full-body responses can reset even while ranged API downloads work.
     # Check every range and the final manifest checksum before exposing the cache.
-    chunk_size = 16 * 1024 * 1024
+    chunk_size = 4 * 1024 * 1024
     chunk = archive.with_suffix(".part")
     with archive.open("wb") as output:
         for start in range(0, size, chunk_size):

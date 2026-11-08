@@ -18,7 +18,7 @@ URL = "https://github.com/owner/repo/releases/download/v1.0/archive.zip"
 
 class PrefetchTests(unittest.TestCase):
     def test_range_download_reassembles_exact_bytes(self):
-        payload = b"a" * (16 * 1024 * 1024) + b"tail"
+        payload = b"a" * (4 * 1024 * 1024) + b"tail"
         ranges = []
 
         def curl(command, **kwargs):
@@ -32,7 +32,7 @@ class PrefetchTests(unittest.TestCase):
             archive = Path(directory) / "archive.zip"
             prefetch.download_asset("https://api.github.com/example", len(payload), archive)
             self.assertEqual(archive.read_bytes(), payload)
-            self.assertEqual(ranges, ["0-16777215", "16777216-16777219"])
+            self.assertEqual(ranges, ["0-4194303", "4194304-4194307"])
 
     def test_range_response_must_not_be_truncated_or_ignored(self):
         for status, payload in [("206", b"x"), ("200", b"abc")]:
