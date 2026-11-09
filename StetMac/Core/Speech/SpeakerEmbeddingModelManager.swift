@@ -90,7 +90,8 @@
                 .appendingPathComponent("Models", isDirectory: true)
                 .appendingPathComponent("SpeakerEmbedding", isDirectory: true)
             let destination = directory.appendingPathComponent(modelFileName)
-            if FileManager.default.fileExists(atPath: destination.path) {
+            let request = ModelFileRequest(official: huggingFaceModelDownloadURL, github: githubModelDownloadURL)
+            if ModelFileDownloader.shared.isAvailable(request, at: destination) {
                 return destination
             }
 
@@ -98,39 +99,13 @@
                 .first?
                 .appendingPathComponent("StetSpeakerProbe", isDirectory: true)
                 .appendingPathComponent(modelFileName)
-            if let probeCache, FileManager.default.fileExists(atPath: probeCache.path) {
+            if let probeCache, ModelFileDownloader.shared.isAvailable(request, at: probeCache) {
                 return probeCache
             }
 
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            var lastError: Error = SpeakerEmbeddingModelManagerError.modelDownloadFailed
-            let downloadURLs = ModelDownloadMirror.candidates(
-                huggingFace: huggingFaceModelDownloadURL,
-                github: githubModelDownloadURL
-            )
-            for url in downloadURLs {
-                do {
-                    let (temporaryURL, response) = try await ModelDownloadMirror.urlSession.download(from: url)
-                    guard let response = response as? HTTPURLResponse,
-                        (200...299).contains(response.statusCode)
-                    else {
-                        try? FileManager.default.removeItem(at: temporaryURL)
-                        lastError = SpeakerEmbeddingModelManagerError.modelDownloadFailed
-                        continue
-                    }
-                    do {
-                        try FileManager.default.moveItem(at: temporaryURL, to: destination)
-                    } catch {
-                        try? FileManager.default.removeItem(at: temporaryURL)
-                        lastError = error
-                        continue
-                    }
-                    return destination
-                } catch {
-                    lastError = error
-                }
-            }
-            throw lastError
+            return try await ModelFileDownloader.shared.file(
+                ModelFileRequest(official: huggingFaceModelDownloadURL, github: githubModelDownloadURL),
+                at: destination)
         }
     }
 

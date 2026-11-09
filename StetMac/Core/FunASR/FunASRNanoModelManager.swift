@@ -54,11 +54,12 @@
         typealias DownloadProvider = @Sendable (URL) async throws -> (URL, URLResponse)
 
         private let modelsDirectoryProvider: @Sendable () throws -> URL
-        private let downloadProvider: DownloadProvider
+        private let downloader: ModelFileDownloader
 
         nonisolated init(
             modelsDirectoryProvider: (@Sendable () throws -> URL)? = nil,
-            downloadProvider: DownloadProvider? = nil
+            downloadProvider: DownloadProvider? = nil,
+            downloader: ModelFileDownloader = .shared
         ) {
             self.modelsDirectoryProvider =
                 modelsDirectoryProvider ?? {
@@ -76,32 +77,21 @@
                         .appendingPathComponent("Models", isDirectory: true)
                         .appendingPathComponent("Fun-ASR-Nano", isDirectory: true)
                 }
-            self.downloadProvider =
-                downloadProvider ?? { url in
-                    try await Self.downloadUsingMirrors(official: url)
-                }
-        }
-
-        private static func downloadUsingMirrors(official: URL) async throws -> (URL, URLResponse) {
-            var lastError: Error?
-            for url in ModelDownloadMirror.candidates(for: official) {
-                do {
-                    let (file, response) = try await ModelDownloadMirror.urlSession.download(from: url)
-                    if let httpResponse = response as? HTTPURLResponse,
-                        (200...299).contains(httpResponse.statusCode)
-                    {
-                        return (file, response)
+            if let downloadProvider {
+                self.downloader = ModelFileDownloader { url, destination, _ in
+                    let (temporary, response) = try await downloadProvider(url)
+                    defer { try? FileManager.default.removeItem(at: temporary) }
+                    guard let response = response as? HTTPURLResponse,
+                        (200...299).contains(response.statusCode)
+                    else {
+                        throw FunASRNanoModelError.invalidDownloadResponse(
+                            url, statusCode: (response as? HTTPURLResponse)?.statusCode)
                     }
-                    try? FileManager.default.removeItem(at: file)
-                    lastError = FunASRNanoModelError.invalidDownloadResponse(
-                        url,
-                        statusCode: (response as? HTTPURLResponse)?.statusCode
-                    )
-                } catch {
-                    lastError = error
+                    try FileManager.default.moveItem(at: temporary, to: destination)
                 }
+            } else {
+                self.downloader = downloader
             }
-            throw lastError ?? FunASRNanoModelError.invalidDownloadResponse(official, statusCode: nil)
         }
 
         nonisolated func modelFiles() throws -> FunASRNanoModelFiles {
@@ -116,12 +106,16 @@
 
         nonisolated func isModelDownloaded() -> Bool {
             guard let files = try? modelFiles() else { return false }
-            return files.allFiles.allSatisfy { FileManager.default.fileExists(atPath: $0.path) }
+            return zip(FunASRNanoModelAsset.allCases, files.allFiles).allSatisfy { asset, url in
+                downloader.isAvailable(ModelFileRequest(official: asset.downloadURL), at: url)
+            }
         }
 
         nonisolated func resolvedModelFiles() throws -> FunASRNanoModelFiles {
             let files = try modelFiles()
-            let missing = files.allFiles.filter { !FileManager.default.fileExists(atPath: $0.path) }
+            let missing = zip(FunASRNanoModelAsset.allCases, files.allFiles).compactMap { asset, url in
+                downloader.isAvailable(ModelFileRequest(official: asset.downloadURL), at: url) ? nil : url
+            }
             guard missing.isEmpty else {
                 throw FunASRNanoModelError.missingAssets(missing)
             }
@@ -140,25 +134,7 @@
 
             for asset in FunASRNanoModelAsset.allCases {
                 let destination = directory.appendingPathComponent(asset.fileName)
-                guard !FileManager.default.fileExists(atPath: destination.path) else { continue }
-
-                let (downloadedFile, response) = try await downloadProvider(asset.downloadURL)
-                guard let httpResponse = response as? HTTPURLResponse,
-                    (200...299).contains(httpResponse.statusCode)
-                else {
-                    try? FileManager.default.removeItem(at: downloadedFile)
-                    throw FunASRNanoModelError.invalidDownloadResponse(
-                        asset.downloadURL,
-                        statusCode: (response as? HTTPURLResponse)?.statusCode
-                    )
-                }
-
-                do {
-                    try FileManager.default.moveItem(at: downloadedFile, to: destination)
-                } catch {
-                    try? FileManager.default.removeItem(at: downloadedFile)
-                    throw error
-                }
+                _ = try await downloader.file(ModelFileRequest(official: asset.downloadURL), at: destination)
             }
         }
     }
