@@ -8,6 +8,11 @@
         func prepare() async throws
         func transcribe(audioFileURL: URL, hotwords: String?) async throws -> String
         func releaseResources() async
+        func encoderBackend() async -> String
+    }
+
+    extension FunASRNanoEngine {
+        func encoderBackend() async -> String { "unknown" }
     }
 
     extension FunASRNanoRecognizer: FunASRNanoEngine {
@@ -37,6 +42,48 @@
         private var loadGeneration = 0
         private var activeLeaseCount = 0
         private var cleanupRequested = false
+        private var activeModelUses = 0
+        private var maintenance = false
+
+        func beginModelUse() async throws {
+            while maintenance { try await Task.sleep(for: .milliseconds(20)) }
+            try Task.checkCancellation()
+            activeModelUses += 1
+        }
+
+        func endModelUse() async {
+            activeModelUses = max(0, activeModelUses - 1)
+            if activeModelUses == 0, activeLeaseCount == 0, cleanupRequested, loadTask == nil {
+                await releaseLoadedEngine()
+            }
+        }
+
+        func performModelMaintenance(_ action: @Sendable () throws -> Void) async throws -> Bool {
+            guard !maintenance, activeModelUses == 0, activeLeaseCount == 0, loadTask == nil else { return false }
+            maintenance = true
+            defer { maintenance = false }
+            await releaseLoadedEngine()
+            try action()
+            return true
+        }
+
+        private static func currentFiles(_ files: FunASRNanoModelFiles) -> FunASRNanoModelFiles {
+            guard files.encoder.pathExtension == "mlmodelc",
+                ANEModelReadiness.read(in: files.encoder.deletingLastPathComponent()) == nil
+            else { return files }
+            return FunASRNanoModelFiles(
+                encoder: files.encoder.deletingLastPathComponent().appendingPathComponent("funasr-encoder-f16.gguf"),
+                languageModel: files.languageModel, voiceActivityDetector: files.voiceActivityDetector)
+        }
+
+        func recordBackend(of engine: any FunASRNanoEngine, files: FunASRNanoModelFiles) async {
+            guard files.encoder.pathExtension == "mlmodelc", await engine.encoderBackend() == "ggml-cpu" else { return }
+            let directory = files.encoder.deletingLastPathComponent()
+            if let receipt = ANEModelReadiness.installed(in: directory) {
+                try? ANEModelReadiness.make(manifestHash: receipt.manifestHash, enabled: false).write(in: directory)
+            }
+            if loadedModelFiles == files { loadedModelFiles = Self.currentFiles(files) }
+        }
 
         func loadModel(
             files: FunASRNanoModelFiles,
@@ -49,6 +96,10 @@
             files: FunASRNanoModelFiles,
             engineFactory: @escaping @Sendable (FunASRNanoModelFiles) throws -> any FunASRNanoEngine
         ) async throws {
+            let files = Self.currentFiles(files)
+            guard activeLeaseCount == 0 || loadedModelFiles == files || loadingModelFiles == files else {
+                throw FunASRNanoContextError.modelInUse
+            }
             activeLeaseCount += 1
             do {
                 try await ensureModel(files: files, engineFactory: engineFactory, permitsActiveLease: true)
@@ -61,18 +112,18 @@
         func releaseLease() async {
             guard activeLeaseCount > 0 else { return }
             activeLeaseCount -= 1
-            if activeLeaseCount == 0, cleanupRequested {
+            if activeLeaseCount == 0, activeModelUses == 0, cleanupRequested {
                 await releaseLoadedEngine()
             }
         }
 
         func engineIfLoaded(matching files: FunASRNanoModelFiles) -> (any FunASRNanoEngine)? {
-            guard loadedModelFiles == files else { return nil }
+            guard loadedModelFiles == Self.currentFiles(files) else { return nil }
             return engine
         }
 
         func cleanupResources() async {
-            guard activeLeaseCount == 0, loadTask == nil else {
+            guard activeLeaseCount == 0, activeModelUses == 0, loadTask == nil, !maintenance else {
                 cleanupRequested = true
                 return
             }
@@ -84,6 +135,7 @@
             engineFactory: @escaping @Sendable (FunASRNanoModelFiles) throws -> any FunASRNanoEngine,
             permitsActiveLease: Bool
         ) async throws {
+            let files = Self.currentFiles(files)
             if loadedModelFiles == files, engine != nil { return }
             if let loadTask {
                 guard loadingModelFiles == files else { throw FunASRNanoContextError.modelInUse }
@@ -117,12 +169,13 @@
 
             do {
                 let loadedEngine = try await task.value
+                await recordBackend(of: loadedEngine, files: files)
                 if loadGeneration == generation {
                     engine = loadedEngine
-                    loadedModelFiles = files
+                    loadedModelFiles = Self.currentFiles(files)
                     loadTask = nil
                     loadingModelFiles = nil
-                    if activeLeaseCount == 0, cleanupRequested {
+                    if activeLeaseCount == 0, activeModelUses == 0, cleanupRequested {
                         await releaseLoadedEngine()
                     }
                 }
@@ -146,7 +199,7 @@
     }
 
     final class FunASRNanoTranscriptionService: AudioFileTranscriptionService, @unchecked Sendable {
-        private let modelFiles: FunASRNanoModelFiles
+        private let modelManager: FunASRNanoModelManager
         private let engineFactory: @Sendable (FunASRNanoModelFiles) throws -> any FunASRNanoEngine
         private let contextManager: FunASRNanoContextManager
         private let logger = Logger(
@@ -161,24 +214,53 @@
             },
             contextManager: FunASRNanoContextManager = .shared
         ) throws {
-            self.modelFiles = try modelManager.resolvedModelFiles()
+            _ = try modelManager.resolvedModelFiles()
+            self.modelManager = modelManager
             self.engineFactory = engineFactory
             self.contextManager = contextManager
         }
 
         func prewarm() async throws {
-            try await contextManager.loadModel(files: modelFiles, engineFactory: engineFactory)
+            try await withModelAccess {
+                try await contextManager.loadModel(
+                    files: modelManager.resolvedModelFiles(), engineFactory: engineFactory)
+            }
         }
 
         func acquireContextLease() async throws {
-            try await contextManager.acquireLease(files: modelFiles, engineFactory: engineFactory)
+            try await withModelAccess {
+                try await contextManager.acquireLease(
+                    files: modelManager.resolvedModelFiles(), engineFactory: engineFactory)
+            }
         }
 
         func releaseContextLease() async {
             await contextManager.releaseLease()
         }
 
+        private func withModelAccess<T: Sendable>(_ operation: () async throws -> T) async throws -> T {
+            try await contextManager.beginModelUse()
+            do {
+                let value = try await operation()
+                await contextManager.endModelUse()
+                return value
+            } catch {
+                await contextManager.endModelUse()
+                throw error
+            }
+        }
+
         func transcribe(
+            audioFileAt fileURL: URL, languageCode: String?, prompt: String?, audioDurationSeconds: TimeInterval?
+        ) async throws -> TranscriptionResult {
+            try await withModelAccess {
+                try await transcribeUsingCurrentModel(
+                    audioFileAt: fileURL, languageCode: languageCode,
+                    prompt: prompt, audioDurationSeconds: audioDurationSeconds)
+            }
+        }
+
+        private func transcribeUsingCurrentModel(
             audioFileAt fileURL: URL,
             languageCode: String?,
             prompt: String?,
@@ -188,6 +270,7 @@
                 throw OpenAIError.fileNotFound(fileURL)
             }
 
+            let modelFiles = try modelManager.resolvedModelFiles()
             let startedAt = ProcessInfo.processInfo.systemUptime
             let reusedEngine = await contextManager.engineIfLoaded(matching: modelFiles)
             let engine: any FunASRNanoEngine
@@ -198,12 +281,14 @@
             } else {
                 engine = try engineFactory(modelFiles)
                 try await engine.prepare()
+                await contextManager.recordBackend(of: engine, files: modelFiles)
                 isTransient = true
             }
 
             do {
                 let text = try await engine.transcribe(audioFileURL: fileURL, hotwords: prompt)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
+                await contextManager.recordBackend(of: engine, files: modelFiles)
                 guard !text.isEmpty else {
                     throw SpeechServiceError.emptyTranscription
                 }

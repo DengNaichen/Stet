@@ -69,6 +69,8 @@
             try FileManager.default.createDirectory(at: ane, withIntermediateDirectories: true)
             #if arch(arm64)
                 if #available(macOS 15, *) {
+                    #expect(try manager.resolvedModelFiles().encoder == cpu.encoder)
+                    try ANEModelReadiness.make(manifestHash: String(repeating: "a", count: 64)).write(in: directory)
                     #expect(try manager.resolvedModelFiles().encoder == ane)
                 }
             #endif

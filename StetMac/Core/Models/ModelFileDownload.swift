@@ -183,16 +183,19 @@ actor ModelFileDownloader {
             return false
         }
         if let expected = request.sha256 {
-            guard let actual = try? hashFile(url), actual == expected else { return false }
+            guard let actual = try? sha256(of: url), actual == expected else { return false }
         }
         return true
     }
 
-    private nonisolated static func hashFile(_ url: URL) throws -> String {
+    nonisolated static func sha256(of url: URL) throws -> String {
         let file = try FileHandle(forReadingFrom: url)
         defer { try? file.close() }
         var hash = SHA256()
-        while let data = try file.read(upToCount: 1_048_576), !data.isEmpty { hash.update(data: data) }
+        while let data = try file.read(upToCount: 1_048_576), !data.isEmpty {
+            try Task.checkCancellation()
+            hash.update(data: data)
+        }
         return hash.finalize().map { String(format: "%02x", $0) }.joined()
     }
 

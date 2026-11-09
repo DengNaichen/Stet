@@ -123,10 +123,7 @@
                 if #available(macOS 15, *) {
                     let coreML = files.encoder.deletingLastPathComponent()
                         .appendingPathComponent("FunASRNanoANE-v1.mlmodelc", isDirectory: true)
-                    var isDirectory: ObjCBool = false
-                    if FileManager.default.fileExists(atPath: coreML.path, isDirectory: &isDirectory),
-                        isDirectory.boolValue
-                    {
+                    if ANEModelReadiness.read(in: files.encoder.deletingLastPathComponent()) != nil {
                         return FunASRNanoModelFiles(
                             encoder: coreML,
                             languageModel: files.languageModel,
