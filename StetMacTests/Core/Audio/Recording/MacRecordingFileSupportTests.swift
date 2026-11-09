@@ -42,12 +42,14 @@
             #expect(session.recordingOutcome().writtenFrameCount == 0)
 
             try session.activateRecordingWindow()
+            try session.activateRecordingWindow()
             let afterActivation = try #require(try session.ingestConvertedBuffer(convertedBuffer))
             #expect(afterActivation.didWriteAudioFrames)
 
             let outcome = session.recordingOutcome()
             session.close()
             recordingFile = nil
+            #expect(try session.ingestConvertedBuffer(convertedBuffer) == nil)
 
             #expect(outcome.writtenFrameCount == AVAudioFramePosition(convertedBuffer.frameLength * 2))
             #expect(outcome.didWriteAudio)
@@ -80,7 +82,14 @@
             #expect(outcome.captureDiagnosticsSummary?.contains("fallbackReason=unsupported route") == true)
         }
 
-        @Test func preActivationBufferRetainsExactBoundedSuffix() throws {
+        @Test(arguments: [
+            [10_000, 10_000, 10_000],
+            [10_000, 10_000, 10_000, 10_000, 10_000],
+            [30_000],
+            [12_000, 12_000],
+            [1_600],
+        ])
+        func preActivationBufferRetainsExactBoundedSuffix(frameCounts: [Int]) throws {
             let outputFormat = try #require(TranscriptionUploadAudioFormat.makeMacOutputFormat())
             let fileURL = TestSupport.temporaryFileURL(ext: "wav")
             try? FileManager.default.removeItem(at: fileURL)
@@ -99,8 +108,13 @@
                 voiceProcessingFallbackReason: nil
             )
 
-            for value in [Int16(1), 2, 3] {
-                let buffer = try #require(Self.makeOutputBuffer(format: outputFormat, frameCount: 10_000, value: value))
+            var capturedSamples: [Int16] = []
+            for (index, frameCount) in frameCounts.enumerated() {
+                let value = Int16(index + 1)
+                capturedSamples += Array(repeating: value, count: frameCount)
+                let buffer = try #require(
+                    Self.makeOutputBuffer(format: outputFormat, frameCount: AVAudioFrameCount(frameCount), value: value)
+                )
                 _ = try session.ingestConvertedBuffer(buffer)
             }
             try session.activateRecordingWindow()
@@ -108,9 +122,15 @@
             session.close()
             recordingFile = nil
 
-            #expect(outcome.writtenFrameCount == 24_000)
-            let file = try AVAudioFile(forReading: fileURL)
-            #expect(file.length == 24_000)
+            let expectedSamples = Array(capturedSamples.suffix(24_000))
+            #expect(outcome.writtenFrameCount == AVAudioFramePosition(expectedSamples.count))
+            let file = try AVAudioFile(forReading: fileURL, commonFormat: .pcmFormatInt16, interleaved: false)
+            #expect(file.length == AVAudioFramePosition(expectedSamples.count))
+            let readBuffer = try #require(
+                AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)))
+            try file.read(into: readBuffer)
+            let samples = try #require(readBuffer.int16ChannelData?[0])
+            #expect(Array(UnsafeBufferPointer(start: samples, count: Int(readBuffer.frameLength))) == expectedSamples)
         }
 
         @Test func recordingFileStabilizerWaitsUntilFileBecomesReadable() async throws {

@@ -138,54 +138,18 @@ nonisolated struct SpeechAwareGainProcessor: SpeechEnhancing {
     }
 
     private static func writeSamples(_ samples: [Float]) throws -> URL {
-        guard
-            let outputFormat = AVAudioFormat(
-                commonFormat: .pcmFormatInt16,
-                sampleRate: TranscriptionUploadAudioFormat.macSampleRate,
-                channels: TranscriptionUploadAudioFormat.macChannelCount,
-                interleaved: false
-            )
-        else {
-            throw SpeechEnhancementError.unableToCreateOutputFormat
+        do {
+            return try AudioWavWriter.writePCM16MonoWav(samples: samples, filePrefix: "speech-enhanced")
+        } catch let error as AudioWavWriterError {
+            switch error {
+            case .unableToCreateOutputFormat:
+                throw SpeechEnhancementError.unableToCreateOutputFormat
+            case .unableToCreateOutputBuffer:
+                throw SpeechEnhancementError.unableToCreateOutputBuffer
+            case .unableToAccessOutputChannelData:
+                throw SpeechEnhancementError.unableToAccessOutputChannelData
+            }
         }
-
-        let outputURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("speech-enhanced-\(UUID().uuidString)")
-            .appendingPathExtension("wav")
-
-        if FileManager.default.fileExists(atPath: outputURL.path) {
-            try FileManager.default.removeItem(at: outputURL)
-        }
-
-        let audioFile = try AVAudioFile(
-            forWriting: outputURL,
-            settings: outputFormat.settings,
-            commonFormat: outputFormat.commonFormat,
-            interleaved: outputFormat.isInterleaved
-        )
-
-        guard
-            let buffer = AVAudioPCMBuffer(
-                pcmFormat: outputFormat,
-                frameCapacity: AVAudioFrameCount(samples.count)
-            )
-        else {
-            throw SpeechEnhancementError.unableToCreateOutputBuffer
-        }
-
-        buffer.frameLength = AVAudioFrameCount(samples.count)
-        guard let channelData = buffer.int16ChannelData else {
-            throw SpeechEnhancementError.unableToAccessOutputChannelData
-        }
-
-        for index in samples.indices {
-            let clamped = min(max(Double(samples[index]), -1), 1)
-            let scaled = (clamped * Double(Int16.max)).rounded()
-            channelData[0][index] = Int16(max(Double(Int16.min), min(scaled, Double(Int16.max))))
-        }
-
-        try audioFile.write(from: buffer)
-        return outputURL
     }
 }
 
