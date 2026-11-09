@@ -23,6 +23,13 @@ Git/worktree 工具：`python3 -m unittest discover -s scripts/tests -p 'test_*.
 
 macOS-only 目标（`ci-build`、`release-github`、`doctor` 等）见根 [`Makefile`](../Makefile)。
 
+`make test` 顺序运行两个独立的测试进程：先并行运行常规测试，再运行三个刻意
+阻塞 MainActor 的后台音频回归测试。后者用于验证音频处理不依赖 MainActor，
+若和常规测试同进程并行，会消耗其他测试的 3 秒状态等待期限，在较慢的 CI runner
+上造成启动状态误报超时。两组都必须通过；没有延长等待期限或跳过回归测试。
+单独验证这三个回归用例可运行 `make test-mainactor-isolation`；它们的完整标识符由
+[Makefile](../Makefile) 中的 `MACOS_MAIN_ACTOR_ISOLATION_TESTS` 统一维护。
+
 ## Hook 与 CI
 
 - Pre-commit：[.githooks/](../.githooks)（若已安装）。
