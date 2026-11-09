@@ -1,0 +1,240 @@
+{
+  "source_sha256": {
+    "StetMac/Core/Audio/Devices/AudioInputDeviceManager.swift": "608943c03d35c7eeb40e4d3148df8962f580a1e47be6f70a8d6027bfdc399bf5",
+    "StetMac/Core/Audio/Devices/AudioDeviceChangeMonitor.swift": "585b4a77839e56a88563ed85d3faa3d4c232a95e131297c29f46f1cc82900688",
+    "StetMac/Core/Audio/Devices/AudioHardwareDevice.swift": "f4c68dc715578569c7200d9346621fd44f0dea7823e0df3105c30b44184d8cab",
+    "StetMacTests/Core/Audio/Devices/AudioInputDeviceManagerTests.swift": "0bb7d12b1d3658657c48eede0b0a679e838ce66a2c909e13d486df8ac9ef57d1",
+    "StetMacTests/Core/Audio/Devices/AudioDeviceChangeMonitorTests.swift": "e249c758a1efe9f886aa58110941633f32e8c8893e290f796ebdc760bf2903fc"
+  },
+  "baseline": "passed",
+  "baseline_evidence": [
+    "􁁛  Test run with 8 tests in 2 suites passed after 0.001 seconds."
+  ],
+  "restored": "passed",
+  "restored_evidence": [
+    "􁁛  Test run with 8 tests in 2 suites passed after 0.001 seconds."
+  ],
+  "mutations": [
+    {
+      "mutation": "input-uses-output",
+      "target": "AudioInputDeviceManager",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test defaultIDsDoNotDependOnReadableMetadataOrInputChannels() recorded an issue at AudioInputDeviceManagerTests.swift:40:13: Expectation failed: AudioInputDeviceManager.defaultInputDeviceID(system: system) == 1",
+        "􀢄  Test defaultIDsDoNotDependOnReadableMetadataOrInputChannels() recorded an issue at AudioInputDeviceManagerTests.swift:46:13: Expectation failed: AudioInputDeviceManager.defaultInputDeviceID(system: unreadable) == 3",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 2 issues."
+      ]
+    },
+    {
+      "mutation": "lose-default-input-value",
+      "target": "AudioInputDeviceManager",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test defaultIDsDoNotDependOnReadableMetadataOrInputChannels() recorded an issue at AudioInputDeviceManagerTests.swift:41:13: Expectation failed: AudioInputDeviceManager.defaultInputDevice(system: system)?.id == 1",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 1 issue."
+      ]
+    },
+    {
+      "mutation": "notify-after-failed-stop",
+      "target": "AudioDeviceChangeMonitor",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test failedRemovalRetriesWithoutDuplicateRegistration() recorded an issue at AudioDeviceChangeMonitorTests.swift:81:13: Expectation failed: received.value == 0",
+        "􀢄  Test failedRemovalRetriesWithoutDuplicateRegistration() recorded an issue at AudioDeviceChangeMonitorTests.swift:86:13: Expectation failed: received.value == 1",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 2 issues."
+      ]
+    },
+    {
+      "mutation": "accept-unknown-default",
+      "target": "AudioInputDeviceManager",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test missingUnknownAndFailedDefaultsReturnNil() recorded an issue at AudioInputDeviceManagerTests.swift:55:17: Expectation failed: AudioInputDeviceManager.defaultInputDeviceID(system: system) == nil",
+        "􀢄  Test missingUnknownAndFailedDefaultsReturnNil() recorded an issue at AudioInputDeviceManagerTests.swift:56:17: Expectation failed: AudioInputDeviceManager.defaultOutputDeviceID(system: system) == nil",
+        "􀢄  Test missingUnknownAndFailedDefaultsReturnNil() recorded an issue at AudioInputDeviceManagerTests.swift:57:17: Expectation failed: AudioInputDeviceManager.defaultInputDevice(system: system) == nil",
+        "􀢄  Test missingUnknownAndFailedDefaultsReturnNil() recorded an issue at AudioInputDeviceManagerTests.swift:58:17: Expectation failed: AudioInputDeviceManager.defaultOutputDevice(system: system) == nil",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.002 seconds with 4 issues."
+      ]
+    },
+    {
+      "mutation": "accept-empty-name",
+      "target": "AudioInputDeviceManager",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test enumerationKeepsHealthyDevicesWhenOtherPropertiesFail() recorded an issue at AudioInputDeviceManagerTests.swift:24:13: Expectation failed: result.map(\\.id) == [1, 3, 7]",
+        "􀢄  Test enumerationKeepsHealthyDevicesWhenOtherPropertiesFail() recorded an issue at AudioInputDeviceManagerTests.swift:28:13: Expectation failed: result.last?.transportType == kAudioDeviceTransportTypeUnknown",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 2 issues."
+      ]
+    },
+    {
+      "mutation": "wrong-transport-fallback",
+      "target": "AudioInputDeviceManager",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test enumerationKeepsHealthyDevicesWhenOtherPropertiesFail() recorded an issue at AudioInputDeviceManagerTests.swift:28:13: Expectation failed: result.last?.transportType == kAudioDeviceTransportTypeUnknown",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 1 issue."
+      ]
+    },
+    {
+      "mutation": "discard-entire-list",
+      "target": "AudioInputDeviceManager",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test enumerationKeepsHealthyDevicesWhenOtherPropertiesFail() recorded an issue at AudioInputDeviceManagerTests.swift:24:13: Expectation failed: result.map(\\.id) == [1, 3, 7]",
+        "􀢄  Test enumerationKeepsHealthyDevicesWhenOtherPropertiesFail() recorded an issue at AudioInputDeviceManagerTests.swift:25:13: Expectation failed: result.first?.uid == \"uid-1\"",
+        "􀢄  Test enumerationKeepsHealthyDevicesWhenOtherPropertiesFail() recorded an issue at AudioInputDeviceManagerTests.swift:26:13: Expectation failed: result.first?.name == \"Microphone\"",
+        "􀢄  Test enumerationKeepsHealthyDevicesWhenOtherPropertiesFail() recorded an issue at AudioInputDeviceManagerTests.swift:27:13: Expectation failed: result.first?.transportType == kAudioDeviceTransportTypeUSB",
+        "􀢄  Test enumerationKeepsHealthyDevicesWhenOtherPropertiesFail() recorded an issue at AudioInputDeviceManagerTests.swift:28:13: Expectation failed: result.last?.transportType == kAudioDeviceTransportTypeUnknown",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 5 issues."
+      ]
+    },
+    {
+      "mutation": "accept-output-only",
+      "target": "AudioInputDeviceManager",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test enumerationKeepsHealthyDevicesWhenOtherPropertiesFail() recorded an issue at AudioInputDeviceManagerTests.swift:24:13: Expectation failed: result.map(\\.id) == [1, 3, 7]",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 1 issue."
+      ]
+    },
+    {
+      "mutation": "require-all-buffers-input",
+      "target": "AudioInputDeviceManager",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test enumerationKeepsHealthyDevicesWhenOtherPropertiesFail() recorded an issue at AudioInputDeviceManagerTests.swift:24:13: Expectation failed: result.map(\\.id) == [1, 3, 7]",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 1 issue."
+      ]
+    },
+    {
+      "mutation": "accept-failed-input-read",
+      "target": "AudioInputDeviceManager",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test enumerationKeepsHealthyDevicesWhenOtherPropertiesFail() recorded an issue at AudioInputDeviceManagerTests.swift:24:13: Expectation failed: result.map(\\.id) == [1, 3, 7]",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 1 issue."
+      ]
+    },
+    {
+      "mutation": "duplicate-registration",
+      "target": "AudioDeviceChangeMonitor",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test failedRemovalRetriesWithoutDuplicateRegistration() recorded an issue at AudioDeviceChangeMonitorTests.swift:84:13: Expectation failed: system.addCount == 1",
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:23:13: Expectation failed: system.addCount == 1",
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:44:13: Expectation failed: system.addCount == 2",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 3 issues."
+      ]
+    },
+    {
+      "mutation": "unregister-first-client",
+      "target": "AudioDeviceChangeMonitor",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:29:13: Expectation failed: system.removeCount == 0",
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:31:13: Expectation failed: received.value == 2",
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:39:13: Expectation failed: received.value == 2",
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:46:13: Expectation failed: received.value == 3",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 4 issues."
+      ]
+    },
+    {
+      "mutation": "leak-failed-start-count",
+      "target": "AudioDeviceChangeMonitor",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test failedRegistrationCanRetryWithoutLeakingClientCount() recorded an issue at AudioDeviceChangeMonitorTests.swift:62:13: Expectation failed: system.removeCount == 1",
+        "􀢄  Test failedRegistrationCanRetryWithoutLeakingClientCount() recorded an issue at AudioDeviceChangeMonitorTests.swift:63:13: Expectation failed: system.delegates.isEmpty",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 2 issues."
+      ]
+    },
+    {
+      "mutation": "notify-after-stop",
+      "target": "AudioDeviceChangeMonitor",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:39:13: Expectation failed: received.value == 2",
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:46:13: Expectation failed: received.value == 3",
+        "􀢄  Test failedRemovalRetriesWithoutDuplicateRegistration() recorded an issue at AudioDeviceChangeMonitorTests.swift:81:13: Expectation failed: received.value == 0",
+        "􀢄  Test failedRemovalRetriesWithoutDuplicateRegistration() recorded an issue at AudioDeviceChangeMonitorTests.swift:86:13: Expectation failed: received.value == 1",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 4 issues."
+      ]
+    },
+    {
+      "mutation": "drop-notification",
+      "target": "AudioDeviceChangeMonitor",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test failedRemovalRetriesWithoutDuplicateRegistration() recorded an issue at AudioDeviceChangeMonitorTests.swift:86:13: Expectation failed: received.value == 1",
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:26:13: Expectation failed: received.value == 1",
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:31:13: Expectation failed: received.value == 2",
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:39:13: Expectation failed: received.value == 2",
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:46:13: Expectation failed: received.value == 3",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 5 issues."
+      ]
+    },
+    {
+      "mutation": "forget-failed-removal",
+      "target": "AudioDeviceChangeMonitor",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test failedRemovalRetriesWithoutDuplicateRegistration() recorded an issue at AudioDeviceChangeMonitorTests.swift:84:13: Expectation failed: system.addCount == 1",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 1 issue."
+      ]
+    },
+    {
+      "mutation": "skip-deinit-cleanup",
+      "target": "AudioDeviceChangeMonitor",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test deinitRemovesRegistrationWithOutstandingClients() recorded an issue at AudioDeviceChangeMonitorTests.swift:101:13: Expectation failed: system.removeCount == 1",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 1 issue."
+      ]
+    },
+    {
+      "mutation": "retain-monitor",
+      "target": "AudioDeviceChangeMonitor",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test deinitRemovesRegistrationWithOutstandingClients() recorded an issue at AudioDeviceChangeMonitorTests.swift:100:13: Expectation failed: releasedMonitor == nil",
+        "􀢄  Test deinitRemovesRegistrationWithOutstandingClients() recorded an issue at AudioDeviceChangeMonitorTests.swift:101:13: Expectation failed: system.removeCount == 1",
+        "􀢄  Test deinitRemovesRegistrationWithOutstandingClients() recorded an issue at AudioDeviceChangeMonitorTests.swift:102:13: Expectation failed: system.delegates.isEmpty",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.002 seconds with 3 issues."
+      ]
+    },
+    {
+      "mutation": "wrong-listener-property",
+      "target": "AudioDeviceChangeMonitor",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:141:13: Expectation failed: properties.first?.mSelector == kAudioHardwarePropertyDevices",
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:141:13: Expectation failed: properties.first?.mSelector == kAudioHardwarePropertyDevices",
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:141:13: Expectation failed: properties.first?.mSelector == kAudioHardwarePropertyDevices",
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:141:13: Expectation failed: properties.first?.mSelector == kAudioHardwarePropertyDevices",
+        "􀢄  Test failedRemovalRetriesWithoutDuplicateRegistration() recorded an issue at AudioDeviceChangeMonitorTests.swift:141:13: Expectation failed: properties.first?.mSelector == kAudioHardwarePropertyDevices",
+        "􀢄  Test failedRemovalRetriesWithoutDuplicateRegistration() recorded an issue at AudioDeviceChangeMonitorTests.swift:141:13: Expectation failed: properties.first?.mSelector == kAudioHardwarePropertyDevices",
+        "􀢄  Test failedRemovalRetriesWithoutDuplicateRegistration() recorded an issue at AudioDeviceChangeMonitorTests.swift:141:13: Expectation failed: properties.first?.mSelector == kAudioHardwarePropertyDevices",
+        "􀢄  Test failedRegistrationCanRetryWithoutLeakingClientCount() recorded an issue at AudioDeviceChangeMonitorTests.swift:141:13: Expectation failed: properties.first?.mSelector == kAudioHardwarePropertyDevices",
+        "􀢄  Test failedRegistrationCanRetryWithoutLeakingClientCount() recorded an issue at AudioDeviceChangeMonitorTests.swift:141:13: Expectation failed: properties.first?.mSelector == kAudioHardwarePropertyDevices",
+        "􀢄  Test failedRegistrationCanRetryWithoutLeakingClientCount() recorded an issue at AudioDeviceChangeMonitorTests.swift:141:13: Expectation failed: properties.first?.mSelector == kAudioHardwarePropertyDevices",
+        "􀢄  Test deinitRemovesRegistrationWithOutstandingClients() recorded an issue at AudioDeviceChangeMonitorTests.swift:141:13: Expectation failed: properties.first?.mSelector == kAudioHardwarePropertyDevices",
+        "􀢄  Test «unknown» recorded an issue at AudioDeviceChangeMonitorTests.swift:141:13: Expectation failed: properties.first?.mSelector == kAudioHardwarePropertyDevices",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 12 issues."
+      ]
+    },
+    {
+      "mutation": "wrong-callback-queue",
+      "target": "AudioDeviceChangeMonitor",
+      "verdict": "killed",
+      "evidence": [
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:139:13: Expectation failed: queue === DispatchQueue.main",
+        "􀢄  Test sharesRegistrationUntilLastClientStops() recorded an issue at AudioDeviceChangeMonitorTests.swift:139:13: Expectation failed: queue === DispatchQueue.main",
+        "􀢄  Test failedRemovalRetriesWithoutDuplicateRegistration() recorded an issue at AudioDeviceChangeMonitorTests.swift:139:13: Expectation failed: queue === DispatchQueue.main",
+        "􀢄  Test deinitRemovesRegistrationWithOutstandingClients() recorded an issue at AudioDeviceChangeMonitorTests.swift:139:13: Expectation failed: queue === DispatchQueue.main",
+        "􀢄  Test failedRegistrationCanRetryWithoutLeakingClientCount() recorded an issue at AudioDeviceChangeMonitorTests.swift:139:13: Expectation failed: queue === DispatchQueue.main",
+        "􀢄  Test failedRegistrationCanRetryWithoutLeakingClientCount() recorded an issue at AudioDeviceChangeMonitorTests.swift:139:13: Expectation failed: queue === DispatchQueue.main",
+        "􀢄  Test run with 8 tests in 2 suites failed after 0.001 seconds with 6 issues."
+      ]
+    }
+  ]
+}
