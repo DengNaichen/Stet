@@ -54,6 +54,29 @@
             #expect(manager.isModelDownloaded())
         }
 
+        @Test func resolvesVersionedANEArtifactButStillRequiresCPUFallback() throws {
+            let directory = TestSupport.temporaryDirectoryURL()
+            defer { try? FileManager.default.removeItem(at: directory) }
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let manager = FunASRNanoModelManager(modelsDirectoryProvider: { directory })
+            let cpu = try manager.modelFiles()
+            for file in cpu.allFiles { try Data("fixture".utf8).write(to: file) }
+            let legacy = directory.appendingPathComponent("FunASRNanoEncoder.mlmodelc")
+            try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+            #expect(try manager.resolvedModelFiles().encoder == cpu.encoder)
+
+            let ane = directory.appendingPathComponent("FunASRNanoANE-v1.mlmodelc", isDirectory: true)
+            try FileManager.default.createDirectory(at: ane, withIntermediateDirectories: true)
+            #if arch(arm64)
+                if #available(macOS 15, *) {
+                    #expect(try manager.resolvedModelFiles().encoder == ane)
+                }
+            #endif
+            try FileManager.default.removeItem(at: cpu.encoder)
+            #expect(!manager.isModelDownloaded())
+            #expect(throws: FunASRNanoModelError.self) { try manager.resolvedModelFiles() }
+        }
+
         @Test func invalidHTTPResponseDoesNotInstallComponent() async throws {
             let modelsDirectory = TestSupport.temporaryDirectoryURL()
             let stagedFile = TestSupport.temporaryFileURL("funasr-invalid-download", ext: "gguf")

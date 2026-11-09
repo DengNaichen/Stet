@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(StetFunASRRuntime LANGUAGES C CXX)
+project(StetFunASRRuntime LANGUAGES C CXX OBJC OBJCXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -33,7 +33,7 @@ endif()
 
 add_subdirectory("${LLAMA_SOURCE_DIR}" llama EXCLUDE_FROM_ALL)
 
-add_library(StetFunASRRuntime STATIC stet_funasr.cpp)
+add_library(StetFunASRRuntime STATIC stet_funasr.cpp stet_funasr_coreml.mm)
 target_include_directories(StetFunASRRuntime
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
     PRIVATE "${FUNASR_SOURCE_DIR}/runtime/llama.cpp/funasr-common"
@@ -51,3 +51,6 @@ set_target_properties(StetFunASRRuntime PROPERTIES
 
 install(TARGETS StetFunASRRuntime ARCHIVE DESTINATION lib)
 install(FILES include/stet_funasr.h DESTINATION include)
+
+set_source_files_properties(stet_funasr_coreml.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+target_link_libraries(StetFunASRRuntime PRIVATE "-framework CoreML" "-framework Foundation")

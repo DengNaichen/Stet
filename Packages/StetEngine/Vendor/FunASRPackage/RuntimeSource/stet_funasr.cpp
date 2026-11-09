@@ -15,6 +15,8 @@
 #include "gguf.h"
 #include "llama.h"
 #include "stet_funasr.h"
+#include "stet_funasr_coreml.hpp"
+#include <memory>
 
 #include <algorithm>
 #include <cmath>
@@ -178,6 +180,8 @@ static int decode_batch(llama_context*ctx,int n,llama_token*tok,float*embd,int n
 
 struct stet_funasr_context {
     enc_model encoder;
+    std::unique_ptr<StetCoreMLEncoder> coreml_encoder;
+    std::string cpu_encoder_path;
     llama_model *model = nullptr;
     llama_context *llama = nullptr;
     llama_sampler *sampler = nullptr;
@@ -238,10 +242,20 @@ extern "C" stet_funasr_context *stet_funasr_create(
         context->vad_path=vad_path;
         ggml_time_init();
         llama_log_set(runtime_log_callback,nullptr);
-        if(!load_enc(encoder_path,context->encoder))throw std::runtime_error("encoder model could not be loaded");
+        context->cpu_encoder_path=encoder_path;
+        std::string selected_path=encoder_path;
+        if(selected_path.size()>=9 && selected_path.compare(selected_path.size()-9,9,".mlmodelc")==0){
+            context->cpu_encoder_path=selected_path.substr(0,selected_path.find_last_of('/')+1)+"funasr-encoder-f16.gguf";
+#if defined(__aarch64__) || defined(__arm64__)
+            try { context->coreml_encoder=std::make_unique<StetCoreMLEncoder>(encoder_path); }
+            catch(const std::exception &e) { fprintf(stderr,"FunASR Core ML load failed; using CPU: %s\n",e.what()); }
+#endif
+        }
+        if(!context->coreml_encoder && !load_enc(context->cpu_encoder_path.c_str(),context->encoder))
+            throw std::runtime_error("encoder model could not be loaded");
         llama_model_params mp=llama_model_default_params();
 #if defined(GGML_USE_METAL)
-        // Qwen3 decoder on Metal; SAN-M encoder stays on the CPU ggml graph.
+        // Qwen3 decoder stays on Metal with either the Core ML or CPU encoder.
         ggml_backend_load_all();
         mp.n_gpu_layers=99;
 #else
@@ -297,7 +311,19 @@ extern "C" stet_funasr_status stet_funasr_transcribe(
             if(end-off<WINLEN)continue;
             std::vector<float>samples(wav.begin()+off,wav.begin()+end);
             int T=0; auto fbank=compute_fbank(samples,T);
-            int D=0; auto adaptor=run_encoder(context->encoder,fbank,T,560,D,context->thread_count);
+            int D=1024; std::vector<float> adaptor;
+            if(context->coreml_encoder){
+                try { adaptor=context->coreml_encoder->encode(fbank,T); }
+                catch(const std::exception &e) {
+                    fprintf(stderr,"FunASR Core ML prediction failed; using CPU: %s\n",e.what());
+                    context->coreml_encoder.reset();
+                }
+            }
+            if(!context->coreml_encoder){
+                if(!context->encoder.ctx_w && !load_enc(context->cpu_encoder_path.c_str(),context->encoder))
+                    throw std::runtime_error("CPU encoder fallback could not be loaded");
+                adaptor=run_encoder(context->encoder,fbank,T,560,D,context->thread_count);
+            }
             int ol=1+(T-3+2)/2; ol=1+(ol-3+2)/2; int n_audio=(ol-1)/2+1;
             llama_memory_clear(llama_get_memory(context->llama),true);
             llama_sampler_reset(context->sampler);
@@ -330,3 +356,7 @@ extern "C" stet_funasr_status stet_funasr_transcribe(
 extern "C" void stet_funasr_free_text(char*text){free(text);}
 extern "C" void stet_funasr_destroy(stet_funasr_context*context){destroy_context(context);}
 extern "C" const char *stet_funasr_version(void){return "FunASR 9474bdb / llama.cpp 8086439";}
+
+extern "C" const char *stet_funasr_encoder_backend(const stet_funasr_context *context) {
+    return context && context->coreml_encoder ? "coreml-cpu-and-ne" : "ggml-cpu";
+}
