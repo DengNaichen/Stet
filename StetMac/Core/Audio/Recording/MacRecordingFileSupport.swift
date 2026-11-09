@@ -1,5 +1,6 @@
 #if os(macOS)
     @preconcurrency import AVFoundation
+    import DequeModule
     import Foundation
 
     struct MacAudioFileRecordingOutcome: Sendable {
@@ -117,7 +118,7 @@
         private var didWriteAudio = false
         private var droppedBufferLogCount = 0
         private var hasActivatedCaptureWindow = false
-        private var pendingBuffers: [AVAudioPCMBuffer] = []
+        private var pendingBuffers: Deque<AVAudioPCMBuffer> = []
         private var pendingFrameCount: AVAudioFramePosition = 0
 
         nonisolated init(

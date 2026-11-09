@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A21900010000000000000001 /* DequeModule in Frameworks */ = {isa = PBXBuildFile; productRef = A21900030000000000000001 /* DequeModule */; };
 		A1C000010000000000000001 /* MCP in Frameworks */ = {isa = PBXBuildFile; productRef = A1C000030000000000000001 /* MCP */; };
 		A1C000010000000000000002 /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1C000030000000000000002 /* NIOCore */; };
 		A1C000010000000000000003 /* NIOPosix in Frameworks */ = {isa = PBXBuildFile; productRef = A1C000030000000000000003 /* NIOPosix */; };
@@ -114,6 +115,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C4A1E0010000000000000001 /* EventKit.framework in Frameworks */,
+				A21900010000000000000001 /* DequeModule in Frameworks */,
 				A1C000010000000000000001 /* MCP in Frameworks */,
 				A1C000010000000000000002 /* NIOCore in Frameworks */,
 				A1C000010000000000000003 /* NIOPosix in Frameworks */,
@@ -212,6 +214,7 @@
 			);
 			name = Stet;
 			packageProductDependencies = (
+				A21900030000000000000001 /* DequeModule */,
 				A1C000030000000000000001 /* MCP */,
 				A1C000030000000000000002 /* NIOCore */,
 				A1C000030000000000000003 /* NIOPosix */,
@@ -339,6 +342,7 @@
 			mainGroup = 6D29DC742F5FA23000267DEA;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				A21900020000000000000001 /* XCRemoteSwiftPackageReference "swift-collections" */,
 				A1C000020000000000000001 /* XCRemoteSwiftPackageReference "mcp-swift-sdk" */,
 				A1C000020000000000000002 /* XCRemoteSwiftPackageReference "swift-nio" */,
 				C80A4F65301851B7005C2101 /* XCRemoteSwiftPackageReference "OpenAI" */,
@@ -934,6 +938,14 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		A21900020000000000000001 /* XCRemoteSwiftPackageReference "swift-collections" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-collections.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.4.1;
+			};
+		};
 		A1C000020000000000000001 /* XCRemoteSwiftPackageReference "mcp-swift-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/modelcontextprotocol/swift-sdk.git";
@@ -1001,6 +1013,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		A21900030000000000000001 /* DequeModule */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A21900020000000000000001 /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = DequeModule;
+		};
 		A1C000030000000000000001 /* MCP */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A1C000020000000000000001 /* XCRemoteSwiftPackageReference "mcp-swift-sdk" */;
