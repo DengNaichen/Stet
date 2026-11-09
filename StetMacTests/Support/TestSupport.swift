@@ -359,6 +359,12 @@ actor ControllableSpeechService: SpeechService, AudioLevelSource {
 }
 
 actor RecordingRewriteService: TextRewriteService {
+    private let onPrewarm: @Sendable () -> Void
+
+    init(onPrewarm: @escaping @Sendable () -> Void = {}) {
+        self.onPrewarm = onPrewarm
+    }
+
     private(set) var requests: [TextRewriteRequest] = []
     private(set) var prewarmRequests: [TextRewriteRequest] = []
     private var result = "rewritten"
@@ -382,6 +388,7 @@ actor RecordingRewriteService: TextRewriteService {
 
     func prewarm(_ request: TextRewriteRequest) async {
         prewarmRequests.append(request)
+        onPrewarm()
     }
 
     func rewrite(_ request: TextRewriteRequest) async throws -> String {
@@ -472,6 +479,12 @@ enum TestURLSessionFactory {
 
 /// Holds an async dependency at a known suspension, even if its caller is cancelled.
 actor TestSuspensionGate {
+    private let onWait: @Sendable () -> Void
+
+    init(onWait: @escaping @Sendable () -> Void = {}) {
+        self.onWait = onWait
+    }
+
     private var isOpen = false
     private var continuations: [CheckedContinuation<Void, Never>] = []
     private(set) var hasWaiter = false
@@ -481,6 +494,7 @@ actor TestSuspensionGate {
         await withTaskCancellationHandler {
             guard !isOpen else { return }
             hasWaiter = true
+            onWait()
             await withCheckedContinuation { continuations.append($0) }
         } onCancel: {
             Task { await self.markCancelled() }

@@ -96,14 +96,19 @@
             }
         }
 
-        @Test func repeatedStartWhileHardwareIsStartingDoesNotCreateAnotherRecording() async throws {
+        @Test(.timeLimit(.minutes(1)))
+        func repeatedStartWhileHardwareIsStartingDoesNotCreateAnotherRecording() async throws {
             let root = TestSupport.temporaryDirectoryURL()
             defer { try? FileManager.default.removeItem(at: root) }
             let hold = AsyncHold()
-            let recording = RecordingFixture(startHold: hold)
+            let (started, continuation) = AsyncStream<Void>.makeStream()
+            defer { continuation.finish() }
+            let recording = RecordingFixture(startHold: hold, onStart: { continuation.yield() })
             let runtime = makeRuntime(root: root, recording: recording)
             let start = Task { await runtime.start() }
-            #expect(await TestSupport.eventuallyAsync { await recording.startCount == 1 })
+            var starts = started.makeAsyncIterator()
+            try #require(await starts.next() != nil)
+            #expect(await recording.startCount == 1)
             #expect(await runtime.isBusy())
             #expect(await runtime.currentPhase() == .starting)
             await runtime.toggle()
@@ -187,14 +192,20 @@
         private var failure: String?
         private let startHold: AsyncHold?
         private let startError: String?
+        private let onStart: @Sendable () -> Void
 
-        init(startHold: AsyncHold? = nil, startError: String? = nil) {
+        init(
+            startHold: AsyncHold? = nil, startError: String? = nil,
+            onStart: @escaping @Sendable () -> Void = {}
+        ) {
             self.startHold = startHold
             self.startError = startError
+            self.onStart = onStart
         }
 
         func start(in directory: URL, onFailure: @escaping @Sendable (String) -> Void) async throws {
             startCount += 1
+            onStart()
             await startHold?.wait()
             failureHandler = onFailure
             let session = try MeetingAudioFileSession(directory: directory, startTime: 100)

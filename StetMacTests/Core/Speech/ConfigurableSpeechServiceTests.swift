@@ -100,11 +100,18 @@ private func makeProcessedAudioResult(
 
 @Suite("Configurable Speech Service", .serialized)
 struct ConfigurableSpeechServiceTests {
-    @Test func cancellationDuringTargetLookupDoesNotStartRewrite() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func cancellationDuringTargetLookupDoesNotStartRewrite() async throws {
         let (store, _, _) = try makeSettingsStore(rewriteEnabled: true)
-        let gate = TestSuspensionGate()
+        let (prewarmed, prewarmContinuation) = AsyncStream<Void>.makeStream()
+        let (lookupStarted, lookupContinuation) = AsyncStream<Void>.makeStream()
+        defer {
+            prewarmContinuation.finish()
+            lookupContinuation.finish()
+        }
+        let gate = TestSuspensionGate(onWait: { lookupContinuation.yield() })
         let direct = TestTranscriptionService(result: "old transcript")
-        let rewrite = RecordingRewriteService()
+        let rewrite = RecordingRewriteService(onPrewarm: { prewarmContinuation.yield() })
         let service = ConfigurableSpeechService(
             settingsStore: store,
             pipelineFactory: DictationPipelineFactory(
@@ -117,13 +124,12 @@ struct ConfigurableSpeechServiceTests {
             captureService: TestAudioCaptureService(audioFileURL: makeAudioFileURL())
         )
         try await service.startRecordingAndActivate()
-        // Let the independent warm-up finish so the gate identifies processing lookup.
-        try #require(
-            await TestSupport.eventuallyAsync(timeout: .seconds(3)) {
-                !(await rewrite.recordedPrewarmRequests()).isEmpty
-            })
+        // Synchronize with the actual events; runner scheduling is not part of this contract.
+        var warmups = prewarmed.makeAsyncIterator()
+        try #require(await warmups.next() != nil)
         let stop = Task { try await service.stopRecording() }
-        try #require(await TestSupport.eventuallyAsync { await gate.hasWaiter })
+        var lookups = lookupStarted.makeAsyncIterator()
+        try #require(await lookups.next() != nil)
         await service.cancelRecording()
         await gate.open()
         await #expect(throws: CancellationError.self) { try await stop.value }
