@@ -9,10 +9,18 @@ MACOS_CACHE_FLAGS = COMPILATION_CACHE_ENABLE_CACHING=$(MACOS_COMPILATION_CACHE) 
 
 IOS_XCODEBUILD := $(IOS_DEVELOPER_DIR)/usr/bin/xcodebuild
 
+# These regressions deliberately block MainActor while background audio work runs.
+# Keep them out of the process that runs other tests' wall-clock polling deadlines.
+MACOS_MAIN_ACTOR_ISOLATION_TESTS := \
+	StetTests/AudioM4AWriterTests/encodingCanFinishWhileMainActorIsOccupied() \
+	StetTests/DefaultAudioPostProcessorTests/speechProcessingCanFinishWhileMainActorIsOccupied() \
+	StetTests/MacRecordingFileStabilizerTests/existingFileCanStabilizeWhileMainActorIsOccupied()
+MACOS_TEST_COMMAND = xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' $(MACOS_CACHE_FLAGS) $(CI_XCODEBUILD_FLAGS)
+
 MACOS_SWIFT_DIRS := StetMac StetMacTests StetMacUITests StetVisuals
 IOS_SWIFT_DIRS := StetMobile/StetKeyboard StetMobile/StetLiveActivity StetMobile/StetMobile StetMobile/StetMobileTests StetMobile/StetMobileUITests
 
-.PHONY: docs-lint docs-lint-setup docs-lint-test help swiftlint format format-lint lint whisper-deps build ci-build test ios-bootstrap ios-build setup-worktree doctor clean-derived-data release-github notary-setup
+.PHONY: docs-lint docs-lint-setup docs-lint-test help swiftlint format format-lint lint whisper-deps build ci-build test test-mainactor-isolation ios-bootstrap ios-build setup-worktree doctor clean-derived-data release-github notary-setup
 
 help:
 	@echo "Available targets:"
@@ -25,7 +33,8 @@ help:
 	@echo "  docs-lint-test  Test the link checker"
 	@echo "  build           Build the macOS app"
 	@echo "  ci-build        Build without code signing for CI"
-	@echo "  test            Run macOS tests"
+	@echo "  test            Run macOS tests, then MainActor isolation regressions separately"
+	@echo "  test-mainactor-isolation Run only the MainActor obstruction regressions"
 	@echo "  ios-bootstrap   Download the ignored iOS runtime frameworks"
 	@echo "  ios-build       Build the iOS app for the simulator"
 	@echo "  setup-worktree  Prepare tools; reuse validated worktree caches"
@@ -66,7 +75,11 @@ ci-build:
 	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' $(MACOS_CACHE_FLAGS) $(CI_XCODEBUILD_FLAGS) build
 
 test:
-	xcodebuild -project Stet.xcodeproj -scheme Stet -configuration Debug -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' -only-testing:StetTests $(MACOS_CACHE_FLAGS) $(CI_XCODEBUILD_FLAGS) test
+	$(MACOS_TEST_COMMAND) -only-testing:StetTests $(foreach test,$(MACOS_MAIN_ACTOR_ISOLATION_TESTS),'-skip-testing:$(test)') test
+	$(MAKE) test-mainactor-isolation
+
+test-mainactor-isolation:
+	$(MACOS_TEST_COMMAND) $(foreach test,$(MACOS_MAIN_ACTOR_ISOLATION_TESTS),'-only-testing:$(test)') test
 
 ios-bootstrap:
 	StetMobile/scripts/bootstrap-sherpa-runtime.sh
