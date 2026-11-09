@@ -16,7 +16,6 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/MacPaw/OpenAI.git", exact: "0.6.0"),
-        .package(url: "https://github.com/mattt/EventSource.git", exact: "1.4.1"),
         .package(path: "Vendor/SherpaOnnxPackage"),
         .package(path: "Vendor/FunASRPackage"),
     ],
@@ -57,7 +56,6 @@ let package = Package(
                 "StetCore",
                 "StetRewrite",
                 .product(name: "OpenAI", package: "OpenAI"),
-                .product(name: "EventSource", package: "EventSource"),
             ],
             path: "Sources/StetAI"
         ),
