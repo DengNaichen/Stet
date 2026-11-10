@@ -63,6 +63,11 @@ jobs:
       - name: Install Metal Toolchain
         run: xcodebuild -downloadComponent MetalToolchain
 
+      - name: Build FunASR runtime
+        env:
+          STET_FUNASR_BUILD_JOBS: '2'
+        run: Packages/StetEngine/Vendor/FunASRPackage/build-xcframework.sh
+
       - name: Show Tool Versions
         run: |
           xcodebuild -version
