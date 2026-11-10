@@ -177,6 +177,11 @@ jobs:
       - name: Install Metal Toolchain
         run: xcodebuild -downloadComponent MetalToolchain
 
+      # The checked-in legacy XCFramework does not expose new runtime APIs.
+      # Rebuild from the pinned sources before Swift imports the C header.
+      - name: Build FunASR runtime
+        run: Packages/StetEngine/Vendor/FunASRPackage/build-xcframework.sh
+
       - name: Build and test macOS app
         run: make test
 
