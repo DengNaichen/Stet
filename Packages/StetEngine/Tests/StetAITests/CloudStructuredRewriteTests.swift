@@ -511,6 +511,48 @@ struct CloudStructuredRewriteTests {
         #expect(PendingChatURLProtocol.requests.value == 1)
     }
 
+    @Test func cloudServicesPrewarmConnectionOnSharedSessionAndIgnoreFailures() async throws {
+        let seenPaths = RequestRecorder()
+        let session = TestHTTP.makeSession { request in
+            seenPaths.record("\(request.httpMethod ?? "") \(request.url?.absoluteString ?? "")")
+            if request.url?.path.hasSuffix("/models") == true {
+                #expect(request.httpMethod == "GET")
+                #expect(request.timeoutInterval == 10)
+                return try TestHTTP.response(for: request, body: #"{"error":{"message":"ignored"}}"#, statusCode: 503)
+            }
+            return try TestHTTP.response(for: request, body: Self.standardChatResponse)
+        }
+        defer { session.invalidateAndCancel() }
+
+        let deepSeek = OpenAIRewriteService(configuration: makeConfiguration(provider: .deepSeek), session: session)
+        await deepSeek.prewarm(.cleanup(""))
+        #expect(try await deepSeek.rewrite(.cleanup("hello")) == "OK")
+
+        let google = GoogleRewriteService(apiKey: " g-key ", model: "gemini-test", session: session)
+        await google.prewarm(.cleanup(""))
+
+        let anthropic = AnthropicRewriteService(apiKey: " a-key ", model: "claude-test", session: session)
+        await anthropic.prewarm(.cleanup(""))
+
+        let missingKey = OpenAIRewriteService(
+            configuration: DictationProviderConfigurationResolver.rewriteConfiguration(
+                provider: .deepSeek,
+                apiKey: " "
+            ),
+            session: session
+        )
+        await missingKey.prewarm(.cleanup(""))
+
+        #expect(
+            seenPaths.values == [
+                "GET https://api.example.com/v1/models",
+                "POST https://api.example.com/v1/chat/completions",
+                "GET https://generativelanguage.googleapis.com/v1beta/models?key=g-key",
+                "GET https://api.anthropic.com/v1/models",
+            ]
+        )
+    }
+
     private static let standardChatResponse =
         #"{"id":"chat-test","object":"chat.completion","created":1,"model":"test","choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{\"text\":\"OK\"}"}}]}"#
 
@@ -661,6 +703,21 @@ private final class RequestCounter: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         count += 1
+    }
+}
+
+private final class RequestRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var entries: [String] = []
+    var values: [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return entries
+    }
+    func record(_ entry: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        entries.append(entry)
     }
 }
 

@@ -18,6 +18,7 @@ struct DictationPipelineFactory: Sendable {
     var makeLocalTranscriptionService: @Sendable () throws -> any AudioFileTranscriptionService
     var makeRewriteService: @Sendable (RewriteProviderConfiguration, URLSession) -> any TextRewriteService
     var recordsNoHotwordTranscript: Bool?
+    private let networkSession: URLSession
 
     init(
         makeLocalTranscriptionService: @escaping @Sendable () throws -> any AudioFileTranscriptionService,
@@ -26,11 +27,13 @@ struct DictationPipelineFactory: Sendable {
                 RewriteProviderConfiguration,
                 URLSession
             ) -> any TextRewriteService,
-        recordsNoHotwordTranscript: Bool? = false
+        recordsNoHotwordTranscript: Bool? = false,
+        networkSession: URLSession = URLSession(configuration: .ephemeral)
     ) {
         self.makeLocalTranscriptionService = makeLocalTranscriptionService
         self.makeRewriteService = makeRewriteService
         self.recordsNoHotwordTranscript = recordsNoHotwordTranscript
+        self.networkSession = networkSession
     }
 
     static func live(configuration: any ModelStorageConfiguration = UserDefaultsModelStorage()) -> Self {
@@ -76,8 +79,6 @@ struct DictationPipelineFactory: Sendable {
         let rewriteProvider: DictationProvider?
         let preferredSpellings: [String]
         let usesAudienceAwareLocalPrompts: Bool
-
-        let networkSession = URLSession(configuration: .ephemeral)
 
         switch route {
         case .direct(let direct):
