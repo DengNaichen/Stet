@@ -209,23 +209,32 @@ public struct PreparedCloudRewritePayload: Sendable, Equatable {
             preferredSpellings: request.preferredSpellings
         )
 
-        if let appName = request.appName {
-            systemPrompt +=
-                "\n\nThe user is currently using the application: \"\(appName)\". Use this context to tailor your output style, formatting, and technical terminology appropriately."
-        }
+        systemPrompt +=
+            "\n\nStructured output: return exactly one JSON object matching this shape: {\"text\":\"the final cleaned transcript\"}. Include no other fields and do not wrap the JSON in Markdown or code fences."
 
         if let languageCode {
             systemPrompt +=
                 "\n\nLanguage lock: preserve the detected transcript language (\(languageCode)) exactly. Do not translate, paraphrase into another language, or normalize mixed-language text into a single language."
         }
 
-        systemPrompt +=
-            "\n\nStructured output: return exactly one JSON object matching this shape: {\"text\":\"the final cleaned transcript\"}. Include no other fields and do not wrap the JSON in Markdown or code fences."
+        if let appName = request.appName {
+            systemPrompt +=
+                "\n\nThe user is currently using the application: \"\(appName)\". Use this context to tailor your output style, formatting, and technical terminology appropriately."
+        }
 
         self.audience = audience
         self.systemPrompt = systemPrompt
         self.text = text
         self.languageCode = languageCode
+    }
+
+    public var cacheAffinityKey: String {
+        switch audience {
+        case .human:
+            return "stet-rewrite-human"
+        case .ai:
+            return "stet-rewrite-ai"
+        }
     }
 
     public var promptPrefix: String {

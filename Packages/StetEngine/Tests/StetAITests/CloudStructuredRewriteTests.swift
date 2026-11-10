@@ -14,6 +14,7 @@ struct CloudStructuredRewriteTests {
             #expect(request.timeoutInterval == 60)
             #expect(body["model"] as? String == DictationProviderDefaults.rewriteModel(for: .openAI))
             #expect(body["store"] as? Bool == false)
+            #expect(body["user"] as? String == "stet-rewrite-human")
             let textConfiguration = try #require(body["text"] as? [String: Any])
             let format = try #require(textConfiguration["format"] as? [String: Any])
             #expect(format["type"] as? String == "json_schema")
@@ -105,6 +106,8 @@ struct CloudStructuredRewriteTests {
             let thinking = try #require(body["thinking"] as? [String: Any])
             #expect(thinking["type"] as? String == "disabled")
             #expect(body["reasoning_effort"] == nil)
+            #expect(body["user"] as? String == "stet-rewrite-ai")
+            #expect(body["prompt_cache_key"] as? String == "stet-rewrite-ai")
             let messages = try #require(body["messages"] as? [[String: Any]])
             #expect((messages.last?["content"] as? String)?.contains("Return exactly one JSON object") == true)
 
@@ -118,7 +121,7 @@ struct CloudStructuredRewriteTests {
             session: session
         )
 
-        let text = try await service.rewrite(.cleanup("hello"))
+        let text = try await service.rewrite(.cleanup("hello", audience: .ai))
 
         #expect(text == "DeepSeek rewrite")
     }
@@ -253,6 +256,8 @@ struct CloudStructuredRewriteTests {
             #expect(body["model"] as? String == "llama3.1")
             #expect(body["thinking"] == nil)
             #expect(body["reasoning_effort"] == nil)
+            #expect(body["user"] as? String == "stet-rewrite-human")
+            #expect(body["prompt_cache_key"] == nil)
             let responseFormat = try #require(body["response_format"] as? [String: Any])
             #expect(responseFormat["type"] as? String == "json_object")
 
@@ -320,6 +325,8 @@ struct CloudStructuredRewriteTests {
             #expect(messages.last?["role"] as? String == "user")
             #expect((body["response_format"] as? [String: Any])?["type"] as? String == "json_object")
             #expect(body["reasoning_effort"] == nil)
+            #expect(body["user"] as? String == "stet-rewrite-human")
+            #expect(body["prompt_cache_key"] as? String == (provider == .deepSeek ? "stet-rewrite-human" : nil))
             if provider != .deepSeek { #expect(body["thinking"] == nil) }
             return try TestHTTP.response(for: request, body: Self.standardChatResponse)
         }

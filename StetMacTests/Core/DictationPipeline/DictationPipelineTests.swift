@@ -333,16 +333,18 @@ struct LogicPrimitiveTests {
         #expect(payload.systemPrompt.contains("CRITICAL RULES:") == true)
     }
 
-    @Test func preparedCloudRewritePayloadBuildsCloudPromptWithLanguage() {
+    @Test func preparedCloudRewritePayloadBuildsCloudPromptWithLanguage() throws {
         let payload = PreparedCloudRewritePayload(
             request: .cleanup(
                 "raw transcript",
                 audience: .human,
                 preferredSpellings: ["Groq"],
-                languageCode: "zh"
+                languageCode: "zh",
+                appName: "Xcode"
             ))
 
         #expect(payload.languageCode == "zh")
+        #expect(payload.cacheAffinityKey == "stet-rewrite-human")
         #expect(
             payload.systemPrompt.contains("Language lock: preserve the detected transcript language (zh) exactly.")
                 == true)
@@ -354,6 +356,18 @@ struct LogicPrimitiveTests {
         #expect(payload.userPrompt.contains("Return exactly one JSON object") == true)
         #expect(payload.userPrompt.contains("Text:\nraw transcript") == true)
         #expect(payload.systemPrompt.contains("Structured output: return exactly one JSON object") == true)
+
+        let structuredRange = try #require(
+            payload.systemPrompt.range(of: "Structured output: return exactly one JSON object")
+        )
+        let languageRange = try #require(
+            payload.systemPrompt.range(of: "Language lock: preserve the detected transcript language (zh) exactly.")
+        )
+        let appRange = try #require(
+            payload.systemPrompt.range(of: "The user is currently using the application: \"Xcode\".")
+        )
+        #expect(structuredRange.lowerBound < languageRange.lowerBound)
+        #expect(languageRange.lowerBound < appRange.lowerBound)
     }
 
     @Test func structuredRewriteOutputDecoderExtractsAndTrimsText() throws {

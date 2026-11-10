@@ -7,6 +7,7 @@ struct ChatCompletionsCompatibility: OpenAIMiddleware {
     let provider: DictationProvider
     let thinkingLevel: RewriteThinkingLevel?
     let baseURL: URL
+    let cacheAffinityKey: String
 
     func intercept(request: URLRequest) -> URLRequest {
         var request = request
@@ -21,6 +22,7 @@ struct ChatCompletionsCompatibility: OpenAIMiddleware {
             var body = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return request }
         body["thinking"] = ["type": thinkingLevel == .off ? "disabled" : "enabled"]
+        body["prompt_cache_key"] = cacheAffinityKey
         guard let encoded = try? JSONSerialization.data(withJSONObject: body) else { return request }
         request.httpBody = encoded
         return request
