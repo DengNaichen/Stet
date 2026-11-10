@@ -3,6 +3,8 @@ import StetCore
 import StetRewrite
 
 public struct GoogleRewriteService: TextRewriteService {
+    private static let prewarmTimeoutInterval: TimeInterval = 10
+
     private let apiKey: String
     private let model: String
     private let session: URLSession
@@ -18,6 +20,20 @@ public struct GoogleRewriteService: TextRewriteService {
         self.model = model
         self.session = session
         self.thinkingLevel = thinkingLevel
+    }
+
+    public func prewarm(_ request: TextRewriteRequest) async {
+        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty,
+            let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models?key=\(trimmedKey)")
+        else { return }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "GET"
+        urlRequest.timeoutInterval = Self.prewarmTimeoutInterval
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        _ = try? await session.data(for: urlRequest)
     }
 
     public func rewrite(_ request: TextRewriteRequest) async throws -> String {

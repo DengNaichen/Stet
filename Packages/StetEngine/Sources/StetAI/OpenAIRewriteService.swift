@@ -4,8 +4,11 @@ import StetRewrite
 import OpenAI
 
 public struct OpenAIRewriteService: TextRewriteService {
+    private static let prewarmTimeoutInterval: TimeInterval = 10
+
     private let clientFactory: OpenAISDKClientFactory
     private let endpoint: OpenAICompatibleProviderEndpointConfiguration
+    private let session: URLSession
     private let defaultModel: String
     private let supportsResponsesStore: Bool
     private let thinkingLevel: RewriteThinkingLevel?
@@ -20,9 +23,38 @@ public struct OpenAIRewriteService: TextRewriteService {
 
         self.clientFactory = OpenAISDKClientFactory(endpoint: endpoint, session: session)
         self.endpoint = endpoint
+        self.session = session
         self.defaultModel = configuration.model
         self.supportsResponsesStore = configuration.supportsResponsesStore
         self.thinkingLevel = configuration.thinkingLevel
+    }
+
+    public func prewarm(_ request: TextRewriteRequest) async {
+        let trimmedKey = endpoint.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard endpoint.provider == .custom || !trimmedKey.isEmpty else { return }
+
+        var urlRequest = URLRequest(url: endpoint.baseURL.appendingPathComponent("models"))
+        urlRequest.httpMethod = "GET"
+        urlRequest.timeoutInterval = Self.prewarmTimeoutInterval
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        if !trimmedKey.isEmpty {
+            urlRequest.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
+        }
+        if endpoint.provider == .openAI {
+            if let organizationID = endpoint.organizationID?.trimmingCharacters(in: .whitespacesAndNewlines),
+                !organizationID.isEmpty
+            {
+                urlRequest.setValue(organizationID, forHTTPHeaderField: "OpenAI-Organization")
+            }
+            if let projectID = endpoint.projectID?.trimmingCharacters(in: .whitespacesAndNewlines),
+                !projectID.isEmpty
+            {
+                urlRequest.setValue(projectID, forHTTPHeaderField: "OpenAI-Project")
+            }
+        }
+
+        _ = try? await session.data(for: urlRequest)
     }
 
     public func rewrite(_ request: TextRewriteRequest) async throws -> String {

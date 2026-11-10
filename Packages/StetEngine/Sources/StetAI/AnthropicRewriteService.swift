@@ -3,6 +3,8 @@ import StetCore
 import StetRewrite
 
 public struct AnthropicRewriteService: TextRewriteService {
+    private static let prewarmTimeoutInterval: TimeInterval = 10
+
     private let apiKey: String
     private let model: String
     private let baseURL: URL
@@ -18,6 +20,20 @@ public struct AnthropicRewriteService: TextRewriteService {
         self.model = model
         self.baseURL = baseURL
         self.session = session
+    }
+
+    public func prewarm(_ request: TextRewriteRequest) async {
+        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty else { return }
+
+        var urlRequest = URLRequest(url: baseURL.deletingLastPathComponent().appendingPathComponent("models"))
+        urlRequest.httpMethod = "GET"
+        urlRequest.timeoutInterval = Self.prewarmTimeoutInterval
+        urlRequest.setValue(trimmedKey, forHTTPHeaderField: "x-api-key")
+        urlRequest.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        _ = try? await session.data(for: urlRequest)
     }
 
     public func rewrite(_ request: TextRewriteRequest) async throws -> String {

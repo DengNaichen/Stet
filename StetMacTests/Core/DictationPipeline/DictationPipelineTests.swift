@@ -1,4 +1,5 @@
 import Foundation
+import os
 import StetAI
 import StetCore
 import StetRewrite
@@ -153,6 +154,34 @@ struct LogicPrimitiveTests {
             #expect(direct.rewriteEnabled)
             #expect(direct.rewriteConfiguration?.provider == .appleIntelligence)
         }
+    }
+
+    @Test func repeatedPipelinesReuseTransportButResolveCurrentProvider() async throws {
+        let captured = OSAllocatedUnfairLock(initialState: [(URLSession, DictationProvider)]())
+        let factory = DictationPipelineFactory(
+            makeLocalTranscriptionService: { RecordingTranscriptionService(result: "text") },
+            makeRewriteService: { configuration, session in
+                captured.withLock { $0.append((session, configuration.provider)) }
+                return RecordingRewriteService()
+            }
+        )
+        _ = try await factory.makePipeline(from: makeSnapshot(rewriteEnabled: true))
+        let copy = factory
+        _ = try await copy.makePipeline(
+            from: makeSnapshot(
+                rewriteProvider: .deepSeek,
+                rewriteProviderConfiguration: DictationProviderConfigurationResolver.rewriteConfiguration(
+                    provider: .deepSeek,
+                    apiKey: "different-test-key"
+                ),
+                rewriteEnabled: true
+            )
+        )
+        let calls = captured.withLock { $0 }
+        #expect(calls.count == 2)
+        #expect(calls[0].0 === calls[1].0)
+        #expect(calls.map { $0.1 } == [.openAI, .deepSeek])
+        #expect(calls[0].0.configuration.urlCache?.diskCapacity == 0)
     }
 
     @Test func makePipelineSelectsDirectService() async throws {
