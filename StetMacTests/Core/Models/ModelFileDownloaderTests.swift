@@ -81,7 +81,7 @@ struct ModelFileDownloaderTests {
         #expect(try Data(contentsOf: destination) == Data("abc".utf8))
     }
 
-    @Test func cancelingOneSubscriberDoesNotCancelAnotherSubscriber() async throws {
+    @Test(.timeLimit(.minutes(1))) func cancelingOneSubscriberDoesNotCancelAnotherSubscriber() async throws {
         let root = TestSupport.temporaryDirectoryURL()
         defer { try? FileManager.default.removeItem(at: root) }
         let gate = DownloadGate()
@@ -92,12 +92,16 @@ struct ModelFileDownloaderTests {
         }
         let request = ModelFileRequest(sources: [first], size: 3)
         let destination = root.appendingPathComponent("model")
+        let (joined, joinedContinuation) = AsyncStream<Void>.makeStream()
+        defer { joinedContinuation.finish() }
         let progress: ModelFileDownloader.ProgressHandler = { value in
-            if value == 0 { Task { await gate.joined() } }
+            if value == 0 { joinedContinuation.yield(()) }
         }
         let a = Task { try await downloader.file(request, at: destination, progress: progress) }
         let b = Task { try await downloader.file(request, at: destination, progress: progress) }
-        try #require(await TestSupport.eventuallyAsync { await gate.subscribers == 2 })
+        var joins = joined.makeAsyncIterator()
+        _ = await joins.next()
+        _ = await joins.next()
         a.cancel()
         await #expect(throws: CancellationError.self) { try await a.value }
         await gate.open()
@@ -105,19 +109,23 @@ struct ModelFileDownloaderTests {
         #expect(await gate.starts == 1)
     }
 
-    @Test func cancelingLastSubscriberStopsTransferAndAllowsRetry() async throws {
+    @Test(.timeLimit(.minutes(1))) func cancelingLastSubscriberStopsTransferAndAllowsRetry() async throws {
         let root = TestSupport.temporaryDirectoryURL()
         defer { try? FileManager.default.removeItem(at: root) }
         let calls = DownloadCalls()
+        let (started, startedContinuation) = AsyncStream<Void>.makeStream()
+        defer { startedContinuation.finish() }
         let downloader = ModelFileDownloader(cache: root.appendingPathComponent("cache")) { url, temporary, _ in
             let count = await calls.append(url)
+            startedContinuation.yield(())
             if count == 1 { try await Task.sleep(for: .seconds(30)) }
             try Data("abc".utf8).write(to: temporary)
         }
         let request = ModelFileRequest(sources: [first], size: 3)
         let destination = root.appendingPathComponent("model")
         let task = Task { try await downloader.file(request, at: destination) }
-        try #require(await TestSupport.eventuallyAsync { await calls.urls.count == 1 })
+        var starts = started.makeAsyncIterator()
+        _ = await starts.next()
         task.cancel()
         await #expect(throws: CancellationError.self) { try await task.value }
         #expect(try await downloader.file(request, at: destination) == destination)
@@ -164,11 +172,9 @@ private actor DownloadCalls {
 }
 private actor DownloadGate {
     var starts = 0
-    var subscribers = 0
     var waiters: [CheckedContinuation<Void, Never>] = []
     private var isOpen = false
     func started() { starts += 1 }
-    func joined() { subscribers += 1 }
     func wait() async { if !isOpen { await withCheckedContinuation { waiters.append($0) } } }
     func open() { isOpen = true; let pending = waiters; waiters.removeAll(); pending.forEach { $0.resume() } }
 }
