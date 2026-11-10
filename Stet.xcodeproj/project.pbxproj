@@ -25,6 +25,7 @@
 		F1A0B001000000000000000E /* StetVisuals.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F1A0B0010000000000000003 /* StetVisuals.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A2C0DE010000000000000001 /* HeatmapKit in Frameworks */ = {isa = PBXBuildFile; productRef = A2C0DE010000000000000002 /* HeatmapKit */; };
 		C4A1E0010000000000000001 /* EventKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C4A1E0010000000000000002 /* EventKit.framework */; };
+		A21500000000000000000001 /* HuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = A21500000000000000000002 /* HuggingFace */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -131,6 +132,7 @@
 				E5E0E5E0E5E0E5E0E5E00007 /* StetRewrite in Frameworks */,
 				E5E0E5E0E5E0E5E0E5E00009 /* StetASR in Frameworks */,
 				A2C0DE010000000000000001 /* HeatmapKit in Frameworks */,
+				A21500000000000000000001 /* HuggingFace in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -229,6 +231,7 @@
 				E5E0E5E0E5E0E5E0E5E00004 /* StetRewrite */,
 				E5E0E5E0E5E0E5E0E5E00008 /* StetASR */,
 				A2C0DE010000000000000002 /* HeatmapKit */,
+				A21500000000000000000002 /* HuggingFace */,
 			);
 			productName = Stet;
 			productReference = 6D29DC7D2F5FA23000267DEA /* Stet.app */;
@@ -352,6 +355,7 @@
 				6DC0CD012F9DD8BE00696D0F /* XCRemoteSwiftPackageReference "SwiftSDK" */,
 				E5E0E5E0E5E0E5E0E5E00001 /* XCLocalSwiftPackageReference "Packages/StetEngine" */,
 				A2C0DE010000000000000003 /* XCRemoteSwiftPackageReference "HeatmapKit" */,
+				A21500000000000000000003 /* XCRemoteSwiftPackageReference "swift-huggingface" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6D29DC7E2F5FA23000267DEA /* Products */;
@@ -1010,6 +1014,11 @@
 				minimumVersion = 0.5.0;
 			};
 		};
+		A21500000000000000000003 /* XCRemoteSwiftPackageReference "swift-huggingface" */ = {
+            isa = XCRemoteSwiftPackageReference;
+            repositoryURL = "https://github.com/huggingface/swift-huggingface.git";
+            requirement = { kind = exactVersion; version = 1.0.0; };
+        };
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1088,6 +1097,11 @@
 			package = A2C0DE010000000000000003 /* XCRemoteSwiftPackageReference "HeatmapKit" */;
 			productName = HeatmapKit;
 		};
+		A21500000000000000000002 /* HuggingFace */ = {
+            isa = XCSwiftPackageProductDependency;
+            package = A21500000000000000000003 /* XCRemoteSwiftPackageReference "swift-huggingface" */;
+            productName = HuggingFace;
+        };
 /* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 6D29DC752F5FA23000267DEA /* Project object */;

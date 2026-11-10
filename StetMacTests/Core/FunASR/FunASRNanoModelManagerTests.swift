@@ -1,6 +1,7 @@
 #if os(macOS)
     import Foundation
     import StetASR
+    import StetCore
     import Testing
 
     @testable import Stet
@@ -31,7 +32,9 @@
                     "qwen3-0.6b-q4km.gguf",
                     "fsmn-vad.gguf",
                 ])
-            #expect(await queue.requestedURLs == FunASRNanoModelAsset.allCases.map(\.downloadURL))
+            #expect(
+                await queue.requestedURLs
+                    == FunASRNanoModelAsset.allCases.map { ModelDownloadMirror.candidates(for: $0.downloadURL)[0] })
         }
 
         @Test func installSkipsComponentsAlreadyPresent() async throws {

@@ -104,35 +104,8 @@
                 string:
                     "https://huggingface.co/FluidInference/diar-streaming-sortformer-coreml/resolve/\(revision)/\(bundle)/\(file.path)"
             )!
-            let configuration = URLSessionConfiguration.ephemeral
-            configuration.timeoutIntervalForRequest = 60
-            configuration.timeoutIntervalForResource = 1800
-            let session = URLSession(configuration: configuration)
-            defer { session.invalidateAndCancel() }
-            var lastError: any Error = ModelError.incomplete
-            for url in ModelDownloadMirror.candidates(for: official) {
-                do {
-                    try Task.checkCancellation()
-                    let delegate = ModelDownloadProgress(size: file.size, progress: progress)
-                    let (temporary, response) = try await session.download(
-                        for: URLRequest(url: url), delegate: delegate)
-                    defer { try? FileManager.default.removeItem(at: temporary) }
-                    try Task.checkCancellation()
-                    guard let response = response as? HTTPURLResponse, response.statusCode == 200,
-                        (try temporary.resourceValues(forKeys: [.fileSizeKey])).fileSize.map(Int64.init) == file.size
-                    else { throw ModelError.invalidDownload }
-                    // Only replace this incomplete file; completed siblings survive errors and cancellation.
-                    if FileManager.default.fileExists(atPath: destination.path) {
-                        try FileManager.default.removeItem(at: destination)
-                    }
-                    try FileManager.default.moveItem(at: temporary, to: destination)
-                    return
-                } catch {
-                    try Task.checkCancellation()
-                    lastError = error
-                }
-            }
-            throw lastError
+            _ = try await ModelFileDownloader.shared.file(
+                ModelFileRequest(official: official, size: file.size), at: destination, progress: progress)
         }
 
         enum ModelError: LocalizedError {
@@ -152,21 +125,4 @@
         }
     }
 
-    private nonisolated final class ModelDownloadProgress: NSObject, URLSessionDownloadDelegate, Sendable {
-        let size: Int64
-        let progress: @Sendable (Double) -> Void
-        init(size: Int64, progress: @escaping @Sendable (Double) -> Void) {
-            self.size = size
-            self.progress = progress
-        }
-        func urlSession(
-            _ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL
-        ) {}
-        func urlSession(
-            _ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64,
-            totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64
-        ) {
-            progress(min(1, Double(totalBytesWritten) / Double(size)))
-        }
-    }
 #endif
