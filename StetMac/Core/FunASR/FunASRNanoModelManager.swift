@@ -119,6 +119,19 @@
             guard missing.isEmpty else {
                 throw FunASRNanoModelError.missingAssets(missing)
             }
+            #if arch(arm64)
+                if #available(macOS 15, *) {
+                    let coreML = files.encoder.deletingLastPathComponent()
+                        .appendingPathComponent("FunASRNanoANE-v1.mlmodelc", isDirectory: true)
+                    if ANEModelReadiness.read(in: files.encoder.deletingLastPathComponent()) != nil {
+                        return FunASRNanoModelFiles(
+                            encoder: coreML,
+                            languageModel: files.languageModel,
+                            voiceActivityDetector: files.voiceActivityDetector
+                        )
+                    }
+                }
+            #endif
             return files
         }
 

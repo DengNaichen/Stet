@@ -41,6 +41,8 @@ stet_funasr_status stet_funasr_transcribe(
 void stet_funasr_free_text(char *text);
 void stet_funasr_destroy(stet_funasr_context *context);
 const char *stet_funasr_version(void);
+// Configuration, not proof of device placement; use MLComputePlan when validating models.
+const char *stet_funasr_encoder_backend(const stet_funasr_context *context);
 
 #ifdef __cplusplus
 }

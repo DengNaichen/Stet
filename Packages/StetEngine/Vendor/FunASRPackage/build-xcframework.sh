@@ -8,8 +8,13 @@ OUTPUT_XCFRAMEWORK="$OUTPUT_DIR/FunASRRuntime.xcframework"
 FUNASR_COMMIT=9474bdbffc349e96a4c9807a42a62309f4f02dc4
 LLAMA_COMMIT=8086439a4cea94c71a5dfb8fe4ad1546aebd640f
 BUILD_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/stet-funasr-build.XXXXXX")
-SDK_VERSION=$(xcrun --sdk macosx --show-sdk-version)
 trap 'rm -rf "$BUILD_ROOT"' EXIT
+SDK_VERSION=$(xcrun --sdk macosx --show-sdk-version)
+BUILD_JOBS=${STET_FUNASR_BUILD_JOBS:-$(sysctl -n hw.logicalcpu)}
+if [[ "$BUILD_JOBS" != <-> || "$BUILD_JOBS" -lt 1 ]]; then
+    print -u2 "STET_FUNASR_BUILD_JOBS must be a positive integer"
+    exit 1
+fi
 
 if [[ -z "${FUNASR_SOURCE_DIR:-}" ]]; then
     git clone --filter=blob:none --no-checkout https://github.com/modelscope/FunASR.git "$BUILD_ROOT/FunASR"
@@ -37,7 +42,7 @@ for ARCHITECTURE in arm64 x86_64; do
         -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
         -DFUNASR_SOURCE_DIR="$FUNASR_SOURCE_DIR" \
         -DLLAMA_SOURCE_DIR="$LLAMA_SOURCE_DIR"
-    cmake --build "$ARCH_BUILD_DIR" --target StetFunASRRuntime --parallel
+    cmake --build "$ARCH_BUILD_DIR" --target StetFunASRRuntime --parallel "$BUILD_JOBS"
 
     typeset -a ARCH_OBJECTS
     ARCH_OBJECTS=(

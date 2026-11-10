@@ -132,6 +132,11 @@
             return String(cString: output)
         }
 
+        public func encoderBackend() -> String {
+            guard let context else { return "unloaded" }
+            return String(cString: stet_funasr_encoder_backend(context))
+        }
+
         public func releaseResources() {
             if let context {
                 stet_funasr_destroy(context)

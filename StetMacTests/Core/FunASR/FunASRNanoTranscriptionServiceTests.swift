@@ -176,6 +176,61 @@
             #expect(!result.text.isEmpty)
         }
 
+        @Test func maintenanceWaitsForLeasesAndTransientUses() async throws {
+            let manager = try makeModelManager()
+            let context = FunASRNanoContextManager()
+            let engine = StubFunASREngine(text: "idle")
+            try await context.acquireLease(files: manager.modelFiles(), engineFactory: { _ in engine })
+            #expect(try await !context.performModelMaintenance { Issue.record("Active lease was interrupted") })
+            await context.releaseLease()
+            try await context.beginModelUse()
+            #expect(try await !context.performModelMaintenance { Issue.record("Active transcription was interrupted") })
+            await context.endModelUse()
+            #expect(try await context.performModelMaintenance {})
+            #expect(await engine.releaseCallCount == 1)
+        }
+
+        @Test func differentModelCannotReplaceAnActiveLease() async throws {
+            let first = try makeModelManager()
+            let second = try makeModelManager()
+            let context = FunASRNanoContextManager()
+            let engine = StubFunASREngine(text: "leased")
+            try await context.acquireLease(files: first.modelFiles(), engineFactory: { _ in engine })
+            await #expect(throws: FunASRNanoContextError.self) {
+                try await context.acquireLease(files: second.modelFiles(), engineFactory: { _ in engine })
+            }
+            #expect(await engine.prepareCallCount == 1)
+            await context.releaseLease()
+            await context.cleanupResources()
+        }
+
+        @Test(.enabled(if: ANEModelReadiness.supported))
+        func runtimeCPUFallbackDisablesReadinessAndReusesLoadedCPUContext() async throws {
+            let manager = try makeModelManager()
+            let directory = try manager.modelFiles().encoder.deletingLastPathComponent()
+            try FileManager.default.createDirectory(
+                at: directory.appendingPathComponent(FunASRNanoANEManifest.compiledName),
+                withIntermediateDirectories: true)
+            try ANEModelReadiness.make(manifestHash: String(repeating: "a", count: 64)).write(in: directory)
+            let context = FunASRNanoContextManager()
+            let engines = FunASREngineStore()
+            let service = try FunASRNanoTranscriptionService(
+                modelManager: manager,
+                engineFactory: { _ in
+                    let engine = StubFunASREngine(text: "CPU fallback", backend: "ggml-cpu")
+                    engines.append(engine)
+                    return engine
+                }, contextManager: context)
+            try await service.prewarm()
+            #expect(ANEModelReadiness.read(in: directory) == nil)
+            #expect(ANEModelReadiness.installed(in: directory)?.enabled == false)
+            let result = try await service.transcribe(
+                audioFileAt: makeAudioFile(), languageCode: nil, prompt: nil, audioDurationSeconds: 1)
+            #expect(result.text == "CPU fallback")
+            #expect(engines.snapshot().count == 1)
+            await context.cleanupResources()
+        }
+
         private func makeModelManager() throws -> FunASRNanoModelManager {
             let directory = TestSupport.temporaryDirectoryURL()
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -196,15 +251,19 @@
     private actor StubFunASREngine: FunASRNanoEngine {
         private let text: String
         private let prepareGate: PrepareGate?
+        private let backend: String
         private(set) var prepareCallCount = 0
         private(set) var transcribeCallCount = 0
         private(set) var releaseCallCount = 0
         private(set) var receivedHotwords: [String?] = []
 
-        init(text: String, prepareGate: PrepareGate? = nil) {
+        init(text: String, prepareGate: PrepareGate? = nil, backend: String = "unknown") {
+            self.backend = backend
             self.text = text
             self.prepareGate = prepareGate
         }
+
+        func encoderBackend() async -> String { backend }
 
         func prepare() async throws {
             prepareCallCount += 1

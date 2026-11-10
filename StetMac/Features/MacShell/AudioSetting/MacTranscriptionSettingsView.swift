@@ -4,6 +4,7 @@
 
     struct MacTranscriptionSettingsView: View {
         @StateObject private var viewModel = MacAudioSettingsViewModel()
+        @EnvironmentObject private var aneModelSettings: ANEModelSettingsViewModel
 
         var body: some View {
             Form {
@@ -61,6 +62,8 @@
                                 onDownload: { viewModel.downloadFunASRNanoModel() },
                                 onReveal: { viewModel.openFunASRNanoFolder() }
                             )
+
+                            ANEModelSettingsRow(viewModel: aneModelSettings)
 
                             Divider()
 

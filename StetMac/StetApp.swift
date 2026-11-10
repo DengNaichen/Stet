@@ -15,6 +15,7 @@ struct StetApp: App {
         @StateObject private var appModel: MacAppModel
         @StateObject private var dictationCommandsViewModel: MacDictationCommandsViewModel
         @StateObject private var settingsShellViewModel: MacSettingsShellViewModel
+        @StateObject private var aneModelSettings: ANEModelSettingsViewModel
         @State private var meetingViewModel: MacMeetingViewModel
         @StateObject private var appUpdateManager: AppUpdateManager
         @State private var appUpdateViewModel: MacAppUpdateViewModel
@@ -23,6 +24,9 @@ struct StetApp: App {
         @State private var compatibilityViewModel: MacCompatibilityViewModel
 
         init() {
+            _aneModelSettings = StateObject(
+                wrappedValue: ANEModelSettingsViewModel(
+                    installer: FunASRNanoANEInstaller(release: FunASRNanoANECatalog.bundled())))
             AnalyticsService.initialize()
             let appUpdateManager = AppUpdateManager()
             _appUpdateManager = StateObject(wrappedValue: appUpdateManager)
@@ -68,6 +72,7 @@ struct StetApp: App {
                 MacMenuBarView()
                     .environment(meetingViewModel)
                     .environmentObject(settingsShellViewModel)
+                    .environmentObject(aneModelSettings)
                     .environment(appUpdateViewModel)
                     .onOpenURL { url in
                         appModel.handleDeepLink(url)
@@ -82,6 +87,7 @@ struct StetApp: App {
                     .environment(compatibilityViewModel)
                     .environment(meetingViewModel)
                     .environmentObject(settingsShellViewModel)
+                    .environmentObject(aneModelSettings)
                     .environment(appUpdateViewModel)
             }
             .windowStyle(.hiddenTitleBar)

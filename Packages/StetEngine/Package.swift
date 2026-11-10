@@ -37,6 +37,8 @@ let package = Package(
             ],
             path: "Sources/StetASR",
             linkerSettings: [
+                .linkedFramework("CoreML", .when(platforms: [.macOS])),
+                .linkedFramework("Foundation", .when(platforms: [.macOS])),
                 .linkedFramework("Accelerate", .when(platforms: [.macOS])),
                 .linkedFramework("Metal", .when(platforms: [.macOS])),
                 .linkedFramework("MetalKit", .when(platforms: [.macOS])),
