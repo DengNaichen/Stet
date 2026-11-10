@@ -83,7 +83,8 @@ public struct OpenAIRewriteService: TextRewriteService {
                             description: StructuredRewriteOutput.schemaDescription,
                             strict: true
                         )
-                    )
+                    ),
+                    user: prepared.cacheAffinityKey
                 )
             )
 
@@ -119,7 +120,10 @@ public struct OpenAIRewriteService: TextRewriteService {
             additionalHeaders: ["Accept": "application/json"],
             additionalMiddlewares: [
                 ChatCompletionsCompatibility(
-                    provider: endpoint.provider, thinkingLevel: thinkingLevel, baseURL: endpoint.baseURL
+                    provider: endpoint.provider,
+                    thinkingLevel: thinkingLevel,
+                    baseURL: endpoint.baseURL,
+                    cacheAffinityKey: prepared.cacheAffinityKey
                 )
             ]
         )
@@ -133,7 +137,8 @@ public struct OpenAIRewriteService: TextRewriteService {
                     ],
                     model: model,
                     reasoningEffort: deepSeekReasoningEffort,
-                    responseFormat: chatResponseFormat(model: model)
+                    responseFormat: chatResponseFormat(model: model),
+                    user: prepared.cacheAffinityKey
                 )
             )
         } catch {
