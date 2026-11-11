@@ -5,7 +5,7 @@
     @testable import Stet
 
     @Suite("Audio Signal Analyzer")
-    struct AudioSignalAnalyzerTests {
+    nonisolated struct AudioSignalAnalyzerTests {
         @Test func analyzeSilenceDetectsNoSpeech() async throws {
             let samples = Array(repeating: Float(0), count: 16_000)
 

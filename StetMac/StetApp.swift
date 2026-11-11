@@ -10,6 +10,37 @@ import AppKit
 import StetVisuals
 
 @main
+enum StetAppLauncher {
+    static func main() {
+        #if os(macOS)
+            if isRunningUnitTests {
+                StetUnitTestHostApp.main()
+                return
+            }
+        #endif
+        StetApp.main()
+    }
+
+    #if os(macOS)
+        private static var isRunningUnitTests: Bool {
+            let environment = ProcessInfo.processInfo.environment
+            return environment["XCTestConfigurationFilePath"] != nil
+                || environment["XCTestBundlePath"] != nil
+                || environment["XCTestSessionIdentifier"] != nil
+        }
+    #endif
+}
+
+#if os(macOS)
+    private struct StetUnitTestHostApp: App {
+        var body: some Scene {
+            Settings {
+                EmptyView()
+            }
+        }
+    }
+#endif
+
 struct StetApp: App {
     #if os(macOS)
         @StateObject private var appModel: MacAppModel

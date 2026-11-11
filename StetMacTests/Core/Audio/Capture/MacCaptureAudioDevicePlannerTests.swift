@@ -6,7 +6,7 @@
     @testable import Stet
 
     @Suite("Mac Capture Audio Device Planner")
-    struct MacCaptureAudioDevicePlannerTests {
+    nonisolated struct MacCaptureAudioDevicePlannerTests {
         @Test func inputDeviceCandidatesWithSelectedDeviceIncludesSelectedFirst() {
             let selectedDevice = makeDevice(
                 id: 2,
@@ -45,8 +45,8 @@
             #expect(allowedTrailingShapes.contains(trailingReasons))
         }
 
-        @Test func availableCaptureDevicesReturnsNonEmptyList() {
-            let devices = MacCaptureAudioDevicePlanner.availableCaptureDevices()
+        @Test func availableCaptureDevicesReturnsNonEmptyList() async {
+            let devices = await TestSupport.availableCaptureDevices()
 
             for device in devices {
                 #expect(!device.uniqueID.isEmpty)
@@ -55,7 +55,7 @@
         }
     }
 
-    private func makeDevice(
+    private nonisolated func makeDevice(
         id: AudioDeviceID,
         uid: String,
         name: String,

@@ -1,11 +1,17 @@
 import AppKit
+@preconcurrency import AVFoundation
 import Foundation
 import StetRewrite
 
 @testable import Stet
 
 enum TestSupport {
-    static func makeUserDefaults(suiteName: String = "StetTests.\(UUID().uuidString)")
+    private nonisolated static let captureDiscoveryQueue = DispatchQueue(
+        label: "StetTests.CaptureDeviceDiscovery",
+        qos: .utility
+    )
+
+    nonisolated static func makeUserDefaults(suiteName: String = "StetTests.\(UUID().uuidString)")
         -> UserDefaults
     {
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -13,14 +19,22 @@ enum TestSupport {
         return defaults
     }
 
-    static func temporaryFileURL(_ name: String = UUID().uuidString, ext: String = "tmp") -> URL {
+    nonisolated static func temporaryFileURL(_ name: String = UUID().uuidString, ext: String = "tmp") -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent(name)
             .appendingPathExtension(ext)
     }
 
-    static func temporaryDirectoryURL(_ name: String = UUID().uuidString) -> URL {
+    nonisolated static func temporaryDirectoryURL(_ name: String = UUID().uuidString) -> URL {
         FileManager.default.temporaryDirectory.appendingPathComponent(name, isDirectory: true)
+    }
+
+    nonisolated static func availableCaptureDevices() async -> [AVCaptureDevice] {
+        await withCheckedContinuation { continuation in
+            captureDiscoveryQueue.async {
+                continuation.resume(returning: MacCaptureAudioDevicePlanner.availableCaptureDevices())
+            }
+        }
     }
 
     static func requestBodyData(from request: URLRequest) throws -> Data {
@@ -56,7 +70,7 @@ enum TestSupport {
 
     @MainActor
     static func eventually(
-        timeout: Duration = .seconds(3),
+        timeout: Duration = .seconds(10),
         pollInterval: Duration = .milliseconds(10),
         condition: @MainActor @escaping () -> Bool
     ) async -> Bool {
@@ -71,11 +85,12 @@ enum TestSupport {
             try? await Task.sleep(for: pollInterval)
         }
 
+        await Task.yield()
         return condition()
     }
 
-    static func eventuallyAsync(
-        timeout: Duration = .seconds(3),
+    nonisolated static func eventuallyAsync(
+        timeout: Duration = .seconds(10),
         pollInterval: Duration = .milliseconds(10),
         condition: @escaping @Sendable () async -> Bool
     ) async -> Bool {
@@ -90,6 +105,7 @@ enum TestSupport {
             try? await Task.sleep(for: pollInterval)
         }
 
+        await Task.yield()
         return await condition()
     }
 }

@@ -6,8 +6,8 @@
     @testable import Stet
 
     @Suite("Meeting Audio Files")
-    struct MeetingAudioFileSessionTests {
-        @Test func twentyMinuteTimelinePreservesBothTracksThroughTheLastBuffer() throws {
+    nonisolated struct MeetingAudioFileSessionTests {
+        @Test func twentyMinuteTimelinePreservesBothTracksThroughTheLastBuffer() async throws {
             let directory = temporaryDirectory()
             defer { try? FileManager.default.removeItem(at: directory) }
             let session = try MeetingAudioFileSession(directory: directory, startTime: 100)
@@ -16,6 +16,9 @@
             for second in 0..<1_200 {
                 try session.append(system, source: .system, hostTime: 100 + Double(second))
                 try session.append(microphone, source: .microphone, hostTime: 100 + Double(second))
+                if second.isMultiple(of: 100) {
+                    await Task.yield()
+                }
             }
             let result = try session.finish(at: 1_300)
             #expect(result.failureMessage == nil)

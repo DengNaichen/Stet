@@ -45,15 +45,20 @@
         private let defaults: UserDefaults
         private let settingsStore: DictationSettingsStore
         private let launchAtLoginStatusProvider: () -> Bool
+        private let setLaunchAtLogin: @MainActor (Bool) throws -> Void
 
         init(
             defaults: UserDefaults = .standard,
             settingsStore: DictationSettingsStore,
-            launchAtLoginStatusProvider: @escaping () -> Bool = { MacAppBehaviorController.launchAtLoginIsEnabled() }
+            launchAtLoginStatusProvider: @escaping () -> Bool = { MacAppBehaviorController.launchAtLoginIsEnabled() },
+            setLaunchAtLogin: @escaping @MainActor (Bool) throws -> Void = {
+                try MacAppBehaviorController.setLaunchAtLogin($0)
+            }
         ) {
             self.defaults = defaults
             self.settingsStore = settingsStore
             self.launchAtLoginStatusProvider = launchAtLoginStatusProvider
+            self.setLaunchAtLogin = setLaunchAtLogin
         }
 
         func prepareForLaunch() -> LaunchConfiguration {
@@ -81,8 +86,9 @@
 
             if defaults.object(forKey: MacPreferences.launchAtLogin) == nil {
                 defaults.set(true, forKey: MacPreferences.launchAtLogin)
+                let setLaunchAtLogin = self.setLaunchAtLogin
                 Task { @MainActor in
-                    try? MacAppBehaviorController.setLaunchAtLogin(true)
+                    try? setLaunchAtLogin(true)
                 }
             }
         }

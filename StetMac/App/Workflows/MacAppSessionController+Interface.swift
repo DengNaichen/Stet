@@ -126,13 +126,18 @@
 
     extension MacAppSessionController {
         func prewarmAudioEngine() {
-            Task { @MainActor [weak self] in
-                guard let self else {
+            audioPrewarmTask?.cancel()
+            audioPrewarmTask = Task { @MainActor [weak self] in
+                // Add a one-second delay to avoid blocking UI during activation
+                do {
+                    try await Task.sleep(nanoseconds: 1_000_000_000)
+                } catch {
                     return
                 }
 
-                // Add a one-second delay to avoid blocking UI during activation
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                guard !Task.isCancelled, let self else {
+                    return
+                }
 
                 Self.logger.info("Pre-warming audio engine on activation after delay")
                 await workflowController.prewarm()

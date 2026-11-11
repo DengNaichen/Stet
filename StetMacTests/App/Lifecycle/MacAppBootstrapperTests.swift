@@ -14,7 +14,8 @@
             let bootstrapper = MacAppBootstrapper(
                 defaults: defaults,
                 settingsStore: settingsStore,
-                launchAtLoginStatusProvider: { true }
+                launchAtLoginStatusProvider: { true },
+                setLaunchAtLogin: { _ in }
             )
 
             let launchConfiguration = bootstrapper.prepareForLaunch()
@@ -51,7 +52,8 @@
             let bootstrapper = MacAppBootstrapper(
                 defaults: defaults,
                 settingsStore: settingsStore,
-                launchAtLoginStatusProvider: { false }
+                launchAtLoginStatusProvider: { false },
+                setLaunchAtLogin: { _ in }
             )
 
             let launchConfiguration = bootstrapper.prepareForLaunch()
@@ -77,7 +79,8 @@
             let bootstrapper = MacAppBootstrapper(
                 defaults: defaults,
                 settingsStore: settingsStore,
-                launchAtLoginStatusProvider: { false }
+                launchAtLoginStatusProvider: { false },
+                setLaunchAtLogin: { _ in }
             )
 
             _ = bootstrapper.prepareForLaunch()
