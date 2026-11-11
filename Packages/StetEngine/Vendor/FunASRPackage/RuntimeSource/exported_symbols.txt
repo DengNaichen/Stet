@@ -1,4 +1,9 @@
 _stet_funasr_create
+_stet_funasr_create_with_encoder
+_stet_funasr_set_shared_encoder
+_stet_funasr_encoder_create
+_stet_funasr_encoder_warmup
+_stet_funasr_encoder_destroy
 _stet_funasr_transcribe
 _stet_funasr_free_text
 _stet_funasr_destroy

@@ -3,10 +3,12 @@
 #include "stet_funasr_coreml.hpp"
 #include <algorithm>
 #include <cmath>
+#include <mutex>
 #include <stdexcept>
 
 namespace {
-constexpr int kFeatures=560, kEmbedding=1024;
+constexpr int kFeatures=560, kEmbedding=1024, kBucketCount=4;
+constexpr int kBucketFrames[kBucketCount]={64, 128, 256, 512};
 std::runtime_error failure(NSError *error) {
     return std::runtime_error(error ? error.localizedDescription.UTF8String : "Core ML operation failed");
 }
@@ -21,16 +23,46 @@ bool matches(MLFeatureDescription *description, NSArray<NSNumber *> *shape) {
         description.multiArrayConstraint.dataType==MLMultiArrayDataTypeFloat32 &&
         [description.multiArrayConstraint.shape isEqualToArray:shape];
 }
+int bucketIndexForFrames(int frames) {
+    for (int i=0; i<kBucketCount; ++i) {
+        if (frames<=kBucketFrames[i]) return i;
+    }
+    return -1;
+}
+struct BucketSlot {
+    int frames=0;
+    MLMultiArray *features=nil;
+    MLMultiArray *mask=nil;
+    MLMultiArray *bias=nil;
+    MLDictionaryFeatureProvider *input=nil;
+};
 }
 struct StetCoreMLEncoder::Impl {
-    MLModel *model;
-    MLMultiArray *features;
-    MLMultiArray *mask;
-    MLMultiArray *bias;
-    MLDictionaryFeatureProvider *input;
-    int bucket=0;
+    std::mutex mutex;
+    MLModel *model=nil;
+    BucketSlot buckets[kBucketCount];
+
+    BucketSlot &ensureBucket(int index) {
+        auto &slot=buckets[index];
+        const int kFrames=kBucketFrames[index];
+        if (slot.input && slot.frames==kFrames) return slot;
+        auto *features=array(@[@1,@560,@1,@(kFrames)]);
+        auto *mask=array(@[@1,@1,@1,@(kFrames)]);
+        auto *bias=array(@[@1,@(kFrames),@1,@1]);
+        NSError *input_error=nil;
+        auto *provider=[[MLDictionaryFeatureProvider alloc] initWithDictionary:@{
+            @"positioned_features":features, @"valid_mask":mask, @"attention_bias":bias
+        } error:&input_error];
+        if (!provider) throw failure(input_error);
+        slot.frames=kFrames;
+        slot.features=features;
+        slot.mask=mask;
+        slot.bias=bias;
+        slot.input=provider;
+        return slot;
+    }
 };
-StetCoreMLEncoder::StetCoreMLEncoder(const char *path):impl(std::make_unique<Impl>()) {
+StetCoreMLEncoder::StetCoreMLEncoder(const char *path, bool prewarm):impl(std::make_unique<Impl>()) {
     @autoreleasepool {
         MLModelConfiguration *config=[MLModelConfiguration new];
         config.computeUnits=MLComputeUnitsCPUAndNeuralEngine;
@@ -47,30 +79,60 @@ StetCoreMLEncoder::StetCoreMLEncoder(const char *path):impl(std::make_unique<Imp
             description.outputDescriptionsByName[@"audio_embeds"].type!=MLFeatureTypeMultiArray ||
             description.outputDescriptionsByName[@"audio_embeds"].multiArrayConstraint.dataType!=MLMultiArrayDataTypeFloat32)
             throw std::runtime_error("incompatible Core ML encoder contract");
-
     }
+    if (prewarm) warmup();
 }
 StetCoreMLEncoder::~StetCoreMLEncoder()=default;
-std::vector<float> StetCoreMLEncoder::encode(const std::vector<float> &features,int frames) {
-    if (frames<1 || frames>512 || features.size()!=static_cast<size_t>(frames*kFeatures))
-        throw std::runtime_error("audio features exceed Core ML encoder shape");
-    @autoreleasepool {
-        int kFrames=64;
-        while(kFrames<frames) kFrames*=2;
-        if(impl->bucket!=kFrames){
-            impl->features=array(@[@1,@560,@1,@(kFrames)]);
-            impl->mask=array(@[@1,@1,@1,@(kFrames)]);
-            impl->bias=array(@[@1,@(kFrames),@1,@1]);
-            NSError *input_error=nil;
-            impl->input=[[MLDictionaryFeatureProvider alloc] initWithDictionary:@{
-                @"positioned_features":impl->features, @"valid_mask":impl->mask, @"attention_bias":impl->bias
-            } error:&input_error];
-            if (!impl->input) throw failure(input_error);
-            impl->bucket=kFrames;
+void StetCoreMLEncoder::warmup() {
+    std::lock_guard<std::mutex> lock(impl->mutex);
+    const float silence=logf(1.1920929e-07f)*sqrtf(512.0f);
+    const double increment=log(10000.0)/(kFeatures/2.0-1.0);
+    for (int index=0; index<kBucketCount; ++index) {
+        @autoreleasepool {
+            auto &slot=impl->ensureBucket(index);
+            const int kFrames=slot.frames;
+            auto *input=static_cast<float *>(slot.features.dataPointer);
+            auto *mask=static_cast<float *>(slot.mask.dataPointer);
+            auto *bias=static_cast<float *>(slot.bias.dataPointer);
+            for (int t=0; t<kFrames; ++t) {
+                mask[t]=1.0f;
+                bias[t]=0.0f;
+            }
+            for (int d=0; d<kFeatures/2; ++d) {
+                double inverse=exp(-d*increment);
+                for (int t=0; t<kFrames; ++t) {
+                    double position=(t+1)*inverse;
+                    input[d*kFrames+t]=silence+static_cast<float>(sin(position));
+                    input[(d+kFeatures/2)*kFrames+t]=silence+static_cast<float>(cos(position));
+                }
+            }
+            NSError *error=nil;
+            auto prediction=[impl->model predictionFromFeatures:slot.input error:&error];
+            if (!prediction) throw failure(error);
+            auto output=[prediction featureValueForName:@"audio_embeds"].multiArrayValue;
+            if (!output || output.dataType!=MLMultiArrayDataTypeFloat32 ||
+                ![output.shape isEqualToArray:@[@1,@1024,@1,@(kFrames)]])
+                throw std::runtime_error("unexpected Core ML encoder output");
+            auto *source=static_cast<const float *>(output.dataPointer);
+            const auto channel_stride=output.strides[1].integerValue, time_stride=output.strides[3].integerValue;
+            for (int t=0; t<kFrames; ++t) for (int d=0; d<kEmbedding; ++d) {
+                if (!std::isfinite(source[d*channel_stride+t*time_stride]))
+                    throw std::runtime_error("non-finite Core ML encoder output");
+            }
         }
-        auto *input=static_cast<float *>(impl->features.dataPointer);
-        auto *mask=static_cast<float *>(impl->mask.dataPointer);
-        auto *bias=static_cast<float *>(impl->bias.dataPointer);
+    }
+}
+std::vector<float> StetCoreMLEncoder::encode(const std::vector<float> &features,int frames) {
+    const int bucket_index=bucketIndexForFrames(frames);
+    if (frames<1 || bucket_index<0 || features.size()!=static_cast<size_t>(frames*kFeatures))
+        throw std::runtime_error("audio features exceed Core ML encoder shape");
+    std::lock_guard<std::mutex> lock(impl->mutex);
+    @autoreleasepool {
+        auto &slot=impl->ensureBucket(bucket_index);
+        const int kFrames=slot.frames;
+        auto *input=static_cast<float *>(slot.features.dataPointer);
+        auto *mask=static_cast<float *>(slot.mask.dataPointer);
+        auto *bias=static_cast<float *>(slot.bias.dataPointer);
         std::fill(input,input+kFeatures*kFrames,0.0f);
         const float scale=sqrtf(512.0f);
         const double increment=log(10000.0)/(kFeatures/2.0-1.0);
@@ -87,7 +149,7 @@ std::vector<float> StetCoreMLEncoder::encode(const std::vector<float> &features,
             }
         }
         NSError *error=nil;
-        auto prediction=[impl->model predictionFromFeatures:impl->input error:&error];
+        auto prediction=[impl->model predictionFromFeatures:slot.input error:&error];
         if (!prediction) throw failure(error);
         auto output=[prediction featureValueForName:@"audio_embeds"].multiArrayValue;
         if (!output || output.dataType!=MLMultiArrayDataTypeFloat32 ||

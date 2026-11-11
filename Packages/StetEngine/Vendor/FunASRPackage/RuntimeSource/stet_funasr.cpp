@@ -178,9 +178,14 @@ static int decode_batch(llama_context*ctx,int n,llama_token*tok,float*embd,int n
     int r=llama_decode(ctx,b); n_past+=n; return r;
 }
 
+struct stet_funasr_encoder {
+    std::shared_ptr<StetCoreMLEncoder> instance;
+    std::string path;
+};
+
 struct stet_funasr_context {
     enc_model encoder;
-    std::unique_ptr<StetCoreMLEncoder> coreml_encoder;
+    std::shared_ptr<StetCoreMLEncoder> coreml_encoder;
     std::string cpu_encoder_path;
     llama_model *model = nullptr;
     llama_context *llama = nullptr;
@@ -216,7 +221,9 @@ static std::vector<llama_token> prompt_tokens(const stet_funasr_context*context,
     prompt+="请结合上下文信息，更加准确地完成语音转写任务。如果没有相关信息，我们会留空。\n\n\n**上下文信息：**\n\n\n热词列表：[";
     prompt+=hotwords;
     prompt+="]\n语音转写：";
-    return tokenize(context->vocab,prompt.c_str());
+    auto tokens=tokenize(context->vocab,prompt.c_str());
+    if(tokens.size()>512)return context->prefix;
+    return tokens;
 }
 
 static void destroy_context(stet_funasr_context*context){
@@ -228,8 +235,48 @@ static void destroy_context(stet_funasr_context*context){
     delete context;
 }
 
-extern "C" stet_funasr_context *stet_funasr_create(
-    const char *encoder_path,const char *language_model_path,const char *vad_path,
+extern "C" stet_funasr_encoder *stet_funasr_encoder_create(
+    const char *encoder_path,char *error_buffer,size_t error_buffer_size){
+    if(!encoder_path){
+        set_error(error_buffer,error_buffer_size,"encoder path is required");
+        return nullptr;
+    }
+#if defined(__aarch64__) || defined(__arm64__)
+    try{
+        auto instance=std::make_shared<StetCoreMLEncoder>(encoder_path,true);
+        return new stet_funasr_encoder{std::move(instance),encoder_path};
+    }catch(const std::exception&error){
+        set_error(error_buffer,error_buffer_size,error.what());
+        return nullptr;
+    }
+#else
+    set_error(error_buffer,error_buffer_size,"Neural Engine acceleration requires Apple Silicon");
+    return nullptr;
+#endif
+}
+
+extern "C" int stet_funasr_encoder_warmup(
+    stet_funasr_encoder *encoder,char *error_buffer,size_t error_buffer_size){
+    if(!encoder||!encoder->instance){
+        set_error(error_buffer,error_buffer_size,"encoder is required");
+        return 0;
+    }
+    try{
+        encoder->instance->warmup();
+        return 1;
+    }catch(const std::exception&error){
+        set_error(error_buffer,error_buffer_size,error.what());
+        return 0;
+    }
+}
+
+extern "C" void stet_funasr_encoder_destroy(stet_funasr_encoder *encoder){
+    delete encoder;
+}
+
+extern "C" stet_funasr_context *stet_funasr_create_with_encoder(
+    const char *encoder_path,stet_funasr_encoder *shared_encoder,
+    const char *language_model_path,const char *vad_path,
     int thread_count,char *error_buffer,size_t error_buffer_size){
     if(!encoder_path||!language_model_path||!vad_path){
         set_error(error_buffer,error_buffer_size,"model paths are required");
@@ -244,10 +291,17 @@ extern "C" stet_funasr_context *stet_funasr_create(
         llama_log_set(runtime_log_callback,nullptr);
         context->cpu_encoder_path=encoder_path;
         std::string selected_path=encoder_path;
-        if(selected_path.size()>=9 && selected_path.compare(selected_path.size()-9,9,".mlmodelc")==0){
-            context->cpu_encoder_path=selected_path.substr(0,selected_path.find_last_of('/')+1)+"funasr-encoder-f16.gguf";
+        const bool selected_coreml=selected_path.size()>=9 && selected_path.compare(selected_path.size()-9,9,".mlmodelc")==0;
+        if(selected_coreml){
+            const auto slash=selected_path.find_last_of('/');
+            const std::string dir=(slash==std::string::npos)?std::string():selected_path.substr(0,slash+1);
+            context->cpu_encoder_path=dir+"funasr-encoder-f16.gguf";
+        }
+        if(shared_encoder && shared_encoder->instance){
+            context->coreml_encoder=shared_encoder->instance;
+        }else if(selected_coreml){
 #if defined(__aarch64__) || defined(__arm64__)
-            try { context->coreml_encoder=std::make_unique<StetCoreMLEncoder>(encoder_path); }
+            try { context->coreml_encoder=std::make_shared<StetCoreMLEncoder>(encoder_path,false); }
             catch(const std::exception &e) { fprintf(stderr,"FunASR Core ML load failed; using CPU: %s\n",e.what()); }
 #endif
         }
@@ -265,7 +319,7 @@ extern "C" stet_funasr_context *stet_funasr_create(
         if(!context->model)throw std::runtime_error("language model could not be loaded");
         context->vocab=llama_model_get_vocab(context->model);
         llama_context_params cp=llama_context_default_params();
-        cp.n_ctx=2048; cp.n_batch=512; cp.n_ubatch=512;
+        cp.n_ctx=1024; cp.n_batch=512; cp.n_ubatch=512;
         cp.n_threads=context->thread_count; cp.n_threads_batch=context->thread_count;
         context->llama=llama_init_from_model(context->model,cp);
         if(!context->llama)throw std::runtime_error("language model context could not be created");
@@ -279,6 +333,27 @@ extern "C" stet_funasr_context *stet_funasr_create(
         return context;
     }catch(const std::exception&error){
         set_error(error_buffer,error_buffer_size,error.what()); destroy_context(context); return nullptr;
+    }
+}
+
+extern "C" stet_funasr_context *stet_funasr_create(
+    const char *encoder_path,const char *language_model_path,const char *vad_path,
+    int thread_count,char *error_buffer,size_t error_buffer_size){
+    return stet_funasr_create_with_encoder(
+        encoder_path,nullptr,language_model_path,vad_path,thread_count,error_buffer,error_buffer_size);
+}
+
+extern "C" void stet_funasr_set_shared_encoder(
+    stet_funasr_context *context,stet_funasr_encoder *shared_encoder){
+    if(!context)return;
+    if(shared_encoder && shared_encoder->instance){
+        context->coreml_encoder=shared_encoder->instance;
+        if(context->encoder.ctx_w){
+            ggml_free(context->encoder.ctx_w);
+            context->encoder=enc_model{};
+        }
+    }else{
+        context->coreml_encoder.reset();
     }
 }
 
@@ -332,11 +407,15 @@ extern "C" stet_funasr_status stet_funasr_transcribe(
                decode_batch(context->llama,n_audio,nullptr,adaptor.data(),D,n_past,false)!=0||
                decode_batch(context->llama,(int)context->suffix.size(),context->suffix.data(),nullptr,0,n_past,true)!=0)
                 throw std::runtime_error("language model prompt evaluation failed");
+            const int prompt_budget=(int)prefix.size()+n_audio+(int)context->suffix.size();
+            const int available_tokens=std::max(1,(int)llama_n_ctx(context->llama)-prompt_budget-1);
+            const int segment_token_limit=std::min(token_limit,available_tokens);
             llama_token token=llama_sampler_sample(context->sampler,context->llama,-1);
-            for(int i=0;i<token_limit;i++){
+            for(int i=0;i<segment_token_limit;i++){
                 if(llama_vocab_is_eog(context->vocab,token))break;
                 char buffer[256]; int count=llama_token_to_piece(context->vocab,token,buffer,sizeof(buffer),0,true);
                 if(count>0)full.append(buffer,count);
+                if(i+1>=segment_token_limit)break;
                 if(decode_batch(context->llama,1,&token,nullptr,0,n_past,true)!=0)
                     throw std::runtime_error("language model token evaluation failed");
                 token=llama_sampler_sample(context->sampler,context->llama,-1);

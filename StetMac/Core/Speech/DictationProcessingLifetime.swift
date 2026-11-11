@@ -1,21 +1,47 @@
+import Dispatch
 import Foundation
 
 /// Tracks work that can outlive the microphone session. Access stays on the owning
-/// speech-service actor; model cleanup waits for every user of the model context.
+/// speech-service actor; model cleanup waits for every user of the model context,
+/// keeps models warm across a sliding idle TTL, and evicts immediately on memory pressure.
 nonisolated final class DictationProcessingLifetime {
+    static let defaultIdleTTL: Duration = .seconds(300)
+
     private var sessions: Set<UInt64> = []
     private var retiringPrewarms: [Task<Void, Never>] = []
+    private var idleTimerTask: Task<Void, Never>?
+    private var idleTimerGeneration: UInt64 = 0
     private var cleanupTask: Task<Void, Never>?
     private var comparisonTask: Task<Void, Never>?
     private var comparisonGeneration: UInt64 = 0
+    private let idleTTL: Duration
+    private let sleep: @Sendable (Duration) async throws -> Void
     private let cleanupModels: @Sendable () async -> Void
 
-    init(cleanupModels: @escaping @Sendable () async -> Void) {
+    init(
+        idleTTL: Duration = .zero,
+        sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+        cleanupModels: @escaping @Sendable () async -> Void
+    ) {
+        self.idleTTL = idleTTL
+        self.sleep = sleep
         self.cleanupModels = cleanupModels
     }
 
-    func begin(_ sessionID: UInt64) { sessions.insert(sessionID) }
-    func finish(_ sessionID: UInt64) { sessions.remove(sessionID) }
+    func begin(_ sessionID: UInt64) {
+        cancelIdleTimer()
+        sessions.insert(sessionID)
+    }
+
+    func finish(_ sessionID: UInt64) {
+        sessions.remove(sessionID)
+    }
+
+    func cancelIdleTimer() {
+        idleTimerGeneration &+= 1
+        idleTimerTask?.cancel()
+        idleTimerTask = nil
+    }
 
     func retirePrewarm(_ task: Task<Void, Never>?) {
         guard let task else { return }
@@ -24,11 +50,57 @@ nonisolated final class DictationProcessingLifetime {
     }
 
     func waitForCleanup(isolation: isolated (any Actor)) async {
+        cancelIdleTimer()
+        let prewarms = retiringPrewarms
+        retiringPrewarms.removeAll()
+        for task in prewarms { await task.value }
         while let cleanupTask { await cleanupTask.value }
     }
 
-    func scheduleCleanupIfIdle(captureIsIdle: Bool, isolation: isolated (any Actor)) {
+    func scheduleCleanupIfIdle(
+        captureIsIdle: Bool,
+        isolation: isolated (any Actor),
+        recheckCaptureIdle: (() -> Bool)? = nil
+    ) {
         guard captureIsIdle, sessions.isEmpty, cleanupTask == nil, comparisonTask == nil else { return }
+        if idleTTL <= .zero {
+            startImmediateCleanup(isolation: isolation)
+            return
+        }
+
+        cancelIdleTimer()
+        idleTimerGeneration &+= 1
+        let generation = idleTimerGeneration
+        let prewarms = retiringPrewarms
+        retiringPrewarms.removeAll()
+        let ttl = idleTTL
+        let sleep = sleep
+
+        idleTimerTask = Task {
+            _ = isolation
+            for task in prewarms { await task.value }
+            guard !Task.isCancelled, idleTimerGeneration == generation else { return }
+            do {
+                try await sleep(ttl)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled, idleTimerGeneration == generation else { return }
+            idleTimerTask = nil
+            let stillIdle = recheckCaptureIdle?() ?? true
+            guard stillIdle, sessions.isEmpty, cleanupTask == nil, comparisonTask == nil else { return }
+            startImmediateCleanup(isolation: isolation)
+        }
+    }
+
+    func evictIdleModelsNow(captureIsIdle: Bool, isolation: isolated (any Actor)) {
+        guard captureIsIdle, sessions.isEmpty, cleanupTask == nil, comparisonTask == nil else { return }
+        cancelIdleTimer()
+        startImmediateCleanup(isolation: isolation)
+    }
+
+    private func startImmediateCleanup(isolation: isolated (any Actor)) {
+        guard cleanupTask == nil else { return }
         let prewarms = retiringPrewarms
         retiringPrewarms.removeAll()
         cleanupTask = Task {
@@ -84,6 +156,37 @@ nonisolated final class DictationProcessingLifetime {
         }
     }
 }
+
+#if os(macOS)
+    nonisolated final class SystemMemoryPressureMonitor: @unchecked Sendable {
+        private let lock = NSLock()
+        private var source: (any DispatchSourceMemoryPressure)?
+
+        init(onPressure: @escaping @Sendable () -> Void) {
+            let source = DispatchSource.makeMemoryPressureSource(
+                eventMask: [.warning, .critical],
+                queue: DispatchQueue.global(qos: .utility)
+            )
+            source.setEventHandler {
+                onPressure()
+            }
+            self.source = source
+            source.resume()
+        }
+
+        deinit {
+            cancel()
+        }
+
+        func cancel() {
+            lock.lock()
+            let current = source
+            source = nil
+            lock.unlock()
+            current?.cancel()
+        }
+    }
+#endif
 
 /// The foreground processing scope owns all intermediate files until it explicitly
 /// transfers one to background comparison. Cleanup runs on every exit path.

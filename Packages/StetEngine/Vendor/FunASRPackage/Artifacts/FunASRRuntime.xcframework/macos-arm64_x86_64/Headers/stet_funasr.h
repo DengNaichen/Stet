@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 typedef struct stet_funasr_context stet_funasr_context;
+typedef struct stet_funasr_encoder stet_funasr_encoder;
 
 typedef enum stet_funasr_status {
     STET_FUNASR_OK = 0,
@@ -19,6 +20,20 @@ typedef enum stet_funasr_status {
     STET_FUNASR_OUT_OF_MEMORY = 6
 } stet_funasr_status;
 
+stet_funasr_encoder *stet_funasr_encoder_create(
+    const char *encoder_path,
+    char *error_buffer,
+    size_t error_buffer_size
+);
+
+int stet_funasr_encoder_warmup(
+    stet_funasr_encoder *encoder,
+    char *error_buffer,
+    size_t error_buffer_size
+);
+
+void stet_funasr_encoder_destroy(stet_funasr_encoder *encoder);
+
 stet_funasr_context *stet_funasr_create(
     const char *encoder_path,
     const char *language_model_path,
@@ -26,6 +41,21 @@ stet_funasr_context *stet_funasr_create(
     int thread_count,
     char *error_buffer,
     size_t error_buffer_size
+);
+
+stet_funasr_context *stet_funasr_create_with_encoder(
+    const char *encoder_path,
+    stet_funasr_encoder *shared_encoder,
+    const char *language_model_path,
+    const char *vad_path,
+    int thread_count,
+    char *error_buffer,
+    size_t error_buffer_size
+);
+
+void stet_funasr_set_shared_encoder(
+    stet_funasr_context *context,
+    stet_funasr_encoder *shared_encoder
 );
 
 stet_funasr_status stet_funasr_transcribe(
@@ -41,6 +71,8 @@ stet_funasr_status stet_funasr_transcribe(
 void stet_funasr_free_text(char *text);
 void stet_funasr_destroy(stet_funasr_context *context);
 const char *stet_funasr_version(void);
+// Configuration, not proof of device placement; use MLComputePlan when validating models.
+const char *stet_funasr_encoder_backend(const stet_funasr_context *context);
 
 #ifdef __cplusplus
 }

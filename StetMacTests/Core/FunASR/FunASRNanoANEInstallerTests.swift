@@ -151,7 +151,8 @@ struct FunASRNanoANEInstallerTests {
             prepare: { _, _ in },
             whenIdle: { action in
                 try action(); return true
-            })
+            },
+            onReady: { _ in })
         try await installer.download { _ in }
         #expect(await installer.status().ready)
     }
@@ -167,7 +168,75 @@ struct FunASRNanoANEInstallerTests {
         try stale.write(in: fixture.models)
         #expect(ANEModelReadiness.installed(in: fixture.models) != nil)
         #expect(ANEModelReadiness.read(in: fixture.models) == nil)
+        #expect(ANEModelReadiness.needsSilentPreparation(in: fixture.models))
         #expect(try fixture.manager.resolvedModelFiles().encoder.pathExtension == "gguf")
+
+        try ANEModelReadiness.make(manifestHash: String(repeating: "a", count: 64), enabled: false)
+            .write(in: fixture.models)
+        #expect(!ANEModelReadiness.needsSilentPreparation(in: fixture.models))
+    }
+
+    @MainActor
+    @Test func guardianSilentlyRepreparesAfterUpdateRespectsDisabledAndRewarmsOnWake() async throws {
+        let fixture = try ANEInstallFixture()
+        defer { fixture.remove() }
+        try fixture.makePreviousModel()
+        let stale = ANEModelReadiness(
+            schemaVersion: 1,
+            modelID: FunASRNanoANEManifest.modelID,
+            contract: FunASRNanoANEManifest.modelContract,
+            manifestHash: String(repeating: "b", count: 64),
+            osVersion: "old macOS",
+            applicationBuild: "old build",
+            enabled: true
+        )
+        try stale.write(in: fixture.models)
+
+        let prepared = ANEPreparationRecorder()
+        let residentRecorder = ResidentWarmupRecorder()
+        let context = FunASRNanoContextManager { url in
+            residentRecorder.recordLoad(url)
+            return StubResidentANEEncoder(modelURL: url) {
+                residentRecorder.recordWarmup()
+            }
+        }
+        let installer = FunASRNanoANEInstaller(
+            directoryProvider: { fixture.models },
+            cache: fixture.root.appendingPathComponent("cache"),
+            validateCPU: fixture.validateCPU,
+            compile: fixture.compile,
+            prepare: { url, _ in await prepared.record(url) },
+            whenIdle: { action in
+                try await context.performModelMaintenance(action)
+            },
+            onReady: { directory in
+                await context.scheduleResidentEncoderPreload(in: directory)
+            }
+        )
+        let center = NotificationCenter()
+        let guardian = FunASRNanoANEGuardian(
+            modelManager: fixture.manager,
+            installer: installer,
+            contextManager: context,
+            notificationCenter: center,
+            startupDelay: .zero
+        )
+
+        await guardian.refreshNow(isWake: false)
+        #expect(await prepared.urls == [fixture.compiled])
+        #expect(ANEModelReadiness.read(in: fixture.models) != nil)
+        #expect(await context.hasReadyResidentEncoder)
+        #expect(residentRecorder.loadCount == 1)
+
+        await guardian.refreshNow(isWake: true)
+        #expect(residentRecorder.warmupCount == 1)
+        #expect(await context.hasReadyResidentEncoder)
+
+        try await installer.disable { _ in }
+        #expect(!(await context.hasReadyResidentEncoder))
+        await guardian.refreshNow(isWake: false)
+        #expect(await prepared.urls.count == 1)
+        #expect(!(await context.hasReadyResidentEncoder))
     }
 }
 
@@ -225,11 +294,35 @@ private nonisolated struct ANEInstallFixture: Sendable {
             validateCPU: validateCPU, compile: compile, prepare: prepare,
             whenIdle: { action in
                 try action(); return true
-            })
+            },
+            onReady: { _ in })
     }
 }
 
 private actor ANEPreparationRecorder {
     var urls: [URL] = []
     func record(_ url: URL) { urls.append(url) }
+}
+
+private nonisolated final class ResidentWarmupRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var loads = 0
+    private var warmups = 0
+    var loadCount: Int { lock.withLock { loads } }
+    var warmupCount: Int { lock.withLock { warmups } }
+    func recordLoad(_: URL) { lock.withLock { loads += 1 } }
+    func recordWarmup() { lock.withLock { warmups += 1 } }
+}
+
+private nonisolated final class StubResidentANEEncoder: FunASRNanoResidentEncoding, @unchecked Sendable {
+    let modelURL: URL
+    private let onWarmup: @Sendable () -> Void
+    init(modelURL: URL, onWarmup: @escaping @Sendable () -> Void = {}) {
+        self.modelURL = modelURL
+        self.onWarmup = onWarmup
+    }
+    func warmup() throws {
+        onWarmup()
+    }
+    func releaseResources() {}
 }

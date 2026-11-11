@@ -6,6 +6,7 @@ struct TranscriptionResult: Sendable, Equatable {
 }
 
 nonisolated protocol AudioFileTranscriptionService: Sendable {
+    func isPrewarmed() async -> Bool
     func prewarm() async throws
     func transcribe(
         audioFileAt fileURL: URL,
@@ -16,5 +17,6 @@ nonisolated protocol AudioFileTranscriptionService: Sendable {
 }
 
 extension AudioFileTranscriptionService {
+    func isPrewarmed() async -> Bool { false }
     func prewarm() async throws {}
 }

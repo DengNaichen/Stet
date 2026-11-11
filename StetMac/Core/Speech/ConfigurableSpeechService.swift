@@ -19,20 +19,20 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         private let audioFeatureBridge = AudioFeatureBridge()
     #endif
 
+    static let defaultTranscriptionPrewarmDelay: Duration = .milliseconds(120)
+
     private let capture: DictationCaptureLifecycle
+    private let transcriptionPrewarmDelay: Duration
     private var activePipeline: DictationPipeline?
     private var audioLevelTask: Task<Void, Never>?
     private var transcriptionPrewarmTask: Task<Void, Never>?
+    private var transcriptionPrewarmDelayGate: TranscriptionPrewarmDelayGate?
     private var rewritePrewarmTask: Task<Void, Never>?
     #if os(macOS)
         private var audioFeatureTask: Task<Void, Never>?
+        private var memoryPressureMonitor: SystemMemoryPressureMonitor?
     #endif
-    private let processing = DictationProcessingLifetime {
-        #if os(macOS)
-            await LocalParakeetContextManager.shared.cleanupResources()
-            await FunASRNanoContextManager.shared.cleanupResources()
-        #endif
-    }
+    private let processing: DictationProcessingLifetime
     private let recordNoHotwordTranscript: @Sendable (String) async -> Void
 
     init(
@@ -43,7 +43,11 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         audioPostProcessor: (any AudioPostProcessing)? = nil,
         captureService: (any AudioCaptureService)? = nil,
         captureServiceFactory: (@Sendable () -> any AudioCaptureService)? = nil,
-        recordNoHotwordTranscript: (@Sendable (String) async -> Void)? = nil
+        recordNoHotwordTranscript: (@Sendable (String) async -> Void)? = nil,
+        transcriptionPrewarmDelay: Duration = ConfigurableSpeechService.defaultTranscriptionPrewarmDelay,
+        idleModelTTL: Duration = DictationProcessingLifetime.defaultIdleTTL,
+        observesSystemMemoryPressure: Bool = false,
+        cleanupModels: (@Sendable () async -> Void)? = nil
     ) {
         precondition(
             captureService == nil || captureServiceFactory == nil,
@@ -53,6 +57,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         self.settingsStore = settingsStore
         self.locale = locale
         self.pipelineFactory = pipelineFactory
+        self.transcriptionPrewarmDelay = transcriptionPrewarmDelay
         self.audienceProvider =
             audienceProvider ?? {
                 await MainActor.run { AppBranchMonitor.shared.currentApp?.audience ?? .ai }
@@ -64,10 +69,33 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                     DictationHistoryService.shared.recordRawWithoutHotwords(text)
                 }
             }
+        self.processing = DictationProcessingLifetime(
+            idleTTL: idleModelTTL,
+            cleanupModels: cleanupModels ?? {
+                #if os(macOS)
+                    await LocalParakeetContextManager.shared.cleanupResources()
+                    await FunASRNanoContextManager.shared.cleanupResources()
+                #endif
+            }
+        )
         self.capture = DictationCaptureLifecycle(
             recorder: captureService,
             factory: captureServiceFactory
         )
+        #if os(macOS)
+            if observesSystemMemoryPressure {
+                self.memoryPressureMonitor = SystemMemoryPressureMonitor { [weak self] in
+                    Task { await self?.handleMemoryPressure() }
+                }
+            }
+        #endif
+    }
+
+    deinit {
+        processing.cancelIdleTimer()
+        #if os(macOS)
+            memoryPressureMonitor?.cancel()
+        #endif
     }
 
     func makeAudioLevelStream() async -> AsyncStream<Double> {
@@ -362,7 +390,16 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     }
 
     private func scheduleContextCleanupIfIdle() {
-        processing.scheduleCleanupIfIdle(captureIsIdle: capture.isIdle, isolation: self)
+        processing.scheduleCleanupIfIdle(
+            captureIsIdle: capture.isIdle,
+            isolation: self,
+            recheckCaptureIdle: { self.capture.isIdle }
+        )
+    }
+
+    func handleMemoryPressure() {
+        logger.notice("System memory pressure detected; evicting idle transcription models.")
+        processing.evictIdleModelsNow(captureIsIdle: capture.isIdle, isolation: self)
     }
 
     private func ensureCaptureSessionIsActive(_ sessionID: UInt64) throws {
@@ -375,9 +412,18 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
     private func startTranscriptionPrewarm(using pipeline: DictationPipeline) {
         transcriptionPrewarmTask?.cancel()
+        let delay = transcriptionPrewarmDelay
+        let delayGate = TranscriptionPrewarmDelayGate()
+        transcriptionPrewarmDelayGate = delayGate
         transcriptionPrewarmTask = Task(priority: .userInitiated) {
-            // Delay pre-warm by 1s to allow UI animations to settle after button press
-            try? await Task.sleep(for: .seconds(1))
+            if await pipeline.transcriptionService.isPrewarmed() {
+                logger.info("DictationStage transcriptionPrewarmMs=0.0 warmContextHit=true")
+                return
+            }
+
+            if delay > .zero {
+                await delayGate.wait(for: delay)
+            }
             guard !Task.isCancelled else { return }
 
             let prewarmStartedAt = ProcessInfo.processInfo.systemUptime
@@ -385,7 +431,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
                 try await pipeline.transcriptionService.prewarm()
                 let prewarmMs = Self.elapsedMilliseconds(since: prewarmStartedAt)
                 logger.info(
-                    "DictationStage transcriptionPrewarmMs=\(Self.formatMilliseconds(prewarmMs))"
+                    "DictationStage transcriptionPrewarmMs=\(Self.formatMilliseconds(prewarmMs)) warmContextHit=false"
                 )
             } catch is CancellationError {
             } catch {
@@ -419,6 +465,10 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     }
 
     private func waitForTranscriptionPrewarm() async {
+        if let delayGate = transcriptionPrewarmDelayGate {
+            await delayGate.openEarly()
+            transcriptionPrewarmDelayGate = nil
+        }
         guard let transcriptionPrewarmTask else { return }
         let waitStartedAt = ProcessInfo.processInfo.systemUptime
         _ = await transcriptionPrewarmTask.result
@@ -432,6 +482,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     }
 
     private func stopTranscriptionPrewarm() {
+        transcriptionPrewarmDelayGate = nil
         processing.retirePrewarm(transcriptionPrewarmTask)
         transcriptionPrewarmTask = nil
     }
@@ -577,8 +628,34 @@ extension ConfigurableSpeechService {
         ConfigurableSpeechService(
             settingsStore: settingsStore,
             pipelineFactory: .live(),
-            captureService: captureService
+            captureService: captureService,
+            observesSystemMemoryPressure: true
         )
+    }
+}
+
+private actor TranscriptionPrewarmDelayGate {
+    private var sleepTask: Task<Void, Never>?
+    private var opened = false
+
+    func wait(for duration: Duration) async {
+        guard !opened, !Task.isCancelled else { return }
+        let task = Task<Void, Never> {
+            try? await Task.sleep(for: duration)
+        }
+        sleepTask = task
+        await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+        sleepTask = nil
+    }
+
+    func openEarly() {
+        opened = true
+        sleepTask?.cancel()
+        sleepTask = nil
     }
 }
 
