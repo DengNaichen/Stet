@@ -1587,6 +1587,96 @@ extension ConfigurableSpeechServiceTests {
         try audioFile.write(from: buffer)
         return fileURL
     }
+
+    @Test func warmContextSkipsPrewarmDelayAndMemoryPressureEvictsIdleModels() async throws {
+        let (store, _, _) = try makeSettingsStore(
+            transcriptionProvider: .openAI,
+            rewriteEnabled: false
+        )
+        store.saveTranscriptionEngine(.fluidAudio)
+        let audioURL = makeAudioFileURL()
+        defer { try? FileManager.default.removeItem(at: audioURL) }
+        let postProcessor = TestAudioPostProcessor(
+            result: .passthrough(url: audioURL, duration: 1.0)
+        )
+        let warmTranscriber = WarmAwareTestTranscriptionService(text: "好的")
+        let cleanupCounter = CleanupCallCounter()
+        let service = ConfigurableSpeechService(
+            settingsStore: store,
+            pipelineFactory: DictationPipelineFactory(
+                makeLocalTranscriptionService: { warmTranscriber },
+                makeRewriteService: { _, _ in RecordingRewriteService() }
+            ),
+            audioPostProcessor: postProcessor,
+            captureServiceFactory: { TestAudioCaptureService(audioFileURL: audioURL, audioDurationSeconds: 1.0) },
+            transcriptionPrewarmDelay: .seconds(5),
+            idleModelTTL: .seconds(300),
+            cleanupModels: {
+                await cleanupCounter.record()
+                await warmTranscriber.unload()
+            }
+        )
+
+        // First dictation: stopRecording wakes the prewarm delay gate early instead of waiting 5s.
+        try await service.startRecordingAndActivate()
+        let first = try await service.stopRecording()
+        #expect(first.text == "好的")
+        #expect(await warmTranscriber.prewarmCallCount == 1)
+        #expect(await warmTranscriber.isPrewarmed())
+        #expect(await cleanupCounter.cleanupCount == 0)
+
+        // Second dictation within the 300s TTL hits the warm context directly (0ms delay, no redundant prewarm).
+        try await service.startRecordingAndActivate()
+        try #require(await TestSupport.eventuallyAsync { await warmTranscriber.warmCheckCount >= 2 })
+        let second = try await service.stopRecording()
+        #expect(second.text == "好的")
+        #expect(await warmTranscriber.prewarmCallCount == 1)
+        #expect(await cleanupCounter.cleanupCount == 0)
+
+        // System memory pressure while idle evicts models immediately without waiting for the 300s TTL.
+        await service.handleMemoryPressure()
+        try #require(await TestSupport.eventuallyAsync { await cleanupCounter.cleanupCount == 1 })
+        #expect(!(await warmTranscriber.isPrewarmed()))
+    }
+}
+
+private actor CleanupCallCounter {
+    private(set) var cleanupCount = 0
+    func record() { cleanupCount += 1 }
+}
+
+private actor WarmAwareTestTranscriptionService: AudioFileTranscriptionService {
+    private let text: String
+    private var warm = false
+    private(set) var prewarmCallCount = 0
+    private(set) var warmCheckCount = 0
+
+    init(text: String) {
+        self.text = text
+    }
+
+    func isPrewarmed() async -> Bool {
+        warmCheckCount += 1
+        return warm
+    }
+
+    func prewarm() async throws {
+        prewarmCallCount += 1
+        warm = true
+    }
+
+    func unload() {
+        warm = false
+    }
+
+    func transcribe(
+        audioFileAt _: URL,
+        languageCode: String?,
+        prompt _: String?,
+        audioDurationSeconds _: TimeInterval?
+    ) async throws -> TranscriptionResult {
+        TranscriptionResult(text: text, languageCode: languageCode)
+    }
 }
 
 private actor TestAudioPostProcessor: AudioPostProcessing {

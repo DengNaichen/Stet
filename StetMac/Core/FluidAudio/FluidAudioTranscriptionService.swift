@@ -54,6 +54,14 @@
                 contextManagerProvider ?? { LocalParakeetContextManager.shared }
         }
 
+        func isPrewarmed() async -> Bool {
+            let manager = await contextManagerProvider()
+            let version = modelVersion
+            return await MainActor.run {
+                manager.managerIfLoaded(matching: version) != nil
+            }
+        }
+
         /// Loads the ASR model into the shared context manager if nothing is
         /// loaded, so the existing parallel-prewarm path in
         /// `ConfigurableSpeechService` works for Parakeet.

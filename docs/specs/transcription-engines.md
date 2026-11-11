@@ -132,9 +132,11 @@
 
 **预热与内存**
 
-- **FR-012**：录音开始约 1 秒后，在后台预热所选引擎的模型；停止录音后，转写先等待预热结束再开始。预热失败不打断录音，转写时再按需加载。
-- **FR-013**：已预热的模型在本次听写内复用；未预热时临时加载，转写完成后立即释放。
-- **FR-014**：听写全部结束且没有后台转写进行时，释放 Fun-ASR Nano 与 Parakeet 占用的内存；下一次听写重新预热（待产品确认）。会议转写持有 Fun-ASR Nano 时，释放推迟到会议用完为止。对同一模型的推理串行执行。
+- **FR-012**：录音开始后避让胶囊首帧动画的极短窗口（默认约 120 毫秒；模型已处于保活态时为 0 毫秒），在后台预热所选引擎的模型；若用户在预热延迟窗口结束前停止录音，转写立即唤醒并等待预热结束再开始。预热失败不打断录音，转写时再按需加载。
+- **FR-013**：已预热或处于空闲保活窗口内的模型在连续听写间直接复用；未预热时临时加载，转写完成后立即释放临时实例。
+- **FR-014**：采用分层生命周期管理本机模型内存：
+  - Fun-ASR Nano 的可选 ANE 编码器与 Qwen3 语言模型解耦：ANE 编码器启用时，在应用启动空闲时机、系统唤醒及版本更新后于后台静默准备/重温并常驻持有（含各帧长桶缓冲）；后台编译或重温尚未完成期间触发的听写立即使用本机 CPU 编码器完成本次转写，不阻塞前台且不禁用加速设置，待后台常驻实例就绪后后续听写自动切回 ANE；用户在设置中切回 CPU 或替换/维护模型时，在空闲安全时机卸载常驻编码器。
+  - 听写及后台对照转写全部结束后，Fun-ASR Nano 的 Qwen3 语言模型与 Parakeet 启动可重置的短时滑动空闲计时器（默认 300 秒 TTL），超时闲置后再释放语言模型内存（保留常驻 ANE 编码器）；收到系统内存压力事件（`.warning` / `.critical`）且当前无活跃听写或会议租约时立即提前释放。会议转写持有 Fun-ASR Nano 租约时，释放推迟到会议用完为止。对同一模型的推理串行执行。
 
 **音频后处理**
 
@@ -192,7 +194,7 @@
 2. **Nano 绕过后处理**：当前 Fun-ASR Nano 不做应用层无语音判定、增益和裁切。可选：维持（依赖内置语音检测）；至少做无语音判定；与其他引擎一致。
 3. **回退时是否提示**：当前听写中回退不提示，只在设置页说明。可选：维持；在胶囊或通知中提示一次。
 4. **Apple Speech 语言不受支持时**：当前直接失败，不回退。可选：回退到 Fun-ASR Nano；在设置中阻止选择。
-5. **模型用完即释放**：当前每次听写结束就卸载模型，下一次重新加载。可选：维持（省内存）；空闲一段时间后再卸载；常驻。
+5. **模型保活窗口时长**：当前语言模型在听写空闲 300 秒后或系统出现内存压力时卸载，ANE 编码器启用时常驻。可选：维持默认 300 秒；调整空闲时长或开放配置。
 6. **Parakeet / Apple Speech 不用热词**：可选：维持；为支持的引擎接入词典。
 7. **不带热词的对照转写**：当前每次 Nano 听写都额外转写一次。可选：保留（服务修正学习或评估）；改为可关闭；移除。
 8. **删除模型入口**：当前只能在 Finder 中手动删除。可选：维持；在设置中提供删除。
@@ -207,6 +209,6 @@
 - 无语音判定所用的语音检测出错时，异常直接抛出，本次听写按失败处理（[DefaultAudioPostProcessor](../../StetMac/Core/Audio/Processing/DefaultAudioPostProcessor.swift) 调用 [AudioSignalAnalyzer](../../StetMac/Core/Audio/Processing/AudioSignalAnalyzer.swift) 的 `analyzeForPostProcessing`）；旧 004 要求分析失败时放行原文件。
 - 会议转写使用的 Fun-ASR Nano 实例在应用启动时创建一次；启动时模型未下载，之后再下载，会议转写在重启前仍不可用（[MacMeetingRecordingRuntime](../../StetMac/Core/Speech/MacMeetingRecordingRuntime.swift) 的 `live`）。
 - 首次引导的引擎路由固定返回 Fun-ASR Nano，第二语言设置不影响引擎（[TranscriptionLanguageRouting](../../StetMac/Shared/Utilities/TranscriptionLanguageRouting.swift)）。
-- 预热后的模型在每次听写结束即释放（[DictationProcessingLifetime](../../StetMac/Core/Speech/DictationProcessingLifetime.swift) 的 `scheduleCleanupIfIdle`），旧 009 描述的“重复听写复用已加载运行时”只在单次听写内成立。
+- 预热后的语言模型在听写及后台对照转写结束后保留 300 秒滑动空闲窗口并在内存压力下立即释放（[DictationProcessingLifetime](../../StetMac/Core/Speech/DictationProcessingLifetime.swift) 的 `scheduleCleanupIfIdle` 与 `evictIdleModelsNow`），启用 ANE 时编码器由 [FunASRNanoContextManager](../../StetMac/Core/FunASR/FunASRNanoTranscriptionService.swift) 与 [FunASRNanoANEGuardian](../../StetMac/Core/FunASR/FunASRNanoANEGuardian.swift) 独立常驻维护。
 - 不带热词的对照转写是否执行，同样取决于“保存的引擎是否为 Fun-ASR Nano”（[DictationPipelineFactory](../../StetMac/Core/DictationPipeline/DictationPipelineFactory.swift) 的 `recordsNoHotwordTranscript`）：选择 Parakeet 或 Apple Speech 但回退到 Nano 时不做对照转写，与 FR-020“使用 Fun-ASR Nano 完成一次听写后”的字面不一致。
 - 引擎回退逻辑见 [LocalTranscriptionServiceFactory](../../StetMac/Core/DictationPipeline/LocalTranscriptionServiceFactory.swift)；Nano 下载与目录见 [FunASRNanoModelManager](../../StetMac/Core/FunASR/FunASRNanoModelManager.swift)；镜像规则见 [ModelDownloadMirror](../../Packages/StetEngine/Sources/StetCore/ModelDownloadMirror.swift)；热词上限见 [FunASRNanoHotwordPrompt](../../Packages/StetEngine/Sources/StetCore/FunASRNanoHotwordPrompt.swift)；iOS 云端引擎见 [FunASRRealtimeEngine](../../StetMobile/StetMobile/Core/Dictation/FunASRRealtimeEngine.swift) 与 [FunASRSettingsStore](../../StetMobile/StetMobile/Core/Settings/FunASRSettingsStore.swift)；以上与本 spec 一致。
