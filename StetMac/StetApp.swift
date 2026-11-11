@@ -47,6 +47,7 @@ struct StetApp: App {
         @StateObject private var dictationCommandsViewModel: MacDictationCommandsViewModel
         @StateObject private var settingsShellViewModel: MacSettingsShellViewModel
         @StateObject private var aneModelSettings: ANEModelSettingsViewModel
+        @State private var aneGuardian: FunASRNanoANEGuardian
         @State private var meetingViewModel: MacMeetingViewModel
         @StateObject private var appUpdateManager: AppUpdateManager
         @State private var appUpdateViewModel: MacAppUpdateViewModel
@@ -55,9 +56,12 @@ struct StetApp: App {
         @State private var compatibilityViewModel: MacCompatibilityViewModel
 
         init() {
+            let aneInstaller = FunASRNanoANEInstaller(release: FunASRNanoANECatalog.bundled())
+            let aneGuardian = FunASRNanoANEGuardian(installer: aneInstaller)
             _aneModelSettings = StateObject(
-                wrappedValue: ANEModelSettingsViewModel(
-                    installer: FunASRNanoANEInstaller(release: FunASRNanoANECatalog.bundled())))
+                wrappedValue: ANEModelSettingsViewModel(installer: aneInstaller))
+            _aneGuardian = State(initialValue: aneGuardian)
+            aneGuardian.start()
             AnalyticsService.initialize()
             let appUpdateManager = AppUpdateManager()
             _appUpdateManager = StateObject(wrappedValue: appUpdateManager)

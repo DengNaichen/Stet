@@ -212,7 +212,14 @@
                 at: directory.appendingPathComponent(FunASRNanoANEManifest.compiledName),
                 withIntermediateDirectories: true)
             try ANEModelReadiness.make(manifestHash: String(repeating: "a", count: 64)).write(in: directory)
-            let context = FunASRNanoContextManager()
+            let residentStore = ResidentEncoderStore()
+            let context = FunASRNanoContextManager { url in
+                let encoder = StubResidentEncoder(modelURL: url)
+                residentStore.append(encoder)
+                return encoder
+            }
+            await context.preloadResidentEncoder(in: directory)
+            #expect(await context.hasReadyResidentEncoder)
             let engines = FunASREngineStore()
             let service = try FunASRNanoTranscriptionService(
                 modelManager: manager,
@@ -224,11 +231,96 @@
             try await service.prewarm()
             #expect(ANEModelReadiness.read(in: directory) == nil)
             #expect(ANEModelReadiness.installed(in: directory)?.enabled == false)
+            #expect(!(await context.hasReadyResidentEncoder))
+            let resident = try #require(residentStore.snapshot().first)
+            #expect(resident.releaseCallCount == 1)
             let result = try await service.transcribe(
                 audioFileAt: makeAudioFile(), languageCode: nil, prompt: nil, audioDurationSeconds: 1)
             #expect(result.text == "CPU fallback")
             #expect(engines.snapshot().count == 1)
             await context.cleanupResources()
+        }
+
+        @Test(.enabled(if: ANEModelReadiness.supported))
+        func backgroundResidentCompileNeverBlocksForegroundAndSwitchesToANEOnceReady() async throws {
+            let manager = try makeModelManager()
+            let directory = try manager.modelFiles().encoder.deletingLastPathComponent()
+            try FileManager.default.createDirectory(
+                at: directory.appendingPathComponent(FunASRNanoANEManifest.compiledName),
+                withIntermediateDirectories: true)
+            try ANEModelReadiness.make(manifestHash: String(repeating: "c", count: 64)).write(in: directory)
+
+            let compileGate = PrepareGate()
+            let residentStore = ResidentEncoderStore()
+            let context = FunASRNanoContextManager { url in
+                await compileGate.wait()
+                let encoder = StubResidentEncoder(modelURL: url)
+                residentStore.append(encoder)
+                return encoder
+            }
+            let engines = FunASREngineStore()
+            let service = try FunASRNanoTranscriptionService(
+                modelManager: manager,
+                residentEngineFactory: { files, resident in
+                    let backend = files.encoder.pathExtension == "mlmodelc" ? "coreml-cpu-and-ne" : "ggml-cpu"
+                    let engine = StubFunASREngine(
+                        text: backend,
+                        backend: backend,
+                        encoderExtension: files.encoder.pathExtension,
+                        hadResidentEncoder: resident != nil
+                    )
+                    engines.append(engine)
+                    return engine
+                },
+                contextManager: context
+            )
+
+            await context.scheduleResidentEncoderPreload(in: directory)
+            await compileGate.waitUntilWaiting()
+
+            try await service.prewarm()
+            let firstResult = try await service.transcribe(
+                audioFileAt: makeAudioFile(),
+                languageCode: nil,
+                prompt: nil,
+                audioDurationSeconds: 1.5
+            )
+            #expect(firstResult.text == "ggml-cpu")
+            #expect(ANEModelReadiness.read(in: directory) != nil)
+            let firstEngine = try #require(engines.snapshot().first)
+            #expect(await firstEngine.encoderExtension == "gguf")
+            #expect(!(await firstEngine.hadResidentEncoder))
+
+            await compileGate.resume()
+            try #require(await TestSupport.eventuallyAsync { await context.hasReadyResidentEncoder })
+
+            try await service.prewarm()
+            let secondResult = try await service.transcribe(
+                audioFileAt: makeAudioFile(),
+                languageCode: nil,
+                prompt: nil,
+                audioDurationSeconds: 1.5
+            )
+            #expect(secondResult.text == "coreml-cpu-and-ne")
+            let secondEngine = try #require(engines.snapshot().last)
+            #expect(await secondEngine.encoderExtension == "mlmodelc")
+            #expect(await secondEngine.hadResidentEncoder)
+
+            // Unloading Qwen3 keeps the resident ANE encoder warm across sessions.
+            await context.cleanupResources()
+            #expect(await secondEngine.releaseCallCount == 1)
+            #expect(await context.hasReadyResidentEncoder)
+            let resident = try #require(residentStore.snapshot().first)
+            #expect(resident.releaseCallCount == 0)
+
+            // Subsequent session reuses the same resident ANE encoder without reloading it.
+            try await service.prewarm()
+            #expect(residentStore.snapshot().count == 1)
+
+            // Maintenance unloads both Qwen3 and the resident ANE encoder once idle.
+            #expect(try await context.performModelMaintenance {})
+            #expect(!(await context.hasReadyResidentEncoder))
+            #expect(resident.releaseCallCount == 1)
         }
 
         private func makeModelManager() throws -> FunASRNanoModelManager {
@@ -252,15 +344,25 @@
         private let text: String
         private let prepareGate: PrepareGate?
         private let backend: String
+        let encoderExtension: String
+        let hadResidentEncoder: Bool
         private(set) var prepareCallCount = 0
         private(set) var transcribeCallCount = 0
         private(set) var releaseCallCount = 0
         private(set) var receivedHotwords: [String?] = []
 
-        init(text: String, prepareGate: PrepareGate? = nil, backend: String = "unknown") {
+        init(
+            text: String,
+            prepareGate: PrepareGate? = nil,
+            backend: String = "unknown",
+            encoderExtension: String = "gguf",
+            hadResidentEncoder: Bool = false
+        ) {
             self.backend = backend
             self.text = text
             self.prepareGate = prepareGate
+            self.encoderExtension = encoderExtension
+            self.hadResidentEncoder = hadResidentEncoder
         }
 
         func encoderBackend() async -> String { backend }
@@ -319,6 +421,36 @@
             lock.lock()
             defer { lock.unlock() }
             return engines
+        }
+    }
+
+    private nonisolated final class StubResidentEncoder: FunASRNanoResidentEncoding, @unchecked Sendable {
+        let modelURL: URL
+        private let lock = NSLock()
+        private var releases = 0
+        var releaseCallCount: Int { lock.withLock { releases } }
+
+        init(modelURL: URL) {
+            self.modelURL = modelURL
+        }
+
+        func warmup() throws {}
+
+        func releaseResources() {
+            lock.withLock { releases += 1 }
+        }
+    }
+
+    private nonisolated final class ResidentEncoderStore: @unchecked Sendable {
+        private let lock = NSLock()
+        private var encoders: [StubResidentEncoder] = []
+
+        func append(_ encoder: StubResidentEncoder) {
+            lock.withLock { encoders.append(encoder) }
+        }
+
+        func snapshot() -> [StubResidentEncoder] {
+            lock.withLock { encoders }
         }
     }
 #endif

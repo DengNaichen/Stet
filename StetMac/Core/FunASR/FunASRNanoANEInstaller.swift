@@ -26,6 +26,7 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
     typealias Compile = @Sendable (URL) async throws -> URL
     typealias Prepare = @Sendable (URL, @escaping ProgressHandler) async throws -> Void
     typealias IdleAction = @Sendable (@escaping @Sendable () throws -> Void) async throws -> Bool
+    typealias ReadyAction = @Sendable (URL) async -> Void
 
     private let directoryProvider: @Sendable () throws -> URL
     private let release: FunASRNanoANECatalog.Release?
@@ -35,6 +36,7 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
     private let compile: Compile
     private let prepare: Prepare
     private let whenIdle: IdleAction
+    private let onReady: ReadyAction
     private let cache: URL
     private var busy = false
 
@@ -50,6 +52,9 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
         prepare: @escaping Prepare = FunASRNanoANEPreparation.prepare,
         whenIdle: @escaping IdleAction = { action in
             try await FunASRNanoContextManager.shared.performModelMaintenance(action)
+        },
+        onReady: @escaping ReadyAction = { directory in
+            await FunASRNanoContextManager.shared.scheduleResidentEncoderPreload(in: directory)
         }
     ) {
         self.directoryProvider = directoryProvider
@@ -60,6 +65,7 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
         self.compile = compile
         self.prepare = prepare
         self.whenIdle = whenIdle
+        self.onReady = onReady
         localDownloader = ModelFileDownloader(cache: cache) { source, destination, progress in
             guard source.isFileURL else { throw ANEModelInstallError.invalidPackage }
             try FileManager.default.copyItem(at: source, to: destination)
@@ -107,12 +113,17 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
         let directory = try directoryProvider()
         guard let receipt = ANEModelReadiness.installed(in: directory) else { throw ANEModelInstallError.invalidModel }
         try await requireCPUModel(in: directory)
-        if ANEModelReadiness.read(in: directory) != nil { progress(.ready); return }
+        if ANEModelReadiness.read(in: directory) != nil {
+            await onReady(directory)
+            progress(.ready)
+            return
+        }
         try await prepare(directory.appendingPathComponent(FunASRNanoANEManifest.compiledName), progress)
         try Task.checkCancellation()
         try await waitForIdle(progress: progress) {
             try ANEModelReadiness.make(manifestHash: receipt.manifestHash).write(in: directory)
         }
+        await onReady(directory)
         progress(.ready)
     }
 
@@ -174,6 +185,7 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
     ) async throws {
         if let ready = ANEModelReadiness.read(in: directory) {
             guard ready.manifestHash == hash else { throw ANEModelInstallError.alreadyInstalled }
+            await onReady(directory)
             progress(.ready)
             return
         }
@@ -228,6 +240,7 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
                 try ANEModelReadiness.make(manifestHash: hash).write(in: directory)
             }
             try? manager.removeItem(at: backup)
+            await onReady(directory)
             progress(.ready)
         } catch {
             // A previous ready model is never replaced above. While this candidate is

@@ -119,12 +119,14 @@ nonisolated struct ANEModelReadiness: Codable, Sendable {
 
     static var currentBuild: String {
         let bundle = Bundle.main
-        let executable = bundle.executableURL
-        let attributes = executable.flatMap { try? FileManager.default.attributesOfItem(atPath: $0.path) }
-        let modified = (attributes?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
         return ModelFileDownloader.digest(
-            "\(bundle.bundleIdentifier ?? "local"):\(bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") ?? "development"):\(bundle.object(forInfoDictionaryKey: "CFBundleVersion") ?? "development"):\(executable?.path ?? ""):\(modified)"
+            "\(bundle.bundleIdentifier ?? "local"):\(bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") ?? "development"):\(bundle.object(forInfoDictionaryKey: "CFBundleVersion") ?? "development")"
         )
+    }
+
+    static func needsSilentPreparation(in directory: URL) -> Bool {
+        guard let receipt = installed(in: directory), receipt.enabled else { return false }
+        return read(in: directory) == nil
     }
 
     static func make(manifestHash: String, enabled: Bool = true) -> Self {
