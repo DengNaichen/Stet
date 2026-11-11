@@ -26,6 +26,8 @@
         private let audioLevelHandler: @Sendable (Double) -> Void
         private let audioFeatureHandler: @Sendable (MacDictationCapsuleVisualSignals) -> Void
         private let onFirstRecordedBufferWritten: @Sendable () -> Void
+        private let captureDeviceResolver: @Sendable (AudioHardwareDevice?) throws -> AVCaptureDevice
+        private let candidateFailureDelaySeconds: TimeInterval
         private let audioFeatureAnalyzer = MacDictationAudioFeatureAnalyzer()
 
         private var captureResources: CaptureResources?
@@ -38,11 +40,17 @@
         nonisolated init(
             audioLevelHandler: @escaping @Sendable (Double) -> Void = { _ in },
             audioFeatureHandler: @escaping @Sendable (MacDictationCapsuleVisualSignals) -> Void = { _ in },
-            onFirstRecordedBufferWritten: @escaping @Sendable () -> Void = {}
+            onFirstRecordedBufferWritten: @escaping @Sendable () -> Void = {},
+            captureDeviceResolver: @escaping @Sendable (AudioHardwareDevice?) throws -> AVCaptureDevice = {
+                try MacCaptureAudioDevicePlanner.resolveCaptureDevice(for: $0)
+            },
+            candidateFailureDelaySeconds: TimeInterval = 0.1
         ) {
             self.audioLevelHandler = audioLevelHandler
             self.audioFeatureHandler = audioFeatureHandler
             self.onFirstRecordedBufferWritten = onFirstRecordedBufferWritten
+            self.captureDeviceResolver = captureDeviceResolver
+            self.candidateFailureDelaySeconds = candidateFailureDelaySeconds
             super.init()
             captureQueue.setSpecific(key: captureQueueKey, value: true)
         }
@@ -130,7 +138,9 @@
                         "macOS AVCapture attempt failed. reason=\(candidate.reason.rawValue), device=\(candidate.device?.name ?? "systemDefault"), error=\(error.localizedDescription)"
                     )
                     stopCapture()
-                    Thread.sleep(forTimeInterval: 0.1)
+                    if candidateFailureDelaySeconds > 0 {
+                        Thread.sleep(forTimeInterval: candidateFailureDelaySeconds)
+                    }
                 }
             }
 
@@ -181,7 +191,7 @@
             candidateReason: InputDeviceCandidate.Reason
         ) throws {
             let captureDeviceStartedAt = ProcessInfo.processInfo.systemUptime
-            let captureDevice = try MacCaptureAudioDevicePlanner.resolveCaptureDevice(for: inputDevice)
+            let captureDevice = try captureDeviceResolver(inputDevice)
             let captureDeviceMs = Self.elapsedMilliseconds(since: captureDeviceStartedAt)
 
             let resources = try MacCaptureAudioSessionFactory.makeCaptureResources(

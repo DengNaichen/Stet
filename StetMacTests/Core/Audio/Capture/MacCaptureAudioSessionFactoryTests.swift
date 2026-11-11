@@ -5,9 +5,9 @@
     @testable import Stet
 
     @Suite("Mac Capture Audio Session Factory")
-    struct MacCaptureAudioSessionFactoryTests {
-        @Test func captureResourcesContainsAllComponents() throws {
-            let devices = MacCaptureAudioDevicePlanner.availableCaptureDevices()
+    nonisolated struct MacCaptureAudioSessionFactoryTests {
+        @Test func captureResourcesContainsAllComponents() async throws {
+            let devices = await TestSupport.availableCaptureDevices()
             guard let device = devices.first else {
                 return
             }
@@ -31,7 +31,7 @@
         }
     }
 
-    private final class TestCaptureDelegate: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
+    private nonisolated final class TestCaptureDelegate: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
         func captureOutput(
             _ output: AVCaptureOutput,
             didOutput sampleBuffer: CMSampleBuffer,

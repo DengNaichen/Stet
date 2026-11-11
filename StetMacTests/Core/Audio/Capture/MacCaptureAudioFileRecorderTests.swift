@@ -5,9 +5,8 @@
 
     @testable import Stet
 
-    @MainActor
     @Suite("Mac Capture Audio File Recorder", .serialized)
-    struct MacCaptureAudioFileRecorderTests {
+    nonisolated struct MacCaptureAudioFileRecorderTests {
         @Test func stopRecordingWithoutStartingReturnsEmptyOutcome() async {
             let recorder = MacCaptureAudioFileRecorder()
             let fileURL = TestSupport.temporaryFileURL(ext: "wav")
@@ -38,7 +37,7 @@
         }
 
         @Test func startRecordingWithUnavailableSelectedDeviceThrowsFailedToStartWithoutCreatingFile() throws {
-            let recorder = MacCaptureAudioFileRecorder()
+            let recorder = Self.makeUnavailableDeviceRecorder()
             let outputFormat = try #require(TranscriptionUploadAudioFormat.makeMacOutputFormat())
             let fileURL = TestSupport.temporaryFileURL(ext: "wav")
             try? FileManager.default.removeItem(at: fileURL)
@@ -56,7 +55,7 @@
         }
 
         @Test func failedStartLeavesRecorderReusableForAnotherAttempt() throws {
-            let recorder = MacCaptureAudioFileRecorder()
+            let recorder = Self.makeUnavailableDeviceRecorder()
             let outputFormat = try #require(TranscriptionUploadAudioFormat.makeMacOutputFormat())
             let firstURL = TestSupport.temporaryFileURL("failed-start-1", ext: "wav")
             let secondURL = TestSupport.temporaryFileURL("failed-start-2", ext: "wav")
@@ -85,6 +84,18 @@
 
             #expect(!FileManager.default.fileExists(atPath: firstURL.path))
             #expect(!FileManager.default.fileExists(atPath: secondURL.path))
+        }
+
+        private static func makeUnavailableDeviceRecorder() -> MacCaptureAudioFileRecorder {
+            MacCaptureAudioFileRecorder(
+                captureDeviceResolver: { device in
+                    throw CaptureError.selectedDeviceUnavailable(
+                        target: device?.uid ?? "systemDefault",
+                        available: []
+                    )
+                },
+                candidateFailureDelaySeconds: 0
+            )
         }
 
         private static func unavailableDevice() -> Stet.AudioHardwareDevice {
