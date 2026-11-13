@@ -1,4 +1,5 @@
 import Foundation
+import StetCore
 import StetRewrite
 import FoundationModels
 
@@ -206,5 +207,44 @@ private actor AppleIntelligenceRewriteSessionStore {
     private static func makeSession(instructions: String) -> LanguageModelSession {
         let model = SystemLanguageModel(guardrails: .permissiveContentTransformations)
         return LanguageModelSession(model: model, instructions: instructions)
+    }
+}
+
+@available(macOS 26.0, *)
+@Generable
+struct AppleIntelligenceGlossaryDecision {
+    @Guide(description: "Set to 'ignore' by default, or 'learn' only when all dictionary gatekeeper rules hold")
+    let decision: String
+    @Guide(description: "Brief explanation under 12 words")
+    let reason: String
+    @Guide(
+        description: "Exact substrings from EDITED to add to the personal dictionary, or empty when decision is ignore")
+    let terms: [String]
+}
+
+@available(macOS 26.0, *)
+public struct AppleIntelligenceGlossaryLearningService: GlossaryLearningService {
+    public init() {}
+
+    public func extractTerms(from pair: CorrectionEditPair) async throws -> [String] {
+        guard AppleIntelligenceRewriteService.isAvailable else { return [] }
+        let model = SystemLanguageModel(guardrails: .permissiveContentTransformations)
+        let session = LanguageModelSession(
+            model: model,
+            instructions: GlossaryLearningPrompt.systemPrompt
+        )
+        let response = try await session.respond(
+            to: Prompt(GlossaryLearningPrompt.userPrompt(for: pair)),
+            generating: AppleIntelligenceGlossaryDecision.self
+        )
+        let action: GlossaryLearningAction =
+            response.content.decision.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "learn"
+            ? .learn
+            : .ignore
+        return GlossaryLearningOutputDecoder.validatedTerms(
+            decision: action,
+            candidates: response.content.terms,
+            pair: pair
+        )
     }
 }

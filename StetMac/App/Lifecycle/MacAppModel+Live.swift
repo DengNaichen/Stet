@@ -29,9 +29,11 @@
             let meetingRecordingRuntime = MacMeetingRecordingRuntime.live()
             let pasteboardRestoreCoordinator = PasteboardRestoreCoordinator()
             let clipboardService = SystemClipboardService()
+            let correctionLearning = MacCorrectionLearningService.live(settingsStore: settingsStore)
             let textInjectionService = SystemTextInjectionService(
                 clipboardService: clipboardService,
-                pasteboardRestoreCoordinator: pasteboardRestoreCoordinator
+                pasteboardRestoreCoordinator: pasteboardRestoreCoordinator,
+                correctionLearning: correctionLearning
             )
             self.init(
                 speechService: ConfigurableSpeechService.live(
