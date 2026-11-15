@@ -15,7 +15,7 @@
                 if let firstSuccessPreviewText = viewModel.firstSuccessPreviewText {
                     MessageBanner(text: "It worked: \(firstSuccessPreviewText)", role: .success)
                 } else if let firstSuccessFailureMessage = viewModel.firstSuccessFailureMessage {
-                    MessageBanner(text: firstSuccessFailureMessage, role: .error)
+                    MessageBanner(verbatim: firstSuccessFailureMessage, role: .error)
                 }
 
                 Spacer()

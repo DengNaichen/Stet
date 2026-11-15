@@ -13,13 +13,13 @@
             var text: String {
                 switch self {
                 case .allowed:
-                    return "Allowed"
+                    return String(localized: "Allowed")
                 case .notRequested:
-                    return "Not Requested"
+                    return String(localized: "Not Requested")
                 case .needsAccess:
-                    return "Needs Access"
+                    return String(localized: "Needs Access")
                 case .unavailable:
-                    return "Unknown"
+                    return String(localized: "Unknown")
                 }
             }
 
@@ -87,7 +87,9 @@
         }
 
         var microphonePermissionActionTitle: String {
-            microphoneAccessStatus.canRequestInApp ? "Request Access" : "Open Settings"
+            microphoneAccessStatus.canRequestInApp
+                ? String(localized: "Request Access")
+                : String(localized: "Open Settings")
         }
 
         var autoPasteAccessNeedsAttention: Bool {
@@ -99,18 +101,18 @@
 
             switch (state.hasAccessibilityAccess, state.hasPostEventAccess) {
             case (true, true):
-                return "Enabled"
+                return String(localized: "Enabled")
             case (true, false):
-                return "Accessibility Only"
+                return String(localized: "Accessibility Only")
             case (false, true):
-                return "Input Injection Only"
+                return String(localized: "Input Injection Only")
             case (false, false):
-                return "Needs Access"
+                return String(localized: "Needs Access")
             }
         }
 
         var speechRecognitionStatusText: String {
-            "Not Required"
+            String(localized: "Not Required")
         }
 
         func requestAutoPasteAccess() {

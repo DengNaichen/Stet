@@ -19,7 +19,7 @@ struct DictationView: View {
                     .font(.title)
                     .fontWeight(.semibold)
 
-                Text(viewModel.state.statusText)
+                Text(LocalizedStringKey(viewModel.state.statusText))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -67,7 +67,7 @@ struct DictationView: View {
                 .buttonStyle(DictationShaderButtonStyle())
                 .contentShape(Circle())
                 .disabled(isListeningShaderPaused)
-                .accessibilityLabel("停止录音")
+                .accessibilityLabel("Stop recording")
             } else {
                 legacyPrimaryControl
             }
@@ -131,7 +131,7 @@ struct DictationView: View {
         }
     }
 
-    private var primaryButtonLabel: String {
+    private var primaryButtonLabel: LocalizedStringKey {
         switch viewModel.state {
         case .idle:
             return "Start"

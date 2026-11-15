@@ -14,7 +14,7 @@
                         tint: viewModel.microphoneAccessNeedsAttention ? .orange : .green
                     ) {
                         OnboardingActionButton(
-                            title: viewModel.microphonePermissionActionTitle,
+                            titleText: viewModel.microphonePermissionActionTitle,
                             background: Color.white.opacity(0.08),
                             foreground: .primary,
                             strokeColor: Color.primary.opacity(0.25),
@@ -81,16 +81,15 @@
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
                                 } else {
-                                    Text(
-                                        {
-                                            if #available(macOS 26.0, *) {
-                                                return
-                                                    "Unavailable: \(AppleIntelligenceRewriteService.availabilityDescription)"
-                                            } else {
-                                                return "Unavailable on this version of macOS"
-                                            }
-                                        }()
-                                    )
+                                    Group {
+                                        if #available(macOS 26.0, *) {
+                                            Text(
+                                                "Unavailable: \(AppleIntelligenceRewriteService.availabilityDescription)"
+                                            )
+                                        } else {
+                                            Text("Unavailable on this version of macOS")
+                                        }
+                                    }
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
 

@@ -85,14 +85,15 @@
                 }
             case .ready:
                 HStack {
-                    Text(
-                        LocalizedStringKey(
-                            isRecording
-                                ? "Model ready. Changes take effect next meeting." : "Speaker separation model ready"
-                        )
-                    )
-                    .font(MacUI.LinearTypography.rowSubtitle)
-                    .foregroundStyle(MacUI.Foreground.secondary)
+                    if isRecording {
+                        Text("Model ready. Changes take effect next meeting.")
+                            .font(MacUI.LinearTypography.rowSubtitle)
+                            .foregroundStyle(MacUI.Foreground.secondary)
+                    } else {
+                        Text("Speaker separation model ready")
+                            .font(MacUI.LinearTypography.rowSubtitle)
+                            .foregroundStyle(MacUI.Foreground.secondary)
+                    }
                     Spacer()
                     LinearBadge(text: "Ready", tint: MacUI.Foreground.success, showDot: true)
                 }

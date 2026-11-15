@@ -286,7 +286,7 @@
                 )
             )
             speakerProfiles = try await speakerProfileStore.loadProfiles(currentModel: model)
-            enrollmentCompletionMessage = "\(displayName) is enrolled."
+            enrollmentCompletionMessage = String(localized: "\(displayName) is enrolled.")
             enrollmentName = ""
             hasSpeakerEnrollmentConsent = false
         }

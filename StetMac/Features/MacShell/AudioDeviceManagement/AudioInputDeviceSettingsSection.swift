@@ -17,7 +17,7 @@
                                 .tag(nil as String?)
 
                             ForEach(externalDevices, id: \.uid) { device in
-                                Text(device.name)
+                                Text(verbatim: device.name)
                                     .tag(device.uid as String?)
                             }
                         }

@@ -10,7 +10,7 @@
                     deviceList.selectBuiltInDefault()
                 } label: {
                     menuRow(
-                        title: "Default (Built-in Microphone)",
+                        Text("Default (Built-in Microphone)"),
                         isSelected: deviceList.selectedDevice?.isBuiltIn ?? true
                     )
                 }
@@ -20,7 +20,7 @@
                         deviceList.selectDevice(device)
                     } label: {
                         menuRow(
-                            title: device.name,
+                            Text(verbatim: device.name),
                             isSelected: device.uid == deviceList.selectedDevice?.uid
                         )
                     }
@@ -36,9 +36,9 @@
             deviceList.externalDevices
         }
 
-        private func menuRow(title: String, isSelected: Bool) -> some View {
+        private func menuRow(_ label: Text, isSelected: Bool) -> some View {
             HStack {
-                Text(title)
+                label
                 Spacer()
                 if isSelected {
                     Image(systemName: "checkmark")

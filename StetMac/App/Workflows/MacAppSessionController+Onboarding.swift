@@ -160,24 +160,26 @@
 
         func inferredFirstSuccessFailureMessage(for failure: DictationFailure) -> String {
             if failure == .autoPastePermissionMissing {
-                return "Unable to paste automatically, please grant Input Monitoring or Accessibility access."
+                return String(
+                    localized:
+                        "Unable to paste automatically, please grant Input Monitoring or Accessibility access.")
             }
 
             switch failure.classification {
             case .authentication:
-                return "Connection unavailable, please re-verify your login status."
+                return String(localized: "Connection unavailable, please re-verify your login status.")
             case .configuration:
-                return "Model configuration unavailable, please check provider settings."
+                return String(localized: "Model configuration unavailable, please check provider settings.")
             case .network:
-                return "Processing failed, please check your network or model configuration."
+                return String(localized: "Processing failed, please check your network or model configuration.")
             case .permissions:
-                return "Unable to access microphone, please check system permissions."
+                return String(localized: "Unable to access microphone, please check system permissions.")
             case .noSpeech:
-                return "No voice input detected, please try again."
+                return String(localized: "No voice input detected, please try again.")
             case .output:
-                return "Text output failed, but your transcription is available."
+                return String(localized: "Text output failed, but your transcription is available.")
             case .service, .state, .unknown:
-                return "Dictation failed, please try again."
+                return String(localized: "Dictation failed, please try again.")
             }
         }
 

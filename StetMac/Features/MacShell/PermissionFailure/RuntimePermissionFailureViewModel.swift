@@ -26,7 +26,9 @@
         }
 
         var messageText: String {
-            "Stet can't start this action because microphone and input control permissions are required."
+            String(
+                localized: "Stet can't start this action because microphone and input control permissions are required."
+            )
         }
 
         var microphoneButtonTitle: String {
@@ -34,7 +36,7 @@
         }
 
         var inputControlButtonTitle: String {
-            "Grant Input Control"
+            String(localized: "Grant Input Control")
         }
 
         func resolveMicrophoneAccess() {

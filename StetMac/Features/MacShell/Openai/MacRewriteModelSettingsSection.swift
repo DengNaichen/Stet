@@ -9,7 +9,7 @@
         var body: some View {
             LinearSectionGroup("Refine") {
                 LinearSettingRow(
-                    LocalizedStringKey(NSLocalizedString("Transcript improvement", comment: "")),
+                    "Transcript improvement",
                     subtitle: "Stet can refine and improve the precision of your transcriptions using AI."
                 ) {
                     Toggle("", isOn: $viewModel.isRewriteEnabled)
@@ -19,13 +19,16 @@
                 }
 
                 if viewModel.isRewriteEnabled {
-                    LinearSettingRow(LocalizedStringKey(NSLocalizedString("Refine Model", comment: ""))) {
+                    LinearSettingRow("Refine Model") {
                         Picker("", selection: $viewModel.unifiedProvider) {
                             ForEach(MacOpenAISettingsViewModel.UnifiedAIProvider.allCases) { provider in
-                                Text(
-                                    provider.isDisabled
-                                        ? "\(provider.displayName) (Unavailable)" : provider.displayName
-                                )
+                                Group {
+                                    if provider.isDisabled {
+                                        Text("\(Text(LocalizedStringKey(provider.displayName))) (Unavailable)")
+                                    } else {
+                                        Text(LocalizedStringKey(provider.displayName))
+                                    }
+                                }
                                 .tag(provider)
                                 .disabled(provider.isDisabled)
                             }
@@ -36,7 +39,7 @@
                     }
 
                     if !viewModel.availableModels.isEmpty {
-                        LinearSettingRow(LocalizedStringKey(NSLocalizedString("Preferred Model", comment: ""))) {
+                        LinearSettingRow("Preferred Model") {
                             Picker(
                                 "",
                                 selection: Binding(
@@ -45,7 +48,7 @@
                                 )
                             ) {
                                 ForEach(viewModel.availableModels) { model in
-                                    Text(model.displayName).tag(model.id)
+                                    Text(verbatim: model.displayName).tag(model.id)
                                 }
                             }
                             .labelsHidden()
@@ -58,7 +61,7 @@
                         LinearSettingRow("Thinking Level") {
                             Picker("", selection: $viewModel.selectedThinkingLevel) {
                                 ForEach(viewModel.availableThinkingLevels, id: \.self) { level in
-                                    Text(level.displayName).tag(level)
+                                    Text(LocalizedStringKey(level.displayName)).tag(level)
                                 }
                             }
                             .labelsHidden()

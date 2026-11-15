@@ -19,11 +19,39 @@ enum MessageBannerRole {
 }
 
 struct MessageBanner: View {
-    let text: String
+    private let label: Text
     let role: MessageBannerRole
-    var strokeOpacity: Double = 0.18
-    var fillOpacity: Double = 0.08
-    var icon: String? = nil
+    var strokeOpacity: Double
+    var fillOpacity: Double
+    var icon: String?
+
+    init(
+        text: LocalizedStringKey,
+        role: MessageBannerRole,
+        strokeOpacity: Double = 0.18,
+        fillOpacity: Double = 0.08,
+        icon: String? = nil
+    ) {
+        self.label = Text(text)
+        self.role = role
+        self.strokeOpacity = strokeOpacity
+        self.fillOpacity = fillOpacity
+        self.icon = icon
+    }
+
+    init(
+        verbatim text: String,
+        role: MessageBannerRole,
+        strokeOpacity: Double = 0.18,
+        fillOpacity: Double = 0.08,
+        icon: String? = nil
+    ) {
+        self.label = Text(verbatim: text)
+        self.role = role
+        self.strokeOpacity = strokeOpacity
+        self.fillOpacity = fillOpacity
+        self.icon = icon
+    }
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -32,7 +60,7 @@ struct MessageBanner: View {
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(role.tint)
             }
-            Text(text)
+            label
                 .font(.footnote)
                 .foregroundStyle(role.tint)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -53,7 +81,7 @@ struct MessageBanner: View {
 // MARK: - Labeled Fields
 
 struct LabeledField<Content: View>: View {
-    let title: String
+    let title: LocalizedStringKey
     @ViewBuilder var content: () -> Content
 
     var body: some View {
@@ -67,15 +95,15 @@ struct LabeledField<Content: View>: View {
 }
 
 struct LabeledTextField<F: Hashable>: View {
-    let title: String
-    let placeholder: String
+    let title: LocalizedStringKey
+    let placeholder: LocalizedStringKey
     @Binding var text: String
     var focused: FocusState<F?>.Binding?
     var focusEquals: F?
 
     init(
-        title: String,
-        placeholder: String,
+        title: LocalizedStringKey,
+        placeholder: LocalizedStringKey,
         text: Binding<String>,
         focused: FocusState<F?>.Binding? = nil,
         focusEquals: F? = nil
@@ -102,15 +130,15 @@ struct LabeledTextField<F: Hashable>: View {
 }
 
 struct LabeledSecureField<F: Hashable>: View {
-    let title: String
-    let placeholder: String
+    let title: LocalizedStringKey
+    let placeholder: LocalizedStringKey
     @Binding var text: String
     var focused: FocusState<F?>.Binding?
     var focusEquals: F?
 
     init(
-        title: String,
-        placeholder: String,
+        title: LocalizedStringKey,
+        placeholder: LocalizedStringKey,
         text: Binding<String>,
         focused: FocusState<F?>.Binding? = nil,
         focusEquals: F? = nil
@@ -139,7 +167,7 @@ struct LabeledSecureField<F: Hashable>: View {
 // MARK: - Bullet Row
 
 struct BulletRow: View {
-    let text: String
+    let text: LocalizedStringKey
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -155,7 +183,7 @@ struct BulletRow: View {
 }
 
 @ViewBuilder
-func bulletRow(_ text: String) -> some View {
+func bulletRow(_ text: LocalizedStringKey) -> some View {
     BulletRow(text: text)
 }
 

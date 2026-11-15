@@ -97,7 +97,9 @@
                     instructionRow(number: 3, text: "Paste it into your coding agent")
 
                     LinearSettingRow("Setup Prompt") {
-                        Button(viewModel.copySucceeded ? "Copied" : "Copy Setup Prompt") {
+                        let copyButtonTitle: LocalizedStringKey =
+                            viewModel.copySucceeded ? "Copied" : "Copy Setup Prompt"
+                        Button(copyButtonTitle) {
                             viewModel.copySetupPrompt()
                         }
                         .buttonStyle(.borderedProminent)
@@ -135,7 +137,7 @@
             .padding(.vertical, 9)
         }
 
-        private var statusTitle: String {
+        private var statusTitle: LocalizedStringKey {
             switch viewModel.state {
             case .disabled:
                 "Off"

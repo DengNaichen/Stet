@@ -10,7 +10,7 @@
 
                 Section("Speaker Profiles") {
                     VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
-                        Text(MacAudioSettingsViewModel.speakerEnrollmentConsentCopy)
+                        Text(LocalizedStringKey(MacAudioSettingsViewModel.speakerEnrollmentConsentCopy))
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
 
@@ -22,10 +22,16 @@
                             ForEach(viewModel.speakerProfiles) { profile in
                                 HStack {
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(profile.displayName)
-                                        Text(profile.role == .owner ? "Owner" : "Known speaker")
-                                            .font(.system(size: 10))
-                                            .foregroundStyle(.secondary)
+                                        Text(verbatim: profile.displayName)
+                                        Group {
+                                            if profile.role == .owner {
+                                                Text("Owner")
+                                            } else {
+                                                Text("Known speaker")
+                                            }
+                                        }
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.secondary)
                                     }
                                     Spacer()
                                     if profile.status == .requiresReenrollment {
@@ -50,17 +56,17 @@
                         .pickerStyle(.segmented)
                         .disabled(viewModel.enrollmentClipCount > 0 || viewModel.isRecordingEnrollment)
 
-                        MacSettingsValueRow(
-                            title: viewModel.enrollmentRole == .owner ? "Your name" : "Speaker name"
-                        ) {
-                            TextField(
-                                viewModel.enrollmentRole == .owner ? "Me" : "Name",
-                                text: $viewModel.enrollmentName
-                            )
-                            .labelsHidden()
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 240)
-                            .disabled(viewModel.enrollmentClipCount > 0 || viewModel.isRecordingEnrollment)
+                        let roleNameTitle =
+                            viewModel.enrollmentRole == .owner
+                            ? String(localized: "Your name")
+                            : String(localized: "Speaker name")
+                        MacSettingsValueRow(title: roleNameTitle) {
+                            let placeholder: LocalizedStringKey = viewModel.enrollmentRole == .owner ? "Me" : "Name"
+                            TextField(placeholder, text: $viewModel.enrollmentName)
+                                .labelsHidden()
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 240)
+                                .disabled(viewModel.enrollmentClipCount > 0 || viewModel.isRecordingEnrollment)
                         }
 
                         if viewModel.enrollmentRole == .known {
@@ -81,8 +87,10 @@
                                     }
                                 }
                             } label: {
+                                let sampleButtonTitle: LocalizedStringKey =
+                                    viewModel.isRecordingEnrollment ? "Stop sample" : "Record sample"
                                 Label(
-                                    viewModel.isRecordingEnrollment ? "Stop sample" : "Record sample",
+                                    sampleButtonTitle,
                                     systemImage: viewModel.isRecordingEnrollment
                                         ? "stop.circle.fill" : "record.circle"
                                 )
@@ -108,11 +116,11 @@
                         }
 
                         if let message = viewModel.enrollmentErrorMessage {
-                            Text(message)
+                            Text(LocalizedStringKey(message))
                                 .font(.system(size: 10))
                                 .foregroundStyle(.red)
                         } else if let message = viewModel.enrollmentCompletionMessage {
-                            Text(message)
+                            Text(verbatim: message)
                                 .font(.system(size: 10))
                                 .foregroundStyle(.green)
                         }

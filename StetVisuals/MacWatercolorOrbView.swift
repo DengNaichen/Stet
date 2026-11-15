@@ -91,7 +91,7 @@
                         }
                     }
                     MacWatercolorOrbPaint(frame: motion.frame, theme: model.shaderTheme)
-                        .accessibilityLabel(statusLabel)
+                        .accessibilityLabel(Text(statusLabel, bundle: .main))
                         .accessibilityIdentifier("dictation.watercolorOrb")
                 }
                 .opacity(min(1, progress * 3))
@@ -117,7 +117,7 @@
             }
         }
 
-        private var statusLabel: String {
+        private var statusLabel: LocalizedStringKey {
             switch model.state {
             case .processing: "Thinking"
             case .starting: "Starting microphone"
@@ -132,7 +132,7 @@
         }
 
         private func glassButton(
-            _ symbol: String, label: String, id: String, side: Double, progress: Double,
+            _ symbol: String, label: LocalizedStringKey, id: String, side: Double, progress: Double,
             action: @escaping () -> Void
         ) -> some View {
             let point = MacWatercolorOrbLayout.buttonPosition(progress: progress, side: side)
@@ -151,9 +151,9 @@
             .offset(x: point.x * motion.frame.scale, y: point.y * motion.frame.scale)
             .allowsHitTesting(motion.isVisible && progress > 0.98)
             .accessibilityHidden(!motion.isVisible || progress <= 0.98)
-            .accessibilityLabel(label)
+            .accessibilityLabel(Text(label, bundle: .main))
             .accessibilityIdentifier("dictation.\(id)")
-            .help(label)
+            .help(Text(label, bundle: .main))
         }
     }
 
@@ -179,7 +179,7 @@
                 previousDate = nil
             }
             .onDisappear { previousDate = nil }
-            .accessibilityLabel("\(theme.title) preview")
+            .accessibilityLabel(Text("\(Text(LocalizedStringKey(theme.title), bundle: .main)) preview", bundle: .main))
         }
     }
 #endif

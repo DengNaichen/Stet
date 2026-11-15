@@ -17,7 +17,7 @@
 
         var body: some View {
             VStack(spacing: 8) {
-                Text(text)
+                Text(verbatim: text)
                     .font(.system(size: 15, weight: .medium, design: .rounded))
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)

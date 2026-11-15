@@ -34,7 +34,7 @@
                         isBorderless: true
                     )
                     if !entries.isEmpty {
-                        LinearBadge(text: "\(filtered.count)")
+                        LinearBadge(verbatim: "\(filtered.count)")
                     }
                 }
                 .frame(maxWidth: MacUI.LinearMetrics.contentMaxWidth, alignment: .leading)
@@ -180,7 +180,7 @@
                     if let appName = entry.targetAppName {
                         Text("·")
                             .foregroundStyle(MacUI.LinearSurfaces.mutedInk)
-                        LinearBadge(text: appName)
+                        LinearBadge(verbatim: appName)
                     }
 
                     Spacer(minLength: 8)

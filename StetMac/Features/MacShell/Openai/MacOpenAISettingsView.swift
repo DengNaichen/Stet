@@ -28,19 +28,31 @@
                         footer: "Connect a service that supports the OpenAI API format."
                     ) {
                         LinearSettingRow("Server") {
-                            Text(viewModel.customBaseURL.isEmpty ? "Not configured" : viewModel.customBaseURL)
-                                .font(MacUI.LinearTypography.code)
-                                .foregroundStyle(MacUI.Foreground.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
+                            Group {
+                                if viewModel.customBaseURL.isEmpty {
+                                    Text("Not configured")
+                                } else {
+                                    Text(verbatim: viewModel.customBaseURL)
+                                }
+                            }
+                            .font(MacUI.LinearTypography.code)
+                            .foregroundStyle(MacUI.Foreground.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
                         }
 
                         LinearSettingRow("Model") {
-                            Text(viewModel.customModelID.isEmpty ? "Not selected" : viewModel.customModelID)
-                                .font(MacUI.LinearTypography.code)
-                                .foregroundStyle(MacUI.Foreground.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
+                            Group {
+                                if viewModel.customModelID.isEmpty {
+                                    Text("Not selected")
+                                } else {
+                                    Text(verbatim: viewModel.customModelID)
+                                }
+                            }
+                            .font(MacUI.LinearTypography.code)
+                            .foregroundStyle(MacUI.Foreground.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
                         }
 
                         apiKeyStatusRow(for: .custom)
@@ -54,9 +66,7 @@
 
                 ForEach(viewModel.visibleCredentialProviders) { provider in
                     LinearSectionGroup(
-                        LocalizedStringKey(
-                            String(format: NSLocalizedString("%@ Settings", comment: ""), provider.displayName)
-                        )
+                        titleLabel: Text("\(Text(LocalizedStringKey(provider.displayName))) Settings")
                     ) {
                         apiKeyStatusRow(for: provider)
 
@@ -96,20 +106,29 @@
         }
 
         private func apiKeyStatusRow(for provider: DictationProvider) -> some View {
-            LinearSettingRow(
-                LocalizedStringKey(NSLocalizedString("API key", comment: "")),
-                subtitle: viewModel.hasAPIKey(for: provider)
-                    ? "Saved securely in Keychain"
-                    : provider == .custom
-                        ? "Optional for servers without authentication"
-                        : "Add a key to connect this provider"
+            let subtitle: LocalizedStringKey =
+                viewModel.hasAPIKey(for: provider)
+                ? "Saved securely in Keychain"
+                : provider == .custom
+                    ? "Optional for servers without authentication"
+                    : "Add a key to connect this provider"
+            let badgeText: LocalizedStringKey = viewModel.hasAPIKey(for: provider) ? "Configured" : "Not set"
+            return LinearSettingRow(
+                "API key",
+                subtitle: subtitle
             ) {
                 HStack(spacing: 8) {
-                    Text(viewModel.credentialPreview(for: provider))
-                        .font(MacUI.LinearTypography.code)
-                        .foregroundStyle(MacUI.Foreground.secondary)
+                    Group {
+                        if viewModel.hasAPIKey(for: provider) {
+                            Text(verbatim: viewModel.credentialPreview(for: provider))
+                        } else {
+                            Text("Not configured")
+                        }
+                    }
+                    .font(MacUI.LinearTypography.code)
+                    .foregroundStyle(MacUI.Foreground.secondary)
                     LinearBadge(
-                        text: viewModel.hasAPIKey(for: provider) ? "Configured" : "Not set",
+                        text: badgeText,
                         tint: viewModel.hasAPIKey(for: provider)
                             ? MacUI.Foreground.success
                             : MacUI.Foreground.secondaryColor,
@@ -121,19 +140,17 @@
 
         @ViewBuilder
         private func apiKeyActions(for provider: DictationProvider) -> some View {
-            Button(
-                viewModel.hasAPIKey(for: provider)
-                    ? NSLocalizedString("Change…", comment: "")
-                    : NSLocalizedString("Set…", comment: "")
-            ) {
+            let actionTitle: LocalizedStringKey = viewModel.hasAPIKey(for: provider) ? "Change…" : "Set…"
+            Button(actionTitle) {
                 apiKeySheet = APIKeySheetItem(provider: provider)
             }
             .buttonStyle(.bordered)
 
             if viewModel.hasAPIKey(for: provider) {
-                Button(NSLocalizedString("Remove", comment: ""), role: .destructive) {
+                Button("Remove", role: .destructive) {
                     do { try viewModel.storeCredential("", for: provider) } catch {
-                        credentialError = "The key could not be removed from Keychain. Please try again."
+                        credentialError = String(
+                            localized: "The key could not be removed from Keychain. Please try again.")
                     }
                 }
                 .buttonStyle(.bordered)

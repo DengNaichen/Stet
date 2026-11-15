@@ -10,7 +10,7 @@
         @State private var modelID = ""
         @State private var models: [String] = []
         @State private var isLoading = false
-        @State private var message: String?
+        @State private var message: LocalizedStringKey?
 
         init(viewModel: MacOpenAISettingsViewModel, onClose: @escaping () -> Void) {
             self.viewModel = viewModel
@@ -51,8 +51,12 @@
                 VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.labelSpacing) {
                     Text("Model").font(MacUI.Typography.fieldLabel)
                     Picker("Model", selection: $modelID) {
-                        Text(models.isEmpty ? "Verify connection to load models" : "Choose a model").tag("")
-                        ForEach(models, id: \.self) { Text($0).tag($0) }
+                        if models.isEmpty {
+                            Text("Verify connection to load models").tag("")
+                        } else {
+                            Text("Choose a model").tag("")
+                        }
+                        ForEach(models, id: \.self) { Text(verbatim: $0).tag($0) }
                         if !modelID.isEmpty && !models.contains(modelID) {
                             Text("\(modelID) (saved)").tag(modelID)
                         }
@@ -67,7 +71,8 @@
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 HStack {
-                    Button(isLoading ? "Checking…" : "Verify & Load Models") {
+                    let verifyTitle: LocalizedStringKey = isLoading ? "Checking…" : "Verify & Load Models"
+                    Button(verifyTitle) {
                         isLoading = true
                         Task {
                             do {
@@ -75,8 +80,10 @@
                                 if !models.contains(modelID) { modelID = "" }
                                 message =
                                     models.isEmpty
-                                    ? "Connected, but this server returned no models. Check model availability on your server and try again."
-                                    : "Connected. Choose a model above, then save."
+                                    ? LocalizedStringKey(
+                                        "Connected, but this server returned no models. Check model availability on your server and try again."
+                                    )
+                                    : LocalizedStringKey("Connected. Choose a model above, then save.")
                             } catch {
                                 models = []
                                 modelID = ""

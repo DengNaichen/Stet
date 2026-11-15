@@ -17,11 +17,19 @@
                     debugSection
                 #endif
                 if let feedback = viewModel.feedback {
-                    LinearInlineBanner(
-                        systemImage: feedback.isError ? "exclamationmark.triangle.fill" : "info.circle.fill",
-                        tint: feedback.isError ? MacUI.Foreground.error : MacUI.Foreground.secondaryColor,
-                        text: feedback.message
-                    )
+                    if feedback.isError {
+                        LinearInlineBanner(
+                            systemImage: "exclamationmark.triangle.fill",
+                            tint: MacUI.Foreground.error,
+                            text: feedback.message
+                        )
+                    } else {
+                        LinearInlineBanner(
+                            systemImage: "info.circle.fill",
+                            tint: MacUI.Foreground.secondaryColor,
+                            message: LocalizedStringKey(feedback.message)
+                        )
+                    }
                 }
             }
             .task {

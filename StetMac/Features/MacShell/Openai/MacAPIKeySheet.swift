@@ -9,7 +9,7 @@
         @State private var draft = ""
         @State private var isVerifying = false
         @State private var verified = false
-        @State private var message: String?
+        @State private var message: LocalizedStringKey?
         @FocusState private var focused: Bool
 
         var body: some View {
@@ -37,7 +37,8 @@
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 HStack {
-                    Button(isVerifying ? "Verifying…" : "Verify Key") {
+                    let verifyTitle: LocalizedStringKey = isVerifying ? "Verifying…" : "Verify Key"
+                    Button(verifyTitle) {
                         isVerifying = true
                         Task {
                             do {

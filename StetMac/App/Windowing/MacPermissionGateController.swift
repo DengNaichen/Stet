@@ -28,7 +28,7 @@
 
             // Create NSWindow with floating level, titled and closable style mask
             let window = NSWindow(contentViewController: hostingController)
-            window.title = "Permissions Required"
+            window.title = String(localized: "Permissions Required")
             window.styleMask = [.titled, .closable]
             window.level = .floating
             window.isReleasedWhenClosed = false

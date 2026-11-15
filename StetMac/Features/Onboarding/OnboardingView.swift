@@ -204,7 +204,7 @@
             }
         }
 
-        private var titleText: String {
+        private var titleText: LocalizedStringKey {
             switch viewModel.onboardingStep {
             case .language:
                 return "Get started"
@@ -221,7 +221,7 @@
             }
         }
 
-        private var subtitleText: String {
+        private var subtitleText: LocalizedStringKey {
             switch viewModel.onboardingStep {
             case .language:
                 return "Choose your languages to get started."
