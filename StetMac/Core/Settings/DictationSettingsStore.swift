@@ -90,7 +90,7 @@ struct DictationSettingsStore: Sendable {
 
     private let defaultsStore: UserDefaultsStore
     private let secretStore: any DictationSecretStore
-    private let dictionaryModel: DictionaryModel
+    let dictionaryModel: DictionaryModel
     private let rewriteModelCatalog: RewriteModelCatalogSource?
 
     nonisolated init() {
