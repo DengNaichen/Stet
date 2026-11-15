@@ -6,18 +6,32 @@
         @ObservedObject var microphoneTestViewModel: MicrophoneTestViewModel
 
         var body: some View {
-            Section("Audio Input Device") {
-                Picker("Microphone", selection: microphoneSelectionBinding) {
-                    Text("Default (Built-in Microphone)")
-                        .tag(nil as String?)
+            Group {
+                LinearSectionGroup("Audio Input Device") {
+                    LinearSettingRow(
+                        "Microphone",
+                        subtitle: "Choose the microphone Stet listens to during dictation."
+                    ) {
+                        Picker("", selection: microphoneSelectionBinding) {
+                            Text("Default (Built-in Microphone)")
+                                .tag(nil as String?)
 
-                    ForEach(externalDevices, id: \.uid) { device in
-                        Text(device.name)
-                            .tag(device.uid as String?)
+                            ForEach(externalDevices, id: \.uid) { device in
+                                Text(device.name)
+                                    .tag(device.uid as String?)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .frame(width: MacUI.LinearMetrics.pickerWidth, alignment: .trailing)
                     }
                 }
 
-                MicrophoneTestView(viewModel: microphoneTestViewModel)
+                LinearSectionGroup("Input Test") {
+                    MicrophoneTestView(viewModel: microphoneTestViewModel)
+                        .padding(.horizontal, MacUI.LinearMetrics.rowHorizontalPadding)
+                        .padding(.vertical, 8)
+                }
             }
             .onAppear {
                 deviceList.startMonitoring()

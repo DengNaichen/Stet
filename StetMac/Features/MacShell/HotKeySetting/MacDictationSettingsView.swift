@@ -6,39 +6,47 @@
         @State private var message: String?
 
         var body: some View {
-            Form {
-                Section {
-                    MacHotKeySettingsSectionView(hotkey: .dictation) { shortcut in
+            LinearPageContainer(title: "Shortcut") {
+                LinearSectionGroup("Shortcut") {
+                    MacHotKeySettingsSectionView(hotkey: .dictation, compactRow: true) { shortcut in
                         message = shortcut.map { "Shortcut updated to \($0)." } ?? "Shortcut cleared."
                     }
-                } header: {
-                    Text("Shortcut")
                 }
 
-                Section {
-                    Toggle("Interaction sounds", isOn: $viewModel.interactionSoundsEnabled)
-                    Toggle(
-                        "Notify when dictation completes",
-                        isOn: $viewModel.dictationCompletionNotificationsEnabled
-                    )
-                    Toggle("Mute background audio", isOn: $viewModel.pauseMediaDuringDictation)
-                } header: {
-                    Text("Feedback")
-                } footer: {
-                    Text(
-                        "Stet can play a sound and show a notification after your words are inserted."
-                    )
+                LinearSectionGroup(
+                    "Feedback",
+                    footer: "Stet can play a sound and show a notification after your words are inserted."
+                ) {
+                    LinearSettingRow("Interaction sounds") {
+                        Toggle("", isOn: $viewModel.interactionSoundsEnabled)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .tint(MacUI.LinearBrand.accent)
+                    }
+
+                    LinearSettingRow("Notify when dictation completes") {
+                        Toggle("", isOn: $viewModel.dictationCompletionNotificationsEnabled)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .tint(MacUI.LinearBrand.accent)
+                    }
+
+                    LinearSettingRow("Mute background audio") {
+                        Toggle("", isOn: $viewModel.pauseMediaDuringDictation)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .tint(MacUI.LinearBrand.accent)
+                    }
                 }
 
                 if let message {
-                    Section {
-                        Text(message)
-                            .foregroundStyle(MacUI.Foreground.secondary)
-                    }
+                    LinearInlineBanner(
+                        systemImage: "checkmark.circle.fill",
+                        tint: MacUI.Foreground.secondaryColor,
+                        text: message
+                    )
                 }
             }
-            .macSettingsFormStyle()
-            .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
                 viewModel.load()
             }

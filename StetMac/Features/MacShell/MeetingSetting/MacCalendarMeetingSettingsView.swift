@@ -15,53 +15,65 @@
 
         var body: some View {
             Group {
-                Section {
-                    Toggle(
-                        "Calendar Meetings",
-                        isOn: Binding(
-                            get: { viewModel.isEnabled },
-                            set: { viewModel.setEnabled($0) }
+                LinearSectionGroup(
+                    "Calendar",
+                    footer: "Sync selected calendars and remind you five minutes before meetings."
+                ) {
+                    LinearSettingRow("Calendar Meetings") {
+                        Toggle(
+                            "",
+                            isOn: Binding(
+                                get: { viewModel.isEnabled },
+                                set: { viewModel.setEnabled($0) }
+                            )
                         )
-                    )
-                    .disabled(viewModel.isChanging)
-
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(statusColor)
-                            .frame(width: 7, height: 7)
-                        Text(statusText)
-                            .foregroundStyle(.secondary)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .tint(MacUI.LinearBrand.accent)
+                        .disabled(viewModel.isChanging)
                     }
-                    .font(.callout)
-                } header: {
-                    Text("Calendar")
-                } footer: {
-                    Text("Sync selected calendars and remind you five minutes before meetings.")
+
+                    LinearSettingRow("Sync Status") {
+                        LinearBadge(text: statusTitle, tint: statusColor, showDot: true)
+                    }
                 }
 
                 if showsCalendars {
-                    Section {
+                    LinearSectionGroup(
+                        "Calendars",
+                        footer: viewModel.errorMessage == nil
+                            ? "Only selected calendars are synced into Stet meetings and Calendar MCP tools."
+                            : nil
+                    ) {
                         if viewModel.calendars.isEmpty {
                             Text("No calendars available")
-                                .foregroundStyle(.secondary)
+                                .font(MacUI.LinearTypography.rowSubtitle)
+                                .foregroundStyle(MacUI.Foreground.secondary)
+                                .padding(.horizontal, MacUI.LinearMetrics.rowHorizontalPadding)
+                                .padding(.vertical, 12)
                         } else {
                             ForEach(viewModel.calendars) { calendar in
-                                Toggle(
-                                    calendar.title,
-                                    isOn: Binding(
-                                        get: { viewModel.selectedIDs.contains(calendar.id) },
-                                        set: { selected in viewModel.update(calendar.id, selected: selected) }
+                                LinearSettingRow(titleText: calendar.title) {
+                                    Toggle(
+                                        "",
+                                        isOn: Binding(
+                                            get: { viewModel.selectedIDs.contains(calendar.id) },
+                                            set: { selected in viewModel.update(calendar.id, selected: selected) }
+                                        )
                                     )
-                                )
+                                    .labelsHidden()
+                                    .toggleStyle(.switch)
+                                    .tint(MacUI.LinearBrand.accent)
+                                }
                             }
                         }
-                    } header: {
-                        Text("Calendars")
-                    } footer: {
+
                         if let errorMessage = viewModel.errorMessage {
                             Text(errorMessage)
-                        } else {
-                            Text("Only selected calendars are synced into Stet meetings and Calendar MCP tools.")
+                                .font(MacUI.LinearTypography.rowSubtitle)
+                                .foregroundStyle(MacUI.Foreground.error)
+                                .padding(.horizontal, MacUI.LinearMetrics.rowHorizontalPadding)
+                                .padding(.vertical, 9)
                         }
                     }
                 }
@@ -69,7 +81,7 @@
             .onAppear(perform: viewModel.reload)
         }
 
-        private var statusText: LocalizedStringKey {
+        private var statusTitle: String {
             switch syncState {
             case .disabled:
                 "Off"
@@ -89,17 +101,16 @@
         private var statusColor: Color {
             switch syncState {
             case .active:
-                .green
+                MacUI.Foreground.success
             case .failed:
-                .red
+                MacUI.Foreground.error
             case .permissionRequired:
-                .orange
+                MacUI.Foreground.warning
             case .syncing, .idle:
-                .blue
+                MacUI.Foreground.secondaryColor
             case .disabled:
-                .secondary
+                MacUI.Foreground.secondaryColor
             }
         }
-
     }
 #endif

@@ -1,6 +1,6 @@
 #if os(macOS)
-    import SwiftUI
     import StetCore
+    import SwiftUI
     import UniformTypeIdentifiers
 
     struct DictionaryView: View {
@@ -41,76 +41,83 @@
         }
 
         var body: some View {
-            Form {
-                Section {
-                    Toggle("Enable Personal Dictionary", isOn: isEnabledBinding)
-
-                    Text("Help Stet recognize names, brands, and phrases in your transcripts and rewrites.")
-                        .font(.callout).foregroundStyle(.secondary)
-                } header: {
-                    Text("Personal Dictionary")
+            LinearPageContainer(
+                title: "Dictionary",
+                preservesExpandedToolbar: false
+            ) {
+                LinearSectionGroup("Personal Dictionary") {
+                    LinearSettingRow(
+                        "Enable Personal Dictionary",
+                        subtitle: "Help Stet recognize names, brands, and phrases in your transcripts and rewrites."
+                    ) {
+                        Toggle("", isOn: isEnabledBinding)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .tint(MacUI.LinearBrand.accent)
+                    }
                 }
 
-                Section {
+                LinearSectionGroup("Current Entries") {
                     HStack {
-                        Text("\(viewModel.entries.count) words and phrases").foregroundStyle(.secondary)
+                        Text("\(viewModel.entries.count) words and phrases")
+                            .font(MacUI.LinearTypography.rowSubtitle)
+                            .foregroundStyle(MacUI.Foreground.secondary)
                         Spacer()
-                        Button {
-                            isImportingFile = true
-                        } label: {
-                            Label("Import…", systemImage: "square.and.arrow.down")
-                        }
-                        Button {
-                            openEditor()
-                        } label: {
-                            Label("Add Words…", systemImage: "plus")
+                        if !viewModel.entries.isEmpty {
+                            Button("Clear Dictionary", role: .destructive) {
+                                clearConfirmation = ""
+                                isShowingClearConfirmation = true
+                            }
+                            .buttonStyle(.bordered)
                         }
                     }
+                    .padding(.horizontal, MacUI.LinearMetrics.rowHorizontalPadding)
+                    .padding(.top, 10)
+                    .padding(.bottom, 6)
+
                     if viewModel.entries.isEmpty {
                         Text("Once you add words here, Stet will reuse them in transcription and rewrite.")
-                            .foregroundStyle(.secondary)
+                            .font(MacUI.LinearTypography.rowSubtitle)
+                            .foregroundStyle(MacUI.Foreground.secondary)
+                            .padding(.horizontal, MacUI.LinearMetrics.rowHorizontalPadding)
+                            .padding(.vertical, 14)
                     } else {
                         LazyVGrid(
-                            columns: dictionaryColumns, alignment: .leading,
+                            columns: dictionaryColumns,
+                            alignment: .leading,
                             spacing: MacUI.DictionaryViewMetrics.gridSpacing
                         ) {
                             ForEach(viewModel.entries, id: \.self) { entry in
                                 dictionaryChip(for: entry)
                             }
                         }
-
-                        Button("Clear Dictionary", role: .destructive) {
-                            clearConfirmation = ""
-                            isShowingClearConfirmation = true
-                        }
-                        .foregroundStyle(.red)
+                        .padding(MacUI.LinearMetrics.rowHorizontalPadding)
                     }
-                } header: {
-                    Text("Current Entries")
                 }
             }
-            .macSettingsFormStyle()
-            .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .macSettingsSheet(isPresented: $isShowingEditor) {
                 MacSettingsEditor(
                     title: editingEntry == nil ? "Add Dictionary Words" : "Edit Dictionary Entry",
                     subtitle:
                         "Use the spelling you want in your transcripts. Separate words or phrases with commas. Up to 200 characters."
                 ) {
-                    Text("Words or phrases").font(.subheadline)
+                    Text("Words or phrases").font(MacUI.LinearTypography.rowTitle)
                     TextField("Words or phrases", text: entryDraftBinding, axis: .horizontal)
-                        .font(.body)
+                        .font(.system(size: 13))
                         .textFieldStyle(.roundedBorder)
                         .lineLimit(1)
                         .labelsHidden()
                         .accessibilityLabel("Words or phrases")
                     HStack {
                         Spacer()
-                        Button("Cancel") { isShowingEditor = false }.keyboardShortcut(.cancelAction)
+                        Button("Cancel") { isShowingEditor = false }
+                            .buttonStyle(.bordered)
+                            .keyboardShortcut(.cancelAction)
                         Button(editingEntry == nil ? "Add Words" : "Save") {
                             viewModel.saveEntries(from: entryDraft, replacing: editingEntry)
                             isShowingEditor = false
                         }
+                        .buttonStyle(.borderedProminent)
                         .keyboardShortcut(.defaultAction)
                         .disabled(!viewModel.canSaveEntries(from: entryDraft))
                     }
@@ -122,17 +129,39 @@
                     subtitle:
                         "This permanently removes all \(viewModel.entries.count) entries, including on devices using your synced dictionary. This cannot be undone."
                 ) {
-                    Text("Type CLEAR to confirm.").font(.subheadline)
-                    TextField("CLEAR", text: $clearConfirmation).textFieldStyle(.roundedBorder).labelsHidden()
+                    Text("Type CLEAR to confirm.").font(MacUI.LinearTypography.rowTitle)
+                    TextField("CLEAR", text: $clearConfirmation)
+                        .textFieldStyle(.roundedBorder)
+                        .labelsHidden()
                     HStack {
                         Spacer()
-                        Button("Cancel") { isShowingClearConfirmation = false }.keyboardShortcut(.cancelAction)
+                        Button("Cancel") { isShowingClearConfirmation = false }
+                            .buttonStyle(.bordered)
+                            .keyboardShortcut(.cancelAction)
                         Button("Clear Dictionary", role: .destructive) {
                             viewModel.clearEntries()
                             isShowingClearConfirmation = false
                         }
+                        .buttonStyle(.borderedProminent)
                         .disabled(clearConfirmation != "CLEAR")
                     }
+                }
+            }
+            .toolbar {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        isImportingFile = true
+                    } label: {
+                        Label("Import…", systemImage: "square.and.arrow.down")
+                    }
+                    .help("Import words or phrases from a file")
+
+                    Button {
+                        openEditor()
+                    } label: {
+                        Label("Add Words…", systemImage: "plus")
+                    }
+                    .help("Add words or phrases")
                 }
             }
             .onAppear { viewModel.load() }
@@ -170,37 +199,33 @@
         }
 
         private func dictionaryChip(for entry: String) -> some View {
-            HStack(spacing: MacUI.DictionaryViewMetrics.chipSpacing) {
+            let isAutomatic = viewModel.source(for: entry) == .automatic
+            return HStack(spacing: MacUI.DictionaryViewMetrics.chipSpacing) {
                 Button {
                     openEditor(entry)
                 } label: {
                     Text(entry)
                         .font(MacUI.DictionaryViewMetrics.chipTextFont)
+                        .foregroundStyle(MacUI.Foreground.primary)
                         .lineLimit(MacUI.DictionaryViewMetrics.entryLineLimit)
                         .multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
-
                 }
                 .buttonStyle(.plain)
                 .help("Edit entry")
 
-                Image(systemName: viewModel.source(for: entry) == .automatic ? "sparkles" : "person")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .help(
-                        viewModel.source(for: entry) == .automatic
-                            ? Text("Automatically learned") : Text("Manually added")
-                    )
-                    .accessibilityLabel(
-                        viewModel.source(for: entry) == .automatic
-                            ? Text("Automatically learned") : Text("Manually added"))
+                Image(systemName: isAutomatic ? "sparkles" : "person")
+                    .font(.system(size: 10))
+                    .foregroundStyle(MacUI.LinearSurfaces.mutedInk)
+                    .help(isAutomatic ? Text("Automatically learned") : Text("Manually added"))
+                    .accessibilityLabel(isAutomatic ? Text("Automatically learned") : Text("Manually added"))
 
                 Button {
                     viewModel.removeEntry(entry)
                 } label: {
                     Image(systemName: "xmark")
                         .font(MacUI.DictionaryViewMetrics.chipButtonIconFont)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MacUI.LinearSurfaces.mutedInk)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Remove \(entry)")
@@ -209,13 +234,11 @@
             .padding(.vertical, MacUI.DictionaryViewMetrics.chipVerticalPadding)
             .background(
                 RoundedRectangle(cornerRadius: MacUI.DictionaryViewMetrics.chipCornerRadius, style: .continuous)
-                    .fill(Color.secondary.opacity(MacUI.DictionaryViewMetrics.chipFillOpacity))
+                    .fill(MacUI.LinearSurfaces.elevated)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: MacUI.DictionaryViewMetrics.chipCornerRadius, style: .continuous)
-                    .strokeBorder(
-                        Color.primary.opacity(MacUI.DictionaryViewMetrics.chipStrokeOpacity),
-                        lineWidth: MacUI.DictionaryViewMetrics.chipStrokeLineWidth)
+                    .strokeBorder(MacUI.LinearSurfaces.hairline, lineWidth: 1)
             )
         }
     }

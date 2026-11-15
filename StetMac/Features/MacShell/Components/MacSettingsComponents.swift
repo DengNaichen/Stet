@@ -19,22 +19,31 @@
         }
 
         var body: some View {
-            GroupBox {
-                VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
+            VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(LocalizedStringKey(title))
-                        .font(MacUI.Typography.heading)
+                        .font(MacUI.LinearTypography.rowTitle)
+                        .foregroundStyle(MacUI.Foreground.primary)
 
                     if let description {
                         Text(LocalizedStringKey(description))
-                            .font(MacUI.Typography.caption)
+                            .font(MacUI.LinearTypography.rowSubtitle)
                             .foregroundStyle(MacUI.Foreground.secondary)
                     }
-
-                    content()
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(MacUI.SettingsViewMetrics.cardInnerPadding)
+
+                content()
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(MacUI.SettingsViewMetrics.cardInnerPadding)
+            .background(
+                RoundedRectangle(cornerRadius: MacUI.LinearMetrics.cardCornerRadius, style: .continuous)
+                    .fill(MacUI.LinearSurfaces.card)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: MacUI.LinearMetrics.cardCornerRadius, style: .continuous)
+                    .strokeBorder(MacUI.LinearSurfaces.hairline, lineWidth: 1)
+            )
         }
     }
 
@@ -45,18 +54,25 @@
 
         var body: some View {
             VStack(alignment: .leading, spacing: MacUI.EditorMetrics.spacing) {
-                VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.labelSpacing) {
-                    Text(title).font(MacUI.Typography.heading)
-                    Text(subtitle).font(MacUI.Typography.status).foregroundStyle(MacUI.Foreground.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(MacUI.LinearTypography.pageTitle)
+                        .foregroundStyle(MacUI.Foreground.primary)
+                    Text(subtitle)
+                        .font(MacUI.LinearTypography.rowSubtitle)
+                        .foregroundStyle(MacUI.Foreground.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 content()
             }
             .padding(MacUI.EditorMetrics.padding)
             .frame(width: MacUI.EditorMetrics.width)
-            .background(MacUI.Surfaces.paper)
-            .clipShape(RoundedRectangle(cornerRadius: MacUI.EditorMetrics.cornerRadius, style: .continuous))
-
+            .background(MacUI.LinearSurfaces.detailCanvas)
+            .clipShape(RoundedRectangle(cornerRadius: MacUI.LinearMetrics.insetCornerRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: MacUI.LinearMetrics.insetCornerRadius, style: .continuous)
+                    .strokeBorder(MacUI.LinearSurfaces.hairlineStrong, lineWidth: 1)
+            )
         }
     }
 
@@ -74,9 +90,10 @@
         }
 
         var body: some View {
-            HStack(alignment: .firstTextBaseline, spacing: MacUI.SettingsViewMetrics.valueRowSpacing) {
+            HStack(alignment: .center, spacing: MacUI.SettingsViewMetrics.valueRowSpacing) {
                 Text(LocalizedStringKey(title))
-                    .foregroundStyle(MacUI.Foreground.secondary)
+                    .font(MacUI.LinearTypography.rowTitle)
+                    .foregroundStyle(MacUI.Foreground.primary)
 
                 Spacer()
 
@@ -281,21 +298,7 @@
         let tint: Color
 
         var body: some View {
-            Text(text)
-                .font(MacUI.Typography.statusBadge)
-                .foregroundStyle(tint)
-                .padding(.horizontal, MacUI.SettingsViewMetrics.badgeHorizontalPadding)
-                .padding(.vertical, MacUI.SettingsViewMetrics.badgeVerticalPadding)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(tint.opacity(MacUI.SettingsViewMetrics.badgeFillOpacity))
-                )
-                .overlay(
-                    Capsule(style: .continuous)
-                        .strokeBorder(
-                            tint.opacity(MacUI.SettingsViewMetrics.badgeStrokeOpacity),
-                            lineWidth: MacUI.SettingsViewMetrics.badgeStrokeLineWidth)
-                )
+            LinearBadge(text: text, tint: tint, showDot: true)
         }
     }
 #endif

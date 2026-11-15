@@ -1,6 +1,6 @@
 #if os(macOS)
-    import SwiftUI
     import StetCore
+    import SwiftUI
 
     struct MacModelCatalogUpdateControls: View {
         let refreshState: RewriteModelCatalogStore.RefreshState
@@ -8,26 +8,26 @@
         let check: () -> Void
 
         var body: some View {
-            VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.controlSpacing) {
-                HStack {
+            LinearSettingRow(
+                "Model Catalog",
+                subtitleText: "Catalog revision \(revision)"
+            ) {
+                HStack(spacing: 10) {
+                    if refreshState != .idle {
+                        HStack(spacing: 5) {
+                            Image(systemName: statusIcon)
+                                .font(.system(size: 11))
+                            Text(statusText)
+                                .font(MacUI.LinearTypography.badge)
+                        }
+                        .foregroundStyle(statusColor)
+                    }
+
                     Button("Check for Model Updates", action: check)
+                        .buttonStyle(.bordered)
                         .disabled(refreshState == .checking)
-                    Text("Catalog revision \(revision)")
-                        .font(MacUI.Typography.caption)
-                        .foregroundStyle(MacUI.Foreground.secondary)
                 }
-                HStack(spacing: MacUI.SettingsViewMetrics.labelSpacing) {
-                    Image(systemName: statusIcon).frame(width: MacUI.SettingsViewMetrics.statusIconWidth)
-                    Text(statusText)
-                }
-                .font(MacUI.Typography.status)
-                .foregroundStyle(statusColor)
-                .lineLimit(1)
-                .frame(height: MacUI.SettingsViewMetrics.statusRowHeight, alignment: .leading)
-                .opacity(refreshState == .idle ? 0 : 1)
-                .accessibilityHidden(refreshState == .idle)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
 
         private var statusText: LocalizedStringKey {
@@ -54,5 +54,4 @@
             }
         }
     }
-
 #endif

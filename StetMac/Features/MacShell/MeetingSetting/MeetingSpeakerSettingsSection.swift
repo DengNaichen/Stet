@@ -6,23 +6,32 @@
         let isRecording: Bool
 
         var body: some View {
-            Section {
-                Toggle(
+            LinearSectionGroup("Speaker Separation") {
+                LinearSettingRow(
                     "Separate Speakers",
-                    isOn: Binding(
-                        get: { settings.isEnabled },
-                        set: { settings.requestEnabled($0) }
+                    subtitle: "Label different speakers in the meeting transcript. Changes apply to the next meeting."
+                ) {
+                    Toggle(
+                        "",
+                        isOn: Binding(
+                            get: { settings.isEnabled },
+                            set: { settings.requestEnabled($0) }
+                        )
                     )
-                )
-                .disabled(settings.isWorking)
-                Text("Label different speakers in the meeting transcript. Changes apply to the next meeting.")
-                    .foregroundStyle(.secondary)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .tint(MacUI.LinearBrand.accent)
+                    .disabled(settings.isWorking)
+                }
+
                 modelStatus
-            } header: {
-                Text("Speaker Separation")
+                    .padding(.horizontal, MacUI.LinearMetrics.rowHorizontalPadding)
+                    .padding(.top, 2)
+                    .padding(.bottom, 10)
             }
             .confirmationDialog(
-                "Download Speaker Separation Model?", isPresented: $settings.showsDownloadPrompt,
+                "Download Speaker Separation Model?",
+                isPresented: $settings.showsDownloadPrompt,
                 titleVisibility: .visible
             ) {
                 Button("Download and Enable") { settings.downloadAndEnable() }
@@ -35,30 +44,67 @@
             .task { settings.refresh() }
         }
 
-        @ViewBuilder private var modelStatus: some View {
+        @ViewBuilder
+        private var modelStatus: some View {
             switch settings.state {
             case .missing:
-                Button("Download Speaker Separation Model") { settings.showsDownloadPrompt = true }
-            case .checking:
-                ProgressView("Checking model…")
-            case .downloading(let fraction):
-                ProgressView(value: fraction) {
-                    Text("Downloading speaker model: \(Int(fraction * 100))%")
+                HStack {
+                    Text("Speaker separation model not installed")
+                        .font(MacUI.LinearTypography.rowSubtitle)
+                        .foregroundStyle(MacUI.Foreground.secondary)
+                    Spacer()
+                    Button("Download Speaker Separation Model") { settings.showsDownloadPrompt = true }
+                        .buttonStyle(.bordered)
                 }
-                Button("Cancel Download") { settings.cancelDownload() }
+            case .checking:
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Checking model…")
+                        .font(MacUI.LinearTypography.rowSubtitle)
+                        .foregroundStyle(MacUI.Foreground.secondary)
+                }
+            case .downloading(let fraction):
+                HStack(spacing: 12) {
+                    ProgressView(value: fraction) {
+                        Text("Downloading speaker model: \(Int(fraction * 100))%")
+                            .font(MacUI.LinearTypography.rowSubtitle)
+                    }
+                    Spacer()
+                    Button("Cancel Download") { settings.cancelDownload() }
+                        .buttonStyle(.bordered)
+                }
             case .validating:
-                ProgressView("Verifying model…")
-                Button("Cancel Download") { settings.cancelDownload() }
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Verifying model…")
+                        .font(MacUI.LinearTypography.rowSubtitle)
+                        .foregroundStyle(MacUI.Foreground.secondary)
+                    Spacer()
+                    Button("Cancel Download") { settings.cancelDownload() }
+                        .buttonStyle(.bordered)
+                }
             case .ready:
-                Text(
-                    LocalizedStringKey(
-                        isRecording
-                            ? "Model ready. Changes take effect next meeting." : "Speaker separation model ready")
-                )
-                .foregroundStyle(.secondary)
+                HStack {
+                    Text(
+                        LocalizedStringKey(
+                            isRecording
+                                ? "Model ready. Changes take effect next meeting." : "Speaker separation model ready"
+                        )
+                    )
+                    .font(MacUI.LinearTypography.rowSubtitle)
+                    .foregroundStyle(MacUI.Foreground.secondary)
+                    Spacer()
+                    LinearBadge(text: "Ready", tint: MacUI.Foreground.success, showDot: true)
+                }
             case .failed(let message):
-                Text(message).foregroundStyle(.secondary)
-                Button("Retry Download and Enable") { settings.downloadAndEnable() }
+                HStack(spacing: 10) {
+                    Text(message)
+                        .font(MacUI.LinearTypography.rowSubtitle)
+                        .foregroundStyle(MacUI.Foreground.error)
+                    Spacer()
+                    Button("Retry Download and Enable") { settings.downloadAndEnable() }
+                        .buttonStyle(.bordered)
+                }
             }
         }
     }

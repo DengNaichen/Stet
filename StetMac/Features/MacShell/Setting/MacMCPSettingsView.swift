@@ -64,69 +64,78 @@
         @StateObject private var viewModel = MacMCPSettingsViewModel()
 
         var body: some View {
-            Form {
-                Section {
-                    Toggle(
+            LinearPageContainer(title: "MCP") {
+                LinearSectionGroup(
+                    "MCP Server",
+                    footer: "Let your coding agent access Stet through MCP."
+                ) {
+                    LinearSettingRow(
                         "MCP Server",
-                        isOn: Binding(
-                            get: { viewModel.isEnabled },
-                            set: { viewModel.setEnabled($0) }
+                        subtitle: "Local HTTP endpoint at http://127.0.0.1:49321/mcp"
+                    ) {
+                        Toggle(
+                            "",
+                            isOn: Binding(
+                                get: { viewModel.isEnabled },
+                                set: { viewModel.setEnabled($0) }
+                            )
                         )
-                    )
-                    .disabled(viewModel.isTransitioning)
-
-                    HStack(spacing: MacUI.SettingsViewMetrics.labelSpacing) {
-                        Circle()
-                            .fill(statusColor)
-                            .frame(
-                                width: MacUI.SettingsViewMetrics.statusDotDiameter,
-                                height: MacUI.SettingsViewMetrics.statusDotDiameter)
-                        Text(statusText)
-                            .foregroundStyle(MacUI.Foreground.secondary)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .tint(MacUI.LinearBrand.accent)
+                        .disabled(viewModel.isTransitioning)
                     }
-                    .font(MacUI.Typography.status)
-                } footer: {
-                    Text("Let your coding agent access Stet through MCP.")
+
+                    LinearSettingRow("Server Status") {
+                        LinearBadge(text: statusTitle, tint: statusColor, showDot: true)
+                    }
                 }
 
-                Section("Connect your coding agent") {
+                LinearSectionGroup("Connect your coding agent") {
                     instructionRow(number: 1, text: "Turn on MCP Server")
                     instructionRow(number: 2, text: "Copy the setup prompt")
                     instructionRow(number: 3, text: "Paste it into your coding agent")
 
-                    Button(viewModel.copySucceeded ? "Copied" : "Copy Setup Prompt") {
-                        viewModel.copySetupPrompt()
+                    LinearSettingRow("Setup Prompt") {
+                        Button(viewModel.copySucceeded ? "Copied" : "Copy Setup Prompt") {
+                            viewModel.copySetupPrompt()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!viewModel.isEnabled)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!viewModel.isEnabled)
                 }
 
-                Section("Calendar Tools") {
+                LinearSectionGroup("Calendar Tools") {
                     Text("Connected agents can read and modify calendars selected in Meetings settings.")
+                        .font(MacUI.LinearTypography.rowSubtitle)
                         .foregroundStyle(MacUI.Foreground.secondary)
+                        .padding(.horizontal, MacUI.LinearMetrics.rowHorizontalPadding)
+                        .padding(.vertical, 12)
                 }
             }
-            .macSettingsFormStyle()
-            .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
                 viewModel.configure(appModel: settingsShellViewModel)
             }
         }
 
         private func instructionRow(number: Int, text: LocalizedStringKey) -> some View {
-            HStack(spacing: MacUI.SettingsViewMetrics.instructionRowSpacing) {
+            HStack(spacing: 10) {
                 Text("\(number)")
-                    .font(MacUI.Typography.instructionNumber)
-                    .frame(
-                        width: MacUI.SettingsViewMetrics.instructionBadgeDiameter,
-                        height: MacUI.SettingsViewMetrics.instructionBadgeDiameter
-                    )
-                    .background(MacUI.Surfaces.selection, in: Circle())
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .foregroundStyle(MacUI.Foreground.secondary)
+                    .frame(width: 20, height: 20)
+                    .background(MacUI.LinearSurfaces.elevated, in: Circle())
+                    .overlay(Circle().strokeBorder(MacUI.LinearSurfaces.hairlineStrong, lineWidth: 1))
                 Text(text)
+                    .font(MacUI.LinearTypography.rowTitle)
+                    .foregroundStyle(MacUI.Foreground.primary)
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, MacUI.LinearMetrics.rowHorizontalPadding)
+            .padding(.vertical, 9)
         }
 
-        private var statusText: LocalizedStringKey {
+        private var statusTitle: String {
             switch viewModel.state {
             case .disabled:
                 "Off"
@@ -146,7 +155,7 @@
             case .failed:
                 MacUI.Foreground.error
             case .starting:
-                MacUI.Foreground.warning
+                MacUI.Foreground.secondaryColor
             case .disabled:
                 MacUI.Foreground.secondaryColor
             }

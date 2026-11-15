@@ -1,95 +1,81 @@
 #if os(macOS)
-    import SwiftUI
     import StetCore
+    import SwiftUI
 
     struct MacTranscriptionSettingsView: View {
         @StateObject private var viewModel = MacAudioSettingsViewModel()
         @EnvironmentObject private var aneModelSettings: ANEModelSettingsViewModel
 
         var body: some View {
-            Form {
-                Section {
-                    VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
-                        Text("Choose which on-device model handles transcription.")
-                            .font(MacUI.Typography.detail)
-                            .foregroundStyle(MacUI.Foreground.secondary)
-
-                        MacSettingsValueRow(title: "Engine") {
-                            Picker("", selection: $viewModel.localTranscriptionEngine) {
-                                ForEach(viewModel.localTranscriptionEngineOptions, id: \.self) { engine in
-                                    Text(engine.displayName).tag(engine)
-                                }
+            LinearPageContainer(title: "Transcription") {
+                LinearSectionGroup("Local Engine") {
+                    LinearSettingRow(
+                        "Engine",
+                        subtitle: "Choose which on-device model handles transcription."
+                    ) {
+                        Picker("", selection: $viewModel.localTranscriptionEngine) {
+                            ForEach(viewModel.localTranscriptionEngineOptions, id: \.self) { engine in
+                                Text(engine.displayName).tag(engine)
                             }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .frame(width: MacUI.SettingsViewMetrics.controlWidth, alignment: .trailing)
                         }
-
-                        if viewModel.localTranscriptionEngine == .fluidAudio, !viewModel.isParakeetDownloaded {
-                            Text(
-                                "Parakeet model isn't downloaded yet. Stet will fall back to Fun-ASR Nano until you download it below."
-                            )
-                            .font(MacUI.Typography.detail)
-                            .foregroundStyle(MacUI.Foreground.warning)
-                        }
-
-                        if viewModel.localTranscriptionEngine == .funASRNano,
-                            !viewModel.isFunASRNanoDownloaded
-                        {
-                            Text(
-                                "Fun-ASR Nano isn't downloaded yet. Download it below before dictating."
-                            )
-                            .font(MacUI.Typography.detail)
-                            .foregroundStyle(MacUI.Foreground.warning)
-                        }
-
-                        if viewModel.localTranscriptionEngine == .appleSpeech,
-                            !viewModel.appleSpeechAssetState.isInstalled
-                        {
-                            Text(viewModel.appleSpeechAssetState.statusText)
-                                .font(MacUI.Typography.detail)
-                                .foregroundStyle(MacUI.Foreground.warning)
-                        }
-
-                        Divider().padding(.vertical, MacUI.SettingsViewMetrics.dividerVerticalPadding)
-
-                        VStack(spacing: MacUI.SettingsViewMetrics.rowContentSpacing) {
-                            TranscriptionModelRow(
-                                name: "Fun-ASR Nano (Chinese / English / Japanese)",
-                                isDownloaded: viewModel.isFunASRNanoDownloaded,
-                                isDownloading: viewModel.isFunASRNanoDownloading,
-                                errorMessage: viewModel.funASRNanoErrorMessage,
-                                onDownload: { viewModel.downloadFunASRNanoModel() },
-                                onReveal: { viewModel.openFunASRNanoFolder() }
-                            )
-
-                            ANEModelSettingsRow(viewModel: aneModelSettings)
-
-                            Divider()
-
-                            TranscriptionModelRow(
-                                name: "Parakeet V3",
-                                isDownloaded: viewModel.isParakeetDownloaded,
-                                isDownloading: viewModel.isParakeetDownloading,
-                                errorMessage: viewModel.parakeetErrorMessage,
-                                onDownload: { viewModel.downloadParakeetModel() },
-                                onReveal: { viewModel.openParakeetFolder() }
-                            )
-
-                            Divider()
-
-                            AppleSpeechModelRow(
-                                state: viewModel.appleSpeechAssetState,
-                                onDownload: { viewModel.downloadAppleSpeechModel() }
-                            )
-                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .frame(width: MacUI.LinearMetrics.pickerWidth, alignment: .trailing)
                     }
-                } header: {
-                    Text("Local Transcription")
+                }
+
+                if viewModel.localTranscriptionEngine == .fluidAudio, !viewModel.isParakeetDownloaded {
+                    LinearInlineBanner(
+                        systemImage: "exclamationmark.triangle.fill",
+                        tint: MacUI.Foreground.warning,
+                        message:
+                            "Parakeet model isn't downloaded yet. Stet will fall back to Fun-ASR Nano until you download it below."
+                    )
+                }
+
+                if viewModel.localTranscriptionEngine == .funASRNano, !viewModel.isFunASRNanoDownloaded {
+                    LinearInlineBanner(
+                        systemImage: "exclamationmark.triangle.fill",
+                        tint: MacUI.Foreground.warning,
+                        message: "Fun-ASR Nano isn't downloaded yet. Download it below before dictating."
+                    )
+                }
+
+                if viewModel.localTranscriptionEngine == .appleSpeech, !viewModel.appleSpeechAssetState.isInstalled {
+                    LinearInlineBanner(
+                        systemImage: "exclamationmark.triangle.fill",
+                        tint: MacUI.Foreground.warning,
+                        text: viewModel.appleSpeechAssetState.statusText
+                    )
+                }
+
+                LinearSectionGroup("Downloaded Models") {
+                    TranscriptionModelRow(
+                        name: "Fun-ASR Nano (Chinese / English / Japanese)",
+                        isDownloaded: viewModel.isFunASRNanoDownloaded,
+                        isDownloading: viewModel.isFunASRNanoDownloading,
+                        errorMessage: viewModel.funASRNanoErrorMessage,
+                        onDownload: { viewModel.downloadFunASRNanoModel() },
+                        onReveal: { viewModel.openFunASRNanoFolder() }
+                    )
+
+                    ANEModelSettingsRow(viewModel: aneModelSettings)
+
+                    TranscriptionModelRow(
+                        name: "Parakeet V3",
+                        isDownloaded: viewModel.isParakeetDownloaded,
+                        isDownloading: viewModel.isParakeetDownloading,
+                        errorMessage: viewModel.parakeetErrorMessage,
+                        onDownload: { viewModel.downloadParakeetModel() },
+                        onReveal: { viewModel.openParakeetFolder() }
+                    )
+
+                    AppleSpeechModelRow(
+                        state: viewModel.appleSpeechAssetState,
+                        onDownload: { viewModel.downloadAppleSpeechModel() }
+                    )
                 }
             }
-            .macSettingsFormStyle()
-            .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
                 viewModel.onAppear()
             }
@@ -103,16 +89,14 @@
             let onDownload: () -> Void
 
             var body: some View {
-                VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.detailSpacing) {
-                    HStack(spacing: MacUI.SettingsViewMetrics.rowContentSpacing) {
-                        VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.compactDetailSpacing) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text("Apple Speech (Experimental)")
-                                .font(MacUI.Typography.itemTitle)
-                            Text("On-device SpeechAnalyzer / SpeechTranscriber")
-                                .font(MacUI.Typography.detail)
-                                .foregroundStyle(MacUI.Foreground.secondary)
-                            Text(state.statusText)
-                                .font(MacUI.Typography.detail)
+                                .font(MacUI.LinearTypography.rowTitle)
+                                .foregroundStyle(MacUI.Foreground.primary)
+                            Text("On-device SpeechAnalyzer / SpeechTranscriber · \(state.statusText)")
+                                .font(MacUI.LinearTypography.rowSubtitle)
                                 .foregroundStyle(MacUI.Foreground.secondary)
                         }
 
@@ -126,15 +110,18 @@
                         Button(state.isInstalled ? "Installed" : state.errorMessage == nil ? "Download" : "Retry") {
                             onDownload()
                         }
+                        .buttonStyle(.bordered)
                         .disabled(!state.canDownload)
                     }
 
                     if let message = state.errorMessage {
                         Text(message)
-                            .font(MacUI.Typography.footnote)
+                            .font(MacUI.LinearTypography.rowSubtitle)
                             .foregroundStyle(MacUI.Foreground.error)
                     }
                 }
+                .padding(.horizontal, MacUI.LinearMetrics.rowHorizontalPadding)
+                .padding(.vertical, 10)
             }
         }
 
@@ -147,13 +134,14 @@
             let onReveal: () -> Void
 
             var body: some View {
-                VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.detailSpacing) {
-                    HStack(spacing: MacUI.SettingsViewMetrics.rowContentSpacing) {
-                        VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.compactDetailSpacing) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(name)
-                                .font(MacUI.Typography.itemTitle)
+                                .font(MacUI.LinearTypography.rowTitle)
+                                .foregroundStyle(MacUI.Foreground.primary)
                             Text(isDownloaded ? "Downloaded" : "Available")
-                                .font(MacUI.Typography.detail)
+                                .font(MacUI.LinearTypography.rowSubtitle)
                                 .foregroundStyle(MacUI.Foreground.secondary)
                         }
 
@@ -164,27 +152,31 @@
                                 .controlSize(.small)
                         }
 
-                        HStack(spacing: MacUI.SettingsViewMetrics.controlSpacing) {
+                        HStack(spacing: 8) {
                             Button(action: onReveal) {
                                 Image(systemName: "folder")
-                                    .font(MacUI.Typography.actionIcon)
+                                    .font(.system(size: 11, weight: .medium))
                             }
                             .buttonStyle(.bordered)
                             .help("Reveal in Finder")
+                            .accessibilityLabel("Reveal in Finder")
 
                             Button(isDownloaded ? "Downloaded" : "Download") {
                                 onDownload()
                             }
+                            .buttonStyle(.bordered)
                             .disabled(isDownloaded || isDownloading)
                         }
                     }
 
                     if let message = errorMessage {
                         Text(message)
-                            .font(MacUI.Typography.footnote)
+                            .font(MacUI.LinearTypography.rowSubtitle)
                             .foregroundStyle(MacUI.Foreground.error)
                     }
                 }
+                .padding(.horizontal, MacUI.LinearMetrics.rowHorizontalPadding)
+                .padding(.vertical, 10)
             }
         }
     }

@@ -5,32 +5,19 @@
         @Environment(\.openWindow) private var openWindow
 
         var body: some View {
-            VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.cardContentSpacing) {
-                GroupBox {
-                    VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.controlSpacing) {
-                        Text("Shader Debug Window")
-                            .font(MacUI.Typography.heading)
-
-                        Text(
-                            "Open a large shader workbench window for screenshot capture and color tuning."
-                        )
-                        .foregroundStyle(MacUI.Foreground.secondary)
+            LinearPageContainer(title: "Debug") {
+                LinearSectionGroup("Shader Debug Window") {
+                    LinearSettingRow(
+                        "Shader Workbench",
+                        subtitle: "Open a large shader workbench window for screenshot capture and color tuning."
+                    ) {
+                        Button("Open Shader Debug Window") {
+                            openWindow(id: MacWindowSceneID.shaderDebug)
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-
-                Button {
-                    openWindow(id: MacWindowSceneID.shaderDebug)
-                } label: {
-                    Text("Open Shader Debug Window")
-                        .frame(minWidth: MacUI.SettingsViewMetrics.prominentActionMinimumWidth)
-                }
-                .buttonStyle(.borderedProminent)
-
-                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(MacUI.SettingsViewMetrics.standaloneContentPadding)
         }
     }
 #endif

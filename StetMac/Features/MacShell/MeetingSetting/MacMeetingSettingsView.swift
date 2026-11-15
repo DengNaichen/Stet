@@ -10,27 +10,29 @@
         private let store = MeetingRecordingStore()
 
         var body: some View {
-            Form {
+            LinearPageContainer(title: "Meetings") {
                 MacCalendarMeetingSettingsView(appModel: meetingViewModel)
 
-                Section {
-                    Button {
-                        meetingViewModel.toggleMeetingRecording()
-                    } label: {
-                        Label(
-                            LocalizedStringKey(meetingViewModel.meetingToggleTitle),
-                            systemImage: meetingViewModel.meetingMenuSymbolName
-                        )
+                LinearSectionGroup(
+                    "Recording",
+                    footer:
+                        "Records your selected microphone and system audio, including calls played through headphones."
+                ) {
+                    LinearSettingRow(
+                        LocalizedStringKey(meetingViewModel.meetingToggleTitle),
+                        subtitleText: meetingViewModel.meetingStatusText
+                    ) {
+                        Button {
+                            meetingViewModel.toggleMeetingRecording()
+                        } label: {
+                            Label(
+                                LocalizedStringKey(meetingViewModel.meetingToggleTitle),
+                                systemImage: meetingViewModel.meetingMenuSymbolName
+                            )
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!meetingViewModel.canToggleMeetingRecording)
                     }
-                    .disabled(!meetingViewModel.canToggleMeetingRecording)
-
-                    Text(meetingViewModel.meetingStatusText)
-                        .foregroundStyle(.secondary)
-                } header: {
-                    Text("Recording")
-                } footer: {
-                    Text(
-                        "Records your selected microphone and system audio, including calls played through headphones.")
                 }
 
                 MeetingSpeakerSettingsSection(
@@ -38,40 +40,43 @@
                     isRecording: meetingViewModel.isMeetingBusy
                 )
 
-                Section {
-                    MacHotKeySettingsSectionView(hotkey: .meeting)
-                } header: {
-                    Text("Shortcut")
-                } footer: {
-                    Text("Toggles recording. It is not hold-to-talk.")
+                LinearSectionGroup(
+                    "Shortcut",
+                    footer: "Toggles recording. It is not hold-to-talk."
+                ) {
+                    MacHotKeySettingsSectionView(hotkey: .meeting, compactRow: true)
                 }
 
-                Section {
-                    Button("Reveal Meetings Folder") {
-                        revealMeetingsFolder()
+                LinearSectionGroup("Recordings") {
+                    LinearSettingRow("Meetings Folder") {
+                        Button("Reveal Meetings Folder") {
+                            revealMeetingsFolder()
+                        }
+                        .buttonStyle(.bordered)
                     }
+
                     if let revealMessage {
                         Text(revealMessage)
-                            .foregroundStyle(.secondary)
+                            .font(MacUI.LinearTypography.rowSubtitle)
+                            .foregroundStyle(MacUI.Foreground.error)
+                            .padding(.horizontal, MacUI.LinearMetrics.rowHorizontalPadding)
+                            .padding(.vertical, 6)
                     }
-                } header: {
-                    Text("Recordings")
                 }
 
                 if !recentFolders.isEmpty {
-                    Section {
+                    LinearSectionGroup("Recent") {
                         ForEach(recentFolders, id: \.path) { url in
-                            Button(url.lastPathComponent) {
-                                NSWorkspace.shared.activateFileViewerSelecting([url])
+                            LinearSettingRow(LocalizedStringKey(url.lastPathComponent)) {
+                                Button("Show in Finder") {
+                                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                                }
+                                .buttonStyle(.bordered)
                             }
                         }
-                    } header: {
-                        Text("Recent")
                     }
                 }
             }
-            .macSettingsFormStyle()
-            .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
                 reloadRecentFolders()
             }

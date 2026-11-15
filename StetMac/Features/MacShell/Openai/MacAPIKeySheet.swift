@@ -52,9 +52,12 @@
                             isVerifying = false
                         }
                     }
+                    .buttonStyle(.bordered)
                     .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isVerifying)
                     Spacer()
-                    Button("Cancel", action: onClose).keyboardShortcut(.cancelAction)
+                    Button("Cancel", action: onClose)
+                        .buttonStyle(.bordered)
+                        .keyboardShortcut(.cancelAction)
                     Button("Save") {
                         do {
                             try viewModel.storeCredential(draft, for: provider)
@@ -64,6 +67,7 @@
                             verified = false
                         }
                     }
+                    .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
                     .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isVerifying)
                 }

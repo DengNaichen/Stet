@@ -125,7 +125,7 @@ struct StetApp: App {
                     .environmentObject(aneModelSettings)
                     .environment(appUpdateViewModel)
             }
-            .windowStyle(.hiddenTitleBar)
+            .windowToolbarStyle(.unified)
             .defaultLaunchBehavior(.suppressed)
             .restorationBehavior(.disabled)
             .defaultSize(

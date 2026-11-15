@@ -5,14 +5,12 @@
         @StateObject private var viewModel = MacAudioSettingsViewModel()
 
         var body: some View {
-            Form {
+            LinearPageContainer(title: "Microphone") {
                 AudioInputDeviceSettingsSection(
                     deviceList: viewModel.deviceList,
                     microphoneTestViewModel: viewModel.microphoneTestViewModel
                 )
             }
-            .macSettingsFormStyle()
-            .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
                 viewModel.onAppear()
             }
