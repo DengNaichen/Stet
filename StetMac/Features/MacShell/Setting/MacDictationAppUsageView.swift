@@ -6,69 +6,60 @@
         let apps: [DictationAppUsage]
 
         var body: some View {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("By app")
-                    .font(.headline)
-
+            LinearSectionGroup("By app") {
                 if apps.isEmpty {
                     Text("App breakdown starts after your next dictation.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(MacUI.LinearTypography.rowSubtitle)
+                        .foregroundStyle(MacUI.Foreground.secondary)
+                        .padding(.horizontal, MacUI.LinearMetrics.rowHorizontalPadding)
+                        .padding(.vertical, 12)
                 } else {
-                    VStack(spacing: 12) {
-                        ForEach(apps) { app in
-                            row(for: app)
-                        }
+                    ForEach(apps) { app in
+                        row(for: app)
                     }
                 }
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(MacUI.Surfaces.selection)
-            )
         }
 
         private func row(for app: DictationAppUsage) -> some View {
             HStack(alignment: .center, spacing: 10) {
                 icon(for: app)
-                    .frame(width: 24, height: 24)
+                    .frame(width: 20, height: 20)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(app.name)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(MacUI.Surfaces.ink)
-                            .lineLimit(1)
-                        Spacer(minLength: 8)
-                        Text(app.formattedWordCount)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundStyle(MacUI.Surfaces.ink)
-                    }
+                Text(app.name)
+                    .font(MacUI.LinearTypography.rowTitle)
+                    .foregroundStyle(MacUI.Foreground.primary)
+                    .lineLimit(1)
+                    .frame(minWidth: 96, alignment: .leading)
 
-                    HStack(spacing: 8) {
-                        shareBar(share: app.share)
-                        Text(app.formattedSessionCount)
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .fixedSize()
-                    }
-                }
+                shareBar(share: app.share)
+
+                Text(app.formattedSessionCount)
+                    .font(MacUI.LinearTypography.rowSubtitle)
+                    .foregroundStyle(MacUI.LinearSurfaces.mutedInk)
+                    .fixedSize()
+
+                Text(app.formattedWordCount)
+                    .font(.system(size: 12, weight: .medium))
+                    .monospacedDigit()
+                    .foregroundStyle(MacUI.Foreground.primary)
+                    .frame(minWidth: 56, alignment: .trailing)
             }
+            .padding(.horizontal, MacUI.LinearMetrics.rowHorizontalPadding)
+            .padding(.vertical, 9)
         }
 
         private func shareBar(share: Double) -> some View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(MacUI.Surfaces.ink.opacity(0.08))
+                        .fill(MacUI.LinearSurfaces.elevated)
                     Capsule()
-                        .fill(MacUI.Brand.orange)
+                        .fill(MacUI.LinearBrand.accent)
                         .frame(width: max(4, geo.size.width * CGFloat(min(max(share, 0), 1))))
                 }
             }
-            .frame(height: 5)
+            .frame(height: 4)
         }
 
         @ViewBuilder
@@ -81,7 +72,7 @@
                 Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
                     .resizable()
                     .interpolation(.high)
-                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
             } else {
                 placeholderIcon("app.dashed")
             }
@@ -89,12 +80,12 @@
 
         private func placeholderIcon(_ systemName: String) -> some View {
             Image(systemName: systemName)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(MacUI.Foreground.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(MacUI.Surfaces.ink.opacity(0.08))
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(MacUI.LinearSurfaces.elevated)
                 )
         }
     }

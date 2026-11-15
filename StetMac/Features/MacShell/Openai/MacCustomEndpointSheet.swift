@@ -85,9 +85,13 @@
                             }
                             isLoading = false
                         }
-                    }.disabled(baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
                     Spacer()
-                    Button("Cancel", action: onClose).keyboardShortcut(.cancelAction)
+                    Button("Cancel", action: onClose)
+                        .buttonStyle(.bordered)
+                        .keyboardShortcut(.cancelAction)
                     Button("Save") {
                         do {
                             try viewModel.storeCustomEndpoint(
@@ -95,6 +99,7 @@
                             onClose()
                         } catch { message = "Could not save. Check the server URL and Keychain access." }
                     }
+                    .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
                     .disabled(
                         isLoading || baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

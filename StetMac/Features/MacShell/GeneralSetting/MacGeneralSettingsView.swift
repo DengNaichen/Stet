@@ -9,17 +9,21 @@
         @StateObject private var viewModel = MacGeneralSettingsViewModel()
 
         var body: some View {
-            Form {
+            LinearPageContainer(title: "General") {
                 appBehaviorSection
                 updatesSection
                 compatibilitySection
                 #if DEBUG
                     debugSection
                 #endif
-                feedbackSection
+                if let feedback = viewModel.feedback {
+                    LinearInlineBanner(
+                        systemImage: feedback.isError ? "exclamationmark.triangle.fill" : "info.circle.fill",
+                        tint: feedback.isError ? MacUI.Foreground.error : MacUI.Foreground.secondaryColor,
+                        text: feedback.message
+                    )
+                }
             }
-            .macSettingsFormStyle()
-            .padding(.bottom, MacUI.SettingsViewMetrics.formBottomPadding)
             .task {
                 viewModel.configure(appModel: settingsShellViewModel, appUpdateManager: appUpdateViewModel)
                 viewModel.load()
@@ -27,95 +31,118 @@
         }
 
         private var appBehaviorSection: some View {
-            Section {
-                Toggle("Launch at Login", isOn: $viewModel.managedSettings.launchAtLogin)
-                Toggle("Show in Dock", isOn: $viewModel.managedSettings.showInDock)
-            } header: {
-                Text("Application")
-            } footer: {
-                Text("Stet stays in the menu bar for quick access even when the dock icon is hidden.")
+            LinearSectionGroup(
+                "Application",
+                footer: "Stet stays in the menu bar for quick access even when the dock icon is hidden."
+            ) {
+                LinearSettingRow("Launch at Login") {
+                    Toggle("", isOn: $viewModel.managedSettings.launchAtLogin)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .tint(MacUI.LinearBrand.accent)
+                }
+
+                LinearSettingRow("Show in Dock") {
+                    Toggle("", isOn: $viewModel.managedSettings.showInDock)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .tint(MacUI.LinearBrand.accent)
+                }
             }
         }
 
         private var updatesSection: some View {
-            Section {
-                Toggle(
-                    "Check for updates automatically",
-                    isOn: Binding(
-                        get: { viewModel.updateSettings.automaticallyChecksForUpdates },
-                        set: { viewModel.setAutomaticallyChecksForUpdates($0) }
+            LinearSectionGroup("Updates") {
+                LinearSettingRow("Check for updates automatically") {
+                    Toggle(
+                        "",
+                        isOn: Binding(
+                            get: { viewModel.updateSettings.automaticallyChecksForUpdates },
+                            set: { viewModel.setAutomaticallyChecksForUpdates($0) }
+                        )
                     )
-                )
-                .disabled(!viewModel.updateSettings.isConfigured)
-
-                Button("Check for Updates") {
-                    viewModel.checkForUpdates()
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .tint(MacUI.LinearBrand.accent)
+                    .disabled(!viewModel.updateSettings.isConfigured)
                 }
-                .disabled(
-                    viewModel.updateSettings.isCheckingForUpdates || !viewModel.updateSettings.canCheckForUpdates)
-            } header: {
-                Text("Updates")
+
+                LinearSettingRow("Check for Updates") {
+                    HStack(spacing: 8) {
+                        if viewModel.updateSettings.isCheckingForUpdates {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                        Button("Check for Updates") {
+                            viewModel.checkForUpdates()
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(
+                            viewModel.updateSettings.isCheckingForUpdates
+                                || !viewModel.updateSettings.canCheckForUpdates
+                        )
+                    }
+                }
             }
         }
 
         private var compatibilitySection: some View {
-            Section {
+            LinearSectionGroup(
+                "App Compatibility",
+                footer: "Update compatibility fixes for pasting into other apps."
+            ) {
                 MacCompatibilityUpdateControls(state: compatibilityViewModel.refreshState) {
                     Task { await compatibilityViewModel.refresh() }
                 }
-            } header: {
-                Text("App Compatibility")
-            } footer: {
-                Text("Update compatibility fixes for pasting into other apps.")
             }
         }
 
         #if DEBUG
             private var debugSection: some View {
-                Section {
-                    Toggle("Always show onboarding while debugging", isOn: $viewModel.debugForceOnboarding)
-
-                    Button("Restart Onboarding Now") {
-                        viewModel.restartOnboarding()
+                LinearSectionGroup(
+                    "Debug",
+                    footer: "You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`."
+                ) {
+                    LinearSettingRow("Always show onboarding while debugging") {
+                        Toggle("", isOn: $viewModel.debugForceOnboarding)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .tint(MacUI.LinearBrand.accent)
                     }
-                } header: {
-                    Text("Debug")
-                } footer: {
-                    Text("You can also launch with `--force-onboarding` or `STET_FORCE_ONBOARDING=1`.")
+
+                    LinearSettingRow("Restart Onboarding Now") {
+                        Button("Restart Onboarding Now") {
+                            viewModel.restartOnboarding()
+                        }
+                        .buttonStyle(.bordered)
+                    }
                 }
             }
         #endif
-
-        @ViewBuilder
-        private var feedbackSection: some View {
-            if let feedback = viewModel.feedback {
-                Section {
-                    Text(feedback.message)
-                        .foregroundStyle(feedback.isError ? MacUI.Foreground.error : MacUI.Foreground.secondaryColor)
-                }
-            }
-        }
     }
+
     private struct MacCompatibilityUpdateControls: View {
         let state: AppCompatibilityStore.RefreshState
         let check: () -> Void
 
         var body: some View {
-            VStack(alignment: .leading, spacing: MacUI.SettingsViewMetrics.controlSpacing) {
-                Button("Check for Compatibility List Updates", action: check)
-                    .disabled(state == .checking)
-                HStack(spacing: MacUI.SettingsViewMetrics.labelSpacing) {
-                    Image(systemName: statusIcon).frame(width: MacUI.SettingsViewMetrics.statusIconWidth)
-                    Text(statusText)
+            LinearSettingRow("Compatibility List") {
+                HStack(spacing: 10) {
+                    if state != .idle {
+                        HStack(spacing: 5) {
+                            Image(systemName: statusIcon)
+                                .font(.system(size: 11))
+                            Text(statusText)
+                                .font(MacUI.LinearTypography.badge)
+                        }
+                        .foregroundStyle(statusColor)
+                    }
+
+                    Button("Check for Compatibility List Updates", action: check)
+                        .buttonStyle(.bordered)
+                        .disabled(state == .checking)
                 }
-                .font(MacUI.Typography.status)
-                .foregroundStyle(statusColor)
-                .lineLimit(1)
-                .frame(height: MacUI.SettingsViewMetrics.statusRowHeight, alignment: .leading)
-                .opacity(state == .idle ? 0 : 1)
-                .accessibilityHidden(state == .idle)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
 
         private var statusText: LocalizedStringKey {

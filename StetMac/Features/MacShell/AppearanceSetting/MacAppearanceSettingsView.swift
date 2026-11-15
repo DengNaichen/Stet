@@ -15,33 +15,41 @@
 
         var body: some View {
             GeometryReader { geometry in
-                // Keep the complete composition visible in the normal Settings window.
-                // Retain scrolling as a fallback for unusually small windows.
                 let coverScale = max(
                     0.35,
-                    min(0.72, (geometry.size.width - 72) / 440, (geometry.size.height - 140) / 380)
+                    min(0.72, (geometry.size.width - 64) / 440, (geometry.size.height - 104) / 380)
                 )
 
                 ScrollView {
-                    VStack(spacing: 12) {
-                        capsulePreview
-
-                        appearanceCoverFlow
-                            .frame(width: 440, height: 380)
-                            .scaleEffect(coverScale)
-                            .frame(width: 440 * coverScale, height: 380 * coverScale)
+                    VStack(spacing: 14) {
+                        LinearSectionGroup {
+                            VStack(spacing: 10) {
+                                capsulePreview
+                                appearanceCoverFlow
+                                    .frame(width: 440, height: 380)
+                                    .scaleEffect(coverScale)
+                                    .frame(width: 440 * coverScale, height: 380 * coverScale)
+                            }
+                            .padding(.vertical, 16)
+                            .padding(.horizontal, 12)
+                            .frame(maxWidth: .infinity)
+                        }
 
                         Text("Choose the appearance of your dictation indicator.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(MacUI.LinearTypography.rowSubtitle)
+                            .foregroundStyle(MacUI.LinearSurfaces.mutedInk)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    .frame(maxWidth: MacUI.LinearMetrics.contentMaxWidth)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, MacUI.LinearMetrics.contentHorizontalPadding)
+                    .padding(.top, MacUI.LinearMetrics.contentTopPadding)
+                    .padding(.bottom, MacUI.LinearMetrics.contentBottomPadding)
                 }
-                .macSettingsTracksTitleScroll()
+                .macSettingsScrollIndicator()
             }
+            .macNativeNavigationChrome(title: "Appearance")
             .task {
                 viewModel.load()
             }

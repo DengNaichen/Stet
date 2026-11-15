@@ -4,63 +4,65 @@
     struct MacDictationUsageStatsView: View {
         let summary: DictationUsageSummary
 
-        private let columns = [
-            GridItem(.flexible(), spacing: 10),
-            GridItem(.flexible(), spacing: 10),
-        ]
-
         var body: some View {
-            LazyVGrid(columns: columns, spacing: 10) {
-                card(
-                    value: summary.formattedDuration,
-                    unit: "",
-                    caption: "Total dictation time"
-                )
-                card(
-                    value: summary.formattedWordCount,
-                    unit: "words",
-                    caption: "Words dictated"
-                )
-                card(
-                    value: summary.formattedTimeSaved,
-                    unit: "",
-                    caption: "Time saved"
-                )
-                card(
-                    value: summary.formattedWordsPerMinute,
-                    unit: "WPM",
-                    caption: "Average dictation speed"
-                )
+            LinearSectionGroup {
+                HStack(spacing: 0) {
+                    statCell(
+                        value: summary.formattedDuration,
+                        unit: "",
+                        caption: "Total dictation time"
+                    )
+
+                    statCell(
+                        value: summary.formattedWordCount,
+                        unit: "words",
+                        caption: "Words dictated"
+                    )
+
+                    statCell(
+                        value: summary.formattedTimeSaved,
+                        unit: "",
+                        caption: "Time saved"
+                    )
+
+                    statCell(
+                        value: summary.formattedWordsPerMinute,
+                        unit: "WPM",
+                        caption: "Average speed"
+                    )
+                }
             }
         }
 
-        private func card(
+        private func statCell(
             value: String,
             unit: String,
-            caption: String
+            caption: LocalizedStringKey
         ) -> some View {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(caption)
+                    .font(MacUI.LinearTypography.statLabel)
+                    .foregroundStyle(MacUI.Foreground.secondary)
+                    .lineLimit(1)
+
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(value)
-                        .font(.system(size: 22, weight: .semibold, design: .rounded))
-                        .foregroundStyle(MacUI.Surfaces.ink)
+                        .font(MacUI.LinearTypography.statValue)
+                        .monospacedDigit()
+                        .foregroundStyle(MacUI.Foreground.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+
                     if !unit.isEmpty {
                         Text(LocalizedStringKey(unit))
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(MacUI.Foreground.secondary)
                     }
                 }
-
-                Text(LocalizedStringKey(caption))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
-            .padding(14)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(MacUI.Surfaces.selection)
-            )
         }
     }
 #endif
