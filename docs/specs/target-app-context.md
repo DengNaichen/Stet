@@ -92,7 +92,7 @@
 
 **audience 分类**
 
-- **FR-008**：audience 按 Bundle ID 与应用名称做不区分大小写、去除首尾空白的子串匹配。任一字段包含以下片段之一即为“面向 AI / 编程工具”，否则为“面向人”：android studio、androidstudio、android.studio、aider、antigravity、augment、bolt、chatgpt、claude、claude code、cline、clion、codex、codeium、continue、gemini、copilot、cursor、fleet、goland、intellij、kiro、perplexity、phpstorm、poe、pycharm、replit、roo code、roocode、rider、trae、vscode、vscode insiders、visual studio code、warp、webstorm、windsurf、xcode、zed。（名单为当前值，待产品确认维护方式。）
+- **FR-008**：audience 按 Bundle ID 与应用名称做不区分大小写、去除首尾空白的子串匹配。Bundle ID 精确匹配 `com.openai.chat`（ChatGPT Classic），或任一字段包含以下片段之一即为“面向 AI / 编程工具”，否则为“面向人”：android studio、androidstudio、android.studio、aider、antigravity、augment、bolt、chatgpt、claude、claude code、cline、clion、codex、codeium、continue、gemini、copilot、cursor、deepseek、fleet、goland、herdr、intellij、iterm、kiro、perplexity、phpstorm、poe、pycharm、replit、roo code、roocode、rider、t3 code、t3code、trae、vscode、vscode insiders、visual studio code、warp、webstorm、windsurf、xcode、zed。（名单为当前值，待产品确认维护方式。）
 - **FR-009**：audience 只用于改写风格，不得影响目标应用的确定、交付方式或完成判定。
 
 **消费方**

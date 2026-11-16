@@ -97,6 +97,29 @@
             #expect(audience == .human)
         }
 
+        @Test("ChatGPT Classic bundle ID is matched exactly after normalization")
+        func chatGPTClassicBundleIdentifierIsMatchedExactly() {
+            #expect(AppAudienceResolver.resolve(bundleIdentifier: " COM.OPENAI.CHAT ", localizedName: "Unknown") == .ai)
+            #expect(
+                AppAudienceResolver.resolve(bundleIdentifier: "com.openai.chatty", localizedName: "Chatty") == .human)
+        }
+
+        @Test("General browsers, editors and messaging apps stay human-facing")
+        func installedHumanFacingApplicationsKeepHumanAudience() {
+            let applications = [
+                ("com.citrolabs.ego.lite", "ego lite"),
+                ("com.microsoft.teams2", "Microsoft Teams"),
+                ("net.ankiweb.dtop", "Anki"),
+                ("org.telegram.desktop", "Telegram Lite"),
+                ("net.whatsapp.WhatsApp", "WhatsApp"),
+                ("us.zoom.xos", "zoom.us"),
+            ]
+
+            for (bundleID, name) in applications {
+                #expect(AppAudienceResolver.resolve(bundleIdentifier: bundleID, localizedName: name) == .human)
+            }
+        }
+
         @Test("AppAudienceResolver recognizes all documented AI tools")
         func appAudienceResolverRecognizesAllDocumentedAITools() {
             let aiTools = [
@@ -106,6 +129,7 @@
                 ("com.example.augment", "Augment"),
                 ("com.example.bolt", "Bolt"),
                 ("com.openai.chatgpt", "ChatGPT"),
+                ("com.openai.chat", "ChatGPT Classic"),
                 ("com.anthropic.claude", "Claude"),
                 ("com.example.cline", "Cline"),
                 ("com.jetbrains.clion", "CLion"),
@@ -115,9 +139,12 @@
                 ("com.google.gemini", "Gemini"),
                 ("com.github.copilot", "Copilot"),
                 ("com.cursor.app", "Cursor"),
+                ("com.deepseek.dsh", "DeepSeek Harness"),
                 ("com.jetbrains.fleet", "Fleet"),
                 ("com.jetbrains.goland", "GoLand"),
+                ("dev.herdr.app", "Herdr"),
                 ("com.jetbrains.intellij", "IntelliJ IDEA"),
+                ("com.googlecode.iterm2", "iTerm2"),
                 ("com.kiro.app", "Kiro"),
                 ("com.perplexity.app", "Perplexity"),
                 ("com.jetbrains.phpstorm", "PhpStorm"),
@@ -126,6 +153,7 @@
                 ("com.replit.app", "Replit"),
                 ("com.example.roocode", "Roo Code"),
                 ("com.jetbrains.rider", "Rider"),
+                ("com.t3tools.t3code", "T3 Code (Beta)"),
                 ("com.example.trae", "Trae"),
                 ("com.microsoft.vscode", "Visual Studio Code"),
                 ("com.warp.terminal", "Warp"),

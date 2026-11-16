@@ -3,6 +3,10 @@
     import StetCore
 
     enum AppAudienceResolver {
+        private nonisolated static let aiBundleIdentifiers: Set<String> = [
+            "com.openai.chat"
+        ]
+
         private nonisolated static let aiNameFragments: [String] = [
             "android studio",
             "androidstudio",
@@ -22,9 +26,12 @@
             "gemini",
             "copilot",
             "cursor",
+            "deepseek",
             "fleet",
             "goland",
+            "herdr",
             "intellij",
+            "iterm",
             "kiro",
             "perplexity",
             "phpstorm",
@@ -34,6 +41,8 @@
             "roo code",
             "roocode",
             "rider",
+            "t3 code",
+            "t3code",
             "trae",
             "vscode",
             "vscode insiders",
@@ -51,6 +60,10 @@
         ) -> AppAudience {
             let normalizedBundleIdentifier = normalize(bundleIdentifier)
             let normalizedLocalizedName = normalize(localizedName)
+
+            if aiBundleIdentifiers.contains(normalizedBundleIdentifier) {
+                return .ai
+            }
 
             if aiNameFragments.contains(where: { fragment in
                 normalizedBundleIdentifier.contains(fragment) || normalizedLocalizedName.contains(fragment)
