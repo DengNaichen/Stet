@@ -48,8 +48,8 @@
     }
 
     struct MacSettingsEditor<Content: View>: View {
-        let title: String
-        let subtitle: String
+        let title: LocalizedStringKey
+        let subtitle: LocalizedStringKey
         @ViewBuilder let content: () -> Content
 
         var body: some View {
@@ -294,11 +294,28 @@
     }
 
     struct MacSettingsStatusBadge: View {
-        let text: String
+        private let key: LocalizedStringKey?
+        private let verbatimText: String?
         let tint: Color
 
+        init(text: LocalizedStringKey, tint: Color) {
+            self.key = text
+            self.verbatimText = nil
+            self.tint = tint
+        }
+
+        init(verbatim text: String, tint: Color) {
+            self.key = nil
+            self.verbatimText = text
+            self.tint = tint
+        }
+
         var body: some View {
-            LinearBadge(text: text, tint: tint, showDot: true)
+            if let key {
+                LinearBadge(text: key, tint: tint, showDot: true)
+            } else {
+                LinearBadge(verbatim: verbatimText ?? "", tint: tint, showDot: true)
+            }
         }
     }
 #endif

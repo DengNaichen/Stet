@@ -32,7 +32,7 @@
 
         @Published private(set) var transcriptionEngine: TranscriptionEngine = .funASRNano
 
-        @Published private(set) var shortcutSummaryText = "Shortcut configured"
+        @Published private(set) var shortcutSummaryText = String(localized: "Shortcut configured")
         @Published private(set) var onboardingPreviewTheme: MacDictationVisualTheme = .egg
         @Published private(set) var engineDownloadState: EngineDownloadState = .idle
         @Published private(set) var engineDownloadFraction: Double = 0
@@ -143,16 +143,16 @@
         var engineDownloadPrimaryButtonTitle: String {
             switch engineDownloadState {
             case .idle:
-                return "Download"
+                return String(localized: "Download")
             case .running(let stage):
                 if stage == "Ready" {
-                    return "Continue"
+                    return String(localized: "Continue")
                 }
-                return "Downloading..."
+                return String(localized: "Downloading...")
             case .ready:
-                return "Continue"
+                return String(localized: "Continue")
             case .failed(_):
-                return "Try again"
+                return String(localized: "Try again")
             }
         }
 
@@ -173,11 +173,11 @@
         var engineDownloadDetailText: String {
             switch engineDownloadState {
             case .idle:
-                return "One click gets you ready."
+                return String(localized: "One click gets you ready.")
             case .running(let stage):
                 return stage
             case .ready:
-                return "You're set."
+                return String(localized: "You're set.")
             case .failed(let message):
                 return message
             }
@@ -199,42 +199,45 @@
         var engineDownloadProgressLabel: String {
             switch engineDownloadState {
             case .idle:
-                return "Ready to download"
+                return String(localized: "Ready to download")
             case .running(let stage):
                 if stage == "Ready" {
-                    return "Done"
+                    return String(localized: "Done")
                 }
                 let percentage = Int((engineDownloadFraction * 100).rounded())
                 let completedMB = Double(engineBytesCompleted) / 1_048_576.0
                 let totalMB = Double(engineBytesTotal) / 1_048_576.0
 
                 if engineBytesTotal > 0 {
-                    return String(format: "Downloading %d%% (%.1f MB / %.1f MB)", percentage, completedMB, totalMB)
+                    return String(
+                        format: String(localized: "Downloading %d%% (%.1f MB / %.1f MB)"), percentage, completedMB,
+                        totalMB)
                 } else if engineBytesCompleted > 0 {
-                    return String(format: "Downloading (%.1f MB)", completedMB)
+                    return String(format: String(localized: "Downloading (%.1f MB)"), completedMB)
                 } else {
-                    return percentage > 0 ? "Downloading \(percentage)%" : "Downloading"
+                    return percentage > 0
+                        ? String(localized: "Downloading \(percentage)%") : String(localized: "Downloading")
                 }
             case .ready:
-                return "Done"
+                return String(localized: "Done")
             case .failed(_):
-                return "Try again"
+                return String(localized: "Try again")
             }
         }
 
         var engineDownloadStatusTitle: String {
             switch engineDownloadState {
             case .idle:
-                return "Get ready"
+                return String(localized: "Get ready")
             case .running(let stage):
                 if stage == "Ready" {
-                    return "Ready"
+                    return String(localized: "Ready")
                 }
-                return "Downloading"
+                return String(localized: "Downloading")
             case .ready:
-                return "Ready"
+                return String(localized: "Ready")
             case .failed(_):
-                return "Failed"
+                return String(localized: "Failed")
             }
         }
 
@@ -304,7 +307,7 @@
                         return
                     }
 
-                    engineDownloadState = .running(stageText: "Downloading Parakeet V3...")
+                    engineDownloadState = .running(stageText: String(localized: "Downloading Parakeet V3..."))
                     try await fluidAudioModelManager.downloadModel()
 
                     engineDownloadFraction = 1
@@ -325,7 +328,7 @@
                         return
                     }
 
-                    engineDownloadState = .running(stageText: "Downloading Fun-ASR Nano...")
+                    engineDownloadState = .running(stageText: String(localized: "Downloading Fun-ASR Nano..."))
                     try await funASRNanoModelManager.installDefaultModel()
 
                     engineDownloadFraction = 1
@@ -386,7 +389,7 @@
         }
 
         func updateShortcutSummary(_ shortcut: KeyboardShortcuts.Shortcut?) {
-            shortcutSummaryText = shortcut.map { "\($0)" } ?? "Shortcut configured"
+            shortcutSummaryText = shortcut.map { "\($0)" } ?? String(localized: "Shortcut configured")
         }
 
         private func clearFlowMessages() {}

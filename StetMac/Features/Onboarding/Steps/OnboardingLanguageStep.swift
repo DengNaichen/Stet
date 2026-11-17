@@ -6,7 +6,7 @@
         @ObservedObject var viewModel: OnboardingViewModel
         @State private var showingSecondaryLanguage = false
 
-        private let languages = [
+        private let languages: [(LocalizedStringKey, String)] = [
             ("English", "en"),
             ("Chinese (Simplified)", "zh-Hans"),
             ("Chinese (Traditional)", "zh-Hant"),
@@ -100,14 +100,16 @@
                         .foregroundStyle(.blue)
 
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Engine: \(viewModel.transcriptionEngine.displayName)")
+                            Text("Engine: \(Text(LocalizedStringKey(viewModel.transcriptionEngine.displayName)))")
                                 .font(.subheadline)
                                 .fontWeight(.medium)
-                            Text(
-                                viewModel.transcriptionEngine == .fluidAudio
-                                    ? "Optimized for speed and accuracy in these languages."
-                                    : "Fast local transcription for Chinese, English, and Japanese."
-                            )
+                            Group {
+                                if viewModel.transcriptionEngine == .fluidAudio {
+                                    Text("Optimized for speed and accuracy in these languages.")
+                                } else {
+                                    Text("Fast local transcription for Chinese, English, and Japanese.")
+                                }
+                            }
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         }
@@ -118,7 +120,7 @@
                 }
 
                 if case .failed(let message) = viewModel.engineDownloadState {
-                    MessageBanner(text: message, role: .error)
+                    MessageBanner(verbatim: message, role: .error)
                 }
 
                 Spacer()
@@ -130,7 +132,7 @@
                                 .progressViewStyle(.linear)
 
                             HStack {
-                                Text(viewModel.engineDownloadProgressLabel)
+                                Text(verbatim: viewModel.engineDownloadProgressLabel)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 Spacer()
@@ -139,7 +141,7 @@
                     }
 
                     OnboardingActionButton(
-                        title: viewModel.engineDownloadPrimaryButtonTitle,
+                        titleText: viewModel.engineDownloadPrimaryButtonTitle,
                         isEnabled: !viewModel.isEngineDownloadRunning,
                         minHeight: 48
                     ) {

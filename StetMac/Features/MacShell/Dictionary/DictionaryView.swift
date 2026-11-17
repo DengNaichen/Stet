@@ -96,8 +96,10 @@
                 }
             }
             .macSettingsSheet(isPresented: $isShowingEditor) {
+                let editorTitle: LocalizedStringKey =
+                    editingEntry == nil ? "Add Dictionary Words" : "Edit Dictionary Entry"
                 MacSettingsEditor(
-                    title: editingEntry == nil ? "Add Dictionary Words" : "Edit Dictionary Entry",
+                    title: editorTitle,
                     subtitle:
                         "Use the spelling you want in your transcripts. Separate words or phrases with commas. Up to 200 characters."
                 ) {
@@ -113,7 +115,8 @@
                         Button("Cancel") { isShowingEditor = false }
                             .buttonStyle(.bordered)
                             .keyboardShortcut(.cancelAction)
-                        Button(editingEntry == nil ? "Add Words" : "Save") {
+                        let saveTitle: LocalizedStringKey = editingEntry == nil ? "Add Words" : "Save"
+                        Button(saveTitle) {
                             viewModel.saveEntries(from: entryDraft, replacing: editingEntry)
                             isShowingEditor = false
                         }
@@ -130,7 +133,7 @@
                         "This permanently removes all \(viewModel.entries.count) entries, including on devices using your synced dictionary. This cannot be undone."
                 ) {
                     Text("Type CLEAR to confirm.").font(MacUI.LinearTypography.rowTitle)
-                    TextField("CLEAR", text: $clearConfirmation)
+                    TextField("", text: $clearConfirmation, prompt: Text(verbatim: "CLEAR"))
                         .textFieldStyle(.roundedBorder)
                         .labelsHidden()
                     HStack {
@@ -179,7 +182,7 @@
                 }
             }
             .alert(
-                viewModel.importAlert?.title ?? "Import Dictionary",
+                viewModel.importAlert?.title ?? String(localized: "Import Dictionary"),
                 isPresented: Binding(
                     get: { viewModel.importAlert != nil },
                     set: { if !$0 { viewModel.importAlert = nil } }
@@ -188,7 +191,7 @@
             ) { _ in
                 Button("OK") { viewModel.importAlert = nil }
             } message: { alert in
-                Text(alert.message)
+                Text(verbatim: alert.message)
             }
         }
 

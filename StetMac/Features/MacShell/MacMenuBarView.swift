@@ -15,14 +15,15 @@
                     meetingViewModel.toggleMeetingRecording()
                 } label: {
                     Label(
-                        meetingViewModel.meetingToggleTitle,
+                        LocalizedStringKey(meetingViewModel.meetingToggleTitle),
                         systemImage: meetingViewModel.meetingMenuSymbolName
                     )
                 }
                 .disabled(!meetingViewModel.canToggleMeetingRecording)
 
                 if meetingViewModel.isMeetingBusy {
-                    Text(meetingViewModel.meetingStatusText)
+                    Text(verbatim: meetingViewModel.meetingStatusText)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 

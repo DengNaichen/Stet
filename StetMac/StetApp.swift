@@ -144,12 +144,12 @@ struct StetApp: App {
 
             .commands {
                 CommandMenu("Dictation") {
-                    Button(dictationCommandsViewModel.primaryButtonTitle) {
+                    Button(LocalizedStringKey(dictationCommandsViewModel.primaryButtonTitle)) {
                         dictationCommandsViewModel.performPrimaryAction()
                     }
                     .keyboardShortcut(.return, modifiers: [.command])
 
-                    Button(dictationCommandsViewModel.panelButtonTitle) {
+                    Button(LocalizedStringKey(dictationCommandsViewModel.panelButtonTitle)) {
                         dictationCommandsViewModel.togglePanel()
                     }
                     .keyboardShortcut("d", modifiers: [.command, .shift])
@@ -197,7 +197,7 @@ struct StetApp: App {
             }
         }
 
-        private var updateMenuTitle: String {
+        private var updateMenuTitle: LocalizedStringKey {
             switch appUpdateManager.state {
             case .updateAvailable(_, let latestVersion):
                 return "Update Available (\(latestVersion))"

@@ -59,7 +59,7 @@
     }
 
     struct OnboardingPill: View {
-        let text: String
+        let text: LocalizedStringKey
         var systemImage: String? = nil
         var tint: Color = .accentColor
 
@@ -88,10 +88,34 @@
     }
 
     struct OnboardingMetricCard: View {
-        let title: String
-        let value: String
+        let title: LocalizedStringKey
+        private let valueText: Text
         let systemImage: String
-        var tint: Color = .accentColor
+        var tint: Color
+
+        init(
+            title: LocalizedStringKey,
+            value: LocalizedStringKey,
+            systemImage: String,
+            tint: Color = .accentColor
+        ) {
+            self.title = title
+            self.valueText = Text(value)
+            self.systemImage = systemImage
+            self.tint = tint
+        }
+
+        init(
+            title: LocalizedStringKey,
+            valueText: String,
+            systemImage: String,
+            tint: Color = .accentColor
+        ) {
+            self.title = title
+            self.valueText = Text(verbatim: valueText)
+            self.systemImage = systemImage
+            self.tint = tint
+        }
 
         var body: some View {
             HStack(alignment: .top, spacing: 12) {
@@ -109,7 +133,7 @@
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
 
-                    Text(value)
+                    valueText
                         .font(.subheadline.weight(.semibold))
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -120,10 +144,34 @@
     }
 
     struct OnboardingStageArtifact: View {
-        let title: String
-        let subtitle: String
+        private let titleText: Text
+        let subtitle: LocalizedStringKey
         let systemImage: String
-        var tint: Color = .accentColor
+        var tint: Color
+
+        init(
+            title: LocalizedStringKey,
+            subtitle: LocalizedStringKey,
+            systemImage: String,
+            tint: Color = .accentColor
+        ) {
+            self.titleText = Text(title)
+            self.subtitle = subtitle
+            self.systemImage = systemImage
+            self.tint = tint
+        }
+
+        init(
+            titleText: String,
+            subtitle: LocalizedStringKey,
+            systemImage: String,
+            tint: Color = .accentColor
+        ) {
+            self.titleText = Text(verbatim: titleText)
+            self.subtitle = subtitle
+            self.systemImage = systemImage
+            self.tint = tint
+        }
 
         var body: some View {
             OnboardingGlassCard(
@@ -147,7 +195,7 @@
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(title)
+                        titleText
                             .font(.headline.weight(.semibold))
 
                         Text(subtitle)
@@ -190,15 +238,59 @@
     }
 
     struct OnboardingActionButton: View {
-        let title: String
-        var systemImage: String? = nil
-        var isEnabled: Bool = true
-        var background: Color = .accentColor
-        var foreground: Color = .white
-        var strokeColor: Color? = nil
-        var minHeight: CGFloat = 50
-        var isCentered: Bool = false
+        private let titleText: Text
+        var systemImage: String?
+        var isEnabled: Bool
+        var background: Color
+        var foreground: Color
+        var strokeColor: Color?
+        var minHeight: CGFloat
+        var isCentered: Bool
         let action: () -> Void
+
+        init(
+            title: LocalizedStringKey,
+            systemImage: String? = nil,
+            isEnabled: Bool = true,
+            background: Color = .accentColor,
+            foreground: Color = .white,
+            strokeColor: Color? = nil,
+            minHeight: CGFloat = 50,
+            isCentered: Bool = false,
+            action: @escaping () -> Void
+        ) {
+            self.titleText = Text(title)
+            self.systemImage = systemImage
+            self.isEnabled = isEnabled
+            self.background = background
+            self.foreground = foreground
+            self.strokeColor = strokeColor
+            self.minHeight = minHeight
+            self.isCentered = isCentered
+            self.action = action
+        }
+
+        init(
+            titleText: String,
+            systemImage: String? = nil,
+            isEnabled: Bool = true,
+            background: Color = .accentColor,
+            foreground: Color = .white,
+            strokeColor: Color? = nil,
+            minHeight: CGFloat = 50,
+            isCentered: Bool = false,
+            action: @escaping () -> Void
+        ) {
+            self.titleText = Text(verbatim: titleText)
+            self.systemImage = systemImage
+            self.isEnabled = isEnabled
+            self.background = background
+            self.foreground = foreground
+            self.strokeColor = strokeColor
+            self.minHeight = minHeight
+            self.isCentered = isCentered
+            self.action = action
+        }
 
         var body: some View {
             Button(action: action) {
@@ -209,7 +301,7 @@
                             .frame(width: 18)
                     }
 
-                    Text(title)
+                    titleText
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
 
                     if !isCentered {
@@ -284,8 +376,8 @@
     }
 
     struct PermissionGateRow<Actions: View>: View {
-        let title: String
-        let description: String
+        let title: LocalizedStringKey
+        let description: LocalizedStringKey
         let statusText: String
         let tint: Color
         @ViewBuilder let actions: () -> Actions
@@ -304,7 +396,7 @@
 
                     Spacer()
 
-                    MacSettingsStatusBadge(text: statusText, tint: tint)
+                    MacSettingsStatusBadge(verbatim: statusText, tint: tint)
                 }
 
                 actions()
@@ -362,8 +454,8 @@
     struct OnboardingInputField: View {
         enum Mode { case text, secure }
 
-        let label: String
-        let placeholder: String
+        let label: LocalizedStringKey
+        let placeholder: LocalizedStringKey
         @Binding var text: String
         var mode: Mode = .text
         var isMonospaced: Bool = false

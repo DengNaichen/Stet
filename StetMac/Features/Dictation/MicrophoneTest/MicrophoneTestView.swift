@@ -10,8 +10,16 @@ struct MicrophoneTestView: View {
                 Label("Test your microphone", systemImage: "mic")
                     .font(MacUI.Typography.emphasizedFieldLabel)
                 Spacer()
-                Text(viewModel.isRecording ? "Recording" : viewModel.isPlaying ? "Playing" : "Ready")
-                    .font(MacUI.Typography.caption).foregroundStyle(MacUI.Foreground.secondary)
+                Group {
+                    if viewModel.isRecording {
+                        Text("Recording")
+                    } else if viewModel.isPlaying {
+                        Text("Playing")
+                    } else {
+                        Text("Ready")
+                    }
+                }
+                .font(MacUI.Typography.caption).foregroundStyle(MacUI.Foreground.secondary)
             }
             // Audio level indicator
             MicrophoneAudioLevelMeter(level: viewModel.audioLevel)
@@ -27,8 +35,9 @@ struct MicrophoneTestView: View {
                         }
                     }
                 } label: {
+                    let recordTitle: LocalizedStringKey = viewModel.isRecording ? "Stop Recording" : "Start Recording"
                     Label(
-                        viewModel.isRecording ? "Stop Recording" : "Start Recording",
+                        recordTitle,
                         systemImage: viewModel.isRecording ? "stop.circle.fill" : "record.circle"
                     )
                 }
@@ -45,8 +54,9 @@ struct MicrophoneTestView: View {
                         }
                     }
                 } label: {
+                    let playbackTitle: LocalizedStringKey = viewModel.isPlaying ? "Stop Playback" : "Play Recording"
                     Label(
-                        viewModel.isPlaying ? "Stop Playback" : "Play Recording",
+                        playbackTitle,
                         systemImage: viewModel.isPlaying ? "stop.circle.fill" : "play.circle"
                     )
                 }

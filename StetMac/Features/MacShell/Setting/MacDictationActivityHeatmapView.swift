@@ -81,8 +81,8 @@
             let day = date.formatted(date: .abbreviated, time: .omitted)
             let detail = details[calendar.startOfDay(for: date)]
             let words = detail?.formattedWordCount ?? DictationUsageSummary.formatCompactCount(Int(value.rounded()))
-            let timeSaved = detail?.formattedTimeSaved ?? DictationUsageSummary.empty.formattedTimeSaved
-            return "\(day): \(words) words · \(timeSaved) saved"
+            let timeSaved = MacDictationUsageStatsView.localizedDuration(detail?.timeSaved ?? 0)
+            return String(localized: "\(day): \(words) words · \(timeSaved) saved")
         }
     }
 #endif

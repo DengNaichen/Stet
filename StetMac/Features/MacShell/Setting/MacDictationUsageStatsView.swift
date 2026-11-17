@@ -8,8 +8,8 @@
             LinearSectionGroup {
                 HStack(spacing: 0) {
                     statCell(
-                        value: summary.formattedDuration,
-                        unit: "",
+                        value: Self.localizedDuration(summary.totalDuration),
+                        unit: nil,
                         caption: "Total dictation time"
                     )
 
@@ -20,8 +20,8 @@
                     )
 
                     statCell(
-                        value: summary.formattedTimeSaved,
-                        unit: "",
+                        value: Self.localizedDuration(summary.timeSaved),
+                        unit: nil,
                         caption: "Time saved"
                     )
 
@@ -34,9 +34,27 @@
             }
         }
 
+        static func localizedDuration(_ duration: TimeInterval) -> String {
+            let totalSeconds = max(0, Int(duration.rounded()))
+            let hours = totalSeconds / 3_600
+            let minutes = (totalSeconds % 3_600) / 60
+            let seconds = totalSeconds % 60
+
+            if hours > 0, minutes > 0 {
+                return String(localized: "\(hours) hr \(minutes) min")
+            }
+            if hours > 0 {
+                return String(localized: "\(hours) hr")
+            }
+            if minutes > 0 {
+                return String(localized: "\(minutes) min")
+            }
+            return String(localized: "\(seconds) sec")
+        }
+
         private func statCell(
             value: String,
-            unit: String,
+            unit: LocalizedStringKey?,
             caption: LocalizedStringKey
         ) -> some View {
             VStack(alignment: .leading, spacing: 4) {
@@ -46,15 +64,15 @@
                     .lineLimit(1)
 
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(value)
+                    Text(verbatim: value)
                         .font(MacUI.LinearTypography.statValue)
                         .monospacedDigit()
                         .foregroundStyle(MacUI.Foreground.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
 
-                    if !unit.isEmpty {
-                        Text(LocalizedStringKey(unit))
+                    if let unit {
+                        Text(unit)
                             .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(MacUI.Foreground.secondary)
                     }

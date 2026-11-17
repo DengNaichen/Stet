@@ -15,7 +15,7 @@
                     ) {
                         Picker("", selection: $viewModel.localTranscriptionEngine) {
                             ForEach(viewModel.localTranscriptionEngineOptions, id: \.self) { engine in
-                                Text(engine.displayName).tag(engine)
+                                Text(LocalizedStringKey(engine.displayName)).tag(engine)
                             }
                         }
                         .labelsHidden()
@@ -107,7 +107,9 @@
                                 .controlSize(.small)
                         }
 
-                        Button(state.isInstalled ? "Installed" : state.errorMessage == nil ? "Download" : "Retry") {
+                        let appleSpeechButtonTitle: LocalizedStringKey =
+                            state.isInstalled ? "Installed" : state.errorMessage == nil ? "Download" : "Retry"
+                        Button(appleSpeechButtonTitle) {
                             onDownload()
                         }
                         .buttonStyle(.bordered)
@@ -126,7 +128,7 @@
         }
 
         private struct TranscriptionModelRow: View {
-            let name: String
+            let name: LocalizedStringKey
             let isDownloaded: Bool
             let isDownloading: Bool
             let errorMessage: String?
@@ -140,9 +142,15 @@
                             Text(name)
                                 .font(MacUI.LinearTypography.rowTitle)
                                 .foregroundStyle(MacUI.Foreground.primary)
-                            Text(isDownloaded ? "Downloaded" : "Available")
-                                .font(MacUI.LinearTypography.rowSubtitle)
-                                .foregroundStyle(MacUI.Foreground.secondary)
+                            Group {
+                                if isDownloaded {
+                                    Text("Downloaded")
+                                } else {
+                                    Text("Available")
+                                }
+                            }
+                            .font(MacUI.LinearTypography.rowSubtitle)
+                            .foregroundStyle(MacUI.Foreground.secondary)
                         }
 
                         Spacer()
@@ -161,7 +169,8 @@
                             .help("Reveal in Finder")
                             .accessibilityLabel("Reveal in Finder")
 
-                            Button(isDownloaded ? "Downloaded" : "Download") {
+                            let downloadTitle: LocalizedStringKey = isDownloaded ? "Downloaded" : "Download"
+                            Button(downloadTitle) {
                                 onDownload()
                             }
                             .buttonStyle(.bordered)

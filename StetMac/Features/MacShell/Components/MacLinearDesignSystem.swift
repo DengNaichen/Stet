@@ -342,7 +342,7 @@
 
     /// Hairline-bordered card grouping related Linear setting rows.
     struct LinearSectionGroup<Content: View>: View {
-        var title: LocalizedStringKey?
+        private let titleLabel: Text?
         var footer: LocalizedStringKey?
         @ViewBuilder let content: () -> Content
 
@@ -351,15 +351,25 @@
             footer: LocalizedStringKey? = nil,
             @ViewBuilder content: @escaping () -> Content
         ) {
-            self.title = title
+            self.titleLabel = title.map { Text($0) }
+            self.footer = footer
+            self.content = content
+        }
+
+        init(
+            titleLabel: Text,
+            footer: LocalizedStringKey? = nil,
+            @ViewBuilder content: @escaping () -> Content
+        ) {
+            self.titleLabel = titleLabel
             self.footer = footer
             self.content = content
         }
 
         var body: some View {
             VStack(alignment: .leading, spacing: 6) {
-                if let title {
-                    Text(title)
+                if let titleLabel {
+                    titleLabel
                         .font(MacUI.LinearTypography.sectionLabel)
                         .foregroundStyle(MacUI.Foreground.secondary)
                         .padding(.leading, 2)
@@ -437,7 +447,7 @@
             HStack(alignment: .center, spacing: 16) {
                 VStack(alignment: .leading, spacing: 2) {
                     if let titleText {
-                        Text(titleText)
+                        Text(verbatim: titleText)
                             .font(MacUI.LinearTypography.rowTitle)
                             .foregroundStyle(MacUI.Foreground.primary)
                     } else if let title {
@@ -452,7 +462,7 @@
                             .foregroundStyle(MacUI.Foreground.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     } else if let subtitleText {
-                        Text(subtitleText)
+                        Text(verbatim: subtitleText)
                             .font(MacUI.LinearTypography.rowSubtitle)
                             .foregroundStyle(MacUI.Foreground.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -527,9 +537,29 @@
     // MARK: - Interactive Styles (Stet Warm Orange)
 
     struct LinearBadge: View {
-        let text: String
-        var tint: Color = MacUI.Foreground.secondaryColor
-        var showDot: Bool = false
+        private let label: Text
+        var tint: Color
+        var showDot: Bool
+
+        init(
+            text: LocalizedStringKey,
+            tint: Color = MacUI.Foreground.secondaryColor,
+            showDot: Bool = false
+        ) {
+            self.label = Text(text)
+            self.tint = tint
+            self.showDot = showDot
+        }
+
+        init(
+            verbatim text: String,
+            tint: Color = MacUI.Foreground.secondaryColor,
+            showDot: Bool = false
+        ) {
+            self.label = Text(verbatim: text)
+            self.tint = tint
+            self.showDot = showDot
+        }
 
         var body: some View {
             HStack(spacing: 5) {
@@ -538,7 +568,7 @@
                         .fill(tint)
                         .frame(width: 5, height: 5)
                 }
-                Text(text)
+                label
                     .font(MacUI.LinearTypography.badge)
                     .foregroundStyle(tint)
             }

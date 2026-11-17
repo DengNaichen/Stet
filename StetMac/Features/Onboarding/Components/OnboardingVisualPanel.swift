@@ -48,8 +48,10 @@
                             .frame(height: 40)
                             .padding(.horizontal, 0)
 
+                        let recordTitle: LocalizedStringKey =
+                            microphoneTestViewModel.isRecording ? "Stop Recording" : "Start Recording"
                         OnboardingActionButton(
-                            title: microphoneTestViewModel.isRecording ? "Stop Recording" : "Start Recording",
+                            title: recordTitle,
                             systemImage: microphoneTestViewModel.isRecording ? "stop.circle.fill" : "record.circle",
                             background: microphoneTestViewModel.isRecording
                                 ? Color.red.opacity(0.15) : Color.white.opacity(0.08),
@@ -167,12 +169,22 @@
                                 .fixedSize(horizontal: false, vertical: true)
                         }
 
-                        OnboardingStageArtifact(
-                            title: presentation.heroTitle,
-                            subtitle: presentation.heroSubtitle,
-                            systemImage: presentation.systemImage,
-                            tint: presentation.accentColor
-                        )
+                        switch presentation.heroTitle {
+                        case .localized(let key):
+                            OnboardingStageArtifact(
+                                title: key,
+                                subtitle: presentation.heroSubtitle,
+                                systemImage: presentation.systemImage,
+                                tint: presentation.accentColor
+                            )
+                        case .verbatim(let text):
+                            OnboardingStageArtifact(
+                                titleText: text,
+                                subtitle: presentation.heroSubtitle,
+                                systemImage: presentation.systemImage,
+                                tint: presentation.accentColor
+                            )
+                        }
 
                         VStack(spacing: 10) {
                             ForEach(presentation.metrics) { metric in
@@ -180,12 +192,22 @@
                                     cornerRadius: 18, fillOpacity: 0.08, strokeOpacity: 0.14,
                                     shadowOpacity: 0.08
                                 ) {
-                                    OnboardingMetricCard(
-                                        title: metric.title,
-                                        value: metric.value,
-                                        systemImage: metric.systemImage,
-                                        tint: metric.tint
-                                    )
+                                    switch metric.value {
+                                    case .localized(let key):
+                                        OnboardingMetricCard(
+                                            title: metric.title,
+                                            value: key,
+                                            systemImage: metric.systemImage,
+                                            tint: metric.tint
+                                        )
+                                    case .verbatim(let text):
+                                        OnboardingMetricCard(
+                                            title: metric.title,
+                                            valueText: text,
+                                            systemImage: metric.systemImage,
+                                            tint: metric.tint
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -253,10 +275,10 @@
                 Spacer()
 
                 VStack(spacing: 8) {
-                    Text(viewModel.engineDownloadStatusTitle)
+                    Text(verbatim: viewModel.engineDownloadStatusTitle)
                         .font(.system(size: 28, weight: .semibold, design: .rounded))
 
-                    Text(viewModel.engineDownloadProgressLabel)
+                    Text(verbatim: viewModel.engineDownloadProgressLabel)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -278,7 +300,7 @@
                 return StepPresentation(
                     panelTitle: "Getting ready",
                     panelSubtitle: "The app is getting ready.",
-                    heroTitle: "Engine Preparation",
+                    heroTitle: .localized("Engine Preparation"),
                     heroSubtitle: "Keep this window open while setup finishes.",
                     footerTitle: "Almost there",
                     footerSubtitle: "The setup will finish automatically.",
@@ -286,11 +308,11 @@
                     systemImage: "square.and.arrow.down.fill",
                     metrics: [
                         .init(
-                            title: "Primary", value: viewModel.transcriptionPrimaryLanguage.uppercased(),
+                            title: "Primary", value: .verbatim(viewModel.transcriptionPrimaryLanguage.uppercased()),
                             systemImage: "character.bubble.fill", tint: .blue),
                         .init(
                             title: "Engine",
-                            value: viewModel.transcriptionEngine.displayName,
+                            value: .localized(LocalizedStringKey(viewModel.transcriptionEngine.displayName)),
                             systemImage: "cpu", tint: .green),
                     ]
                 )
@@ -298,7 +320,7 @@
                 return StepPresentation(
                     panelTitle: "Grant the basics",
                     panelSubtitle: "Mic and input control remain the only permissions Stet needs.",
-                    heroTitle: "Permission ready state",
+                    heroTitle: .localized("Permission ready state"),
                     heroSubtitle: viewModel.hasRequiredPermissions
                         ? "Everything required has been detected."
                         : "The onboarding flow still needs microphone and input control permissions.",
@@ -308,13 +330,16 @@
                     systemImage: "shield.checkerboard",
                     metrics: [
                         .init(
-                            title: "Microphone", value: viewModel.microphoneAccessStatusText, systemImage: "mic.fill",
+                            title: "Microphone", value: .verbatim(viewModel.microphoneAccessStatusText),
+                            systemImage: "mic.fill",
                             tint: viewModel.microphoneAccessNeedsAttention ? .orange : .green),
                         .init(
-                            title: "Input control", value: viewModel.autoPasteStatusText, systemImage: "keyboard",
+                            title: "Input control", value: .verbatim(viewModel.autoPasteStatusText),
+                            systemImage: "keyboard",
                             tint: viewModel.autoPasteAccessNeedsAttention ? .orange : .green),
                         .init(
-                            title: "Ready", value: viewModel.hasRequiredPermissions ? "Yes" : "Needs attention",
+                            title: "Ready",
+                            value: .localized(viewModel.hasRequiredPermissions ? "Yes" : "Needs attention"),
                             systemImage: "checkmark.circle.fill",
                             tint: viewModel.hasRequiredPermissions ? .green : .orange),
                     ]
@@ -323,7 +348,7 @@
                 return StepPresentation(
                     panelTitle: "Set your shortcut",
                     panelSubtitle: "Choose the shortcut you want to use.",
-                    heroTitle: viewModel.shortcutSummaryText,
+                    heroTitle: .verbatim(viewModel.shortcutSummaryText),
                     heroSubtitle: "The shortcut is ready to use.",
                     footerTitle: "Shortcut setup",
                     footerSubtitle: "The recorder is all you need here.",
@@ -331,19 +356,24 @@
                     systemImage: "keyboard",
                     metrics: [
                         .init(
-                            title: "Shortcut", value: viewModel.shortcutSummaryText, systemImage: "keyboard",
+                            title: "Shortcut", value: .verbatim(viewModel.shortcutSummaryText),
+                            systemImage: "keyboard",
                             tint: .pink),
                         .init(
-                            title: "Next", value: "Continue to first run", systemImage: "arrow.right.circle.fill",
+                            title: "Next", value: .localized("Continue to first run"),
+                            systemImage: "arrow.right.circle.fill",
                             tint: .blue),
-                        .init(title: "Later", value: "Adjust in Settings", systemImage: "gearshape", tint: .green),
+                        .init(
+                            title: "Later", value: .localized("Adjust in Settings"), systemImage: "gearshape",
+                            tint: .green),
                     ]
                 )
             case .firstSuccess:
                 return StepPresentation(
                     panelTitle: "Say something in the box",
                     panelSubtitle: "Click the text box, then use your hotkey to speak a sentence.",
-                    heroTitle: viewModel.firstSuccessPreviewText ?? "Awaiting first capture",
+                    heroTitle: viewModel.firstSuccessPreviewText.map { .verbatim($0) }
+                        ?? .localized("Awaiting first capture"),
                     heroSubtitle: viewModel.canContinueFirstSuccessOnboarding
                         ? "A successful result is visible in the box."
                         : "Speak naturally and let the first pass finish.",
@@ -353,14 +383,17 @@
                     systemImage: "waveform",
                     metrics: [
                         .init(
-                            title: "Result", value: viewModel.firstSuccessPreviewText ?? "No preview yet",
+                            title: "Result",
+                            value: viewModel.firstSuccessPreviewText.map { .verbatim($0) }
+                                ?? .localized("No preview yet"),
                             systemImage: "text.quote", tint: .mint),
                         .init(
-                            title: "Gate", value: viewModel.canContinueFirstSuccessOnboarding ? "Open" : "Waiting",
+                            title: "Gate",
+                            value: .localized(viewModel.canContinueFirstSuccessOnboarding ? "Open" : "Waiting"),
                             systemImage: "checkmark.circle", tint: .green),
                         .init(
                             title: "Fallback",
-                            value: viewModel.canSkipFirstSuccessOnboarding ? "Skip allowed" : "Required",
+                            value: .localized(viewModel.canSkipFirstSuccessOnboarding ? "Skip allowed" : "Required"),
                             systemImage: "arrow.right.circle", tint: .orange),
                     ]
                 )
@@ -368,7 +401,7 @@
                 return StepPresentation(
                     panelTitle: "Ready to go",
                     panelSubtitle: "Everything needed for the onboarding path is now in place.",
-                    heroTitle: "You're all set.",
+                    heroTitle: .localized("You're all set."),
                     heroSubtitle: "The onboarding path is complete and the app is ready to use.",
                     footerTitle: "Start dictating anywhere",
                     footerSubtitle: "Finish the flow and begin using the app immediately.",
@@ -376,15 +409,16 @@
                     systemImage: "checkmark.seal.fill",
                     metrics: [
                         .init(
-                            title: "Shortcut", value: viewModel.shortcutSummaryText, systemImage: "keyboard",
+                            title: "Shortcut", value: .verbatim(viewModel.shortcutSummaryText),
+                            systemImage: "keyboard",
                             tint: .purple),
                         .init(
                             title: "Engine",
-                            value: viewModel.transcriptionEngine.displayName,
+                            value: .localized(LocalizedStringKey(viewModel.transcriptionEngine.displayName)),
                             systemImage: "cpu", tint: .blue),
                         .init(
                             title: "Permissions",
-                            value: viewModel.hasRequiredPermissions ? "Enabled" : "Check required",
+                            value: .localized(viewModel.hasRequiredPermissions ? "Enabled" : "Check required"),
                             systemImage: "shield.checkerboard", tint: .green),
                     ]
                 )
@@ -393,13 +427,18 @@
             }
         }
 
+        private enum OnboardingVisualText {
+            case localized(LocalizedStringKey)
+            case verbatim(String)
+        }
+
         private struct StepPresentation {
-            let panelTitle: String
-            let panelSubtitle: String
-            let heroTitle: String
-            let heroSubtitle: String
-            let footerTitle: String
-            let footerSubtitle: String
+            let panelTitle: LocalizedStringKey
+            let panelSubtitle: LocalizedStringKey
+            let heroTitle: OnboardingVisualText
+            let heroSubtitle: LocalizedStringKey
+            let footerTitle: LocalizedStringKey
+            let footerSubtitle: LocalizedStringKey
             let accentColor: Color
             let systemImage: String
             let metrics: [OnboardingVisualMetric]
@@ -407,7 +446,7 @@
             static let empty = StepPresentation(
                 panelTitle: "",
                 panelSubtitle: "",
-                heroTitle: "",
+                heroTitle: .verbatim(""),
                 heroSubtitle: "",
                 footerTitle: "",
                 footerSubtitle: "",
@@ -419,8 +458,8 @@
 
         private struct OnboardingVisualMetric: Identifiable {
             let id = UUID()
-            let title: String
-            let value: String
+            let title: LocalizedStringKey
+            let value: OnboardingVisualText
             let systemImage: String
             let tint: Color
         }

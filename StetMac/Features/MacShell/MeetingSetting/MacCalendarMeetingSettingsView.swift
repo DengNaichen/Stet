@@ -81,7 +81,7 @@
             .onAppear(perform: viewModel.reload)
         }
 
-        private var statusTitle: String {
+        private var statusTitle: LocalizedStringKey {
             switch syncState {
             case .disabled:
                 "Off"

@@ -10,7 +10,7 @@
         var body: some View {
             LinearSettingRow(
                 "Model Catalog",
-                subtitleText: "Catalog revision \(revision)"
+                subtitle: "Catalog revision \(revision)"
             ) {
                 HStack(spacing: 10) {
                     if refreshState != .idle {

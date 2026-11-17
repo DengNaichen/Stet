@@ -178,9 +178,9 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
 
     var surfaceErrorMessage: String {
         if isInsufficientFunds {
-            return "Monthly quota reached."
+            return String(localized: "Monthly quota reached.")
         }
-        return "Something went wrong."
+        return String(localized: "Something went wrong.")
     }
 
     var errorDescription: String? {

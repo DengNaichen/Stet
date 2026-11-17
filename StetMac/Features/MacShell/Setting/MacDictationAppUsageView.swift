@@ -26,24 +26,36 @@
                 icon(for: app)
                     .frame(width: 20, height: 20)
 
-                Text(app.name)
-                    .font(MacUI.LinearTypography.rowTitle)
-                    .foregroundStyle(MacUI.Foreground.primary)
-                    .lineLimit(1)
-                    .frame(minWidth: 96, alignment: .leading)
+                Group {
+                    if app.id == DictationAppUsage.otherID {
+                        Text("Other")
+                    } else {
+                        Text(verbatim: app.name)
+                    }
+                }
+                .font(MacUI.LinearTypography.rowTitle)
+                .foregroundStyle(MacUI.Foreground.primary)
+                .lineLimit(1)
+                .frame(minWidth: 96, alignment: .leading)
 
                 shareBar(share: app.share)
 
-                Text(app.formattedSessionCount)
+                Text("\(app.sessionCount) sessions")
                     .font(MacUI.LinearTypography.rowSubtitle)
                     .foregroundStyle(MacUI.LinearSurfaces.mutedInk)
                     .fixedSize()
 
-                Text(app.formattedWordCount)
-                    .font(.system(size: 12, weight: .medium))
-                    .monospacedDigit()
-                    .foregroundStyle(MacUI.Foreground.primary)
-                    .frame(minWidth: 56, alignment: .trailing)
+                Group {
+                    if app.wordCount < 1000 {
+                        Text("\(app.wordCount) words")
+                    } else {
+                        Text("\(DictationUsageSummary.formatCompactCount(app.wordCount)) words")
+                    }
+                }
+                .font(.system(size: 12, weight: .medium))
+                .monospacedDigit()
+                .foregroundStyle(MacUI.Foreground.primary)
+                .frame(minWidth: 56, alignment: .trailing)
             }
             .padding(.horizontal, MacUI.LinearMetrics.rowHorizontalPadding)
             .padding(.vertical, 9)

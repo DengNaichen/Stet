@@ -15,19 +15,19 @@
         var statusText: String {
             switch self {
             case .requiresMacOS26:
-                return "Requires macOS 26 or newer"
+                return String(localized: "Requires macOS 26 or newer")
             case .unavailable:
-                return "Unavailable on this Mac"
+                return String(localized: "Unavailable on this Mac")
             case .unsupportedLocale:
-                return "Selected language is unsupported"
+                return String(localized: "Selected language is unsupported")
             case .available:
-                return "Available"
+                return String(localized: "Available")
             case .downloading:
-                return "Downloading"
+                return String(localized: "Downloading")
             case .installed:
-                return "Installed"
+                return String(localized: "Installed")
             case .failed:
-                return "Download failed"
+                return String(localized: "Download failed")
             }
         }
 

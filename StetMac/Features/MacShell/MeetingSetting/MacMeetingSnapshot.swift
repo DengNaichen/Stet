@@ -18,11 +18,11 @@
         var meetingStatusText: String {
             switch meetingRecordingPhase {
             case .idle:
-                return "Meeting recording idle"
+                return String(localized: "Meeting recording idle")
             case .starting:
-                return "Starting microphone and system audio recording"
+                return String(localized: "Starting microphone and system audio recording")
             case .recording(_, let folderName):
-                return "Recording meeting · \(folderName)"
+                return String(localized: "Recording meeting · \(folderName)")
             case .processing:
                 return String(localized: "Recording saved · Preparing transcription")
             case .separatingSpeakers:

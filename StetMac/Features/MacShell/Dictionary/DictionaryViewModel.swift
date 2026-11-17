@@ -31,14 +31,14 @@
                 }
             }
 
-            var title: String { "Import Dictionary" }
+            var title: String { String(localized: "Import Dictionary") }
 
             var message: String {
                 switch self {
                 case .success(let added, let skipped) where skipped == 0:
-                    return added == 1 ? "Added 1 term." : "Added \(added) terms."
+                    return String(localized: "Added \(added) terms.")
                 case .success(let added, let skipped):
-                    return "Added \(added), skipped \(skipped) duplicate\(skipped == 1 ? "" : "s")."
+                    return String(localized: "Added \(added), skipped \(skipped) duplicates.")
                 case .failure(let message):
                     return message
                 }
@@ -125,7 +125,9 @@
                 records = dictionaryModel.loadRecords()
                 importAlert = .success(added: result.addedCount, skipped: result.skippedCount)
             } catch let error as DictionaryImportError {
-                importAlert = .failure(error.localizedDescription ?? "Stet could not import that file.")
+                importAlert = .failure(
+                    error.localizedDescription ?? String(localized: "Stet could not import that file.")
+                )
             } catch {
                 importAlert = .failure(error.localizedDescription)
             }

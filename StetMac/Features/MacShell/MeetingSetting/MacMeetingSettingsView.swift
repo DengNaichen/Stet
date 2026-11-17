@@ -67,7 +67,7 @@
                 if !recentFolders.isEmpty {
                     LinearSectionGroup("Recent") {
                         ForEach(recentFolders, id: \.path) { url in
-                            LinearSettingRow(LocalizedStringKey(url.lastPathComponent)) {
+                            LinearSettingRow(titleText: url.lastPathComponent) {
                                 Button("Show in Finder") {
                                     NSWorkspace.shared.activateFileViewerSelecting([url])
                                 }

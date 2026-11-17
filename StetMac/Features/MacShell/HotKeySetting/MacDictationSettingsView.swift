@@ -3,7 +3,7 @@
 
     struct MacDictationSettingsView: View {
         @StateObject private var viewModel = MacDictationSettingsViewModel()
-        @State private var message: String?
+        @State private var message: LocalizedStringKey?
 
         var body: some View {
             LinearPageContainer(title: "Shortcut") {
@@ -43,7 +43,7 @@
                     LinearInlineBanner(
                         systemImage: "checkmark.circle.fill",
                         tint: MacUI.Foreground.secondaryColor,
-                        text: message
+                        message: message
                     )
                 }
             }
