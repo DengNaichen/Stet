@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-// Owns the model and per-bucket prediction buffers; thread-safe across sequential contexts.
+// Owns a model and prediction buffers per input-shape bucket; thread-safe across contexts.
 class StetCoreMLEncoder {
 public:
     explicit StetCoreMLEncoder(const char *compiled_path, bool prewarm = false);

@@ -398,7 +398,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
     }
 
     func handleMemoryPressure() {
-        logger.notice("System memory pressure detected; evicting idle transcription models.")
+        logger.notice("Critical system memory pressure detected; requesting idle transcription model eviction.")
         processing.evictIdleModelsNow(captureIsIdle: capture.isIdle, isolation: self)
     }
 

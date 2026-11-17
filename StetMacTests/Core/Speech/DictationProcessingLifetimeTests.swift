@@ -60,7 +60,7 @@ struct DictationProcessingLifetimeTests {
         let sleepRecorder = ControlledSleepRecorder()
         let events = ProcessingEvents()
         let harness = ProcessingHarness(
-            idleTTL: .seconds(300),
+            idleTTL: DictationProcessingLifetime.defaultIdleTTL,
             sleep: { duration in try await sleepRecorder.sleep(duration) },
             cleanup: { await events.didCleanup() }
         )
@@ -70,6 +70,7 @@ struct DictationProcessingLifetimeTests {
         await harness.scheduleCleanup()
         try #require(await TestSupport.eventuallyAsync { await sleepRecorder.activeWaiters == 1 })
         #expect(await events.cleanups == 0)
+        #expect(await sleepRecorder.durations == [.seconds(1800)])
 
         // Starting a new capture/session cancels the pending idle TTL without unloading models.
         await harness.waitForCleanup()
@@ -151,9 +152,11 @@ private actor ProcessingHarness {
 private actor ControlledSleepRecorder {
     private var continuations: [UUID: CheckedContinuation<Void, Error>] = [:]
     private(set) var totalCalls = 0
+    private(set) var durations: [Duration] = []
     var activeWaiters: Int { continuations.count }
 
-    func sleep(_: Duration) async throws {
+    func sleep(_ duration: Duration) async throws {
+        durations.append(duration)
         try Task.checkCancellation()
         totalCalls += 1
         let id = UUID()

@@ -31,6 +31,7 @@ int bucketIndexForFrames(int frames) {
 }
 struct BucketSlot {
     int frames=0;
+    MLModel *model=nil;
     MLMultiArray *features=nil;
     MLMultiArray *mask=nil;
     MLMultiArray *bias=nil;
@@ -39,13 +40,27 @@ struct BucketSlot {
 }
 struct StetCoreMLEncoder::Impl {
     std::mutex mutex;
-    MLModel *model=nil;
+    NSURL *modelURL=nil;
     BucketSlot buckets[kBucketCount];
+
+    MLModel *loadModel() {
+        MLModelConfiguration *config=[MLModelConfiguration new];
+        config.computeUnits=MLComputeUnitsCPUAndNeuralEngine;
+        NSError *error=nil;
+        auto *model=[MLModel modelWithContentsOfURL:modelURL configuration:config error:&error];
+        if (!model) throw failure(error);
+        return model;
+    }
 
     BucketSlot &ensureBucket(int index) {
         auto &slot=buckets[index];
         const int kFrames=kBucketFrames[index];
         if (slot.input && slot.frames==kFrames) return slot;
+        // A loaded model owns one active input-shape specialization. Sharing it
+        // across buckets unloads that specialization on every shape change and
+        // may synchronously recompile a purged cache during foreground inference.
+        // Keep each warmed shape on its own model instance instead.
+        if (!slot.model) slot.model=loadModel();
         auto *features=array(@[@1,@560,@1,@(kFrames)]);
         auto *mask=array(@[@1,@1,@1,@(kFrames)]);
         auto *bias=array(@[@1,@(kFrames),@1,@1]);
@@ -64,13 +79,10 @@ struct StetCoreMLEncoder::Impl {
 };
 StetCoreMLEncoder::StetCoreMLEncoder(const char *path, bool prewarm):impl(std::make_unique<Impl>()) {
     @autoreleasepool {
-        MLModelConfiguration *config=[MLModelConfiguration new];
-        config.computeUnits=MLComputeUnitsCPUAndNeuralEngine;
-        NSError *error=nil;
-        impl->model=[MLModel modelWithContentsOfURL:[NSURL fileURLWithPath:[NSString stringWithUTF8String:path]]
-                                     configuration:config error:&error];
-        if (!impl->model) throw failure(error);
-        auto description=impl->model.modelDescription;
+        impl->modelURL=[NSURL fileURLWithPath:[NSString stringWithUTF8String:path]];
+        auto *model=impl->loadModel();
+        impl->buckets[1].model=model; // The model contract's default shape is 128 frames.
+        auto description=model.modelDescription;
         NSDictionary *metadata=description.metadata[MLModelCreatorDefinedKey];
         if (![metadata[@"stet.encoder.contract"] isEqual:@"nano-gguf-ane-v1-buckets"] ||
             !matches(description.inputDescriptionsByName[@"positioned_features"],@[@1,@560,@1,@128]) ||
@@ -107,7 +119,7 @@ void StetCoreMLEncoder::warmup() {
                 }
             }
             NSError *error=nil;
-            auto prediction=[impl->model predictionFromFeatures:slot.input error:&error];
+            auto prediction=[slot.model predictionFromFeatures:slot.input error:&error];
             if (!prediction) throw failure(error);
             auto output=[prediction featureValueForName:@"audio_embeds"].multiArrayValue;
             if (!output || output.dataType!=MLMultiArrayDataTypeFloat32 ||
@@ -149,7 +161,7 @@ std::vector<float> StetCoreMLEncoder::encode(const std::vector<float> &features,
             }
         }
         NSError *error=nil;
-        auto prediction=[impl->model predictionFromFeatures:slot.input error:&error];
+        auto prediction=[slot.model predictionFromFeatures:slot.input error:&error];
         if (!prediction) throw failure(error);
         auto output=[prediction featureValueForName:@"audio_embeds"].multiArrayValue;
         if (!output || output.dataType!=MLMultiArrayDataTypeFloat32 ||
