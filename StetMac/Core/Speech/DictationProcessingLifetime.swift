@@ -3,9 +3,9 @@ import Foundation
 
 /// Tracks work that can outlive the microphone session. Access stays on the owning
 /// speech-service actor; model cleanup waits for every user of the model context,
-/// keeps models warm across a sliding idle TTL, and evicts immediately on memory pressure.
+/// keeps models warm across a sliding idle TTL, and evicts on critical memory pressure.
 nonisolated final class DictationProcessingLifetime {
-    static let defaultIdleTTL: Duration = .seconds(300)
+    static let defaultIdleTTL: Duration = .seconds(1800)
 
     private var sessions: Set<UInt64> = []
     private var retiringPrewarms: [Task<Void, Never>] = []
@@ -164,7 +164,9 @@ nonisolated final class DictationProcessingLifetime {
 
         init(onPressure: @escaping @Sendable () -> Void) {
             let source = DispatchSource.makeMemoryPressureSource(
-                eventMask: [.warning, .critical],
+                // Keep warm contexts through warning-level pressure. Only critical
+                // pressure should interrupt the normal 30-minute retention window.
+                eventMask: [.critical],
                 queue: DispatchQueue.global(qos: .utility)
             )
             source.setEventHandler {

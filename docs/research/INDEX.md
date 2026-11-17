@@ -17,6 +17,8 @@
 | [修正学习开源调查](2026-09-10-correction-learning.md) | 固定上游 commit 的源码调查及部分提取样例实验 | 文中已注明后续放弃置信度 / 候选累计建议；未验证实际 App 捕获率 | 保留候选与取舍依据；现行需求见 [correction-learning](../specs/correction-learning.md)，运行说明见 [Python 参考](../../scripts/correction_learning/README.md) |
 | [Core Audio Swift API 调查](coreaudio-swift-api-issue-216-2026-11-08.md) | Issue 216；官方 API、stable SDK 双架构编译与本机新旧查询对比 | 附同日实现、20 个定向变异及测试收敛；未验收物理热插拔或录音 | 查询迁移及生命周期测试证据，不是硬件验收 |
 
+| [ANE 编译缓存与常驻验证](ane-residency-2026-11-17.md) | 2026-11-17 的慢听写日志、真机缓存删除与输入形状切换对比 | 旧版缓存删除后卡顿 53.3 秒，新版最高 37.4 ms；输出逐元素一致；非端到端听写验收 | 支撑每个帧长桶独立保留已预热模型的修复 |
+
 ## 如何引用这些证据
 
 引用时带上调查日期、代码 / 来源版本、实际验证范围和未验证项。历史结论不随时间自动失真，但它对当前问题的适用性需要确认。
