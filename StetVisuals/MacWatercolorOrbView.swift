@@ -65,7 +65,12 @@
             TimelineView(
                 .animation(
                     minimumInterval: MacWatercolorOrbPreset.frameInterval,
-                    paused: reduceMotion || (!motion.isVisible && !presentation.isAnimating(at: .now))
+                    paused: Self.isTimelinePaused(
+                        reduceMotion: reduceMotion,
+                        isVisible: motion.isVisible,
+                        presentation: presentation,
+                        at: .now
+                    )
                 )
             ) { context in
                 let progress = presentation.progress(at: context.date)
@@ -104,7 +109,8 @@
                             level: MacWatercolorOrbMotion.voiceLevel(for: model.signals)
                         )
                     }
-                    previousDate = date
+                    presentation.settleIfFinished(at: date)
+                    previousDate = motion.isVisible ? date : nil
                 }
             }
             .onAppear { synchronize() }
@@ -115,6 +121,15 @@
                 motion.setState(.hidden)
                 presentation.setVisible(false, at: .now, reduceMotion: true)
             }
+        }
+
+        static func isTimelinePaused(
+            reduceMotion: Bool,
+            isVisible: Bool,
+            presentation: MacWatercolorOrbPresentation,
+            at date: Date
+        ) -> Bool {
+            reduceMotion || (!isVisible && !presentation.isAnimating(at: date))
         }
 
         private var statusLabel: LocalizedStringKey {
@@ -165,7 +180,12 @@
         @State private var previousDate: Date?
 
         var body: some View {
-            TimelineView(.animation(minimumInterval: MacWatercolorOrbPreset.frameInterval, paused: reduceMotion)) {
+            TimelineView(
+                .animation(
+                    minimumInterval: MacWatercolorOrbPreset.frameInterval,
+                    paused: reduceMotion || !motion.isVisible
+                )
+            ) {
                 context in
                 MacWatercolorOrbPaint(frame: motion.frame, theme: theme)
                     .onChange(of: context.date) { _, date in
@@ -175,10 +195,13 @@
             }
             .onAppear { motion.setState(.listening, reduceMotion: reduceMotion) }
             .onChange(of: reduceMotion) { _, value in
-                motion.setState(.listening, reduceMotion: value)
+                motion.setState(motion.state, reduceMotion: value)
                 previousDate = nil
             }
-            .onDisappear { previousDate = nil }
+            .onDisappear {
+                previousDate = nil
+                motion.setState(.hidden)
+            }
             .accessibilityLabel(Text("\(Text(LocalizedStringKey(theme.title), bundle: .main)) preview", bundle: .main))
         }
     }

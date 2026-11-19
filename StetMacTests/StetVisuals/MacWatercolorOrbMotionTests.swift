@@ -222,5 +222,46 @@
             #expect(animation.progress(at: now) == 1)
             #expect(!animation.isAnimating(at: now))
         }
+
+        @Test func settlingCompletedHideAnimationMutatesPresentationAndPausesTimeline() {
+            var animation = MacWatercolorOrbPresentation()
+            let showAt = Date(timeIntervalSinceReferenceDate: 200)
+            animation.setVisible(true, at: showAt, reduceMotion: false)
+            animation.settleIfFinished(at: showAt.addingTimeInterval(MacWatercolorOrbLayout.revealDuration))
+            #expect(animation.progress(at: showAt) == 1)
+            #expect(!animation.isAnimating(at: showAt))
+
+            let hideAt = showAt.addingTimeInterval(2)
+            animation.setVisible(false, at: hideAt, reduceMotion: false)
+            #expect(
+                !MacWatercolorOrbView.isTimelinePaused(
+                    reduceMotion: false, isVisible: false, presentation: animation, at: hideAt
+                )
+            )
+
+            // Mid-animation ticks must not settle or mutate presentation state.
+            let midHide = animation
+            animation.settleIfFinished(at: hideAt.addingTimeInterval(MacWatercolorOrbLayout.revealDuration * 0.5))
+            #expect(animation == midHide)
+            #expect(animation.isAnimating(at: hideAt.addingTimeInterval(MacWatercolorOrbLayout.revealDuration * 0.5)))
+
+            // Once revealDuration elapses, settling mutates presentation so SwiftUI re-evaluates
+            // body and pauses TimelineView even if Date.now trails context.date.
+            let endDate = hideAt.addingTimeInterval(MacWatercolorOrbLayout.revealDuration)
+            animation.settleIfFinished(at: endDate)
+            #expect(animation != midHide)
+            #expect(animation.progress(at: endDate) == 0)
+            #expect(!animation.isAnimating(at: hideAt))
+            #expect(
+                MacWatercolorOrbView.isTimelinePaused(
+                    reduceMotion: false, isVisible: false, presentation: animation, at: hideAt
+                )
+            )
+
+            // Subsequent settle calls after completion are idempotent (no spurious SwiftUI invalidations).
+            let settled = animation
+            animation.settleIfFinished(at: endDate.addingTimeInterval(1))
+            #expect(animation == settled)
+        }
     }
 #endif
