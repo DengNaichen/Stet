@@ -15,6 +15,8 @@
         @Published private(set) var canCheckForUpdates = false
         @Published private(set) var automaticallyChecksForUpdates = true
 
+        private var presentedUpdateWindowIDs: Set<ObjectIdentifier> = []
+
         private lazy var updaterController: SPUStandardUpdaterController? = {
             guard configurationIssue == nil else {
                 return nil
@@ -37,10 +39,16 @@
 
             super.init()
 
+            observeSparkleWindows()
+
             if updaterController != nil {
                 configureUpdaterDefaults()
                 syncFromUpdater()
             }
+        }
+
+        deinit {
+            NotificationCenter.default.removeObserver(self)
         }
 
         var updateSnapshot: MacAppUpdateSnapshot {
@@ -89,7 +97,12 @@
             }
 
             state = .checking
+            pruneHiddenUpdateWindowIDs()
+            Self.activateAppForUpdatePresentation()
             updater.checkForUpdates()
+            DispatchQueue.main.async { [weak self] in
+                self?.presentVisibleSparkleWindows()
+            }
         }
 
         func setAutomaticallyChecksForUpdates(_ enabled: Bool) {
@@ -98,9 +111,33 @@
             syncFromUpdater()
         }
 
+        func standardUserDriverWillShowModalAlert() {
+            Self.activateAppForUpdatePresentation()
+        }
+
         func standardUserDriverDidShowModalAlert() {
             DispatchQueue.main.async { [weak self] in
-                self?.centerUpdateWindow()
+                self?.presentModalAlertWindow()
+            }
+        }
+
+        func standardUserDriverWillHandleShowingUpdate(
+            _ handleShowingUpdate: Bool,
+            forUpdate update: SUAppcastItem,
+            state: SPUUserUpdateState
+        ) {
+            guard handleShowingUpdate else { return }
+            pruneHiddenUpdateWindowIDs()
+            Self.activateAppForUpdatePresentation()
+            DispatchQueue.main.async { [weak self] in
+                self?.presentVisibleSparkleWindows()
+            }
+        }
+
+        func updater(_ updater: SPUUpdater, willDownloadUpdate item: SUAppcastItem, with request: NSMutableURLRequest) {
+            pruneHiddenUpdateWindowIDs()
+            DispatchQueue.main.async { [weak self] in
+                self?.presentVisibleSparkleWindows()
             }
         }
 
@@ -159,17 +196,139 @@
             updater.automaticallyChecksForUpdates = true
         }
 
-        private func centerUpdateWindow() {
-            // Sparkle makes its alert key immediately after this delegate callback.
-            guard let updateWindow = NSApp.keyWindow else { return }
-            let screen = updateWindow.screen ?? NSScreen.main
-            guard let screen else { return }
-            let visibleFrame = screen.visibleFrame
-            let origin = CGPoint(
-                x: visibleFrame.midX - updateWindow.frame.width / 2,
-                y: visibleFrame.midY - updateWindow.frame.height / 2
+        private func observeSparkleWindows() {
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleWindowDidUpdate(_:)),
+                name: NSWindow.didUpdateNotification,
+                object: nil
             )
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleWindowWillClose(_:)),
+                name: NSWindow.willCloseNotification,
+                object: nil
+            )
+        }
+
+        @objc private func handleWindowDidUpdate(_ notification: Notification) {
+            guard let window = notification.object as? NSWindow,
+                Self.isSparkleWindow(window)
+            else {
+                return
+            }
+            handleObservedUpdateWindow(window)
+        }
+
+        @objc private func handleWindowWillClose(_ notification: Notification) {
+            guard let window = notification.object as? NSWindow else { return }
+            presentedUpdateWindowIDs.remove(ObjectIdentifier(window))
+        }
+
+        private func presentVisibleSparkleWindows() {
+            for window in NSApp.windows where Self.isSparkleWindow(window) {
+                handleObservedUpdateWindow(window)
+            }
+        }
+
+        private func presentModalAlertWindow() {
+            guard let alertWindow = NSApp.modalWindow ?? NSApp.keyWindow else { return }
+            Self.configureUpdateWindowChrome(alertWindow)
+            centerUpdateWindow(alertWindow)
+            bringUpdateWindowToFront(alertWindow)
+        }
+
+        private func pruneHiddenUpdateWindowIDs() {
+            let visibleIDs = Set(
+                NSApp.windows
+                    .filter { $0.isVisible && Self.isSparkleWindow($0) }
+                    .map(ObjectIdentifier.init)
+            )
+            presentedUpdateWindowIDs.formIntersection(visibleIDs)
+        }
+
+        @discardableResult
+        func handleObservedUpdateWindow(
+            _ window: NSWindow,
+            activate: @escaping @MainActor () -> Void = { AppUpdateManager.activateAppForUpdatePresentation() },
+            scheduleRecheck: Bool = true
+        ) -> Bool {
+            let windowID = ObjectIdentifier(window)
+            guard window.isVisible else {
+                presentedUpdateWindowIDs.remove(windowID)
+                return false
+            }
+
+            Self.configureUpdateWindowChrome(window)
+
+            guard presentedUpdateWindowIDs.insert(windowID).inserted else {
+                return false
+            }
+
+            centerUpdateWindow(window)
+            bringUpdateWindowToFront(window, activate: activate)
+
+            if scheduleRecheck {
+                DispatchQueue.main.async { [weak self, weak window] in
+                    guard let self, let window, window.isVisible else { return }
+                    Self.configureUpdateWindowChrome(window)
+                    self.bringUpdateWindowToFront(window, activate: activate)
+                }
+            }
+            return true
+        }
+
+        private func bringUpdateWindowToFront(
+            _ window: NSWindow,
+            activate: @MainActor () -> Void = { AppUpdateManager.activateAppForUpdatePresentation() }
+        ) {
+            if window.isMiniaturized {
+                window.deminiaturize(nil)
+            }
+            window.collectionBehavior.insert(.moveToActiveSpace)
+            activate()
+            window.orderFrontRegardless()
+            window.makeKeyAndOrderFront(nil)
+        }
+
+        private func centerUpdateWindow(_ updateWindow: NSWindow) {
+            let mouseLocation = NSEvent.mouseLocation
+            let screen =
+                NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) })
+                ?? updateWindow.screen
+                ?? NSScreen.main
+            guard let screen else { return }
+            let origin = Self.centeredOrigin(for: updateWindow.frame.size, in: screen.visibleFrame)
             updateWindow.setFrameOrigin(origin)
+        }
+
+        private static func activateAppForUpdatePresentation() {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+
+        static func isSparkleWindow(_ window: NSWindow) -> Bool {
+            guard let controller = window.windowController else { return false }
+            return isSparkleWindowControllerClass(type(of: controller))
+        }
+
+        static func isSparkleWindowControllerClass(_ controllerClass: AnyClass) -> Bool {
+            Bundle(for: controllerClass) == Bundle(for: SPUStandardUpdaterController.self)
+        }
+
+        static func configureUpdateWindowChrome(_ window: NSWindow) {
+            if !window.titlebarAppearsTransparent {
+                window.titlebarAppearsTransparent = true
+            }
+            if window.titlebarSeparatorStyle != .none {
+                window.titlebarSeparatorStyle = .none
+            }
+        }
+
+        static func centeredOrigin(for windowSize: CGSize, in visibleFrame: CGRect) -> CGPoint {
+            CGPoint(
+                x: visibleFrame.midX - windowSize.width / 2,
+                y: visibleFrame.midY - windowSize.height / 2
+            )
         }
 
         private func syncFromUpdater() {
