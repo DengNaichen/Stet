@@ -23,7 +23,7 @@
     }
 
     /// Samples the whole curve, including reversals during an unfinished reveal.
-    struct MacWatercolorOrbPresentation {
+    struct MacWatercolorOrbPresentation: Equatable {
         private var from = 0.0
         private var target = 0.0
         private var startedAt = Date.distantPast
@@ -39,6 +39,13 @@
             from = reduceMotion ? destination : progress(at: date)
             target = destination
             startedAt = date
+        }
+
+        mutating func settleIfFinished(at date: Date) {
+            guard from != target, date.timeIntervalSince(startedAt) >= MacWatercolorOrbLayout.revealDuration else {
+                return
+            }
+            from = target
         }
 
         func isAnimating(at date: Date) -> Bool {

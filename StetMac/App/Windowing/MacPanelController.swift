@@ -19,6 +19,10 @@
         private var panel: NSPanel?
         private weak var observedAppModel: (any MacDictationPanelCoordinating)?
 
+        var hasHostedContent: Bool {
+            panel?.contentViewController != nil
+        }
+
         func show(appModel: any MacDictationPanelCoordinating, mode: PresentationMode) {
             let screen = targetScreen()
             let layout = MacDictationPanelLayout.fixed
@@ -52,6 +56,7 @@
 
         func hide() {
             panel?.orderOut(nil)
+            panel?.contentViewController = nil
             onHide?()
         }
 
