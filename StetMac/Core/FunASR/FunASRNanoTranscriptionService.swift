@@ -17,12 +17,12 @@
         func transcribe(audioFileURL: URL, hotwords: String?) async throws -> String
         func releaseResources() async
         func encoderBackend() async -> String
-        func updateResidentEncoder(_ encoder: (any FunASRNanoResidentEncoding)?) async
+        func setResidentEncoder(_ encoder: (any FunASRNanoResidentEncoding)?) async
     }
 
     extension FunASRNanoEngine {
         func encoderBackend() async -> String { "unknown" }
-        func updateResidentEncoder(_ encoder: (any FunASRNanoResidentEncoding)?) async {}
+        func setResidentEncoder(_ encoder: (any FunASRNanoResidentEncoding)?) async {}
     }
 
     extension FunASRNanoRecognizer: FunASRNanoEngine {
@@ -30,8 +30,8 @@
             try transcribe(audioFileURL: audioFileURL, maximumTokens: 512, hotwords: hotwords)
         }
 
-        func updateResidentEncoder(_ encoder: (any FunASRNanoResidentEncoding)?) async {
-            await updateResidentEncoder(encoder as? FunASRNanoResidentEncoder)
+        func setResidentEncoder(_ encoder: (any FunASRNanoResidentEncoding)?) async {
+            updateResidentEncoder(encoder as? FunASRNanoResidentEncoder)
         }
     }
 
@@ -184,14 +184,21 @@
 
             if let existing = residentEncoder, existing.key == key, residentLoadTask == nil {
                 guard activeModelUses == 0, activeLeaseCount == 0, loadTask == nil else { return }
-                if let recognizer = engine as? FunASRNanoRecognizer,
+                let wakeGeneration = residentGeneration
+                residentEncoder = nil
+                if let currentEngine = engine,
                     let loaded = loadedModelFiles,
                     loaded.encoder.deletingLastPathComponent().standardizedFileURL == standardized
                 {
-                    await recognizer.updateResidentEncoder(nil)
-                    loadedModelFiles = Self.cpuModelFiles(from: loaded)
+                    await currentEngine.setResidentEncoder(nil)
+                    if engine as AnyObject === currentEngine as AnyObject, loadedModelFiles == loaded {
+                        loadedModelFiles = Self.cpuModelFiles(from: loaded)
+                    }
                 }
-                residentEncoder = nil
+                guard residentGeneration == wakeGeneration, !maintenance, residentLoadTask == nil else {
+                    existing.encoder.releaseResources()
+                    return
+                }
                 startBackgroundWakeRewarm(existing: existing.encoder, compiledURL: compiledURL, key: key)
                 await residentLoadTask?.value
                 return
@@ -509,26 +516,34 @@
                 }
                 residentEncoder = LoadedResidentEncoder(key: key, encoder: newEncoder)
                 failedResidentKey = nil
-                residentLoadTask = nil
-                residentLoadKey = nil
                 let elapsedMs = (ProcessInfo.processInfo.systemUptime - startedAt) * 1_000
                 logger.notice(
                     "Fun-ASR Nano resident ANE encoder ready in \(elapsedMs, format: .fixed(precision: 1))ms"
                 )
                 if activeModelUses == 0, activeLeaseCount == 0, loadTask == nil,
-                    let recognizer = engine as? FunASRNanoRecognizer,
+                    let currentEngine = engine,
                     let loaded = loadedModelFiles,
                     loaded.encoder.deletingLastPathComponent().standardizedFileURL == key.directory
                 {
-                    await recognizer.updateResidentEncoder(newEncoder)
-                    loadedModelFiles = FunASRNanoModelFiles(
-                        encoder: key.directory.appendingPathComponent(
-                            FunASRNanoANEManifest.compiledName,
-                            isDirectory: true
-                        ),
-                        languageModel: loaded.languageModel,
-                        voiceActivityDetector: loaded.voiceActivityDetector
-                    )
+                    await currentEngine.setResidentEncoder(newEncoder)
+                    if residentGeneration == generation,
+                        residentEncoder?.encoder as AnyObject === newEncoder as AnyObject,
+                        engine as AnyObject === currentEngine as AnyObject,
+                        loadedModelFiles == loaded
+                    {
+                        loadedModelFiles = FunASRNanoModelFiles(
+                            encoder: key.directory.appendingPathComponent(
+                                FunASRNanoANEManifest.compiledName,
+                                isDirectory: true
+                            ),
+                            languageModel: loaded.languageModel,
+                            voiceActivityDetector: loaded.voiceActivityDetector
+                        )
+                    }
+                }
+                if residentGeneration == generation {
+                    residentLoadTask = nil
+                    residentLoadKey = nil
                 }
             case .failure(let error):
                 guard residentGeneration == generation else { return }

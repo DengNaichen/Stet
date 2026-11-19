@@ -267,7 +267,8 @@
                         text: backend,
                         backend: backend,
                         encoderExtension: files.encoder.pathExtension,
-                        hadResidentEncoder: resident != nil
+                        hadResidentEncoder: resident != nil,
+                        usesDynamicBackendText: true
                     )
                     engines.append(engine)
                     return engine
@@ -293,6 +294,9 @@
 
             await compileGate.resume()
             try #require(await TestSupport.eventuallyAsync { await context.hasReadyResidentEncoder })
+            #expect(await firstEngine.residentEncoderUpdates == [true])
+            #expect(await firstEngine.encoderExtension == "mlmodelc")
+            #expect(await firstEngine.hadResidentEncoder)
 
             try await service.prewarm()
             let secondResult = try await service.transcribe(
@@ -302,13 +306,14 @@
                 audioDurationSeconds: 1.5
             )
             #expect(secondResult.text == "coreml-cpu-and-ne")
-            let secondEngine = try #require(engines.snapshot().last)
-            #expect(await secondEngine.encoderExtension == "mlmodelc")
-            #expect(await secondEngine.hadResidentEncoder)
+            #expect(engines.snapshot().count == 1)
+            let activeEngine = try #require(engines.snapshot().last)
+            #expect(await activeEngine.encoderExtension == "mlmodelc")
+            #expect(await activeEngine.hadResidentEncoder)
 
             // Unloading Qwen3 keeps the resident ANE encoder warm across sessions.
             await context.cleanupResources()
-            #expect(await secondEngine.releaseCallCount == 1)
+            #expect(await activeEngine.releaseCallCount == 1)
             #expect(await context.hasReadyResidentEncoder)
             let resident = try #require(residentStore.snapshot().first)
             #expect(resident.releaseCallCount == 0)
@@ -316,11 +321,89 @@
             // Subsequent session reuses the same resident ANE encoder without reloading it.
             try await service.prewarm()
             #expect(residentStore.snapshot().count == 1)
+            #expect(engines.snapshot().count == 2)
 
             // Maintenance unloads both Qwen3 and the resident ANE encoder once idle.
             #expect(try await context.performModelMaintenance {})
             #expect(!(await context.hasReadyResidentEncoder))
             #expect(resident.releaseCallCount == 1)
+        }
+
+        @Test func recognizerProtocolSetResidentEncoderCompletesWithoutRecursion() async throws {
+            let manager = try makeModelManager()
+            let recognizer = FunASRNanoRecognizer(modelFiles: try manager.modelFiles())
+            let stubResident = StubResidentEncoder(modelURL: try manager.modelFiles().encoder)
+
+            // Regression: FunASRNanoRecognizer.FunASRNanoEngine previously shadowed
+            // updateResidentEncoder(_:) with an async overload that called itself recursively.
+            await recognizer.setResidentEncoder(nil)
+            await recognizer.setResidentEncoder(stubResident)
+            let protocolEngine: any FunASRNanoEngine = recognizer
+            await protocolEngine.setResidentEncoder(nil)
+            await protocolEngine.setResidentEncoder(stubResident)
+            #expect(await protocolEngine.encoderBackend() == "unloaded")
+        }
+
+        @Test(.enabled(if: ANEModelReadiness.supported))
+        func handleSystemWakeDetachesRewarmsAndReattachesResidentEncoder() async throws {
+            let manager = try makeModelManager()
+            let directory = try manager.modelFiles().encoder.deletingLastPathComponent()
+            try FileManager.default.createDirectory(
+                at: directory.appendingPathComponent(FunASRNanoANEManifest.compiledName),
+                withIntermediateDirectories: true)
+            try ANEModelReadiness.make(manifestHash: String(repeating: "d", count: 64)).write(in: directory)
+
+            let residentStore = ResidentEncoderStore()
+            let context = FunASRNanoContextManager { url in
+                let encoder = StubResidentEncoder(modelURL: url)
+                residentStore.append(encoder)
+                return encoder
+            }
+            await context.preloadResidentEncoder(in: directory)
+            #expect(await context.hasReadyResidentEncoder)
+
+            let engines = FunASREngineStore()
+            let service = try FunASRNanoTranscriptionService(
+                modelManager: manager,
+                residentEngineFactory: { files, resident in
+                    let backend = files.encoder.pathExtension == "mlmodelc" ? "coreml-cpu-and-ne" : "ggml-cpu"
+                    let engine = StubFunASREngine(
+                        text: backend,
+                        backend: backend,
+                        encoderExtension: files.encoder.pathExtension,
+                        hadResidentEncoder: resident != nil,
+                        usesDynamicBackendText: true
+                    )
+                    engines.append(engine)
+                    return engine
+                },
+                contextManager: context
+            )
+
+            try await service.prewarm()
+            let engine = try #require(engines.snapshot().first)
+            #expect(await engine.hadResidentEncoder)
+
+            await context.handleSystemWake(in: directory)
+
+            let resident = try #require(residentStore.snapshot().first)
+            #expect(resident.warmupCallCount == 1)
+            #expect(resident.releaseCallCount == 0)
+            #expect(residentStore.snapshot().count == 1)
+            #expect(await context.hasReadyResidentEncoder)
+            #expect(await engine.residentEncoderUpdates == [false, true])
+            #expect(await engine.hadResidentEncoder)
+            #expect(await engine.encoderExtension == "mlmodelc")
+
+            let result = try await service.transcribe(
+                audioFileAt: makeAudioFile(),
+                languageCode: nil,
+                prompt: nil,
+                audioDurationSeconds: 1.0
+            )
+            #expect(result.text == "coreml-cpu-and-ne")
+            #expect(engines.snapshot().count == 1)
+            await context.cleanupResources()
         }
 
         private func makeModelManager() throws -> FunASRNanoModelManager {
@@ -341,11 +424,13 @@
     }
 
     private actor StubFunASREngine: FunASRNanoEngine {
-        private let text: String
+        private var text: String
         private let prepareGate: PrepareGate?
-        private let backend: String
-        let encoderExtension: String
-        let hadResidentEncoder: Bool
+        private var backend: String
+        private let usesDynamicBackendText: Bool
+        private(set) var encoderExtension: String
+        private(set) var hadResidentEncoder: Bool
+        private(set) var residentEncoderUpdates: [Bool] = []
         private(set) var prepareCallCount = 0
         private(set) var transcribeCallCount = 0
         private(set) var releaseCallCount = 0
@@ -356,16 +441,29 @@
             prepareGate: PrepareGate? = nil,
             backend: String = "unknown",
             encoderExtension: String = "gguf",
-            hadResidentEncoder: Bool = false
+            hadResidentEncoder: Bool = false,
+            usesDynamicBackendText: Bool = false
         ) {
             self.backend = backend
             self.text = text
             self.prepareGate = prepareGate
             self.encoderExtension = encoderExtension
             self.hadResidentEncoder = hadResidentEncoder
+            self.usesDynamicBackendText = usesDynamicBackendText
         }
 
         func encoderBackend() async -> String { backend }
+
+        func setResidentEncoder(_ encoder: (any FunASRNanoResidentEncoding)?) async {
+            let attached = encoder != nil
+            residentEncoderUpdates.append(attached)
+            hadResidentEncoder = attached
+            encoderExtension = attached ? "mlmodelc" : "gguf"
+            if usesDynamicBackendText {
+                backend = attached ? "coreml-cpu-and-ne" : "ggml-cpu"
+                text = backend
+            }
+        }
 
         func prepare() async throws {
             prepareCallCount += 1
@@ -428,13 +526,17 @@
         let modelURL: URL
         private let lock = NSLock()
         private var releases = 0
+        private var warmups = 0
         var releaseCallCount: Int { lock.withLock { releases } }
+        var warmupCallCount: Int { lock.withLock { warmups } }
 
         init(modelURL: URL) {
             self.modelURL = modelURL
         }
 
-        func warmup() throws {}
+        func warmup() throws {
+            lock.withLock { warmups += 1 }
+        }
 
         func releaseResources() {
             lock.withLock { releases += 1 }
