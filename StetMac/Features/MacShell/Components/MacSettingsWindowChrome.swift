@@ -52,6 +52,12 @@
             }
             NotificationCenter.default.addObserver(
                 self,
+                selector: #selector(handleOpenSettings),
+                name: .stetOpenSettings,
+                object: nil
+            )
+            NotificationCenter.default.addObserver(
+                self,
                 selector: #selector(scrollViewsChanged(_:)),
                 name: NSScrollView.willStartLiveScrollNotification,
                 object: nil
@@ -64,6 +70,7 @@
             )
             DispatchQueue.main.async { [weak self] in
                 self?.applyWindowChrome()
+                self?.bringWindowToFront()
             }
         }
 
@@ -73,6 +80,23 @@
 
         @objc private func windowDidChange() {
             applyWindowChrome()
+        }
+
+        @objc private func handleOpenSettings() {
+            DispatchQueue.main.async { [weak self] in
+                self?.bringWindowToFront()
+            }
+        }
+
+        private func bringWindowToFront() {
+            guard let window else { return }
+            if window.isMiniaturized {
+                window.deminiaturize(nil)
+            }
+            window.collectionBehavior.insert(.moveToActiveSpace)
+            NSApp.activate(ignoringOtherApps: true)
+            window.orderFrontRegardless()
+            window.makeKeyAndOrderFront(nil)
         }
 
         @objc private func scrollViewsChanged(_ notification: Notification) {
@@ -85,6 +109,7 @@
         func applyWindowChrome() {
             guard let window else { return }
             window.titlebarAppearsTransparent = true
+            window.titlebarSeparatorStyle = .none
 
             for type: NSWindow.ButtonType in [.closeButton, .miniaturizeButton, .zoomButton] {
                 window.standardWindowButton(type)?.isHidden = false
