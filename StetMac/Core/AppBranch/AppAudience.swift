@@ -4,7 +4,9 @@
 
     enum AppAudienceResolver {
         private nonisolated static let aiBundleIdentifiers: Set<String> = [
-            "com.openai.chat"
+            "com.apple.terminal",
+            "com.mitchellh.ghostty",
+            "com.openai.chat",
         ]
 
         private nonisolated static let aiNameFragments: [String] = [
