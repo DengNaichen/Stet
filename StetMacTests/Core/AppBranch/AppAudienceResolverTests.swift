@@ -104,6 +104,20 @@
                 AppAudienceResolver.resolve(bundleIdentifier: "com.openai.chatty", localizedName: "Chatty") == .human)
         }
 
+        @Test(
+            "Terminal and Ghostty use the AI audience regardless of the localized name",
+            arguments: [
+                "com.apple.Terminal",
+                "com.mitchellh.ghostty",
+            ])
+        func terminalAppsUseAIAudience(bundleIdentifier: String) {
+            #expect(
+                AppAudienceResolver.resolve(bundleIdentifier: bundleIdentifier, localizedName: "终端") == .ai)
+            #expect(
+                AppAudienceResolver.resolve(bundleIdentifier: "\(bundleIdentifier).helper", localizedName: "终端")
+                    == .human)
+        }
+
         @Test("General browsers, editors and messaging apps stay human-facing")
         func installedHumanFacingApplicationsKeepHumanAudience() {
             let applications = [

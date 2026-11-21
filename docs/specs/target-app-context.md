@@ -59,7 +59,7 @@
 
 **验收场景**：
 
-1. **Given** 当前外部应用的 Bundle ID 或名称包含 FR-008 名单中的片段，**When** 改写执行，**Then** audience 为“面向 AI / 编程工具”。
+1. **Given** 当前外部应用符合 FR-008 的匹配规则，**When** 改写执行，**Then** audience 为“面向 AI / 编程工具”。
 2. **Given** 当前外部应用不匹配名单，**When** 改写执行，**Then** audience 为“面向人”。
 3. **Given** 无法确定任何外部应用，**When** 改写执行，**Then** audience 为“面向 AI / 编程工具”，且不提供应用名称（待产品确认）。
 
@@ -92,7 +92,7 @@
 
 **audience 分类**
 
-- **FR-008**：audience 按 Bundle ID 与应用名称做不区分大小写、去除首尾空白的子串匹配。Bundle ID 精确匹配 `com.openai.chat`（ChatGPT Classic），或任一字段包含以下片段之一即为“面向 AI / 编程工具”，否则为“面向人”：android studio、androidstudio、android.studio、aider、antigravity、augment、bolt、chatgpt、claude、claude code、cline、clion、codex、codeium、continue、gemini、copilot、cursor、deepseek、fleet、goland、herdr、intellij、iterm、kiro、perplexity、phpstorm、poe、pycharm、replit、roo code、roocode、rider、t3 code、t3code、trae、vscode、vscode insiders、visual studio code、warp、webstorm、windsurf、xcode、zed。（名单为当前值，待产品确认维护方式。）
+- **FR-008**：audience 按 Bundle ID 与应用名称匹配，忽略大小写并去除首尾空白。Bundle ID 精确匹配 `com.apple.terminal`（macOS 自带的「终端」）、`com.mitchellh.ghostty`（Ghostty）或 `com.openai.chat`（ChatGPT Classic），或任一字段包含以下片段之一即为“面向 AI / 编程工具”，否则为“面向人”：android studio、androidstudio、android.studio、aider、antigravity、augment、bolt、chatgpt、claude、claude code、cline、clion、codex、codeium、continue、gemini、copilot、cursor、deepseek、fleet、goland、herdr、intellij、iterm、kiro、perplexity、phpstorm、poe、pycharm、replit、roo code、roocode、rider、t3 code、t3code、trae、vscode、vscode insiders、visual studio code、warp、webstorm、windsurf、xcode、zed。（名单为当前值，待产品确认维护方式。）
 - **FR-009**：audience 只用于改写风格，不得影响目标应用的确定、交付方式或完成判定。
 
 **消费方**
@@ -115,7 +115,7 @@
 - **本次目标应用**：开始听写时确定、供交付、学习、历史使用的应用快照。
 - **最近外部应用**：前台跟踪得到的最后一个非 Stet 外部应用。
 - **audience**：“面向 AI / 编程工具”或“面向人”。
-- **audience 名单**：FR-008 中的名称片段集合，随应用版本发布。
+- **audience 名单**：FR-008 中的精确 Bundle ID 和匹配片段，随应用版本发布。
 
 ## 成功标准 *(必填)*
 
@@ -123,7 +123,7 @@
 
 - **SC-001**：从外部应用开始的听写，100% 以该应用为目标应用，录音中切换应用不改变目标。
 - **SC-002**：在引导“首次成功”步骤之外，Stet 自身被记为目标应用的次数为 0。
-- **SC-003**：FR-008 名单中的每个片段都能被识别为“面向 AI / 编程工具”，名单外的应用均为“面向人”。
+- **SC-003**：FR-008 名单中的每个 Bundle ID 和片段都能被识别为“面向 AI / 编程工具”，未命中匹配规则的应用均为“面向人”。
 - **SC-004**：重启 Stet 后，不残留上一次运行的目标应用或最近外部应用。
 
 ## 假设
