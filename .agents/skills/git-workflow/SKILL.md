@@ -52,6 +52,9 @@ setup 失败保留目录，在该目录修复并重跑。不要另建 `/tmp` clo
 setup 或架构检查运行期间不删除共享缓存；移除 worktree 不意味着应清理共享缓存。
 缓存命中不能代替对当前 checkout 执行架构检查和测试。
 
+活跃 checkout 的项目专属 DerivedData 保留热缓存，不在每次构建或验收后清空；
+随 worktree 或临时 checkout 的生命周期回收，流程见下节。
+
 修改 setup/cache 或宿主入口时，按 [VALIDATION.md](../../../docs/VALIDATION.md#worktree-preparation)
 验证；适配器测试通过不代表真实 GUI hook 生命周期已验收。
 
@@ -98,6 +101,11 @@ apply 会在 main 可快进时更新它，重新计算并核对候选；同时�
 进程信息时保留资源，脚本不会停止编辑器或构建进程。
 资源清理失败则停止，不删该工作区或分支。宿主拥有的工作区先按宿主生命周期关闭。
 共享下载/编译缓存、Archives、签名数据和其他 worktree 的资源不属于清理范围。
+
+临时 checkout 也须在删除源目录前执行上述缓存清理，先保存仍需保留的测试与交付证据。
+回收工作区或磁盘空间不足时，按 DerivedData 的 `info.plist` 中 `WorkspacePath`
+巡检项目路径已失效的孤儿缓存；先列出归属、大小并核实进程占用，再单独回收。
+缺少归属信息的目录保留，不按 `Stet-*` 前缀或年龄批量删除。
 
 远端删除绑定准确 tip。报告已删除/保留项和阻塞原因。
 不要用 detached HEAD 代替已完成工作区的回收。
