@@ -2,25 +2,117 @@
     import StetCore
     import SwiftUI
 
-    struct MacOpenAISettingsView: View {
+    struct MacSpeechRefineDataFlowNotice: Equatable {
+        enum Tone: Equatable {
+            case neutral
+            case network
+        }
+
+        let systemImage: String
+        let tone: Tone
+        let message: String
+        let missingConfigWarning: String?
+
+        static func make(
+            isRewriteEnabled: Bool,
+            provider: MacOpenAISettingsViewModel.UnifiedAIProvider,
+            selectedModelDisplayName: String?,
+            customBaseURL: String,
+            connectionNeedsAttention: Bool
+        ) -> Self {
+            guard isRewriteEnabled else {
+                return Self(
+                    systemImage: "lock.shield",
+                    tone: .neutral,
+                    message:
+                        "Audio is transcribed on your Mac. With AI Refine off, Stet does not send transcripts to an AI provider and only applies local punctuation cleanup.",
+                    missingConfigWarning: nil
+                )
+            }
+
+            switch provider {
+            case .appleIntelligence:
+                return Self(
+                    systemImage: "apple.intelligence",
+                    tone: .neutral,
+                    message:
+                        "Audio transcription and Apple Intelligence refinement both run on your Mac. Availability depends on Apple Intelligence being enabled and ready on this Mac.",
+                    missingConfigWarning: nil
+                )
+            case .custom:
+                let destination = Self.customHostLabel(from: customBaseURL)
+                let warning =
+                    connectionNeedsAttention
+                    ? "Custom endpoint isn't fully configured. Until you set a server URL and model, Stet uses on-device transcripts without refinement."
+                    : nil
+                return Self(
+                    systemImage: "network",
+                    tone: .network,
+                    message:
+                        "Audio stays on your Mac. With AI Refine on, Stet sends your raw transcript to \(destination) for cleanup, and can include Personal Dictionary terms, detected language, and active app context when available. If the request fails, Stet falls back to your on-device transcript.",
+                    missingConfigWarning: warning
+                )
+            case .openAI, .google, .deepSeek, .qwen, .glm:
+                let providerName = provider.displayName
+                let destination: String
+                if let modelName = selectedModelDisplayName, !modelName.isEmpty {
+                    destination = "\(providerName) (\(modelName))"
+                } else {
+                    destination = providerName
+                }
+                let warning =
+                    connectionNeedsAttention
+                    ? "\(providerName) API key isn't set. Until you add one, Stet uses on-device transcripts without sending text to \(providerName)."
+                    : nil
+                return Self(
+                    systemImage: "network",
+                    tone: .network,
+                    message:
+                        "Audio stays on your Mac. With AI Refine on, Stet sends your raw transcript to \(destination) for cleanup, and can include Personal Dictionary terms, detected language, and active app context when available. If \(providerName) is unavailable, Stet falls back to your on-device transcript.",
+                    missingConfigWarning: warning
+                )
+            }
+        }
+
+        private static func customHostLabel(from baseURL: String) -> String {
+            let trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let host = URL(string: trimmed)?.host(), !host.isEmpty {
+                return host
+            }
+            if let host = URL(string: "https://\(trimmed)")?.host(), !trimmed.isEmpty, !host.isEmpty {
+                return host
+            }
+            return "your configured server"
+        }
+    }
+
+    struct MacRefineSettingsSections: View {
         @ObservedObject var viewModel: MacOpenAISettingsViewModel
-        var onManageAccount: (() -> Void)? = nil
         @State private var apiKeySheet: APIKeySheetItem?
         @State private var isEditingEndpoint = false
         @State private var credentialError: String?
 
         var body: some View {
-            LinearPageContainer(title: "Refine") {
+            let notice = dataFlowNotice
+
+            VStack(alignment: .leading, spacing: MacUI.LinearMetrics.contentSectionSpacing) {
                 MacRewriteModelSettingsSection(viewModel: viewModel)
 
-                if viewModel.unifiedProvider == .appleIntelligence {
+                if let warning = notice.missingConfigWarning {
                     LinearInlineBanner(
-                        systemImage: "apple.intelligence",
-                        tint: MacUI.Foreground.secondaryColor,
-                        message:
-                            "Uses the on-device Apple Intelligence model to refine transcripts locally. Availability depends on Apple Intelligence being enabled and ready on this Mac."
+                        systemImage: "exclamationmark.triangle.fill",
+                        tint: MacUI.Foreground.warning,
+                        text: warning
                     )
+                    .accessibilityElement(children: .combine)
                 }
+
+                LinearInlineBanner(
+                    systemImage: notice.systemImage,
+                    tint: notice.tone == .network ? MacUI.LinearBrand.accent : MacUI.Foreground.secondaryColor,
+                    text: notice.message
+                )
+                .accessibilityElement(children: .combine)
 
                 if viewModel.isRewriteEnabled, viewModel.unifiedProvider == .custom {
                     LinearSectionGroup(
@@ -100,9 +192,17 @@
             } message: {
                 Text(credentialError ?? "")
             }
-            .onAppear {
-                viewModel.load()
-            }
+        }
+
+        private var dataFlowNotice: MacSpeechRefineDataFlowNotice {
+            let modelName = viewModel.availableModels.first(where: { $0.id == viewModel.selectedModelID })?.displayName
+            return MacSpeechRefineDataFlowNotice.make(
+                isRewriteEnabled: viewModel.isRewriteEnabled,
+                provider: viewModel.unifiedProvider,
+                selectedModelDisplayName: modelName,
+                customBaseURL: viewModel.customBaseURL,
+                connectionNeedsAttention: viewModel.connectionNeedsAttention
+            )
         }
 
         private func apiKeyStatusRow(for provider: DictationProvider) -> some View {

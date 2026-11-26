@@ -122,6 +122,7 @@
         let title: LocalizedStringKey
         let systemImage: String
         let isSelected: Bool
+        var subtitle: LocalizedStringKey?
         var shortcutHint: String?
         let action: () -> Void
 
@@ -137,12 +138,23 @@
                         )
                         .frame(width: 16, alignment: .center)
 
-                    Text(title)
-                        .font(isSelected ? MacUI.LinearTypography.sidebarSelected : MacUI.LinearTypography.sidebarItem)
-                        .foregroundStyle(
-                            isSelected || isHovered ? MacUI.Foreground.primary : MacUI.Foreground.secondaryColor
-                        )
-                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(title)
+                            .font(
+                                isSelected ? MacUI.LinearTypography.sidebarSelected : MacUI.LinearTypography.sidebarItem
+                            )
+                            .foregroundStyle(
+                                isSelected || isHovered ? MacUI.Foreground.primary : MacUI.Foreground.secondaryColor
+                            )
+                            .lineLimit(1)
+
+                        if let subtitle {
+                            Text(subtitle)
+                                .font(.system(size: 11, weight: .regular))
+                                .foregroundStyle(MacUI.LinearSurfaces.mutedInk)
+                                .lineLimit(1)
+                        }
+                    }
 
                     Spacer(minLength: 4)
 
@@ -154,7 +166,8 @@
                     }
                 }
                 .padding(.horizontal, 9)
-                .frame(height: MacUI.LinearMetrics.sidebarRowHeight)
+                .padding(.vertical, subtitle == nil ? 0 : 4)
+                .frame(minHeight: MacUI.LinearMetrics.sidebarRowHeight)
                 .background(backgroundView)
                 .overlay(borderOverlay)
                 .contentShape(
@@ -245,36 +258,66 @@
         let title: LocalizedStringKey
         var maxWidth: CGFloat = MacUI.LinearMetrics.contentMaxWidth
         var preservesExpandedToolbar: Bool = true
+        var scrollTarget: AnyHashable? = nil
+        var scrollTrigger: Int = 0
         @ViewBuilder let content: () -> Content
 
         init(
             title: LocalizedStringKey,
             maxWidth: CGFloat = MacUI.LinearMetrics.contentMaxWidth,
             preservesExpandedToolbar: Bool = true,
+            scrollTarget: AnyHashable? = nil,
+            scrollTrigger: Int = 0,
             @ViewBuilder content: @escaping () -> Content
         ) {
             self.title = title
             self.maxWidth = maxWidth
             self.preservesExpandedToolbar = preservesExpandedToolbar
+            self.scrollTarget = scrollTarget
+            self.scrollTrigger = scrollTrigger
             self.content = content
         }
 
         var body: some View {
-            ScrollView {
-                VStack(alignment: .leading, spacing: MacUI.LinearMetrics.contentSectionSpacing) {
-                    content()
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: MacUI.LinearMetrics.contentSectionSpacing) {
+                        content()
+                    }
+                    .frame(maxWidth: maxWidth, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.horizontal, MacUI.LinearMetrics.contentHorizontalPadding)
+                    .padding(.top, MacUI.LinearMetrics.contentTopPadding)
+                    .padding(.bottom, MacUI.LinearMetrics.contentBottomPadding)
                 }
-                .frame(maxWidth: maxWidth, alignment: .leading)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.horizontal, MacUI.LinearMetrics.contentHorizontalPadding)
-                .padding(.top, MacUI.LinearMetrics.contentTopPadding)
-                .padding(.bottom, MacUI.LinearMetrics.contentBottomPadding)
+                .macSettingsScrollIndicator()
+                .onAppear {
+                    scrollToTargetIfNeeded(using: proxy, animated: false)
+                }
+                .onChange(of: scrollTarget) { _, _ in
+                    scrollToTargetIfNeeded(using: proxy, animated: true)
+                }
+                .onChange(of: scrollTrigger) { _, _ in
+                    scrollToTargetIfNeeded(using: proxy, animated: true)
+                }
             }
-            .macSettingsScrollIndicator()
             .macNativeNavigationChrome(
                 title: title,
                 preservesExpandedToolbar: preservesExpandedToolbar
             )
+        }
+
+        private func scrollToTargetIfNeeded(using proxy: ScrollViewProxy, animated: Bool) {
+            guard let scrollTarget else { return }
+            DispatchQueue.main.async {
+                if animated {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        proxy.scrollTo(scrollTarget, anchor: .top)
+                    }
+                } else {
+                    proxy.scrollTo(scrollTarget, anchor: .top)
+                }
+            }
         }
     }
 
@@ -285,6 +328,8 @@
         var height: CGFloat = 28
         var fillColor: Color = MacUI.LinearSurfaces.elevated
         var isBorderless: Bool = false
+        var focusBinding: FocusState<Bool>.Binding? = nil
+        var onEscape: (() -> Void)? = nil
 
         var body: some View {
             HStack(spacing: 6) {
@@ -292,10 +337,7 @@
                     .font(.system(size: isBorderless ? 11.5 : 11, weight: .medium))
                     .foregroundStyle(MacUI.LinearSurfaces.mutedInk)
 
-                TextField(placeholder, text: $text)
-                    .textFieldStyle(.plain)
-                    .font(MacUI.LinearTypography.body)
-                    .foregroundStyle(MacUI.Foreground.primary)
+                searchTextField
 
                 if !text.isEmpty {
                     Button {
@@ -325,6 +367,32 @@
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .strokeBorder(MacUI.LinearSurfaces.hairline, lineWidth: 1)
                 }
+            }
+        }
+
+        @ViewBuilder
+        private var searchTextField: some View {
+            let baseField = TextField(placeholder, text: $text)
+                .textFieldStyle(.plain)
+                .font(MacUI.LinearTypography.body)
+                .foregroundStyle(MacUI.Foreground.primary)
+
+            let focusedField = Group {
+                if let focusBinding {
+                    baseField.focused(focusBinding)
+                } else {
+                    baseField
+                }
+            }
+
+            if let onEscape {
+                focusedField.onKeyPress(.escape) {
+                    guard !text.isEmpty else { return .ignored }
+                    onEscape()
+                    return .handled
+                }
+            } else {
+                focusedField
             }
         }
     }

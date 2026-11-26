@@ -4,15 +4,22 @@
     struct MacGeneralSettingsView: View {
         @EnvironmentObject private var settingsShellViewModel: MacSettingsShellViewModel
         @Environment(MacAppUpdateViewModel.self) private var appUpdateViewModel
-        @Environment(MacCompatibilityViewModel.self) private var compatibilityViewModel
+
+        var scrollTarget: MacSettingsTargetSection? = nil
+        var scrollTrigger: Int = 0
 
         @StateObject private var viewModel = MacGeneralSettingsViewModel()
 
         var body: some View {
-            LinearPageContainer(title: "General") {
+            LinearPageContainer(
+                title: "General",
+                scrollTarget: scrollTarget,
+                scrollTrigger: scrollTrigger
+            ) {
                 appBehaviorSection
+                    .id(MacSettingsTargetSection.application)
                 updatesSection
-                compatibilitySection
+                    .id(MacSettingsTargetSection.updates)
                 #if DEBUG
                     debugSection
                 #endif
@@ -94,17 +101,6 @@
             }
         }
 
-        private var compatibilitySection: some View {
-            LinearSectionGroup(
-                "App Compatibility",
-                footer: "Update compatibility fixes for pasting into other apps."
-            ) {
-                MacCompatibilityUpdateControls(state: compatibilityViewModel.refreshState) {
-                    Task { await compatibilityViewModel.refresh() }
-                }
-            }
-        }
-
         #if DEBUG
             private var debugSection: some View {
                 LinearSectionGroup(
@@ -127,54 +123,5 @@
                 }
             }
         #endif
-    }
-
-    private struct MacCompatibilityUpdateControls: View {
-        let state: AppCompatibilityStore.RefreshState
-        let check: () -> Void
-
-        var body: some View {
-            LinearSettingRow("Compatibility List") {
-                HStack(spacing: 10) {
-                    if state != .idle {
-                        HStack(spacing: 5) {
-                            Image(systemName: statusIcon)
-                                .font(.system(size: 11))
-                            Text(statusText)
-                                .font(MacUI.LinearTypography.badge)
-                        }
-                        .foregroundStyle(statusColor)
-                    }
-
-                    Button("Check for Compatibility List Updates", action: check)
-                        .buttonStyle(.bordered)
-                        .disabled(state == .checking)
-                }
-            }
-        }
-
-        private var statusText: LocalizedStringKey {
-            switch state {
-            case .idle, .checking: "Checking compatibility list…"
-            case .updated, .upToDate: "Updated"
-            case .failed: "Check failed. Using current list."
-            }
-        }
-
-        private var statusIcon: String {
-            switch state {
-            case .idle, .checking: "arrow.triangle.2.circlepath"
-            case .updated, .upToDate: "checkmark.circle.fill"
-            case .failed: "exclamationmark.circle.fill"
-            }
-        }
-
-        private var statusColor: Color {
-            switch state {
-            case .updated, .upToDate: MacUI.Foreground.success
-            case .failed: MacUI.Foreground.error
-            case .idle, .checking: MacUI.Foreground.secondaryColor
-            }
-        }
     }
 #endif

@@ -1,12 +1,13 @@
 #if os(macOS)
+    import Combine
     import SwiftUI
 
     extension Notification.Name {
         static let stetOpenSettings = Notification.Name("stet.openSettings")
     }
 
-    private enum MacMainTab: String, CaseIterable, Identifiable {
-        case overview, history, dictionary, meetings, appearance
+    enum MacMainTab: String, CaseIterable, Identifiable {
+        case overview, history, dictionary, meetings
 
         var id: String { rawValue }
         var title: LocalizedStringKey {
@@ -15,7 +16,6 @@
             case .history: "History"
             case .dictionary: "Dictionary"
             case .meetings: "Meetings"
-            case .appearance: "Appearance"
             }
         }
         var icon: String {
@@ -24,17 +24,44 @@
             case .history: "clock"
             case .dictionary: "text.book.closed"
             case .meetings: "calendar"
-            case .appearance: "paintbrush"
             }
+        }
+    }
+
+    @MainActor
+    final class MacMainNavigationState: ObservableObject {
+        @Published var selectedTab: MacMainTab = .overview
+        @Published var showingSettings = false
+        let settingsNavState: MacSettingsNavigationState
+        private var settingsCancellable: AnyCancellable?
+
+        init(settingsNavState: MacSettingsNavigationState? = nil) {
+            let resolvedSettingsNavState = settingsNavState ?? MacSettingsNavigationState()
+            self.settingsNavState = resolvedSettingsNavState
+            self.settingsCancellable = resolvedSettingsNavState.objectWillChange.sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+        }
+
+        func openSettings() {
+            showingSettings = true
+        }
+
+        func openSettings(to tab: MacSettingsTab, section: MacSettingsTargetSection? = nil) {
+            settingsNavState.navigate(to: tab, section: section)
+            showingSettings = true
+        }
+
+        func backToApp() {
+            settingsNavState.clearFilter()
+            showingSettings = false
         }
     }
 
     struct MacMainView: View {
         @EnvironmentObject private var settingsShellViewModel: MacSettingsShellViewModel
         @StateObject private var dictionaryViewModel = DictionaryViewModel()
-        @StateObject private var settingsNavState = MacSettingsNavigationState()
-        @State private var selectedTab: MacMainTab = .overview
-        @State private var showingSettings = false
+        @StateObject private var navigationState = MacMainNavigationState()
         @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
         var body: some View {
@@ -55,7 +82,9 @@
                 MacSettingsWindowChrome(
                     trafficLightLeading: MacUI.SettingsViewMetrics.trafficLightLeading,
                     trafficLightTop: MacUI.SettingsViewMetrics.trafficLightTop,
-                    scrollerRevision: showingSettings ? "settings-\(settingsNavState.activeTab.id)" : selectedTab.id
+                    scrollerRevision: navigationState.showingSettings
+                        ? "settings-\(navigationState.settingsNavState.activeTab.id)"
+                        : navigationState.selectedTab.id
                 )
                 .frame(width: 0, height: 0)
                 .allowsHitTesting(false)
@@ -65,7 +94,7 @@
                 minHeight: MacUI.LinearMetrics.windowMinHeight
             )
             .onReceive(NotificationCenter.default.publisher(for: .stetOpenSettings)) { _ in
-                showingSettings = true
+                navigationState.openSettings()
             }
             .onAppear {
                 settingsShellViewModel.settingsDidAppear()
@@ -78,10 +107,10 @@
 
         @ViewBuilder
         private var sidebarContent: some View {
-            if showingSettings {
+            if navigationState.showingSettings {
                 MacSettingsSidebarView(
-                    state: settingsNavState,
-                    onBack: { showingSettings = false }
+                    state: navigationState.settingsNavState,
+                    onBack: { navigationState.backToApp() }
                 )
             } else {
                 mainSidebar
@@ -90,11 +119,11 @@
 
         @ViewBuilder
         private var detailContent: some View {
-            if showingSettings {
-                MacSettingsDetailView(state: settingsNavState)
+            if navigationState.showingSettings {
+                MacSettingsDetailView(state: navigationState.settingsNavState)
             } else {
                 selectedContent
-                    .id(selectedTab.id)
+                    .id(navigationState.selectedTab.id)
             }
         }
 
@@ -122,9 +151,9 @@
                             LinearSidebarNavRow(
                                 title: tab.title,
                                 systemImage: tab.icon,
-                                isSelected: selectedTab == tab
+                                isSelected: navigationState.selectedTab == tab
                             ) {
-                                selectedTab = tab
+                                navigationState.selectedTab = tab
                             }
                         }
                     }
@@ -139,7 +168,7 @@
                     isSelected: false,
                     shortcutHint: "⌘,"
                 ) {
-                    showingSettings = true
+                    navigationState.openSettings()
                 }
                 .keyboardShortcut(",", modifiers: .command)
                 .padding(.horizontal, MacUI.LinearMetrics.sidebarHorizontalPadding)
@@ -149,12 +178,17 @@
 
         @ViewBuilder
         private var selectedContent: some View {
-            switch selectedTab {
-            case .overview: MacOverviewSettingsView()
-            case .history: MacHistorySettingsView()
-            case .dictionary: DictionaryView(viewModel: dictionaryViewModel)
-            case .meetings: MacMeetingSettingsView()
-            case .appearance: MacAppearanceSettingsView()
+            switch navigationState.selectedTab {
+            case .overview:
+                MacOverviewSettingsView()
+            case .history:
+                MacHistorySettingsView()
+            case .dictionary:
+                DictionaryView(viewModel: dictionaryViewModel)
+            case .meetings:
+                MacMeetingSettingsView(onOpenShortcutSettings: {
+                    navigationState.openSettings(to: .dictation, section: .shortcuts)
+                })
             }
         }
     }

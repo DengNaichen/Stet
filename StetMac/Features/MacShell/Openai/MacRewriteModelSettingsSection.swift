@@ -7,10 +7,11 @@
         @ObservedObject var viewModel: MacOpenAISettingsViewModel
 
         var body: some View {
-            LinearSectionGroup("Refine") {
+            LinearSectionGroup("AI Refine") {
                 LinearSettingRow(
                     "Transcript improvement",
-                    subtitle: "Stet can refine and improve the precision of your transcriptions using AI."
+                    subtitle:
+                        "Optional cleanup for filler words, punctuation, and spelling after on-device transcription."
                 ) {
                     Toggle("", isOn: $viewModel.isRewriteEnabled)
                         .labelsHidden()
