@@ -3,7 +3,7 @@
     import SwiftUI
 
     enum MacSettingsSection: String, CaseIterable, Identifiable {
-        case app, dictation, intelligence, advanced
+        case app, dictation, advanced
 
         var id: String { rawValue }
 
@@ -11,14 +11,34 @@
             switch self {
             case .app: return "App"
             case .dictation: return "Dictation"
-            case .intelligence: return "Intelligence"
             case .advanced: return "Advanced"
             }
         }
     }
 
+    enum MacSettingsTargetSection: String, Hashable {
+        case application
+        case updates
+        case dictationIndicator
+        case shortcuts
+        case feedback
+        case pastingCompatibility
+        case audioInputDevice
+        case inputTest
+        case onDeviceTranscription
+        case aiRefine
+        case mcpServer
+        case calendarTools
+    }
+
+    struct MacSettingsSearchItem: Hashable {
+        let sectionHint: String
+        let targetSection: MacSettingsTargetSection?
+        let keywords: [String]
+    }
+
     enum MacSettingsTab: String, CaseIterable, Identifiable, Hashable {
-        case general, dictation, microphone, transcription, openAI, mcp
+        case general, appearance, dictation, microphone, speechAndRefine, mcp
         #if DEBUG
             case shaderDebug
         #endif
@@ -29,9 +49,8 @@
 
         var section: MacSettingsSection {
             switch self {
-            case .general: return .app
-            case .dictation, .microphone, .transcription: return .dictation
-            case .openAI: return .intelligence
+            case .general, .appearance: return .app
+            case .dictation, .microphone, .speechAndRefine: return .dictation
             case .mcp: return .advanced
             #if DEBUG
                 case .shaderDebug: return .advanced
@@ -42,10 +61,10 @@
         var title: String {
             switch self {
             case .general: return "General"
-            case .dictation: return "Shortcut"
+            case .appearance: return "Appearance"
+            case .dictation: return "Dictation"
             case .microphone: return "Microphone"
-            case .transcription: return "Transcription"
-            case .openAI: return "Refine"
+            case .speechAndRefine: return "Speech & Refine"
             case .mcp: return "MCP"
             #if DEBUG
                 case .shaderDebug: return "Debug"
@@ -56,10 +75,10 @@
         var icon: String {
             switch self {
             case .general: return "gearshape"
+            case .appearance: return "paintbrush"
             case .dictation: return "command"
             case .microphone: return "mic"
-            case .transcription: return "waveform"
-            case .openAI: return "sparkles"
+            case .speechAndRefine: return "waveform"
             case .mcp: return "point.3.connected.trianglepath.dotted"
             #if DEBUG
                 case .shaderDebug: return "ladybug"
@@ -67,33 +86,224 @@
             }
         }
 
-        var searchKeywords: String {
+        var searchItems: [MacSettingsSearchItem] {
             switch self {
-            case .general: return "general launch login dock updates compatibility onboarding"
-            case .dictation: return "shortcut hotkey sound notification mute feedback dictation"
-            case .microphone: return "microphone audio input device hardware level test"
-            case .transcription: return "transcription model engine funasr parakeet apple speech ane coreml"
-            case .openAI: return "refine ai rewrite model api key provider openai anthropic groq endpoint custom"
-            case .mcp: return "mcp server coding agent claude codex cursor http calendar tools"
+            case .general:
+                var items = [
+                    MacSettingsSearchItem(
+                        sectionHint: "Application",
+                        targetSection: .application,
+                        keywords: [
+                            "general", "app", "application", "launch", "login", "startup", "dock", "menu bar",
+                            "menubar",
+                        ]
+                    ),
+                    MacSettingsSearchItem(
+                        sectionHint: "Updates",
+                        targetSection: .updates,
+                        keywords: ["update", "updates", "automatic", "check for updates", "version"]
+                    ),
+                ]
+                #if DEBUG
+                    items.append(
+                        MacSettingsSearchItem(
+                            sectionHint: "Debug",
+                            targetSection: nil,
+                            keywords: ["debug", "onboarding", "restart"]
+                        )
+                    )
+                #endif
+                return items
+            case .appearance:
+                return [
+                    MacSettingsSearchItem(
+                        sectionHint: "Dictation Indicator",
+                        targetSection: .dictationIndicator,
+                        keywords: [
+                            "appearance", "theme", "themes", "capsule", "indicator", "color", "visual", "style",
+                            "preview", "cover flow", "orb", "shader",
+                        ]
+                    )
+                ]
+            case .dictation:
+                return [
+                    MacSettingsSearchItem(
+                        sectionHint: "Shortcuts",
+                        targetSection: .shortcuts,
+                        keywords: [
+                            "dictation", "shortcut", "shortcuts", "hotkey", "hotkeys", "key", "keyboard",
+                            "start dictation", "meeting", "record meeting", "meeting shortcut", "meeting recording",
+                            "trigger",
+                        ]
+                    ),
+                    MacSettingsSearchItem(
+                        sectionHint: "Feedback",
+                        targetSection: .feedback,
+                        keywords: [
+                            "feedback", "sound", "sounds", "interaction sounds", "notification", "notifications",
+                            "notify", "mute", "background audio", "pause media",
+                        ]
+                    ),
+                    MacSettingsSearchItem(
+                        sectionHint: "Pasting & App Compatibility",
+                        targetSection: .pastingCompatibility,
+                        keywords: [
+                            "compatibility", "app compatibility", "compatibility list", "paste", "pasting",
+                            "auto-paste", "autopaste", "insert", "insertion", "clipboard", "blocked", "target app",
+                        ]
+                    ),
+                ]
+            case .microphone:
+                return [
+                    MacSettingsSearchItem(
+                        sectionHint: "Audio Input Device",
+                        targetSection: .audioInputDevice,
+                        keywords: [
+                            "microphone", "mic", "audio", "input", "device", "hardware", "select microphone",
+                            "permission",
+                        ]
+                    ),
+                    MacSettingsSearchItem(
+                        sectionHint: "Input Test",
+                        targetSection: .inputTest,
+                        keywords: ["level", "test", "recording", "playback", "volume", "no speech", "input test"]
+                    ),
+                ]
+            case .speechAndRefine:
+                return [
+                    MacSettingsSearchItem(
+                        sectionHint: "On-Device Transcription",
+                        targetSection: .onDeviceTranscription,
+                        keywords: [
+                            "speech", "transcription", "transcribe", "local", "on-device", "ondevice", "offline",
+                            "engine", "local engine", "model", "models", "downloaded models", "fun-asr", "funasr",
+                            "nano", "parakeet", "fluidaudio", "apple speech", "cpu", "ane", "coreml", "acceleration",
+                            "download",
+                        ]
+                    ),
+                    MacSettingsSearchItem(
+                        sectionHint: "AI Refine",
+                        targetSection: .aiRefine,
+                        keywords: [
+                            "refine", "ai", "ai refine", "llm", "rewrite", "cleanup", "improve",
+                            "transcript improvement", "privacy", "cloud", "api", "api key", "key", "credentials",
+                            "provider", "openai", "google", "gemini", "deepseek", "qwen", "glm",
+                            "apple intelligence", "custom", "endpoint", "server", "thinking", "thinking level",
+                            "catalog",
+                        ]
+                    ),
+                ]
+            case .mcp:
+                return [
+                    MacSettingsSearchItem(
+                        sectionHint: "MCP Server",
+                        targetSection: .mcpServer,
+                        keywords: [
+                            "mcp", "server", "coding agent", "agent", "claude", "codex", "cursor", "http",
+                            "setup prompt", "local",
+                        ]
+                    ),
+                    MacSettingsSearchItem(
+                        sectionHint: "Calendar Tools",
+                        targetSection: .calendarTools,
+                        keywords: ["calendar", "tools", "meetings"]
+                    ),
+                ]
             #if DEBUG
-                case .shaderDebug: return "debug shader workbench"
+                case .shaderDebug:
+                    return [
+                        MacSettingsSearchItem(
+                            sectionHint: "Shader Debug Window",
+                            targetSection: nil,
+                            keywords: ["debug", "shader", "workbench"]
+                        )
+                    ]
             #endif
             }
         }
 
         func matches(_ query: String) -> Bool {
-            let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { return true }
-            let normalized = trimmed.lowercased()
-            return title.lowercased().contains(normalized) || searchKeywords.contains(normalized)
+            let tokens = Self.queryTokens(from: query)
+            guard !tokens.isEmpty else { return true }
+            let corpus = [title.lowercased()] + searchItems.flatMap { [$0.sectionHint.lowercased()] + $0.keywords }
+            return tokens.allSatisfy { token in
+                corpus.contains { $0.contains(token) }
+            }
+        }
+
+        func matchedSearchItem(for query: String) -> MacSettingsSearchItem? {
+            let tokens = Self.queryTokens(from: query)
+            guard !tokens.isEmpty, matches(query) else { return nil }
+
+            let normalizedQuery = tokens.joined(separator: " ")
+            if title.lowercased().hasPrefix(normalizedQuery) {
+                return nil
+            }
+
+            let scored = searchItems.map { item -> (item: MacSettingsSearchItem, matchCount: Int) in
+                let fields = [item.sectionHint.lowercased()] + item.keywords
+                let matchCount = tokens.filter { token in
+                    fields.contains { $0.contains(token) }
+                }.count
+                return (item, matchCount)
+            }
+
+            if let exactMatch = scored.first(where: { $0.matchCount == tokens.count }) {
+                return exactMatch.item
+            }
+
+            let titleLower = title.lowercased()
+            let nonTitleTokens = tokens.filter { !titleLower.contains($0) }
+            if !nonTitleTokens.isEmpty,
+                let bestNonTitle = searchItems.max(by: { lhs, rhs in
+                    let lhsFields = [lhs.sectionHint.lowercased()] + lhs.keywords
+                    let rhsFields = [rhs.sectionHint.lowercased()] + rhs.keywords
+                    let lhsCount = nonTitleTokens.filter { t in lhsFields.contains { $0.contains(t) } }.count
+                    let rhsCount = nonTitleTokens.filter { t in rhsFields.contains { $0.contains(t) } }.count
+                    return lhsCount < rhsCount
+                })
+            {
+                let bestFields = [bestNonTitle.sectionHint.lowercased()] + bestNonTitle.keywords
+                if nonTitleTokens.contains(where: { t in bestFields.contains { $0.contains(t) } }) {
+                    return bestNonTitle
+                }
+            }
+
+            return scored.first(where: { $0.matchCount > 0 })?.item
+        }
+
+        func matchedSectionHint(for query: String) -> String? {
+            matchedSearchItem(for: query)?.sectionHint
+        }
+
+        private static func queryTokens(from query: String) -> [String] {
+            query
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+                .split(whereSeparator: \.isWhitespace)
+                .map(String.init)
         }
     }
 
     @MainActor
     final class MacSettingsNavigationState: ObservableObject {
-        @Published var selectedTab: MacSettingsTab = .general
-        @Published var searchQuery = ""
-        let dictionaryViewModel = DictionaryViewModel()
+        @Published var selectedTab: MacSettingsTab = .general {
+            didSet {
+                updateLastVisibleTab()
+            }
+        }
+        @Published var searchQuery = "" {
+            didSet {
+                if !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    targetSection = nil
+                }
+                updateLastVisibleTab()
+            }
+        }
+        @Published var targetSection: MacSettingsTargetSection?
+        @Published private(set) var navigationRevision = 0
+        private var lastVisibleTab: MacSettingsTab = .general
+
         let openAISettingsViewModel = MacOpenAISettingsViewModel()
         let titleScrollStore = MacSettingsTitleScrollStore()
 
@@ -106,22 +316,59 @@
         }
 
         var activeTab: MacSettingsTab {
+            if filteredTabs.isEmpty {
+                return lastVisibleTab
+            }
             if filteredTabs.contains(selectedTab) {
                 return selectedTab
             }
-            return filteredTabs.first ?? (visibleTabs.first ?? .general)
+            return filteredTabs.first ?? lastVisibleTab
+        }
+
+        var effectiveTargetSection: MacSettingsTargetSection? {
+            if let targetSection {
+                return targetSection
+            }
+            return activeTab.matchedSearchItem(for: searchQuery)?.targetSection
+        }
+
+        func selectTab(_ tab: MacSettingsTab) {
+            selectedTab = tab
+            targetSection = tab.matchedSearchItem(for: searchQuery)?.targetSection
+            navigationRevision += 1
+        }
+
+        func navigate(to tab: MacSettingsTab, section: MacSettingsTargetSection? = nil) {
+            searchQuery = ""
+            selectedTab = tab
+            targetSection = section
+            navigationRevision += 1
+        }
+
+        func clearFilter() {
+            searchQuery = ""
+            targetSection = nil
         }
 
         func reloadStateFromPreferences() {
             openAISettingsViewModel.load()
-            dictionaryViewModel.load()
         }
 
         func synchronizeSelection() {
             if visibleTabs.contains(selectedTab) {
+                updateLastVisibleTab()
                 return
             }
             selectedTab = visibleTabs.first ?? .general
+        }
+
+        private func updateLastVisibleTab() {
+            let matches = filteredTabs
+            if matches.contains(selectedTab) {
+                lastVisibleTab = selectedTab
+            } else if let first = matches.first {
+                lastVisibleTab = first
+            }
         }
     }
 
@@ -129,6 +376,7 @@
         @ObservedObject var state: MacSettingsNavigationState
         var onBack: (() -> Void)? = nil
         @State private var isHoveringBack = false
+        @FocusState private var isSearchFocused: Bool
 
         var body: some View {
             VStack(alignment: .leading, spacing: 0) {
@@ -157,9 +405,10 @@
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .keyboardShortcut("[", modifiers: .command)
                         .onHover { isHoveringBack = $0 }
                         .accessibilityLabel("Back to Stet")
-                        .help("Back to Stet")
+                        .help("Back to Stet (⌘[)")
                     }
 
                     LinearSearchField(
@@ -167,7 +416,11 @@
                         text: $state.searchQuery,
                         height: 27,
                         fillColor: MacUI.LinearSurfaces.glassInset,
-                        isBorderless: true
+                        isBorderless: true,
+                        focusBinding: $isSearchFocused,
+                        onEscape: {
+                            state.clearFilter()
+                        }
                     )
                 }
                 .padding(.horizontal, MacUI.LinearMetrics.sidebarHorizontalPadding)
@@ -177,11 +430,24 @@
                 ScrollView {
                     VStack(alignment: .leading, spacing: MacUI.LinearMetrics.sidebarSectionGap) {
                         if state.filteredTabs.isEmpty {
-                            Text("No matching settings")
-                                .font(MacUI.LinearTypography.rowSubtitle)
-                                .foregroundStyle(MacUI.LinearSurfaces.mutedInk)
-                                .padding(.horizontal, 9)
-                                .padding(.top, 4)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("No matching settings")
+                                    .font(MacUI.LinearTypography.sidebarSelected)
+                                    .foregroundStyle(MacUI.Foreground.primary)
+
+                                Text("Try keywords like \"paste\", \"shortcut\", or \"microphone\".")
+                                    .font(MacUI.LinearTypography.rowSubtitle)
+                                    .foregroundStyle(MacUI.LinearSurfaces.mutedInk)
+                                    .fixedSize(horizontal: false, vertical: true)
+
+                                Button("Clear Filter") {
+                                    state.clearFilter()
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+                            .padding(.horizontal, 9)
+                            .padding(.top, 6)
                         } else {
                             ForEach(MacSettingsSection.allCases) { section in
                                 let tabs = state.filteredTabs.filter { $0.section == section }
@@ -195,12 +461,14 @@
 
                                         VStack(spacing: MacUI.LinearMetrics.sidebarRowGap) {
                                             ForEach(tabs) { tab in
+                                                let hint = tab.matchedSectionHint(for: state.searchQuery)
                                                 LinearSidebarNavRow(
                                                     title: LocalizedStringKey(tab.title),
                                                     systemImage: tab.icon,
-                                                    isSelected: tab == state.activeTab
+                                                    isSelected: tab == state.activeTab,
+                                                    subtitle: hint.map { LocalizedStringKey($0) }
                                                 ) {
-                                                    state.selectedTab = tab
+                                                    state.selectTab(tab)
                                                 }
                                             }
                                         }
@@ -216,6 +484,16 @@
                 .scrollIndicators(.hidden)
             }
             .frame(maxHeight: .infinity, alignment: .top)
+            .background {
+                Button("") {
+                    isSearchFocused = true
+                }
+                .keyboardShortcut("f", modifiers: .command)
+                .labelsHidden()
+                .frame(width: 0, height: 0)
+                .opacity(0)
+                .accessibilityHidden(true)
+            }
         }
     }
 
@@ -230,7 +508,7 @@
                     state.reloadStateFromPreferences()
                     state.synchronizeSelection()
                 }
-                .onChange(of: state.selectedTab) { _, _ in
+                .onChange(of: state.activeTab) { _, _ in
                     state.titleScrollStore.reset()
                 }
                 .environment(\.macSettingsTitleScrollStore, state.titleScrollStore)
@@ -240,15 +518,25 @@
         private func selectedContent(for tab: MacSettingsTab) -> some View {
             switch tab {
             case .general:
-                MacGeneralSettingsView()
+                MacGeneralSettingsView(
+                    scrollTarget: state.effectiveTargetSection,
+                    scrollTrigger: state.navigationRevision
+                )
+            case .appearance:
+                MacAppearanceSettingsView()
             case .dictation:
-                MacDictationSettingsView()
+                MacDictationSettingsView(
+                    scrollTarget: state.effectiveTargetSection,
+                    scrollTrigger: state.navigationRevision
+                )
             case .microphone:
                 MacMicrophoneSettingsView()
-            case .transcription:
-                MacTranscriptionSettingsView()
-            case .openAI:
-                MacOpenAISettingsView(viewModel: state.openAISettingsViewModel)
+            case .speechAndRefine:
+                MacSpeechAndRefineSettingsView(
+                    openAIViewModel: state.openAISettingsViewModel,
+                    scrollTarget: state.effectiveTargetSection,
+                    scrollTrigger: state.navigationRevision
+                )
             case .mcp:
                 MacMCPSettingsView()
             #if DEBUG

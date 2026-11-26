@@ -2,85 +2,80 @@
     import StetCore
     import SwiftUI
 
-    struct MacTranscriptionSettingsView: View {
-        @StateObject private var viewModel = MacAudioSettingsViewModel()
+    struct MacTranscriptionSettingsSections: View {
+        @ObservedObject var viewModel: MacAudioSettingsViewModel
         @EnvironmentObject private var aneModelSettings: ANEModelSettingsViewModel
 
         var body: some View {
-            LinearPageContainer(title: "Transcription") {
-                LinearSectionGroup("Local Engine") {
-                    LinearSettingRow(
-                        "Engine",
-                        subtitle: "Choose which on-device model handles transcription."
-                    ) {
-                        Picker("", selection: $viewModel.localTranscriptionEngine) {
-                            ForEach(viewModel.localTranscriptionEngineOptions, id: \.self) { engine in
-                                Text(LocalizedStringKey(engine.displayName)).tag(engine)
-                            }
+            LinearSectionGroup(
+                "On-Device Transcription",
+                footer: "Audio is transcribed on your Mac. Choose which local engine handles speech-to-text."
+            ) {
+                LinearSettingRow(
+                    "Engine",
+                    subtitle: "Choose which on-device model handles transcription."
+                ) {
+                    Picker("", selection: $viewModel.localTranscriptionEngine) {
+                        ForEach(viewModel.localTranscriptionEngineOptions, id: \.self) { engine in
+                            Text(LocalizedStringKey(engine.displayName)).tag(engine)
                         }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .frame(width: MacUI.LinearMetrics.pickerWidth, alignment: .trailing)
                     }
-                }
-
-                if viewModel.localTranscriptionEngine == .fluidAudio, !viewModel.isParakeetDownloaded {
-                    LinearInlineBanner(
-                        systemImage: "exclamationmark.triangle.fill",
-                        tint: MacUI.Foreground.warning,
-                        message:
-                            "Parakeet model isn't downloaded yet. Stet will fall back to Fun-ASR Nano until you download it below."
-                    )
-                }
-
-                if viewModel.localTranscriptionEngine == .funASRNano, !viewModel.isFunASRNanoDownloaded {
-                    LinearInlineBanner(
-                        systemImage: "exclamationmark.triangle.fill",
-                        tint: MacUI.Foreground.warning,
-                        message: "Fun-ASR Nano isn't downloaded yet. Download it below before dictating."
-                    )
-                }
-
-                if viewModel.localTranscriptionEngine == .appleSpeech, !viewModel.appleSpeechAssetState.isInstalled {
-                    LinearInlineBanner(
-                        systemImage: "exclamationmark.triangle.fill",
-                        tint: MacUI.Foreground.warning,
-                        text: viewModel.appleSpeechAssetState.statusText
-                    )
-                }
-
-                LinearSectionGroup("Downloaded Models") {
-                    TranscriptionModelRow(
-                        name: "Fun-ASR Nano (Chinese / English / Japanese)",
-                        isDownloaded: viewModel.isFunASRNanoDownloaded,
-                        isDownloading: viewModel.isFunASRNanoDownloading,
-                        errorMessage: viewModel.funASRNanoErrorMessage,
-                        onDownload: { viewModel.downloadFunASRNanoModel() },
-                        onReveal: { viewModel.openFunASRNanoFolder() }
-                    )
-
-                    ANEModelSettingsRow(viewModel: aneModelSettings)
-
-                    TranscriptionModelRow(
-                        name: "Parakeet V3",
-                        isDownloaded: viewModel.isParakeetDownloaded,
-                        isDownloading: viewModel.isParakeetDownloading,
-                        errorMessage: viewModel.parakeetErrorMessage,
-                        onDownload: { viewModel.downloadParakeetModel() },
-                        onReveal: { viewModel.openParakeetFolder() }
-                    )
-
-                    AppleSpeechModelRow(
-                        state: viewModel.appleSpeechAssetState,
-                        onDownload: { viewModel.downloadAppleSpeechModel() }
-                    )
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(width: MacUI.LinearMetrics.pickerWidth, alignment: .trailing)
                 }
             }
-            .task {
-                viewModel.onAppear()
+
+            if viewModel.localTranscriptionEngine == .fluidAudio, !viewModel.isParakeetDownloaded {
+                LinearInlineBanner(
+                    systemImage: "exclamationmark.triangle.fill",
+                    tint: MacUI.Foreground.warning,
+                    message:
+                        "Parakeet model isn't downloaded yet. Stet will fall back to Fun-ASR Nano until you download it below."
+                )
             }
-            .onDisappear {
-                viewModel.onDisappear()
+
+            if viewModel.localTranscriptionEngine == .funASRNano, !viewModel.isFunASRNanoDownloaded {
+                LinearInlineBanner(
+                    systemImage: "exclamationmark.triangle.fill",
+                    tint: MacUI.Foreground.warning,
+                    message: "Fun-ASR Nano isn't downloaded yet. Download it below before dictating."
+                )
+            }
+
+            if viewModel.localTranscriptionEngine == .appleSpeech, !viewModel.appleSpeechAssetState.isInstalled {
+                LinearInlineBanner(
+                    systemImage: "exclamationmark.triangle.fill",
+                    tint: MacUI.Foreground.warning,
+                    text: viewModel.appleSpeechAssetState.statusText
+                )
+            }
+
+            LinearSectionGroup("Downloaded Models") {
+                TranscriptionModelRow(
+                    name: "Fun-ASR Nano (Chinese / English / Japanese)",
+                    isDownloaded: viewModel.isFunASRNanoDownloaded,
+                    isDownloading: viewModel.isFunASRNanoDownloading,
+                    errorMessage: viewModel.funASRNanoErrorMessage,
+                    onDownload: { viewModel.downloadFunASRNanoModel() },
+                    onReveal: { viewModel.openFunASRNanoFolder() }
+                )
+
+                ANEModelSettingsRow(viewModel: aneModelSettings)
+
+                TranscriptionModelRow(
+                    name: "Parakeet V3",
+                    isDownloaded: viewModel.isParakeetDownloaded,
+                    isDownloading: viewModel.isParakeetDownloading,
+                    errorMessage: viewModel.parakeetErrorMessage,
+                    onDownload: { viewModel.downloadParakeetModel() },
+                    onReveal: { viewModel.openParakeetFolder() }
+                )
+
+                AppleSpeechModelRow(
+                    state: viewModel.appleSpeechAssetState,
+                    onDownload: { viewModel.downloadAppleSpeechModel() }
+                )
             }
         }
 

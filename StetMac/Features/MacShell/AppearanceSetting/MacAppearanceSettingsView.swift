@@ -17,12 +17,15 @@
             GeometryReader { geometry in
                 let coverScale = max(
                     0.35,
-                    min(0.72, (geometry.size.width - 64) / 440, (geometry.size.height - 104) / 380)
+                    min(0.72, (geometry.size.width - 64) / 440, (geometry.size.height - 124) / 380)
                 )
 
                 ScrollView {
                     VStack(spacing: 14) {
-                        LinearSectionGroup {
+                        LinearSectionGroup(
+                            "Dictation Indicator",
+                            footer: "Choose the appearance of your dictation indicator."
+                        ) {
                             VStack(spacing: 10) {
                                 capsulePreview
                                 appearanceCoverFlow
@@ -34,12 +37,7 @@
                             .padding(.horizontal, 12)
                             .frame(maxWidth: .infinity)
                         }
-
-                        Text("Choose the appearance of your dictation indicator.")
-                            .font(MacUI.LinearTypography.rowSubtitle)
-                            .foregroundStyle(MacUI.LinearSurfaces.mutedInk)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
+                        .id(MacSettingsTargetSection.dictationIndicator)
                     }
                     .frame(maxWidth: MacUI.LinearMetrics.contentMaxWidth)
                     .frame(maxWidth: .infinity)

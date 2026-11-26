@@ -4,15 +4,20 @@ import SwiftUI
 struct MacHotKeySettingsSectionView: View {
     let hotkey: HotkeyBinding
     var compactRow: Bool = false
+    var subtitle: LocalizedStringKey =
+        "Press a modifier-plus-key combination such as Control + Space or Command + K."
     var onChange: ((KeyboardShortcuts.Shortcut?) -> Void)?
 
     init(
         hotkey: HotkeyBinding = .dictation,
         compactRow: Bool = false,
+        subtitle: LocalizedStringKey =
+            "Press a modifier-plus-key combination such as Control + Space or Command + K.",
         onChange: ((KeyboardShortcuts.Shortcut?) -> Void)? = nil
     ) {
         self.hotkey = hotkey
         self.compactRow = compactRow
+        self.subtitle = subtitle
         self.onChange = onChange
     }
 
@@ -20,7 +25,7 @@ struct MacHotKeySettingsSectionView: View {
         if compactRow {
             LinearSettingRow(
                 LocalizedStringKey(hotkey.title),
-                subtitle: "Press a modifier-plus-key combination such as Control + Space or Command + K."
+                subtitle: subtitle
             ) {
                 KeyboardShortcuts.Recorder(
                     for: hotkey.name,
