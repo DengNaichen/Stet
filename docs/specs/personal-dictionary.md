@@ -48,7 +48,7 @@
 
 ---
 
-### 用户故事 3 - 批量导入与整理（优先级：P2，macOS）
+### 用户故事 3 - 批量导入与整理（优先级：P2）
 
 作为用户，我有一份现成的术语表，希望一次导入；也希望能编辑、删除或清空词条。
 
@@ -58,10 +58,11 @@
 
 **验收场景**：
 
-1. **Given** 一个不超过 512 KB 的 UTF-8 或 UTF-16 文本 / CSV 文件，**When** 导入，**Then** 按逗号和换行拆分，新增不重复的词条并报告跳过的重复数。
-2. **Given** 导入后词典总量会超过同步上限（FR-008），**When** 导入，**Then** 拒绝导入并说明原因，词典不变。
-3. **Given** 我编辑一个词条，**When** 保存，**Then** 原词条被替换为新内容，结果为手动来源。
-4. **Given** 我点击清空，**When** 输入 CLEAR 并确认，**Then** 所有词条与来源信息被删除并同步。
+1. **Given** 一个不超过 512 KB 的 UTF-8 或 UTF-16 文本 / CSV 文件，**When** 导入，**Then** 纯文本按逗号和换行拆分；CSV 按 RFC 4180 解析（支持双引号字段与转义引号，识别常见表头列并忽略备注等附加列，带 `source` 列时保留来源），新增不重复的词条并报告跳过的重复数。
+2. **Given** 词典已有词条，**When** 导出 CSV，**Then** 生成包含 `term,source` 表头的标准 RFC 4180 CSV（`stet-dictionary.csv`），重新导入可无损还原词条与来源。
+3. **Given** 导入后词典总量会超过同步上限（FR-008），**When** 导入，**Then** 拒绝导入并说明原因，词典不变。
+4. **Given** 我在 macOS 编辑一个词条，**When** 保存，**Then** 原词条被替换为新内容，结果为手动来源。
+5. **Given** 我在 macOS 点击清空，**When** 输入 CLEAR 并确认，**Then** 所有词条与来源信息被删除并同步。
 
 ---
 
@@ -94,12 +95,12 @@
 **词条管理**
 
 - **FR-001**：词条必须按查重键去重；保留最先出现的拼写，但手动来源覆盖自动来源时采用手动拼写。
-- **FR-002**：添加、导入时按英文逗号和换行拆分输入；拆分后为空的片段忽略。
+- **FR-002**：手动添加和纯文本导入时按英文逗号和换行拆分输入；拆分后为空的片段忽略。
 - **FR-003**：新词条追加在列表末尾；词条顺序在同步和重新读取后保持不变。
 - **FR-004**：删除按查重键匹配；清空必须同时删除词条和来源信息。
-- **FR-005**：macOS 支持添加、编辑、删除、导入和需要输入 CLEAR 确认的清空；编辑后的词条为手动来源。
-- **FR-006**：iOS 主 App 支持添加和删除；不提供编辑、导入、清空、启用开关和来源图标。（待产品确认）
-- **FR-007**：导入只接受不超过 512,000 字节的 UTF-8 或 UTF-16 文本，忽略 BOM；结果报告新增数和跳过的重复数（跳过数只统计与已有词条重复的项；文件内部的重复项在拆分时已合并，不计入）。
+- **FR-005**：macOS 支持添加、编辑、删除、CSV/文本导入、CSV 导出和需要输入 CLEAR 确认的清空；编辑后的词条为手动来源。
+- **FR-006**：iOS 主 App 支持添加、删除、CSV/文本导入和 CSV 导出；不提供编辑、清空、启用开关和来源图标。（待产品确认）
+- **FR-007**：导入只接受不超过 512,000 字节的 UTF-8 或 UTF-16 文本 / CSV，忽略 BOM；CSV 按 RFC 4180 解析（支持双引号和 `""` 转义，识别 `term`/`word`/`phrase`/`entry`/`词条` 等表头并忽略无关列，含 `source`/`来源` 列时保留来源）；结果报告新增数和跳过的重复数（跳过数只统计与已有词条重复的项；文件内部的重复项在解析时已合并，不计入）。导出生成 `term,source` 两列的标准 UTF-8 CSV。
 - **FR-008**：导入后词条与来源的编码总量不得超过 800,000 字节；超过时拒绝整次导入。手动添加当前不检查该上限。（待产品确认）
 
 **来源**
@@ -129,7 +130,7 @@
 - **FR-019**：读取时云端存在词条数组（包括空数组）就以云端为准并刷新本机缓存；云端不存在时使用本机缓存。明确的空云端数组按删除处理。
 - **FR-020**：收到 iCloud 外部变更通知且涉及词典键时，用云端整份列表替换本机缓存，并通知界面刷新。
 - **FR-021**：冲突以 iCloud 键值存储最后写入的整份列表为准，不做逐条合并。（待产品确认）
-- **FR-022**：macOS 与 iOS 共用同一 iCloud 键值存储标识（`$(TeamIdentifierPrefix)NaichengDeng.Stet`），同一 Apple 账号下的 Mac 与 iPhone 自动同步个人词典；首次切换到共享标识时对本机缓存与云端已有词条执行一次增量合并（保留手动来源优先），此后遵守云端清空语义。
+- **FR-022**：macOS 与 iOS 共用同一 iCloud 键值存储标识（Release 为 `$(TeamIdentifierPrefix)NaichengDeng.Stet`，Debug 另加 `.Debug` 后缀），同一 Apple 账号下的 Mac 与 iPhone 自动同步个人词典；首次切换到共享标识时对本机缓存与云端已有词条执行一次增量合并（保留手动来源优先），此后遵守云端清空语义。
 
 **数据去向**
 
@@ -161,17 +162,17 @@
 
 1. **冲突策略**：当前整份列表后写覆盖（FR-021），离线并发修改会丢失一方。可选方向：保持；改为按词条合并（需定义删除的表示）。
 2. **容量上限**：手动添加不检查 800,000 字节上限（FR-008），超出系统容量时同步会失败且无提示。可选方向：所有写入统一检查上限；保持。
-3. **iOS 管理能力**：iOS 没有启用开关、编辑、导入、清空和来源显示（FR-006）。可选方向：补齐；保持精简。
+3. **iOS 管理能力**：iOS 没有启用开关、编辑、清空和来源显示（FR-006）。可选方向：补齐；保持精简。
 4. **改写词条无上限**：改写会收到全部词条（FR-011），大词典会显著加长改写请求。可选方向：保持；设上限或按相关性筛选。
 
 ## 与当前实现的已知差异（非规范，供评审）
 
 以下记录当前实现的关键细节，不代表产品决定。
 
-- iCloud 键值存储标识已统一为 `$(TeamIdentifierPrefix)NaichengDeng.Stet`（[macOS entitlements](../../StetMac/Stet.entitlements)、[iOS entitlements](../../StetMobile/StetMobile/StetMobile.entitlements)），两端通过 [DictionaryModel](../../Packages/StetEngine/Sources/StetCore/DictionaryModel.swift) 互相同步，首次升级时执行一次 `dictionary.kvs.unifiedMergeV1` 合并。
+- 两端按构建配置共用 iCloud 键值存储标识（见 FR-022）（[macOS entitlements](../../StetMac/Stet.entitlements)、[iOS entitlements](../../StetMobile/StetMobile/StetMobile.entitlements)），两端通过 [DictionaryModel](../../Packages/StetEngine/Sources/StetCore/DictionaryModel.swift) 互相同步，首次升级时执行一次 `dictionary.kvs.unifiedMergeV1` 合并。
 - 冲突处理是整份覆盖：[DictionaryModel](../../Packages/StetEngine/Sources/StetCore/DictionaryModel.swift) 的 `updateRecords` 每次写整份数组，外部变更通知时整份替换本机缓存。
 - 手动添加（`addEntries`）不检查 `maximumStoredUTF8ByteCount`，只有 `importEntries` 检查。
 - Parakeet 收到全部词条的 prompt，但 [FluidAudioTranscriptionService](../../StetMac/Core/FluidAudio/FluidAudioTranscriptionService.swift) 的 `transcribe` 没有使用 prompt 参数；Apple Speech 同样忽略 prompt。词条选择见 [DictationPipelineFactory](../../StetMac/Core/DictationPipeline/DictationPipelineFactory.swift) 的 `makeTranscriptionPrompt` 和 [FunASRNanoHotwordPrompt](../../Packages/StetEngine/Sources/StetCore/FunASRNanoHotwordPrompt.swift)。
-- iOS 的词条分别由 [AppleSpeechDictationEngine](../../StetMobile/StetMobile/Core/Dictation/AppleSpeechDictationEngine.swift) 和 [TranscriptPostProcessor](../../StetMobile/StetMobile/Core/Dictation/TranscriptPostProcessor.swift) 用于转写提示和改写。iOS 词典页支持添加和删除，默认开启词典。
+- iOS 的词条分别由 [AppleSpeechDictationEngine](../../StetMobile/StetMobile/Core/Dictation/AppleSpeechDictationEngine.swift) 和 [TranscriptPostProcessor](../../StetMobile/StetMobile/Core/Dictation/TranscriptPostProcessor.swift) 用于转写提示和改写。iOS 词典页支持添加、删除、CSV/文本导入和 CSV 导出，默认开启词典。
 - macOS 编辑词条（[DictionaryViewModel](../../StetMac/Features/MacShell/Dictionary/DictionaryViewModel.swift) 的 `saveEntries`）先替换再按手动重新添加，因此编辑后的自动词条变为手动来源。
 - 旧版本词典的一次性迁移见 [LegacyDictionaryMigration](../../StetMac/Shared/Models/LegacyDictionaryMigration.swift)：只在新词典为空时导入。

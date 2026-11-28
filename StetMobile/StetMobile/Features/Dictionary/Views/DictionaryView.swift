@@ -1,11 +1,15 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 struct DictionaryView: View {
     @StateObject private var viewModel = DictionaryViewModel()
     @FocusState private var isTextFieldFocused: Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.scenePhase) private var scenePhase
+    @State private var isImportingFile = false
+    @State private var isExportingFile = false
+    @State private var exportDocument = DictionaryCSVDocument()
 
     private static let recommendedHotwordLimit = 100
 
@@ -124,6 +128,63 @@ struct DictionaryView: View {
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Dictionary")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button {
+                            isImportingFile = true
+                        } label: {
+                            Label("Import CSV / TXT…", systemImage: "square.and.arrow.down")
+                        }
+
+                        Button {
+                            exportDocument = DictionaryCSVDocument(data: viewModel.exportCSVData())
+                            isExportingFile = true
+                        } label: {
+                            Label("Export CSV…", systemImage: "square.and.arrow.up")
+                        }
+                        .disabled(viewModel.allWords.isEmpty)
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .accessibilityLabel("Dictionary actions")
+                    }
+                }
+            }
+            .fileImporter(
+                isPresented: $isImportingFile,
+                allowedContentTypes: [.commaSeparatedText, .plainText, .utf8PlainText],
+                allowsMultipleSelection: false
+            ) { result in
+                switch result {
+                case .success(let urls):
+                    guard let url = urls.first else { return }
+                    viewModel.importEntries(from: url)
+                case .failure(let error):
+                    viewModel.importAlert = .failure(error.localizedDescription)
+                }
+            }
+            .fileExporter(
+                isPresented: $isExportingFile,
+                document: exportDocument,
+                contentType: .commaSeparatedText,
+                defaultFilename: "stet-dictionary.csv"
+            ) { result in
+                if case .failure(let error) = result {
+                    viewModel.importAlert = .failure(error.localizedDescription)
+                }
+            }
+            .alert(
+                viewModel.importAlert?.title ?? "Import Dictionary",
+                isPresented: Binding(
+                    get: { viewModel.importAlert != nil },
+                    set: { if !$0 { viewModel.importAlert = nil } }
+                ),
+                presenting: viewModel.importAlert
+            ) { _ in
+                Button("OK") { viewModel.importAlert = nil }
+            } message: { alert in
+                Text(alert.message)
+            }
             .onAppear {
                 viewModel.load()
             }
@@ -157,6 +218,24 @@ struct DictionaryView: View {
             viewModel.addDraftEntries()
         }
         isTextFieldFocused = false
+    }
+}
+
+private struct DictionaryCSVDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.commaSeparatedText] }
+
+    var data: Data
+
+    init(data: Data = Data()) {
+        self.data = data
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        self.data = configuration.file.regularFileContents ?? Data()
+    }
+
+    func fileWrapper(configuration _: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
     }
 }
 

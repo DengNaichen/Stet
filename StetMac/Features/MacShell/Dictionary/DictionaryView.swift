@@ -1,4 +1,5 @@
 #if os(macOS)
+    import AppKit
     import StetCore
     import SwiftUI
     import UniformTypeIdentifiers
@@ -58,12 +59,22 @@
                 }
 
                 LinearSectionGroup("Current Entries") {
-                    HStack {
+                    HStack(spacing: 8) {
                         Text("\(viewModel.entries.count) words and phrases")
                             .font(MacUI.LinearTypography.rowSubtitle)
                             .foregroundStyle(MacUI.Foreground.secondary)
                         Spacer()
+                        Button("Import CSV") {
+                            isImportingFile = true
+                        }
+                        .buttonStyle(.bordered)
+
                         if !viewModel.entries.isEmpty {
+                            Button("Export CSV") {
+                                exportCSV()
+                            }
+                            .buttonStyle(.bordered)
+
                             Button("Clear Dictionary", role: .destructive) {
                                 clearConfirmation = ""
                                 isShowingClearConfirmation = true
@@ -155,9 +166,17 @@
                     Button {
                         isImportingFile = true
                     } label: {
-                        Label("Import…", systemImage: "square.and.arrow.down")
+                        Label("Import CSV…", systemImage: "square.and.arrow.down")
                     }
-                    .help("Import words or phrases from a file")
+                    .help("Import words or phrases from a CSV or text file")
+
+                    Button {
+                        exportCSV()
+                    } label: {
+                        Label("Export CSV…", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(viewModel.entries.isEmpty)
+                    .help("Export personal dictionary as CSV")
 
                     Button {
                         openEditor()
@@ -170,7 +189,7 @@
             .onAppear { viewModel.load() }
             .fileImporter(
                 isPresented: $isImportingFile,
-                allowedContentTypes: [.plainText, .commaSeparatedText, .utf8PlainText],
+                allowedContentTypes: [.commaSeparatedText, .plainText, .utf8PlainText],
                 allowsMultipleSelection: false
             ) { result in
                 switch result {
@@ -192,6 +211,24 @@
                 Button("OK") { viewModel.importAlert = nil }
             } message: { alert in
                 Text(verbatim: alert.message)
+            }
+        }
+
+        private func exportCSV() {
+            let data = viewModel.exportCSVData()
+            let panel = NSSavePanel()
+            panel.nameFieldStringValue = "stet-dictionary.csv"
+            panel.allowedContentTypes = [.commaSeparatedText]
+            panel.canCreateDirectories = true
+            panel.begin { response in
+                guard response == .OK, let url = panel.url else { return }
+                do {
+                    try data.write(to: url, options: .atomic)
+                } catch {
+                    Task { @MainActor in
+                        viewModel.importAlert = .failure(error.localizedDescription)
+                    }
+                }
             }
         }
 

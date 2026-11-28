@@ -119,5 +119,31 @@
             #expect(subject.viewModel.source(for: "Stet") == .manual)
             #expect(subject.viewModel.importAlert == .success(added: 2, skipped: 1))
         }
+
+        @Test func importFromCSVFileParsesHeadersQuotesAndExportsCSV() throws {
+            let subject = makeViewModel(defaults: TestSupport.makeUserDefaults())
+            defer { subject.model.clear() }
+            subject.model.addAutomaticEntries(["python"])
+            subject.viewModel.load()
+            let url = TestSupport.temporaryFileURL("glossary", ext: "csv")
+            let csv = """
+                term,source,notes
+                "Apple, Inc.",manual,"Brand"
+                Python,manual,"Duplicate"
+                FunASR,automatic,"Model"
+                """
+            try Data(csv.utf8).write(to: url)
+
+            subject.viewModel.importEntries(from: url)
+
+            #expect(subject.viewModel.entries == ["python", "Apple, Inc.", "FunASR"])
+            #expect(subject.viewModel.source(for: "python") == .automatic)
+            #expect(subject.viewModel.source(for: "Apple, Inc.") == .manual)
+            #expect(subject.viewModel.source(for: "FunASR") == .automatic)
+            #expect(subject.viewModel.importAlert == .success(added: 2, skipped: 1))
+
+            let exported = try DictionaryModel.importText(from: subject.viewModel.exportCSVData())
+            #expect(exported == "term,source\npython,automatic\n\"Apple, Inc.\",manual\nFunASR,automatic\n")
+        }
     }
 #endif

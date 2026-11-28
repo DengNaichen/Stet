@@ -257,23 +257,44 @@ public struct DictionaryModel: Sendable {
     public static let maximumImportFileByteCount = 512_000
     public static let maximumStoredUTF8ByteCount = 800_000
 
-    public func importEntries(from rawInput: String) throws -> DictionaryImportResult {
-        let incoming = Self.words(from: rawInput)
-        guard !incoming.isEmpty else { throw DictionaryImportError.empty }
+    public func importEntries(
+        from rawInput: String,
+        format: DictionaryImportFormat = .plainText
+    ) throws -> DictionaryImportResult {
+        let incomingRecords: [GlossaryEntry]
+        switch format {
+        case .plainText:
+            incomingRecords = Self.words(from: rawInput).map { GlossaryEntry(term: $0, source: .manual) }
+        case .csv:
+            incomingRecords = DictionaryCSV.parseRecords(from: rawInput)
+        }
+        guard !incomingRecords.isEmpty else { throw DictionaryImportError.empty }
         let existing = loadRecords()
         let existingKeys = Set(existing.map { Self.lookupKey(for: $0.term) })
-        let uniqueIncoming = incoming.filter { !existingKeys.contains(Self.lookupKey(for: $0)) }
-        let merged = existing + uniqueIncoming.map { GlossaryEntry(term: $0, source: .manual) }
+        let uniqueIncoming = incomingRecords.filter { !existingKeys.contains(Self.lookupKey(for: $0.term)) }
+        let merged = existing + uniqueIncoming
         guard Self.encodedUTF8ByteCount(of: merged) <= Self.maximumStoredUTF8ByteCount else {
             throw DictionaryImportError.dictionaryWouldExceedLimit
         }
         if !uniqueIncoming.isEmpty {
-            _ = addEntries(from: uniqueIncoming.joined(separator: "\n"))
+            _ = syncedStore.updateRecords { current in
+                let currentKeys = Set(current.map { Self.lookupKey(for: $0.term) })
+                let additions = uniqueIncoming.filter { !currentKeys.contains(Self.lookupKey(for: $0.term)) }
+                return current + additions
+            }
         }
         return DictionaryImportResult(
             addedCount: uniqueIncoming.count,
-            skippedCount: incoming.count - uniqueIncoming.count
+            skippedCount: incomingRecords.count - uniqueIncoming.count
         )
+    }
+
+    public func exportCSV() -> String {
+        DictionaryCSV.exportCSV(records: loadRecords())
+    }
+
+    public func exportCSVData() -> Data {
+        DictionaryCSV.exportCSVData(records: loadRecords())
     }
 
     public static func importText(from data: Data) throws -> String {
