@@ -108,8 +108,8 @@
 
         func applyWindowChrome() {
             guard let window else { return }
-            window.titlebarAppearsTransparent = true
-            window.titlebarSeparatorStyle = .none
+            window.titlebarAppearsTransparent = false
+            window.titlebarSeparatorStyle = .automatic
 
             for type: NSWindow.ButtonType in [.closeButton, .miniaturizeButton, .zoomButton] {
                 window.standardWindowButton(type)?.isHidden = false

@@ -103,7 +103,7 @@
             static let insetMargin: CGFloat = 7
             static let insetCornerRadius: CGFloat = 10
             static let contentHorizontalPadding: CGFloat = 24
-            static let contentTopPadding: CGFloat = 12
+            static let contentTopPadding: CGFloat = 16
             static let contentBottomPadding: CGFloat = 24
             static let contentSectionSpacing: CGFloat = 18
             static let contentMaxWidth: CGFloat = 720
@@ -251,6 +251,16 @@
                 base
             }
         }
+
+        /// Obscure scrolling content beneath the native unified titlebar on macOS 26+.
+        @ViewBuilder
+        func macNativeTopScrollEdgeEffect() -> some View {
+            if #available(macOS 26.0, *) {
+                scrollEdgeEffectStyle(.hard, for: .top)
+            } else {
+                self
+            }
+        }
     }
 
     /// Standard scrollable detail container with native unified toolbar title.
@@ -290,6 +300,7 @@
                     .padding(.top, MacUI.LinearMetrics.contentTopPadding)
                     .padding(.bottom, MacUI.LinearMetrics.contentBottomPadding)
                 }
+                .macNativeTopScrollEdgeEffect()
                 .macSettingsScrollIndicator()
                 .onAppear {
                     scrollToTargetIfNeeded(using: proxy, animated: false)
