@@ -73,7 +73,7 @@ struct ContentView: View {
             Tab(value: AppViewModel.Tab.dictation, role: dictationTabRole) {
                 SenseVoiceView(
                     viewModel: viewModel,
-                    languageLabel: rewriteSettingsViewModel.selectedLanguage.shortLabel,
+                    languageLabel: rewriteSettingsViewModel.languageSummaryLabel,
                     speechAssetStatus: rewriteSettingsViewModel.speechAssetStatus,
                     isRewriteEnabled: rewriteSettingsViewModel.settingsStore.isRewriteEnabled,
                     onOpenSettings: {
