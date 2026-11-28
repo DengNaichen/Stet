@@ -20,9 +20,11 @@ struct SenseVoiceView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
+            VStack(spacing: 16) {
+                headerRow
+                    .padding(.top, 8)
+
                 statusHeaderBar
-                    .padding(.top, 4)
 
                 transcriptCard
 
@@ -39,46 +41,66 @@ struct SenseVoiceView: View {
             .sheet(isPresented: $isShowingTimingHistory) {
                 DictationTimingHistorySheet(timingStore: timingStore)
             }
-            .navigationTitle("Dictation")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    if let languageLabel {
-                        Button {
-                            onOpenSettings?()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(languageLabel)
-                                    .font(.caption.weight(.medium))
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 9, weight: .semibold))
-                            }
-                            .foregroundStyle(.secondary)
-                        }
-                        .accessibilityLabel("Recognition language \(languageLabel)")
-                    }
-
-                    Menu {
-                        ForEach(MobileDictationVisualTheme.allCases) { theme in
-                            Button {
-                                themeRawValue = theme.rawValue
-                            } label: {
-                                if theme == selectedTheme {
-                                    Label(theme.title, systemImage: "checkmark")
-                                } else {
-                                    Text(theme.title)
-                                }
-                            }
-                        }
-                    } label: {
-                        ThemeOrbSwatch(theme: selectedTheme, size: 22)
-                    }
-                    .accessibilityLabel("Voice orb theme")
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .onDisappear {
                 copyResetTask?.cancel()
             }
+        }
+    }
+
+    private var headerRow: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text("Dictation")
+                .font(.largeTitle.bold())
+                .foregroundStyle(.primary)
+
+            Spacer(minLength: 8)
+
+            if let languageLabel {
+                Button {
+                    onOpenSettings?()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(languageLabel)
+                            .font(.subheadline.weight(.medium))
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(Color(.secondarySystemGroupedBackground), in: Capsule())
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Recognition language \(languageLabel)")
+            }
+
+            Menu {
+                ForEach(MobileDictationVisualTheme.allCases) { theme in
+                    Button {
+                        themeRawValue = theme.rawValue
+                    } label: {
+                        if theme == selectedTheme {
+                            Label(theme.title, systemImage: "checkmark")
+                        } else {
+                            Text(theme.title)
+                        }
+                    }
+                }
+            } label: {
+                ThemeOrbSwatch(theme: selectedTheme, size: 28)
+                    .padding(4)
+                    .background(Color(.secondarySystemGroupedBackground), in: Circle())
+                    .overlay(
+                        Circle()
+                            .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+                    )
+            }
+            .accessibilityLabel("Voice orb theme")
         }
     }
 
@@ -131,6 +153,7 @@ struct SenseVoiceView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(22)
                 }
+                .scrollBounceBehavior(.basedOnSize)
 
                 Divider()
                     .opacity(0.5)
