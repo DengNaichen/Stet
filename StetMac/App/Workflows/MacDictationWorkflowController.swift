@@ -220,7 +220,8 @@
                     durationSeconds: duration,
                     wordCount: wordCount,
                     targetBundleID: lastTargetBundleID,
-                    targetAppName: lastTargetAppName
+                    targetAppName: lastTargetAppName,
+                    sourcePlatform: "macOS"
                 )
 
                 AnalyticsService.track(

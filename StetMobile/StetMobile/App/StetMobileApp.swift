@@ -47,6 +47,7 @@ struct StetMobileApp: App {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 viewModel.ensureMicAlive()
+                rewriteSettingsViewModel.refreshSyncedAPIKey()
                 Task {
                     await rewriteSettingsViewModel.refreshSpeechAssetStatus()
                 }
@@ -79,7 +80,8 @@ private enum StetMobileComposition {
             permissionProvider: SystemMicrophonePermissionProvider(),
             sessionStore: sessionStore,
             postProcessor: SettingsTranscriptPostProcessor(settingsStore: settingsStore),
-            commandMonitor: SharedKeyboardCommandMonitor(sessionStore: sessionStore)
+            commandMonitor: SharedKeyboardCommandMonitor(sessionStore: sessionStore),
+            activityRecorder: SyncedDictationActivityRecorder()
         )
         return Dependencies(dictationCoordinator: coordinator)
     }

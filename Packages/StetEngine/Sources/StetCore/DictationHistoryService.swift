@@ -1,5 +1,4 @@
 import Foundation
-import CoreData
 import SwiftData
 import OSLog
 
@@ -63,41 +62,16 @@ public final class DictationHistoryService: DictationHistoryRecording {
     // MARK: - Init
 
     private init() {
-        do {
-            self.container = try Self.makePersistentContainer()
-        } catch {
-            self.container = nil
-            self.initializationError = error
-        }
+        self.container = StetCloudDataContainer.shared.modelContainer
+        self.initializationError = StetCloudDataContainer.shared.initializationError
     }
 
-    /// History owns a separate store so opening another feature's schema cannot remove its tables.
     static func makePersistentContainer(
         appSupportDirectory: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0],
         bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "NaichengDeng.Stet"
     ) throws -> ModelContainer {
-        let directory = appSupportDirectory.appendingPathComponent(bundleIdentifier)
-            .appendingPathComponent("SwiftData", isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let destination = directory.appendingPathComponent("History.store")
-        let legacy = appSupportDirectory.appendingPathComponent("default.store")
-        if !FileManager.default.fileExists(atPath: destination.path),
-            FileManager.default.fileExists(atPath: legacy.path)
-        {
-            let metadata = try NSPersistentStoreCoordinator.metadataForPersistentStore(
-                ofType: NSSQLiteStoreType, at: legacy, options: [NSReadOnlyPersistentStoreOption: true])
-            let entities = metadata[NSStoreModelVersionHashesKey] as? [String: Any] ?? [:]
-            if entities["HistoryEntry"] != nil {
-                // Core Data copies a consistent store, including WAL transactions. Keep the original intact.
-                let coordinator = NSPersistentStoreCoordinator(managedObjectModel: NSManagedObjectModel())
-                try coordinator.replacePersistentStore(
-                    at: destination, destinationOptions: nil,
-                    withPersistentStoreFrom: legacy, sourceOptions: [NSReadOnlyPersistentStoreOption: true],
-                    ofType: NSSQLiteStoreType)
-            }
-        }
-        let schema = Schema([HistoryEntry.self])
-        return try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: destination)])
+        try StetCloudDataContainer.makePersistentContainer(
+            appSupportDirectory: appSupportDirectory, bundleIdentifier: bundleIdentifier)
     }
 
     init(container: ModelContainer?, beforeWrite: @escaping @Sendable (Bool) async -> Void = { _ in }) {
@@ -106,6 +80,27 @@ public final class DictationHistoryService: DictationHistoryRecording {
     }
 
     // MARK: - Pipeline recording API
+
+    /// Persists a finished session without disturbing the live pipeline's pending session.
+    @discardableResult
+    public func recordCompleted(
+        rawText: String, llmText: String? = nil, finalText: String? = nil,
+        targetBundleID: String? = nil, targetAppName: String? = nil, timestamp: Date = Date(),
+        status: HistoryEntryStatus = .completed
+    ) -> UUID? {
+        let raw = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty, let container else { return nil }
+        let id = UUID()
+        enqueueWrite(isUpdate: false) {
+            let context = ModelContext(container)
+            context.insert(
+                HistoryEntry(
+                    id: id, timestamp: timestamp, rawText: raw, llmText: llmText, finalText: finalText,
+                    targetBundleID: targetBundleID, targetAppName: targetAppName, status: status))
+            try context.save()
+        }
+        return id
+    }
 
     /// Called when raw ASR text is available. Opens a new pending session.
     /// If a previous session was still pending it is silently discarded.

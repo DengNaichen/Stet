@@ -1,4 +1,5 @@
 #if os(macOS)
+    import StetCore
     import SwiftUI
 
     struct MacOverviewSettingsView: View {
@@ -16,6 +17,7 @@
                     .foregroundStyle(MacUI.LinearSurfaces.mutedInk)
                     .padding(.leading, 2)
             }
+            .onReceive(NotificationCenter.default.publisher(for: .stetCloudDataDidChange)) { _ in viewModel.reload() }
             .task { viewModel.reload() }
             .onChange(of: scenePhase) { _, phase in if phase == .active { viewModel.reload() } }
         }

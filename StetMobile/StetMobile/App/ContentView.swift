@@ -30,6 +30,12 @@ struct ContentView: View {
                     }
                     .tag(AppViewModel.Tab.dictation)
 
+                    HistoryView()
+                        .tabItem {
+                            Label("History", systemImage: "clock.fill")
+                        }
+                        .tag(AppViewModel.Tab.history)
+
                     DictionaryView()
                         .tabItem {
                             Label("Dictionary", systemImage: "book.closed.fill")

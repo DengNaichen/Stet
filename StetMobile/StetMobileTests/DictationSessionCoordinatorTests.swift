@@ -1,5 +1,7 @@
 import AVFoundation
 import Foundation
+import StetCore
+import SwiftData
 import Testing
 @testable import StetMobile
 
@@ -37,7 +39,8 @@ struct DictationSessionCoordinatorTests {
             sessionStore: sessionStore,
             postProcessor: FakeTranscriptPostProcessor(),
             commandMonitor: commandMonitor,
-            notificationCenter: NotificationCenter()
+            notificationCenter: NotificationCenter(),
+            activityRecorder: NoOpDictationActivityRecorder()
         )
         var events = coordinator.events.makeAsyncIterator()
 
@@ -477,6 +480,100 @@ struct DictationSessionCoordinatorTests {
 
         await fixture.coordinator.shutdown()
     }
+
+    @Test
+    func completedDictationRecordsHistoryAndIOSStatsWithoutRewrite() async throws {
+        let container = try StetCloudDataContainer.makeInMemoryContainer()
+        var recordedHistory: [(raw: String, llm: String?, final: String, bundleID: String?, appName: String?)] = []
+        let activityRecorder = SyncedDictationActivityRecorder(
+            recordHistory: { rawText, llmText, finalText, bundleID, appName, timestamp in
+                recordedHistory.append((rawText, llmText, finalText, bundleID, appName))
+                let context = ModelContext(container)
+                context.insert(
+                    HistoryEntry(
+                        timestamp: timestamp,
+                        rawText: rawText,
+                        llmText: llmText,
+                        finalText: finalText,
+                        targetBundleID: bundleID,
+                        targetAppName: appName,
+                        status: .completed
+                    )
+                )
+                try? context.save()
+            },
+            statsModel: DictationStatsModel(modelContainer: container),
+            bundleIdentifier: "NaichengDeng.StetMobile",
+            appName: "Stet iOS",
+            asyncStatsRecording: false
+        )
+        let fixture = makeFixture(
+            engine: FakeASREngine(),
+            modelManager: FakeResourcePreparer(),
+            commandMonitor: FakeKeyboardCommandMonitor(),
+            activityRecorder: activityRecorder
+        )
+        var events = fixture.coordinator.events.makeAsyncIterator()
+        try await startAndBecomeReady(fixture, events: &events)
+        try await beginTranscribing(fixture, sessionId: "session-ios-1", events: &events)
+
+        let metrics = ASRMetrics(audioDuration: 3.5, cpuDuration: 0.2, wallDuration: 0.3, rtf: 0.08)
+        fixture.engine.emitFinal(sessionId: "session-ios-1", text: "hello 世界", metrics: metrics)
+        expectCompleted(try await nextEvent(&events), sessionId: "session-ios-1", text: "hello 世界")
+
+        #expect(recordedHistory.count == 1)
+        #expect(recordedHistory[0].raw == "hello 世界")
+        #expect(recordedHistory[0].llm == nil)
+        #expect(recordedHistory[0].final == "hello 世界")
+        #expect(recordedHistory[0].bundleID == "NaichengDeng.StetMobile")
+        #expect(recordedHistory[0].appName == "Stet iOS")
+
+        let context = ModelContext(container)
+        let sessions = try context.fetch(FetchDescriptor<DictationSessionRecord>())
+        #expect(sessions.count == 1)
+        #expect(sessions[0].sourcePlatform == "iOS")
+        #expect(sessions[0].targetAppName == "Stet iOS")
+        #expect(sessions[0].targetBundleID == "NaichengDeng.StetMobile")
+        #expect(sessions[0].wordCount == 3)
+        #expect(sessions[0].durationSeconds == 3.5)
+
+        let historyEntries = try context.fetch(FetchDescriptor<HistoryEntry>())
+        #expect(historyEntries.count == 1)
+        #expect(historyEntries[0].status == .completed)
+
+        await fixture.coordinator.shutdown()
+    }
+
+    @Test
+    func completedDictationWithRewriteRecordsRawLLMAndFinalText() async throws {
+        let recorder = SpyDictationActivityRecorder()
+        let postProcessor = FakeTranscriptPostProcessor { _ in "Hello, world!" }
+        let fixture = makeFixture(
+            engine: FakeASREngine(),
+            modelManager: FakeResourcePreparer(),
+            commandMonitor: FakeKeyboardCommandMonitor(),
+            postProcessor: postProcessor,
+            activityRecorder: recorder
+        )
+        var events = fixture.coordinator.events.makeAsyncIterator()
+        try await startAndBecomeReady(fixture, events: &events)
+        try await beginTranscribing(fixture, sessionId: "session-ios-2", events: &events)
+
+        fixture.engine.emitFinal(sessionId: "session-ios-2", text: "uh hello world")
+        guard case .rewriting(sessionId: "session-ios-2") = try await nextEvent(&events) else {
+            Issue.record("Expected rewriting event")
+            return
+        }
+        expectCompleted(try await nextEvent(&events), sessionId: "session-ios-2", text: "Hello, world!")
+
+        #expect(recorder.records.count == 1)
+        #expect(recorder.records[0].rawText == "uh hello world")
+        #expect(recorder.records[0].llmText == "Hello, world!")
+        #expect(recorder.records[0].finalText == "Hello, world!")
+        #expect(recorder.records[0].durationSeconds >= 0)
+
+        await fixture.coordinator.shutdown()
+    }
 }
 
 @MainActor
@@ -496,7 +593,8 @@ private func makeFixture(
     modelManager: FakeResourcePreparer,
     commandMonitor: FakeKeyboardCommandMonitor,
     postProcessor: FakeTranscriptPostProcessor? = nil,
-    rewriteHeartbeatInterval: Duration = .seconds(2)
+    rewriteHeartbeatInterval: Duration = .seconds(2),
+    activityRecorder: (any DictationActivityRecording)? = nil
 ) -> CoordinatorFixture {
     let permission = FakeMicrophonePermissionProvider()
     let sessionStore = InMemoryDictationSessionStore()
@@ -512,7 +610,8 @@ private func makeFixture(
         postProcessor: postProcessor ?? FakeTranscriptPostProcessor(),
         commandMonitor: commandMonitor,
         notificationCenter: notificationCenter,
-        rewriteHeartbeatInterval: rewriteHeartbeatInterval
+        rewriteHeartbeatInterval: rewriteHeartbeatInterval,
+        activityRecorder: activityRecorder ?? NoOpDictationActivityRecorder()
     )
     return CoordinatorFixture(
         coordinator: coordinator,
@@ -800,9 +899,9 @@ private final class FakeASREngine: ASREngine, MobileASREngineFailureReporting {
         suspendedPrepareContinuations.removeValue(forKey: call)?.resume()
     }
 
-    func emitFinal(sessionId: String, text: String) {
+    func emitFinal(sessionId: String, text: String, metrics: ASRMetrics? = nil) {
         resultContinuation.yield(
-            ASRResult(sessionId: sessionId, text: text, isFinal: true)
+            ASRResult(sessionId: sessionId, text: text, isFinal: true, metrics: metrics)
         )
     }
 
@@ -1025,5 +1124,39 @@ private final class FakeKeyboardCommandMonitor: KeyboardCommandMonitoring {
 
     func emit(_ command: KeyboardDictationCommand) {
         continuation.yield(command)
+    }
+}
+
+@MainActor
+private final class SpyDictationActivityRecorder: DictationActivityRecording {
+    struct Record: Equatable {
+        let rawText: String
+        let llmText: String?
+        let finalText: String
+        let startedAt: Date
+        let completedAt: Date
+        let durationSeconds: Double
+    }
+
+    private(set) var records: [Record] = []
+
+    func recordCompletedSession(
+        rawText: String,
+        llmText: String?,
+        finalText: String,
+        startedAt: Date,
+        completedAt: Date,
+        durationSeconds: Double
+    ) {
+        records.append(
+            Record(
+                rawText: rawText,
+                llmText: llmText,
+                finalText: finalText,
+                startedAt: startedAt,
+                completedAt: completedAt,
+                durationSeconds: durationSeconds
+            )
+        )
     }
 }

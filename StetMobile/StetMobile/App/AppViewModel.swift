@@ -4,8 +4,9 @@ import Foundation
 @MainActor
 final class AppViewModel: ObservableObject {
     enum Tab: Hashable {
-        case dictionary
         case dictation
+        case history
+        case dictionary
         case settings
     }
 

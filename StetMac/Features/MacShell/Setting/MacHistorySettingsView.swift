@@ -86,6 +86,7 @@
             } message: {
                 Text(LocalizedStringKey("This action cannot be undone."))
             }
+            .onReceive(NotificationCenter.default.publisher(for: .stetCloudDataDidChange)) { _ in reload() }
             .task { reload() }
             .onChange(of: scenePhase) { _, phase in if phase == .active { reload() } }
         }

@@ -3,7 +3,15 @@
 <plist version="1.0">
 <dict>
 	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
-	<string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>
+	<string>$(TeamIdentifierPrefix)$(STET_UBIQUITY_KVSTORE_IDENTIFIER)</string>
+	<key>keychain-access-groups</key>
+	<array><string>$(TeamIdentifierPrefix)NaichengDeng.Stet.shared</string></array>
+	<key>com.apple.developer.icloud-services</key>
+	<array><string>CloudKit</string></array>
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array><string>iCloud.NaichengDeng.Stet</string></array>
+	<key>com.apple.developer.icloud-container-environment</key>
+	<string>$(STET_ICLOUD_CONTAINER_ENVIRONMENT)</string>
 	<key>com.apple.security.personal-information.calendars</key>
 	<true/>
 </dict>

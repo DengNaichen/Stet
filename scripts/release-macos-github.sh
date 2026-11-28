@@ -186,6 +186,8 @@ plutil -lint "$APP_ENTITLEMENTS" >/dev/null
 REQUIRES_DISTRIBUTION_PROFILE=0
 
 if plist_has_key "$APP_ENTITLEMENTS" "com.apple.developer.applesignin" || \
+  plist_has_key "$APP_ENTITLEMENTS" "keychain-access-groups" || \
+  plist_has_key "$APP_ENTITLEMENTS" "com.apple.developer.icloud-container-identifiers" || \
   plist_has_key "$APP_ENTITLEMENTS" "com.apple.developer.ubiquity-kvstore-identifier"; then
   REQUIRES_DISTRIBUTION_PROFILE=1
 fi

@@ -70,11 +70,11 @@ public struct CapturedSpeakerRegion: Codable, Equatable, Identifiable, Sendable 
 /// raw ASR output → LLM-refined output → final delivered text.
 @Model
 public final class HistoryEntry {
-    public var id: UUID
-    public var timestamp: Date
+    public var id: UUID = UUID()
+    public var timestamp: Date = Date()
 
     /// Raw transcript from the selected ASR engine.
-    public var rawText: String
+    public var rawText: String = ""
 
     /// Fun-ASR Nano transcript of the same audio with an empty hotword prompt.
     /// Nil when the engine is not Nano or the background pass was skipped.
@@ -94,7 +94,11 @@ public final class HistoryEntry {
     /// Localized display name of the target app, e.g. "Slack".
     public var targetAppName: String?
 
-    public var status: HistoryEntryStatus
+    public var statusRawValue: String = HistoryEntryStatus.processing.rawValue
+    public var status: HistoryEntryStatus {
+        get { HistoryEntryStatus(rawValue: statusRawValue) ?? .processing }
+        set { statusRawValue = newValue.rawValue }
+    }
 
     var captureModeRawValue: String = CaptureMode.active.rawValue
     var captureStartedAtStorage: Date?

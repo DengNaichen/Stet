@@ -2,14 +2,6 @@ import Foundation
 import StetAI
 import StetCore
 
-protocol DictationSecretStore: Sendable {
-    nonisolated func loadString(forAccount account: String) throws -> String?
-    nonisolated func saveString(_ value: String, forAccount account: String) throws
-    nonisolated func deleteString(forAccount account: String) throws
-}
-
-extension KeychainSecretStore: DictationSecretStore {}
-
 enum DictationPipelineStep: String, Sendable, Equatable, Hashable {
     case transcription
     case rewrite
@@ -61,33 +53,6 @@ struct DictationSettingsSnapshot: Sendable {
 }
 
 struct DictationSettingsStore: Sendable {
-    private enum SecretKey {
-        nonisolated static func apiKey(for provider: DictationProvider) -> String {
-            switch provider {
-            case .openAI:
-                return "openai.api_key"
-            case .groq:
-                return "groq.api_key"
-            case .deepSeek:
-                return "deepseek.api_key"
-            case .qwen:
-                return "qwen.api_key"
-            case .glm:
-                return "glm.api_key"
-            case .doubao:
-                return "doubao.api_key"
-            case .google:
-                return "google.api_key"
-            case .anthropic:
-                return "anthropic.api_key"
-            case .appleIntelligence:
-                return "apple_intelligence.local"
-            case .custom:
-                return "custom.api_key"
-            }
-        }
-    }
-
     private let defaultsStore: UserDefaultsStore
     private let secretStore: any DictationSecretStore
     let dictionaryModel: DictionaryModel
@@ -96,7 +61,7 @@ struct DictationSettingsStore: Sendable {
     nonisolated init() {
         self.init(
             defaults: .standard,
-            secretStore: KeychainSecretStore(),
+            secretStore: SharedKeychainSecretStore.macOS(),
             dictionaryModel: nil,
             rewriteModelCatalog: nil
         )
@@ -353,11 +318,11 @@ struct DictationSettingsStore: Sendable {
     }
 
     nonisolated func loadAPIKey(for provider: DictationProvider) -> String {
-        (try? secretStore.loadString(forAccount: SecretKey.apiKey(for: provider))) ?? ""
+        (try? secretStore.loadString(forAccount: DictationCredentialAccount.apiKey(for: provider))) ?? ""
     }
 
     nonisolated func saveAPIKey(_ apiKey: String, for provider: DictationProvider) throws {
-        try secretStore.saveString(apiKey, forAccount: SecretKey.apiKey(for: provider))
+        try secretStore.saveString(apiKey, forAccount: DictationCredentialAccount.apiKey(for: provider))
     }
 
     nonisolated func loadOpenAIAPIKey() -> String {

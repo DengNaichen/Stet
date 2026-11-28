@@ -129,7 +129,7 @@
 - **FR-019**：读取时云端存在词条数组（包括空数组）就以云端为准并刷新本机缓存；云端不存在时使用本机缓存。明确的空云端数组按删除处理。
 - **FR-020**：收到 iCloud 外部变更通知且涉及词典键时，用云端整份列表替换本机缓存，并通知界面刷新。
 - **FR-021**：冲突以 iCloud 键值存储最后写入的整份列表为准，不做逐条合并。（待产品确认）
-- **FR-022**：同步范围由应用的 iCloud 键值存储标识决定；当前 macOS 与 iOS 使用各自的标识。（待产品确认：是否要求 Mac 与 iPhone 之间同步。）
+- **FR-022**：macOS 与 iOS 共用同一 iCloud 键值存储标识（`$(TeamIdentifierPrefix)NaichengDeng.Stet`），同一 Apple 账号下的 Mac 与 iPhone 自动同步个人词典；首次切换到共享标识时对本机缓存与云端已有词条执行一次增量合并（保留手动来源优先），此后遵守云端清空语义。
 
 **数据去向**
 
@@ -159,17 +159,16 @@
 
 ## 待产品确认
 
-1. **Mac 与 iPhone 是否共享词典**：当前两端使用各自 Bundle ID 派生的 iCloud 键值存储标识，只在同平台设备间同步（FR-022）；Debug 构建也使用独立标识。可选方向：两端改用同一标识以共享；保持分平台。
-2. **冲突策略**：当前整份列表后写覆盖（FR-021），离线并发修改会丢失一方。可选方向：保持；改为按词条合并（需定义删除的表示）。
-3. **容量上限**：手动添加不检查 800,000 字节上限（FR-008），超出系统容量时同步会失败且无提示。可选方向：所有写入统一检查上限；保持。
-4. **iOS 管理能力**：iOS 没有启用开关、编辑、导入、清空和来源显示（FR-006）。可选方向：补齐；保持精简。
-5. **改写词条无上限**：改写会收到全部词条（FR-011），大词典会显著加长改写请求。可选方向：保持；设上限或按相关性筛选。
+1. **冲突策略**：当前整份列表后写覆盖（FR-021），离线并发修改会丢失一方。可选方向：保持；改为按词条合并（需定义删除的表示）。
+2. **容量上限**：手动添加不检查 800,000 字节上限（FR-008），超出系统容量时同步会失败且无提示。可选方向：所有写入统一检查上限；保持。
+3. **iOS 管理能力**：iOS 没有启用开关、编辑、导入、清空和来源显示（FR-006）。可选方向：补齐；保持精简。
+4. **改写词条无上限**：改写会收到全部词条（FR-011），大词典会显著加长改写请求。可选方向：保持；设上限或按相关性筛选。
 
 ## 与当前实现的已知差异（非规范，供评审）
 
-以下只记录核对基线 `b327f54` 的代码状态，不代表产品决定。
+以下记录当前实现的关键细节，不代表产品决定。
 
-- iCloud 键值存储标识为 `$(TeamIdentifierPrefix)$(CFBundleIdentifier)`（[macOS entitlements](../../StetMac/Stet.entitlements)、[iOS entitlements](../../StetMobile/StetMobile/StetMobile.entitlements)），两端 Bundle ID 不同，因此不会互相同步（待产品确认 1）。
+- iCloud 键值存储标识已统一为 `$(TeamIdentifierPrefix)NaichengDeng.Stet`（[macOS entitlements](../../StetMac/Stet.entitlements)、[iOS entitlements](../../StetMobile/StetMobile/StetMobile.entitlements)），两端通过 [DictionaryModel](../../Packages/StetEngine/Sources/StetCore/DictionaryModel.swift) 互相同步，首次升级时执行一次 `dictionary.kvs.unifiedMergeV1` 合并。
 - 冲突处理是整份覆盖：[DictionaryModel](../../Packages/StetEngine/Sources/StetCore/DictionaryModel.swift) 的 `updateRecords` 每次写整份数组，外部变更通知时整份替换本机缓存。
 - 手动添加（`addEntries`）不检查 `maximumStoredUTF8ByteCount`，只有 `importEntries` 检查。
 - Parakeet 收到全部词条的 prompt，但 [FluidAudioTranscriptionService](../../StetMac/Core/FluidAudio/FluidAudioTranscriptionService.swift) 的 `transcribe` 没有使用 prompt 参数；Apple Speech 同样忽略 prompt。词条选择见 [DictationPipelineFactory](../../StetMac/Core/DictationPipeline/DictationPipelineFactory.swift) 的 `makeTranscriptionPrompt` 和 [FunASRNanoHotwordPrompt](../../Packages/StetEngine/Sources/StetCore/FunASRNanoHotwordPrompt.swift)。

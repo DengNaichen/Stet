@@ -91,7 +91,7 @@
 
 - **FR-001**：macOS 可选择的服务商为：OpenAI、Google、DeepSeek、Qwen、GLM（受模型目录控制）、Apple Intelligence（Beta，需要 macOS 26 及以上，在本机运行，无需密钥）、自定义端点（兼容 OpenAI API）。Anthropic、Groq、Doubao 当前不可选择（待产品确认）。内置目录（revision 3）目前只启用 OpenAI、Google、DeepSeek，Qwen 与 GLM 在目录中整体禁用，因此设置中显示为“不可用”。
 - **FR-002**：各云端服务商的 API 地址、鉴权方式与请求协议固定在应用代码中，用户与模型目录都不能修改；只有自定义端点由用户填写地址。
-- **FR-003**：每个服务商的密钥单独保存在钥匙串，保存前去除首尾空白；保存空值等于删除。密钥不得写入偏好设置或日志。新建的钥匙串条目允许通过 iCloud 钥匙串同步（待产品确认）。
+- **FR-003**：每个服务商的密钥单独保存在共享钥匙串访问组（`$(TeamIdentifierPrefix)NaichengDeng.Stet.shared`，service `NaichengDeng.Stet.credentials`，account `<provider>.api_key`），保存前去除首尾空白；保存空值等于删除。密钥不得写入偏好设置或日志。条目通过 Data Protection Keychain 启用 iCloud 钥匙串跨设备同步，并在首次读取旧位置密钥时自动迁移；iCloud 钥匙串关闭时回退到同一共享组的本机条目。
 - **FR-004**：设置只显示密钥的前几位加掩码；提供“设置 / 更改”“移除”操作，钥匙串写入或删除失败时提示重试。
 - **FR-005**：凭据校验为可选操作，不是保存的前提。校验通过查询服务商的模型列表完成，单次超时 15 秒；Apple Intelligence 与自定义端点不走此校验。
 - **FR-006**：改写开启且所选服务商缺少密钥时，设置显示“添加 X 的 API Key 后才能使用转写改进”；自定义端点缺少地址或模型 ID 时显示对应提示。听写本身不被阻止（回退见[改写执行](rewrite-execution.md) spec）。
@@ -169,7 +169,7 @@
 - 保存的服务商为 Anthropic、Groq、Doubao，在目录中被禁用，或为 Apple Intelligence 而系统低于 macOS 26 时，打开设置页即把服务商改为 OpenAI 并保存（[MacOpenAISettingsViewModel](../../StetMac/Features/MacShell/Openai/MacOpenAISettingsViewModel.swift) 的 `load`）；服务商恢复后不会自动回到原选择。未打开设置时，听写按“没有有效配置”跳过改写（[DictationSettingsStore](../../StetMac/Core/Settings/DictationSettingsStore.swift) 的 `loadSnapshot`）。
 - 服务商“不可用”的判断读取全局共享的目录实例，而不是设置页注入的目录（[MacOpenAISettingsViewModel](../../StetMac/Features/MacShell/Openai/MacOpenAISettingsViewModel.swift) 的 `UnifiedAIProvider.isDisabled`）。
 - 校验脚本允许的服务商包括 anthropic、groq、doubao，但设置中不可选择（[validate-rewrite-models.py](../../scripts/validate-rewrite-models.py)）。
-- 钥匙串条目新建时设为可同步（[KeychainSecretStore](../../StetMac/Core/Security/KeychainSecretStore.swift) 的 `saveString`；iOS 见 [RewriteSettingsStore](../../StetMobile/StetMobile/Core/Settings/RewriteSettingsStore.swift) 的 `saveAPIKey`）。
+- 钥匙串条目由共享实现 [SharedKeychainSecretStore](../../Packages/StetEngine/Sources/StetCore/SharedKeychainSecretStore.swift) 统一读写与迁移（macOS 入口见 [KeychainSecretStore](../../StetMac/Core/Security/KeychainSecretStore.swift)，iOS 入口见 [RewriteSettingsStore](../../StetMobile/StetMobile/Core/Settings/RewriteSettingsStore.swift)）。
 - iOS 的固定模型列表与 macOS 目录不同（例如 Google 与 DeepSeek 的默认模型），见 [RewriteModel](../../Packages/StetEngine/Sources/StetCore/RewriteModel.swift) 与 [rewrite-models.json](../../StetMac/Resources/rewrite-models.json)。
 - 目录加载、校验、缓存与刷新见 [RewriteModelCatalogStore](../../StetMac/Core/AIProviders/RewriteModelCatalogStore.swift)；凭据校验见 [ProviderCredentialValidationService](../../Packages/StetEngine/Sources/StetAI/ProviderCredentialValidationService.swift)；自定义端点地址规整与模型探测见 [OpenAICompatibleEndpoint](../../Packages/StetEngine/Sources/StetAI/OpenAICompatibleEndpoint.swift)；密钥校验界面见 [MacAPIKeySheet](../../StetMac/Features/MacShell/Openai/MacAPIKeySheet.swift)；iOS 设置见 [RewriteSettingsViewModel](../../StetMobile/StetMobile/Features/Settings/ViewModels/RewriteSettingsViewModel.swift)；以上与本 spec 一致。
 
