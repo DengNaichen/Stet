@@ -111,6 +111,10 @@
             records = []
         }
 
+        func exportCSVData() -> Data {
+            dictionaryModel.exportCSVData()
+        }
+
         func importEntries(from url: URL) {
             let accessed = url.startAccessingSecurityScopedResource()
             defer {
@@ -121,7 +125,8 @@
             do {
                 let data = try Data(contentsOf: url)
                 let text = try DictionaryModel.importText(from: data)
-                let result = try dictionaryModel.importEntries(from: text)
+                let format = DictionaryImportFormat.inferred(from: url)
+                let result = try dictionaryModel.importEntries(from: text, format: format)
                 records = dictionaryModel.loadRecords()
                 importAlert = .success(added: result.addedCount, skipped: result.skippedCount)
             } catch let error as DictionaryImportError {
