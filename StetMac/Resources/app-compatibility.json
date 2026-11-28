@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 6,
+  "revision": 7,
   "bundleIDs": [
     "com.microsoft.vscode",
     "com.microsoft.vscodeinsiders",
@@ -28,6 +28,7 @@
     "dev.zed.zed",
     "com.todesktop.230313mzl4w4u92",
     "co.anysphere.cursor.nightly",
+    "com.anysphere.sand",
     "com.tencent.xinwechat",
     "com.mitchellh.ghostty",
     "dev.herdr.app",
