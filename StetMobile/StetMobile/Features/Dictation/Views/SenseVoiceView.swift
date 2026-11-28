@@ -3,6 +3,7 @@ import UIKit
 
 struct SenseVoiceView: View {
     @ObservedObject var viewModel: SenseVoiceViewModel
+    @ObservedObject private var timingStore = DictationTimingStore.shared
     var languageLabel: String?
     var speechAssetStatus: SpeechAssetStatus = .installed
     var isRewriteEnabled: Bool = false
@@ -15,6 +16,7 @@ struct SenseVoiceView: View {
 
     @State private var didCopyTranscript = false
     @State private var copyResetTask: Task<Void, Never>?
+    @State private var isShowingTimingHistory = false
 
     var body: some View {
         NavigationStack {
@@ -24,12 +26,19 @@ struct SenseVoiceView: View {
 
                 transcriptCard
 
+                if let latestTiming = timingStore.latest {
+                    timingBreakdownStrip(latestTiming)
+                }
+
                 recordingDock
                     .padding(.bottom, 12)
             }
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .sheet(isPresented: $isShowingTimingHistory) {
+                DictationTimingHistorySheet(timingStore: timingStore)
+            }
             .navigationTitle("Dictation")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -466,8 +475,149 @@ struct SenseVoiceView: View {
         isFailedState ? .red : .primary
     }
 
+    private func timingBreakdownStrip(_ record: DictationTimingRecord) -> some View {
+        let localMs = max(0, record.localFinalizeMs)
+        let rewriteMs = max(0, record.rewriteMs ?? 0)
+        let waitTotal = max(1, localMs + rewriteMs)
+        let localRatio = CGFloat(localMs) / CGFloat(waitTotal)
+
+        return Button {
+            isShowingTimingHistory = true
+        } label: {
+            VStack(spacing: 8) {
+                HStack(spacing: 10) {
+                    timingMetric(
+                        label: "Start",
+                        value: DictationTimingRecord.formatDuration(ms: record.startMs),
+                        dotColor: .orange
+                    )
+                    timingMetric(
+                        label: "Local",
+                        value: DictationTimingRecord.formatDuration(ms: record.localFinalizeMs),
+                        dotColor: .blue
+                    )
+                    timingMetric(
+                        label: "Cloud",
+                        value: record.rewriteMs.map { DictationTimingRecord.formatDuration(ms: $0) } ?? "Off",
+                        dotColor: .purple
+                    )
+                    Spacer(minLength: 4)
+                    Text("Wait \(DictationTimingRecord.formatDuration(ms: record.totalWaitMs))")
+                        .font(.caption.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(.primary)
+                }
+
+                GeometryReader { proxy in
+                    HStack(spacing: 2) {
+                        Capsule()
+                            .fill(Color.blue.gradient)
+                            .frame(width: max(4, proxy.size.width * localRatio))
+                        if rewriteMs > 0 {
+                            Capsule()
+                                .fill(Color.purple.gradient)
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+                .frame(height: 5)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                Color(.secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Inspect dictation latency breakdown")
+    }
+
+    private func timingMetric(label: String, value: String, dotColor: Color) -> some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(dotColor)
+                .frame(width: 6, height: 6)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.caption.monospacedDigit().weight(.medium))
+                .foregroundStyle(.primary)
+        }
+    }
+
     private var selectedTheme: MobileDictationVisualTheme {
         MobileDictationVisualTheme(rawValue: themeRawValue) ?? .egg
+    }
+}
+
+private struct DictationTimingHistorySheet: View {
+    @ObservedObject var timingStore: DictationTimingStore
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(timingStore.recent) { record in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(record.recordedAt, style: .time)
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                            if let audioMs = record.audioDurationMs {
+                                Text("· Audio \(DictationTimingRecord.formatDuration(ms: audioMs))")
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text("Total Wait \(DictationTimingRecord.formatDuration(ms: record.totalWaitMs))")
+                                .font(.subheadline.monospacedDigit().weight(.semibold))
+                        }
+
+                        HStack(spacing: 14) {
+                            Label(
+                                "Start \(DictationTimingRecord.formatDuration(ms: record.startMs))",
+                                systemImage: "play.fill"
+                            )
+                            .foregroundStyle(.orange)
+
+                            Label(
+                                "Local \(DictationTimingRecord.formatDuration(ms: record.localFinalizeMs))",
+                                systemImage: "waveform"
+                            )
+                            .foregroundStyle(.blue)
+
+                            Label(
+                                "Cloud \(record.rewriteMs.map { DictationTimingRecord.formatDuration(ms: $0) } ?? "Off")",
+                                systemImage: "sparkles"
+                            )
+                            .foregroundStyle(.purple)
+                        }
+                        .font(.caption.monospacedDigit())
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+            .navigationTitle("Latency Breakdown")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if !timingStore.recent.isEmpty {
+                        Button("Clear", role: .destructive) {
+                            timingStore.clearHistory()
+                        }
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 

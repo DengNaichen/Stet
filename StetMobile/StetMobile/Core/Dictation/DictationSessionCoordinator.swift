@@ -64,8 +64,19 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
     private let commandMonitor: any KeyboardCommandMonitoring
     private let notificationCenter: NotificationCenter
     private let rewriteHeartbeatInterval: Duration
+    private let timingStore: DictationTimingStore
+
+    private struct SessionTimingDraft {
+        let sessionId: String
+        var startRequestedAt: TimeInterval
+        var startMs: Int = 0
+        var stopRequestedAt: TimeInterval?
+        var localFinalizeMs: Int = 0
+        var rewriteMs: Int?
+    }
 
     private var activeSessionId: String?
+    private var timingDraft: SessionTimingDraft?
     private var isStarted = false
     private var lifecycleGeneration = UUID()
     private var bootstrapGeneration: UUID?
@@ -91,7 +102,8 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         postProcessor: any TranscriptPostProcessing,
         commandMonitor: any KeyboardCommandMonitoring,
         notificationCenter: NotificationCenter = .default,
-        rewriteHeartbeatInterval: Duration = .seconds(2)
+        rewriteHeartbeatInterval: Duration = .seconds(2),
+        timingStore: DictationTimingStore = .shared
     ) {
         self.engine = engine
         self.prepareResources = prepareResources
@@ -101,6 +113,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         self.commandMonitor = commandMonitor
         self.notificationCenter = notificationCenter
         self.rewriteHeartbeatInterval = rewriteHeartbeatInterval
+        self.timingStore = timingStore
         (events, continuation) = AsyncStream.makeStream()
     }
 
@@ -173,6 +186,10 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         else { return }
 
         activeSessionId = sessionId
+        timingDraft = SessionTimingDraft(
+            sessionId: sessionId,
+            startRequestedAt: ProcessInfo.processInfo.systemUptime
+        )
         phase = .starting(sessionId: sessionId)
         continuation.yield(.starting(sessionId: sessionId))
 
@@ -197,6 +214,10 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
 
             do {
                 try await self.engine.start(sessionId: sessionId)
+                if var draft = self.timingDraft, draft.sessionId == sessionId {
+                    draft.startMs = Self.elapsedMilliseconds(since: draft.startRequestedAt)
+                    self.timingDraft = draft
+                }
             } catch {
                 guard self.isCurrent(lifecycle: lifecycle),
                     self.startGeneration == generation,
@@ -229,6 +250,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
 
         switch phase {
         case .starting:
+            markStopTimestampIfNeeded(for: activeSessionId)
             let didTransition = sessionStore.transitionState(
                 for: activeSessionId,
                 from: [.requestStart],
@@ -251,6 +273,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             continuation.yield(.transcribing(sessionId: activeSessionId))
 
         case .recording:
+            markStopTimestampIfNeeded(for: activeSessionId)
             guard markTranscribing(sessionId: activeSessionId) else { return }
             engine.stop()
 
@@ -264,6 +287,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
 
         let isSettlingStart = startTask != nil
         activeSessionId = nil
+        timingDraft = nil
         startTask?.cancel()
         rewriteTask?.cancel()
         rewriteGeneration = nil
@@ -414,6 +438,10 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         let sessionId = result.sessionId
 
         if result.isFinal {
+            if var draft = timingDraft, draft.sessionId == sessionId, let stopAt = draft.stopRequestedAt {
+                draft.localFinalizeMs = Self.elapsedMilliseconds(since: stopAt)
+                timingDraft = draft
+            }
             finalize(sessionId: sessionId, text: result.text, metrics: result.metrics)
         } else {
             sessionStore.updateText(for: sessionId, partial: result.text, final: "")
@@ -477,7 +505,12 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
                 }
             }
 
+            let rewriteStartedAt = ProcessInfo.processInfo.systemUptime
             let processedText = await self.postProcessor.process(text)
+            if var draft = self.timingDraft, draft.sessionId == sessionId {
+                draft.rewriteMs = Self.elapsedMilliseconds(since: rewriteStartedAt)
+                self.timingDraft = draft
+            }
             guard self.isCurrent(lifecycle: lifecycle),
                 self.rewriteGeneration == generation,
                 !Task.isCancelled,
@@ -523,10 +556,46 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             return
         }
 
+        recordCompletedTiming(sessionId: sessionId, metrics: metrics)
         activeSessionId = nil
+        timingDraft = nil
         phase = .idle
         continuation.yield(.completed(sessionId: sessionId, text: text, metrics: metrics))
         commandMonitor.pollNow(force: true)
+    }
+
+    private func markStopTimestampIfNeeded(for sessionId: String) {
+        guard var draft = timingDraft, draft.sessionId == sessionId, draft.stopRequestedAt == nil else {
+            return
+        }
+        draft.stopRequestedAt = ProcessInfo.processInfo.systemUptime
+        timingDraft = draft
+    }
+
+    private func recordCompletedTiming(sessionId: String, metrics: ASRMetrics?) {
+        guard let draft = timingDraft, draft.sessionId == sessionId else { return }
+        let totalWaitMs: Int
+        if let stopAt = draft.stopRequestedAt {
+            totalWaitMs = Self.elapsedMilliseconds(since: stopAt)
+        } else {
+            totalWaitMs = draft.localFinalizeMs + (draft.rewriteMs ?? 0)
+        }
+        let audioDurationMs = metrics.map { max(0, Int(($0.audioDuration * 1_000).rounded())) }
+        timingStore.record(
+            DictationTimingRecord(
+                id: sessionId,
+                recordedAt: Date(),
+                audioDurationMs: audioDurationMs,
+                startMs: draft.startMs,
+                localFinalizeMs: draft.localFinalizeMs,
+                rewriteMs: draft.rewriteMs,
+                totalWaitMs: totalWaitMs
+            )
+        )
+    }
+
+    private static func elapsedMilliseconds(since startedAt: TimeInterval) -> Int {
+        max(0, Int(((ProcessInfo.processInfo.systemUptime - startedAt) * 1_000).rounded()))
     }
 
     @discardableResult
