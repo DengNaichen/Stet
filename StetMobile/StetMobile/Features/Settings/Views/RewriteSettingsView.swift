@@ -4,65 +4,133 @@ import SwiftUI
 
 struct RewriteSettingsView: View {
     @ObservedObject var viewModel: RewriteSettingsViewModel
+    @AppStorage(
+        MobileDictationVisualTheme.mobileStorageKey,
+        store: MobileDictationVisualTheme.mobileDefaults
+    ) private var themeRawValue = MobileDictationVisualTheme.egg.rawValue
 
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    Picker("Region", selection: $viewModel.funASRSettingsStore.region) {
-                        ForEach(FunASRRegion.allCases) { region in
-                            Text(region.displayName).tag(region)
-                        }
-                    }
+                onDeviceSpeechSection
+                aiRewriteSection
+                orbAppearanceSection
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.large)
+            .task {
+                await viewModel.refreshSpeechAssetStatus()
+            }
+        }
+    }
 
-                    TextField(
-                        "Workspace ID",
-                        text: $viewModel.funASRSettingsStore.workspaceID
-                    )
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .onChange(of: viewModel.funASRSettingsStore.workspaceID) {
-                        viewModel.sanitizeFunASRWorkspaceID()
-                    }
-
-                    SecureField("API Key", text: $viewModel.funASRAPIKeyInput)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .onSubmit { viewModel.saveFunASRAPIKey() }
-
-                    Button {
-                        Task { await viewModel.validateFunASRConnection() }
-                    } label: {
-                        HStack {
-                            Text("Validate Connection")
-                            Spacer()
-                            validationIndicator(viewModel.funASRValidationState)
-                        }
-                    }
-                    .disabled(viewModel.funASRValidationState == .validating)
-
-                    if case .failed(let message) = viewModel.funASRValidationState {
-                        Text(message)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                } header: {
-                    Text("FunASR Realtime")
-                } footer: {
-                    Text("Live microphone audio is sent to Alibaba Cloud for transcription.")
+    private var onDeviceSpeechSection: some View {
+        Section {
+            Picker(
+                selection: Binding(
+                    get: { viewModel.selectedLanguage },
+                    set: { viewModel.selectedLanguage = $0 }
+                )
+            ) {
+                ForEach(SpeechRecognitionLanguage.allCases) { language in
+                    Text(language.displayName).tag(language)
                 }
+            } label: {
+                settingsLabel("Language", systemImage: "globe", tint: .blue)
+            }
 
-                Section {
-                    Toggle("Transcript Improvement", isOn: $viewModel.settingsStore.isRewriteEnabled)
-                } footer: {
-                    Text("When enabled, transcripts are cleaned up by AI before display.")
+            HStack(spacing: 12) {
+                settingsLabel("Speech Model", systemImage: "waveform.badge.mic", tint: .indigo)
+                Spacer()
+                speechAssetTrailingView
+            }
+
+            if case .failed(let message) = viewModel.speechAssetStatus {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+        } header: {
+            Text("On-Device Speech")
+        } footer: {
+            Text(
+                "Transcribed privately on your iPhone using Apple Speech. Your Dictionary words are automatically used as recognition hints."
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var speechAssetTrailingView: some View {
+        switch viewModel.speechAssetStatus {
+        case .checking:
+            HStack(spacing: 6) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Checking")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+        case .installed:
+            Label("Ready", systemImage: "checkmark.circle.fill")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.green)
+
+        case .available:
+            Button("Download") {
+                Task { await viewModel.downloadSpeechAsset() }
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .controlSize(.small)
+
+        case .downloading:
+            HStack(spacing: 6) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Downloading")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+        case .unsupported:
+            Text("Unsupported")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+        case .failed:
+            Button("Retry") {
+                Task { await viewModel.downloadSpeechAsset() }
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .controlSize(.small)
+        }
+    }
+
+    private var aiRewriteSection: some View {
+        Group {
+            Section {
+                Toggle(isOn: $viewModel.settingsStore.isRewriteEnabled) {
+                    settingsLabel("AI Polish & Rewrite", systemImage: "sparkles", tint: .purple)
                 }
+            } header: {
+                Text("Cloud Rewrite")
+            } footer: {
+                Text(
+                    "Refines punctuation, removes filler words, and enforces spellings from your Dictionary using your configured API key."
+                )
+            }
 
-                Section("Service") {
-                    Picker("Provider", selection: $viewModel.settingsStore.selectedProvider) {
+            if viewModel.settingsStore.isRewriteEnabled {
+                Section("Provider & Model") {
+                    Picker(selection: $viewModel.settingsStore.selectedProvider) {
                         ForEach(viewModel.availableProviders) { provider in
                             Text(provider.displayName).tag(provider)
                         }
+                    } label: {
+                        settingsLabel("Provider", systemImage: "cloud", tint: .cyan)
                     }
                     .onChange(of: viewModel.settingsStore.selectedProvider) {
                         viewModel.onProviderChanged()
@@ -96,11 +164,13 @@ struct RewriteSettingsView: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                     } else {
-                        Picker("Model", selection: $viewModel.settingsStore.selectedModel) {
+                        Picker(selection: $viewModel.settingsStore.selectedModel) {
                             ForEach(RewriteModel.availableModels(for: viewModel.settingsStore.selectedProvider)) {
                                 model in
                                 Text(model.displayName).tag(model)
                             }
+                        } label: {
+                            settingsLabel("Model", systemImage: "cpu", tint: .teal)
                         }
                     }
                 }
@@ -118,34 +188,73 @@ struct RewriteSettingsView: View {
                         Task { await viewModel.validateCredential() }
                     } label: {
                         HStack {
-                            Text("Validate")
+                            Text("Verify & Save Key")
                             Spacer()
-                            switch viewModel.validationState {
-                            case .idle:
-                                EmptyView()
-                            case .validating:
-                                ProgressView()
-                            case .success:
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                            case .failed:
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.red)
-                            }
+                            validationIndicator(viewModel.validationState)
                         }
                     }
                     .disabled(viewModel.validationState == .validating)
 
                     if case .failed(let message) = viewModel.validationState {
                         Text(message)
-                            .font(.caption)
+                            .font(.footnote)
                             .foregroundStyle(.red)
                     }
                 }
             }
-            .scrollDismissesKeyboard(.interactively)
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.large)
+        }
+    }
+
+    private var orbAppearanceSection: some View {
+        Section {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(MobileDictationVisualTheme.allCases) { theme in
+                        let isSelected = selectedTheme == theme
+                        Button {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 1.0)) {
+                                themeRawValue = theme.rawValue
+                            }
+                        } label: {
+                            VStack(spacing: 8) {
+                                ZStack {
+                                    ThemeOrbSwatch(theme: theme, size: 42)
+                                    if isSelected {
+                                        Circle()
+                                            .strokeBorder(Color.primary, lineWidth: 2.5)
+                                            .frame(width: 50, height: 50)
+                                    }
+                                }
+                                .frame(width: 52, height: 52)
+
+                                Text(theme.title)
+                                    .font(.caption.weight(isSelected ? .semibold : .regular))
+                                    .foregroundStyle(isSelected ? .primary : .secondary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(theme.title) theme")
+                        .accessibilityAddTraits(isSelected ? .isSelected : [])
+                    }
+                }
+                .padding(.vertical, 6)
+            }
+        } header: {
+            Text("Voice Orb")
+        } footer: {
+            Text("Applies to both the app and the Stet keyboard.")
+        }
+    }
+
+    private func settingsLabel(_ title: String, systemImage: String, tint: Color) -> some View {
+        Label {
+            Text(title)
+        } icon: {
+            Image(systemName: systemImage)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 28, height: 28)
+                .background(tint.gradient, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
     }
 
@@ -156,12 +265,18 @@ struct RewriteSettingsView: View {
             EmptyView()
         case .validating:
             ProgressView()
+                .controlSize(.small)
         case .success:
-            Image(systemName: "checkmark.circle.fill")
+            Label("Verified", systemImage: "checkmark.circle.fill")
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.green)
         case .failed:
             Image(systemName: "xmark.circle.fill")
                 .foregroundStyle(.red)
         }
+    }
+
+    private var selectedTheme: MobileDictationVisualTheme {
+        MobileDictationVisualTheme(rawValue: themeRawValue) ?? .egg
     }
 }

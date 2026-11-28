@@ -4,15 +4,15 @@ import Testing
 
 struct RewriteSettingsViewModelTests {
     @MainActor
-    @Test func dictationEngineIsRealtimeOnly() {
+    @Test func dictationEngineIsAppleSpeechOnly() {
         let suiteName = "MobileDictationSettingsStoreTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        defaults.set("senseVoice", forKey: "dictation.engine")
+        defaults.set("funASRRealtime", forKey: "dictation.engine")
 
-        #expect(MobileDictationEngine.allCases == [.funASRRealtime])
-        #expect(MobileDictationSettingsStore(defaults: defaults).selectedEngine == .funASRRealtime)
-        #expect(defaults.string(forKey: "dictation.engine") == "funASRRealtime")
+        #expect(MobileDictationEngine.allCases == [.appleSpeech])
+        #expect(MobileDictationSettingsStore(defaults: defaults).selectedEngine == .appleSpeech)
+        #expect(defaults.string(forKey: "dictation.engine") == "appleSpeech")
     }
 
     @MainActor

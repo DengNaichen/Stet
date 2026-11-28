@@ -1,92 +1,387 @@
 import SwiftUI
+import UIKit
 
 struct SenseVoiceView: View {
     @ObservedObject var viewModel: SenseVoiceViewModel
+    var languageLabel: String?
+    var speechAssetStatus: SpeechAssetStatus = .installed
+    var isRewriteEnabled: Bool = false
+    var onOpenSettings: (() -> Void)?
+
     @AppStorage(
         MobileDictationVisualTheme.mobileStorageKey,
         store: MobileDictationVisualTheme.mobileDefaults
     ) private var themeRawValue = MobileDictationVisualTheme.egg.rawValue
 
+    @State private var didCopyTranscript = false
+    @State private var copyResetTask: Task<Void, Never>?
+
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                ScrollView {
-                    Text(
-                        viewModel.transcript.isEmpty
-                            ? "Transcript will appear here after recording stops." : viewModel.transcript
-                    )
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .foregroundStyle(viewModel.transcript.isEmpty ? Color.secondary : Color.primary)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                }
+            VStack(spacing: 20) {
+                statusHeaderBar
+                    .padding(.top, 4)
 
-                VStack(spacing: 12) {
-                    Text(statusText)
-                        .foregroundStyle(statusColor)
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                transcriptCard
 
-                    recordingControl
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                recordingDock
+                    .padding(.bottom, 12)
             }
+            .padding(.horizontal, 20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Dictation")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    if !viewModel.transcript.isEmpty {
-                        Button("Clear", action: viewModel.clearTranscript)
+                    if let languageLabel {
+                        Button {
+                            onOpenSettings?()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(languageLabel)
+                                    .font(.caption.weight(.medium))
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 9, weight: .semibold))
+                            }
+                            .foregroundStyle(.secondary)
+                        }
+                        .accessibilityLabel("Recognition language \(languageLabel)")
                     }
 
-                    Picker(selection: themeSelection) {
+                    Menu {
                         ForEach(MobileDictationVisualTheme.allCases) { theme in
-                            Text(theme.title)
-                                .tag(theme)
+                            Button {
+                                themeRawValue = theme.rawValue
+                            } label: {
+                                if theme == selectedTheme {
+                                    Label(theme.title, systemImage: "checkmark")
+                                } else {
+                                    Text(theme.title)
+                                }
+                            }
                         }
                     } label: {
-                        Label("Theme", systemImage: "paintpalette")
+                        ThemeOrbSwatch(theme: selectedTheme, size: 22)
                     }
-                    .pickerStyle(.menu)
+                    .accessibilityLabel("Voice orb theme")
                 }
+            }
+            .onDisappear {
+                copyResetTask?.cancel()
             }
         }
     }
 
-    @ViewBuilder
-    private var recordingControl: some View {
-        if usesListeningShader {
-            DictationLevelShaderView(
-                level: viewModel.recordingLevel,
-                diameter: 120,
-                preferredFramesPerSecond: 40,
-                isPaused: isListeningShaderPaused,
-                theme: selectedTheme
-            )
-            .overlay {
-                if viewModel.state == .recording {
-                    Button(action: viewModel.toggleRecording) {
-                        Color.clear
-                            .frame(width: 120, height: 120)
-                            .contentShape(Circle())
+    private var statusHeaderBar: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(statusDotColor)
+                .frame(width: 8, height: 8)
+                .shadow(color: statusDotColor.opacity(0.45), radius: 4)
+
+            Text(statusHeadline)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(statusColor)
+                .lineLimit(1)
+
+            Spacer(minLength: 8)
+
+            if isRewriteEnabled {
+                Label("AI Polish", systemImage: "sparkles")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(Color(.tertiarySystemFill), in: Capsule())
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            Color(.secondarySystemGroupedBackground),
+            in: Capsule()
+        )
+        .overlay(
+            Capsule()
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+        )
+    }
+
+    private var transcriptCard: some View {
+        VStack(spacing: 0) {
+            if viewModel.transcript.isEmpty {
+                emptyTranscriptBody
+            } else {
+                ScrollView {
+                    Text(viewModel.transcript)
+                        .font(.system(.title3, design: .default).weight(.regular))
+                        .lineSpacing(6)
+                        .foregroundStyle(.primary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(22)
+                }
+
+                Divider()
+                    .opacity(0.5)
+
+                HStack(spacing: 12) {
+                    if viewModel.state == .rewriting {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.mini)
+                            Text("Polishing…")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
+                    } else if viewModel.state == .recording {
+                        HStack(spacing: 6) {
+                            Image(systemName: "waveform")
+                                .symbolEffect(.variableColor.iterative, isActive: true)
+                                .font(.caption)
+                                .foregroundStyle(selectedTheme.accentColor)
+                            Text("Listening live")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Text("\(viewModel.transcript.count) chars")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("停止录音")
+
+                    Spacer()
+
+                    Button {
+                        copyTranscript()
+                    } label: {
+                        Label(
+                            didCopyTranscript ? "Copied" : "Copy",
+                            systemImage: didCopyTranscript ? "checkmark" : "doc.on.doc"
+                        )
+                        .font(.subheadline.weight(.medium))
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.small)
+                    .tint(didCopyTranscript ? .green : .primary)
+
+                    Button(role: .destructive) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 1.0)) {
+                            viewModel.clearTranscript()
+                        }
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.subheadline)
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.small)
+                    .accessibilityLabel("Clear transcript")
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            Color(.secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: 26, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.75)
+        )
+        .shadow(color: .black.opacity(0.04), radius: 14, y: 6)
+    }
+
+    private var emptyTranscriptBody: some View {
+        VStack(spacing: 16) {
+            Spacer()
+
+            if case .failed = viewModel.state {
+                Image(systemName: "mic.slash.circle.fill")
+                    .font(.system(size: 44))
+                    .foregroundStyle(.red.opacity(0.85))
+
+                VStack(spacing: 6) {
+                    Text("Dictation Unavailable")
+                        .font(.headline)
+                    Text(emptyStateGuidance)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                HStack(spacing: 12) {
+                    Button("Retry") {
+                        viewModel.ensureMicAlive()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.regular)
+
+                    if !speechAssetStatus.isReady, let onOpenSettings {
+                        Button("Speech Settings") {
+                            onOpenSettings()
+                        }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.capsule)
+                        .controlSize(.regular)
+                    }
+                }
+                .padding(.top, 4)
+            } else {
+                Image(systemName: "waveform.and.mic")
+                    .font(.system(size: 36, weight: .light))
+                    .foregroundStyle(.tertiary)
+                    .padding(18)
+                    .background(Color(.tertiarySystemFill), in: Circle())
+
+                VStack(spacing: 6) {
+                    Text(viewModel.state == .recording ? "Listening…" : "Ready to Dictate")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+
+                    Text("Tap the orb below to test here, or switch to the Stet keyboard in any app.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                }
+
+                if case .available = speechAssetStatus, let onOpenSettings {
+                    Button {
+                        onOpenSettings()
+                    } label: {
+                        Label("Download On-Device Speech Model", systemImage: "arrow.down.circle")
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .padding(.top, 4)
                 }
             }
-        } else {
-            Button(action: viewModel.toggleRecording) {
-                Label(
-                    viewModel.isRecording ? "Stop" : "Record",
-                    systemImage: viewModel.isRecording ? "stop.fill" : "mic.fill"
-                )
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(!viewModel.canToggleRecording)
+
+            Spacer()
         }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var recordingDock: some View {
+        VStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(selectedTheme.accentColor.opacity(usesListeningShader ? 0.20 : 0.08))
+                    .frame(width: usesListeningShader ? 138 : 124, height: usesListeningShader ? 138 : 124)
+                    .blur(radius: usesListeningShader ? 18 : 10)
+                    .animation(.spring(response: 0.4, dampingFraction: 1.0), value: usesListeningShader)
+
+                if usesListeningShader {
+                    DictationLevelShaderView(
+                        level: viewModel.recordingLevel,
+                        diameter: 112,
+                        preferredFramesPerSecond: 40,
+                        isPaused: isListeningShaderPaused,
+                        theme: selectedTheme
+                    )
+                    .shadow(color: selectedTheme.accentColor.opacity(0.28), radius: 18, y: 6)
+                    .overlay {
+                        if viewModel.state == .recording {
+                            Button(action: viewModel.toggleRecording) {
+                                ZStack {
+                                    Color.clear
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .fill(.white.opacity(0.92))
+                                        .frame(width: 24, height: 24)
+                                        .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
+                                }
+                                .frame(width: 112, height: 112)
+                                .contentShape(Circle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Stop Recording")
+                        } else {
+                            ProgressView()
+                                .tint(.white)
+                                .scaleEffect(1.15)
+                        }
+                    }
+                    .transition(.scale(scale: 0.92).combined(with: .opacity))
+                } else {
+                    Button {
+                        if case .failed = viewModel.state {
+                            viewModel.ensureMicAlive()
+                        } else {
+                            viewModel.toggleRecording()
+                        }
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(idleButtonBackground)
+                                .frame(width: 112, height: 112)
+                                .shadow(color: .black.opacity(0.16), radius: 16, y: 6)
+
+                            if viewModel.state == .loading || viewModel.state == .starting {
+                                ProgressView()
+                                    .tint(Color(.systemBackground))
+                                    .scaleEffect(1.2)
+                            } else if case .failed = viewModel.state {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 30, weight: .semibold))
+                                    .foregroundStyle(.white)
+                            } else {
+                                Image(systemName: "mic.fill")
+                                    .font(.system(size: 32, weight: .medium))
+                                    .foregroundStyle(Color(.systemBackground))
+                            }
+                        }
+                    }
+                    .buttonStyle(OrbPressButtonStyle())
+                    .disabled(!viewModel.canToggleRecording && !isFailedState)
+                    .accessibilityLabel(isFailedState ? "Retry Dictation Setup" : "Start Recording")
+                    .transition(.scale(scale: 0.92).combined(with: .opacity))
+                }
+            }
+            .frame(height: 138)
+            .animation(.spring(response: 0.35, dampingFraction: 1.0), value: usesListeningShader)
+
+            Text(dockHintText)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func copyTranscript() {
+        UIPasteboard.general.string = viewModel.transcript
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        withAnimation(.spring(response: 0.25, dampingFraction: 1.0)) {
+            didCopyTranscript = true
+        }
+        copyResetTask?.cancel()
+        copyResetTask = Task {
+            try? await Task.sleep(for: .seconds(1.6))
+            guard !Task.isCancelled else { return }
+            withAnimation(.spring(response: 0.25, dampingFraction: 1.0)) {
+                didCopyTranscript = false
+            }
+        }
+    }
+
+    private var isFailedState: Bool {
+        if case .failed = viewModel.state {
+            return true
+        }
+        return false
+    }
+
+    private var idleButtonBackground: Color {
+        if isFailedState {
+            return .red
+        }
+        return viewModel.canToggleRecording ? Color.primary : Color(.systemGray3)
     }
 
     private var usesListeningShader: Bool {
@@ -107,38 +402,79 @@ struct SenseVoiceView: View {
         }
     }
 
-    private var statusText: String {
+    private var statusHeadline: String {
+        switch viewModel.state {
+        case .loading:
+            return "Preparing Apple Speech…"
+        case .idle:
+            return "On-Device Ready · Mic Standby"
+        case .starting:
+            return "Starting Microphone…"
+        case .recording:
+            return "Listening On-Device…"
+        case .processing:
+            return "Finalizing Transcript…"
+        case .rewriting:
+            return "Polishing with AI…"
+        case .failed:
+            return "Setup Attention Needed"
+        }
+    }
+
+    private var emptyStateGuidance: String {
+        if !speechAssetStatus.isReady {
+            return "Download the on-device speech model in Settings, or tap Retry after granting microphone access."
+        }
+        return "Check microphone permission in iOS Settings and tap Retry."
+    }
+
+    private var dockHintText: String {
+        switch viewModel.state {
+        case .loading:
+            return "Warming up audio session…"
+        case .idle:
+            return "Tap to speak"
+        case .starting:
+            return "Opening microphone…"
+        case .recording:
+            return "Tap orb to stop"
+        case .processing:
+            return "Finishing on-device speech…"
+        case .rewriting:
+            return "Applying cloud rewrite…"
+        case .failed:
+            return "Tap to retry"
+        }
+    }
+
+    private var statusDotColor: Color {
         switch viewModel.state {
         case .idle:
-            return viewModel.partialStatus
-        case .loading:
-            return viewModel.partialStatus
-        case .starting:
-            return viewModel.partialStatus
+            return .green
+        case .loading, .starting:
+            return .orange
         case .recording:
-            return viewModel.partialStatus
+            return .red
         case .processing, .rewriting:
-            return viewModel.partialStatus
-        case .failed(let message):
-            return message
+            return .indigo
+        case .failed:
+            return .red
         }
     }
 
     private var statusColor: Color {
-        if case .failed = viewModel.state {
-            return .red
-        }
-        return .secondary
+        isFailedState ? .red : .primary
     }
 
     private var selectedTheme: MobileDictationVisualTheme {
         MobileDictationVisualTheme(rawValue: themeRawValue) ?? .egg
     }
+}
 
-    private var themeSelection: Binding<MobileDictationVisualTheme> {
-        Binding(
-            get: { selectedTheme },
-            set: { themeRawValue = $0.rawValue }
-        )
+private struct OrbPressButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.94 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 1.0), value: configuration.isPressed)
     }
 }

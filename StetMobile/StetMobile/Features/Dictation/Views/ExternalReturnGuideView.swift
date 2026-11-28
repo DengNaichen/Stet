@@ -2,85 +2,104 @@ import SwiftUI
 
 struct ExternalReturnGuideView: View {
     let onDismiss: () -> Void
+    @State private var animateSwipeHint = false
 
     var body: some View {
-        VStack(spacing: 40) {
-            // Close Button
+        VStack(spacing: 32) {
             HStack {
                 Spacer()
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .padding(12)
-                        .background(Color(.systemGray6))
-                        .clipShape(Circle())
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 36, height: 36)
+                        .background(Color(.tertiarySystemFill), in: Circle())
                 }
+                .accessibilityLabel("Close")
             }
-            .padding(.top, 20)
-            .padding(.horizontal, 24)
+            .padding(.top, 12)
+            .padding(.horizontal, 20)
 
             Spacer()
 
-            // Headline
-            Text("Swipe back to your app")
-                .font(.system(size: 32, weight: .bold, design: .serif))
-                .multilineTextAlignment(.center)
+            VStack(spacing: 12) {
+                Label("Transcript Ready", systemImage: "checkmark.circle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.green)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(.green.opacity(0.12), in: Capsule())
 
-            // Illustration (Mockup)
-            VStack(spacing: 0) {
-                ZStack {
-                    // Phone Frame Mockup
-                    RoundedRectangle(cornerRadius: 40)
-                        .stroke(Color.black, lineWidth: 8)
-                        .frame(width: 240, height: 260)
-                        .background(
-                            RoundedRectangle(cornerRadius: 40)
-                                .fill(Color(.systemGray6))
-                        )
+                Text("Swipe back to your app")
+                    .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                    .multilineTextAlignment(.center)
 
-                    VStack(spacing: 20) {
-                        // Waveform Placeholder
-                        HStack(spacing: 4) {
-                            ForEach(0..<6) { i in
-                                Capsule()
-                                    .fill(Color.black.opacity(0.7))
-                                    .frame(width: 4, height: CGFloat([20, 40, 30, 50, 25, 35][i]))
-                            }
+                Text("Your text will be inserted automatically when you return.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            }
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 42, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .frame(width: 224, height: 244)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 42, style: .continuous)
+                            .strokeBorder(Color.primary.opacity(0.18), lineWidth: 5)
+                    )
+                    .shadow(color: .black.opacity(0.08), radius: 20, y: 10)
+
+                VStack(spacing: 18) {
+                    HStack(spacing: 5) {
+                        ForEach(0..<6, id: \.self) { index in
+                            Capsule()
+                                .fill(Color.primary.opacity(0.75))
+                                .frame(width: 5, height: CGFloat([18, 36, 26, 44, 22, 32][index]))
                         }
+                    }
 
-                        VStack(spacing: 4) {
-                            Text("Listening")
-                                .font(.caption2.bold())
-                            Text("iPhone Microphone")
-                                .font(.system(size: 8))
-                                .foregroundColor(.secondary)
-                        }
+                    VStack(spacing: 4) {
+                        Text("Apple Speech")
+                            .font(.caption.weight(.semibold))
+                        Text("iPhone Microphone Ready")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
-            .padding(.vertical, 20)
+            .padding(.vertical, 8)
 
             Spacer()
 
-            // Bottom Action Indicator
-            VStack(spacing: 12) {
-                Text("Swipe right on the bar below")
-                    .font(.subheadline.bold())
+            VStack(spacing: 14) {
+                Text("Swipe right along the bottom bar")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
 
-                ZStack {
+                ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color.black)
-                        .frame(width: 120, height: 4)
+                        .fill(Color.primary.opacity(0.15))
+                        .frame(width: 144, height: 6)
 
-                    Image(systemName: "hand.draw")
-                        .font(.title3)
-                        .offset(x: -40, y: 15)
+                    Capsule()
+                        .fill(Color.primary)
+                        .frame(width: 54, height: 6)
+                        .offset(x: animateSwipeHint ? 90 : 0)
                 }
+                .animation(
+                    .easeInOut(duration: 1.4).repeatForever(autoreverses: true),
+                    value: animateSwipeHint
+                )
             }
-            .padding(.bottom, 40)
+            .padding(.bottom, 36)
         }
-        .background(Color(.systemBackground))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .onAppear {
+            animateSwipeHint = true
+        }
     }
 }
 

@@ -14,6 +14,7 @@ struct AppViewModelTests {
         _ = await completions.next()
         dictationViewModel.start()
 
+        subject.selectedTab = .dictionary
         #expect(subject.handleIncomingURL(URL(string: "stetmobile://other")!) == false)
         #expect(subject.selectedTab == .dictionary)
         #expect(subject.externalDictationFlow == .none)
