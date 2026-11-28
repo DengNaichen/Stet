@@ -2,6 +2,13 @@ import Combine
 import Foundation
 import os
 
+nonisolated struct DictationRoutingTelemetry: Equatable, Sendable {
+    let routedLanguageCode: String
+    let routingReason: LanguageRoutingReason
+    let lidMs: Int?
+    let analyzerPrepareMs: Int?
+}
+
 struct DictationTimingRecord: Equatable, Sendable, Identifiable {
     let id: String
     let recordedAt: Date
@@ -10,12 +17,57 @@ struct DictationTimingRecord: Equatable, Sendable, Identifiable {
     let localFinalizeMs: Int
     let rewriteMs: Int?
     let totalWaitMs: Int
+    let routedLanguageCode: String?
+    let routingReason: String?
+    let lidMs: Int?
+    let analyzerPrepareMs: Int?
+
+    init(
+        id: String,
+        recordedAt: Date,
+        audioDurationMs: Int?,
+        startMs: Int,
+        localFinalizeMs: Int,
+        rewriteMs: Int?,
+        totalWaitMs: Int,
+        routedLanguageCode: String? = nil,
+        routingReason: String? = nil,
+        lidMs: Int? = nil,
+        analyzerPrepareMs: Int? = nil
+    ) {
+        self.id = id
+        self.recordedAt = recordedAt
+        self.audioDurationMs = audioDurationMs
+        self.startMs = startMs
+        self.localFinalizeMs = localFinalizeMs
+        self.rewriteMs = rewriteMs
+        self.totalWaitMs = totalWaitMs
+        self.routedLanguageCode = routedLanguageCode
+        self.routingReason = routingReason
+        self.lidMs = lidMs
+        self.analyzerPrepareMs = analyzerPrepareMs
+    }
 
     var summaryLine: String {
         let rewritePart = rewriteMs.map { "\($0)ms" } ?? "off"
         let audioPart = audioDurationMs.map { "\($0)ms" } ?? "n/a"
-        return
-            "session=\(id.prefix(8)) audio=\(audioPart) start=\(startMs)ms localASR=\(localFinalizeMs)ms rewrite=\(rewritePart) totalWait=\(totalWaitMs)ms"
+        var parts = [
+            "session=\(id.prefix(8))",
+            "audio=\(audioPart)",
+            "start=\(startMs)ms",
+        ]
+        if let routedLanguageCode {
+            let reasonPart = routingReason ?? "unknown"
+            let lidPart = lidMs.map { "\($0)ms" } ?? "n/a"
+            let prepPart = analyzerPrepareMs.map { "\($0)ms" } ?? "n/a"
+            parts.append("lang=\(routedLanguageCode)(\(reasonPart))")
+            parts.append("lid=\(lidPart)")
+            parts.append("prep=\(prepPart)")
+        }
+        parts.append("localASR=\(localFinalizeMs)ms")
+        parts.append("rewrite=\(rewritePart)")
+        parts.append("totalWait=\(totalWaitMs)ms")
+        return parts.joined(separator: " ")
     }
 
     static func formatDuration(ms: Int) -> String {

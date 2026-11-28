@@ -540,41 +540,62 @@ final class KeyboardViewController: UIInputViewController {
             publishState(.idle)
 
         case .requestStart, .launching, .warming:
-            let appDead = !SharedDictationManager.shared.mainAppAlive(within: 2.0)
-            let stale = Date().timeIntervalSince(session.updatedAt) > 10.0
-            if appDead && stale {
-                cancelOurSession()
-                publishState(.idle)
-            } else {
-                publishState(.pending)
-            }
+            handleTimeoutCheck(
+                for: session.sessionId,
+                expectedStates: [.requestStart, .launching, .warming],
+                requireAppDead: true,
+                activeButtonState: .pending
+            )
 
         case .recording:
             publishState(.recording)
 
         case .requestStop, .transcribing:
-            let appDead = !SharedDictationManager.shared.mainAppAlive(within: 2.0)
-            let stale = Date().timeIntervalSince(session.updatedAt) > 10.0
-            if appDead || stale {
-                cancelOurSession()
-                publishState(.idle)
-            } else {
-                publishState(.processing)
-            }
+            handleTimeoutCheck(
+                for: session.sessionId,
+                expectedStates: [.requestStop, .transcribing],
+                requireAppDead: false,
+                activeButtonState: .processing
+            )
 
         case .ready:
-            var insertedNonEmpty = false
-            if session.sessionId != lastProcessedSessionId {
-                insertedNonEmpty = insertTranscription(session)
-            }
-            if insertedNonEmpty {
-                showDoneConfirmation()
-            } else {
-                publishState(.idle)
-            }
+            handleReadySession(session)
 
         case .inserted, .cancelled, .failed, .timeout:
             cleanupSession(sessionId: session.sessionId)
+            publishState(.idle)
+        }
+    }
+
+    private func handleTimeoutCheck(
+        for sessionId: String,
+        expectedStates: [DictationState],
+        requireAppDead: Bool,
+        activeButtonState: KeyboardButtonState
+    ) {
+        switch SharedDictationManager.shared.resolveStaleSessionIfNeeded(
+            for: sessionId,
+            expectedStates: expectedStates,
+            requireAppDead: requireAppDead
+        ) {
+        case .stillFresh:
+            publishState(activeButtonState)
+        case .cancelled, .inactive:
+            cleanupSession(sessionId: sessionId)
+            publishState(.idle)
+        case .alreadyReady(let readySession):
+            handleReadySession(readySession)
+        }
+    }
+
+    private func handleReadySession(_ session: DictationSession) {
+        var insertedNonEmpty = false
+        if session.sessionId != lastProcessedSessionId {
+            insertedNonEmpty = insertTranscription(session)
+        }
+        if insertedNonEmpty {
+            showDoneConfirmation()
+        } else {
             publishState(.idle)
         }
     }

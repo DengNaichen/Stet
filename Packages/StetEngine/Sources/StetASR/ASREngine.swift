@@ -49,6 +49,10 @@ public protocol ASREngine: AnyObject {
     /// Long-lived audio resources remain prepared for the next session.
     func stop()
 
+    /// Abort the current recording session immediately without emitting a final result.
+    /// Long-lived audio resources remain prepared for the next session.
+    func cancel()
+
     /// Rebuild audio resources after the system media services process resets.
     func resetAudio() async throws
 
@@ -57,6 +61,10 @@ public protocol ASREngine: AnyObject {
 }
 
 public extension ASREngine {
+    func cancel() {
+        stop()
+    }
+
     func resetAudio() async throws {
         try await prepare()
     }

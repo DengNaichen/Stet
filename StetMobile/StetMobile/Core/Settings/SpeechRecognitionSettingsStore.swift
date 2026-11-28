@@ -30,6 +30,10 @@ nonisolated enum SpeechRecognitionLanguage: String, CaseIterable, Identifiable, 
         case .japanese, .korean: displayName
         }
     }
+
+    var supportsAutoDetectEnglish: Bool {
+        self == .chineseSimplified || self == .chineseTraditional
+    }
 }
 
 nonisolated enum SpeechTranscriberBackend: String, CaseIterable, Identifiable, Sendable {
@@ -66,8 +70,15 @@ nonisolated enum SpeechAssetStatus: Equatable, Sendable {
 
 @MainActor
 final class SpeechRecognitionSettingsStore: ObservableObject {
-    struct PreparedSpeechTarget: Sendable {
+    struct PreparedSpeechTarget: Sendable, Equatable {
+        let language: SpeechRecognitionLanguage
         let locale: Locale
+        let backend: SpeechTranscriberBackend
+    }
+
+    struct PreparedRoutingTargets: Sendable, Equatable {
+        let primary: PreparedSpeechTarget
+        let secondary: PreparedSpeechTarget?
         let backend: SpeechTranscriberBackend
     }
 
@@ -80,8 +91,41 @@ final class SpeechRecognitionSettingsStore: ObservableObject {
         didSet {
             guard selectedLanguage != oldValue else { return }
             defaults.set(selectedLanguage.rawValue, forKey: Self.languageKey)
+            if let secondary = secondaryLanguage,
+                secondary == selectedLanguage || secondary.voxLinguaCode == selectedLanguage.voxLinguaCode
+            {
+                secondaryLanguage = nil
+            }
             statusCheckID = UUID()
             assetStatus = .checking
+        }
+    }
+
+    @Published var secondaryLanguage: SpeechRecognitionLanguage? {
+        didSet {
+            let normalized: SpeechRecognitionLanguage? =
+                if let candidate = secondaryLanguage,
+                    candidate != selectedLanguage,
+                    candidate.voxLinguaCode != selectedLanguage.voxLinguaCode
+                {
+                    candidate
+                } else {
+                    nil
+                }
+            if secondaryLanguage != normalized {
+                secondaryLanguage = normalized
+                return
+            }
+            guard secondaryLanguage != oldValue else { return }
+            if let secondaryLanguage {
+                defaults.set(secondaryLanguage.rawValue, forKey: Self.secondaryLanguageKey)
+                secondaryStatusCheckID = UUID()
+                secondaryAssetStatus = .checking
+            } else {
+                defaults.removeObject(forKey: Self.secondaryLanguageKey)
+                secondaryStatusCheckID = UUID()
+                secondaryAssetStatus = nil
+            }
         }
     }
 
@@ -91,48 +135,63 @@ final class SpeechRecognitionSettingsStore: ObservableObject {
             defaults.set(selectedBackend.rawValue, forKey: Self.backendKey)
             statusCheckID = UUID()
             assetStatus = .checking
+            if secondaryLanguage != nil {
+                secondaryStatusCheckID = UUID()
+                secondaryAssetStatus = .checking
+            }
         }
     }
 
     @Published private(set) var assetStatus: SpeechAssetStatus = .checking
+    @Published private(set) var secondaryAssetStatus: SpeechAssetStatus?
 
     private static let languageKey = "dictation.speechRecognitionLanguage"
+    private static let secondaryLanguageKey = "dictation.speechSecondaryLanguage"
     private static let backendKey = "dictation.speechTranscriberBackend"
     private let defaults: UserDefaults
     private var statusCheckID = UUID()
+    private var secondaryStatusCheckID = UUID()
     private var installations: [AssetKey: Task<Locale, any Error>] = [:]
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        selectedLanguage =
+        let primary =
             defaults.string(forKey: Self.languageKey).flatMap(SpeechRecognitionLanguage.init(rawValue:))
             ?? Self.preferredLanguage
+        selectedLanguage = primary
+        if let rawSecondary = defaults.string(forKey: Self.secondaryLanguageKey),
+            let parsed = SpeechRecognitionLanguage(rawValue: rawSecondary),
+            parsed != primary,
+            parsed.voxLinguaCode != primary.voxLinguaCode
+        {
+            secondaryLanguage = parsed
+            secondaryAssetStatus = .checking
+        } else {
+            secondaryLanguage = nil
+            secondaryAssetStatus = nil
+        }
         selectedBackend =
             defaults.string(forKey: Self.backendKey).flatMap(SpeechTranscriberBackend.init(rawValue:))
             ?? .speechTranscriber
     }
 
     func refreshAssetStatus() async {
-        let key = AssetKey(language: selectedLanguage, backend: selectedBackend)
-        guard installations[key] == nil else { return }
-        let checkID = UUID()
-        statusCheckID = checkID
-
-        let status: SpeechAssetStatus
-        do {
-            let locale = try await Self.resolve(key.language, backend: key.backend)
-            let modules = Self.makeModules(locale: locale, backend: key.backend)
-            status = Self.assetStatus(for: await AssetInventory.status(forModules: modules))
-        } catch {
-            status = .unsupported
-        }
-
-        guard statusCheckID == checkID, !Task.isCancelled else { return }
-        assetStatus = status
+        await refreshPrimaryAssetStatus()
+        await refreshSecondaryAssetStatus()
     }
 
     func downloadAssetIfNeeded() async throws {
         _ = try await prepareTarget()
+        if let secondary = secondaryLanguage {
+            _ = try? await prepareTarget(for: secondary, backend: selectedBackend)
+        }
+        await reconcileReservedLocales()
+    }
+
+    func downloadSecondaryAssetIfNeeded() async {
+        guard let secondary = secondaryLanguage else { return }
+        _ = try? await prepareTarget(for: secondary, backend: selectedBackend)
+        await reconcileReservedLocales()
     }
 
     func resolvedLocale() async throws -> Locale {
@@ -144,15 +203,102 @@ final class SpeechRecognitionSettingsStore: ObservableObject {
     }
 
     func prepareTarget() async throws -> PreparedSpeechTarget {
-        try Task.checkCancellation()
+        try await prepareTarget(for: selectedLanguage, backend: selectedBackend)
+    }
+
+    /// Freezes the active backend and resolves primary + optional secondary targets for a session.
+    /// Primary installation is mandatory; secondary is strictly non-fatal and degrades to `nil`
+    /// when unavailable, uninstalled (when `allowSecondaryDownload == false`), or over quota.
+    func prepareRoutingTargets(allowSecondaryDownload: Bool) async throws -> PreparedRoutingTargets {
+        let backend = selectedBackend
+        let primaryLanguage = selectedLanguage
+        let secondaryCandidate = secondaryLanguage
+
+        let primary = try await prepareTarget(for: primaryLanguage, backend: backend)
+
+        var resolvedSecondary: PreparedSpeechTarget?
+        if let secondaryCandidate,
+            secondaryCandidate != primaryLanguage,
+            secondaryCandidate.voxLinguaCode != primaryLanguage.voxLinguaCode
+        {
+            if allowSecondaryDownload {
+                resolvedSecondary = try? await prepareTarget(for: secondaryCandidate, backend: backend)
+            } else {
+                resolvedSecondary = await installedTargetIfReady(for: secondaryCandidate, backend: backend)
+            }
+        }
+
+        if allowSecondaryDownload {
+            await reconcileReservedLocales()
+        }
+
+        return PreparedRoutingTargets(
+            primary: primary,
+            secondary: resolvedSecondary,
+            backend: backend
+        )
+    }
+
+    private func refreshPrimaryAssetStatus() async {
         let key = AssetKey(language: selectedLanguage, backend: selectedBackend)
+        guard installations[key] == nil else { return }
+        let checkID = UUID()
+        statusCheckID = checkID
+
+        let status = await Self.queryAssetStatus(for: key)
+        guard statusCheckID == checkID, !Task.isCancelled else { return }
+        assetStatus = status
+    }
+
+    private func refreshSecondaryAssetStatus() async {
+        guard let secondary = secondaryLanguage else {
+            secondaryAssetStatus = nil
+            return
+        }
+        let key = AssetKey(language: secondary, backend: selectedBackend)
+        guard installations[key] == nil else { return }
+        let checkID = UUID()
+        secondaryStatusCheckID = checkID
+
+        let status = await Self.queryAssetStatus(for: key)
+        guard secondaryStatusCheckID == checkID, !Task.isCancelled else { return }
+        secondaryAssetStatus = status
+    }
+
+    private func installedTargetIfReady(
+        for language: SpeechRecognitionLanguage,
+        backend: SpeechTranscriberBackend
+    ) async -> PreparedSpeechTarget? {
+        do {
+            let locale = try await Self.resolve(language, backend: backend)
+            let modules = Self.makeModules(locale: locale, backend: backend)
+            guard await AssetInventory.status(forModules: modules) == .installed else {
+                return nil
+            }
+            return PreparedSpeechTarget(language: language, locale: locale, backend: backend)
+        } catch {
+            return nil
+        }
+    }
+
+    private func prepareTarget(
+        for language: SpeechRecognitionLanguage,
+        backend: SpeechTranscriberBackend
+    ) async throws -> PreparedSpeechTarget {
+        try Task.checkCancellation()
+        let key = AssetKey(language: language, backend: backend)
         if let installation = installations[key] {
             let locale = try await installation.value
             try Task.checkCancellation()
-            return PreparedSpeechTarget(locale: locale, backend: key.backend)
+            return PreparedSpeechTarget(language: language, locale: locale, backend: backend)
         }
 
-        statusCheckID = UUID()
+        if language == selectedLanguage && backend == selectedBackend {
+            statusCheckID = UUID()
+        } else if language == secondaryLanguage && backend == selectedBackend {
+            secondaryStatusCheckID = UUID()
+        }
+
         let installation = Task {
             defer { installations[key] = nil }
             do {
@@ -190,12 +336,60 @@ final class SpeechRecognitionSettingsStore: ObservableObject {
         installations[key] = installation
         let locale = try await installation.value
         try Task.checkCancellation()
-        return PreparedSpeechTarget(locale: locale, backend: key.backend)
+        return PreparedSpeechTarget(language: language, locale: locale, backend: backend)
+    }
+
+    /// Best-effort reconciliation of `AssetInventory` locale reservations against the active pair.
+    /// Never throws so quota limits on a secondary locale never fail primary dictation bootstrap.
+    private func reconcileReservedLocales() async {
+        var desiredLocales: [Locale] = []
+        if let primaryLocale = try? await Self.resolve(selectedLanguage, backend: selectedBackend) {
+            desiredLocales.append(primaryLocale)
+        }
+        if let secondary = secondaryLanguage,
+            let secondaryLocale = try? await Self.resolve(secondary, backend: selectedBackend)
+        {
+            desiredLocales.append(secondaryLocale)
+        }
+        guard !desiredLocales.isEmpty else { return }
+
+        let desiredIDs = Set(desiredLocales.map(\.identifier))
+        let existingReserved = await AssetInventory.reservedLocales
+        for reserved in existingReserved where !desiredIDs.contains(reserved.identifier) {
+            _ = await AssetInventory.release(reservedLocale: reserved)
+        }
+
+        let remainingReserved = await AssetInventory.reservedLocales
+        let reservedIDs = Set(remainingReserved.map(\.identifier))
+        let maxAllowed = AssetInventory.maximumReservedLocales
+        var currentCount = remainingReserved.count
+
+        for locale in desiredLocales where !reservedIDs.contains(locale.identifier) {
+            guard currentCount < maxAllowed else { break }
+            if (try? await AssetInventory.reserve(locale: locale)) == true {
+                currentCount += 1
+            }
+        }
     }
 
     private func publish(_ status: SpeechAssetStatus, for key: AssetKey) {
-        guard selectedLanguage == key.language, selectedBackend == key.backend, assetStatus != status else { return }
-        assetStatus = status
+        guard selectedBackend == key.backend else { return }
+        if selectedLanguage == key.language, assetStatus != status {
+            assetStatus = status
+        }
+        if secondaryLanguage == key.language, secondaryAssetStatus != status {
+            secondaryAssetStatus = status
+        }
+    }
+
+    private static func queryAssetStatus(for key: AssetKey) async -> SpeechAssetStatus {
+        do {
+            let locale = try await resolve(key.language, backend: key.backend)
+            let modules = makeModules(locale: locale, backend: key.backend)
+            return assetStatus(for: await AssetInventory.status(forModules: modules))
+        } catch {
+            return .unsupported
+        }
     }
 
     private static var preferredLanguage: SpeechRecognitionLanguage {

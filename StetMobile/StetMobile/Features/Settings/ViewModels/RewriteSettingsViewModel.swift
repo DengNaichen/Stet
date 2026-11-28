@@ -66,8 +66,39 @@ final class RewriteSettingsViewModel: ObservableObject {
         set {
             guard speechSettingsStore.selectedLanguage != newValue else { return }
             speechSettingsStore.selectedLanguage = newValue
+            if !newValue.supportsAutoDetectEnglish {
+                speechSettingsStore.secondaryLanguage = nil
+            }
             Task { await refreshSpeechAssetStatus() }
         }
+    }
+
+    var autoDetectEnglishEnabled: Bool {
+        get {
+            speechSettingsStore.selectedLanguage.supportsAutoDetectEnglish
+                && speechSettingsStore.secondaryLanguage == .englishUS
+        }
+        set {
+            guard speechSettingsStore.selectedLanguage.supportsAutoDetectEnglish else {
+                speechSettingsStore.secondaryLanguage = nil
+                return
+            }
+            let target: SpeechRecognitionLanguage? = newValue ? .englishUS : nil
+            guard speechSettingsStore.secondaryLanguage != target else { return }
+            speechSettingsStore.secondaryLanguage = target
+            Task { await refreshSpeechAssetStatus() }
+        }
+    }
+
+    var canConfigureAutoDetectEnglish: Bool {
+        speechSettingsStore.selectedLanguage.supportsAutoDetectEnglish
+    }
+
+    var languageSummaryLabel: String {
+        if autoDetectEnglishEnabled {
+            return "\(selectedLanguage.shortLabel) · Auto EN"
+        }
+        return selectedLanguage.shortLabel
     }
 
     var selectedBackend: SpeechTranscriberBackend {
@@ -83,6 +114,10 @@ final class RewriteSettingsViewModel: ObservableObject {
         speechSettingsStore.assetStatus
     }
 
+    var secondarySpeechAssetStatus: SpeechAssetStatus? {
+        speechSettingsStore.secondaryAssetStatus
+    }
+
     func refreshSpeechAssetStatus() async {
         await speechSettingsStore.refreshAssetStatus()
     }
@@ -96,6 +131,11 @@ final class RewriteSettingsViewModel: ObservableObject {
         } catch {
             await speechSettingsStore.refreshAssetStatus()
         }
+    }
+
+    func downloadSecondarySpeechAsset() async {
+        await speechSettingsStore.downloadSecondaryAssetIfNeeded()
+        await speechSettingsStore.refreshAssetStatus()
     }
 
     func refreshSyncedAPIKey() {

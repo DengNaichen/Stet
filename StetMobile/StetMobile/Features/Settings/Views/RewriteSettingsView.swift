@@ -58,13 +58,45 @@ struct RewriteSettingsView: View {
             HStack(spacing: 12) {
                 settingsLabel("Speech Model", systemImage: "waveform")
                 Spacer()
-                speechAssetTrailingView
+                speechAssetTrailingView(for: viewModel.speechAssetStatus) {
+                    Task { await viewModel.downloadSpeechAsset() }
+                }
             }
 
             if case .failed(let message) = viewModel.speechAssetStatus {
                 Text(message)
                     .font(.footnote)
                     .foregroundStyle(.red)
+            }
+
+            if viewModel.canConfigureAutoDetectEnglish {
+                Toggle(
+                    isOn: Binding(
+                        get: { viewModel.autoDetectEnglishEnabled },
+                        set: { viewModel.autoDetectEnglishEnabled = $0 }
+                    )
+                ) {
+                    settingsLabel("Auto-Detect English", systemImage: "character.bubble")
+                }
+                .tint(MobileLinearPalette.accentAmber)
+
+                if viewModel.autoDetectEnglishEnabled,
+                    let secondaryStatus = viewModel.secondarySpeechAssetStatus
+                {
+                    HStack(spacing: 12) {
+                        settingsLabel("English Model", systemImage: "waveform")
+                        Spacer()
+                        speechAssetTrailingView(for: secondaryStatus) {
+                            Task { await viewModel.downloadSecondarySpeechAsset() }
+                        }
+                    }
+
+                    if case .failed(let message) = secondaryStatus {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
             }
         } header: {
             Text("On-Device Speech")
@@ -74,8 +106,11 @@ struct RewriteSettingsView: View {
     }
 
     @ViewBuilder
-    private var speechAssetTrailingView: some View {
-        switch viewModel.speechAssetStatus {
+    private func speechAssetTrailingView(
+        for status: SpeechAssetStatus,
+        onDownload: @escaping () -> Void
+    ) -> some View {
+        switch status {
         case .checking:
             HStack(spacing: 6) {
                 ProgressView()
@@ -96,13 +131,11 @@ struct RewriteSettingsView: View {
             }
 
         case .available:
-            Button("Download") {
-                Task { await viewModel.downloadSpeechAsset() }
-            }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.capsule)
-            .controlSize(.small)
-            .tint(.primary)
+            Button("Download", action: onDownload)
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
+                .tint(.primary)
 
         case .downloading:
             HStack(spacing: 6) {
@@ -119,12 +152,10 @@ struct RewriteSettingsView: View {
                 .foregroundStyle(.secondary)
 
         case .failed:
-            Button("Retry") {
-                Task { await viewModel.downloadSpeechAsset() }
-            }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.capsule)
-            .controlSize(.small)
+            Button("Retry", action: onDownload)
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
         }
     }
 

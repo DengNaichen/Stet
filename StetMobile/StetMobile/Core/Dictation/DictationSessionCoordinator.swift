@@ -213,12 +213,14 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
     private var bootstrapGeneration: UUID?
     private var recoveryGeneration: UUID?
     private var startGeneration: UUID?
+    private var localFinalizeHeartbeatGeneration: UUID?
     private var rewriteGeneration: UUID?
     private var requiresAudioEngineReset = false
 
     private var bootstrapTask: Task<Void, Never>?
     private var recoveryTask: Task<Void, Never>?
     private var startTask: Task<Void, Never>?
+    private var localFinalizeHeartbeatTask: Task<Void, Never>?
     private var rewriteTask: Task<Void, Never>?
     private var resultsTask: Task<Void, Never>?
     private var failuresTask: Task<Void, Never>?
@@ -367,7 +369,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
                 self.activeSessionId == sessionId,
                 !Task.isCancelled
             else {
-                self.engine.stop()
+                self.engine.cancel()
                 return
             }
 
@@ -423,10 +425,11 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         activeSessionId = nil
         timingDraft = nil
         startTask?.cancel()
+        stopLocalFinalizeHeartbeat()
         rewriteTask?.cancel()
         rewriteGeneration = nil
         rewriteTask = nil
-        engine.stop()
+        engine.cancel()
         guard !isSettlingStart else { return }
         phase = .idle
         continuation.yield(.ready(engineName: engine.name))
@@ -441,6 +444,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             bootstrapTask,
             recoveryTask,
             startTask,
+            localFinalizeHeartbeatTask,
             rewriteTask,
             resultsTask,
             failuresTask,
@@ -460,6 +464,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         bootstrapGeneration = nil
         recoveryGeneration = nil
         startGeneration = nil
+        localFinalizeHeartbeatGeneration = nil
         rewriteGeneration = nil
         phase = .inactive
 
@@ -470,6 +475,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         bootstrapTask = nil
         recoveryTask = nil
         startTask = nil
+        localFinalizeHeartbeatTask = nil
         rewriteTask = nil
         resultsTask = nil
         failuresTask = nil
@@ -597,6 +603,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         metrics: ASRMetrics?
     ) {
         guard activeSessionId == sessionId else { return }
+        stopLocalFinalizeHeartbeat()
 
         guard !text.isEmpty else {
             complete(sessionId: sessionId, rawText: text, llmText: nil, text: text, metrics: metrics)
@@ -759,6 +766,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             totalWaitMs = draft.localFinalizeMs + (draft.rewriteMs ?? 0)
         }
         let audioDurationMs = metrics.map { max(0, Int(($0.audioDuration * 1_000).rounded())) }
+        let routingTelemetry = (engine as? any MobileASREngineRoutingReporting)?.routingTelemetry(for: sessionId)
         timingStore.record(
             DictationTimingRecord(
                 id: sessionId,
@@ -767,9 +775,47 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
                 startMs: draft.startMs,
                 localFinalizeMs: draft.localFinalizeMs,
                 rewriteMs: draft.rewriteMs,
-                totalWaitMs: totalWaitMs
+                totalWaitMs: totalWaitMs,
+                routedLanguageCode: routingTelemetry?.routedLanguageCode,
+                routingReason: routingTelemetry?.routingReason.rawValue,
+                lidMs: routingTelemetry?.lidMs,
+                analyzerPrepareMs: routingTelemetry?.analyzerPrepareMs
             )
         )
+    }
+
+    private func startLocalFinalizeHeartbeat(for sessionId: String) {
+        stopLocalFinalizeHeartbeat()
+        let generation = UUID()
+        let lifecycle = lifecycleGeneration
+        localFinalizeHeartbeatGeneration = generation
+        localFinalizeHeartbeatTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: self.rewriteHeartbeatInterval)
+                } catch {
+                    return
+                }
+                guard self.isCurrent(lifecycle: lifecycle),
+                    !Task.isCancelled,
+                    self.localFinalizeHeartbeatGeneration == generation,
+                    self.phase == .transcribing(sessionId: sessionId),
+                    self.sessionStore.transitionState(
+                        for: sessionId,
+                        from: [.transcribing],
+                        to: .transcribing,
+                        error: nil
+                    )
+                else { return }
+            }
+        }
+    }
+
+    private func stopLocalFinalizeHeartbeat() {
+        localFinalizeHeartbeatGeneration = nil
+        localFinalizeHeartbeatTask?.cancel()
+        localFinalizeHeartbeatTask = nil
     }
 
     private static func elapsedMilliseconds(since startedAt: TimeInterval) -> Int {
@@ -790,12 +836,14 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
                 session.sessionId == sessionId,
                 session.state == .transcribing
             else {
+                engine.cancel()
                 relinquishSession(sessionId: sessionId)
                 return false
             }
         }
 
         phase = .transcribing(sessionId: sessionId)
+        startLocalFinalizeHeartbeat(for: sessionId)
         continuation.yield(.transcribing(sessionId: sessionId))
         return true
     }
@@ -811,8 +859,9 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
                 error: message
             )
         }
+        stopLocalFinalizeHeartbeat()
         if activeSessionId != nil {
-            engine.stop()
+            engine.cancel()
         }
         startTask?.cancel()
         rewriteTask?.cancel()
@@ -828,7 +877,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             let session = sessionStore.getSession(),
             session.sessionId == sessionId
         else {
-            engine.stop()
+            engine.cancel()
             relinquishSession(sessionId: sessionId)
             return
         }
@@ -861,18 +910,18 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             }
 
         case .cancelled:
-            engine.stop()
+            engine.cancel()
             relinquishSession(sessionId: sessionId)
 
         default:
-            engine.stop()
+            engine.cancel()
             relinquishSession(sessionId: sessionId)
         }
     }
 
     private func resolveChangedSessionAfterStart(sessionId: String) {
         guard let session = sessionStore.getSession(), session.sessionId == sessionId else {
-            engine.stop()
+            engine.cancel()
             relinquishSession(sessionId: sessionId)
             return
         }
@@ -880,13 +929,14 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         if session.state == .requestStop, markTranscribing(sessionId: sessionId) {
             engine.stop()
         } else {
-            engine.stop()
+            engine.cancel()
             relinquishSession(sessionId: sessionId)
         }
     }
 
     private func relinquishSession(sessionId: String) {
         guard activeSessionId == sessionId else { return }
+        stopLocalFinalizeHeartbeat()
         activeSessionId = nil
         phase = .idle
         continuation.yield(.ready(engineName: engine.name))

@@ -61,11 +61,61 @@ class SharedDictationManager {
         defaults?.set(Date().timeIntervalSince1970, forKey: heartbeatKey)
     }
 
-    func mainAppAlive(within seconds: TimeInterval) -> Bool {
+    enum StaleSessionResolution {
+        case stillFresh
+        case cancelled
+        case alreadyReady(DictationSession)
+        case inactive
+    }
+
+    /// Atomically verifies session state, heartbeat, and staleness inside the cross-process lock
+    /// before cancelling a timed-out keyboard session. Prevents clobbering a concurrent renewal
+    /// or dropping a session that transitioned to `.ready` right before the keyboard tick ran.
+    func resolveStaleSessionIfNeeded(
+        for sessionId: String,
+        expectedStates: [DictationState],
+        requireAppDead: Bool,
+        heartbeatTimeout: TimeInterval = 2.0,
+        staleTimeout: TimeInterval = 10.0,
+        now: Date = Date()
+    ) -> StaleSessionResolution {
+        withSessionTransaction { storage in
+            guard var session = loadSessionUnlocked(storage: storage),
+                session.sessionId == sessionId
+            else {
+                return .inactive
+            }
+
+            if session.state == .ready {
+                return .alreadyReady(session)
+            }
+
+            guard expectedStates.contains(session.state) else {
+                return .inactive
+            }
+
+            let appDead = !mainAppAlive(within: heartbeatTimeout, now: now)
+            let stale = now.timeIntervalSince(session.updatedAt) > staleTimeout
+            let timedOut = requireAppDead ? (appDead && stale) : (appDead || stale)
+            guard timedOut else {
+                return .stillFresh
+            }
+
+            session.state = .cancelled
+            session.updatedAt = now
+            session.error = nil
+            guard persistSessionUnlocked(session, storage: storage) else {
+                return .stillFresh
+            }
+            return .cancelled
+        }
+    }
+
+    func mainAppAlive(within seconds: TimeInterval, now: Date = Date()) -> Bool {
         guard let ts = defaults?.object(forKey: heartbeatKey) as? TimeInterval, ts > 0 else {
             return false
         }
-        return Date().timeIntervalSince1970 - ts < seconds
+        return now.timeIntervalSince1970 - ts < seconds
     }
 
     func getSession() -> DictationSession? {
