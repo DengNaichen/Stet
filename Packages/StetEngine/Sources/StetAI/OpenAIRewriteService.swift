@@ -15,7 +15,7 @@ public struct OpenAIRewriteService: TextRewriteService {
 
     public nonisolated init(
         configuration: RewriteProviderConfiguration,
-        session: URLSession = .shared
+        session: URLSession
     ) {
         guard case .remote(let endpoint) = configuration.backend else {
             preconditionFailure("OpenAIRewriteService requires a remote rewrite configuration.")

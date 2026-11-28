@@ -18,7 +18,7 @@ spec.loader.exec_module(changes)
 class RoutingTests(unittest.TestCase):
     def test_lightweight_changes_do_not_allocate_macos(self):
         for path in (
-            changes.COMPATIBILITY, changes.REWRITE_MODELS, "docs/specs/app-compatibility.md", "README.md",
+            changes.COMPATIBILITY, "Packages/StetEngine/Sources/StetAI/Resources/rewrite-models.json", "docs/specs/app-compatibility.md", "README.md",
             "reference/apple-platform/index.md", ".github/WORKFLOWS.md", "AGENTS.md",
             "scripts/validate-app-compatibility.py", "scripts/validate-rewrite-models.py", "scripts/validate-agent-entrypoints",
         ):

@@ -52,18 +52,8 @@ final class AppleSpeechDictationEngine: @MainActor ASREngine, MobileASREngineFai
         defer { isStarting = false }
 
         let target = try await settingsStore.prepareTarget()
-        let activeTranscriber: ActiveTranscriber
-        let modules: [any SpeechModule]
-        switch target.backend {
-        case .speechTranscriber:
-            let transcriber = SpeechTranscriber(locale: target.locale, preset: .progressiveTranscription)
-            activeTranscriber = .speech(transcriber)
-            modules = [transcriber]
-        case .dictationTranscriber:
-            let transcriber = DictationTranscriber(locale: target.locale, preset: .progressiveLongDictation)
-            activeTranscriber = .dictation(transcriber)
-            modules = [transcriber]
-        }
+        let activeTranscriber = AppleSpeechModule(locale: target.locale, backend: target.backend, mode: .streaming)
+        let modules = activeTranscriber.modules
 
         guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: modules) else {
             throw EngineError.audioFormatUnavailable
@@ -203,13 +193,8 @@ final class AppleSpeechDictationEngine: @MainActor ASREngine, MobileASREngineFai
         guard !startupCancelled else { throw CancellationError() }
     }
 
-    private enum ActiveTranscriber {
-        case speech(SpeechTranscriber)
-        case dictation(DictationTranscriber)
-    }
-
     private func consumeResults(
-        _ transcriber: ActiveTranscriber,
+        _ transcriber: AppleSpeechModule,
         sessionId: String,
         token: UUID
     ) -> Task<String, any Error> {

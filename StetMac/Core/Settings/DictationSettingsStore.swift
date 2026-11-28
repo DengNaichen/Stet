@@ -56,14 +56,14 @@ struct DictationSettingsStore: Sendable {
     private let defaultsStore: UserDefaultsStore
     private let secretStore: any DictationSecretStore
     let dictionaryModel: DictionaryModel
-    private let rewriteModelCatalog: RewriteModelCatalogSource?
+    private let rewriteModelCatalog: RewriteModelCatalogSource
 
     nonisolated init() {
         self.init(
             defaults: .standard,
             secretStore: SharedKeychainSecretStore.macOS(),
             dictionaryModel: nil,
-            rewriteModelCatalog: nil
+            rewriteModelCatalog: RewriteModelCatalogSource(.bundled)
         )
     }
 
@@ -71,7 +71,7 @@ struct DictationSettingsStore: Sendable {
         defaults: UserDefaults,
         secretStore: any DictationSecretStore,
         dictionaryModel: DictionaryModel? = nil,
-        rewriteModelCatalog: RewriteModelCatalogSource? = nil
+        rewriteModelCatalog: RewriteModelCatalogSource = RewriteModelCatalogSource(.bundled)
     ) {
         self.defaultsStore = UserDefaultsStore(defaults)
         self.secretStore = secretStore
@@ -92,16 +92,9 @@ struct DictationSettingsStore: Sendable {
         let rewriteAPIKey = loadAPIKey(for: rewriteProvider)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let selectedModelID = loadSelectedModelID(for: rewriteProvider)
-        let resolvedModelID: String?
-        if rewriteProvider == .appleIntelligence || rewriteProvider == .custom {
-            resolvedModelID = selectedModelID
-        } else if let rewriteModelCatalog {
-            resolvedModelID = rewriteModelCatalog.snapshot().resolvedModelID(
-                for: rewriteProvider, preferredID: selectedModelID)
-        } else {
-            resolvedModelID = selectedModelID ?? DictationProviderDefaults.rewriteModel(for: rewriteProvider)
-        }
-        let thinkingLevel = loadRewriteThinkingLevel(for: rewriteProvider, modelID: resolvedModelID)
+        let catalog = rewriteModelCatalog.snapshot()
+        let resolvedModelID = catalog.resolvedModelID(for: rewriteProvider, preferredID: selectedModelID)
+        let thinkingLevel = preferredThinkingLevel(for: rewriteProvider, modelID: resolvedModelID)
         let personalDictionaryRecords = loadPersonalDictionaryEnabled() ? dictionaryModel.loadRecords() : []
         let personalDictionary = personalDictionaryRecords.map(\.term)
         let interactionSoundsEnabled =
@@ -111,40 +104,10 @@ struct DictationSettingsStore: Sendable {
             ?? true
         let interactionSoundPreset = loadInteractionSoundPreset()
 
-        let rewriteConfiguration: RewriteProviderConfiguration?
-        if rewriteProvider == .appleIntelligence {
-            rewriteConfiguration = DictationProviderConfigurationResolver.rewriteConfiguration(
-                provider: rewriteProvider,
-                apiKey: "",
-                customModel: resolvedModelID,
-                thinkingLevel: thinkingLevel
-            )
-        } else if rewriteProvider == .custom {
-            let modelID = loadCustomRewriteModelID()
-            if let baseURL = try? OpenAICompatibleBaseURL.normalize(loadCustomRewriteBaseURL()),
-                !modelID.isEmpty
-            {
-                rewriteConfiguration = DictationProviderConfigurationResolver.rewriteConfiguration(
-                    provider: .custom,
-                    apiKey: rewriteAPIKey,
-                    customModel: modelID,
-                    baseURL: baseURL,
-                    thinkingLevel: thinkingLevel
-                )
-            } else {
-                rewriteConfiguration = nil
-            }
-        } else {
-            rewriteConfiguration =
-                rewriteAPIKey.isEmpty || resolvedModelID == nil
-                ? nil
-                : DictationProviderConfigurationResolver.rewriteConfiguration(
-                    provider: rewriteProvider,
-                    apiKey: rewriteAPIKey,
-                    customModel: resolvedModelID,
-                    thinkingLevel: thinkingLevel
-                )
-        }
+        let rewriteConfiguration = DictationProviderConfigurationResolver.resolve(
+            provider: rewriteProvider, apiKey: rewriteAPIKey, preferredModelID: selectedModelID,
+            preferredThinkingLevel: thinkingLevel, customBaseURL: loadCustomRewriteBaseURL(),
+            customModelID: loadCustomRewriteModelID(), catalog: catalog)
 
         let transcriptionPrimaryLanguage =
             defaultsStore.string(forKey: MacPreferences.transcriptionPrimaryLanguage) ?? "en"
@@ -261,19 +224,11 @@ struct DictationSettingsStore: Sendable {
         }
     }
 
-    nonisolated func loadRewriteThinkingLevel(
-        for provider: DictationProvider,
-        modelID: String?
-    ) -> RewriteThinkingLevel? {
+    nonisolated func preferredThinkingLevel(for provider: DictationProvider, modelID: String?) -> RewriteThinkingLevel?
+    {
         guard let modelID else { return nil }
         let key = rewriteThinkingLevelKey(provider: provider, modelID: modelID)
-        let storedLevel = defaultsStore.string(forKey: key).flatMap(RewriteThinkingLevel.init(rawValue:))
-        guard let model = rewriteModelCatalog?.snapshot().model(for: provider, modelID: modelID),
-            let levels = model.thinkingLevels,
-            !levels.isEmpty
-        else { return storedLevel }
-        if let storedLevel, levels.contains(storedLevel) { return storedLevel }
-        return model.defaultThinkingLevel
+        return defaultsStore.string(forKey: key).flatMap(RewriteThinkingLevel.init(rawValue:))
     }
 
     nonisolated func saveRewriteThinkingLevel(

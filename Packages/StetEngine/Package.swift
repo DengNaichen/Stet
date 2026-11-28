@@ -59,7 +59,8 @@ let package = Package(
                 "StetRewrite",
                 .product(name: "OpenAI", package: "OpenAI"),
             ],
-            path: "Sources/StetAI"
+            path: "Sources/StetAI",
+            resources: [.process("Resources/rewrite-models.json")]
         ),
         .testTarget(
             name: "StetCoreTests",

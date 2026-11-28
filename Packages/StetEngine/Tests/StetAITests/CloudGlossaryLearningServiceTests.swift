@@ -1,5 +1,5 @@
 import Foundation
-import StetAI
+@testable import StetAI
 import StetCore
 import StetRewrite
 import Testing
@@ -27,10 +27,10 @@ struct CloudGlossaryLearningServiceTests {
         }
         defer { session.invalidateAndCancel() }
 
-        let config = DictationProviderConfigurationResolver.rewriteConfiguration(
+        let config = DictationProviderConfigurationResolver.transportConfiguration(
             provider: .deepSeek,
             apiKey: "ds-key",
-            customModel: "deepseek-flash",
+            model: "deepseek-flash",
             thinkingLevel: .high
         )
         #expect(config.minimumEffortForGlossaryLearning.thinkingLevel == .off)
@@ -65,10 +65,10 @@ struct CloudGlossaryLearningServiceTests {
         }
         defer { session.invalidateAndCancel() }
 
-        let config = DictationProviderConfigurationResolver.rewriteConfiguration(
+        let config = DictationProviderConfigurationResolver.transportConfiguration(
             provider: .openAI,
             apiKey: "sk-test",
-            customModel: "gpt-5.6-luna",
+            model: "gpt-5.6-luna",
             thinkingLevel: .high
         )
         let service = CloudGlossaryLearningService(configuration: config, session: session)
@@ -90,10 +90,10 @@ struct CloudGlossaryLearningServiceTests {
         }
         defer { session.invalidateAndCancel() }
 
-        let config = DictationProviderConfigurationResolver.rewriteConfiguration(
+        let config = DictationProviderConfigurationResolver.transportConfiguration(
             provider: .google,
             apiKey: "g-key",
-            customModel: "gemini-3.8-flash",
+            model: "gemini-3.8-flash",
             thinkingLevel: .high
         )
         let service = CloudGlossaryLearningService(configuration: config, session: session)

@@ -1,3 +1,4 @@
+import StetAI
 #if os(macOS)
     import StetCore
     import SwiftUI

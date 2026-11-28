@@ -1,4 +1,5 @@
 import SwiftUI
+import StetAI
 
 @main
 struct StetMobileApp: App {
@@ -12,8 +13,11 @@ struct StetMobileApp: App {
 
     init() {
         RetiredDictationModelCleanup.removeWhisperModel()
-        let store = RewriteSettingsStore()
+        let catalogStore = RewriteModelCatalogStore.shared
         let speechSettingsStore = SpeechRecognitionSettingsStore()
+        let settingsViewModel = RewriteSettingsViewModel(
+            catalogStore: catalogStore, speechSettingsStore: speechSettingsStore)
+        let store = settingsViewModel.settingsStore
         let dependencies = StetMobileComposition.makeDependencies(
             settingsStore: store,
             speechSettingsStore: speechSettingsStore
@@ -21,10 +25,6 @@ struct StetMobileApp: App {
         let dictationViewModel = SenseVoiceViewModel(
             coordinator: dependencies.dictationCoordinator,
             liveActivityManager: MicrophoneLiveActivityManager()
-        )
-        let settingsViewModel = RewriteSettingsViewModel(
-            settingsStore: store,
-            speechSettingsStore: speechSettingsStore
         )
         settingsViewModel.onSpeechAssetBecameReady = { [weak dictationViewModel] in
             dictationViewModel?.ensureMicAlive()

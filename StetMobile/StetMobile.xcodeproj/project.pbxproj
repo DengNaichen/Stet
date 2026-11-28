@@ -14,6 +14,7 @@
 		B10000022FA5000000000002 /* StetAI in Frameworks */ = {isa = PBXBuildFile; productRef = B10000052FA5000000000005 /* StetAI */; };
 		B10000032FA5000000000003 /* StetRewrite in Frameworks */ = {isa = PBXBuildFile; productRef = B10000062FA5000000000006 /* StetRewrite */; };
 		C10000012FA6000000000001 /* ASREngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000001 /* ASREngine.swift */; };
+		C10000012FA60000000000AA /* AppleSpeechAssets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA60000000000AA /* AppleSpeechAssets.swift */; };
 		C10000012FA6000000000003 /* AudioBuffer+Samples.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000003 /* AudioBuffer+Samples.swift */; };
 		C10000012FA6000000000005 /* SherpaOnnx.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000005 /* SherpaOnnx.swift */; };
 		C10000012FA6000000000007 /* ASRAudioCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000012FA6000000000007 /* ASRAudioCapture.swift */; };
@@ -85,6 +86,7 @@
 		A10000032FA4000000000003 /* sherpa-onnx.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = "sherpa-onnx.xcframework"; path = "Frameworks/sherpa-onnx.xcframework"; sourceTree = SOURCE_ROOT; };
 		A10000042FA4000000000004 /* onnxruntime.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = onnxruntime.xcframework; path = "Frameworks/ios-onnxruntime/onnxruntime.xcframework"; sourceTree = SOURCE_ROOT; };
 		C20000012FA6000000000001 /* ASREngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASREngine.swift; sourceTree = "<group>"; };
+		C20000012FA60000000000AA /* AppleSpeechAssets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSpeechAssets.swift; sourceTree = "<group>"; };
 		C20000012FA6000000000003 /* AudioBuffer+Samples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AudioBuffer+Samples.swift"; sourceTree = "<group>"; };
 		C20000012FA6000000000005 /* SherpaOnnx.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SherpaOnnx.swift; sourceTree = "<group>"; };
 		C20000012FA6000000000007 /* ASRAudioCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASRAudioCapture.swift; sourceTree = "<group>"; };
@@ -249,6 +251,7 @@
 			isa = PBXGroup;
 			children = (
 				C20000012FA6000000000001 /* ASREngine.swift */,
+				C20000012FA60000000000AA /* AppleSpeechAssets.swift */,
 				C20000012FA6000000000003 /* AudioBuffer+Samples.swift */,
 				C20000012FA6000000000005 /* SherpaOnnx.swift */,
 				C20000012FA6000000000007 /* ASRAudioCapture.swift */,
@@ -491,6 +494,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C10000012FA6000000000001 /* ASREngine.swift in Sources */,
+				C10000012FA60000000000AA /* AppleSpeechAssets.swift in Sources */,
 				C10000012FA6000000000003 /* AudioBuffer+Samples.swift in Sources */,
 				C10000012FA6000000000005 /* SherpaOnnx.swift in Sources */,
 				C10000012FA6000000000007 /* ASRAudioCapture.swift in Sources */,

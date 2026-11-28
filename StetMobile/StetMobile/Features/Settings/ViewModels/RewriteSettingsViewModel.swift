@@ -26,6 +26,13 @@ final class RewriteSettingsViewModel: ObservableObject {
         case failed(String)
     }
 
+    convenience init(catalogStore: RewriteModelCatalogStore? = nil, speechSettingsStore: SpeechRecognitionSettingsStore)
+    {
+        self.init(
+            settingsStore: RewriteSettingsStore(catalogStore: catalogStore ?? .shared),
+            speechSettingsStore: speechSettingsStore)
+    }
+
     init(
         settingsStore: RewriteSettingsStore,
         speechSettingsStore: SpeechRecognitionSettingsStore? = nil,
@@ -43,6 +50,10 @@ final class RewriteSettingsViewModel: ObservableObject {
         self.lastLoadedAPIKey = initialKey
         self.apiKeyInput = initialKey
 
+        settingsStore.catalogStore.$catalog.dropFirst().sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        settingsStore.catalogStore.$refreshState.dropFirst().sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
         settingsStore.objectWillChange
             .sink { [weak self] _ in
                 self?.objectWillChange.send()
@@ -62,6 +73,26 @@ final class RewriteSettingsViewModel: ObservableObject {
         }
     }
 
+    var availableModels: [RewriteModelDescriptor] {
+        settingsStore.catalogStore.availableModels(for: settingsStore.selectedProvider)
+    }
+    var selectedModelID: String { settingsStore.selectedModelID }
+    func selectModel(_ id: String) { settingsStore.selectModel(id) }
+    func isProviderEnabled(_ provider: DictationProvider) -> Bool {
+        provider == .custom || settingsStore.catalogStore.catalog.isProviderEnabled(provider)
+    }
+    var availableThinkingLevels: [RewriteThinkingLevel] {
+        settingsStore.catalogStore.catalog.availableThinkingLevels(
+            for: settingsStore.selectedProvider, modelID: selectedModelID)
+    }
+    var selectedThinkingLevel: RewriteThinkingLevel {
+        get { settingsStore.thinkingLevel ?? .off }
+        set { settingsStore.selectThinkingLevel(newValue) }
+    }
+    var catalogRevision: Int { settingsStore.catalogStore.revision }
+    var catalogRefreshState: RewriteModelCatalogStore.RefreshState { settingsStore.catalogStore.refreshState }
+    func refreshModelCatalog() async { await settingsStore.catalogStore.refresh() }
+
     var selectedLanguage: SpeechRecognitionLanguage {
         get { speechSettingsStore.selectedLanguage }
         set {
@@ -71,7 +102,7 @@ final class RewriteSettingsViewModel: ObservableObject {
         }
     }
 
-    var selectedBackend: SpeechTranscriberBackend {
+    var selectedBackend: AppleSpeechTranscriberBackend {
         get { speechSettingsStore.selectedBackend }
         set {
             guard speechSettingsStore.selectedBackend != newValue else { return }
@@ -95,10 +126,11 @@ final class RewriteSettingsViewModel: ObservableObject {
             let trimmed = settingsStore.customModelID.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty ? settingsStore.selectedProvider.displayName : trimmed
         }
-        return settingsStore.selectedModel.displayName
+        return availableModels.first { $0.id == selectedModelID }?.displayName
+            ?? settingsStore.selectedProvider.displayName
     }
 
-    var speechAssetStatus: SpeechAssetStatus {
+    var speechAssetStatus: AppleSpeechAssetStatus {
         speechSettingsStore.assetStatus
     }
 
@@ -107,14 +139,8 @@ final class RewriteSettingsViewModel: ObservableObject {
     }
 
     func downloadSpeechAsset() async {
-        do {
-            try await speechSettingsStore.downloadAssetIfNeeded()
-            if speechSettingsStore.assetStatus.isReady {
-                onSpeechAssetBecameReady?()
-            }
-        } catch {
-            await speechSettingsStore.refreshAssetStatus()
-        }
+        try? await speechSettingsStore.downloadAssetIfNeeded()
+        if speechSettingsStore.assetStatus.isInstalled { onSpeechAssetBecameReady?() }
     }
 
     func refreshSyncedAPIKey() {
@@ -135,7 +161,6 @@ final class RewriteSettingsViewModel: ObservableObject {
         lastLoadedProvider = provider
         lastLoadedAPIKey = loadedKey
         apiKeyInput = loadedKey
-        settingsStore.selectedModel = RewriteModel.default(for: provider)
         validationState = .idle
     }
 

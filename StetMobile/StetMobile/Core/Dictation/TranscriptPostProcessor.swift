@@ -1,9 +1,11 @@
+import StetAI
 import StetCore
 import StetRewrite
 
 struct TranscriptPostProcessOutcome: Equatable, Sendable {
     let text: String
     let didRewrite: Bool
+    var durationMs: Int? = nil
 }
 
 @MainActor
@@ -26,26 +28,29 @@ extension TranscriptPostProcessing {
 @MainActor
 final class SettingsTranscriptPostProcessor: TranscriptPostProcessing {
     private let settingsStore: RewriteSettingsStore
+    private let executor: CloudRewriteExecutor
     private let dictionary: DictionaryModel
 
     init(
         settingsStore: RewriteSettingsStore,
-        dictionary: DictionaryModel = DictionaryModel()
+        dictionary: DictionaryModel = DictionaryModel(),
+        executor: CloudRewriteExecutor = CloudRewriteExecutor()
     ) {
         self.settingsStore = settingsStore
         self.dictionary = dictionary
+        self.executor = executor
     }
 
     var isAvailable: Bool {
-        settingsStore.makeRewriteServiceIfEnabled() != nil
+        settingsStore.configurationIfEnabled() != nil
     }
 
     func prewarm() {
-        guard let rewriteService = settingsStore.makeRewriteServiceIfEnabled() else {
+        guard let configuration = settingsStore.configurationIfEnabled() else {
             return
         }
-        Task.detached(priority: .utility) {
-            await rewriteService.prewarm(.cleanup("", audience: .human))
+        Task(priority: .utility) { [executor] in
+            await executor.prewarm(configuration: configuration, request: .cleanup("", audience: .human))
         }
     }
 
@@ -54,18 +59,15 @@ final class SettingsTranscriptPostProcessor: TranscriptPostProcessing {
     }
 
     func processWithOutcome(_ transcript: String) async -> TranscriptPostProcessOutcome {
-        guard let rewriteService = settingsStore.makeRewriteServiceIfEnabled() else {
+        guard let configuration = settingsStore.configurationIfEnabled() else {
             return TranscriptPostProcessOutcome(text: transcript, didRewrite: false)
         }
 
         let preferredSpellings = dictionary.loadIsEnabled() ? dictionary.loadEntries() : []
-        do {
-            let rewritten = try await rewriteService.rewrite(
-                .cleanup(transcript, audience: .human, preferredSpellings: preferredSpellings)
-            )
-            return TranscriptPostProcessOutcome(text: rewritten, didRewrite: true)
-        } catch {
-            return TranscriptPostProcessOutcome(text: transcript, didRewrite: false)
-        }
+        let result = await executor.execute(
+            configuration: configuration,
+            request: .cleanup(transcript, audience: .human, preferredSpellings: preferredSpellings))
+        return TranscriptPostProcessOutcome(
+            text: result.text, didRewrite: result.didRewrite, durationMs: result.durationMs)
     }
 }

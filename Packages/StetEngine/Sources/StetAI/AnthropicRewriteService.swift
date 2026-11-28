@@ -14,7 +14,7 @@ public struct AnthropicRewriteService: TextRewriteService {
         apiKey: String,
         model: String,
         baseURL: URL = URL(string: "https://api.anthropic.com/v1/messages")!,
-        session: URLSession = .shared
+        session: URLSession
     ) {
         self.apiKey = apiKey
         self.model = model

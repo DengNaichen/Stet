@@ -5,13 +5,13 @@
 **输入**：定义用户可以选择哪些改写服务与模型、凭据怎样保存与校验、改写模型目录怎样远程分发，以及模型或服务不可用时的回退与提示。原地改写原“Remote rewrite model catalog”文档，其中已批准的分发参数、安全边界、回退规则与维护流程完整保留（FR-010 至 FR-018、附录 A）。
 **替代**：本文件原有的“Remote rewrite model catalog”说明。
 
-**范围**：macOS 与 iOS。远程模型目录只在 macOS 生效；iOS 差异见 FR-022 至 FR-024。
+**范围**：macOS 与 iOS。两端共用远程模型目录；iOS 差异见 FR-022 至 FR-024。
 **边界**：本 spec 拥有服务商列表、凭据与 Keychain、凭据校验、自定义端点、模型目录的格式与分发、思考级别、模型或服务商不可用时选用哪个模型。其他规则只引用：什么时候改写、送什么、超时重试、失败或缺 key 时回退原文见[改写执行](rewrite-execution.md) spec；远程配置分发的通用约定（内置基线、定期检查、revision 只增不减）见 INDEX，本 spec 写出本目录的具体参数与差异；“通用”设置页与偏好存储见[应用偏好与更新](app-preferences-and-updates.md) spec。远程转写服务商（OpenAI / Groq 转写）已移除，不在范围内。
 
 ## 术语
 
 - **服务商**：提供改写的服务，例如 OpenAI、Google、DeepSeek、Apple Intelligence、自定义端点。
-- **模型目录**：列出各云端服务商可用模型、默认模型和思考级别的 JSON 文件，即 [rewrite-models.json](../../StetMac/Resources/rewrite-models.json)。
+- **模型目录**：列出各云端服务商可用模型、默认模型和思考级别的 JSON 文件，即 [rewrite-models.json](../../Packages/StetEngine/Sources/StetAI/Resources/rewrite-models.json)。
 - **保存的选择**：用户为某服务商选过的模型与思考级别。
 - **临时回退模型**：保存的模型被禁用或移除时，本次实际使用的服务商默认模型。
 - **思考级别**：模型推理强度档位（off、minimal、low、medium、high、max 中由目录声明的子集）。
@@ -67,18 +67,18 @@
 
 **为什么是这个优先级**：服务商频繁更换模型，靠发版跟进会让用户长期用不了新模型或卡在已下线的模型上。
 
-**独立测试**：把一个更高 revision 的目录发布到 GitHub `main`，在设置中手动检查，确认模型列表更新；再禁用用户已选的模型，确认实际使用服务商默认模型，恢复后自动回到用户选择。
+**独立测试**：把一个更高 revision 的目录发布到 GitHub `main`，在 macOS 设置中手动检查，确认模型列表更新；再禁用用户已选的模型，确认实际使用服务商默认模型，恢复后自动回到用户选择。
 
 **验收场景**：
 
-1. **Given** GitHub 上的目录 revision 更高且有效，**When** 启动、每 24 小时或手动检查，**Then** 新目录生效并缓存。
+1. **Given** GitHub 上的目录 revision 更高且有效，**When** 启动、每 24 小时或在 macOS 手动检查，**Then** 新目录生效并缓存。
 2. **Given** 远程目录无效或 revision 不高于当前，**When** 检查，**Then** 保留当前目录。
 3. **Given** 用户选的模型被禁用，**When** 改写，**Then** 使用该服务商当前默认模型，保存的选择不变；模型恢复后自动使用用户的选择。
 
 ### 边界情况
 
-- 手动检查期间再次点击：按钮在检查中不可用。
-- 内置目录损坏：使用代码中最小的兜底目录（只含 OpenAI 默认模型）。
+- macOS 手动检查期间再次点击：按钮在检查中不可用。
+- 内置目录损坏：加载有效缓存；若无缓存，云端目录暂为空，本地听写可用，下一次有效更新可恢复目录。
 - 缓存目录的 revision 不高于内置目录（例如升级应用后）：使用内置目录。
 - 保存的思考级别不在新目录支持的列表中：使用该模型的默认思考级别，保存值保留。
 - 服务商整体在目录中被禁用：设置中标为“不可用”且不能选择；规则与差异见 FR-019 与已知差异。
@@ -102,17 +102,17 @@
 - **FR-008**：密钥可选。“校验并加载模型”请求 `/models`，单次超时 15 秒，返回的模型 ID 去重排序后供选择；修改地址或密钥后清空已加载的模型与选择；必须选定模型才能保存。
 - **FR-009**：自定义端点与 Apple Intelligence 不受模型目录管理。
 
-**模型目录分发（macOS，保留原文规则）**
+**模型目录分发（macOS 与 iOS）**
 
-- **FR-010**：macOS 以随应用打包的 [rewrite-models.json](../../StetMac/Resources/rewrite-models.json) 作为离线基线，并在启动时和之后每 24 小时检查 GitHub `main` 上的同一文件。
-- **FR-011**：设置可以手动请求刷新。手动控件在检查期间不可用，并显示固定高度的“已更新”或失败结果，与应用兼容名单的更新器一致。
+- **FR-010**：两端以随 StetAI 打包的 [rewrite-models.json](../../Packages/StetEngine/Sources/StetAI/Resources/rewrite-models.json) 作为离线基线，并在启动时和之后每 24 小时检查 GitHub `main` 上的同一文件。
+- **FR-011**：macOS 设置可以手动请求刷新。手动控件在检查期间不可用，并显示固定高度的“已更新”或失败结果，与应用兼容名单的更新器一致。
 - **FR-012**：更新的有效目录以原子方式缓存到 Application Support；无效、过期或不可达的响应保留最后一个有效目录。
 - **FR-013**：目录只能引用应用中已编译的服务商，不能更改 API 主机、鉴权、钥匙串账户、请求格式或服务商协议。这些边界留在 Swift 代码中，目录更新无法重定向凭据或转写文本。
 - **FR-014**：首个包含该加载器的应用版本仍需发版；目录格式变更与新的服务商协议也需要发版。目录内的模型增删、启用 / 禁用与默认值调整不需要发版。
 
 **模型目录分发的具体参数**
 
-- **FR-015**：远程地址为 `https://raw.githubusercontent.com/DengNaichen/Stet/main/StetMac/Resources/rewrite-models.json`；请求忽略本地缓存，超时 15 秒，只接受 HTTP 200。请求不携带转写内容、密钥或用户信息。
+- **FR-015**：远程地址为 `https://raw.githubusercontent.com/DengNaichen/Stet/main/Packages/StetEngine/Sources/StetAI/Resources/rewrite-models.json`；请求忽略本地缓存，超时 15 秒，只接受 HTTP 200。请求不携带转写内容、密钥或用户信息。
 - **FR-016**：目录有效的条件（客户端与校验脚本一致）：不超过 256 KiB；`schemaVersion` 为 1；`revision` 为正整数；服务商不超过 32 个且 ID 唯一，ID 只能是已编译的云端服务商（不含 Apple Intelligence 与自定义端点）；每个服务商不超过 100 个模型且 ID 唯一、符合字符规则；显示名非空且不超过 100 字符；思考级别不重复，有思考级别时默认级别必须在列表中，没有时不得设默认；`defaultModelID` 必须指向已启用的模型。
 - **FR-017**：只有 revision 严格大于当前目录的远程目录才会生效；启动时缓存目录的 revision 严格大于内置目录才使用缓存。
 
@@ -123,13 +123,13 @@
 
 **思考级别**
 
-- **FR-020**：模型声明了思考级别时，设置显示“思考级别”选项；用户的选择按“服务商 + 模型”保存。保存的级别不受当前模型支持时使用模型默认级别，但不删除保存值。未声明思考级别的模型不显示该选项。
+- **FR-020**：模型声明了思考级别时，macOS 设置显示“思考级别”选项；用户的选择按“服务商 + 模型”保存。保存的级别不受当前模型支持时使用模型默认级别，但不删除保存值。未声明思考级别的模型不显示该选项。
 - **FR-021**：思考级别只作用于支持它的服务商协议（例如 OpenAI 的推理强度、DeepSeek 的思考开关与强度、Google 的思考级别）；其他服务商忽略。
 
 **iOS 差异**
 
-- **FR-022**：iOS 可选择 OpenAI、Google、DeepSeek、Qwen、GLM 与自定义端点；不提供 Apple Intelligence、Anthropic、Groq、Doubao。
-- **FR-023**：iOS 不使用远程模型目录，模型列表与默认模型固定在应用中；切换服务商时模型重置为该服务商的默认模型。维护者调整 macOS 模型时不修改 iOS 的模型列表（见附录 A）。
+- **FR-022**：iOS 可选择 OpenAI、Google、DeepSeek、目录启用的 Qwen、GLM 与自定义端点；不提供 Apple Intelligence、Anthropic、Groq、Doubao。
+- **FR-023**：iOS 按服务商保存首选模型，按服务商与模型保存思考级别。旧全局模型偏好在首次读取时迁入当前服务商。目录更新后，失效选择按目录默认值解析；设置首页摘要和 AI Rewrite 详情页的模型选择器读取同一目录。iOS 在启动时及每 24 小时自动检查目录，思考级别使用共享配置解析结果。
 - **FR-024**：iOS 的密钥同样按服务商保存在钥匙串（首次解锁后可读，允许 iCloud 钥匙串同步）；校验成功时自动保存密钥；自定义端点校验成功且尚未选择模型时，自动选中返回列表中的第一个模型。
 
 ### 关键实体
@@ -161,7 +161,6 @@
 2. **密钥经 iCloud 钥匙串同步**：当前 macOS 与 iOS 新建的密钥条目都允许同步。可选：维持（多设备免重复输入）；改为仅本机。
 3. **自定义端点允许 http**：转写文本可能以明文发送。可选：维持（支持本地服务）；只允许 https 与本机地址的 http；http 时提示风险。
 4. **服务商整体禁用时**：当前打开设置会把保存的服务商改为 OpenAI，与 FR-018“不覆盖保存的选择”的精神不一致。可选：只临时回退不改写保存值；维持现状。
-5. **iOS 不跟随远程目录**：iOS 模型列表与 macOS 已出现差异。可选：iOS 接入同一目录；维持固定列表。
 
 ## 与当前实现的已知差异（非规范，核对基线 `b327f54`）
 
@@ -170,12 +169,11 @@
 - 服务商“不可用”的判断读取全局共享的目录实例，而不是设置页注入的目录（[MacOpenAISettingsViewModel](../../StetMac/Features/MacShell/Openai/MacOpenAISettingsViewModel.swift) 的 `UnifiedAIProvider.isDisabled`）。
 - 校验脚本允许的服务商包括 anthropic、groq、doubao，但设置中不可选择（[validate-rewrite-models.py](../../scripts/validate-rewrite-models.py)）。
 - 钥匙串条目由共享实现 [SharedKeychainSecretStore](../../Packages/StetEngine/Sources/StetCore/SharedKeychainSecretStore.swift) 统一读写与迁移（macOS 入口见 [KeychainSecretStore](../../StetMac/Core/Security/KeychainSecretStore.swift)，iOS 入口见 [RewriteSettingsStore](../../StetMobile/StetMobile/Core/Settings/RewriteSettingsStore.swift)）。
-- iOS 的固定模型列表与 macOS 目录不同（例如 Google 与 DeepSeek 的默认模型），见 [RewriteModel](../../Packages/StetEngine/Sources/StetCore/RewriteModel.swift) 与 [rewrite-models.json](../../StetMac/Resources/rewrite-models.json)。
-- 目录加载、校验、缓存与刷新见 [RewriteModelCatalogStore](../../StetMac/Core/AIProviders/RewriteModelCatalogStore.swift)；凭据校验见 [ProviderCredentialValidationService](../../Packages/StetEngine/Sources/StetAI/ProviderCredentialValidationService.swift)；自定义端点地址规整与模型探测见 [OpenAICompatibleEndpoint](../../Packages/StetEngine/Sources/StetAI/OpenAICompatibleEndpoint.swift)；密钥校验界面见 [MacAPIKeySheet](../../StetMac/Features/MacShell/Openai/MacAPIKeySheet.swift)；iOS 设置见 [RewriteSettingsViewModel](../../StetMobile/StetMobile/Features/Settings/ViewModels/RewriteSettingsViewModel.swift)；以上与本 spec 一致。
+- 目录加载、校验、缓存与刷新见 [RewriteModelCatalogStore](../../Packages/StetEngine/Sources/StetAI/RewriteModelCatalogStore.swift)；凭据校验见 [ProviderCredentialValidationService](../../Packages/StetEngine/Sources/StetAI/ProviderCredentialValidationService.swift)；自定义端点地址规整与模型探测见 [OpenAICompatibleEndpoint](../../Packages/StetEngine/Sources/StetAI/OpenAICompatibleEndpoint.swift)；密钥校验界面见 [MacAPIKeySheet](../../StetMac/Features/MacShell/Openai/MacAPIKeySheet.swift)；iOS 设置见 [RewriteSettingsViewModel](../../StetMobile/StetMobile/Features/Settings/ViewModels/RewriteSettingsViewModel.swift)；以上与本 spec 一致。
 
 ## 附录 A：维护模型目录（保留原文流程）
 
-1. 在 [rewrite-models.json](../../StetMac/Resources/rewrite-models.json) 中，于已有服务商下新增、禁用或移除模型。
+1. 在 [rewrite-models.json](../../Packages/StetEngine/Sources/StetAI/Resources/rewrite-models.json) 中，于已有服务商下新增、禁用或移除模型。
 2. 为每个模型配置可选的 `thinkingLevels` 与 `defaultThinkingLevel`；默认级别必须出现在其支持列表中。
 3. 确保每个服务商的 `defaultModelID` 指向一个已启用的模型。
 4. 递增 `revision`；不得复用或减小。
@@ -183,5 +181,3 @@
 6. CI 通过后合并。对已包含目录加载器的客户端，不需要打 tag、DMG 或发布应用。
 
 撤销某次修改时，做一次新的编辑并再次递增 revision。客户端忽略更旧或相等的 revision。
-
-补充：macOS 改写模型的增删、默认值或可用性调整只改上述 JSON；不要修改 [RewriteModel](../../Packages/StetEngine/Sources/StetCore/RewriteModel.swift)，它仍是 iOS 的兼容模型列表。

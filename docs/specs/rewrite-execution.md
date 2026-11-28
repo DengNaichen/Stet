@@ -120,6 +120,8 @@
 
 ### iOS 差异
 
+两端使用[共享执行器](../../Packages/StetEngine/Sources/StetAI/CloudRewriteExecutor.swift)创建服务。预热和实际请求共用持久的临时 URLSession；执行结果记录模型、思考档位、耗时及错误，失败时携带原文。
+
 - **FR-018**：iOS 的改写开关默认关闭。开关打开且所选服务商有密钥（自定义端点须有地址和模型 ID）时改写；iOS 不提供 Apple Intelligence。
 - **FR-019**：iOS 改写请求只包含原文与词典词条（词典开启时），audience 固定为“面向人”，不带应用名称和语言代码；改写期间会话处于“改写中”阶段。
 - **FR-020**：iOS 改写失败时同样回退原文（FR-014），不做 FR-016、FR-017 的整理。

@@ -1,4 +1,5 @@
 #if os(macOS)
+    import StetASR
     import Foundation
     import Testing
 
@@ -16,7 +17,7 @@
         }
 
         @Test func failedAssetDownloadCanBeRetried() {
-            let state = AppleSpeechAssetState.failed("Network unavailable")
+            let state = AppleSpeechAssetStatus.failed("Network unavailable")
 
             #expect(state.canDownload)
             #expect(state.errorMessage == "Network unavailable")

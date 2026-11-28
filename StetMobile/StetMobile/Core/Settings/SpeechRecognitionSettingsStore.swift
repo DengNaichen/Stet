@@ -32,12 +32,7 @@ nonisolated enum SpeechRecognitionLanguage: String, CaseIterable, Identifiable, 
     }
 }
 
-nonisolated enum SpeechTranscriberBackend: String, CaseIterable, Identifiable, Sendable {
-    case speechTranscriber
-    case dictationTranscriber
-
-    var id: String { rawValue }
-
+extension AppleSpeechTranscriberBackend {
     var displayName: String {
         switch self {
         case .speechTranscriber: "SpeechTranscriber"
@@ -100,27 +95,16 @@ nonisolated enum MicrophoneKeepAliveDuration: String, CaseIterable, Identifiable
     }
 }
 
-nonisolated enum SpeechAssetStatus: Equatable, Sendable {
-    case checking
-    case installed
-    case available
-    case downloading
-    case unsupported
-    case failed(String)
-
-    var isReady: Bool { self == .installed }
-}
-
 @MainActor
 final class SpeechRecognitionSettingsStore: ObservableObject {
     struct PreparedSpeechTarget: Sendable {
         let locale: Locale
-        let backend: SpeechTranscriberBackend
+        let backend: AppleSpeechTranscriberBackend
     }
 
     private struct AssetKey: Hashable {
         let language: SpeechRecognitionLanguage
-        let backend: SpeechTranscriberBackend
+        let backend: AppleSpeechTranscriberBackend
     }
 
     @Published var selectedLanguage: SpeechRecognitionLanguage {
@@ -132,7 +116,7 @@ final class SpeechRecognitionSettingsStore: ObservableObject {
         }
     }
 
-    @Published var selectedBackend: SpeechTranscriberBackend {
+    @Published var selectedBackend: AppleSpeechTranscriberBackend {
         didSet {
             guard selectedBackend != oldValue else { return }
             defaults.set(selectedBackend.rawValue, forKey: Self.backendKey)
@@ -148,14 +132,13 @@ final class SpeechRecognitionSettingsStore: ObservableObject {
         }
     }
 
-    @Published private(set) var assetStatus: SpeechAssetStatus = .checking
+    @Published private(set) var assetStatus: AppleSpeechAssetStatus = .checking
 
     private static let languageKey = "dictation.speechRecognitionLanguage"
     private static let backendKey = "dictation.speechTranscriberBackend"
     private static let microphoneKeepAliveKey = "dictation.microphoneKeepAliveDuration"
     private let defaults: UserDefaults
     private var statusCheckID = UUID()
-    private var installations: [AssetKey: Task<Locale, any Error>] = [:]
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -163,7 +146,7 @@ final class SpeechRecognitionSettingsStore: ObservableObject {
             defaults.string(forKey: Self.languageKey).flatMap(SpeechRecognitionLanguage.init(rawValue:))
             ?? Self.preferredLanguage
         selectedBackend =
-            defaults.string(forKey: Self.backendKey).flatMap(SpeechTranscriberBackend.init(rawValue:))
+            defaults.string(forKey: Self.backendKey).flatMap(AppleSpeechTranscriberBackend.init(rawValue:))
             ?? .speechTranscriber
         microphoneKeepAliveDuration =
             defaults.string(forKey: Self.microphoneKeepAliveKey)
@@ -173,29 +156,17 @@ final class SpeechRecognitionSettingsStore: ObservableObject {
 
     func refreshAssetStatus() async {
         let key = AssetKey(language: selectedLanguage, backend: selectedBackend)
-        guard installations[key] == nil else { return }
         let checkID = UUID()
         statusCheckID = checkID
 
-        let status: SpeechAssetStatus
-        do {
-            let locale = try await Self.resolve(key.language, backend: key.backend)
-            let modules = Self.makeModules(locale: locale, backend: key.backend)
-            status = Self.assetStatus(for: await AssetInventory.status(forModules: modules))
-        } catch {
-            status = .unsupported
-        }
-
+        let status = await AppleSpeechAssetManager.shared.status(
+            for: key.language.localeIdentifier, backend: key.backend, mode: .streaming)
         guard statusCheckID == checkID, !Task.isCancelled else { return }
         assetStatus = status
     }
 
     func downloadAssetIfNeeded() async throws {
         _ = try await prepareTarget()
-    }
-
-    func resolvedLocale() async throws -> Locale {
-        try await Self.resolve(selectedLanguage, backend: selectedBackend)
     }
 
     func prepareLocale() async throws -> Locale {
@@ -205,56 +176,29 @@ final class SpeechRecognitionSettingsStore: ObservableObject {
     func prepareTarget() async throws -> PreparedSpeechTarget {
         try Task.checkCancellation()
         let key = AssetKey(language: selectedLanguage, backend: selectedBackend)
-        if let installation = installations[key] {
-            let locale = try await installation.value
-            try Task.checkCancellation()
-            return PreparedSpeechTarget(locale: locale, backend: key.backend)
-        }
-
         statusCheckID = UUID()
-        let installation = Task {
-            defer { installations[key] = nil }
-            do {
-                let locale = try await Self.resolve(key.language, backend: key.backend)
-                let modules = Self.makeModules(locale: locale, backend: key.backend)
-                switch await AssetInventory.status(forModules: modules) {
-                case .installed:
-                    break
-                case .supported, .downloading:
-                    publish(.downloading, for: key)
-                    if let request = try await AssetInventory.assetInstallationRequest(supporting: modules) {
-                        try await request.downloadAndInstall()
-                    }
-                    guard await AssetInventory.status(forModules: modules) == .installed else {
-                        throw AssetError.installationIncomplete(key.language)
-                    }
-                case .unsupported:
-                    throw AssetError.unsupported(key.language)
-                @unknown default:
-                    throw AssetError.installationIncomplete(key.language)
-                }
-                publish(.installed, for: key)
-                return locale
-            } catch let error as AssetError {
-                switch error {
-                case .unsupported: publish(.unsupported, for: key)
-                case .installationIncomplete: publish(.failed(error.localizedDescription), for: key)
-                }
-                throw error
-            } catch {
-                publish(.failed(error.localizedDescription), for: key)
-                throw error
+        if !assetStatus.isInstalled { assetStatus = .downloading }
+        do {
+            let locale = try await AppleSpeechLocaleResolver.resolve(
+                key.language.localeIdentifier, backend: key.backend)
+            try await AppleSpeechAssetManager.shared.ensureInstalled(
+                locale: locale, backend: key.backend, mode: .streaming)
+            if selectedLanguage == key.language, selectedBackend == key.backend {
+                statusCheckID = UUID()
+                assetStatus = .installed
             }
+            return PreparedSpeechTarget(locale: locale, backend: key.backend)
+        } catch {
+            if selectedLanguage == key.language, selectedBackend == key.backend, !(error is CancellationError) {
+                statusCheckID = UUID()
+                switch error {
+                case AppleSpeechAssetError.unsupportedLocale: assetStatus = .unsupportedLocale
+                case AppleSpeechAssetError.unavailable: assetStatus = .unavailable
+                default: assetStatus = .failed(error.localizedDescription)
+                }
+            }
+            throw error
         }
-        installations[key] = installation
-        let locale = try await installation.value
-        try Task.checkCancellation()
-        return PreparedSpeechTarget(locale: locale, backend: key.backend)
-    }
-
-    private func publish(_ status: SpeechAssetStatus, for key: AssetKey) {
-        guard selectedLanguage == key.language, selectedBackend == key.backend, assetStatus != status else { return }
-        assetStatus = status
     }
 
     private static var preferredLanguage: SpeechRecognitionLanguage {
@@ -262,59 +206,5 @@ final class SpeechRecognitionSettingsStore: ObservableObject {
         if preferred == "zh-hant" || preferred.hasPrefix("zh-hant-") { return .chineseTraditional }
         if preferred == "zh" || preferred.hasPrefix("zh-") { return .chineseSimplified }
         return .englishUS
-    }
-
-    private static func resolve(
-        _ language: SpeechRecognitionLanguage,
-        backend: SpeechTranscriberBackend
-    ) async throws -> Locale {
-        let requested = Locale(identifier: language.localeIdentifier)
-        let locale: Locale?
-        switch backend {
-        case .speechTranscriber:
-            locale = await SpeechTranscriber.supportedLocale(equivalentTo: requested)
-        case .dictationTranscriber:
-            locale = await DictationTranscriber.supportedLocale(equivalentTo: requested)
-        }
-        guard let locale else {
-            throw AssetError.unsupported(language)
-        }
-        return locale
-    }
-
-    private static func makeModules(
-        locale: Locale,
-        backend: SpeechTranscriberBackend
-    ) -> [any SpeechModule] {
-        switch backend {
-        case .speechTranscriber:
-            [SpeechTranscriber(locale: locale, preset: .progressiveTranscription)]
-        case .dictationTranscriber:
-            [DictationTranscriber(locale: locale, preset: .progressiveLongDictation)]
-        }
-    }
-
-    private static func assetStatus(for status: AssetInventory.Status) -> SpeechAssetStatus {
-        switch status {
-        case .installed: .installed
-        case .supported: .available
-        case .downloading: .downloading
-        case .unsupported: .unsupported
-        @unknown default: .failed("The Apple Speech language model status is unavailable.")
-        }
-    }
-
-    private enum AssetError: LocalizedError {
-        case unsupported(SpeechRecognitionLanguage)
-        case installationIncomplete(SpeechRecognitionLanguage)
-
-        var errorDescription: String? {
-            switch self {
-            case .unsupported(let language):
-                "Apple Speech does not support \(language.displayName) on this device."
-            case .installationIncomplete(let language):
-                "The Apple Speech model for \(language.displayName) could not be installed."
-            }
-        }
     }
 }

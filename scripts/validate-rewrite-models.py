@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 import subprocess
 
-CONFIG = "StetMac/Resources/rewrite-models.json"
+CONFIG = "Packages/StetEngine/Sources/StetAI/Resources/rewrite-models.json"
 PROVIDERS = {"openai", "google", "anthropic", "groq", "deepseek", "qwen", "glm", "doubao"}
 ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,254}")
 THINKING_LEVELS = {"off", "minimal", "low", "medium", "high", "max"}

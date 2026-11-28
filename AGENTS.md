@@ -34,7 +34,7 @@ are referenced by both platforms.
 - Formatting and lint: `make lint` (first prepare documentation dependencies with `make docs-lint-setup`).
 - File references in prose use Markdown links; commands, templates and generated/local-only paths remain code. `make docs-lint` checks local links and headings, including legacy specs; imported `reference/` content is excluded.
 
-For macOS rewrite model additions, removals, defaults, or availability changes, edit [StetMac/Resources/rewrite-models.json](StetMac/Resources/rewrite-models.json), increment its `revision`, and run `python3 scripts/validate-rewrite-models.py`; do not modify [Packages/StetEngine/Sources/StetCore/RewriteModel.swift](Packages/StetEngine/Sources/StetCore/RewriteModel.swift), which remains the iOS compatibility model list.
+For shared rewrite model additions, removals, defaults, or availability changes, edit [Packages/StetEngine/Sources/StetAI/Resources/rewrite-models.json](Packages/StetEngine/Sources/StetAI/Resources/rewrite-models.json), increment its `revision`, and run `python3 scripts/validate-rewrite-models.py`.
 
 Do not add model payloads or downloaded runtime frameworks to Git. Release
 scripts and signing config live under [scripts/](scripts); canonical GitHub Actions

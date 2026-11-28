@@ -138,7 +138,7 @@ struct RewriteSettingsView: View {
                 Circle()
                     .fill(MobileLinearPalette.accentAmber)
                     .frame(width: 6, height: 6)
-            case .unsupported:
+            case .unsupportedLocale, .unavailable, .requiresOS26:
                 EmptyView()
             }
         }

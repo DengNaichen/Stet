@@ -1,5 +1,5 @@
 import Foundation
-import StetAI
+@testable import StetAI
 import StetCore
 import StetRewrite
 import Testing
@@ -12,7 +12,7 @@ struct CloudStructuredRewriteTests {
             #expect(request.url?.absoluteString == "https://api.example.com:443/v1/responses")
             #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer sk-test")
             #expect(request.timeoutInterval == 60)
-            #expect(body["model"] as? String == DictationProviderDefaults.rewriteModel(for: .openAI))
+            #expect(body["model"] as? String == RewriteModelCatalog.bundled.provider(.openAI)?.defaultModelID)
             #expect(body["store"] as? Bool == false)
             #expect(body["user"] as? String == "stet-rewrite-human")
             let textConfiguration = try #require(body["text"] as? [String: Any])
@@ -151,7 +151,7 @@ struct CloudStructuredRewriteTests {
             session: session
         )
 
-        let text = try await service.rewrite(.cleanup("hello"))
+        let text = try await service.rewrite(.init(text: "hello", model: "openai/gpt-oss-20b"))
 
         #expect(text == "Groq rewrite")
     }
@@ -175,6 +175,7 @@ struct CloudStructuredRewriteTests {
         let service = GoogleRewriteService(
             apiKey: "test-key",
             model: "gemini-test",
+            thinkingLevel: .low,
             session: session
         )
 
@@ -227,25 +228,11 @@ struct CloudStructuredRewriteTests {
     }
 
     @Test func rewriteCatalogUsesCurrentFastTierModels() {
-        let expected: [(DictationProvider, String)] = [
-            (.openAI, "gpt-5.6-luna"),
-            (.google, "gemini-3.7-flash"),
-            (.deepSeek, "deepseek-v4-flash"),
-            (.qwen, "qwen3.5-flash"),
-            (.glm, "glm-4.7-flash"),
-        ]
-
-        for (provider, modelID) in expected {
-            #expect(RewriteModel.default(for: provider).rawValue == modelID)
-            #expect(DictationProviderDefaults.rewriteModel(for: provider) == modelID)
-            #expect(RewriteModel.availableModels(for: provider) == [RewriteModel.default(for: provider)])
-        }
-
-        #expect(RewriteModel.availableModels(for: .groq).isEmpty)
-        #expect(RewriteModel.availableModels(for: .doubao).isEmpty)
-        #expect(RewriteModel.availableModels(for: .anthropic).isEmpty)
-        #expect(RewriteModel.availableModels(for: .custom).isEmpty)
-        #expect(DictationProviderDefaults.rewriteModel(for: .custom).isEmpty)
+        let catalog = RewriteModelCatalog.bundled
+        #expect(catalog.resolvedModelID(for: .google, preferredID: nil) == "gemini-3.8-flash")
+        #expect(catalog.resolvedModelID(for: .deepSeek, preferredID: nil) == "deepseek-flash")
+        #expect(!catalog.isProviderEnabled(.qwen))
+        #expect(catalog.resolvedThinkingLevel(for: .deepSeek, modelID: nil, preferredLevel: .medium) == .off)
     }
 
     @Test func customEndpointRequestsJSONObjectWithoutThinking() async throws {
@@ -267,10 +254,10 @@ struct CloudStructuredRewriteTests {
             )
         }
         let service = OpenAIRewriteService(
-            configuration: DictationProviderConfigurationResolver.rewriteConfiguration(
+            configuration: DictationProviderConfigurationResolver.transportConfiguration(
                 provider: .custom,
                 apiKey: "",
-                customModel: "llama3.1",
+                model: "llama3.1",
                 baseURL: URL(string: "http://127.0.0.1:11434/v1")!
             ),
             session: session
@@ -330,8 +317,8 @@ struct CloudStructuredRewriteTests {
             if provider != .deepSeek { #expect(body["thinking"] == nil) }
             return try TestHTTP.response(for: request, body: Self.standardChatResponse)
         }
-        let configuration = DictationProviderConfigurationResolver.rewriteConfiguration(
-            provider: provider, apiKey: " key "
+        let configuration = DictationProviderConfigurationResolver.transportConfiguration(
+            provider: provider, apiKey: " key ", model: "protocol-test"
         )
         let service = OpenAIRewriteService(configuration: configuration, session: session)
         #expect(try await service.rewrite(.init(text: "hello", model: "override-model")) == "OK")
@@ -342,7 +329,7 @@ struct CloudStructuredRewriteTests {
         let session = TestHTTP.makeSession { request in
             let body = try TestHTTP.jsonBody(from: request)
             let thinking = try #require(body["thinking"] as? [String: Any])
-            #expect(thinking["type"] as? String == (level == .off ? "disabled" : "enabled"))
+            #expect(thinking["type"] as? String == (level == nil || level == .off ? "disabled" : "enabled"))
             let effort: String? =
                 switch level {
                 case .low: "low"
@@ -353,8 +340,8 @@ struct CloudStructuredRewriteTests {
             #expect(body["reasoning_effort"] as? String == effort)
             return try TestHTTP.response(for: request, body: Self.standardChatResponse)
         }
-        let configuration = DictationProviderConfigurationResolver.rewriteConfiguration(
-            provider: .deepSeek, apiKey: "key", thinkingLevel: level
+        let configuration = DictationProviderConfigurationResolver.transportConfiguration(
+            provider: .deepSeek, apiKey: "key", model: "protocol-test", thinkingLevel: level
         )
         #expect(
             try await OpenAIRewriteService(configuration: configuration, session: session)
@@ -374,8 +361,8 @@ struct CloudStructuredRewriteTests {
             #expect(request.value(forHTTPHeaderField: "Authorization") == (key == " key " ? "Bearer key" : nil))
             return try TestHTTP.response(for: request, body: Self.standardChatResponse)
         }
-        let configuration = DictationProviderConfigurationResolver.rewriteConfiguration(
-            provider: .custom, apiKey: key, customModel: "local", baseURL: URL(string: baseURL)!
+        let configuration = DictationProviderConfigurationResolver.transportConfiguration(
+            provider: .custom, apiKey: key, model: "local", baseURL: URL(string: baseURL)!
         )
         #expect(
             try await OpenAIRewriteService(configuration: configuration, session: session)
@@ -406,8 +393,8 @@ struct CloudStructuredRewriteTests {
             Issue.record("Missing key must fail before transport")
             return try TestHTTP.response(for: request, body: Self.standardChatResponse)
         }
-        let configuration = DictationProviderConfigurationResolver.rewriteConfiguration(
-            provider: provider, apiKey: "  ")
+        let configuration = DictationProviderConfigurationResolver.transportConfiguration(
+            provider: provider, apiKey: "  ", model: "protocol-test")
         await #expect(throws: OpenAIError.missingAPIKey(provider: provider)) {
             try await OpenAIRewriteService(configuration: configuration, session: session).rewrite(.cleanup("hello"))
         }
@@ -531,24 +518,19 @@ struct CloudStructuredRewriteTests {
         }
         defer { session.invalidateAndCancel() }
 
-        let deepSeek = OpenAIRewriteService(configuration: makeConfiguration(provider: .deepSeek), session: session)
-        await deepSeek.prewarm(.cleanup(""))
-        #expect(try await deepSeek.rewrite(.cleanup("hello")) == "OK")
-
-        let google = GoogleRewriteService(apiKey: " g-key ", model: "gemini-test", session: session)
-        await google.prewarm(.cleanup(""))
-
-        let anthropic = AnthropicRewriteService(apiKey: " a-key ", model: "claude-test", session: session)
-        await anthropic.prewarm(.cleanup(""))
-
-        let missingKey = OpenAIRewriteService(
-            configuration: DictationProviderConfigurationResolver.rewriteConfiguration(
-                provider: .deepSeek,
-                apiKey: " "
-            ),
-            session: session
-        )
-        await missingKey.prewarm(.cleanup(""))
+        let executor = CloudRewriteExecutor(session: session)
+        let configuration = makeConfiguration(provider: .deepSeek)
+        await executor.prewarm(configuration: configuration, request: .cleanup(""))
+        let outcome = await executor.execute(configuration: configuration, request: .cleanup("hello"))
+        #expect(outcome.didRewrite && outcome.text == "OK")
+        #expect(outcome.provider == configuration.provider && outcome.model == configuration.model)
+        #expect(outcome.thinkingLevel == configuration.thinkingLevel && outcome.error == nil)
+        #expect(outcome.durationMs >= 0)
+        for (provider, key) in [(DictationProvider.google, " g-key "), (.anthropic, " a-key "), (.deepSeek, " ")] {
+            await executor.prewarm(
+                configuration: DictationProviderConfigurationResolver.transportConfiguration(
+                    provider: provider, apiKey: key, model: "protocol-test"), request: .cleanup(""))
+        }
 
         #expect(
             seenPaths.values == [
@@ -572,7 +554,7 @@ struct CloudStructuredRewriteTests {
             }
         return RewriteProviderConfiguration(
             provider: provider,
-            model: DictationProviderDefaults.rewriteModel(for: provider),
+            model: RewriteModelCatalog.bundled.resolvedModelID(for: provider, preferredID: nil) ?? "protocol-test",
             backend: .remote(
                 OpenAICompatibleProviderEndpointConfiguration(
                     provider: provider,

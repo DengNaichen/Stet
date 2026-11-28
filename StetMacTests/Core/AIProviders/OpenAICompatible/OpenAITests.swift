@@ -34,7 +34,7 @@ struct OpenAITests {
     ) -> RewriteProviderConfiguration {
         RewriteProviderConfiguration(
             provider: provider,
-            model: DictationProviderDefaults.rewriteModel(for: provider),
+            model: RewriteModelCatalog.bundled.resolvedModelID(for: provider, preferredID: nil) ?? "protocol-test",
             backend: .remote(makeEndpoint(provider: provider, apiKey: apiKey, baseURL: baseURL)),
             thinkingLevel: thinkingLevel
         )
@@ -234,7 +234,7 @@ struct OpenAITests {
 
             let body =
                 try JSONSerialization.jsonObject(with: TestSupport.requestBodyData(from: request)) as? [String: Any]
-            #expect(body?["model"] as? String == "deepseek-v4-flash")
+            #expect(body?["model"] as? String == "deepseek-flash")
             let thinking = try #require(body?["thinking"] as? [String: Any])
             #expect(thinking["type"] as? String == "disabled")
             #expect(body?["reasoning_effort"] == nil)
@@ -314,7 +314,7 @@ struct OpenAITests {
             session: session
         )
 
-        let text = try await service.rewrite(.cleanup("hello"))
+        let text = try await service.rewrite(.init(text: "hello", model: "openai/gpt-oss-20b"))
 
         #expect(text == "Groq rewrite")
     }
