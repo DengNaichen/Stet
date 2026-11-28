@@ -17,8 +17,7 @@ struct RewriteSettingsView: View {
                 orbAppearanceSection
             }
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.large)
+            .linearInlineHeader("Settings")
             .onAppear {
                 viewModel.refreshSyncedAPIKey()
             }
@@ -40,7 +39,7 @@ struct RewriteSettingsView: View {
                     Text(backend.displayName).tag(backend)
                 }
             } label: {
-                settingsLabel("Engine", systemImage: "cpu.fill", tint: .orange)
+                settingsLabel("Engine", systemImage: "cpu")
             }
 
             Picker(
@@ -53,11 +52,11 @@ struct RewriteSettingsView: View {
                     Text(language.displayName).tag(language)
                 }
             } label: {
-                settingsLabel("Language", systemImage: "globe", tint: .blue)
+                settingsLabel("Language", systemImage: "globe")
             }
 
             HStack(spacing: 12) {
-                settingsLabel("Speech Model", systemImage: "waveform.badge.mic", tint: .indigo)
+                settingsLabel("Speech Model", systemImage: "waveform")
                 Spacer()
                 speechAssetTrailingView
             }
@@ -87,17 +86,23 @@ struct RewriteSettingsView: View {
             }
 
         case .installed:
-            Label("Ready", systemImage: "checkmark.circle.fill")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.green)
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 6, height: 6)
+                Text("Ready")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
 
         case .available:
             Button("Download") {
                 Task { await viewModel.downloadSpeechAsset() }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .buttonBorderShape(.capsule)
             .controlSize(.small)
+            .tint(.primary)
 
         case .downloading:
             HStack(spacing: 6) {
@@ -127,8 +132,9 @@ struct RewriteSettingsView: View {
         Group {
             Section {
                 Toggle(isOn: $viewModel.settingsStore.isRewriteEnabled) {
-                    settingsLabel("AI Polish & Rewrite", systemImage: "sparkles", tint: .purple)
+                    settingsLabel("AI Polish & Rewrite", systemImage: "sparkles")
                 }
+                .tint(MobileLinearPalette.accentAmber)
             } header: {
                 Text("Cloud Rewrite")
             } footer: {
@@ -144,7 +150,7 @@ struct RewriteSettingsView: View {
                             Text(provider.displayName).tag(provider)
                         }
                     } label: {
-                        settingsLabel("Provider", systemImage: "cloud", tint: .cyan)
+                        settingsLabel("Provider", systemImage: "cloud")
                     }
                     .onChange(of: viewModel.settingsStore.selectedProvider) {
                         viewModel.onProviderChanged()
@@ -184,7 +190,7 @@ struct RewriteSettingsView: View {
                                 Text(model.displayName).tag(model)
                             }
                         } label: {
-                            settingsLabel("Model", systemImage: "cpu", tint: .teal)
+                            settingsLabel("Model", systemImage: "slider.horizontal.3")
                         }
                     }
                 }
@@ -264,15 +270,14 @@ struct RewriteSettingsView: View {
         }
     }
 
-    private func settingsLabel(_ title: String, systemImage: String, tint: Color) -> some View {
-        Label {
-            Text(title)
-        } icon: {
+    private func settingsLabel(_ title: String, systemImage: String) -> some View {
+        HStack(spacing: 10) {
             Image(systemName: systemImage)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 28, height: 28)
-                .background(tint.gradient, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(.secondary)
+                .frame(width: 20, alignment: .center)
+            Text(title)
+                .foregroundStyle(.primary)
         }
     }
 

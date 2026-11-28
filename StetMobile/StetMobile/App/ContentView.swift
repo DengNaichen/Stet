@@ -15,39 +15,7 @@ struct ContentView: View {
             if appViewModel.externalDictationFlow == .capturing {
                 externalCaptureView
             } else {
-                TabView(selection: $appViewModel.selectedTab) {
-                    SenseVoiceView(
-                        viewModel: viewModel,
-                        languageLabel: rewriteSettingsViewModel.selectedLanguage.shortLabel,
-                        speechAssetStatus: rewriteSettingsViewModel.speechAssetStatus,
-                        isRewriteEnabled: rewriteSettingsViewModel.settingsStore.isRewriteEnabled,
-                        onOpenSettings: {
-                            appViewModel.selectedTab = .settings
-                        }
-                    )
-                    .tabItem {
-                        Label("Dictation", systemImage: "waveform")
-                    }
-                    .tag(AppViewModel.Tab.dictation)
-
-                    HistoryView()
-                        .tabItem {
-                            Label("History", systemImage: "clock.fill")
-                        }
-                        .tag(AppViewModel.Tab.history)
-
-                    DictionaryView()
-                        .tabItem {
-                            Label("Dictionary", systemImage: "book.closed.fill")
-                        }
-                        .tag(AppViewModel.Tab.dictionary)
-
-                    RewriteSettingsView(viewModel: rewriteSettingsViewModel)
-                        .tabItem {
-                            Label("Settings", systemImage: "gearshape.fill")
-                        }
-                        .tag(AppViewModel.Tab.settings)
-                }
+                nativeLinearTabView
             }
         }
         .onOpenURL { url in
@@ -70,6 +38,77 @@ struct ContentView: View {
         .task {
             viewModel.start()
         }
+    }
+
+    private var nativeLinearTabView: some View {
+        TabView(selection: $appViewModel.selectedTab) {
+            Tab(value: AppViewModel.Tab.overview) {
+                OverviewView()
+                    .tint(nil)
+            } label: {
+                linearTabIcon("house", label: "Overview")
+            }
+
+            Tab(value: AppViewModel.Tab.history) {
+                HistoryView()
+                    .tint(nil)
+            } label: {
+                linearTabIcon("clock", label: "History")
+            }
+
+            Tab(value: AppViewModel.Tab.dictionary) {
+                DictionaryView()
+                    .tint(nil)
+            } label: {
+                linearTabIcon("book.closed", label: "Dictionary")
+            }
+
+            Tab(value: AppViewModel.Tab.settings) {
+                RewriteSettingsView(viewModel: rewriteSettingsViewModel)
+                    .tint(nil)
+            } label: {
+                linearTabIcon("gearshape", label: "Settings")
+            }
+
+            Tab(value: AppViewModel.Tab.dictation, role: dictationTabRole) {
+                SenseVoiceView(
+                    viewModel: viewModel,
+                    languageLabel: rewriteSettingsViewModel.selectedLanguage.shortLabel,
+                    speechAssetStatus: rewriteSettingsViewModel.speechAssetStatus,
+                    isRewriteEnabled: rewriteSettingsViewModel.settingsStore.isRewriteEnabled,
+                    onOpenSettings: {
+                        appViewModel.selectedTab = .settings
+                    }
+                )
+                .tint(nil)
+            } label: {
+                linearTabIcon("waveform", label: "Dictation")
+            }
+        }
+        .tint(.primary)
+    }
+
+    /// Render a template UIImage so UIKit TabBar never forces `.fill` onto outline SF Symbols.
+    private func linearTabIcon(_ systemName: String, label: String) -> some View {
+        let config = UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)
+        let rendered = UIImage(systemName: systemName, withConfiguration: config)?
+            .withRenderingMode(.alwaysTemplate)
+        return Group {
+            if let rendered {
+                Image(uiImage: rendered)
+                    .renderingMode(.template)
+            } else {
+                Image(systemName: systemName)
+            }
+        }
+        .accessibilityLabel(label)
+    }
+
+    private var dictationTabRole: TabRole? {
+        if #available(iOS 27.0, *) {
+            return .prominent
+        }
+        return nil
     }
 
     private var externalCaptureView: some View {
