@@ -82,6 +82,36 @@ struct ASRAudioCaptureTests {
         #expect(hardware.teardownCount == 1)
     }
 
+    @Test func teardownFollowedByPrepareRestartsCaptureCleanly() async throws {
+        let hardware = TestASRAudioCaptureHardware()
+        let capture = PersistentASRAudioCapture(
+            strategy: .builtInPreferred,
+            hardware: hardware
+        )
+        let receivedFrames = LockedFrameCounter()
+
+        try await capture.prepare()
+        #expect(hardware.isRunning)
+
+        capture.teardown()
+        #expect(!hardware.isRunning)
+        #expect(hardware.teardownCount == 1)
+
+        try await capture.prepare()
+        #expect(hardware.isRunning)
+        #expect(hardware.prepareCount == 2)
+
+        try await capture.start { result in
+            if case .success = result {
+                receivedFrames.increment()
+            }
+        }
+        hardware.emit(.success(ASRAudioFrame(samples: [0.2], level: 0.4)))
+        #expect(receivedFrames.count == 1)
+
+        capture.teardown()
+    }
+
     @Test func systemFallbackStillDeliversFrames() async throws {
         let fallback = ASRAudioRouteResolution.systemFallback(
             actualInputPortTypes: [AVAudioSession.Port.bluetoothHFP.rawValue]

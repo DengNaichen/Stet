@@ -143,6 +143,7 @@ enum DictationCoordinatorPhase: Equatable, Sendable {
     case inactive
     case loading
     case idle
+    case standby
     case starting(sessionId: String)
     case recording(sessionId: String)
     case transcribing(sessionId: String)
@@ -153,6 +154,7 @@ enum DictationCoordinatorPhase: Equatable, Sendable {
 enum DictationCoordinatorEvent: Sendable {
     case loading
     case ready(engineName: String)
+    case standby
     case starting(sessionId: String)
     case recording(sessionId: String)
     case transcribing(sessionId: String)
@@ -169,6 +171,7 @@ protocol DictationSessionCoordinating: AnyObject {
 
     func start()
     func recoverAudioSession()
+    func updateIdleStandbyTimeout(_ timeout: Duration?)
     func synchronizeKeyboardCommands()
     func startRecording(sessionId: String)
     func stopRecording(sessionId: String?)
@@ -209,17 +212,21 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
     private var activeSessionId: String?
     private var timingDraft: SessionTimingDraft?
     private var isStarted = false
+    private var isCommandMonitorRunning = false
     private var lifecycleGeneration = UUID()
     private var bootstrapGeneration: UUID?
     private var recoveryGeneration: UUID?
     private var startGeneration: UUID?
     private var rewriteGeneration: UUID?
+    private var idleStandbyTimeout: Duration?
+    private var idleStandbyGeneration: UUID?
     private var requiresAudioEngineReset = false
 
     private var bootstrapTask: Task<Void, Never>?
     private var recoveryTask: Task<Void, Never>?
     private var startTask: Task<Void, Never>?
     private var rewriteTask: Task<Void, Never>?
+    private var idleStandbyTask: Task<Void, Never>?
     private var resultsTask: Task<Void, Never>?
     private var failuresTask: Task<Void, Never>?
     private var commandsTask: Task<Void, Never>?
@@ -234,6 +241,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         commandMonitor: any KeyboardCommandMonitoring,
         notificationCenter: NotificationCenter = .default,
         rewriteHeartbeatInterval: Duration = .seconds(2),
+        idleStandbyTimeout: Duration? = nil,
         timingStore: DictationTimingStore? = nil,
         activityRecorder: (any DictationActivityRecording)? = nil
     ) {
@@ -245,6 +253,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         self.commandMonitor = commandMonitor
         self.notificationCenter = notificationCenter
         self.rewriteHeartbeatInterval = rewriteHeartbeatInterval
+        self.idleStandbyTimeout = idleStandbyTimeout
         self.timingStore = timingStore ?? .shared
         self.activityRecorder = activityRecorder ?? SyncedDictationActivityRecorder()
         (events, continuation) = AsyncStream.makeStream()
@@ -259,7 +268,21 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         listenForKeyboardCommands()
         registerAudioSessionObservers()
         commandMonitor.start()
+        isCommandMonitorRunning = true
         bootstrap()
+    }
+
+    func updateIdleStandbyTimeout(_ timeout: Duration?) {
+        idleStandbyTimeout = timeout
+        guard isStarted else { return }
+        switch phase {
+        case .idle:
+            scheduleIdleStandbyTimer()
+        case .standby where timeout == nil:
+            recoverAudioSession()
+        default:
+            break
+        }
     }
 
     func recoverAudioSession() {
@@ -268,12 +291,13 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             bootstrap()
             return
         }
-        guard phase == .idle else { return }
+        guard phase == .idle || phase == .standby else { return }
 
         guard bootstrapTask == nil,
             recoveryTask == nil,
             startTask == nil
         else { return }
+        cancelIdleStandbyTimer()
         let generation = UUID()
         let lifecycle = lifecycleGeneration
         recoveryGeneration = generation
@@ -295,7 +319,12 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
                     !Task.isCancelled
                 else { return }
                 self.phase = .idle
+                self.scheduleIdleStandbyTimer()
                 self.continuation.yield(.ready(engineName: self.engine.name))
+                if !self.isCommandMonitorRunning {
+                    self.commandMonitor.start()
+                    self.isCommandMonitorRunning = true
+                }
                 self.commandMonitor.pollNow(force: true)
             } catch {
                 guard self.isCurrent(lifecycle: lifecycle),
@@ -308,16 +337,25 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
     }
 
     func synchronizeKeyboardCommands() {
+        if phase == .standby {
+            recoverAudioSession()
+            return
+        }
         commandMonitor.pollNow(force: true)
     }
 
     func startRecording(sessionId: String) {
-        guard phase == .idle,
+        guard phase == .idle || phase == .standby,
             startTask == nil,
             recoveryTask == nil,
             sessionStore.claimSessionForStart(sessionId: sessionId)
         else { return }
 
+        cancelIdleStandbyTimer()
+        if !isCommandMonitorRunning {
+            commandMonitor.start()
+            isCommandMonitorRunning = true
+        }
         activeSessionId = sessionId
         timingDraft = SessionTimingDraft(
             sessionId: sessionId,
@@ -338,6 +376,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
                     self.startTask = nil
                     if self.shouldFinishCancelledStart(sessionId: sessionId) {
                         self.phase = .idle
+                        self.scheduleIdleStandbyTimer()
                         self.continuation.yield(.ready(engineName: self.engine.name))
                     }
                     if self.phase == .idle {
@@ -429,6 +468,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         engine.stop()
         guard !isSettlingStart else { return }
         phase = .idle
+        scheduleIdleStandbyTimer()
         continuation.yield(.ready(engineName: engine.name))
     }
 
@@ -442,6 +482,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             recoveryTask,
             startTask,
             rewriteTask,
+            idleStandbyTask,
             resultsTask,
             failuresTask,
             commandsTask,
@@ -452,6 +493,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         }
 
         commandMonitor.stop()
+        isCommandMonitorRunning = false
         for observer in audioSessionObservers {
             notificationCenter.removeObserver(observer)
         }
@@ -461,6 +503,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         recoveryGeneration = nil
         startGeneration = nil
         rewriteGeneration = nil
+        idleStandbyGeneration = nil
         phase = .inactive
 
         for task in tasks {
@@ -471,6 +514,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         recoveryTask = nil
         startTask = nil
         rewriteTask = nil
+        idleStandbyTask = nil
         resultsTask = nil
         failuresTask = nil
         commandsTask = nil
@@ -484,6 +528,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             recoveryTask == nil,
             startTask == nil
         else { return }
+        cancelIdleStandbyTimer()
         phase = .loading
         continuation.yield(.loading)
 
@@ -509,7 +554,12 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
                     !Task.isCancelled
                 else { return }
                 self.phase = .idle
+                self.scheduleIdleStandbyTimer()
                 self.continuation.yield(.ready(engineName: self.engine.name))
+                if !self.isCommandMonitorRunning {
+                    self.commandMonitor.start()
+                    self.isCommandMonitorRunning = true
+                }
                 self.commandMonitor.pollNow(force: true)
             } catch {
                 guard self.isCurrent(lifecycle: lifecycle),
@@ -712,6 +762,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         activeSessionId = nil
         timingDraft = nil
         phase = .idle
+        scheduleIdleStandbyTimer()
         continuation.yield(.completed(sessionId: sessionId, text: text, metrics: metrics))
         commandMonitor.pollNow(force: true)
 
@@ -814,6 +865,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         if activeSessionId != nil {
             engine.stop()
         }
+        cancelIdleStandbyTimer()
         startTask?.cancel()
         rewriteTask?.cancel()
         rewriteTask = nil
@@ -889,8 +941,54 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         guard activeSessionId == sessionId else { return }
         activeSessionId = nil
         phase = .idle
+        scheduleIdleStandbyTimer()
         continuation.yield(.ready(engineName: engine.name))
         commandMonitor.pollNow(force: true)
+    }
+
+    private func scheduleIdleStandbyTimer() {
+        cancelIdleStandbyTimer()
+        guard isStarted, phase == .idle, let timeout = idleStandbyTimeout else { return }
+
+        let generation = UUID()
+        let lifecycle = lifecycleGeneration
+        idleStandbyGeneration = generation
+        idleStandbyTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: timeout)
+            } catch {
+                return
+            }
+            guard let self,
+                self.isCurrent(lifecycle: lifecycle),
+                self.idleStandbyGeneration == generation,
+                !Task.isCancelled
+            else { return }
+            self.enterStandby()
+        }
+    }
+
+    private func cancelIdleStandbyTimer() {
+        idleStandbyGeneration = nil
+        idleStandbyTask?.cancel()
+        idleStandbyTask = nil
+    }
+
+    private func enterStandby() {
+        guard isStarted,
+            phase == .idle,
+            activeSessionId == nil,
+            bootstrapTask == nil,
+            recoveryTask == nil,
+            startTask == nil
+        else { return }
+        cancelIdleStandbyTimer()
+        commandMonitor.stop()
+        isCommandMonitorRunning = false
+        sessionStore.clearHeartbeat()
+        engine.suspendAudio()
+        phase = .standby
+        continuation.yield(.standby)
     }
 
     private func isCurrent(lifecycle: UUID) -> Bool {
@@ -997,7 +1095,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         }
         if let activeSessionId {
             fail(sessionId: activeSessionId, message: message)
-        } else {
+        } else if phase != .standby {
             recoverAudioSession()
         }
     }
@@ -1028,6 +1126,7 @@ final class UnavailableDictationSessionCoordinator: DictationSessionCoordinating
         continuation.yield(.failed(sessionId: nil, message: message))
     }
 
+    func updateIdleStandbyTimeout(_ _: Duration?) {}
     func synchronizeKeyboardCommands() {}
     func startRecording(sessionId _: String) {}
     func stopRecording(sessionId _: String?) {}

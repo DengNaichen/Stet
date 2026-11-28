@@ -29,6 +29,9 @@ struct StetMobileApp: App {
         settingsViewModel.onSpeechAssetBecameReady = { [weak dictationViewModel] in
             dictationViewModel?.ensureMicAlive()
         }
+        settingsViewModel.onMicrophoneKeepAliveChanged = { [weak dictationViewModel] duration in
+            dictationViewModel?.updateMicrophoneKeepAlive(duration)
+        }
         _rewriteSettingsStore = StateObject(wrappedValue: store)
         _speechSettingsStore = StateObject(wrappedValue: speechSettingsStore)
         _rewriteSettingsViewModel = StateObject(wrappedValue: settingsViewModel)
@@ -81,6 +84,7 @@ private enum StetMobileComposition {
             sessionStore: sessionStore,
             postProcessor: SettingsTranscriptPostProcessor(settingsStore: settingsStore),
             commandMonitor: SharedKeyboardCommandMonitor(sessionStore: sessionStore),
+            idleStandbyTimeout: speechSettingsStore.microphoneKeepAliveDuration.timeoutDuration,
             activityRecorder: SyncedDictationActivityRecorder()
         )
         return Dependencies(dictationCoordinator: coordinator)

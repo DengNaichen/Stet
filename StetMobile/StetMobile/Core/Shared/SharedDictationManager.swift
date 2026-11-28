@@ -61,6 +61,10 @@ class SharedDictationManager {
         defaults?.set(Date().timeIntervalSince1970, forKey: heartbeatKey)
     }
 
+    func clearHeartbeat() {
+        defaults?.removeObject(forKey: heartbeatKey)
+    }
+
     func mainAppAlive(within seconds: TimeInterval) -> Bool {
         guard let ts = defaults?.object(forKey: heartbeatKey) as? TimeInterval, ts > 0 else {
             return false

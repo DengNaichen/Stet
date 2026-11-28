@@ -574,6 +574,143 @@ struct DictationSessionCoordinatorTests {
 
         await fixture.coordinator.shutdown()
     }
+
+    @Test
+    func idleStandbyTimeoutSuspendsAudioClearsHeartbeatAndRecoversOnKeyboardWake() async throws {
+        let engine = FakeASREngine()
+        let commandMonitor = FakeKeyboardCommandMonitor(replaysLatestCommandOnForcedPoll: true)
+        let fixture = makeFixture(
+            engine: engine,
+            modelManager: FakeResourcePreparer(),
+            commandMonitor: commandMonitor,
+            idleStandbyTimeout: .milliseconds(40)
+        )
+        var events = fixture.coordinator.events.makeAsyncIterator()
+        try await startAndBecomeReady(fixture, events: &events)
+
+        expectStandby(try await nextEvent(&events))
+        #expect(fixture.coordinator.phase == .standby)
+        #expect(engine.suspendAudioCallCount == 1)
+        #expect(commandMonitor.stopCallCount == 1)
+        #expect(fixture.sessionStore.clearHeartbeatCallCount == 1)
+
+        // Audio interruptions while intentionally paused must not wake the mic.
+        fixture.notificationCenter.post(
+            name: AVAudioSession.interruptionNotification,
+            object: nil,
+            userInfo: [
+                AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.ended.rawValue
+            ]
+        )
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(fixture.coordinator.phase == .standby)
+        #expect(engine.prepareCallCount == 1)
+
+        // Keyboard wakes Stet with a pending start command.
+        fixture.sessionStore.saveSession(makeSession(id: "session-wake", state: .requestStart))
+        fixture.coordinator.synchronizeKeyboardCommands()
+        expectLoading(try await nextEvent(&events))
+        expectReady(try await nextEvent(&events), engineName: engine.name)
+        expectStarting(try await nextEvent(&events), sessionId: "session-wake")
+        expectRecording(try await nextEvent(&events), sessionId: "session-wake")
+        #expect(engine.prepareCallCount == 2)
+        #expect(commandMonitor.startCallCount == 2)
+
+        await fixture.coordinator.shutdown()
+    }
+
+    @Test
+    func idleStandbyTimeoutDoesNotInterruptRecordingAndRearmsAfterCompletion() async throws {
+        let engine = FakeASREngine()
+        let fixture = makeFixture(
+            engine: engine,
+            modelManager: FakeResourcePreparer(),
+            commandMonitor: FakeKeyboardCommandMonitor(),
+            idleStandbyTimeout: .milliseconds(50)
+        )
+        var events = fixture.coordinator.events.makeAsyncIterator()
+        try await startAndBecomeReady(fixture, events: &events)
+
+        fixture.coordinator.startRecording(sessionId: "session-a")
+        expectStarting(try await nextEvent(&events), sessionId: "session-a")
+        expectRecording(try await nextEvent(&events), sessionId: "session-a")
+
+        try await Task.sleep(for: .milliseconds(90))
+        #expect(fixture.coordinator.phase == .recording(sessionId: "session-a"))
+        #expect(engine.suspendAudioCallCount == 0)
+
+        fixture.coordinator.stopRecording(sessionId: "session-a")
+        expectTranscribing(try await nextEvent(&events), sessionId: "session-a")
+        engine.emitFinal(sessionId: "session-a", text: "still recording")
+        expectCompleted(try await nextEvent(&events), sessionId: "session-a", text: "still recording")
+
+        expectStandby(try await nextEvent(&events))
+        #expect(fixture.coordinator.phase == .standby)
+        #expect(engine.suspendAudioCallCount == 1)
+
+        await fixture.coordinator.shutdown()
+    }
+
+    @Test
+    func updatingIdleStandbyTimeoutReschedulesOrWakesFromStandby() async throws {
+        let engine = FakeASREngine()
+        let fixture = makeFixture(
+            engine: engine,
+            modelManager: FakeResourcePreparer(),
+            commandMonitor: FakeKeyboardCommandMonitor(),
+            idleStandbyTimeout: nil
+        )
+        var events = fixture.coordinator.events.makeAsyncIterator()
+        try await startAndBecomeReady(fixture, events: &events)
+
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(fixture.coordinator.phase == .idle)
+        #expect(engine.suspendAudioCallCount == 0)
+
+        fixture.coordinator.updateIdleStandbyTimeout(.milliseconds(30))
+        expectStandby(try await nextEvent(&events))
+        #expect(fixture.coordinator.phase == .standby)
+        #expect(engine.suspendAudioCallCount == 1)
+
+        // Switching to Never while paused wakes standby immediately.
+        fixture.coordinator.updateIdleStandbyTimeout(nil)
+        expectLoading(try await nextEvent(&events))
+        expectReady(try await nextEvent(&events), engineName: engine.name)
+        #expect(fixture.coordinator.phase == .idle)
+
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(fixture.coordinator.phase == .idle)
+
+        await fixture.coordinator.shutdown()
+    }
+
+    @Test
+    func startRecordingDirectlyFromStandbyWakesAndCompletes() async throws {
+        let engine = FakeASREngine()
+        let fixture = makeFixture(
+            engine: engine,
+            modelManager: FakeResourcePreparer(),
+            commandMonitor: FakeKeyboardCommandMonitor(),
+            idleStandbyTimeout: .milliseconds(30)
+        )
+        var events = fixture.coordinator.events.makeAsyncIterator()
+        try await startAndBecomeReady(fixture, events: &events)
+
+        expectStandby(try await nextEvent(&events))
+        #expect(fixture.coordinator.phase == .standby)
+
+        fixture.coordinator.startRecording(sessionId: "session-direct")
+        expectStarting(try await nextEvent(&events), sessionId: "session-direct")
+        expectRecording(try await nextEvent(&events), sessionId: "session-direct")
+        #expect(fixture.commandMonitor.startCallCount == 2)
+
+        fixture.coordinator.stopRecording(sessionId: "session-direct")
+        expectTranscribing(try await nextEvent(&events), sessionId: "session-direct")
+        engine.emitFinal(sessionId: "session-direct", text: "woke up")
+        expectCompleted(try await nextEvent(&events), sessionId: "session-direct", text: "woke up")
+
+        await fixture.coordinator.shutdown()
+    }
 }
 
 @MainActor
@@ -594,6 +731,7 @@ private func makeFixture(
     commandMonitor: FakeKeyboardCommandMonitor,
     postProcessor: FakeTranscriptPostProcessor? = nil,
     rewriteHeartbeatInterval: Duration = .seconds(2),
+    idleStandbyTimeout: Duration? = nil,
     activityRecorder: (any DictationActivityRecording)? = nil
 ) -> CoordinatorFixture {
     let permission = FakeMicrophonePermissionProvider()
@@ -611,6 +749,7 @@ private func makeFixture(
         commandMonitor: commandMonitor,
         notificationCenter: notificationCenter,
         rewriteHeartbeatInterval: rewriteHeartbeatInterval,
+        idleStandbyTimeout: idleStandbyTimeout,
         activityRecorder: activityRecorder ?? NoOpDictationActivityRecorder()
     )
     return CoordinatorFixture(
@@ -671,6 +810,7 @@ private final class SwitchingChildCoordinator: DictationSessionCoordinating {
     }
 
     func recoverAudioSession() {}
+    func updateIdleStandbyTimeout(_ _: Duration?) {}
     func synchronizeKeyboardCommands() {}
     func startRecording(sessionId _: String) {}
     func stopRecording(sessionId _: String?) {}
@@ -748,6 +888,13 @@ private func expectReady(_ event: DictationCoordinatorEvent, engineName: String)
         return
     }
     #expect(actualEngineName == engineName)
+}
+
+private func expectStandby(_ event: DictationCoordinatorEvent) {
+    guard case .standby = event else {
+        Issue.record("Expected standby event, got \(String(describing: event))")
+        return
+    }
 }
 
 private func expectStarting(_ event: DictationCoordinatorEvent, sessionId: String) {
@@ -838,6 +985,7 @@ private final class FakeASREngine: ASREngine, MobileASREngineFailureReporting {
     private(set) var prepareCallCount = 0
     private(set) var stopCallCount = 0
     private(set) var resetAudioCallCount = 0
+    private(set) var suspendAudioCallCount = 0
     private(set) var teardownCallCount = 0
     private(set) var startedSessionIds: [String] = []
 
@@ -880,6 +1028,10 @@ private final class FakeASREngine: ASREngine, MobileASREngineFailureReporting {
 
     func resetAudio() async throws {
         resetAudioCallCount += 1
+    }
+
+    func suspendAudio() {
+        suspendAudioCallCount += 1
     }
 
     func teardown() {
@@ -957,10 +1109,15 @@ private final class FakeMicrophonePermissionProvider: MicrophonePermissionProvid
 private final class InMemoryDictationSessionStore: DictationSessionPersisting {
     private(set) var session: DictationSession?
     private(set) var heartbeatCallCount = 0
+    private(set) var clearHeartbeatCallCount = 0
     private(set) var transcribingRefreshCount = 0
 
     func heartbeat() {
         heartbeatCallCount += 1
+    }
+
+    func clearHeartbeat() {
+        clearHeartbeatCallCount += 1
     }
 
     func getSession() -> DictationSession? {
@@ -1100,7 +1257,6 @@ private final class FakeKeyboardCommandMonitor: KeyboardCommandMonitoring {
 
     func stop() {
         stopCallCount += 1
-        continuation.finish()
     }
 
     func pollNow(force: Bool) {
