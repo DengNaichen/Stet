@@ -2,7 +2,7 @@
 // and Libraries.dev Thinking Orbs (https://libraries.dev/orbs) by Jakub Antalik (MIT).
 import CoreGraphics
 import Foundation
-import SwiftUI
+import UIKit
 import simd
 
 enum KeyboardThinkingOrbMode: Int, Equatable, CaseIterable {
@@ -49,8 +49,6 @@ private enum KeyboardThinkingOrbPreset {
     static let morphDuration = 0.600
     static let reducedMorphDuration = 0.150
     static let staggerSeconds = 0.0015
-    static let activeFrameInterval = 1.0 / 60.0
-    static let idleFrameInterval = 1.0 / 30.0
 }
 
 /// Evaluates the dissolve calm iOS cubic-bezier curve (0.32, 0.72, 0.0, 1.0).
@@ -156,24 +154,12 @@ private struct KeyboardThinkingOrbEngine {
         dt rawDT: Double,
         canvasSize: CGSize,
         level: Double?,
-        inkColor: SIMD3<Double>,
-        successColor: SIMD3<Double>,
-        errorColor: SIMD3<Double>,
+        targetColor: SIMD3<Double>,
         reduceMotion: Bool
     ) -> KeyboardThinkingOrbRenderFrame {
         let dt = rawDT.isFinite && rawDT > 0 ? min(rawDT, 0.05) : (1.0 / 60.0)
         elapsedTime += dt
         let t = reduceMotion ? 0.0 : elapsedTime
-
-        let targetColor: SIMD3<Double>
-        switch mode {
-        case .done:
-            targetColor = successColor
-        case .error:
-            targetColor = errorColor
-        default:
-            targetColor = inkColor
-        }
 
         if !hasInitializedColor {
             currentColor = targetColor
@@ -212,7 +198,6 @@ private struct KeyboardThinkingOrbEngine {
         let sweep = (t * Self.tau).truncatingRemainder(dividingBy: Self.tau)
         let errT = max(0.0, since)
 
-        // Precessing ribbon plane for the Thinking state.
         let ribbonYaw = t * 0.42
         let ribbonTilt = 0.55 + 0.30 * sin(t * 0.32)
         let rux = cos(ribbonYaw)
@@ -399,108 +384,186 @@ private struct KeyboardThinkingOrbEngine {
     }
 }
 
-struct KeyboardThinkingOrbView: View {
-    let mode: KeyboardThinkingOrbMode
-    let level: Double?
-    let diameter: CGFloat
-    let isActive: Bool
+/// Pure UIKit + CoreGraphics + CADisplayLink ThinkingOrb renderer.
+/// Avoids UIHostingController / SwiftUI TimelineView stalls inside iOS keyboard extensions
+/// and guarantees immediate Frame 0 rendering in `draw(_:)`.
+final class KeyboardThinkingOrbCanvasView: UIView {
+    private var engine = KeyboardThinkingOrbEngine()
+    private var renderFrame: KeyboardThinkingOrbRenderFrame?
+    private var displayLink: CADisplayLink?
+    private var lastTimestamp: CFTimeInterval?
 
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var engine = KeyboardThinkingOrbEngine()
-    @State private var frame = KeyboardThinkingOrbRenderFrame(dots: [], color: SIMD3(0.12, 0.12, 0.14))
-    @State private var previousDate: Date?
+    private var mode: KeyboardThinkingOrbMode = .idle
+    private var level: Double?
+    private var isActive = false
 
-    var body: some View {
-        TimelineView(
-            .animation(
-                minimumInterval: mode == .idle
-                    ? KeyboardThinkingOrbPreset.idleFrameInterval
-                    : KeyboardThinkingOrbPreset.activeFrameInterval,
-                paused: !isActive
-            )
-        ) { context in
-            Canvas { graphics, _ in
-                let baseColor = Color(
-                    red: frame.color.x,
-                    green: frame.color.y,
-                    blue: frame.color.z
-                )
-                for dot in frame.dots {
-                    let r = dot.diameter * 0.5
-                    let rect = CGRect(
-                        x: dot.center.x - r,
-                        y: dot.center.y - r,
-                        width: dot.diameter,
-                        height: dot.diameter
-                    )
-                    graphics.fill(
-                        Path(ellipseIn: rect),
-                        with: .color(baseColor.opacity(dot.alpha))
-                    )
-                }
-            }
-            .frame(width: diameter, height: diameter)
-            .onChange(of: context.date) { _, date in
-                let dt =
-                    previousDate.map { date.timeIntervalSince($0) } ?? KeyboardThinkingOrbPreset.activeFrameInterval
-                previousDate = date
-                stepEngine(dt: dt)
-            }
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        commonInit()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        commonInit()
+    }
+
+    deinit {
+        stopDisplayLink()
+    }
+
+    private func commonInit() {
+        backgroundColor = .clear
+        isOpaque = false
+        isUserInteractionEnabled = false
+        contentMode = .redraw
+
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
+            self.stepAndRedraw(dt: 0.001)
         }
-        .overlay {
-            if mode == .idle {
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
-                    .frame(width: 30, height: 30)
-                    .background(
-                        Circle()
-                            .fill(colorScheme == .dark ? Color.white.opacity(0.92) : Color.black.opacity(0.86))
-                    )
-                    .shadow(color: .black.opacity(0.18), radius: 6, y: 2)
-                    .transition(.scale(scale: 0.7).combined(with: .opacity))
-            }
-        }
-        .animation(.spring(response: 0.28, dampingFraction: 1.0), value: mode == .idle)
-        .onAppear {
-            engine.setMode(mode)
-            previousDate = .now
-            stepEngine(dt: KeyboardThinkingOrbPreset.activeFrameInterval)
-        }
-        .onChange(of: mode) { _, newMode in
-            engine.setMode(newMode)
-        }
-        .onChange(of: colorScheme) { _, _ in
-            stepEngine(dt: 0.001)
-        }
-        .onDisappear {
-            previousDate = nil
+
+        engine.setMode(.idle)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if bounds.width > 0, bounds.height > 0, renderFrame == nil {
+            stepAndRedraw(dt: 1.0 / 60.0)
         }
     }
 
-    private func stepEngine(dt: Double) {
-        let ink: SIMD3<Double> =
-            colorScheme == .dark
-            ? SIMD3(0.94, 0.94, 0.96)
-            : SIMD3(0.08, 0.08, 0.10)
-        let success: SIMD3<Double> =
-            colorScheme == .dark
-            ? SIMD3(0.24, 0.84, 0.48)
-            : SIMD3(0.05, 0.56, 0.26)
-        let error: SIMD3<Double> =
-            colorScheme == .dark
-            ? SIMD3(1.00, 0.36, 0.34)
-            : SIMD3(0.86, 0.18, 0.18)
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil && isActive {
+            startDisplayLink()
+            stepAndRedraw(dt: 1.0 / 60.0)
+        } else if window == nil {
+            stopDisplayLink()
+        }
+    }
 
-        frame = engine.step(
+    func configure(mode: KeyboardThinkingOrbMode, level: Double?, isActive: Bool) {
+        self.mode = mode
+        self.level = level
+        self.isActive = isActive
+
+        engine.setMode(mode)
+
+        if isActive && window != nil {
+            startDisplayLink()
+        } else {
+            stopDisplayLink()
+        }
+
+        updatePreferredFrameRate()
+        stepAndRedraw(dt: 1.0 / 60.0)
+    }
+
+    override func draw(_ rect: CGRect) {
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        let currentFrame: KeyboardThinkingOrbRenderFrame
+        if let existing = renderFrame, !existing.dots.isEmpty {
+            currentFrame = existing
+        } else {
+            let computed = computeFrame(dt: 1.0 / 60.0)
+            renderFrame = computed
+            currentFrame = computed
+        }
+
+        guard let context = UIGraphicsGetCurrentContext() else { return }
+        context.clear(rect)
+
+        let r = CGFloat(currentFrame.color.x)
+        let g = CGFloat(currentFrame.color.y)
+        let b = CGFloat(currentFrame.color.z)
+
+        for dot in currentFrame.dots {
+            context.setFillColor(red: r, green: g, blue: b, alpha: CGFloat(dot.alpha))
+            let half = dot.diameter * 0.5
+            let dotRect = CGRect(
+                x: dot.center.x - half,
+                y: dot.center.y - half,
+                width: dot.diameter,
+                height: dot.diameter
+            )
+            context.fillEllipse(in: dotRect)
+        }
+    }
+
+    private func startDisplayLink() {
+        guard displayLink == nil else { return }
+        lastTimestamp = nil
+        let link = CADisplayLink(target: self, selector: #selector(handleDisplayLink(_:)))
+        link.add(to: .main, forMode: .common)
+        displayLink = link
+        updatePreferredFrameRate()
+    }
+
+    private func stopDisplayLink() {
+        displayLink?.invalidate()
+        displayLink = nil
+        lastTimestamp = nil
+    }
+
+    private func updatePreferredFrameRate() {
+        guard let displayLink else { return }
+        if mode == .idle {
+            displayLink.preferredFrameRateRange = CAFrameRateRange(minimum: 20, maximum: 30, preferred: 30)
+        } else {
+            displayLink.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 60, preferred: 60)
+        }
+    }
+
+    @objc private func handleDisplayLink(_ link: CADisplayLink) {
+        let dt: Double
+        if let lastTimestamp {
+            dt = max(1.0 / 120.0, min(link.timestamp - lastTimestamp, 0.05))
+        } else {
+            dt = 1.0 / 60.0
+        }
+        lastTimestamp = link.timestamp
+        stepAndRedraw(dt: dt)
+    }
+
+    private func stepAndRedraw(dt: Double) {
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        renderFrame = computeFrame(dt: dt)
+        setNeedsDisplay()
+    }
+
+    private func computeFrame(dt: Double) -> KeyboardThinkingOrbRenderFrame {
+        let isDark = traitCollection.userInterfaceStyle == .dark
+        let targetColor = morandiColor(for: mode, isDark: isDark)
+
+        return engine.step(
             dt: dt,
-            canvasSize: CGSize(width: diameter, height: diameter),
+            canvasSize: bounds.size,
             level: level,
-            inkColor: ink,
-            successColor: success,
-            errorColor: error,
-            reduceMotion: reduceMotion
+            targetColor: targetColor,
+            reduceMotion: UIAccessibility.isReduceMotionEnabled
         )
+    }
+
+    /// Muted Morandi state palette tuned for both Light and Dark iOS keyboard surfaces.
+    private func morandiColor(for mode: KeyboardThinkingOrbMode, isDark: Bool) -> SIMD3<Double> {
+        switch mode {
+        case .idle:
+            // Slate mist
+            return isDark ? SIMD3(0.64, 0.68, 0.73) : SIMD3(0.42, 0.45, 0.49)
+        case .searching:
+            // Warm sand ochre
+            return isDark ? SIMD3(0.84, 0.72, 0.56) : SIMD3(0.73, 0.59, 0.43)
+        case .listening:
+            // Terracotta rose
+            return isDark ? SIMD3(0.86, 0.56, 0.54) : SIMD3(0.76, 0.43, 0.42)
+        case .thinking:
+            // Dusty periwinkle
+            return isDark ? SIMD3(0.63, 0.67, 0.84) : SIMD3(0.46, 0.50, 0.66)
+        case .done:
+            // Sage green
+            return isDark ? SIMD3(0.58, 0.77, 0.66) : SIMD3(0.42, 0.60, 0.50)
+        case .error:
+            // Muted rust
+            return isDark ? SIMD3(0.85, 0.49, 0.46) : SIMD3(0.75, 0.36, 0.34)
+        }
     }
 }

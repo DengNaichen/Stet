@@ -5,7 +5,6 @@
 //  Created by Naicheng Deng on 2026-04-30.
 //
 
-import SwiftUI
 import UIKit
 
 private enum KeyboardButtonState: Equatable {
@@ -18,6 +17,7 @@ private enum KeyboardButtonState: Equatable {
 
 final class KeyboardViewController: UIInputViewController {
     private enum Layout {
+        static let keyboardHeight: CGFloat = 236
         static let actionDiameter: CGFloat = 124
         static let returnWidth: CGFloat = 120
         static let returnHeight: CGFloat = 48
@@ -32,7 +32,7 @@ final class KeyboardViewController: UIInputViewController {
     private let returnButton = UIButton(type: .system)
     private let nextKeyboardButton = UIButton(type: .system)
     private let actionStack = UIStackView()
-    private var thinkingOrbHost: UIHostingController<KeyboardThinkingOrbView>?
+    private let thinkingOrbView = KeyboardThinkingOrbCanvasView()
 
     private var buttonState: KeyboardButtonState = .idle
     private var isVisible = false
@@ -55,10 +55,10 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        configureKeyboardHeight()
         configureActionButton()
         configureControlButtons()
         configureNextKeyboardButton()
-        ensureThinkingOrbHost()
         updateActionButton()
     }
 
@@ -95,9 +95,12 @@ final class KeyboardViewController: UIInputViewController {
             manager.savePendingKeyboardSessionId(session.sessionId)
         } else {
             pendingSessionId = nil
+            if buttonState == .processing || buttonState == .pending || buttonState == .recording {
+                buttonState = .idle
+            }
         }
         startPolling()
-        updateThinkingOrb()
+        updateActionButton()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -123,6 +126,12 @@ final class KeyboardViewController: UIInputViewController {
         }
     }
 
+    private func configureKeyboardHeight() {
+        let heightConstraint = view.heightAnchor.constraint(equalToConstant: Layout.keyboardHeight)
+        heightConstraint.priority = UILayoutPriority(999)
+        heightConstraint.isActive = true
+    }
+
     private func configureActionButton() {
         actionButton.translatesAutoresizingMaskIntoConstraints = false
         actionButton.addTarget(self, action: #selector(handleActionButton), for: .touchUpInside)
@@ -133,13 +142,21 @@ final class KeyboardViewController: UIInputViewController {
             for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit]
         )
         actionButton.accessibilityIdentifier = "DictationButton"
-        actionButton.backgroundColor = .clear
+        // Non-zero alpha ensures UIKit hit-testing always hits the full circular target.
+        actionButton.backgroundColor = UIColor.label.withAlphaComponent(0.001)
         actionButton.layer.cornerRadius = Layout.actionDiameter / 2
         actionButton.clipsToBounds = false
+
+        thinkingOrbView.translatesAutoresizingMaskIntoConstraints = false
+        actionButton.addSubview(thinkingOrbView)
 
         NSLayoutConstraint.activate([
             actionButton.widthAnchor.constraint(equalToConstant: Layout.actionDiameter),
             actionButton.heightAnchor.constraint(equalToConstant: Layout.actionDiameter),
+            thinkingOrbView.leadingAnchor.constraint(equalTo: actionButton.leadingAnchor),
+            thinkingOrbView.trailingAnchor.constraint(equalTo: actionButton.trailingAnchor),
+            thinkingOrbView.topAnchor.constraint(equalTo: actionButton.topAnchor),
+            thinkingOrbView.bottomAnchor.constraint(equalTo: actionButton.bottomAnchor),
         ])
     }
 
@@ -476,33 +493,7 @@ final class KeyboardViewController: UIInputViewController {
         volumeSampleTimer = nil
     }
 
-    private func ensureThinkingOrbHost() {
-        guard thinkingOrbHost == nil else { return }
-
-        let host = UIHostingController(rootView: makeThinkingOrbView())
-        addChild(host)
-        host.view.translatesAutoresizingMaskIntoConstraints = false
-        host.view.backgroundColor = .clear
-        host.view.isOpaque = false
-        host.view.isUserInteractionEnabled = false
-        host.view.accessibilityElementsHidden = true
-        actionButton.addSubview(host.view)
-        NSLayoutConstraint.activate([
-            host.view.leadingAnchor.constraint(equalTo: actionButton.leadingAnchor),
-            host.view.trailingAnchor.constraint(equalTo: actionButton.trailingAnchor),
-            host.view.topAnchor.constraint(equalTo: actionButton.topAnchor),
-            host.view.bottomAnchor.constraint(equalTo: actionButton.bottomAnchor),
-        ])
-        host.didMove(toParent: self)
-        thinkingOrbHost = host
-    }
-
     private func updateThinkingOrb() {
-        ensureThinkingOrbHost()
-        thinkingOrbHost?.rootView = makeThinkingOrbView()
-    }
-
-    private func makeThinkingOrbView() -> KeyboardThinkingOrbView {
         let orbMode: KeyboardThinkingOrbMode
         let orbLevel: Double?
         switch buttonState {
@@ -523,12 +514,7 @@ final class KeyboardViewController: UIInputViewController {
             orbLevel = nil
         }
 
-        return KeyboardThinkingOrbView(
-            mode: orbMode,
-            level: orbLevel,
-            diameter: Layout.actionDiameter,
-            isActive: isVisible
-        )
+        thinkingOrbView.configure(mode: orbMode, level: orbLevel, isActive: isVisible)
     }
 
     private func tick() {
