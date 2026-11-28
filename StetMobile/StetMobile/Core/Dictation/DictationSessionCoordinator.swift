@@ -1,6 +1,16 @@
 import AVFoundation
 import Foundation
 
+nonisolated struct MobileASREngineFailure: Sendable {
+    let sessionId: String?
+    let message: String
+}
+
+@MainActor
+protocol MobileASREngineFailureReporting: AnyObject {
+    var failureStream: AsyncStream<MobileASREngineFailure> { get }
+}
+
 enum DictationCoordinatorPhase: Equatable, Sendable {
     case inactive
     case loading
@@ -53,6 +63,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
     private let postProcessor: any TranscriptPostProcessing
     private let commandMonitor: any KeyboardCommandMonitoring
     private let notificationCenter: NotificationCenter
+    private let rewriteHeartbeatInterval: Duration
 
     private var activeSessionId: String?
     private var isStarted = false
@@ -79,7 +90,8 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         sessionStore: any DictationSessionPersisting,
         postProcessor: any TranscriptPostProcessing,
         commandMonitor: any KeyboardCommandMonitoring,
-        notificationCenter: NotificationCenter = .default
+        notificationCenter: NotificationCenter = .default,
+        rewriteHeartbeatInterval: Duration = .seconds(2)
     ) {
         self.engine = engine
         self.prepareResources = prepareResources
@@ -88,6 +100,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         self.postProcessor = postProcessor
         self.commandMonitor = commandMonitor
         self.notificationCenter = notificationCenter
+        self.rewriteHeartbeatInterval = rewriteHeartbeatInterval
         (events, continuation) = AsyncStream.makeStream()
     }
 
@@ -433,6 +446,18 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             return
         }
 
+        guard
+            sessionStore.transitionState(
+                for: sessionId,
+                from: [.recording, .requestStop, .transcribing],
+                to: .transcribing,
+                error: nil
+            )
+        else {
+            relinquishSession(sessionId: sessionId)
+            return
+        }
+
         phase = .rewriting(sessionId: sessionId)
         continuation.yield(.rewriting(sessionId: sessionId))
         rewriteTask?.cancel()
@@ -441,7 +466,11 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         rewriteGeneration = generation
         rewriteTask = Task { @MainActor [weak self] in
             guard let self else { return }
+            let heartbeat = Task {
+                await self.keepRewriteAlive(sessionId: sessionId, generation: generation)
+            }
             defer {
+                heartbeat.cancel()
                 if self.rewriteGeneration == generation {
                     self.rewriteGeneration = nil
                     self.rewriteTask = nil
@@ -455,6 +484,25 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
                 self.activeSessionId == sessionId
             else { return }
             self.complete(sessionId: sessionId, text: processedText, metrics: metrics)
+        }
+    }
+
+    private func keepRewriteAlive(sessionId: String, generation: UUID) async {
+        while !Task.isCancelled {
+            do {
+                try await Task.sleep(for: rewriteHeartbeatInterval)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled, rewriteGeneration == generation,
+                phase == .rewriting(sessionId: sessionId),
+                sessionStore.transitionState(
+                    for: sessionId,
+                    from: [.transcribing],
+                    to: .transcribing,
+                    error: nil
+                )
+            else { return }
         }
     }
 

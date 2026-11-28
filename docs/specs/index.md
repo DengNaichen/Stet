@@ -85,5 +85,5 @@
 - 乐观完成是否扩大到兼容名单之外的应用；选区替换能力保留还是删除（[文本交付](text-delivery.md)）。
 - 从菜单、设置页或预期会议提醒开始会议录制时，是否统一检查听写状态和权限（[macOS 听写会话](macos-dictation-session.md)、[会议录制与保存](meeting-recording.md)）。
 - 听写历史与会议文件的保留期限与删除方式（[听写历史与统计](dictation-history-and-stats.md)、[会议录制与保存](meeting-recording.md)）。
-- iOS 云端转写与“本机转写”的用途说明不一致；Mac 与 iPhone 是否共享词典（[iOS 键盘听写](ios-keyboard-dictation.md)、[转写引擎与模型准备](transcription-engines.md)、[个人词典](personal-dictionary.md)）。
+- Mac 与 iPhone 是否共享词典（[个人词典](personal-dictionary.md)）。
 - MCP 本地 HTTP 是否需要鉴权（[MCP 对外契约](mcp.md)）。

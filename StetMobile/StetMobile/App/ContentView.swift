@@ -111,7 +111,7 @@ struct ContentView: View {
         }
 
         func start() {
-            continuation.yield(.ready(engineName: "FunASR Realtime Preview"))
+            continuation.yield(.ready(engineName: "Apple Speech Preview"))
         }
 
         func recoverAudioSession() {}

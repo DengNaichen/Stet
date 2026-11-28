@@ -25,7 +25,7 @@ struct DictationSessionCoordinatorTests {
     }
 
     @Test
-    func cloudEngineBootstrapDoesNotRequireModelPreparation() async throws {
+    func bootstrapCanUseEngineManagedPreparation() async throws {
         let engine = FakeASREngine()
         let permission = FakeMicrophonePermissionProvider()
         let sessionStore = InMemoryDictationSessionStore()
@@ -79,6 +79,70 @@ struct DictationSessionCoordinatorTests {
         await fixture.coordinator.shutdown()
     }
 
+    @Test(arguments: [false, true])
+    func rewriteKeepsTranscribingSessionFreshUntilCompletionOrCancellation(cancelled: Bool) async throws {
+        let rewrite = AsyncStream<String>.makeStream()
+        defer { rewrite.continuation.finish() }
+        let postProcessor = FakeTranscriptPostProcessor { transcript in
+            var results = rewrite.stream.makeAsyncIterator()
+            return await results.next() ?? transcript
+        }
+        let interval = Duration.milliseconds(20)
+        let fixture = makeFixture(
+            engine: FakeASREngine(),
+            modelManager: FakeResourcePreparer(),
+            commandMonitor: FakeKeyboardCommandMonitor(),
+            postProcessor: postProcessor,
+            rewriteHeartbeatInterval: interval
+        )
+        var events = fixture.coordinator.events.makeAsyncIterator()
+        try await startAndBecomeReady(fixture, events: &events)
+        try await beginTranscribing(fixture, sessionId: "session-a", events: &events)
+
+        fixture.engine.emitFinal(sessionId: "session-a", text: "original")
+        guard case .rewriting(sessionId: "session-a") = try await nextEvent(&events) else {
+            Issue.record("Expected rewrite to start")
+            return
+        }
+        var staleSession = try #require(fixture.sessionStore.session)
+        staleSession.updatedAt = Date().addingTimeInterval(-11)
+        fixture.sessionStore.saveSession(staleSession)
+        let initialHeartbeatCount = fixture.sessionStore.transcribingRefreshCount
+
+        let deadline = ContinuousClock.now + .seconds(2)
+        while fixture.sessionStore.transcribingRefreshCount < initialHeartbeatCount + 2,
+            ContinuousClock.now < deadline
+        {
+            try await Task.sleep(for: interval)
+        }
+
+        let refreshedSession = try #require(fixture.sessionStore.session)
+        #expect(fixture.sessionStore.transcribingRefreshCount >= initialHeartbeatCount + 2)
+        #expect(refreshedSession.state == .transcribing)
+        #expect(Date().timeIntervalSince(refreshedSession.updatedAt) < 10)
+        #expect(refreshedSession.revision == staleSession.revision)
+
+        if cancelled {
+            // The keyboard can cancel the persisted session before the monitor delivers its command.
+            #expect(fixture.sessionStore.updateState(for: "session-a", to: .cancelled, error: nil))
+            try await Task.sleep(for: interval * 3)
+            #expect(fixture.sessionStore.session?.state == .cancelled)
+            rewrite.continuation.yield("rewritten")
+            expectReady(try await nextEvent(&events), engineName: fixture.engine.name)
+            #expect(fixture.sessionStore.session?.finalText == staleSession.finalText)
+        } else {
+            rewrite.continuation.yield("rewritten")
+            expectCompleted(try await nextEvent(&events), sessionId: "session-a", text: "rewritten")
+            #expect(fixture.sessionStore.session?.state == .ready)
+            #expect(fixture.sessionStore.session?.finalText == "rewritten")
+        }
+
+        let finalSession = try #require(fixture.sessionStore.session)
+        try await Task.sleep(for: interval * 3)
+        #expect(fixture.sessionStore.session?.updatedAt == finalSession.updatedAt)
+        await fixture.coordinator.shutdown()
+    }
+
     @Test
     func runtimeEngineFailureFailsTheActiveSessionWithoutFallback() async throws {
         let fixture = makeFixture()
@@ -89,20 +153,15 @@ struct DictationSessionCoordinatorTests {
         expectStarting(try await nextEvent(&events), sessionId: "session-a")
         expectRecording(try await nextEvent(&events), sessionId: "session-a")
 
-        fixture.engine.emitFailure(
-            sessionId: "session-a",
-            message: FunASRError.connectionFailed.localizedDescription
-        )
+        let message = "Apple Speech stopped unexpectedly."
+        fixture.engine.emitFailure(sessionId: "session-a", message: message)
 
         expectFailed(
             try await nextEvent(&events),
             sessionId: "session-a",
-            message: FunASRError.connectionFailed.localizedDescription
+            message: message
         )
-        #expect(
-            fixture.coordinator.phase
-                == .failed(message: FunASRError.connectionFailed.localizedDescription)
-        )
+        #expect(fixture.coordinator.phase == .failed(message: message))
         #expect(fixture.sessionStore.session?.state == .failed)
         #expect(fixture.engine.startedSessionIds == ["session-a"])
         await fixture.coordinator.shutdown()
@@ -435,11 +494,12 @@ private func makeFixture(
 private func makeFixture(
     engine: FakeASREngine,
     modelManager: FakeResourcePreparer,
-    commandMonitor: FakeKeyboardCommandMonitor
+    commandMonitor: FakeKeyboardCommandMonitor,
+    postProcessor: FakeTranscriptPostProcessor? = nil,
+    rewriteHeartbeatInterval: Duration = .seconds(2)
 ) -> CoordinatorFixture {
     let permission = FakeMicrophonePermissionProvider()
     let sessionStore = InMemoryDictationSessionStore()
-    let postProcessor = FakeTranscriptPostProcessor()
     let notificationCenter = NotificationCenter()
     commandMonitor.attach(sessionStore: sessionStore)
     let coordinator = DictationSessionCoordinator(
@@ -449,9 +509,10 @@ private func makeFixture(
         },
         permissionProvider: permission,
         sessionStore: sessionStore,
-        postProcessor: postProcessor,
+        postProcessor: postProcessor ?? FakeTranscriptPostProcessor(),
         commandMonitor: commandMonitor,
-        notificationCenter: notificationCenter
+        notificationCenter: notificationCenter,
+        rewriteHeartbeatInterval: rewriteHeartbeatInterval
     )
     return CoordinatorFixture(
         coordinator: coordinator,
@@ -797,6 +858,7 @@ private final class FakeMicrophonePermissionProvider: MicrophonePermissionProvid
 private final class InMemoryDictationSessionStore: DictationSessionPersisting {
     private(set) var session: DictationSession?
     private(set) var heartbeatCallCount = 0
+    private(set) var transcribingRefreshCount = 0
 
     func heartbeat() {
         heartbeatCallCount += 1
@@ -845,6 +907,9 @@ private final class InMemoryDictationSessionStore: DictationSessionPersisting {
             session.sessionId == sessionId,
             expectedStates.contains(session.state)
         else { return false }
+        if session.state == .transcribing, state == .transcribing {
+            transcribingRefreshCount += 1
+        }
         session.state = state
         session.updatedAt = Date()
         session.error = error
@@ -897,10 +962,16 @@ private final class InMemoryDictationSessionStore: DictationSessionPersisting {
 
 @MainActor
 private final class FakeTranscriptPostProcessor: TranscriptPostProcessing {
-    let isAvailable = false
+    private let rewrite: ((String) async -> String)?
+
+    var isAvailable: Bool { rewrite != nil }
+
+    init(rewrite: ((String) async -> String)? = nil) {
+        self.rewrite = rewrite
+    }
 
     func process(_ transcript: String) async -> String {
-        transcript
+        await rewrite?(transcript) ?? transcript
     }
 }
 

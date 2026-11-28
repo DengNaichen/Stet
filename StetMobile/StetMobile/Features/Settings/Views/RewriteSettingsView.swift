@@ -8,49 +8,7 @@ struct RewriteSettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    Picker("Region", selection: $viewModel.funASRSettingsStore.region) {
-                        ForEach(FunASRRegion.allCases) { region in
-                            Text(region.displayName).tag(region)
-                        }
-                    }
-
-                    TextField(
-                        "Workspace ID",
-                        text: $viewModel.funASRSettingsStore.workspaceID
-                    )
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .onChange(of: viewModel.funASRSettingsStore.workspaceID) {
-                        viewModel.sanitizeFunASRWorkspaceID()
-                    }
-
-                    SecureField("API Key", text: $viewModel.funASRAPIKeyInput)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .onSubmit { viewModel.saveFunASRAPIKey() }
-
-                    Button {
-                        Task { await viewModel.validateFunASRConnection() }
-                    } label: {
-                        HStack {
-                            Text("Validate Connection")
-                            Spacer()
-                            validationIndicator(viewModel.funASRValidationState)
-                        }
-                    }
-                    .disabled(viewModel.funASRValidationState == .validating)
-
-                    if case .failed(let message) = viewModel.funASRValidationState {
-                        Text(message)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                } header: {
-                    Text("FunASR Realtime")
-                } footer: {
-                    Text("Live microphone audio is sent to Alibaba Cloud for transcription.")
-                }
+                SpeechRecognitionSection(store: viewModel.speechRecognitionSettingsStore)
 
                 Section {
                     Toggle("Transcript Improvement", isOn: $viewModel.settingsStore.isRewriteEnabled)
@@ -148,20 +106,45 @@ struct RewriteSettingsView: View {
             .navigationBarTitleDisplayMode(.large)
         }
     }
+}
 
-    @ViewBuilder
-    private func validationIndicator(_ state: RewriteSettingsViewModel.ValidationState) -> some View {
-        switch state {
-        case .idle:
-            EmptyView()
-        case .validating:
-            ProgressView()
-        case .success:
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-        case .failed:
-            Image(systemName: "xmark.circle.fill")
-                .foregroundStyle(.red)
+private struct SpeechRecognitionSection: View {
+    @ObservedObject var store: SpeechRecognitionSettingsStore
+
+    var body: some View {
+        Section("Apple Speech") {
+            Picker("Language", selection: $store.selectedLanguage) {
+                ForEach(SpeechRecognitionLanguage.allCases) { language in
+                    Text(language.displayName).tag(language)
+                }
+            }
+
+            switch store.assetStatus {
+            case .checking:
+                ProgressView("Checking language model")
+            case .installed:
+                Text("Language model installed")
+            case .available:
+                downloadButton
+            case .downloading:
+                ProgressView("Downloading language model")
+            case .unsupported:
+                Text("This language is unavailable on this device.")
+            case .failed(let message):
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                downloadButton
+            }
+        }
+        .task(id: store.selectedLanguage) {
+            await store.refreshAssetStatus()
+        }
+    }
+
+    private var downloadButton: some View {
+        Button("Download Language Model") {
+            Task { try? await store.downloadAssetIfNeeded() }
         }
     }
 }
