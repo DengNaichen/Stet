@@ -24,13 +24,11 @@
     }
 
     enum FunASRNanoModelAsset: CaseIterable, Sendable {
-        case encoder
         case languageModel
         case voiceActivityDetector
 
         nonisolated var fileName: String {
             switch self {
-            case .encoder: return "funasr-encoder-f16.gguf"
             case .languageModel: return "qwen3-0.6b-q4km.gguf"
             case .voiceActivityDetector: return "fsmn-vad.gguf"
             }
@@ -39,8 +37,6 @@
         nonisolated var downloadURL: URL {
             let urlString =
                 switch self {
-                case .encoder:
-                    "https://huggingface.co/FunAudioLLM/Fun-ASR-Nano-GGUF/resolve/main/funasr-encoder-f16.gguf"
                 case .languageModel:
                     "https://huggingface.co/FunAudioLLM/Fun-ASR-Nano-GGUF/resolve/main/qwen3-0.6b-q4km.gguf"
                 case .voiceActivityDetector:
@@ -54,13 +50,28 @@
         typealias DownloadProvider = @Sendable (URL) async throws -> (URL, URLResponse)
 
         private let modelsDirectoryProvider: @Sendable () throws -> URL
+        private let prepareEncoder: @Sendable (URL) async throws -> Void
         private let downloader: ModelFileDownloader
 
         nonisolated init(
             modelsDirectoryProvider: (@Sendable () throws -> URL)? = nil,
             downloadProvider: DownloadProvider? = nil,
-            downloader: ModelFileDownloader = .shared
+            downloader: ModelFileDownloader = .shared,
+            prepareEncoder: (@Sendable (URL) async throws -> Void)? = nil
         ) {
+            self.prepareEncoder =
+                prepareEncoder ?? { directory in
+                    let installer =
+                        modelsDirectoryProvider == nil
+                        ? FunASRNanoANEInstaller.shared
+                        : FunASRNanoANEInstaller(
+                            directoryProvider: { directory }, release: FunASRNanoANECatalog.bundled())
+                    if ANEModelReadiness.installed(in: directory) != nil {
+                        try await installer.prepareInstalled { _ in }
+                    } else {
+                        try await installer.download { _ in }
+                    }
+                }
             self.modelsDirectoryProvider =
                 modelsDirectoryProvider ?? {
                     guard
@@ -97,7 +108,8 @@
         nonisolated func modelFiles() throws -> FunASRNanoModelFiles {
             let directory = try modelsDirectoryProvider()
             return FunASRNanoModelFiles(
-                encoder: directory.appendingPathComponent(FunASRNanoModelAsset.encoder.fileName),
+                encoder: ANEModelReadiness.installed(in: directory)?.compiledURL(in: directory)
+                    ?? directory.appendingPathComponent(FunASRNanoANEManifest.compiledName, isDirectory: true),
                 languageModel: directory.appendingPathComponent(FunASRNanoModelAsset.languageModel.fileName),
                 voiceActivityDetector: directory.appendingPathComponent(
                     FunASRNanoModelAsset.voiceActivityDetector.fileName)
@@ -105,33 +117,22 @@
         }
 
         nonisolated func isModelDownloaded() -> Bool {
-            guard let files = try? modelFiles() else { return false }
-            return zip(FunASRNanoModelAsset.allCases, files.allFiles).allSatisfy { asset, url in
-                downloader.isAvailable(ModelFileRequest(official: asset.downloadURL), at: url)
+            (try? resolvedModelFiles()) != nil
+        }
+
+        nonisolated func missingCompanionFiles(in directory: URL) -> [URL] {
+            FunASRNanoModelAsset.allCases.compactMap { asset in
+                let url = directory.appendingPathComponent(asset.fileName)
+                return downloader.isAvailable(ModelFileRequest(official: asset.downloadURL), at: url) ? nil : url
             }
         }
 
         nonisolated func resolvedModelFiles() throws -> FunASRNanoModelFiles {
-            let files = try modelFiles()
-            let missing = zip(FunASRNanoModelAsset.allCases, files.allFiles).compactMap { asset, url in
-                downloader.isAvailable(ModelFileRequest(official: asset.downloadURL), at: url) ? nil : url
-            }
-            guard missing.isEmpty else {
-                throw FunASRNanoModelError.missingAssets(missing)
-            }
-            #if arch(arm64)
-                if #available(macOS 15, *) {
-                    let directory = files.encoder.deletingLastPathComponent()
-                    if let receipt = ANEModelReadiness.read(in: directory) {
-                        return FunASRNanoModelFiles(
-                            encoder: receipt.compiledURL(in: directory),
-                            languageModel: files.languageModel,
-                            voiceActivityDetector: files.voiceActivityDetector
-                        )
-                    }
-                }
-            #endif
-            return files
+            let directory = try modelsDirectoryProvider()
+            let missing = missingCompanionFiles(in: directory)
+            guard missing.isEmpty else { throw FunASRNanoModelError.missingAssets(missing) }
+            guard ANEModelReadiness.read(in: directory) != nil else { throw ANEModelInstallError.encoderNotReady }
+            return try modelFiles()
         }
 
         nonisolated func modelsDirectoryURL() throws -> URL {
@@ -144,10 +145,12 @@
             let directory = try modelsDirectoryProvider()
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
+            guard ANEModelReadiness.supported else { throw ANEModelInstallError.unsupported }
             for asset in FunASRNanoModelAsset.allCases {
                 let destination = directory.appendingPathComponent(asset.fileName)
                 _ = try await downloader.file(ModelFileRequest(official: asset.downloadURL), at: destination)
             }
+            if ANEModelReadiness.read(in: directory) == nil { try await prepareEncoder(directory) }
         }
     }
 #endif

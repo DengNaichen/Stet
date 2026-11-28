@@ -27,7 +27,7 @@ final class ANEModelSettingsViewModel: ObservableObject {
             return String(localized: "Preparing acceleration: \(completed) of \(total)")
         case .ready, .disabled, nil:
             if !status.supported { return String(localized: "Requires Apple Silicon and macOS 15 or later.") }
-            return status.ready ? String(localized: "Enabled") : String(localized: "Using CPU")
+            return status.ready ? String(localized: "Enabled") : String(localized: "Not ready")
         }
     }
 

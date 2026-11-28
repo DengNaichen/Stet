@@ -6089,18 +6089,18 @@
         }
       }
     },
-    "First-time preparation may take several minutes. CPU transcription remains available while the model is prepared.": {
+    "First-time preparation may take several minutes. Fun-ASR Nano becomes available when preparation finishes.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "First-time preparation may take several minutes. CPU transcription remains available while the model is prepared."
+            "value": "First-time preparation may take several minutes. Fun-ASR Nano becomes available when preparation finishes."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "首次准备可能需要数分钟；准备期间仍可使用 CPU 转写。"
+            "value": "首次准备可能需要几分钟，完成后即可使用 Fun-ASR Nano 转写。"
           }
         }
       }
@@ -15991,18 +15991,18 @@
         }
       }
     },
-    "Using CPU": {
+    "Not ready": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Using CPU"
+            "value": "Not ready"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "使用 CPU"
+            "value": "尚未就绪"
           }
         }
       }

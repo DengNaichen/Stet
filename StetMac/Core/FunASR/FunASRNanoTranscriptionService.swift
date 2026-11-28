@@ -180,15 +180,6 @@
                 guard activeModelUses == 0, activeLeaseCount == 0, loadTask == nil else { return }
                 let wakeGeneration = residentGeneration
                 residentEncoder = nil
-                if let currentEngine = engine,
-                    let loaded = loadedModelFiles,
-                    loaded.encoder.deletingLastPathComponent().standardizedFileURL == standardized
-                {
-                    await currentEngine.setResidentEncoder(nil)
-                    if engine as AnyObject === currentEngine as AnyObject, loadedModelFiles == loaded {
-                        loadedModelFiles = Self.cpuModelFiles(from: loaded)
-                    }
-                }
                 guard residentGeneration == wakeGeneration, !maintenance, residentLoadTask == nil else {
                     existing.encoder.releaseResources()
                     return
@@ -199,14 +190,6 @@
             }
 
             await preloadResidentEncoder(in: standardized)
-        }
-
-        private static func cpuModelFiles(from files: FunASRNanoModelFiles) -> FunASRNanoModelFiles {
-            FunASRNanoModelFiles(
-                encoder: files.encoder.deletingLastPathComponent().appendingPathComponent("funasr-encoder-f16.gguf"),
-                languageModel: files.languageModel,
-                voiceActivityDetector: files.voiceActivityDetector
-            )
         }
 
         private static func sharesBaseAssets(_ lhs: FunASRNanoModelFiles, _ rhs: FunASRNanoModelFiles) -> Bool {
@@ -234,9 +217,7 @@
                 {
                     releaseResidentEncoder()
                 }
-                let fallback =
-                    requested.encoder.pathExtension == "mlmodelc" ? Self.cpuModelFiles(from: requested) : requested
-                return (fallback, nil)
+                return (requested, nil)
             }
 
             let key = ResidentKey(directory: directory, manifestHash: receipt.manifestHash)
@@ -247,23 +228,13 @@
             if failedResidentKey != key {
                 startBackgroundResidentLoadIfNeeded(compiledURL: requested.encoder, key: key)
             }
-            return (Self.cpuModelFiles(from: requested), nil)
+            return (requested, nil)
         }
 
         func prepareTransientSelection(
             for requested: FunASRNanoModelFiles
         ) -> (files: FunASRNanoModelFiles, residentEncoder: (any FunASRNanoResidentEncoding)?) {
             selectExecutionFiles(for: requested, allowActiveLeaseReuse: true)
-        }
-
-        func recordBackend(of engine: any FunASRNanoEngine, files: FunASRNanoModelFiles) async {
-            guard files.encoder.pathExtension == "mlmodelc", await engine.encoderBackend() == "ggml-cpu" else { return }
-            let directory = files.encoder.deletingLastPathComponent()
-            if let receipt = ANEModelReadiness.installed(in: directory) {
-                try? receipt.refreshed(enabled: false).write(in: directory)
-            }
-            releaseResidentEncoder()
-            if loadedModelFiles == files { loadedModelFiles = Self.cpuModelFiles(from: files) }
         }
 
         func loadModel(
@@ -384,16 +355,9 @@
 
             do {
                 let loadedEngine = try await task.value
-                await recordBackend(of: loadedEngine, files: effectiveFiles)
                 if loadGeneration == generation {
                     engine = loadedEngine
-                    if effectiveFiles.encoder.pathExtension == "mlmodelc",
-                        ANEModelReadiness.read(in: effectiveFiles.encoder.deletingLastPathComponent()) == nil
-                    {
-                        loadedModelFiles = Self.cpuModelFiles(from: effectiveFiles)
-                    } else {
-                        loadedModelFiles = effectiveFiles
-                    }
+                    loadedModelFiles = effectiveFiles
                     loadTask = nil
                     loadingModelFiles = nil
                     if activeLeaseCount == 0, activeModelUses == 0, cleanupRequested {
@@ -543,7 +507,7 @@
                 if !(error is CancellationError) {
                     failedResidentKey = key
                     logger.warning(
-                        "Fun-ASR Nano resident ANE encoder load failed; staying on CPU: \(error.localizedDescription, privacy: .public)"
+                        "Fun-ASR Nano resident ANE encoder load failed: \(error.localizedDescription, privacy: .public)"
                     )
                 }
             }
@@ -673,19 +637,14 @@
             let startedAt = ProcessInfo.processInfo.systemUptime
             let reusedEngine = await contextManager.engineIfLoaded(matching: requestedFiles)
             let engine: any FunASRNanoEngine
-            let effectiveFiles: FunASRNanoModelFiles
             let isTransient: Bool
             if let reusedEngine {
-                let selection = await contextManager.prepareTransientSelection(for: requestedFiles)
                 engine = reusedEngine
-                effectiveFiles = selection.files
                 isTransient = false
             } else {
                 let selection = await contextManager.prepareTransientSelection(for: requestedFiles)
-                effectiveFiles = selection.files
-                engine = try residentEngineFactory(effectiveFiles, selection.residentEncoder)
+                engine = try residentEngineFactory(selection.files, selection.residentEncoder)
                 try await engine.prepare()
-                await contextManager.recordBackend(of: engine, files: effectiveFiles)
                 isTransient = true
             }
 
@@ -693,7 +652,6 @@
                 let text = try await engine.transcribe(audioFileURL: fileURL, hotwords: prompt)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 let backend = await engine.encoderBackend()
-                await contextManager.recordBackend(of: engine, files: effectiveFiles)
                 guard !text.isEmpty else {
                     throw SpeechServiceError.emptyTranscription
                 }

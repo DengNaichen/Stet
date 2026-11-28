@@ -16,8 +16,7 @@ struct FunASRNanoANEInstallerTests {
         let installer = fixture.installer { url, progress in
             #expect(url == destination)
             #expect(ANEModelReadiness.read(in: fixture.models) == nil)
-            let files = try fixture.manager.resolvedModelFiles()
-            #expect(files.encoder.pathExtension == "gguf")
+            #expect(throws: ANEModelInstallError.self) { try fixture.manager.resolvedModelFiles() }
             await recorder.record(url)
             progress(.preparing(4, 4))
         }
@@ -27,7 +26,7 @@ struct FunASRNanoANEInstallerTests {
         #expect(try fixture.manager.resolvedModelFiles().encoder == destination)
         try await installer.importCandidate(at: fixture.candidate) { _ in }
         #expect(await recorder.urls.count == 1)
-        #expect(fixture.manager.isModelDownloaded())
+        #expect(fixture.manager.missingCompanionFiles(in: fixture.models).isEmpty)
     }
 
     @Test func failedPreparationRestoresPreviousUnreadyModelAndKeepsCPUFiles() async throws {
@@ -40,8 +39,8 @@ struct FunASRNanoANEInstallerTests {
         }
         #expect(try String(contentsOf: fixture.compiled.appendingPathComponent("old"), encoding: .utf8) == "previous")
         #expect(!(await installer.status().ready))
-        #expect(fixture.manager.isModelDownloaded())
-        #expect(try fixture.manager.resolvedModelFiles().encoder.pathExtension == "gguf")
+        #expect(fixture.manager.missingCompanionFiles(in: fixture.models).isEmpty)
+        #expect(throws: ANEModelInstallError.self) { try fixture.manager.resolvedModelFiles() }
     }
 
     @Test func cancellationAfterPlacementRollsBackWithoutActivatingCandidate() async throws {
@@ -59,7 +58,7 @@ struct FunASRNanoANEInstallerTests {
         await #expect(throws: CancellationError.self) { try await task.value }
         #expect(ANEModelReadiness.read(in: fixture.models) == nil)
         #expect(FileManager.default.fileExists(atPath: fixture.compiled.appendingPathComponent("old").path))
-        #expect(fixture.manager.isModelDownloaded())
+        #expect(fixture.manager.missingCompanionFiles(in: fixture.models).isEmpty)
     }
 
     @Test func checksumFailureDoesNotCompileOrReplaceFiles() async throws {
@@ -102,7 +101,7 @@ struct FunASRNanoANEInstallerTests {
         try await installer.disable { _ in }
         let disabled = await installer.status()
         #expect(!disabled.ready && disabled.canPrepareInstalled)
-        #expect(try fixture.manager.resolvedModelFiles().encoder.pathExtension == "gguf")
+        #expect(throws: ANEModelInstallError.self) { try fixture.manager.resolvedModelFiles() }
         try FileManager.default.removeItem(at: fixture.candidate)
         try await installer.prepareInstalled { _ in }
         #expect(await installer.status().ready)
@@ -113,9 +112,9 @@ struct FunASRNanoANEInstallerTests {
         let fixture = try ANEInstallFixture()
         defer { fixture.remove() }
         await #expect(throws: ANEModelInstallError.self) {
-            try await FunASRNanoANEInstaller.validateCPUAssets(in: fixture.models)
+            try await FunASRNanoANEInstaller.validateCompanionAssets(in: fixture.models)
         }
-        #expect(fixture.manager.isModelDownloaded())
+        #expect(fixture.manager.missingCompanionFiles(in: fixture.models).isEmpty)
         #expect(ANEModelReadiness.read(in: fixture.models) == nil)
     }
 
@@ -150,7 +149,7 @@ struct FunASRNanoANEInstallerTests {
         }
         let installer = FunASRNanoANEInstaller(
             directoryProvider: { fixture.models }, release: release, downloader: downloader,
-            cache: fixture.root.appendingPathComponent("cache"), validateCPU: fixture.validateCPU,
+            cache: fixture.root.appendingPathComponent("cache"), validateCompanions: fixture.validateCompanions,
             compile: fixture.compile,
             prepare: { _, _ in
                 #expect(try fixture.manager.resolvedModelFiles().encoder == fixture.compiled)
@@ -193,7 +192,7 @@ struct FunASRNanoANEInstallerTests {
         #expect(ANEModelReadiness.installed(in: fixture.models) != nil)
         #expect(ANEModelReadiness.read(in: fixture.models) == nil)
         #expect(ANEModelReadiness.needsSilentPreparation(in: fixture.models))
-        #expect(try fixture.manager.resolvedModelFiles().encoder.pathExtension == "gguf")
+        #expect(throws: ANEModelInstallError.self) { try fixture.manager.resolvedModelFiles() }
 
         try ANEModelReadiness.make(manifestHash: String(repeating: "a", count: 64), enabled: false)
             .write(in: fixture.models)
@@ -227,7 +226,7 @@ struct FunASRNanoANEInstallerTests {
         let installer = FunASRNanoANEInstaller(
             directoryProvider: { fixture.models },
             cache: fixture.root.appendingPathComponent("cache"),
-            validateCPU: fixture.validateCPU,
+            validateCompanions: fixture.validateCompanions,
             compile: fixture.compile,
             prepare: { url, _ in await prepared.record(url) },
             whenIdle: { action in
@@ -276,7 +275,7 @@ private nonisolated struct ANEInstallFixture: Sendable {
         models = root.appendingPathComponent("models")
         candidate = root.appendingPathComponent("candidate")
         try FileManager.default.createDirectory(at: models, withIntermediateDirectories: true)
-        for name in ["funasr-encoder-f16.gguf", "qwen3-0.6b-q4km.gguf", "fsmn-vad.gguf"] {
+        for name in FunASRNanoModelAsset.allCases.map(\.fileName) {
             try Data("existing CPU asset".utf8).write(to: models.appendingPathComponent(name))
         }
         let values = ["Manifest.json": Data("{}".utf8), "Data/com.apple.CoreML/model.mlmodel": Data("model".utf8)]
@@ -301,8 +300,12 @@ private nonisolated struct ANEInstallFixture: Sendable {
         try FileManager.default.createDirectory(at: compiled, withIntermediateDirectories: true)
         try Data("previous".utf8).write(to: compiled.appendingPathComponent("old"))
     }
-    var validateCPU: FunASRNanoANEInstaller.ValidateCPU {
-        { _ in guard manager.isModelDownloaded() else { throw ANEModelInstallError.missingCPUModel } }
+    var validateCompanions: FunASRNanoANEInstaller.ValidateCompanions {
+        { _ in
+            guard manager.missingCompanionFiles(in: models).isEmpty else {
+                throw ANEModelInstallError.missingCompanions
+            }
+        }
     }
     var compile: FunASRNanoANEInstaller.Compile {
         { _ in
@@ -315,7 +318,7 @@ private nonisolated struct ANEInstallFixture: Sendable {
     func installer(prepare: @escaping FunASRNanoANEInstaller.Prepare) -> FunASRNanoANEInstaller {
         FunASRNanoANEInstaller(
             directoryProvider: { models }, cache: root.appendingPathComponent("cache"),
-            validateCPU: validateCPU, compile: compile, prepare: prepare,
+            validateCompanions: validateCompanions, compile: compile, prepare: prepare,
             whenIdle: { action in
                 try action(); return true
             },

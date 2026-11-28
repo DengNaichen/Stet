@@ -77,22 +77,25 @@ nonisolated struct FunASRNanoANECatalog: Codable, Sendable {
 }
 
 nonisolated enum ANEModelInstallError: Error, LocalizedError {
-    case unsupported, unavailable, invalidManifest, invalidPackage, invalidModel, noANE, busy, missingCPUModel,
-        incompatibleCPUModel,
+    case encoderNotReady, unsupported, unavailable, invalidManifest, invalidPackage, invalidModel, noANE, busy,
+        missingCompanions,
+        incompatibleDecoder,
         alreadyInstalled
     var errorDescription: String? {
         switch self {
+        case .encoderNotReady:
+            "Prepare the Fun-ASR Nano Neural Engine model in Transcription settings before dictating."
         case .unsupported: "Neural Engine acceleration requires Apple Silicon and macOS 15 or later."
         case .unavailable: "No acceleration model download is published yet. Import a local candidate instead."
         case .invalidManifest: "The acceleration model manifest is invalid or incompatible."
         case .invalidPackage: "The acceleration model package is incomplete or contains unsafe file paths."
-        case .invalidModel: "The acceleration model failed validation. CPU transcription remains available."
+        case .invalidModel: "The acceleration model failed validation."
         case .noANE: "This model could not be assigned to the Neural Engine on this Mac."
-        case .incompatibleCPUModel:
-            "The installed Nano model version does not match this acceleration model. CPU transcription remains available."
+        case .incompatibleDecoder:
+            "The installed Qwen decoder does not match this Fun-ASR Nano encoder."
         case .alreadyInstalled: "Disable the current acceleration model before replacing it."
         case .busy: "Another acceleration model operation is in progress."
-        case .missingCPUModel: "Download the standard Fun-ASR Nano model before installing acceleration."
+        case .missingCompanions: "Download the Fun-ASR Nano decoder and voice activity model first."
         }
     }
 }

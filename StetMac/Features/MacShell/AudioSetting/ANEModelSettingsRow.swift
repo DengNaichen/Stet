@@ -26,23 +26,18 @@ struct ANEModelSettingsRow: View {
                             .buttonStyle(.bordered)
                             .disabled(viewModel.isCancelling)
                     }
-                } else if viewModel.status.supported {
-                    if viewModel.status.ready {
-                        Button("Use CPU") { viewModel.disable() }
-                            .buttonStyle(.bordered)
-                    } else {
-                        HStack(spacing: 8) {
-                            if viewModel.status.canPrepareInstalled {
-                                Button("Enable acceleration") { viewModel.prepareInstalled() }
-                                    .buttonStyle(.bordered)
-                            }
-                            if viewModel.status.downloadAvailable {
-                                Button("Download") { viewModel.download() }
-                                    .buttonStyle(.bordered)
-                            }
-                            Button("Import model…") { showsImporter = true }
+                } else if viewModel.status.supported, !viewModel.status.ready {
+                    HStack(spacing: 8) {
+                        if viewModel.status.canPrepareInstalled {
+                            Button("Enable acceleration") { viewModel.prepareInstalled() }
                                 .buttonStyle(.bordered)
                         }
+                        if viewModel.status.downloadAvailable {
+                            Button("Download") { viewModel.download() }
+                                .buttonStyle(.bordered)
+                        }
+                        Button("Import model…") { showsImporter = true }
+                            .buttonStyle(.bordered)
                     }
                 }
             }
@@ -53,7 +48,7 @@ struct ANEModelSettingsRow: View {
 
             if viewModel.status.supported, !viewModel.status.ready {
                 Text(
-                    "First-time preparation may take several minutes. CPU transcription remains available while the model is prepared."
+                    "First-time preparation may take several minutes. Fun-ASR Nano becomes available when preparation finishes."
                 )
                 .font(MacUI.LinearTypography.rowSubtitle)
                 .foregroundStyle(MacUI.LinearSurfaces.mutedInk)
@@ -70,6 +65,5 @@ struct ANEModelSettingsRow: View {
         .fileImporter(isPresented: $showsImporter, allowedContentTypes: [.folder]) { result in
             if case .success(let url) = result { viewModel.importCandidate(at: url) }
         }
-        .task { await viewModel.refresh() }
     }
 }
