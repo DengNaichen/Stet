@@ -242,7 +242,7 @@ struct RewriteSettingsView: View {
         } header: {
             Text("Voice Orb")
         } footer: {
-            Text("Applies to both the app and the Stet keyboard.")
+            Text("Applies to the voice orb inside the app.")
         }
     }
 

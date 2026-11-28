@@ -13,33 +13,35 @@ private enum KeyboardButtonState: Equatable {
     case pending
     case recording
     case processing
+    case done
 }
 
 final class KeyboardViewController: UIInputViewController {
     private enum Layout {
-        static let actionDiameter: CGFloat = 112
+        static let actionDiameter: CGFloat = 124
         static let returnWidth: CGFloat = 120
-        static let returnHeight: CGFloat = 52
-        static let utilityDiameter: CGFloat = 52
+        static let returnHeight: CGFloat = 48
+        static let utilityDiameter: CGFloat = 48
         static let horizontalInset: CGFloat = 20
-        static let actionSpacing: CGFloat = 20
-        static let actionStackVerticalOffset: CGFloat = 4
+        static let actionSpacing: CGFloat = 14
+        static let actionStackVerticalOffset: CGFloat = 2
     }
 
     private let deleteButton = UIButton(type: .system)
-    private let actionButton = UIButton(type: .system)
+    private let actionButton = UIButton(type: .custom)
     private let returnButton = UIButton(type: .system)
     private let nextKeyboardButton = UIButton(type: .system)
     private let actionStack = UIStackView()
-    private var listeningShaderHost: UIHostingController<DictationLevelShaderView>?
+    private var thinkingOrbHost: UIHostingController<KeyboardThinkingOrbView>?
 
     private var buttonState: KeyboardButtonState = .idle
+    private var isVisible = false
     private var pollTimer: Timer?
+    private var doneResetTimer: Timer?
     private var deleteInitialTimer: Timer?
     private var deleteRepeatTimer: Timer?
-    private var shaderSampleTimer: DispatchSourceTimer?
+    private var volumeSampleTimer: DispatchSourceTimer?
     private var latestVolume: Double = 0
-    private var selectedTheme = MobileDictationVisualTheme.storedMobileTheme
     private var lastProcessedSessionId: String?
     private var pendingSessionId: String?
     private var isWakingMainApp = false
@@ -56,6 +58,7 @@ final class KeyboardViewController: UIInputViewController {
         configureActionButton()
         configureControlButtons()
         configureNextKeyboardButton()
+        ensureThinkingOrbHost()
         updateActionButton()
     }
 
@@ -66,12 +69,13 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        selectedTheme = MobileDictationVisualTheme.storedMobileTheme
+        isVisible = true
         updateActionButton()
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        isVisible = true
         isWakingMainApp = false
         impactFeedback.prepare()
         notificationFeedback.prepare()
@@ -93,14 +97,17 @@ final class KeyboardViewController: UIInputViewController {
             pendingSessionId = nil
         }
         startPolling()
+        updateThinkingOrb()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        isVisible = false
         stopPolling()
+        stopDoneResetTimer()
         stopDeleteRepeat()
-        updateListeningShader(level: latestVolume, isPaused: true)
-        stopListeningShaderUpdates()
+        stopVolumeUpdates()
+        updateThinkingOrb()
 
         // Keep the request alive only when this extension is intentionally waking Stet.
         if !isWakingMainApp,
@@ -119,13 +126,16 @@ final class KeyboardViewController: UIInputViewController {
     private func configureActionButton() {
         actionButton.translatesAutoresizingMaskIntoConstraints = false
         actionButton.addTarget(self, action: #selector(handleActionButton), for: .touchUpInside)
+        actionButton.addTarget(self, action: #selector(handleActionPressDown), for: .touchDown)
+        actionButton.addTarget(
+            self,
+            action: #selector(handleActionPressUp),
+            for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit]
+        )
         actionButton.accessibilityIdentifier = "DictationButton"
+        actionButton.backgroundColor = .clear
         actionButton.layer.cornerRadius = Layout.actionDiameter / 2
-        actionButton.layer.shadowColor = UIColor.black.cgColor
-        actionButton.layer.shadowOpacity = 0.22
-        actionButton.layer.shadowRadius = 12
-        actionButton.layer.shadowOffset = CGSize(width: 0, height: 4)
-        actionButton.layer.masksToBounds = false
+        actionButton.clipsToBounds = false
 
         NSLayoutConstraint.activate([
             actionButton.widthAnchor.constraint(equalToConstant: Layout.actionDiameter),
@@ -139,6 +149,7 @@ final class KeyboardViewController: UIInputViewController {
             systemImage: "delete.left.fill",
             accessibilityLabel: "Delete",
             width: Layout.utilityDiameter,
+            height: Layout.utilityDiameter,
             action: nil
         )
         deleteButton.accessibilityIdentifier = "DeleteButton"
@@ -174,7 +185,7 @@ final class KeyboardViewController: UIInputViewController {
                 equalTo: view.safeAreaLayoutGuide.centerYAnchor,
                 constant: Layout.actionStackVerticalOffset
             ),
-            deleteButton.topAnchor.constraint(equalTo: actionButton.topAnchor),
+            deleteButton.topAnchor.constraint(equalTo: actionButton.topAnchor, constant: 8),
             deleteButton.trailingAnchor.constraint(
                 equalTo: view.safeAreaLayoutGuide.trailingAnchor,
                 constant: -Layout.horizontalInset
@@ -188,7 +199,7 @@ final class KeyboardViewController: UIInputViewController {
         title: String? = nil,
         accessibilityLabel: String,
         width: CGFloat,
-        height: CGFloat = 52,
+        height: CGFloat = 48,
         action: Selector?
     ) {
         var configuration = UIButton.Configuration.filled()
@@ -200,7 +211,7 @@ final class KeyboardViewController: UIInputViewController {
 
         if systemImage != nil {
             configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(
-                pointSize: 20,
+                pointSize: 19,
                 weight: .regular
             )
         }
@@ -208,7 +219,7 @@ final class KeyboardViewController: UIInputViewController {
         if title != nil {
             configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { attributes in
                 var updatedAttributes = attributes
-                updatedAttributes.font = .preferredFont(forTextStyle: .body)
+                updatedAttributes.font = .preferredFont(forTextStyle: .callout)
                 return updatedAttributes
             }
         }
@@ -230,7 +241,7 @@ final class KeyboardViewController: UIInputViewController {
         var configuration = UIButton.Configuration.plain()
         configuration.image = UIImage(systemName: "globe")
         configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(
-            pointSize: 28,
+            pointSize: 26,
             weight: .regular
         )
         configuration.baseForegroundColor = .label
@@ -252,67 +263,65 @@ final class KeyboardViewController: UIInputViewController {
                 constant: Layout.horizontalInset
             ),
             nextKeyboardButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -4),
-            nextKeyboardButton.widthAnchor.constraint(equalToConstant: 52),
-            nextKeyboardButton.heightAnchor.constraint(equalToConstant: 52),
+            nextKeyboardButton.widthAnchor.constraint(equalToConstant: 48),
+            nextKeyboardButton.heightAnchor.constraint(equalToConstant: 48),
         ])
     }
 
     private func updateActionButton() {
-        var configuration = UIButton.Configuration.filled()
-        configuration.cornerStyle = .capsule
-        configuration.baseBackgroundColor = .label
-        configuration.baseForegroundColor = .systemBackground
-        configuration.contentInsets = .zero
-        actionButton.isUserInteractionEnabled = true
+        actionButton.isEnabled = true
+        actionButton.isUserInteractionEnabled = buttonState != .processing
 
         switch buttonState {
         case .idle:
-            configuration.image = UIImage(systemName: "mic.fill")
-            configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(
-                pointSize: 30,
-                weight: .medium
-            )
-            actionButton.isEnabled = true
             actionButton.accessibilityLabel = "Start Dictation"
             actionButton.accessibilityValue = nil
+            stopVolumeUpdates()
+            latestVolume = 0
 
         case .pending:
-            configuration.showsActivityIndicator = true
-            actionButton.isEnabled = true
             actionButton.accessibilityLabel = "Cancel Dictation"
             actionButton.accessibilityValue = "Starting"
+            stopVolumeUpdates()
+            latestVolume = 0
 
         case .recording:
-            actionButton.isEnabled = true
             actionButton.accessibilityLabel = "Stop Dictation"
             actionButton.accessibilityValue = "Recording"
+            startVolumeUpdates()
 
         case .processing:
-            actionButton.isEnabled = true
-            actionButton.isUserInteractionEnabled = false
             actionButton.accessibilityLabel = "Processing Dictation"
-            actionButton.accessibilityValue = nil
+            actionButton.accessibilityValue = "Thinking"
+            stopVolumeUpdates()
+
+        case .done:
+            actionButton.accessibilityLabel = "Dictation Complete"
+            actionButton.accessibilityValue = "Done"
+            stopVolumeUpdates()
+            latestVolume = 0
         }
 
-        actionButton.configuration = configuration
-        switch buttonState {
-        case .recording:
-            ensureListeningShaderHost()
-            updateListeningShader(level: latestVolume, isPaused: false)
-            startListeningShaderUpdates()
-        case .processing:
-            ensureListeningShaderHost()
-            updateListeningShader(level: latestVolume, isPaused: true)
-            stopListeningShaderUpdates()
-        case .idle, .pending:
-            stopListeningShaderUpdates()
-            removeListeningShaderHost()
+        updateThinkingOrb()
+    }
+
+    @objc private func handleActionPressDown() {
+        guard buttonState != .processing else { return }
+        UIView.animate(withDuration: 0.16, delay: 0, usingSpringWithDamping: 1.0, initialSpringVelocity: 0) {
+            self.actionButton.transform = CGAffineTransform(scaleX: 0.94, y: 0.94)
+        }
+    }
+
+    @objc private func handleActionPressUp() {
+        UIView.animate(withDuration: 0.24, delay: 0, usingSpringWithDamping: 0.85, initialSpringVelocity: 0) {
+            self.actionButton.transform = .identity
         }
     }
 
     @objc private func handleActionButton() {
         switch buttonState {
-        case .idle:
+        case .idle, .done:
+            stopDoneResetTimer()
             handleMicDown()
         case .pending:
             cancelOurSession()
@@ -434,15 +443,15 @@ final class KeyboardViewController: UIInputViewController {
         pollTimer = nil
     }
 
-    private func startListeningShaderUpdates() {
-        guard shaderSampleTimer == nil else { return }
+    private func startVolumeUpdates() {
+        guard volumeSampleTimer == nil else { return }
 
         latestVolume = Double(SharedDictationManager.shared.readVolume())
-        updateListeningShader(level: latestVolume, isPaused: false)
+        updateThinkingOrb()
 
         let sampleTimer = DispatchSource.makeTimerSource(
             flags: [],
-            queue: DispatchQueue(label: "com.stet.keyboard.shader", qos: .userInitiated)
+            queue: DispatchQueue(label: "com.stet.keyboard.thinkingOrb", qos: .userInitiated)
         )
         sampleTimer.schedule(
             deadline: .now(),
@@ -454,30 +463,23 @@ final class KeyboardViewController: UIInputViewController {
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.buttonState == .recording else { return }
                 self.latestVolume = level
-                self.updateListeningShader(level: level, isPaused: false)
+                self.updateThinkingOrb()
             }
         }
-        shaderSampleTimer = sampleTimer
+        volumeSampleTimer = sampleTimer
         sampleTimer.activate()
     }
 
-    private func stopListeningShaderUpdates() {
-        shaderSampleTimer?.setEventHandler {}
-        shaderSampleTimer?.cancel()
-        shaderSampleTimer = nil
+    private func stopVolumeUpdates() {
+        volumeSampleTimer?.setEventHandler {}
+        volumeSampleTimer?.cancel()
+        volumeSampleTimer = nil
     }
 
-    private func ensureListeningShaderHost() {
-        guard listeningShaderHost == nil else {
-            if let shaderView = listeningShaderHost?.view {
-                actionButton.bringSubviewToFront(shaderView)
-            }
-            return
-        }
+    private func ensureThinkingOrbHost() {
+        guard thinkingOrbHost == nil else { return }
 
-        let host = UIHostingController(
-            rootView: makeListeningShader(level: latestVolume, isPaused: false)
-        )
+        let host = UIHostingController(rootView: makeThinkingOrbView())
         addChild(host)
         host.view.translatesAutoresizingMaskIntoConstraints = false
         host.view.backgroundColor = .clear
@@ -492,38 +494,48 @@ final class KeyboardViewController: UIInputViewController {
             host.view.bottomAnchor.constraint(equalTo: actionButton.bottomAnchor),
         ])
         host.didMove(toParent: self)
-        listeningShaderHost = host
+        thinkingOrbHost = host
     }
 
-    private func updateListeningShader(level: Double, isPaused: Bool) {
-        listeningShaderHost?.rootView = makeListeningShader(level: level, isPaused: isPaused)
+    private func updateThinkingOrb() {
+        ensureThinkingOrbHost()
+        thinkingOrbHost?.rootView = makeThinkingOrbView()
     }
 
-    private func removeListeningShaderHost() {
-        guard let host = listeningShaderHost else {
-            latestVolume = 0
-            return
+    private func makeThinkingOrbView() -> KeyboardThinkingOrbView {
+        let orbMode: KeyboardThinkingOrbMode
+        let orbLevel: Double?
+        switch buttonState {
+        case .idle:
+            orbMode = .idle
+            orbLevel = nil
+        case .pending:
+            orbMode = .searching
+            orbLevel = nil
+        case .recording:
+            orbMode = .listening
+            orbLevel = latestVolume
+        case .processing:
+            orbMode = .thinking
+            orbLevel = nil
+        case .done:
+            orbMode = .done
+            orbLevel = nil
         }
-        host.willMove(toParent: nil)
-        host.view.removeFromSuperview()
-        host.removeFromParent()
-        listeningShaderHost = nil
-        latestVolume = 0
-    }
 
-    private func makeListeningShader(level: Double, isPaused: Bool) -> DictationLevelShaderView {
-        DictationLevelShaderView(
-            level: level,
+        return KeyboardThinkingOrbView(
+            mode: orbMode,
+            level: orbLevel,
             diameter: Layout.actionDiameter,
-            preferredFramesPerSecond: 40,
-            isPaused: isPaused,
-            theme: selectedTheme
+            isActive: isVisible
         )
     }
 
     private func tick() {
         guard let pendingSessionId else {
-            publishState(.idle)
+            if buttonState != .done {
+                publishState(.idle)
+            }
             return
         }
 
@@ -565,15 +577,34 @@ final class KeyboardViewController: UIInputViewController {
             }
 
         case .ready:
+            var insertedNonEmpty = false
             if session.sessionId != lastProcessedSessionId {
-                insertTranscription(session)
+                insertedNonEmpty = insertTranscription(session)
             }
-            publishState(.idle)
+            if insertedNonEmpty {
+                showDoneConfirmation()
+            } else {
+                publishState(.idle)
+            }
 
         case .inserted, .cancelled, .failed, .timeout:
             cleanupSession(sessionId: session.sessionId)
             publishState(.idle)
         }
+    }
+
+    private func showDoneConfirmation() {
+        stopDoneResetTimer()
+        publishState(.done)
+        doneResetTimer = Timer.scheduledTimer(withTimeInterval: 0.9, repeats: false) { [weak self] _ in
+            guard let self, self.buttonState == .done else { return }
+            self.publishState(.idle)
+        }
+    }
+
+    private func stopDoneResetTimer() {
+        doneResetTimer?.invalidate()
+        doneResetTimer = nil
     }
 
     private func isActiveState(_ state: DictationState) -> Bool {
@@ -588,7 +619,7 @@ final class KeyboardViewController: UIInputViewController {
     private func publishState(_ state: KeyboardButtonState) {
         guard buttonState != state else {
             if state == .recording {
-                startListeningShaderUpdates()
+                startVolumeUpdates()
             }
             return
         }
@@ -596,22 +627,25 @@ final class KeyboardViewController: UIInputViewController {
         updateActionButton()
     }
 
-    private func insertTranscription(_ session: DictationSession) {
-        guard pendingSessionId == session.sessionId else { return }
+    @discardableResult
+    private func insertTranscription(_ session: DictationSession) -> Bool {
+        guard pendingSessionId == session.sessionId else { return false }
         guard
             SharedDictationManager.shared.transitionState(
                 for: session.sessionId,
                 from: [.ready],
                 to: .inserted
             )
-        else { return }
+        else { return false }
 
-        if !session.finalText.isEmpty {
+        let insertedNonEmpty = !session.finalText.isEmpty
+        if insertedNonEmpty {
             textDocumentProxy.insertText(session.finalText)
             notificationFeedback.notificationOccurred(.success)
         }
         lastProcessedSessionId = session.sessionId
         cleanupSession(sessionId: session.sessionId)
+        return insertedNonEmpty
     }
 
     private func cancelOurSession() {
