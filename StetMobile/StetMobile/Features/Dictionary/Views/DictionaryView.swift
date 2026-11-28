@@ -1,16 +1,39 @@
 import SwiftUI
+import UIKit
 
 struct DictionaryView: View {
     @StateObject private var viewModel = DictionaryViewModel()
     @FocusState private var isTextFieldFocused: Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
+    private static let recommendedHotwordLimit = 100
+
     var body: some View {
         NavigationStack {
             List {
                 Section {
+                    HStack(spacing: 12) {
+                        Image(systemName: "text.book.closed.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(
+                                Color.indigo.gradient, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(viewModel.allWords.count) / \(Self.recommendedHotwordLimit) Hotwords")
+                                .font(.subheadline.weight(.semibold))
+                            Text("Guides Apple Speech on-device and Cloud AI Rewrite.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+
+                Section {
                     entryLayout {
-                        TextField("Add words or phrases", text: $viewModel.draft, axis: .vertical)
+                        TextField("Add names, jargon, or phrases…", text: $viewModel.draft, axis: .vertical)
                             .lineLimit(1...3)
                             .textFieldStyle(.plain)
                             .focused($isTextFieldFocused)
@@ -19,38 +42,76 @@ struct DictionaryView: View {
                                 addDraftEntries()
                             }
 
-                        Button("Add") {
+                        Button {
                             addDraftEntries()
+                        } label: {
+                            Label("Add", systemImage: "plus")
+                                .font(.subheadline.weight(.semibold))
                         }
-                        .buttonStyle(.borderless)
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.capsule)
+                        .controlSize(.small)
                         .disabled(!viewModel.canAddDraftEntries)
                         .frame(maxWidth: addButtonMaxWidth, alignment: .trailing)
                     }
+                    .padding(.vertical, 2)
+                } footer: {
+                    Text("Separate multiple terms with commas or new lines.")
                 }
 
                 if viewModel.allWords.isEmpty {
                     ContentUnavailableView {
-                        Label("No Words Yet", systemImage: "text.badge.plus")
+                        Label("No Personal Words Yet", systemImage: "text.badge.plus")
                     } description: {
-                        Text("Words you add here will be reused during dictation and rewrite.")
+                        Text(
+                            "Add product names, people, or technical terms so Stet recognizes and spells them accurately."
+                        )
                     }
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
+                    .padding(.vertical, 24)
                 } else {
-                    Section("Words and Phrases") {
+                    Section {
                         ForEach(viewModel.allWords, id: \.self) { word in
-                            HStack {
+                            HStack(spacing: 12) {
+                                Text(monogram(for: word))
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 28, height: 28)
+                                    .background(Color(.tertiarySystemFill), in: Circle())
+
                                 Text(word)
+                                    .font(.body)
+                                    .foregroundStyle(.primary)
+
                                 Spacer()
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    withAnimation {
+                                        viewModel.removeWord(word)
+                                    }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = word
+                                } label: {
+                                    Label("Copy", systemImage: "doc.on.doc")
+                                }
                                 Button(role: .destructive) {
                                     viewModel.removeWord(word)
                                 } label: {
-                                    Image(systemName: "trash")
+                                    Label("Delete", systemImage: "trash")
                                 }
-                                .buttonStyle(.borderless)
-                                .accessibilityLabel("Delete \(word)")
                             }
                         }
+                    } header: {
+                        Text("Saved Words")
+                    } footer: {
+                        Text("Swipe left on any word to remove it.")
                     }
                 }
             }
@@ -74,8 +135,17 @@ struct DictionaryView: View {
         dynamicTypeSize.isAccessibilitySize ? .infinity : nil
     }
 
+    private func monogram(for word: String) -> String {
+        guard let first = word.trimmingCharacters(in: .whitespacesAndNewlines).first else {
+            return "#"
+        }
+        return String(first).uppercased()
+    }
+
     private func addDraftEntries() {
-        viewModel.addDraftEntries()
+        withAnimation(.spring(response: 0.3, dampingFraction: 1.0)) {
+            viewModel.addDraftEntries()
+        }
         isTextFieldFocused = false
     }
 }

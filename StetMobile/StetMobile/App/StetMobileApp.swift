@@ -3,7 +3,7 @@ import SwiftUI
 @main
 struct StetMobileApp: App {
     @StateObject private var rewriteSettingsStore: RewriteSettingsStore
-    @StateObject private var funASRSettingsStore: FunASRSettingsStore
+    @StateObject private var speechSettingsStore: SpeechRecognitionSettingsStore
     @StateObject private var rewriteSettingsViewModel: RewriteSettingsViewModel
     @StateObject private var appViewModel: AppViewModel
     @Environment(\.scenePhase) private var scenePhase
@@ -13,23 +13,25 @@ struct StetMobileApp: App {
     init() {
         RetiredDictationModelCleanup.removeWhisperModel()
         let store = RewriteSettingsStore()
-        let funASRSettingsStore = FunASRSettingsStore()
+        let speechSettingsStore = SpeechRecognitionSettingsStore()
         let dependencies = StetMobileComposition.makeDependencies(
             settingsStore: store,
-            funASRSettingsStore: funASRSettingsStore
+            speechSettingsStore: speechSettingsStore
         )
         let dictationViewModel = SenseVoiceViewModel(
             coordinator: dependencies.dictationCoordinator,
             liveActivityManager: MicrophoneLiveActivityManager()
         )
-        _rewriteSettingsStore = StateObject(wrappedValue: store)
-        _funASRSettingsStore = StateObject(wrappedValue: funASRSettingsStore)
-        _rewriteSettingsViewModel = StateObject(
-            wrappedValue: RewriteSettingsViewModel(
-                settingsStore: store,
-                funASRSettingsStore: funASRSettingsStore
-            )
+        let settingsViewModel = RewriteSettingsViewModel(
+            settingsStore: store,
+            speechSettingsStore: speechSettingsStore
         )
+        settingsViewModel.onSpeechAssetBecameReady = { [weak dictationViewModel] in
+            dictationViewModel?.ensureMicAlive()
+        }
+        _rewriteSettingsStore = StateObject(wrappedValue: store)
+        _speechSettingsStore = StateObject(wrappedValue: speechSettingsStore)
+        _rewriteSettingsViewModel = StateObject(wrappedValue: settingsViewModel)
         _viewModel = StateObject(wrappedValue: dictationViewModel)
         _appViewModel = StateObject(wrappedValue: AppViewModel(dictationViewModel: dictationViewModel))
     }
@@ -45,6 +47,9 @@ struct StetMobileApp: App {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 viewModel.ensureMicAlive()
+                Task {
+                    await rewriteSettingsViewModel.refreshSpeechAssetStatus()
+                }
             }
         }
     }
@@ -58,14 +63,12 @@ private enum StetMobileComposition {
 
     static func makeDependencies(
         settingsStore: RewriteSettingsStore,
-        funASRSettingsStore: FunASRSettingsStore
+        speechSettingsStore: SpeechRecognitionSettingsStore
     ) -> Dependencies {
         let sessionStore = SharedDictationManager.shared
         let audioCapture = PersistentASRAudioCapture(strategy: .builtInPreferred)
-        let engine = FunASRRealtimeEngine(
-            configurationProvider: {
-                try funASRSettingsStore.configuration()
-            },
+        let engine = AppleSpeechDictationEngine(
+            settingsStore: speechSettingsStore,
             audioCapture: audioCapture
         )
         engine.onVolumeUpdate = { level in

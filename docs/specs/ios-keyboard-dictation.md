@@ -5,7 +5,7 @@
 **输入**：定义用户在任意应用中通过 Stet 键盘发起听写、由主 App 在后台录音转写、再由键盘把文本插入当前输入框的完整交接流程；包括唤起主 App 时的返回引导、主 App 内的听写入口，以及 iOS 上需要的权限。
 
 **范围**：iOS（键盘扩展与主 App）。
-**边界**：本 spec 拥有键盘界面上的按键行为、键盘与主 App 之间的会话交接与状态、文本插入、超时与取消、唤起主 App 后的采集界面与返回引导、主 App 听写页，以及 iOS 麦克风权限与键盘“完全访问”的要求。主 App 内常驻采集、路由与 Live Activity 见[iOS 常驻麦克风与 Live Activity](ios-persistent-capture.md) spec；转写服务与凭据见[转写引擎与模型准备](transcription-engines.md) spec；转写后的改写与失败回退见[改写执行](rewrite-execution.md) spec；键盘与听写页的主题见[听写指示器与外观](dictation-indicator.md) spec；个人词典见[个人词典](personal-dictionary.md) spec。macOS 权限见 [权限与恢复](permissions-and-recovery.md)。
+**边界**：本 spec 拥有键盘界面上的按键行为、键盘与主 App 之间的会话交接与状态、文本插入、超时与取消、唤起主 App 后的采集界面与返回引导、主 App 听写页，以及 iOS 麦克风权限与键盘“完全访问”的要求。主 App 内常驻采集、路由与 Live Activity 见[iOS 常驻麦克风与 Live Activity](ios-persistent-capture.md) spec；本地转写引擎见[转写引擎与模型准备](transcription-engines.md) spec；转写后的改写与失败回退见[改写执行](rewrite-execution.md) spec；键盘与听写页的主题见[听写指示器与外观](dictation-indicator.md) spec；个人词典见[个人词典](personal-dictionary.md) spec。macOS 权限见 [权限与恢复](permissions-and-recovery.md)。
 
 ## 术语
 
@@ -88,7 +88,7 @@
 - 打开主 App 的链接失败：会话停在“启动中”，按超时规则取消。
 - 键盘未获得“完全访问”：无法与主 App 交接，点击麦克风后保持空闲，没有提示（待产品确认）。
 - 麦克风权限被拒绝：主 App 进入失败状态，显示通用错误“暂时无法听写，请重试”，不提供去设置的入口（待产品确认）。
-- 改写耗时超过 10 秒：键盘按“处理中”超时取消，结果不会插入（待产品确认）。
+- 改写进行时，主 App 每 2 秒左右刷新同一转写会话的更新时间。键盘继续显示处理中，直至收到结果、会话取消或主 App 心跳失效。
 - 删除键：按下立即删一个字符，按住 0.35 秒后以约每 0.06 秒一次连续删除。
 
 ## 需求 *(必填)*
@@ -156,11 +156,10 @@
 ## 待产品确认
 
 1. **主 App 与键盘的主次**（对应 index“iOS 是主 App 与键盘并重还是以键盘为主”）：当前主 App 默认打开“词典”页，听写页结果不能带出 App。可选：以键盘为主，听写页只做测试；并重，为听写页增加复制 / 分享。
-2. **失败提示**：键盘在失败、超时时静默回到空闲；主 App 只显示通用错误。可选：键盘显示简短失败提示；主 App 区分“缺少权限 / 缺少凭据 / 网络错误”并给出操作入口。
+2. **失败提示**：键盘在失败、超时时静默回到空闲；主 App 只显示通用错误。可选：键盘显示简短失败提示；主 App 区分“缺少权限 / 本地语言模型不可用”并给出操作入口。
 3. **“完全访问”与麦克风权限缺失时的引导**：当前都没有检测与引导。可选：键盘检测到无完全访问时显示开启说明；主 App 在麦克风被拒时提供“打开设置”。
-4. **处理中 10 秒超时**：改写或网络较慢时会被键盘取消，而主 App 的结束超时是 15 秒。可选：延长键盘处理超时；主 App 在改写期间更新会话以示存活；保持现状。
-5. **返回引导的时机**：当前在唤起后的听写完成之后才出现，而用户需要先回到原应用才能在键盘上点停止。可选：录音开始后立即显示返回引导；保持现状。
-6. **唤起失败或主 App 失败时的启动中**：链接打不开时键盘停在“启动中”直到超时；主 App 在运行但处于失败状态时则一直停留。可选：主 App 失败时把请求置为失败；键盘立即回到空闲并提示打开 Stet。
+4. **返回引导的时机**：当前在唤起后的听写完成之后才出现，而用户需要先回到原应用才能在键盘上点停止。可选：录音开始后立即显示返回引导；保持现状。
+5. **唤起失败或主 App 失败时的启动中**：链接打不开时键盘停在“启动中”直到超时；主 App 在运行但处于失败状态时则一直停留。可选：主 App 失败时把请求置为失败；键盘立即回到空闲并提示打开 Stet。
 
 ## 与当前实现的已知差异（非规范，供评审）
 
@@ -168,10 +167,8 @@
 
 - 键盘扩展的交接、超时与插入见 [StetKeyboard KeyboardViewController](../../StetMobile/StetKeyboard/KeyboardViewController.swift) 的 `handleMicDown`、`tick`、`insertTranscription`、`viewWillDisappear`；共享存储、跨进程锁与拒绝规则见 [SharedDictationManager](../../StetMobile/StetMobile/Core/Shared/SharedDictationManager.swift) 的 `beginKeyboardSession`、`blocksForeignClaimUnlocked`；主 App 心跳与重发见 [KeyboardCommandMonitor](../../StetMobile/StetMobile/Core/Dictation/KeyboardCommandMonitor.swift)。
 - 键盘声明需要完全访问（[StetKeyboard Info.plist](../../StetMobile/StetKeyboard/Info.plist) 的 `RequestsOpenAccess`），但代码中没有检查 `hasFullAccess`，无完全访问时的实际表现未在真机核实。
-- 改写期间共享会话不更新（[DictationSessionCoordinator](../../StetMobile/StetMobile/Core/Dictation/DictationSessionCoordinator.swift) 的 `finalize` 只切换本地阶段），键盘的 10 秒“无更新”规则可能在改写较慢时取消会话，之后 `complete` 因状态已变为“已取消”而放弃结果。
 - 返回引导只在唤起后完成时出现，有测试固定（[AppViewModel](../../StetMobile/StetMobile/App/AppViewModel.swift)；[AppViewModelTests](../../StetMobile/StetMobileTests/AppViewModelTests.swift) 的 `dictateURLRoutesToCaptureAndCompletionRoutesToReturnGuide`）；失败时采集界面没有退出入口，直到下次链接或重启（[ContentView](../../StetMobile/StetMobile/App/ContentView.swift)）。引导页见 [ExternalReturnGuideView](../../StetMobile/StetMobile/Features/Dictation/Views/ExternalReturnGuideView.swift)。
 - 主 App 失败文案统一为 “Dictation isn't available right now. Please try again.”（[SenseVoiceViewModel](../../StetMobile/StetMobile/Features/Dictation/ViewModels/SenseVoiceViewModel.swift) 的 `.failed` 分支）；麦克风权限请求见 [MicrophonePermissionProvider](../../StetMobile/StetMobile/Core/Dictation/MicrophonePermissionProvider.swift)，拒绝后没有去设置的入口。
-- 麦克风用途说明写“本机转写”，与云端转写不符（[StetMobile project.pbxproj](../../StetMobile/StetMobile.xcodeproj/project.pbxproj) 的 `INFOPLIST_KEY_NSMicrophoneUsageDescription`），与 FR-023 冲突。
 - iOS 改写固定使用面向“人”的 audience，并在改写失败时回退原文（[TranscriptPostProcessor](../../StetMobile/StetMobile/Core/Dictation/TranscriptPostProcessor.swift)）；规则归[改写执行](rewrite-execution.md) spec。
 - 主 App 目录下另有一个只用于预览的键盘控制器（[Features/Keyboard KeyboardViewController](../../StetMobile/StetMobile/Features/Keyboard/ViewModels/KeyboardViewController.swift)），按下麦克风只打开主 App、抬起为空操作，不是实际的键盘扩展。
 - 主 App 处于失败状态时只忽略开始请求（`DictationSessionCoordinator.startRecording` 要求空闲），但心跳照常写入；键盘的启动中超时要求“无心跳且 10 秒无更新”同时成立，因此会一直停在启动中。

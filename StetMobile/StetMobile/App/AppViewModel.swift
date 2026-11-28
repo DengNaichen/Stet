@@ -15,7 +15,7 @@ final class AppViewModel: ObservableObject {
         case returnGuide
     }
 
-    @Published var selectedTab: Tab = .dictionary
+    @Published var selectedTab: Tab = .dictation
     @Published private(set) var externalDictationFlow: ExternalDictationFlow = .none
 
     private let dictationViewModel: SenseVoiceViewModel

@@ -1,6 +1,16 @@
 import AVFoundation
 import Foundation
 
+nonisolated struct MobileASREngineFailure: Sendable {
+    let sessionId: String?
+    let message: String
+}
+
+@MainActor
+protocol MobileASREngineFailureReporting: AnyObject {
+    var failureStream: AsyncStream<MobileASREngineFailure> { get }
+}
+
 enum DictationCoordinatorPhase: Equatable, Sendable {
     case inactive
     case loading
@@ -53,8 +63,20 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
     private let postProcessor: any TranscriptPostProcessing
     private let commandMonitor: any KeyboardCommandMonitoring
     private let notificationCenter: NotificationCenter
+    private let rewriteHeartbeatInterval: Duration
+    private let timingStore: DictationTimingStore
+
+    private struct SessionTimingDraft {
+        let sessionId: String
+        var startRequestedAt: TimeInterval
+        var startMs: Int = 0
+        var stopRequestedAt: TimeInterval?
+        var localFinalizeMs: Int = 0
+        var rewriteMs: Int?
+    }
 
     private var activeSessionId: String?
+    private var timingDraft: SessionTimingDraft?
     private var isStarted = false
     private var lifecycleGeneration = UUID()
     private var bootstrapGeneration: UUID?
@@ -79,7 +101,9 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         sessionStore: any DictationSessionPersisting,
         postProcessor: any TranscriptPostProcessing,
         commandMonitor: any KeyboardCommandMonitoring,
-        notificationCenter: NotificationCenter = .default
+        notificationCenter: NotificationCenter = .default,
+        rewriteHeartbeatInterval: Duration = .seconds(2),
+        timingStore: DictationTimingStore = .shared
     ) {
         self.engine = engine
         self.prepareResources = prepareResources
@@ -88,6 +112,8 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         self.postProcessor = postProcessor
         self.commandMonitor = commandMonitor
         self.notificationCenter = notificationCenter
+        self.rewriteHeartbeatInterval = rewriteHeartbeatInterval
+        self.timingStore = timingStore
         (events, continuation) = AsyncStream.makeStream()
     }
 
@@ -160,6 +186,10 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         else { return }
 
         activeSessionId = sessionId
+        timingDraft = SessionTimingDraft(
+            sessionId: sessionId,
+            startRequestedAt: ProcessInfo.processInfo.systemUptime
+        )
         phase = .starting(sessionId: sessionId)
         continuation.yield(.starting(sessionId: sessionId))
 
@@ -184,6 +214,10 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
 
             do {
                 try await self.engine.start(sessionId: sessionId)
+                if var draft = self.timingDraft, draft.sessionId == sessionId {
+                    draft.startMs = Self.elapsedMilliseconds(since: draft.startRequestedAt)
+                    self.timingDraft = draft
+                }
             } catch {
                 guard self.isCurrent(lifecycle: lifecycle),
                     self.startGeneration == generation,
@@ -216,6 +250,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
 
         switch phase {
         case .starting:
+            markStopTimestampIfNeeded(for: activeSessionId)
             let didTransition = sessionStore.transitionState(
                 for: activeSessionId,
                 from: [.requestStart],
@@ -238,6 +273,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             continuation.yield(.transcribing(sessionId: activeSessionId))
 
         case .recording:
+            markStopTimestampIfNeeded(for: activeSessionId)
             guard markTranscribing(sessionId: activeSessionId) else { return }
             engine.stop()
 
@@ -251,6 +287,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
 
         let isSettlingStart = startTask != nil
         activeSessionId = nil
+        timingDraft = nil
         startTask?.cancel()
         rewriteTask?.cancel()
         rewriteGeneration = nil
@@ -401,6 +438,10 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         let sessionId = result.sessionId
 
         if result.isFinal {
+            if var draft = timingDraft, draft.sessionId == sessionId, let stopAt = draft.stopRequestedAt {
+                draft.localFinalizeMs = Self.elapsedMilliseconds(since: stopAt)
+                timingDraft = draft
+            }
             finalize(sessionId: sessionId, text: result.text, metrics: result.metrics)
         } else {
             sessionStore.updateText(for: sessionId, partial: result.text, final: "")
@@ -433,6 +474,18 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             return
         }
 
+        guard
+            sessionStore.transitionState(
+                for: sessionId,
+                from: [.recording, .requestStop, .transcribing],
+                to: .transcribing,
+                error: nil
+            )
+        else {
+            relinquishSession(sessionId: sessionId)
+            return
+        }
+
         phase = .rewriting(sessionId: sessionId)
         continuation.yield(.rewriting(sessionId: sessionId))
         rewriteTask?.cancel()
@@ -441,20 +494,48 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         rewriteGeneration = generation
         rewriteTask = Task { @MainActor [weak self] in
             guard let self else { return }
+            let heartbeat = Task {
+                await self.keepRewriteAlive(sessionId: sessionId, generation: generation)
+            }
             defer {
+                heartbeat.cancel()
                 if self.rewriteGeneration == generation {
                     self.rewriteGeneration = nil
                     self.rewriteTask = nil
                 }
             }
 
+            let rewriteStartedAt = ProcessInfo.processInfo.systemUptime
             let processedText = await self.postProcessor.process(text)
+            if var draft = self.timingDraft, draft.sessionId == sessionId {
+                draft.rewriteMs = Self.elapsedMilliseconds(since: rewriteStartedAt)
+                self.timingDraft = draft
+            }
             guard self.isCurrent(lifecycle: lifecycle),
                 self.rewriteGeneration == generation,
                 !Task.isCancelled,
                 self.activeSessionId == sessionId
             else { return }
             self.complete(sessionId: sessionId, text: processedText, metrics: metrics)
+        }
+    }
+
+    private func keepRewriteAlive(sessionId: String, generation: UUID) async {
+        while !Task.isCancelled {
+            do {
+                try await Task.sleep(for: rewriteHeartbeatInterval)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled, rewriteGeneration == generation,
+                phase == .rewriting(sessionId: sessionId),
+                sessionStore.transitionState(
+                    for: sessionId,
+                    from: [.transcribing],
+                    to: .transcribing,
+                    error: nil
+                )
+            else { return }
         }
     }
 
@@ -475,10 +556,46 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             return
         }
 
+        recordCompletedTiming(sessionId: sessionId, metrics: metrics)
         activeSessionId = nil
+        timingDraft = nil
         phase = .idle
         continuation.yield(.completed(sessionId: sessionId, text: text, metrics: metrics))
         commandMonitor.pollNow(force: true)
+    }
+
+    private func markStopTimestampIfNeeded(for sessionId: String) {
+        guard var draft = timingDraft, draft.sessionId == sessionId, draft.stopRequestedAt == nil else {
+            return
+        }
+        draft.stopRequestedAt = ProcessInfo.processInfo.systemUptime
+        timingDraft = draft
+    }
+
+    private func recordCompletedTiming(sessionId: String, metrics: ASRMetrics?) {
+        guard let draft = timingDraft, draft.sessionId == sessionId else { return }
+        let totalWaitMs: Int
+        if let stopAt = draft.stopRequestedAt {
+            totalWaitMs = Self.elapsedMilliseconds(since: stopAt)
+        } else {
+            totalWaitMs = draft.localFinalizeMs + (draft.rewriteMs ?? 0)
+        }
+        let audioDurationMs = metrics.map { max(0, Int(($0.audioDuration * 1_000).rounded())) }
+        timingStore.record(
+            DictationTimingRecord(
+                id: sessionId,
+                recordedAt: Date(),
+                audioDurationMs: audioDurationMs,
+                startMs: draft.startMs,
+                localFinalizeMs: draft.localFinalizeMs,
+                rewriteMs: draft.rewriteMs,
+                totalWaitMs: totalWaitMs
+            )
+        )
+    }
+
+    private static func elapsedMilliseconds(since startedAt: TimeInterval) -> Int {
+        max(0, Int(((ProcessInfo.processInfo.systemUptime - startedAt) * 1_000).rounded()))
     }
 
     @discardableResult
@@ -553,6 +670,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             }
             phase = .recording(sessionId: sessionId)
             continuation.yield(.recording(sessionId: sessionId))
+            postProcessor.prewarm()
 
         case .requestStop:
             if markTranscribing(sessionId: sessionId) {

@@ -2,12 +2,12 @@ import Combine
 import Foundation
 
 enum MobileDictationEngine: String, CaseIterable, Identifiable, Sendable {
-    case funASRRealtime
+    case appleSpeech
 
     var id: Self { self }
 
     var displayName: String {
-        "FunASR Realtime"
+        "Apple Speech"
     }
 }
 
@@ -25,7 +25,7 @@ final class MobileDictationSettingsStore: ObservableObject {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        selectedEngine = .funASRRealtime
+        selectedEngine = .appleSpeech
         defaults.set(selectedEngine.rawValue, forKey: Self.selectedEngineKey)
         defaults.removeObject(forKey: Self.legacySelectedModelKey)
     }

@@ -1,20 +1,20 @@
-import Foundation
 import Combine
+import Foundation
 import StetAI
 import StetCore
 
 @MainActor
 final class RewriteSettingsViewModel: ObservableObject {
     var settingsStore: RewriteSettingsStore
-    var funASRSettingsStore: FunASRSettingsStore
+    var speechSettingsStore: SpeechRecognitionSettingsStore
     private let validationService: ProviderCredentialValidationService
     private let modelProbe: any OpenAICompatibleModelProbing
-    private let funASRConnectionValidator: any FunASRConnectionValidating
+    private var cancellables: Set<AnyCancellable> = []
 
     @Published var apiKeyInput: String = ""
-    @Published var funASRAPIKeyInput: String = ""
     @Published private(set) var validationState: ValidationState = .idle
-    @Published private(set) var funASRValidationState: ValidationState = .idle
+
+    var onSpeechAssetBecameReady: (() -> Void)?
 
     enum ValidationState: Equatable {
         case idle
@@ -25,22 +25,69 @@ final class RewriteSettingsViewModel: ObservableObject {
 
     init(
         settingsStore: RewriteSettingsStore,
-        funASRSettingsStore: FunASRSettingsStore? = nil,
-        funASRConnectionValidator: (any FunASRConnectionValidating)? = nil,
+        speechSettingsStore: SpeechRecognitionSettingsStore? = nil,
         modelProbe: (any OpenAICompatibleModelProbing)? = nil
     ) {
         self.settingsStore = settingsStore
-        self.funASRSettingsStore = funASRSettingsStore ?? FunASRSettingsStore()
+        let resolvedSpeechStore = speechSettingsStore ?? SpeechRecognitionSettingsStore()
+        self.speechSettingsStore = resolvedSpeechStore
         self.validationService = ProviderCredentialValidationService()
-        self.funASRConnectionValidator = funASRConnectionValidator ?? FunASRConnectionValidator()
         self.modelProbe = modelProbe ?? OpenAICompatibleModelProbe()
         self.apiKeyInput = settingsStore.loadAPIKey(for: settingsStore.selectedProvider) ?? ""
-        self.funASRAPIKeyInput = (try? self.funASRSettingsStore.loadAPIKey()) ?? ""
+
+        settingsStore.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+
+        resolvedSpeechStore.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
 
     var availableProviders: [DictationProvider] {
         DictationProvider.allCases.filter {
             $0 != .appleIntelligence && $0 != .groq && $0 != .doubao && $0 != .anthropic
+        }
+    }
+
+    var selectedLanguage: SpeechRecognitionLanguage {
+        get { speechSettingsStore.selectedLanguage }
+        set {
+            guard speechSettingsStore.selectedLanguage != newValue else { return }
+            speechSettingsStore.selectedLanguage = newValue
+            Task { await refreshSpeechAssetStatus() }
+        }
+    }
+
+    var selectedBackend: SpeechTranscriberBackend {
+        get { speechSettingsStore.selectedBackend }
+        set {
+            guard speechSettingsStore.selectedBackend != newValue else { return }
+            speechSettingsStore.selectedBackend = newValue
+            Task { await refreshSpeechAssetStatus() }
+        }
+    }
+
+    var speechAssetStatus: SpeechAssetStatus {
+        speechSettingsStore.assetStatus
+    }
+
+    func refreshSpeechAssetStatus() async {
+        await speechSettingsStore.refreshAssetStatus()
+    }
+
+    func downloadSpeechAsset() async {
+        do {
+            try await speechSettingsStore.downloadAssetIfNeeded()
+            if speechSettingsStore.assetStatus.isReady {
+                onSpeechAssetBecameReady?()
+            }
+        } catch {
+            await speechSettingsStore.refreshAssetStatus()
         }
     }
 
@@ -94,49 +141,4 @@ final class RewriteSettingsViewModel: ObservableObject {
             validationState = .failed(error.localizedDescription)
         }
     }
-
-    func saveFunASRAPIKey() {
-        do {
-            try funASRSettingsStore.saveAPIKey(funASRAPIKeyInput)
-            funASRValidationState = .idle
-        } catch {
-            funASRValidationState = .failed("The FunASR API key could not be saved securely.")
-        }
-    }
-
-    func sanitizeFunASRWorkspaceID() {
-        let sanitized = String(
-            funASRSettingsStore.workspaceID.filter { character in
-                character.unicodeScalars.count == 1
-                    && character.unicodeScalars.allSatisfy {
-                        (65...90).contains($0.value)
-                            || (97...122).contains($0.value)
-                            || (48...57).contains($0.value)
-                            || $0.value == 45
-                    }
-            })
-        if sanitized != funASRSettingsStore.workspaceID {
-            funASRSettingsStore.workspaceID = sanitized
-        }
-        funASRValidationState = .idle
-    }
-
-    func validateFunASRConnection() async {
-        funASRValidationState = .validating
-        do {
-            let configuration = try funASRSettingsStore.configuration(apiKey: funASRAPIKeyInput)
-            try await funASRConnectionValidator.validate(configuration: configuration)
-            try funASRSettingsStore.saveAPIKey(funASRAPIKeyInput)
-            funASRValidationState = .success
-        } catch let error as FunASRConfigurationError {
-            funASRValidationState = .failed(error.localizedDescription)
-        } catch let error as FunASRError {
-            funASRValidationState = .failed(error.localizedDescription)
-        } catch {
-            funASRValidationState = .failed(
-                "The FunASR connection could not be validated. Check the credentials and try again."
-            )
-        }
-    }
-
 }

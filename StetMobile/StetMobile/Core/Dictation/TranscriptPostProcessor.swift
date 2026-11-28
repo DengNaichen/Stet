@@ -4,7 +4,12 @@ import StetRewrite
 @MainActor
 protocol TranscriptPostProcessing: AnyObject {
     var isAvailable: Bool { get }
+    func prewarm()
     func process(_ transcript: String) async -> String
+}
+
+extension TranscriptPostProcessing {
+    func prewarm() {}
 }
 
 @MainActor
@@ -22,6 +27,15 @@ final class SettingsTranscriptPostProcessor: TranscriptPostProcessing {
 
     var isAvailable: Bool {
         settingsStore.makeRewriteServiceIfEnabled() != nil
+    }
+
+    func prewarm() {
+        guard let rewriteService = settingsStore.makeRewriteServiceIfEnabled() else {
+            return
+        }
+        Task.detached(priority: .utility) {
+            await rewriteService.prewarm(.cleanup("", audience: .human))
+        }
     }
 
     func process(_ transcript: String) async -> String {

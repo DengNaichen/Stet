@@ -10,7 +10,7 @@
 
 ## 术语
 
-- **引擎**：把一段录音转成文字的组件。macOS 有 Fun-ASR Nano、Parakeet V3、Apple Speech 三种；iOS 有 FunASR Realtime 一种。
+- **引擎**：把一段录音转成文字的组件。macOS 有 Fun-ASR Nano、Parakeet V3、Apple Speech 三种。iOS 使用 Apple Speech。
 - **模型资产**：引擎运行所需、安装后下载到本机的模型文件；不随应用打包。
 - **回退**：用户选定的引擎在本次听写不可用时，临时改用 Fun-ASR Nano，不改动用户的选择。
 - **预热**：在录音期间提前把模型载入内存，缩短停止录音后的等待。
@@ -159,9 +159,9 @@
 
 **iOS**
 
-- **FR-021**：iOS 只有一个引擎 FunASR Realtime，由阿里云百炼的实时语音识别服务在云端转写；录音以 16 kHz PCM 流式发送。使用前用户须填写地域（北京或新加坡）、Workspace ID（只允许字母、数字和连字符）与 API Key；设置页可校验连接。
-- **FR-022**：iOS 的 FunASR API Key 保存在本机钥匙串，首次解锁后可读，不经 iCloud 同步。配置不完整时听写不开始，并提示补全配置。
-- **FR-023**：iOS 云端转写：任务 10 秒内未开始或停止后 15 秒内未结束即判定失败；网络过慢导致音频积压时停止本次录音。iOS 不做后处理，也不传热词（待产品确认）。
+- **FR-021**：iOS 26 起使用 Apple Speech 的 `SpeechAnalyzer` 和 `DictationTranscriber` 在本机完成流式转写。设置页可选择简体中文、英语（美国）、繁体中文、日语或韩语。
+- **FR-022**：iOS 通过 `AssetInventory` 检查、安装所选语言模型，并在设置页显示可用状态。模型就绪后才开始听写。
+- **FR-023**：iOS 录音时持续发布暂定文本，停止后合并已确认的文本。个人词典启用时将前 100 条词条用作识别提示。
 
 ### 关键实体
 
@@ -198,7 +198,6 @@
 6. **不带热词的对照转写**：当前每次 Nano 听写都额外转写一次。可选：保留（服务修正学习或评估）；改为可关闭；移除。
 7. **删除模型入口**：当前只能在 Finder 中手动删除。可选：维持；在设置中提供删除。
 8. **主要转写语言只在引导中设置**：可选：在设置中开放；维持。
-9. **iOS 使用云端转写**：iOS 当前把录音发送到用户自己的阿里云账号，与 macOS 全本机的隐私边界不同，且无热词、无后处理。需要确认这是长期方案还是过渡。
 
 ## 与当前实现的已知差异（非规范，核对基线 `b327f54`）
 
@@ -210,4 +209,4 @@
 - 首次引导的引擎路由固定返回 Fun-ASR Nano，第二语言设置不影响引擎（[TranscriptionLanguageRouting](../../StetMac/Shared/Utilities/TranscriptionLanguageRouting.swift)）。
 - 预热后的语言模型在听写及后台对照转写结束后保留 1800 秒滑动空闲窗口并在严重内存压力下请求释放（[DictationProcessingLifetime](../../StetMac/Core/Speech/DictationProcessingLifetime.swift) 的 `scheduleCleanupIfIdle` 与 `evictIdleModelsNow`），启用 ANE 时编码器由 [FunASRNanoContextManager](../../StetMac/Core/FunASR/FunASRNanoTranscriptionService.swift) 与 [FunASRNanoANEGuardian](../../StetMac/Core/FunASR/FunASRNanoANEGuardian.swift) 独立常驻维护。
 - 不带热词的对照转写是否执行，同样取决于“保存的引擎是否为 Fun-ASR Nano”（[DictationPipelineFactory](../../StetMac/Core/DictationPipeline/DictationPipelineFactory.swift) 的 `recordsNoHotwordTranscript`）：选择 Parakeet 或 Apple Speech 但回退到 Nano 时不做对照转写，与 FR-020“使用 Fun-ASR Nano 完成一次听写后”的字面不一致。
-- 引擎回退逻辑见 [LocalTranscriptionServiceFactory](../../StetMac/Core/DictationPipeline/LocalTranscriptionServiceFactory.swift)；Nano 下载与目录见 [FunASRNanoModelManager](../../StetMac/Core/FunASR/FunASRNanoModelManager.swift)；镜像规则见 [ModelDownloadMirror](../../Packages/StetEngine/Sources/StetCore/ModelDownloadMirror.swift)；热词上限见 [FunASRNanoHotwordPrompt](../../Packages/StetEngine/Sources/StetCore/FunASRNanoHotwordPrompt.swift)；iOS 云端引擎见 [FunASRRealtimeEngine](../../StetMobile/StetMobile/Core/Dictation/FunASRRealtimeEngine.swift) 与 [FunASRSettingsStore](../../StetMobile/StetMobile/Core/Settings/FunASRSettingsStore.swift)；以上与本 spec 一致。
+- macOS 的引擎回退见 [LocalTranscriptionServiceFactory](../../StetMac/Core/DictationPipeline/LocalTranscriptionServiceFactory.swift)，Nano 下载与目录见 [FunASRNanoModelManager](../../StetMac/Core/FunASR/FunASRNanoModelManager.swift)，镜像规则见 [ModelDownloadMirror](../../Packages/StetEngine/Sources/StetCore/ModelDownloadMirror.swift)，热词上限见 [FunASRNanoHotwordPrompt](../../Packages/StetEngine/Sources/StetCore/FunASRNanoHotwordPrompt.swift)。

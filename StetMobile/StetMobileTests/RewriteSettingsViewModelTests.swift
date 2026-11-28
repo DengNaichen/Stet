@@ -4,15 +4,29 @@ import Testing
 
 struct RewriteSettingsViewModelTests {
     @MainActor
-    @Test func dictationEngineIsRealtimeOnly() {
+    @Test func dictationEngineIsAppleSpeechOnly() {
         let suiteName = "MobileDictationSettingsStoreTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
         defaults.set("senseVoice", forKey: "dictation.engine")
 
-        #expect(MobileDictationEngine.allCases == [.funASRRealtime])
-        #expect(MobileDictationSettingsStore(defaults: defaults).selectedEngine == .funASRRealtime)
-        #expect(defaults.string(forKey: "dictation.engine") == "funASRRealtime")
+        #expect(MobileDictationEngine.allCases == [.appleSpeech])
+        #expect(MobileDictationSettingsStore(defaults: defaults).selectedEngine == .appleSpeech)
+        #expect(defaults.string(forKey: "dictation.engine") == "appleSpeech")
+    }
+
+    @MainActor
+    @Test func speechLanguageSelectionSurvivesStoreRecreation() {
+        let suiteName = "SpeechRecognitionSettingsStoreTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let store = SpeechRecognitionSettingsStore(defaults: defaults)
+        store.selectedLanguage = .japanese
+
+        let reloadedStore = SpeechRecognitionSettingsStore(defaults: defaults)
+        #expect(reloadedStore.selectedLanguage == .japanese)
+        #expect(reloadedStore.assetStatus == .checking)
     }
 
     @MainActor

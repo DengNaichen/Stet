@@ -14,6 +14,7 @@ struct AppViewModelTests {
         _ = await completions.next()
         dictationViewModel.start()
 
+        subject.selectedTab = .dictionary
         #expect(subject.handleIncomingURL(URL(string: "stetmobile://other")!) == false)
         #expect(subject.selectedTab == .dictionary)
         #expect(subject.externalDictationFlow == .none)
@@ -48,7 +49,7 @@ struct AppViewModelTests {
         coordinator.emit(
             .failed(
                 sessionId: nil,
-                message: "FunASR Realtime authentication failed. HTTP 500."
+                message: "The Apple Speech language model could not be installed."
             )
         )
 
@@ -75,12 +76,12 @@ struct AppViewModelTests {
         _ = await states.next()
         subject.start()
 
-        coordinator.emit(.ready(engineName: "FunASR Realtime"))
+        coordinator.emit(.ready(engineName: "Apple Speech"))
         #expect(await states.next() == .idle)
         #expect(await liveActivityCalls.next() == .ensureActive)
         #expect(liveActivityManager.ensureActiveCallCount == 1)
 
-        coordinator.emit(.ready(engineName: "FunASR Realtime"))
+        coordinator.emit(.ready(engineName: "Apple Speech"))
         #expect(await states.next() == .idle)
         #expect(await liveActivityCalls.next() == .ensureActive)
         #expect(liveActivityManager.ensureActiveCallCount == 2)
@@ -105,7 +106,7 @@ struct AppViewModelTests {
         _ = await states.next()
         subject.start()
 
-        coordinator.emit(.ready(engineName: "FunASR Realtime"))
+        coordinator.emit(.ready(engineName: "Apple Speech"))
 
         #expect(await states.next() == .idle)
         #expect(liveActivityManager.ensureActiveCallCount == 1)

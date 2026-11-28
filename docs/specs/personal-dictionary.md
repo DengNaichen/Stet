@@ -115,7 +115,7 @@
 - **FR-011**：改写 preferredSpellings：提供全部词条（手动与自动），不设数量上限，按列表顺序；macOS 与 iOS 相同，与选用哪个改写服务无关。
 - **FR-012**：Fun-ASR Nano hotwords：先排列全部手动词条，再排列自动词条；依次选入，跳过会使逗号拼接后的总长度超过 400 个字符的词条，最多选 50 个。
 - **FR-013**：其他 macOS 本地引擎的转写 prompt：Parakeet（FluidAudio）提供全部词条的逗号拼接；Apple Speech 提供与 FR-012 相同的选择结果，以便运行时回退到 Nano 时仍有热词。各引擎是否、怎样使用，见[转写引擎与模型准备](transcription-engines.md) spec。
-- **FR-014**：iOS 的转写不使用词典；iOS 只把词条提供给改写。
+- **FR-014**：iOS 开启个人词典时向 Apple Speech 提供前 100 条词条作为转写提示。
 - **FR-015**：会议转写不使用词典。（当前行为）
 
 **启用开关**
@@ -173,6 +173,6 @@
 - 冲突处理是整份覆盖：[DictionaryModel](../../Packages/StetEngine/Sources/StetCore/DictionaryModel.swift) 的 `updateRecords` 每次写整份数组，外部变更通知时整份替换本机缓存。
 - 手动添加（`addEntries`）不检查 `maximumStoredUTF8ByteCount`，只有 `importEntries` 检查。
 - Parakeet 收到全部词条的 prompt，但 [FluidAudioTranscriptionService](../../StetMac/Core/FluidAudio/FluidAudioTranscriptionService.swift) 的 `transcribe` 没有使用 prompt 参数；Apple Speech 同样忽略 prompt。词条选择见 [DictationPipelineFactory](../../StetMac/Core/DictationPipeline/DictationPipelineFactory.swift) 的 `makeTranscriptionPrompt` 和 [FunASRNanoHotwordPrompt](../../Packages/StetEngine/Sources/StetCore/FunASRNanoHotwordPrompt.swift)。
-- iOS 只在改写中使用词条（[TranscriptPostProcessor](../../StetMobile/StetMobile/Core/Dictation/TranscriptPostProcessor.swift)）；iOS 词典页（[DictionaryViewModel](../../StetMobile/StetMobile/Features/Dictionary/ViewModels/DictionaryViewModel.swift)）只有添加和删除，启用开关在 iOS 上始终为默认开启。
+- iOS 的词条分别由 [AppleSpeechDictationEngine](../../StetMobile/StetMobile/Core/Dictation/AppleSpeechDictationEngine.swift) 和 [TranscriptPostProcessor](../../StetMobile/StetMobile/Core/Dictation/TranscriptPostProcessor.swift) 用于转写提示和改写。iOS 词典页支持添加和删除，默认开启词典。
 - macOS 编辑词条（[DictionaryViewModel](../../StetMac/Features/MacShell/Dictionary/DictionaryViewModel.swift) 的 `saveEntries`）先替换再按手动重新添加，因此编辑后的自动词条变为手动来源。
 - 旧版本词典的一次性迁移见 [LegacyDictionaryMigration](../../StetMac/Shared/Models/LegacyDictionaryMigration.swift)：只在新词典为空时导入。
