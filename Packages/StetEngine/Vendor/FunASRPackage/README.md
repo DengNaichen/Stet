@@ -4,9 +4,10 @@ This local package provides Stet's macOS-only, in-process Fun-ASR Nano runtime. 
 
 The checked-in artifact links Apple's Accelerate and Core ML frameworks. On Apple
 Silicon it embeds ggml-metal to offload the Qwen3 decoder to the GPU and supports an
-optional Core ML / Neural Engine encoder (`stet_funasr_encoder_*`) whose compiled model
-and bucket buffers can stay resident across `stet_funasr_context` lifecycles, falling
-back to the ggml CPU SAN-M encoder when unavailable. Intel slices remain CPU-only.
+ANE-targeted Core ML encoder (`stet_funasr_encoder_*`) whose compiled model
+and bucket buffers can stay resident across `stet_funasr_context` lifecycles.
+Core ML errors propagate to the app. Offline comparison tools can explicitly load
+a GGUF reference encoder through the C ABI.
 Models are downloaded separately by the app and are not bundled in the XCFramework. It
 does not launch a helper executable.
 

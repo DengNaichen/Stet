@@ -20,7 +20,7 @@
             let queue = FunASRDownloadQueue(stagedFiles: stagedFiles)
             let manager = FunASRNanoModelManager(
                 modelsDirectoryProvider: { modelsDirectory },
-                downloadProvider: { url in try await queue.next(for: url) }
+                downloadProvider: { url in try await queue.next(for: url) }, prepareEncoder: Self.prepareFixture
             )
 
             try await manager.installDefaultModel()
@@ -28,7 +28,7 @@
             #expect(manager.isModelDownloaded())
             #expect(
                 try manager.resolvedModelFiles().allFiles.map(\.lastPathComponent) == [
-                    "funasr-encoder-f16.gguf",
+                    FunASRNanoANEManifest.compiledName,
                     "qwen3-0.6b-q4km.gguf",
                     "fsmn-vad.gguf",
                 ])
@@ -42,10 +42,10 @@
             try FileManager.default.createDirectory(at: modelsDirectory, withIntermediateDirectories: true)
             let manager = FunASRNanoModelManager(
                 modelsDirectoryProvider: { modelsDirectory },
-                downloadProvider: { _ in throw TestError.expected }
+                downloadProvider: { _ in throw TestError.expected }, prepareEncoder: Self.prepareFixture
             )
             let files = try manager.modelFiles()
-            for file in files.allFiles {
+            for file in [files.languageModel, files.voiceActivityDetector] {
                 try Data("model".utf8).write(to: file)
             }
 
@@ -54,29 +54,29 @@
             #expect(manager.isModelDownloaded())
         }
 
-        @Test func resolvesVersionedANEArtifactButStillRequiresCPUFallback() throws {
+        private static func prepareFixture(in directory: URL) throws {
+            try FileManager.default.createDirectory(
+                at: directory.appendingPathComponent(FunASRNanoANEManifest.compiledName),
+                withIntermediateDirectories: true)
+            try ANEModelReadiness.make(manifestHash: String(repeating: "a", count: 64)).write(in: directory)
+        }
+
+        @Test func legacyCPUEncoderCannotSatisfyReadiness() throws {
             let directory = TestSupport.temporaryDirectoryURL()
             defer { try? FileManager.default.removeItem(at: directory) }
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let manager = FunASRNanoModelManager(modelsDirectoryProvider: { directory })
-            let cpu = try manager.modelFiles()
-            for file in cpu.allFiles { try Data("fixture".utf8).write(to: file) }
-            let legacy = directory.appendingPathComponent("FunASRNanoEncoder.mlmodelc")
-            try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
-            #expect(try manager.resolvedModelFiles().encoder == cpu.encoder)
-
-            let ane = directory.appendingPathComponent("FunASRNanoANE-v1.mlmodelc", isDirectory: true)
-            try FileManager.default.createDirectory(at: ane, withIntermediateDirectories: true)
-            #if arch(arm64)
-                if #available(macOS 15, *) {
-                    #expect(try manager.resolvedModelFiles().encoder == cpu.encoder)
-                    try ANEModelReadiness.make(manifestHash: String(repeating: "a", count: 64)).write(in: directory)
-                    #expect(try manager.resolvedModelFiles().encoder == ane)
-                }
-            #endif
-            try FileManager.default.removeItem(at: cpu.encoder)
+            let files = try manager.modelFiles()
+            let legacy = directory.appendingPathComponent("funasr-encoder-f16.gguf")
+            for file in [legacy, files.languageModel, files.voiceActivityDetector] {
+                try Data("fixture".utf8).write(to: file)
+            }
             #expect(!manager.isModelDownloaded())
-            #expect(throws: FunASRNanoModelError.self) { try manager.resolvedModelFiles() }
+            #expect(throws: ANEModelInstallError.self) { try manager.resolvedModelFiles() }
+            try FileManager.default.removeItem(at: legacy)
+            try Self.prepareFixture(in: directory)
+            #expect(manager.isModelDownloaded())
+            #expect(try manager.resolvedModelFiles().encoder == files.encoder)
         }
 
         @Test func invalidHTTPResponseDoesNotInstallComponent() async throws {

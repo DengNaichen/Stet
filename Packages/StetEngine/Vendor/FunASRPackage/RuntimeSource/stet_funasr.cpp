@@ -186,7 +186,6 @@ struct stet_funasr_encoder {
 struct stet_funasr_context {
     enc_model encoder;
     std::shared_ptr<StetCoreMLEncoder> coreml_encoder;
-    std::string cpu_encoder_path;
     llama_model *model = nullptr;
     llama_context *llama = nullptr;
     llama_sampler *sampler = nullptr;
@@ -289,24 +288,16 @@ extern "C" stet_funasr_context *stet_funasr_create_with_encoder(
         context->vad_path=vad_path;
         ggml_time_init();
         llama_log_set(runtime_log_callback,nullptr);
-        context->cpu_encoder_path=encoder_path;
-        std::string selected_path=encoder_path;
-        const bool selected_coreml=selected_path.size()>=9 && selected_path.compare(selected_path.size()-9,9,".mlmodelc")==0;
-        if(selected_coreml){
-            const auto slash=selected_path.find_last_of('/');
-            const std::string dir=(slash==std::string::npos)?std::string():selected_path.substr(0,slash+1);
-            context->cpu_encoder_path=dir+"funasr-encoder-f16.gguf";
-        }
+        const std::string path=encoder_path;
         if(shared_encoder && shared_encoder->instance){
             context->coreml_encoder=shared_encoder->instance;
-        }else if(selected_coreml){
-#if defined(__aarch64__) || defined(__arm64__)
-            try { context->coreml_encoder=std::make_shared<StetCoreMLEncoder>(encoder_path,false); }
-            catch(const std::exception &e) { fprintf(stderr,"FunASR Core ML load failed; using CPU: %s\n",e.what()); }
-#endif
+        }else if(path.size()>=9 && path.compare(path.size()-9,9,".mlmodelc")==0){
+            context->coreml_encoder=std::make_shared<StetCoreMLEncoder>(encoder_path,false);
+        }else{
+            // Explicit GGUF inputs are used by the offline comparison probes.
+            if(!load_enc(encoder_path,context->encoder))
+                throw std::runtime_error("encoder model could not be loaded");
         }
-        if(!context->coreml_encoder && !load_enc(context->cpu_encoder_path.c_str(),context->encoder))
-            throw std::runtime_error("encoder model could not be loaded");
         llama_model_params mp=llama_model_default_params();
 #if defined(GGML_USE_METAL)
         // Qwen3 decoder stays on Metal with either the Core ML or CPU encoder.
@@ -388,15 +379,9 @@ extern "C" stet_funasr_status stet_funasr_transcribe(
             int T=0; auto fbank=compute_fbank(samples,T);
             int D=1024; std::vector<float> adaptor;
             if(context->coreml_encoder){
-                try { adaptor=context->coreml_encoder->encode(fbank,T); }
-                catch(const std::exception &e) {
-                    fprintf(stderr,"FunASR Core ML prediction failed; using CPU: %s\n",e.what());
-                    context->coreml_encoder.reset();
-                }
-            }
-            if(!context->coreml_encoder){
-                if(!context->encoder.ctx_w && !load_enc(context->cpu_encoder_path.c_str(),context->encoder))
-                    throw std::runtime_error("CPU encoder fallback could not be loaded");
+                adaptor=context->coreml_encoder->encode(fbank,T);
+            }else{
+                if(!context->encoder.ctx_w)throw std::runtime_error("Neural Engine encoder is not ready");
                 adaptor=run_encoder(context->encoder,fbank,T,560,D,context->thread_count);
             }
             int ol=1+(T-3+2)/2; ol=1+(ol-3+2)/2; int n_audio=(ol-1)/2+1;

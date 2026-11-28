@@ -205,44 +205,7 @@
         }
 
         @Test(.enabled(if: ANEModelReadiness.supported))
-        func runtimeCPUFallbackDisablesReadinessAndReusesLoadedCPUContext() async throws {
-            let manager = try makeModelManager()
-            let directory = try manager.modelFiles().encoder.deletingLastPathComponent()
-            try FileManager.default.createDirectory(
-                at: directory.appendingPathComponent(FunASRNanoANEManifest.compiledName),
-                withIntermediateDirectories: true)
-            try ANEModelReadiness.make(manifestHash: String(repeating: "a", count: 64)).write(in: directory)
-            let residentStore = ResidentEncoderStore()
-            let context = FunASRNanoContextManager { url in
-                let encoder = StubResidentEncoder(modelURL: url)
-                residentStore.append(encoder)
-                return encoder
-            }
-            await context.preloadResidentEncoder(in: directory)
-            #expect(await context.hasReadyResidentEncoder)
-            let engines = FunASREngineStore()
-            let service = try FunASRNanoTranscriptionService(
-                modelManager: manager,
-                engineFactory: { _ in
-                    let engine = StubFunASREngine(text: "CPU fallback", backend: "ggml-cpu")
-                    engines.append(engine)
-                    return engine
-                }, contextManager: context)
-            try await service.prewarm()
-            #expect(ANEModelReadiness.read(in: directory) == nil)
-            #expect(ANEModelReadiness.installed(in: directory)?.enabled == false)
-            #expect(!(await context.hasReadyResidentEncoder))
-            let resident = try #require(residentStore.snapshot().first)
-            #expect(resident.releaseCallCount == 1)
-            let result = try await service.transcribe(
-                audioFileAt: makeAudioFile(), languageCode: nil, prompt: nil, audioDurationSeconds: 1)
-            #expect(result.text == "CPU fallback")
-            #expect(engines.snapshot().count == 1)
-            await context.cleanupResources()
-        }
-
-        @Test(.enabled(if: ANEModelReadiness.supported))
-        func backgroundResidentCompileNeverBlocksForegroundAndSwitchesToANEOnceReady() async throws {
+        func foregroundUsesCoreMLWhileResidentEncoderWarms() async throws {
             let manager = try makeModelManager()
             let directory = try manager.modelFiles().encoder.deletingLastPathComponent()
             try FileManager.default.createDirectory(
@@ -286,10 +249,10 @@
                 prompt: nil,
                 audioDurationSeconds: 1.5
             )
-            #expect(firstResult.text == "ggml-cpu")
+            #expect(firstResult.text == "coreml-cpu-and-ne")
             #expect(ANEModelReadiness.read(in: directory) != nil)
             let firstEngine = try #require(engines.snapshot().first)
-            #expect(await firstEngine.encoderExtension == "gguf")
+            #expect(await firstEngine.encoderExtension == "mlmodelc")
             #expect(!(await firstEngine.hadResidentEncoder))
 
             await compileGate.resume()
@@ -345,7 +308,7 @@
         }
 
         @Test(.enabled(if: ANEModelReadiness.supported))
-        func handleSystemWakeDetachesRewarmsAndReattachesResidentEncoder() async throws {
+        func handleSystemWakeRewarmsResidentEncoder() async throws {
             let manager = try makeModelManager()
             let directory = try manager.modelFiles().encoder.deletingLastPathComponent()
             try FileManager.default.createDirectory(
@@ -391,7 +354,7 @@
             #expect(resident.releaseCallCount == 0)
             #expect(residentStore.snapshot().count == 1)
             #expect(await context.hasReadyResidentEncoder)
-            #expect(await engine.residentEncoderUpdates == [false, true])
+            #expect(await engine.residentEncoderUpdates == [true])
             #expect(await engine.hadResidentEncoder)
             #expect(await engine.encoderExtension == "mlmodelc")
 
@@ -410,7 +373,10 @@
             let directory = TestSupport.temporaryDirectoryURL()
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let manager = FunASRNanoModelManager(modelsDirectoryProvider: { directory })
-            for file in try manager.modelFiles().allFiles {
+            let files = try manager.modelFiles()
+            try FileManager.default.createDirectory(at: files.encoder, withIntermediateDirectories: true)
+            try ANEModelReadiness.make(manifestHash: String(repeating: "a", count: 64)).write(in: directory)
+            for file in [files.languageModel, files.voiceActivityDetector] {
                 try Data("model".utf8).write(to: file)
             }
             return manager

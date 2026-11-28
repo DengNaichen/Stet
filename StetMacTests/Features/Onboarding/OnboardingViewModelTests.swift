@@ -44,6 +44,10 @@
                 try Data("model".utf8).write(to: modelsDirectory.appendingPathComponent(asset.fileName))
             }
 
+            try FileManager.default.createDirectory(
+                at: modelsDirectory.appendingPathComponent(FunASRNanoANEManifest.compiledName),
+                withIntermediateDirectories: true)
+            try ANEModelReadiness.make(manifestHash: String(repeating: "a", count: 64)).write(in: modelsDirectory)
             let viewModel = OnboardingViewModel(
                 coordinator: coordinator,
                 settingsStore: settingsStore,

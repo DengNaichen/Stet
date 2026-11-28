@@ -56,7 +56,7 @@ struct StetApp: App {
         @State private var compatibilityViewModel: MacCompatibilityViewModel
 
         init() {
-            let aneInstaller = FunASRNanoANEInstaller(release: FunASRNanoANECatalog.bundled())
+            let aneInstaller = FunASRNanoANEInstaller.shared
             let aneGuardian = FunASRNanoANEGuardian(installer: aneInstaller)
             _aneModelSettings = StateObject(
                 wrappedValue: ANEModelSettingsViewModel(installer: aneInstaller))

@@ -21,8 +21,10 @@ nonisolated protocol ANEModelInstalling: Actor {
 /// Installs only a verified source package; no archive extraction or runtime model downloads.
 /// Readiness is published after warming at the final path, and only while ASR is idle.
 actor FunASRNanoANEInstaller: ANEModelInstalling {
+    static let shared = FunASRNanoANEInstaller(release: FunASRNanoANECatalog.bundled())
+
     typealias ProgressHandler = @Sendable (ANEInstallationProgress) -> Void
-    typealias ValidateCPU = @Sendable (URL) async throws -> Void
+    typealias ValidateCompanions = @Sendable (URL) async throws -> Void
     typealias Compile = @Sendable (URL) async throws -> URL
     typealias Prepare = @Sendable (URL, @escaping ProgressHandler) async throws -> Void
     typealias IdleAction = @Sendable (@escaping @Sendable () throws -> Void) async throws -> Bool
@@ -32,7 +34,7 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
     private let release: FunASRNanoANECatalog.Release?
     private let downloader: ModelFileDownloader
     private let localDownloader: ModelFileDownloader
-    private let validateCPU: ValidateCPU
+    private let validateCompanions: ValidateCompanions
     private let compile: Compile
     private let prepare: Prepare
     private let whenIdle: IdleAction
@@ -47,7 +49,7 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
         release: FunASRNanoANECatalog.Release? = nil,
         downloader: ModelFileDownloader = .shared,
         cache: URL = ModelFileTransport.defaultCache,
-        validateCPU: @escaping ValidateCPU = FunASRNanoANEInstaller.validateCPUAssets,
+        validateCompanions: @escaping ValidateCompanions = FunASRNanoANEInstaller.validateCompanionAssets,
         compile: @escaping Compile = FunASRNanoANEPreparation.compile,
         prepare: @escaping Prepare = FunASRNanoANEPreparation.prepare,
         whenIdle: @escaping IdleAction = { action in
@@ -61,7 +63,7 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
         self.release = release
         self.downloader = downloader
         self.cache = cache
-        self.validateCPU = validateCPU
+        self.validateCompanions = validateCompanions
         self.compile = compile
         self.prepare = prepare
         self.whenIdle = whenIdle
@@ -120,7 +122,7 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
         defer { busy = false }
         let directory = try directoryProvider()
         guard let receipt = ANEModelReadiness.installed(in: directory) else { throw ANEModelInstallError.invalidModel }
-        try await requireCPUModel(in: directory)
+        try await validateCompanions(directory)
         if ANEModelReadiness.read(in: directory) != nil {
             await onReady(directory)
             progress(.ready)
@@ -153,19 +155,16 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
         busy = true
     }
 
-    private func requireCPUModel(in directory: URL) async throws {
-        try await validateCPU(directory)
-    }
-
-    nonisolated static func validateCPUAssets(in directory: URL) async throws {
+    nonisolated static func validateCompanionAssets(in directory: URL) async throws {
         let task = Task.detached(priority: .utility) {
             let manager = FunASRNanoModelManager(modelsDirectoryProvider: { directory })
-            guard manager.isModelDownloaded() else { throw ANEModelInstallError.missingCPUModel }
+            guard manager.missingCompanionFiles(in: directory).isEmpty else {
+                throw ANEModelInstallError.missingCompanions
+            }
             let files = try manager.modelFiles()
             try Task.checkCancellation()
-            guard try ModelFileDownloader.sha256(of: files.encoder) == FunASRNanoANEManifest.sourceHash,
-                try ModelFileDownloader.sha256(of: files.languageModel) == FunASRNanoANEManifest.decoderHash
-            else { throw ANEModelInstallError.incompatibleCPUModel }
+            guard try ModelFileDownloader.sha256(of: files.languageModel) == FunASRNanoANEManifest.decoderHash
+            else { throw ANEModelInstallError.incompatibleDecoder }
             try Task.checkCancellation()
         }
         try await withTaskCancellationHandler {
@@ -179,7 +178,7 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
         let manifest = try JSONDecoder().decode(FunASRNanoANEManifest.self, from: data)
         try manifest.validate()
         let directory = try directoryProvider()
-        try await requireCPUModel(in: directory)
+        try await validateCompanions(directory)
         let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         try await ModelDownloadLock.withLock(key: "ane-install:\(directory.path)", cache: cache) {
             try await self.installLocked(

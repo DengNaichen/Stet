@@ -62,6 +62,8 @@
                 )
 
                 ANEModelSettingsRow(viewModel: aneModelSettings)
+                    .task(id: viewModel.isFunASRNanoDownloaded) { await aneModelSettings.refresh() }
+                    .onChange(of: aneModelSettings.status.ready) { _, _ in viewModel.refreshFunASRNanoStatus() }
 
                 TranscriptionModelRow(
                     name: "Parakeet V3",

@@ -79,7 +79,7 @@
             AudioDeviceChangeMonitor.shared.startMonitoring()
 
             isParakeetDownloaded = fluidAudioModelManager.isModelDownloaded()
-            isFunASRNanoDownloaded = funASRNanoModelManager.isModelDownloaded()
+            refreshFunASRNanoStatus()
             // Keep the persisted choice even when Apple Speech is temporarily unavailable.
             // The pipeline applies a transient Fun-ASR Nano fallback at execution time.
             localTranscriptionEngine = settingsStore.loadTranscriptionEngine()
@@ -209,6 +209,10 @@
             }
         }
 
+        func refreshFunASRNanoStatus() {
+            isFunASRNanoDownloaded = funASRNanoModelManager.isModelDownloaded()
+        }
+
         func downloadFunASRNanoModel() {
             guard !isFunASRNanoDownloading, !isFunASRNanoDownloaded else { return }
             isFunASRNanoDownloading = true
@@ -217,7 +221,7 @@
             Task { [funASRNanoModelManager] in
                 do {
                     try await funASRNanoModelManager.installDefaultModel()
-                    self.isFunASRNanoDownloaded = funASRNanoModelManager.isModelDownloaded()
+                    self.refreshFunASRNanoStatus()
                     self.isFunASRNanoDownloading = false
                 } catch {
                     self.funASRNanoErrorMessage = error.localizedDescription

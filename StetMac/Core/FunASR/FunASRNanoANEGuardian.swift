@@ -128,8 +128,8 @@
             contextManager: FunASRNanoContextManager,
             logger: Logger
         ) async {
-            guard modelManager.isModelDownloaded(),
-                let files = try? modelManager.modelFiles()
+            guard let files = try? modelManager.modelFiles(),
+                modelManager.missingCompanionFiles(in: files.encoder.deletingLastPathComponent()).isEmpty
             else {
                 return
             }
