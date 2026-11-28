@@ -1,8 +1,9 @@
 {
   "schemaVersion": 1,
   "release": {
-    "manifestURL": "https://huggingface.co/DanielCCCC1/Fun-ASR-Nano-ANE/resolve/847a7140370030835558abc63c17d2fd3764a267/manifest.json",
+    "manifestURL": "https://huggingface.co/DanielCCCC1/Fun-ASR-Nano-ANE/resolve/59b9f2afe6e9e87af2c45089e923e02c7ee3ac7a/manifest.json",
     "manifestSize": 875,
-    "manifestSHA256": "6c806848e8937d5910bd53ebf01d2471db925ad9d219c5f44556920bd8892b10"
+    "manifestSHA256": "3ca732f240fe62345c9a4d961b97f4e5da090a8de3ed215338258be63953f4bb",
+    "replacesManifestSHA256": "6c806848e8937d5910bd53ebf01d2471db925ad9d219c5f44556920bd8892b10"
   }
 }

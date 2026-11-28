@@ -9,7 +9,7 @@
     @MainActor
     final class FunASRNanoANEGuardian {
         private let modelManager: FunASRNanoModelManager
-        private let installer: any ANEModelInstalling
+        private let installer: FunASRNanoANEInstaller
         private let contextManager: FunASRNanoContextManager
         private let notificationCenter: NotificationCenter
         private let startupDelay: Duration
@@ -25,7 +25,7 @@
 
         init(
             modelManager: FunASRNanoModelManager = FunASRNanoModelManager(),
-            installer: any ANEModelInstalling,
+            installer: FunASRNanoANEInstaller,
             contextManager: FunASRNanoContextManager = .shared,
             notificationCenter: NotificationCenter? = nil,
             startupDelay: Duration = .seconds(1),
@@ -124,7 +124,7 @@
         private nonisolated static func performSilentRefresh(
             isWake: Bool,
             modelManager: FunASRNanoModelManager,
-            installer: any ANEModelInstalling,
+            installer: FunASRNanoANEInstaller,
             contextManager: FunASRNanoContextManager,
             logger: Logger
         ) async {
@@ -156,6 +156,12 @@
                 await contextManager.handleSystemWake(in: directory)
             } else {
                 await contextManager.preloadResidentEncoder(in: directory)
+            }
+
+            do {
+                try await installer.updateEnabledRelease(in: directory)
+            } catch {
+                logger.warning("Fun-ASR Nano ANE update deferred: \(error.localizedDescription, privacy: .public)")
             }
         }
     }

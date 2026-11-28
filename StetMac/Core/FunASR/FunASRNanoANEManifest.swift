@@ -51,6 +51,7 @@ nonisolated struct FunASRNanoANECatalog: Codable, Sendable {
         let manifestURL: URL
         let manifestSize: Int64
         let manifestSHA256: String
+        var replacesManifestSHA256: String?
 
         func validate() throws {
             guard manifestURL.scheme == "https", manifestURL.user == nil, manifestURL.password == nil,
@@ -109,6 +110,16 @@ nonisolated struct ANEModelReadiness: Codable, Sendable {
     let osVersion: String
     let applicationBuild: String
     let enabled: Bool
+    var versionedPath: Bool?
+
+    func compiledURL(in directory: URL) -> URL {
+        let name = versionedPath == true ? "FunASRNanoANE-\(manifestHash).mlmodelc" : FunASRNanoANEManifest.compiledName
+        return directory.appendingPathComponent(name, isDirectory: true)
+    }
+
+    func refreshed(enabled: Bool = true) -> Self {
+        Self.make(manifestHash: manifestHash, enabled: enabled, versionedPath: versionedPath)
+    }
 
     static var supported: Bool {
         #if arch(arm64)
@@ -129,11 +140,11 @@ nonisolated struct ANEModelReadiness: Codable, Sendable {
         return read(in: directory) == nil
     }
 
-    static func make(manifestHash: String, enabled: Bool = true) -> Self {
+    static func make(manifestHash: String, enabled: Bool = true, versionedPath: Bool? = nil) -> Self {
         Self(
             schemaVersion: 1, modelID: FunASRNanoANEManifest.modelID, contract: FunASRNanoANEManifest.modelContract,
             manifestHash: manifestHash, osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
-            applicationBuild: currentBuild, enabled: enabled)
+            applicationBuild: currentBuild, enabled: enabled, versionedPath: versionedPath)
     }
 
     static func read(in directory: URL) -> Self? {
@@ -150,7 +161,7 @@ nonisolated struct ANEModelReadiness: Codable, Sendable {
             let receipt = try? JSONDecoder().decode(Self.self, from: data), receipt.schemaVersion == 1,
             receipt.modelID == FunASRNanoANEManifest.modelID, receipt.contract == FunASRNanoANEManifest.modelContract,
             receipt.manifestHash.count == 64, receipt.manifestHash.allSatisfy(\.isHexDigit),
-            (try? directory.appendingPathComponent(FunASRNanoANEManifest.compiledName)
+            (try? receipt.compiledURL(in: directory)
                 .resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
         else { return nil }
         return receipt
