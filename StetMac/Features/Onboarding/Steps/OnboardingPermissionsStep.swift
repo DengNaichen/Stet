@@ -5,135 +5,124 @@
         @ObservedObject var viewModel: OnboardingViewModel
 
         var body: some View {
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 14) {
-                    PermissionGateRow(
-                        title: "Microphone",
-                        description: "Used to receive voice input",
-                        statusText: viewModel.microphoneAccessStatusText,
-                        tint: viewModel.microphoneAccessNeedsAttention ? .orange : .green
-                    ) {
-                        OnboardingActionButton(
-                            titleText: viewModel.microphonePermissionActionTitle,
-                            background: Color.white.opacity(0.08),
-                            foreground: .primary,
-                            strokeColor: Color.primary.opacity(0.25),
-                            minHeight: 44
+            VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 18) {
+                    OnboardingStepHeader(
+                        eyebrow: "Step 2 of 5",
+                        title: "Grant two macOS permissions",
+                        subtitle: "Stet only asks for what dictation requires. Audio never leaves your Mac."
+                    )
+
+                    LinearSectionGroup {
+                        permissionRow(
+                            systemImage: "mic",
+                            title: "Microphone",
+                            subtitle: "Listen while your dictation shortcut is active.",
+                            isGranted: !viewModel.microphoneAccessNeedsAttention
                         ) {
-                            viewModel.resolveMicrophoneAccess()
-                        }
-                    }
-
-                    PermissionGateRow(
-                        title: "Accessibility / Input Control",
-                        description: "Used to insert text into active apps",
-                        statusText: viewModel.autoPasteStatusText,
-                        tint: viewModel.autoPasteAccessNeedsAttention ? .orange : .green
-                    ) {
-                        HStack(spacing: 8) {
-                            OnboardingActionButton(
-                                title: "Allow",
-                                background: Color.white.opacity(0.08),
-                                foreground: .primary,
-                                strokeColor: Color.white.opacity(0.10),
-                                minHeight: 44
+                            OnboardingSecondaryButton(
+                                verbatim: viewModel.microphonePermissionActionTitle,
+                                isCompact: true
                             ) {
-                                viewModel.requestAutoPasteAccess()
-                            }
-
-                            OnboardingActionButton(
-                                title: "Open Settings",
-                                background: Color.white.opacity(0.08),
-                                foreground: .primary,
-                                strokeColor: Color.white.opacity(0.10),
-                                minHeight: 44
-                            ) {
-                                viewModel.openAccessibilitySettings()
+                                viewModel.resolveMicrophoneAccess()
                             }
                         }
-                    }
 
-                    VStack(alignment: .leading, spacing: 14) {
-                        Divider()
-                            .opacity(0.1)
+                        LinearHairlineDivider(insetLeading: 58)
 
-                        HStack(alignment: .top, spacing: 12) {
-                            Image(systemName: "sparkles")
-                                .font(.title2)
-                                .foregroundStyle(
-                                    {
-                                        if #available(macOS 26.0, *) {
-                                            return AppleIntelligenceRewriteService.isAvailable
-                                                ? Color.purple : Color.secondary
-                                        } else {
-                                            return Color.secondary
-                                        }
-                                    }()
-                                )
-                                .frame(width: 32)
+                        permissionRow(
+                            systemImage: "keyboard",
+                            title: "Input Control",
+                            subtitle: "Insert transcribed text directly into the app you're using.",
+                            isGranted: !viewModel.autoPasteAccessNeedsAttention
+                        ) {
+                            HStack(spacing: 6) {
+                                OnboardingSecondaryButton("Allow", isCompact: true) {
+                                    viewModel.requestAutoPasteAccess()
+                                }
 
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Apple Intelligence")
-                                    .font(.headline)
-
-                                if #available(macOS 26.0, *), AppleIntelligenceRewriteService.isAvailable {
-                                    Text("Ready to refine your transcriptions.")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                } else {
-                                    Group {
-                                        if #available(macOS 26.0, *) {
-                                            Text(
-                                                "Unavailable: \(AppleIntelligenceRewriteService.availabilityDescription)"
-                                            )
-                                        } else {
-                                            Text("Unavailable on this version of macOS")
-                                        }
-                                    }
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-
-                                    Button("Open Settings") {
-                                        if let url = URL(
-                                            string: "x-apple.systempreferences:com.apple.AppleIntelligenceSettings")
-                                        {
-                                            NSWorkspace.shared.open(url)
-                                        }
-                                    }
-                                    .buttonStyle(.link)
-                                    .font(.subheadline)
+                                OnboardingSecondaryButton("Open Settings", isCompact: true) {
+                                    viewModel.openAccessibilitySettings()
                                 }
                             }
                         }
                     }
-                    .padding(.top, 4)
 
-                    if viewModel.microphoneAccessNeedsAttention || viewModel.autoPasteAccessNeedsAttention {
-                        MessageBanner(
-                            text: "Permissions not yet detected. Please authorize in System Settings and return.",
-                            role: .warning
+                    if !viewModel.hasRequiredPermissions {
+                        LinearInlineBanner(
+                            systemImage: "info.circle",
+                            tint: MacUI.LinearBrand.accent,
+                            message: "Permissions not yet detected. Authorize both in System Settings and return here."
                         )
                     }
+
+                    Spacer(minLength: 0)
                 }
+                .padding(.horizontal, OnboardingMetrics.contentHorizontalPadding)
+                .padding(.top, 4)
+                .padding(.bottom, 16)
 
-                Spacer()
-
-                HStack {
-                    if viewModel.onboardingMode != nil {
-                        OnboardingBackButton { viewModel.retreatOnboarding() }
+                OnboardingFooterBar {
+                    OnboardingBackButton {
+                        viewModel.retreatOnboarding()
                     }
-
-                    Spacer()
-
-                    OnboardingActionButton(
-                        title: "Continue",
-                        isEnabled: viewModel.hasRequiredPermissions,
-                        minHeight: 48
+                } trailing: {
+                    OnboardingPrimaryButton(
+                        "Continue",
+                        isEnabled: viewModel.hasRequiredPermissions
                     ) {
                         viewModel.continueOnboarding()
                     }
                 }
             }
+        }
+
+        private func permissionRow<Actions: View>(
+            systemImage: String,
+            title: LocalizedStringKey,
+            subtitle: LocalizedStringKey,
+            isGranted: Bool,
+            @ViewBuilder actions: () -> Actions
+        ) -> some View {
+            HStack(spacing: 12) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(isGranted ? MacUI.Foreground.success : MacUI.Foreground.primary)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(isGranted ? MacUI.Foreground.success.opacity(0.11) : MacUI.LinearSurfaces.elevated)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(
+                                isGranted ? MacUI.Foreground.success.opacity(0.25) : MacUI.LinearSurfaces.hairline,
+                                lineWidth: 1
+                            )
+                    )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 13.5, weight: .medium))
+                        .foregroundStyle(MacUI.Foreground.primary)
+
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .foregroundStyle(MacUI.Foreground.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 8)
+
+                if isGranted {
+                    OnboardingStatusPill("Granted")
+                } else {
+                    actions()
+                }
+            }
+            .padding(.horizontal, 15)
+            .padding(.vertical, 13)
+            .frame(minHeight: 58)
         }
     }
 
@@ -142,9 +131,7 @@
             OnboardingPermissionsStep(
                 viewModel: OnboardingViewModel(coordinator: MockOnboardingCoordinator(step: .permissions))
             )
-            .frame(width: 440)
-            .padding()
+            .frame(width: OnboardingMetrics.windowWidth, height: 500)
         }
     #endif
-
 #endif

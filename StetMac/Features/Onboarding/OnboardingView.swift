@@ -1,242 +1,226 @@
 #if os(macOS)
+    import StetVisuals
     import SwiftUI
 
     struct OnboardingView: View {
         @StateObject private var viewModel: OnboardingViewModel
         @StateObject private var appearanceViewModel: MacAppearanceSettingsViewModel
+        @State private var showWelcome: Bool
 
         init(appModel: any MacPermissionsCoordinating) {
-            _viewModel = StateObject(wrappedValue: OnboardingViewModel(coordinator: appModel))
+            let vm = OnboardingViewModel(coordinator: appModel)
+            _viewModel = StateObject(wrappedValue: vm)
             _appearanceViewModel = StateObject(wrappedValue: .shared)
+            _showWelcome = State(initialValue: appModel.onboardingStep == .language)
         }
 
-        init(viewModel: OnboardingViewModel) {
+        init(viewModel: OnboardingViewModel, showWelcome: Bool = false) {
             _viewModel = StateObject(wrappedValue: viewModel)
             _appearanceViewModel = StateObject(wrappedValue: .shared)
+            _showWelcome = State(initialValue: showWelcome)
         }
 
-        // MARK: - Layout constants
-        // Outer window: 1280 × 720  (16:9)
-        private let windowWidth: CGFloat = 1280
-        private let windowHeight: CGFloat = 720
-        // Inner card:   960 × 540  (16:9)
-        private let cardWidth: CGFloat = 960
-        private let cardHeight: CGFloat = 540
-        // Golden ratio split (φ ≈ 1.618): left ≈ 367, right ≈ 592
-        private let φ: CGFloat = 1.618
-        private var rightPanelWidth: CGFloat { (cardWidth * φ / (1 + φ)).rounded() }
+        private var activeTheme: MacDictationVisualTheme {
+            if viewModel.onboardingStep == .appearance {
+                return viewModel.onboardingPreviewTheme
+            }
+            return appearanceViewModel.shaderTheme
+        }
+
+        private var activeShaderTheme: MacDictationShaderTheme {
+            MacDictationShaderTheme(rawValue: activeTheme.rawValue) ?? .watercolor
+        }
+
+        private var isShowingWelcome: Bool {
+            showWelcome && viewModel.onboardingStep == .language
+        }
 
         var body: some View {
             ZStack {
-                onboardingBackground
-                    .ignoresSafeArea()
+                ambientBackground
 
-                // ── Floating card ─────────────────────────────────────────
-                HStack(spacing: 0) {
-                    leftPanel
+                VStack(spacing: 0) {
+                    headerChrome
 
-                    separator
-
-                    rightPanel
-                        .frame(width: rightPanelWidth, height: cardHeight)
-                        .background(Color(nsColor: .controlBackgroundColor).opacity(0.08))
-                }
-                .frame(width: cardWidth, height: cardHeight)
-                .background(
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.80))
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .strokeBorder(Color.black.opacity(0.08), lineWidth: 1)
-                )
-                .shadow(color: Color.black.opacity(0.18), radius: 40, x: 0, y: 16)
-                // ── Progress strip on top border ──────────────────────────
-                .overlay(alignment: .top) {
-                    progressStrip
-                        .offset(y: -16)  // straddles the top edge of the card
-                }
-            }
-            .frame(width: windowWidth, height: windowHeight)
-        }
-
-        @ViewBuilder
-        private var onboardingBackground: some View {
-            switch viewModel.onboardingStep {
-            case .language:
-                Image("onboardingEggBackground")
-                    .resizable()
-                    .scaledToFill()
-            case .permissions:
-                Image("onboardingPermissionsBackground")
-                    .resizable()
-                    .scaledToFill()
-            case .shortcut:
-                Image("onboardingShortcutBackground")
-                    .resizable()
-                    .scaledToFill()
-            case .firstSuccess:
-                Image("onboardingFirstSuccessBackground")
-                    .resizable()
-                    .scaledToFill()
-            case .appearance:
-                Image("onboardingAppearanceBackground")
-                    .resizable()
-                    .scaledToFill()
-            default:
-                Color.white
-            }
-        }
-
-        private var leftPanel: some View {
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(titleText)
-                        .font(.system(size: 28, weight: .semibold, design: .rounded))
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Text(subtitleText)
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                stepContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
-            .padding(28)
-            .frame(width: cardWidth - rightPanelWidth - 1, height: cardHeight, alignment: .topLeading)
-            .background(
-                LinearGradient(
-                    colors: [
-                        Color(nsColor: .controlBackgroundColor).opacity(0.90),
-                        Color(nsColor: .windowBackgroundColor).opacity(0.94),
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-        }
-
-        private var separator: some View {
-            LinearGradient(
-                colors: [
-                    Color.white.opacity(0.02),
-                    Color.white.opacity(0.18),
-                    Color.white.opacity(0.02),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(width: 1)
-        }
-
-        private var progressStrip: some View {
-            HStack(spacing: 6) {
-                ForEach(1...5, id: \.self) { index in
-                    Capsule(style: .continuous)
-                        .fill(
-                            index <= viewModel.onboardingStep.progressIndex
-                                ? Color.accentColor : Color.black.opacity(0.12)
-                        )
-                        .frame(width: 28, height: 4)
+                    stepContent
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .animation(
-                            .spring(response: 0.4, dampingFraction: 0.7), value: viewModel.onboardingStep.progressIndex)
+                            .easeOut(duration: 0.22),
+                            value: isShowingWelcome ? 0 : viewModel.onboardingStep.rawValue
+                        )
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(.white)
-                    .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 2)
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(Color.black.opacity(0.06), lineWidth: 1)
-            )
+            .frame(width: OnboardingMetrics.windowWidth, height: OnboardingMetrics.windowHeight)
+            .background(MacUI.LinearSurfaces.detailCanvas)
+            .onAppear {
+                appearanceViewModel.load()
+                viewModel.selectOnboardingAppearanceTheme(appearanceViewModel.shaderTheme)
+            }
+        }
+
+        private var ambientBackground: some View {
+            let swatches = OnboardingPalette.themeSwatches(for: activeTheme)
+            let primaryTint = swatches.last ?? MacUI.LinearBrand.accent
+            let secondaryTint = swatches.first ?? MacUI.LinearBrand.accent
+
+            return ZStack {
+                MacUI.LinearSurfaces.detailCanvas
+
+                RadialGradient(
+                    colors: [primaryTint.opacity(0.11), .clear],
+                    center: UnitPoint(x: 0.5, y: 0.08),
+                    startRadius: 10,
+                    endRadius: 270
+                )
+
+                RadialGradient(
+                    colors: [secondaryTint.opacity(0.10), .clear],
+                    center: UnitPoint(x: 0.78, y: 0.16),
+                    startRadius: 10,
+                    endRadius: 210
+                )
+            }
+            .ignoresSafeArea()
+            .animation(.easeInOut(duration: 0.4), value: activeTheme)
+        }
+
+        private var headerChrome: some View {
+            HStack {
+                Spacer()
+
+                if !isShowingWelcome && viewModel.onboardingStep != .done {
+                    HStack(spacing: 6) {
+                        ForEach(1...5, id: \.self) { index in
+                            let current = viewModel.onboardingStep.progressIndex
+                            Capsule(style: .continuous)
+                                .fill(progressDotColor(for: index, current: current))
+                                .frame(width: index == current ? 30 : 18, height: 4)
+                                .animation(
+                                    .spring(response: 0.34, dampingFraction: 0.8),
+                                    value: current
+                                )
+                        }
+                    }
+                    .transition(.opacity)
+                }
+
+                Spacer()
+            }
+            .frame(height: OnboardingMetrics.headerHeight)
+        }
+
+        private func progressDotColor(for index: Int, current: Int) -> Color {
+            if index == current {
+                return MacUI.LinearBrand.accent
+            }
+            if index < current {
+                return MacUI.Foreground.primary.opacity(0.42)
+            }
+            return MacUI.LinearSurfaces.hairlineStrong
         }
 
         @ViewBuilder
         private var stepContent: some View {
-            switch viewModel.onboardingStep {
-            case .language:
-                OnboardingLanguageStep(viewModel: viewModel)
-            case .permissions:
-                OnboardingPermissionsStep(viewModel: viewModel)
-            case .shortcut:
-                OnboardingShortcutStep(viewModel: viewModel)
-            case .firstSuccess:
-                OnboardingFirstSuccessStep(viewModel: viewModel)
-            case .appearance:
-                OnboardingAppearanceStep(
-                    viewModel: viewModel,
-                    appearanceViewModel: appearanceViewModel
-                )
-            case .done:
-                OnboardingDoneStep(viewModel: viewModel)
+            if isShowingWelcome {
+                welcomeStep
+            } else {
+                switch viewModel.onboardingStep {
+                case .language:
+                    OnboardingLanguageStep(
+                        viewModel: viewModel,
+                        onBackToWelcome: {
+                            withAnimation(.easeOut(duration: 0.22)) {
+                                showWelcome = true
+                            }
+                        }
+                    )
+                case .permissions:
+                    OnboardingPermissionsStep(viewModel: viewModel)
+                case .shortcut:
+                    OnboardingShortcutStep(viewModel: viewModel)
+                case .firstSuccess:
+                    OnboardingFirstSuccessStep(viewModel: viewModel)
+                case .appearance:
+                    OnboardingAppearanceStep(
+                        viewModel: viewModel,
+                        appearanceViewModel: appearanceViewModel
+                    )
+                case .done:
+                    OnboardingDoneStep(
+                        viewModel: viewModel,
+                        theme: activeShaderTheme
+                    )
+                }
             }
         }
 
-        @ViewBuilder
-        private var rightPanel: some View {
-            switch viewModel.onboardingStep {
-            case .language:
-                OnboardingVisualPanel(
-                    step: viewModel.onboardingStep,
-                    viewModel: viewModel,
-                    appearanceViewModel: appearanceViewModel
-                )
-            case .permissions, .shortcut, .firstSuccess, .appearance, .done:
-                OnboardingVisualPanel(
-                    step: viewModel.onboardingStep,
-                    viewModel: viewModel,
-                    appearanceViewModel: appearanceViewModel,
-                    onAppearanceThemeChange: { theme in
-                        viewModel.selectOnboardingAppearanceTheme(theme)
-                    },
-                    onAppearanceThemeApply: { theme in
-                        viewModel.selectOnboardingAppearanceTheme(theme)
-                        viewModel.applyOnboardingAppearanceTheme()
+        private var welcomeStep: some View {
+            VStack(spacing: 0) {
+                VStack(spacing: 0) {
+                    Spacer(minLength: 8)
+
+                    ZStack {
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [
+                                        (OnboardingPalette.themeSwatches(for: activeTheme).last
+                                            ?? MacUI.LinearBrand.accent).opacity(0.24),
+                                        .clear,
+                                    ],
+                                    center: .center,
+                                    startRadius: 8,
+                                    endRadius: 68
+                                )
+                            )
+                            .frame(width: 136, height: 136)
+
+                        MacDictationCapsulePreviewView(
+                            theme: activeShaderTheme,
+                            scale: 1.48
+                        )
+                        .shadow(color: Color.black.opacity(0.14), radius: 22, x: 0, y: 10)
                     }
-                )
-            }
-        }
+                    .padding(.bottom, 22)
 
-        private var titleText: LocalizedStringKey {
-            switch viewModel.onboardingStep {
-            case .language:
-                return "Get started"
-            case .permissions:
-                return "One more step to get started"
-            case .shortcut:
-                return "Set your speaking shortcut"
-            case .firstSuccess:
-                return "Try saying something"
-            case .appearance:
-                return "Choose your theme"
-            case .done:
-                return "You're all set"
-            }
-        }
+                    Text("Speak naturally.\nType effortlessly.")
+                        .font(.system(size: 26, weight: .semibold))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(MacUI.Foreground.primary)
+                        .lineSpacing(2)
 
-        private var subtitleText: LocalizedStringKey {
-            switch viewModel.onboardingStep {
-            case .language:
-                return "Choose your languages to get started."
-            case .permissions:
-                return
-                    "Grant microphone and input control permissions so Stet can record and type text back into your apps."
-            case .shortcut:
-                return "Choose the shortcut you want to use for dictation."
-            case .firstSuccess:
-                return
-                    "Press the shortcut and speak naturally. We'll preserve your intent while performing necessary cleanup."
-            case .appearance:
-                return "Browse themes on the right, then apply and finish."
-            case .done:
-                return "Press your shortcut and start speaking anywhere you can type text."
+                    Text(
+                        "Private, on-device voice dictation that works in any macOS app — press one shortcut, speak, and watch clean text appear."
+                    )
+                    .font(.system(size: 13.5))
+                    .foregroundStyle(MacUI.Foreground.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(2.5)
+                    .frame(maxWidth: 390)
+                    .padding(.top, 10)
+
+                    HStack(spacing: 8) {
+                        OnboardingFeaturePill(title: "On-device", systemImage: "lock.shield")
+                        OnboardingFeaturePill(title: "Local engine", systemImage: "bolt")
+                        OnboardingFeaturePill(title: "Any text field", systemImage: "text.cursor")
+                    }
+                    .padding(.top, 22)
+
+                    Spacer(minLength: 12)
+                }
+                .padding(.horizontal, OnboardingMetrics.contentHorizontalPadding)
+
+                OnboardingFooterBar {
+                    Text("Takes about 1 minute")
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(MacUI.LinearSurfaces.mutedInk)
+                } trailing: {
+                    OnboardingPrimaryButton("Get Started") {
+                        withAnimation(.easeOut(duration: 0.22)) {
+                            showWelcome = false
+                        }
+                    }
+                }
             }
         }
     }
@@ -245,6 +229,7 @@
         @MainActor
         private func makeOnboardingPreview(
             step: MacOnboardingStep,
+            showWelcome: Bool = false,
             mode: MacOnboardingMode? = nil
         ) -> OnboardingView {
             let coordinator = MockOnboardingCoordinator(step: step, mode: mode)
@@ -253,11 +238,11 @@
                 credentialValidationService: PreviewOnboardingAPIKeyValidationService()
             )
 
-            return OnboardingView(viewModel: viewModel)
+            return OnboardingView(viewModel: viewModel, showWelcome: showWelcome)
         }
 
         #Preview("Interactive Flow") {
-            makeOnboardingPreview(step: .language)
+            makeOnboardingPreview(step: .language, showWelcome: true)
         }
 
         #Preview("Language") {
@@ -276,9 +261,12 @@
             makeOnboardingPreview(step: .firstSuccess)
         }
 
+        #Preview("Appearance") {
+            makeOnboardingPreview(step: .appearance)
+        }
+
         #Preview("Done") {
             makeOnboardingPreview(step: .done)
         }
     #endif
-
 #endif
