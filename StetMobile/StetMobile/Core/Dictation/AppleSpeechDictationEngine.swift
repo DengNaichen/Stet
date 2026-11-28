@@ -51,18 +51,30 @@ final class AppleSpeechDictationEngine: @MainActor ASREngine, MobileASREngineFai
         startupCancelled = false
         defer { isStarting = false }
 
-        let locale = try await settingsStore.prepareLocale()
-        let transcriber = DictationTranscriber(locale: locale, preset: .progressiveLongDictation)
-        guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber]) else {
+        let target = try await settingsStore.prepareTarget()
+        let activeTranscriber: ActiveTranscriber
+        let modules: [any SpeechModule]
+        switch target.backend {
+        case .speechTranscriber:
+            let transcriber = SpeechTranscriber(locale: target.locale, preset: .progressiveTranscription)
+            activeTranscriber = .speech(transcriber)
+            modules = [transcriber]
+        case .dictationTranscriber:
+            let transcriber = DictationTranscriber(locale: target.locale, preset: .progressiveLongDictation)
+            activeTranscriber = .dictation(transcriber)
+            modules = [transcriber]
+        }
+
+        guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: modules) else {
             throw EngineError.audioFormatUnavailable
         }
         let conversion = try AudioConversion(outputFormat: format)
-        let analyzer = SpeechAnalyzer(modules: [transcriber])
+        let analyzer = SpeechAnalyzer(modules: modules)
         let inputs = AsyncStream<AnalyzerInput>.makeStream(bufferingPolicy: .bufferingOldest(128))
         let frames = AsyncThrowingStream<ASRAudioFrame, any Error>.makeStream(bufferingPolicy: .bufferingOldest(128))
 
         do {
-            if dictionaryModel.loadIsEnabled() {
+            if case .dictation = activeTranscriber, dictionaryModel.loadIsEnabled() {
                 let hotwords = Array(dictionaryModel.loadEntries().prefix(100))
                 if !hotwords.isEmpty {
                     let context = AnalysisContext()
@@ -88,7 +100,7 @@ final class AppleSpeechDictationEngine: @MainActor ASREngine, MobileASREngineFai
             try checkStartup()
 
             let token = UUID()
-            let results = consumeResults(transcriber, sessionId: sessionId, token: token)
+            let results = consumeResults(activeTranscriber, sessionId: sessionId, token: token)
             let drain = Task { [weak self] in
                 do {
                     var sampleCount = 0
@@ -186,26 +198,52 @@ final class AppleSpeechDictationEngine: @MainActor ASREngine, MobileASREngineFai
         guard !startupCancelled else { throw CancellationError() }
     }
 
+    private enum ActiveTranscriber {
+        case speech(SpeechTranscriber)
+        case dictation(DictationTranscriber)
+    }
+
     private func consumeResults(
-        _ transcriber: DictationTranscriber,
+        _ transcriber: ActiveTranscriber,
         sessionId: String,
         token: UUID
     ) -> Task<String, any Error> {
         Task { [weak self] in
             var finalizedText = ""
             do {
-                for try await result in transcriber.results {
-                    try Task.checkCancellation()
-                    guard let self, self.recording?.token == token else { throw CancellationError() }
-                    let text = String(result.text.characters)
-                    if result.isFinal {
-                        finalizedText += text
+                switch transcriber {
+                case .speech(let speechTranscriber):
+                    for try await result in speechTranscriber.results {
+                        try Task.checkCancellation()
+                        guard let self, self.recording?.token == token else { throw CancellationError() }
+                        let text = String(result.text.characters)
+                        if result.isFinal {
+                            finalizedText += text
+                        }
+                        self.resultContinuation.yield(
+                            ASRResult(
+                                sessionId: sessionId,
+                                text: result.isFinal ? finalizedText : finalizedText + text,
+                                isFinal: false
+                            )
+                        )
                     }
-                    self.resultContinuation.yield(
-                        ASRResult(
-                            sessionId: sessionId, text: result.isFinal ? finalizedText : finalizedText + text,
-                            isFinal: false)
-                    )
+                case .dictation(let dictationTranscriber):
+                    for try await result in dictationTranscriber.results {
+                        try Task.checkCancellation()
+                        guard let self, self.recording?.token == token else { throw CancellationError() }
+                        let text = String(result.text.characters)
+                        if result.isFinal {
+                            finalizedText += text
+                        }
+                        self.resultContinuation.yield(
+                            ASRResult(
+                                sessionId: sessionId,
+                                text: result.isFinal ? finalizedText : finalizedText + text,
+                                isFinal: false
+                            )
+                        )
+                    }
                 }
                 if self?.recording?.isStopping == false, !Task.isCancelled {
                     throw EngineError.analysisEnded

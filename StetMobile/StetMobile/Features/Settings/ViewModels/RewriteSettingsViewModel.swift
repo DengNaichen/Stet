@@ -63,6 +63,15 @@ final class RewriteSettingsViewModel: ObservableObject {
         }
     }
 
+    var selectedBackend: SpeechTranscriberBackend {
+        get { speechSettingsStore.selectedBackend }
+        set {
+            guard speechSettingsStore.selectedBackend != newValue else { return }
+            speechSettingsStore.selectedBackend = newValue
+            Task { await refreshSpeechAssetStatus() }
+        }
+    }
+
     var speechAssetStatus: SpeechAssetStatus {
         speechSettingsStore.assetStatus
     }

@@ -29,6 +29,19 @@ struct RewriteSettingsView: View {
         Section {
             Picker(
                 selection: Binding(
+                    get: { viewModel.selectedBackend },
+                    set: { viewModel.selectedBackend = $0 }
+                )
+            ) {
+                ForEach(SpeechTranscriberBackend.allCases) { backend in
+                    Text(backend.displayName).tag(backend)
+                }
+            } label: {
+                settingsLabel("Engine", systemImage: "cpu.fill", tint: .orange)
+            }
+
+            Picker(
+                selection: Binding(
                     get: { viewModel.selectedLanguage },
                     set: { viewModel.selectedLanguage = $0 }
                 )
@@ -54,9 +67,7 @@ struct RewriteSettingsView: View {
         } header: {
             Text("On-Device Speech")
         } footer: {
-            Text(
-                "Transcribed privately on your iPhone using Apple Speech. Your Dictionary words are automatically used as recognition hints."
-            )
+            Text(viewModel.selectedBackend.subtitle)
         }
     }
 
