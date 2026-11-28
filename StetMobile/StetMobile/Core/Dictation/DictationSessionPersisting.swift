@@ -2,6 +2,7 @@ import Foundation
 
 protocol DictationSessionPersisting: AnyObject {
     func heartbeat()
+    func clearHeartbeat()
     func getSession() -> DictationSession?
 
     @discardableResult

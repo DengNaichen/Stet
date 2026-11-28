@@ -33,6 +33,67 @@ struct RewriteSettingsViewModelTests {
     }
 
     @MainActor
+    @Test func microphoneKeepAliveSelectionPersistsAndNotifiesViewModel() {
+        let suiteName = "MicrophoneKeepAliveSettingsTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let speechStore = SpeechRecognitionSettingsStore(defaults: defaults)
+        #expect(speechStore.microphoneKeepAliveDuration == .twoHours)
+
+        let secretStore = InMemoryDictationSecretStore()
+        let rewriteStore = RewriteSettingsStore(defaults: defaults, secretStore: secretStore)
+        let viewModel = RewriteSettingsViewModel(
+            settingsStore: rewriteStore,
+            speechSettingsStore: speechStore,
+            validationService: StubCredentialValidator()
+        )
+
+        var notifiedDurations: [MicrophoneKeepAliveDuration] = []
+        viewModel.onMicrophoneKeepAliveChanged = { notifiedDurations.append($0) }
+
+        viewModel.microphoneKeepAliveDuration = .fiveMinutes
+        #expect(notifiedDurations == [.fiveMinutes])
+        #expect(MicrophoneKeepAliveDuration.fiveMinutes.timeoutDuration == .seconds(300))
+
+        viewModel.microphoneKeepAliveDuration = .never
+        #expect(notifiedDurations == [.fiveMinutes, .never])
+        #expect(MicrophoneKeepAliveDuration.never.timeoutDuration == nil)
+
+        let reloadedStore = SpeechRecognitionSettingsStore(defaults: defaults)
+        #expect(reloadedStore.microphoneKeepAliveDuration == .never)
+    }
+
+    @MainActor
+    @Test func rewriteSummaryReflectsEnabledStateAndModelSelection() throws {
+        let suiteName = "RewriteSummaryTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let settingsStore = RewriteSettingsStore(
+            defaults: defaults,
+            secretStore: InMemoryDictationSecretStore()
+        )
+        let viewModel = RewriteSettingsViewModel(
+            settingsStore: settingsStore,
+            speechSettingsStore: SpeechRecognitionSettingsStore(defaults: defaults),
+            validationService: StubCredentialValidator()
+        )
+
+        settingsStore.isRewriteEnabled = false
+        #expect(viewModel.rewriteSummary == "Off")
+
+        settingsStore.isRewriteEnabled = true
+        settingsStore.selectedProvider = .openAI
+        settingsStore.selectedModel = RewriteModel.default(for: .openAI)
+        #expect(viewModel.rewriteSummary == settingsStore.selectedModel.displayName)
+
+        settingsStore.selectedProvider = .custom
+        settingsStore.customModelID = "  my-local-model  "
+        #expect(viewModel.rewriteSummary == "my-local-model")
+    }
+
+    @MainActor
     @Test func retiredWhisperModelIsRemoved() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("StetRetiredModelCleanupTests", isDirectory: true)

@@ -52,6 +52,10 @@ public protocol ASREngine: AnyObject {
     /// Rebuild audio resources after the system media services process resets.
     func resetAudio() async throws
 
+    /// Release long-lived audio resources while idle without terminating the engine.
+    /// Calling `prepare()` or `start(sessionId:)` later re-initializes audio capture.
+    func suspendAudio()
+
     /// Fully release resources: stop audio engine, finish result stream, drop models.
     func teardown()
 }
@@ -60,4 +64,6 @@ public extension ASREngine {
     func resetAudio() async throws {
         try await prepare()
     }
+
+    func suspendAudio() {}
 }

@@ -192,7 +192,7 @@ struct ContentView: View {
 
     private var statusText: String {
         switch viewModel.state {
-        case .idle, .loading, .starting, .recording, .processing, .rewriting:
+        case .idle, .standby, .loading, .starting, .recording, .processing, .rewriting:
             return viewModel.partialStatus
         case .failed(let message):
             return message
@@ -234,6 +234,7 @@ struct ContentView: View {
         }
 
         func recoverAudioSession() {}
+        func updateIdleStandbyTimeout(_ _: Duration?) {}
         func synchronizeKeyboardCommands() {}
         func startRecording(sessionId _: String) {}
         func stopRecording(sessionId _: String?) {}

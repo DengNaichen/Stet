@@ -17,6 +17,7 @@ final class RewriteSettingsViewModel: ObservableObject {
     @Published private(set) var validationState: ValidationState = .idle
 
     var onSpeechAssetBecameReady: (() -> Void)?
+    var onMicrophoneKeepAliveChanged: ((MicrophoneKeepAliveDuration) -> Void)?
 
     enum ValidationState: Equatable {
         case idle
@@ -77,6 +78,24 @@ final class RewriteSettingsViewModel: ObservableObject {
             speechSettingsStore.selectedBackend = newValue
             Task { await refreshSpeechAssetStatus() }
         }
+    }
+
+    var microphoneKeepAliveDuration: MicrophoneKeepAliveDuration {
+        get { speechSettingsStore.microphoneKeepAliveDuration }
+        set {
+            guard speechSettingsStore.microphoneKeepAliveDuration != newValue else { return }
+            speechSettingsStore.microphoneKeepAliveDuration = newValue
+            onMicrophoneKeepAliveChanged?(newValue)
+        }
+    }
+
+    var rewriteSummary: String {
+        guard settingsStore.isRewriteEnabled else { return "Off" }
+        if settingsStore.selectedProvider == .custom {
+            let trimmed = settingsStore.customModelID.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? settingsStore.selectedProvider.displayName : trimmed
+        }
+        return settingsStore.selectedModel.displayName
     }
 
     var speechAssetStatus: SpeechAssetStatus {

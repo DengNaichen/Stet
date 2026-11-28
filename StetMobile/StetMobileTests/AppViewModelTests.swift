@@ -95,6 +95,37 @@ struct AppViewModelTests {
     }
 
     @Test
+    func standbyEndsLiveActivityAndDirectWakeRestoresIt() async {
+        let coordinator = RoutingDictationCoordinator()
+        let liveActivityManager = RecordingMicrophoneLiveActivityManager()
+        let subject = SenseVoiceViewModel(
+            coordinator: coordinator,
+            liveActivityManager: liveActivityManager
+        )
+        var states = subject.$state.values.makeAsyncIterator()
+        var liveActivityCalls = liveActivityManager.calls.makeAsyncIterator()
+        _ = await states.next()
+        subject.start()
+
+        coordinator.emit(.ready(engineName: "Apple Speech"))
+        #expect(await states.next() == .idle)
+        #expect(await liveActivityCalls.next() == .ensureActive)
+
+        coordinator.emit(.standby)
+        #expect(await states.next() == .standby)
+        #expect(subject.canToggleRecording)
+        #expect(await liveActivityCalls.next() == .endAll)
+        #expect(liveActivityManager.endAllCallCount == 1)
+
+        coordinator.emit(.starting(sessionId: "session-wake"))
+        #expect(await states.next() == .starting)
+        #expect(await liveActivityCalls.next() == .ensureActive)
+        #expect(liveActivityManager.ensureActiveCallCount == 2)
+
+        await coordinator.shutdown()
+    }
+
+    @Test
     func handledLiveActivityCreationFailureDoesNotChangeReadyState() async {
         let coordinator = RoutingDictationCoordinator()
         let liveActivityManager = SimulatedCreationFailureLiveActivityManager()
@@ -225,6 +256,7 @@ private final class RoutingDictationCoordinator: DictationSessionCoordinating {
 
     func start() {}
     func recoverAudioSession() {}
+    func updateIdleStandbyTimeout(_ _: Duration?) {}
     func synchronizeKeyboardCommands() {
         synchronizeCallCount += 1
     }

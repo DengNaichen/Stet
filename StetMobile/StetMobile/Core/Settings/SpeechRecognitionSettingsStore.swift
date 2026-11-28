@@ -53,6 +53,53 @@ nonisolated enum SpeechTranscriberBackend: String, CaseIterable, Identifiable, S
     }
 }
 
+nonisolated enum MicrophoneKeepAliveDuration: String, CaseIterable, Identifiable, Sendable {
+    case fiveMinutes = "5m"
+    case thirtyMinutes = "30m"
+    case twoHours = "2h"
+    case never = "never"
+
+    var id: String { rawValue }
+
+    /// Idle duration before releasing the background microphone session.
+    /// `nil` keeps standby active indefinitely.
+    var timeoutDuration: Duration? {
+        switch self {
+        case .fiveMinutes: .seconds(5 * 60)
+        case .thirtyMinutes: .seconds(30 * 60)
+        case .twoHours: .seconds(2 * 60 * 60)
+        case .never: nil
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .fiveMinutes: "5 Minutes"
+        case .thirtyMinutes: "30 Minutes"
+        case .twoHours: "2 Hours"
+        case .never: "Never"
+        }
+    }
+
+    var shortLabel: String {
+        switch self {
+        case .fiveMinutes: "5 min"
+        case .thirtyMinutes: "30 min"
+        case .twoHours: "2 hr"
+        case .never: "Never"
+        }
+    }
+
+    var footerDescription: String {
+        switch self {
+        case .never:
+            "Keeps the microphone in standby indefinitely for instant keyboard dictation without switching apps."
+        case .fiveMinutes, .thirtyMinutes, .twoHours:
+            "Releases the background microphone and ends the Live Activity after \(displayName.lowercased()) of inactivity. The keyboard will briefly open Stet to wake the mic on your next dictation."
+        }
+    }
+}
+
 nonisolated enum SpeechAssetStatus: Equatable, Sendable {
     case checking
     case installed
@@ -94,10 +141,18 @@ final class SpeechRecognitionSettingsStore: ObservableObject {
         }
     }
 
+    @Published var microphoneKeepAliveDuration: MicrophoneKeepAliveDuration {
+        didSet {
+            guard microphoneKeepAliveDuration != oldValue else { return }
+            defaults.set(microphoneKeepAliveDuration.rawValue, forKey: Self.microphoneKeepAliveKey)
+        }
+    }
+
     @Published private(set) var assetStatus: SpeechAssetStatus = .checking
 
     private static let languageKey = "dictation.speechRecognitionLanguage"
     private static let backendKey = "dictation.speechTranscriberBackend"
+    private static let microphoneKeepAliveKey = "dictation.microphoneKeepAliveDuration"
     private let defaults: UserDefaults
     private var statusCheckID = UUID()
     private var installations: [AssetKey: Task<Locale, any Error>] = [:]
@@ -110,6 +165,10 @@ final class SpeechRecognitionSettingsStore: ObservableObject {
         selectedBackend =
             defaults.string(forKey: Self.backendKey).flatMap(SpeechTranscriberBackend.init(rawValue:))
             ?? .speechTranscriber
+        microphoneKeepAliveDuration =
+            defaults.string(forKey: Self.microphoneKeepAliveKey)
+            .flatMap(MicrophoneKeepAliveDuration.init(rawValue:))
+            ?? .twoHours
     }
 
     func refreshAssetStatus() async {

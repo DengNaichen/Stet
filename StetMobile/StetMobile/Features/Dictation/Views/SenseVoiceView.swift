@@ -271,11 +271,11 @@ struct SenseVoiceView: View {
                     .background(Color(.tertiarySystemFill), in: Circle())
 
                 VStack(spacing: 6) {
-                    Text(viewModel.state == .recording ? "Listening…" : "Ready to Dictate")
+                    Text(emptyHeadlineText)
                         .font(.headline)
                         .foregroundStyle(.primary)
 
-                    Text("Tap the orb below to test here, or switch to the Stet keyboard in any app.")
+                    Text(emptySubtitleText)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -419,7 +419,7 @@ struct SenseVoiceView: View {
         switch viewModel.state {
         case .recording, .processing, .rewriting:
             true
-        case .loading, .idle, .starting, .failed:
+        case .loading, .idle, .standby, .starting, .failed:
             false
         }
     }
@@ -428,9 +428,28 @@ struct SenseVoiceView: View {
         switch viewModel.state {
         case .processing, .rewriting:
             true
-        case .loading, .idle, .starting, .recording, .failed:
+        case .loading, .idle, .standby, .starting, .recording, .failed:
             false
         }
+    }
+
+    private var emptyHeadlineText: String {
+        switch viewModel.state {
+        case .recording:
+            "Listening…"
+        case .standby:
+            "Mic Paused"
+        default:
+            "Ready to Dictate"
+        }
+    }
+
+    private var emptySubtitleText: String {
+        if viewModel.state == .standby {
+            return
+                "Microphone standby timed out to save battery. Tap the orb below or dictate from the Stet keyboard to wake."
+        }
+        return "Tap the orb below to test here, or switch to the Stet keyboard in any app."
     }
 
     private var statusHeadline: String {
@@ -439,6 +458,8 @@ struct SenseVoiceView: View {
             return "Preparing Apple Speech…"
         case .idle:
             return "On-Device Ready · Mic Standby"
+        case .standby:
+            return "Mic Paused · Tap to Wake"
         case .starting:
             return "Starting Microphone…"
         case .recording:
@@ -465,6 +486,8 @@ struct SenseVoiceView: View {
             return "Warming up audio session…"
         case .idle:
             return "Tap to speak"
+        case .standby:
+            return "Tap to wake & speak"
         case .starting:
             return "Opening microphone…"
         case .recording:
@@ -482,6 +505,8 @@ struct SenseVoiceView: View {
         switch viewModel.state {
         case .idle:
             return .green
+        case .standby:
+            return Color(.systemGray)
         case .loading, .starting:
             return .orange
         case .recording:

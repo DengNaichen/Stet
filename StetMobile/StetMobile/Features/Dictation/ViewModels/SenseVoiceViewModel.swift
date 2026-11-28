@@ -7,6 +7,7 @@ final class SenseVoiceViewModel: ObservableObject {
     enum State: Equatable {
         case loading
         case idle
+        case standby
         case starting
         case recording
         case processing
@@ -49,7 +50,7 @@ final class SenseVoiceViewModel: ObservableObject {
 
     var canToggleRecording: Bool {
         switch state {
-        case .idle, .starting, .recording:
+        case .idle, .standby, .starting, .recording:
             true
         default:
             false
@@ -71,6 +72,10 @@ final class SenseVoiceViewModel: ObservableObject {
 
     func ensureMicAlive() {
         coordinator.recoverAudioSession()
+    }
+
+    func updateMicrophoneKeepAlive(_ duration: MicrophoneKeepAliveDuration) {
+        coordinator.updateIdleStandbyTimeout(duration.timeoutDuration)
     }
 
     func toggleRecording() {
@@ -105,10 +110,20 @@ final class SenseVoiceViewModel: ObservableObject {
             partialStatus = "Ready. Hold mic on keyboard to dictate."
             await liveActivityManager.ensureActive()
 
+        case .standby:
+            stopVolumeSampling(resetLevel: true)
+            state = .standby
+            partialStatus = "Microphone paused to save battery."
+            await liveActivityManager.endAll()
+
         case .starting:
+            let wasStandby = state == .standby
             stopVolumeSampling(resetLevel: true)
             state = .starting
             partialStatus = "Starting microphone..."
+            if wasStandby {
+                await liveActivityManager.ensureActive()
+            }
 
         case .recording:
             state = .recording

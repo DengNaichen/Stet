@@ -179,6 +179,11 @@ final class AppleSpeechDictationEngine: @MainActor ASREngine, MobileASREngineFai
         try await audioCapture.reset()
     }
 
+    func suspendAudio() {
+        guard !isTornDown, !isStarting, recording == nil else { return }
+        audioCapture.teardown()
+    }
+
     func teardown() {
         guard !isTornDown else { return }
         isTornDown = true
