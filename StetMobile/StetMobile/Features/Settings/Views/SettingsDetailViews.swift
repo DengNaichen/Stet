@@ -227,15 +227,81 @@ struct AIRewriteSettingsDetailView: View {
                 TextField("Model ID", text: $viewModel.settingsStore.customModelID)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-            } else if !viewModel.availableModels.isEmpty {
-                Picker(selection: Binding(get: { viewModel.selectedModelID }, set: viewModel.selectModel)) {
-                    ForEach(viewModel.availableModels) { model in
-                        Text(model.displayName).tag(model.id)
+            } else {
+                if !viewModel.availableModels.isEmpty {
+                    Picker(selection: Binding(get: { viewModel.selectedModelID }, set: viewModel.selectModel)) {
+                        ForEach(viewModel.availableModels) { model in
+                            Text(model.displayName).tag(model.id)
+                        }
+                    } label: {
+                        SettingsRowLabel("Model", systemImage: "slider.horizontal.3")
                     }
-                } label: {
-                    SettingsRowLabel("Model", systemImage: "slider.horizontal.3")
                 }
+
+                if !viewModel.availableThinkingLevels.isEmpty {
+                    Picker(selection: $viewModel.selectedThinkingLevel) {
+                        ForEach(viewModel.availableThinkingLevels, id: \.self) { level in
+                            Text(level.displayName).tag(level)
+                        }
+                    } label: {
+                        SettingsRowLabel("Thinking Level", systemImage: "brain")
+                    }
+                }
+
+                catalogUpdateRow
             }
+        }
+    }
+
+    @ViewBuilder
+    private var catalogUpdateRow: some View {
+        Button {
+            Task { await viewModel.refreshModelCatalog() }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20, alignment: .center)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Check for Model Updates")
+                    Text("Catalog revision \(viewModel.catalogRevision)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                catalogRefreshIndicator(viewModel.catalogRefreshState)
+            }
+            .contentShape(Rectangle())
+        }
+        .disabled(viewModel.catalogRefreshState == .checking)
+
+        if viewModel.catalogRefreshState == .failed {
+            Text("Check failed. Using current models.")
+                .font(.footnote)
+                .foregroundStyle(.red)
+        }
+    }
+
+    @ViewBuilder
+    private func catalogRefreshIndicator(_ state: RewriteModelCatalogStore.RefreshState) -> some View {
+        switch state {
+        case .idle:
+            EmptyView()
+        case .checking:
+            ProgressView()
+                .controlSize(.small)
+        case .updated:
+            Label("Updated", systemImage: "checkmark.circle.fill")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.green)
+        case .upToDate:
+            Label("Up to Date", systemImage: "checkmark.circle.fill")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+        case .failed:
+            Image(systemName: "xmark.circle.fill")
+                .foregroundStyle(.red)
         }
     }
 
