@@ -670,6 +670,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             }
             phase = .recording(sessionId: sessionId)
             continuation.yield(.recording(sessionId: sessionId))
+            postProcessor.prewarm()
 
         case .requestStop:
             if markTranscribing(sessionId: sessionId) {

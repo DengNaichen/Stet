@@ -137,7 +137,8 @@ final class RewriteSettingsStore: ObservableObject {
         let config = DictationProviderConfigurationResolver.rewriteConfiguration(
             provider: selectedProvider,
             apiKey: apiKey,
-            customModel: selectedModel.rawValue
+            customModel: resolvedModelID(for: selectedProvider, selectedModel: selectedModel),
+            thinkingLevel: defaultThinkingLevel(for: selectedProvider)
         )
 
         switch config.backend {
@@ -146,9 +147,37 @@ final class RewriteSettingsStore: ObservableObject {
         case .anthropic(let key):
             return AnthropicRewriteService(apiKey: key, model: config.model)
         case .google(let key):
-            return GoogleRewriteService(apiKey: key, model: config.model)
+            return GoogleRewriteService(
+                apiKey: key,
+                model: config.model,
+                thinkingLevel: config.thinkingLevel
+            )
         case .appleIntelligence:
             return nil  // Not available on iOS through this path
+        }
+    }
+
+    private func resolvedModelID(for provider: DictationProvider, selectedModel: RewriteModel) -> String {
+        switch provider {
+        case .deepSeek where selectedModel == .deepseekV4Flash:
+            return "deepseek-flash"
+        case .google where selectedModel == .gemini37Flash:
+            return "gemini-3.8-flash"
+        default:
+            return selectedModel.rawValue
+        }
+    }
+
+    private func defaultThinkingLevel(for provider: DictationProvider) -> RewriteThinkingLevel? {
+        switch provider {
+        case .deepSeek:
+            return .off
+        case .openAI:
+            return .minimal
+        case .google:
+            return .low
+        default:
+            return nil
         }
     }
 }
