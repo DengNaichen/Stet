@@ -1,4 +1,5 @@
 #if os(macOS)
+    import StetASR
     import StetCore
     import SwiftUI
 
@@ -82,7 +83,7 @@
         }
 
         private struct AppleSpeechModelRow: View {
-            let state: AppleSpeechAssetState
+            let state: AppleSpeechAssetStatus
             let onDownload: () -> Void
 
             var body: some View {

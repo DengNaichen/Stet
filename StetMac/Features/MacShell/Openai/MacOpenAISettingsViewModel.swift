@@ -57,15 +57,17 @@
         @Published var discoveredCustomModels: [String] = []
         @Published var customModelProbeState: ModelProbeState = .idle
         @Published var selectedModelID = ""
-        @Published var selectedThinkingLevel: RewriteThinkingLevel = .medium {
-            didSet {
-                guard hasLoadedState else { return }
-                guard !selectedModelID.isEmpty else { return }
-                settingsStore.saveRewriteThinkingLevel(
-                    selectedThinkingLevel,
-                    for: rewriteProvider,
-                    modelID: selectedModelID
-                )
+        var selectedThinkingLevel: RewriteThinkingLevel {
+            get {
+                catalogStore.catalog.resolvedThinkingLevel(
+                    for: rewriteProvider, modelID: selectedModelID,
+                    preferredLevel: settingsStore.preferredThinkingLevel(for: rewriteProvider, modelID: selectedModelID)
+                ) ?? .off
+            }
+            set {
+                guard availableThinkingLevels.contains(newValue) else { return }
+                objectWillChange.send()
+                settingsStore.saveRewriteThinkingLevel(newValue, for: rewriteProvider, modelID: selectedModelID)
             }
         }
 
@@ -89,9 +91,12 @@
             self.catalogStore = catalogStore
             catalogCancellable = catalogStore.$catalog
                 .dropFirst()
-                .sink { [weak self] _ in
+                .sink { [weak self] catalog in
                     guard let self else { return }
-                    selectedModelID = effectiveModelID(for: rewriteProvider)
+                    selectedModelID =
+                        catalog.resolvedModelID(
+                            for: rewriteProvider,
+                            preferredID: settingsStore.loadSelectedModelID(for: rewriteProvider)) ?? ""
                     objectWillChange.send()
                 }
             catalogStateCancellable = catalogStore.$refreshState
@@ -129,16 +134,14 @@
             customModelID = settingsStore.loadCustomRewriteModelID()
             discoveredCustomModels = settingsStore.loadCustomRewriteDiscoveredModels()
             selectedModelID = effectiveModelID(for: rewriteProvider)
-            selectedThinkingLevel = effectiveThinkingLevel(for: rewriteProvider, modelID: selectedModelID)
 
             // Safety check: If the loaded provider is disabled (e.g. Apple Intelligence on old macOS)
             // or retired from rewrite (Groq, Doubao, Anthropic), fallback to OpenAI.
             if rewriteProvider == .groq || rewriteProvider == .doubao || rewriteProvider == .anthropic
-                || unifiedProvider.isDisabled
+                || isDisabled(unifiedProvider)
             {
                 rewriteProvider = .openAI
                 selectedModelID = effectiveModelID(for: .openAI)
-                selectedThinkingLevel = effectiveThinkingLevel(for: .openAI, modelID: selectedModelID)
                 settingsStore.saveRewriteProvider(.openAI)
             }
 
@@ -309,32 +312,32 @@
                 }
             }
 
-            var isDisabled: Bool {
-                switch self {
-                case .appleIntelligence:
-                    // Only enabled on macOS 26.0+
-                    if #available(macOS 26.0, *) {
-                        return false
-                    } else {
-                        return true
-                    }
-                case .custom:
+        }
+
+        func isDisabled(_ provider: UnifiedAIProvider) -> Bool {
+            switch provider {
+            case .appleIntelligence:
+                // Only enabled on macOS 26.0+
+                if #available(macOS 26.0, *) {
                     return false
-                case .openAI, .google, .deepSeek, .qwen, .glm:
-                    return RewriteModelCatalogStore.shared.availableModels(for: dictationProvider).isEmpty
+                } else {
+                    return true
                 }
+            case .custom:
+                return false
+            case .openAI, .google, .deepSeek, .qwen, .glm:
+                return !catalogStore.catalog.isProviderEnabled(provider.dictationProvider)
             }
         }
 
         private func effectiveModelID(for provider: DictationProvider) -> String {
             let preferred = settingsStore.loadSelectedModelID(for: provider)
-            return catalogStore.catalog.resolvedModelID(for: provider, preferredID: preferred) ?? preferred ?? ""
+            return catalogStore.catalog.resolvedModelID(for: provider, preferredID: preferred) ?? ""
         }
 
         func selectModel(_ modelID: String) {
             selectedModelID = modelID
             settingsStore.saveSelectedModelID(modelID, for: rewriteProvider)
-            selectedThinkingLevel = effectiveThinkingLevel(for: rewriteProvider, modelID: modelID)
         }
 
         func refreshModelCatalog() async {
@@ -357,7 +360,7 @@
                 }
             }
             set {
-                guard !newValue.isDisabled else { return }
+                guard !isDisabled(newValue) else { return }
                 switch newValue {
                 case .openAI:
                     rewriteProvider = .openAI
@@ -375,25 +378,11 @@
                     rewriteProvider = .custom
                 }
                 selectedModelID = effectiveModelID(for: rewriteProvider)
-                selectedThinkingLevel = effectiveThinkingLevel(for: rewriteProvider, modelID: selectedModelID)
             }
         }
 
         var availableThinkingLevels: [RewriteThinkingLevel] {
-            catalogStore.catalog.model(for: rewriteProvider, modelID: selectedModelID)?.thinkingLevels ?? []
-        }
-
-        private func effectiveThinkingLevel(
-            for provider: DictationProvider,
-            modelID: String
-        ) -> RewriteThinkingLevel {
-            let model = catalogStore.catalog.model(for: provider, modelID: modelID)
-            if let stored = settingsStore.loadRewriteThinkingLevel(for: provider, modelID: modelID),
-                model?.thinkingLevels?.contains(stored) == true
-            {
-                return stored
-            }
-            return model?.defaultThinkingLevel ?? .medium
+            catalogStore.catalog.availableThinkingLevels(for: rewriteProvider, modelID: selectedModelID)
         }
 
         var visibleCredentialProviders: [DictationProvider] {

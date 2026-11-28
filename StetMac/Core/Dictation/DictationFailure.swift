@@ -1,4 +1,5 @@
 import Foundation
+import StetASR
 import StetAI
 import StetCore
 
@@ -191,6 +192,8 @@ enum DictationFailure: LocalizedError, Equatable, Sendable {
         if let failure = error as? Self {
             return failure
         }
+
+        if case AppleSpeechAssetError.unsupportedLocale = error { return .unsupportedLocale }
 
         if let speechError = error as? SpeechServiceError {
             switch speechError {

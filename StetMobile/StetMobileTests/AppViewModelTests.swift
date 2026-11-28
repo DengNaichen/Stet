@@ -145,7 +145,7 @@ struct AppViewModelTests {
         await coordinator.shutdown()
     }
 
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func recordingSamplesScalarVolumeAndProcessingFreezesTheLastLevel() async throws {
         let coordinator = RoutingDictationCoordinator()
         let volumeTransport = MutableVolumeTransport(level: 0.4)
@@ -162,8 +162,8 @@ struct AppViewModelTests {
         #expect(isNear(subject.recordingLevel, 0.4))
 
         volumeTransport.level = 0.9
-        try await Task.sleep(for: .milliseconds(80))
-        #expect(isNear(subject.recordingLevel, 0.9))
+        let sampledLevel = await subject.$recordingLevel.values.first { isNear($0, 0.9) }
+        #expect(sampledLevel != nil)
 
         coordinator.emit(.transcribing(sessionId: "session-a"))
         #expect(await states.next() == .processing)

@@ -7,8 +7,9 @@ struct DictationPipeline: Sendable {
     let transcriptionService: any AudioFileTranscriptionService
     let transcriptionLanguageCode: String?
     let promptProvider: (@Sendable () async -> String?)?
-    let rewriteService: (any TextRewriteService)?
-    let rewriteProvider: DictationProvider?
+    let rewriteExecutor: CloudRewriteExecutor
+    let rewriteConfiguration: RewriteProviderConfiguration?
+    var rewriteProvider: DictationProvider? { rewriteConfiguration?.provider }
     let preferredSpellings: [String]
     let usesAudienceAwareLocalPrompts: Bool
     let recordsNoHotwordTranscript: Bool
@@ -16,9 +17,8 @@ struct DictationPipeline: Sendable {
 
 struct DictationPipelineFactory: Sendable {
     var makeLocalTranscriptionService: @Sendable () throws -> any AudioFileTranscriptionService
-    var makeRewriteService: @Sendable (RewriteProviderConfiguration, URLSession) -> any TextRewriteService
     var recordsNoHotwordTranscript: Bool?
-    private let networkSession: URLSession
+    private let rewriteExecutor: CloudRewriteExecutor
 
     init(
         makeLocalTranscriptionService: @escaping @Sendable () throws -> any AudioFileTranscriptionService,
@@ -31,9 +31,8 @@ struct DictationPipelineFactory: Sendable {
         networkSession: URLSession = URLSession(configuration: .ephemeral)
     ) {
         self.makeLocalTranscriptionService = makeLocalTranscriptionService
-        self.makeRewriteService = makeRewriteService
+        self.rewriteExecutor = CloudRewriteExecutor(session: networkSession, makeService: makeRewriteService)
         self.recordsNoHotwordTranscript = recordsNoHotwordTranscript
-        self.networkSession = networkSession
     }
 
     static func live(configuration: any ModelStorageConfiguration = UserDefaultsModelStorage()) -> Self {
@@ -41,29 +40,21 @@ struct DictationPipelineFactory: Sendable {
             makeLocalTranscriptionService: {
                 try Self.makeLiveLocalTranscriptionService(configuration: configuration)
             },
-            makeRewriteService: { configuration, session in
-                switch configuration.backend {
-                case .appleIntelligence:
-                    if #available(macOS 26.0, *) {
-                        return AppleIntelligenceRewriteService()
-                    } else {
-                        return UnavailableRewriteService(message: "Apple Intelligence requires macOS 26.0 or newer.")
-                    }
-                case .google(let apiKey):
-                    return GoogleRewriteService(
-                        apiKey: apiKey,
-                        model: configuration.model,
-                        thinkingLevel: configuration.thinkingLevel,
-                        session: session
-                    )
-                case .anthropic(let apiKey):
-                    return AnthropicRewriteService(apiKey: apiKey, model: configuration.model, session: session)
-                case .remote:
-                    return OpenAIRewriteService(configuration: configuration, session: session)
-                }
-            },
+            makeRewriteService: Self.makeLiveRewriteService,
             recordsNoHotwordTranscript: nil
         )
+    }
+
+    nonisolated static func makeLiveRewriteService(_ configuration: RewriteProviderConfiguration, _ session: URLSession)
+        -> any TextRewriteService
+    {
+        CloudRewriteServiceFactory.make(configuration: configuration, session: session) {
+            if #available(macOS 26.0, *) {
+                return AppleIntelligenceRewriteService()
+            } else {
+                return UnavailableRewriteService(message: "Apple Intelligence requires macOS 26.0 or newer.")
+            }
+        }
     }
 
     func makePipeline(
@@ -75,8 +66,7 @@ struct DictationPipelineFactory: Sendable {
         let transcriptionService: any AudioFileTranscriptionService
         let transcriptionLanguageCode: String?
         let promptProvider: (@Sendable () async -> String?)?
-        let rewriteService: (any TextRewriteService)?
-        let rewriteProvider: DictationProvider?
+        let rewriteConfiguration: RewriteProviderConfiguration?
         let preferredSpellings: [String]
         let usesAudienceAwareLocalPrompts: Bool
 
@@ -96,21 +86,15 @@ struct DictationPipelineFactory: Sendable {
             )
             usesAudienceAwareLocalPrompts = true
 
-            if direct.rewriteEnabled, let rewriteConfiguration = direct.rewriteConfiguration {
-                rewriteService = makeRewriteService(rewriteConfiguration, networkSession)
-                rewriteProvider = rewriteConfiguration.provider
-            } else {
-                rewriteService = nil
-                rewriteProvider = nil
-            }
+            rewriteConfiguration = direct.rewriteEnabled ? direct.rewriteConfiguration : nil
         }
 
         return DictationPipeline(
             transcriptionService: transcriptionService,
             transcriptionLanguageCode: transcriptionLanguageCode,
             promptProvider: promptProvider,
-            rewriteService: rewriteService,
-            rewriteProvider: rewriteProvider,
+            rewriteExecutor: rewriteExecutor,
+            rewriteConfiguration: rewriteConfiguration,
             preferredSpellings: preferredSpellings,
             usesAudienceAwareLocalPrompts: usesAudienceAwareLocalPrompts,
             recordsNoHotwordTranscript: recordsNoHotwordTranscript

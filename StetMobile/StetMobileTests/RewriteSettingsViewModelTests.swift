@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import Security
 import StetAI
@@ -6,6 +7,67 @@ import Testing
 @testable import StetMobile
 
 struct RewriteSettingsViewModelTests {
+    @MainActor
+    @Test func catalogMigrationThinkingPreferencesAndManualRefresh() async throws {
+        let suite = UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set("deepseek", forKey: "rewrite.provider")
+        defaults.set("deepseek-v4-flash", forKey: "rewrite.model")
+        let baseline = RewriteModelCatalog.bundled
+        let alternative = RewriteModelDescriptor(
+            id: "new-model", displayName: "New model", enabled: true,
+            thinkingLevels: [.low, .high], defaultThinkingLevel: .low)
+        let deepSeek = try #require(baseline.provider(.deepSeek))
+        let next = RewriteModelCatalog(
+            schemaVersion: 1, revision: baseline.revision + 1,
+            providers: baseline.providers.filter { $0.id != deepSeek.id } + [
+                RewriteProviderCatalog(
+                    id: deepSeek.id, enabled: true, defaultModelID: deepSeek.defaultModelID,
+                    models: deepSeek.models + [alternative])
+            ])
+        let data = try JSONEncoder().encode(next)
+        var failUpdate = false
+        let catalog = RewriteModelCatalogStore(fetch: {
+            if failUpdate { throw URLError(.notConnectedToInternet) }
+            return data
+        })
+        let secretStore = InMemoryDictationSecretStore()
+        let settings = RewriteSettingsStore(defaults: defaults, secretStore: secretStore, catalogStore: catalog)
+        let vm = RewriteSettingsViewModel(settingsStore: settings)
+        #expect(vm.selectedModelID == deepSeek.defaultModelID)
+        #expect(defaults.string(forKey: "rewrite.model") == nil)
+        #expect(!vm.isProviderEnabled(.glm))
+        var states = [RewriteModelCatalogStore.RefreshState]()
+        let observation = catalog.$refreshState.sink { states.append($0) }
+        defer { observation.cancel() }
+        await vm.refreshModelCatalog()
+        #expect(states == [.idle, .checking, .updated])
+        #expect(vm.catalogRevision == next.revision && vm.availableModels.contains(alternative))
+        vm.selectModel(alternative.id)
+        #expect(vm.selectedThinkingLevel == .low)
+        vm.selectedThinkingLevel = .high
+        vm.selectModel(deepSeek.defaultModelID)
+        #expect(vm.selectedThinkingLevel == .off)
+        vm.selectModel(alternative.id)
+        settings.selectedProvider = .google
+        vm.onProviderChanged()
+        #expect(vm.selectedModelID == baseline.provider(.google)?.defaultModelID)
+        settings.selectedProvider = .deepSeek
+        vm.onProviderChanged()
+        let restored = RewriteSettingsStore(defaults: defaults, secretStore: secretStore, catalogStore: catalog)
+        restored.isRewriteEnabled = true
+        try restored.saveAPIKey("test-key", for: .deepSeek)
+        #expect(restored.configurationIfEnabled()?.model == alternative.id)
+        #expect(restored.configurationIfEnabled()?.thinkingLevel == .high)
+        await vm.refreshModelCatalog()
+        #expect(vm.catalogRefreshState == .upToDate)
+        failUpdate = true
+        await vm.refreshModelCatalog()
+        #expect(vm.catalogRefreshState == .failed)
+        #expect(vm.availableModels.contains(alternative) && vm.catalogRevision == next.revision)
+    }
+
     @MainActor
     @Test func dictationEngineIsAppleSpeechOnly() {
         let suiteName = "MobileDictationSettingsStoreTests.\(UUID().uuidString)"
@@ -72,7 +134,8 @@ struct RewriteSettingsViewModelTests {
 
         let settingsStore = RewriteSettingsStore(
             defaults: defaults,
-            secretStore: InMemoryDictationSecretStore()
+            secretStore: InMemoryDictationSecretStore(),
+            catalogStore: RewriteModelCatalogStore()
         )
         let viewModel = RewriteSettingsViewModel(
             settingsStore: settingsStore,
@@ -85,8 +148,9 @@ struct RewriteSettingsViewModelTests {
 
         settingsStore.isRewriteEnabled = true
         settingsStore.selectedProvider = .openAI
-        settingsStore.selectedModel = RewriteModel.default(for: .openAI)
-        #expect(viewModel.rewriteSummary == settingsStore.selectedModel.displayName)
+        let model = try #require(viewModel.availableModels.first)
+        viewModel.selectModel(model.id)
+        #expect(viewModel.rewriteSummary == model.displayName)
 
         settingsStore.selectedProvider = .custom
         settingsStore.customModelID = "  my-local-model  "

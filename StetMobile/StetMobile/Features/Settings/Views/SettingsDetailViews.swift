@@ -14,7 +14,7 @@ struct SpeechSettingsDetailView: View {
                         set: { viewModel.selectedBackend = $0 }
                     )
                 ) {
-                    ForEach(SpeechTranscriberBackend.allCases) { backend in
+                    ForEach(AppleSpeechTranscriberBackend.allCases) { backend in
                         Text(backend.displayName).tag(backend)
                     }
                 } label: {
@@ -98,7 +98,7 @@ struct SpeechSettingsDetailView: View {
                     .foregroundStyle(.secondary)
             }
 
-        case .unsupported:
+        case .unsupportedLocale, .unavailable, .requiresOS26:
             Text("Unsupported")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -186,7 +186,12 @@ struct AIRewriteSettingsDetailView: View {
         Section("Provider & Model") {
             Picker(selection: $viewModel.settingsStore.selectedProvider) {
                 ForEach(viewModel.availableProviders) { provider in
-                    Text(provider.displayName).tag(provider)
+                    Text(
+                        viewModel.isProviderEnabled(provider)
+                            ? provider.displayName : "\(provider.displayName) (Unavailable)"
+                    )
+                    .tag(provider)
+                    .disabled(!viewModel.isProviderEnabled(provider))
                 }
             } label: {
                 SettingsRowLabel("Provider", systemImage: "cloud")
@@ -222,11 +227,10 @@ struct AIRewriteSettingsDetailView: View {
                 TextField("Model ID", text: $viewModel.settingsStore.customModelID)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-            } else {
-                Picker(selection: $viewModel.settingsStore.selectedModel) {
-                    ForEach(RewriteModel.availableModels(for: viewModel.settingsStore.selectedProvider)) {
-                        model in
-                        Text(model.displayName).tag(model)
+            } else if !viewModel.availableModels.isEmpty {
+                Picker(selection: Binding(get: { viewModel.selectedModelID }, set: viewModel.selectModel)) {
+                    ForEach(viewModel.availableModels) { model in
+                        Text(model.displayName).tag(model.id)
                     }
                 } label: {
                     SettingsRowLabel("Model", systemImage: "slider.horizontal.3")

@@ -1,3 +1,4 @@
+import StetAI
 import Foundation
 import StetRewrite
 import StetCore
@@ -255,7 +256,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             intermediateTranscript = trimmedTranscript
             let transcriptionStageMs = Self.elapsedMilliseconds(since: transcriptionStartedAt)
             logger.info(
-                "DictationStage transcriptionMs=\(Self.formatMilliseconds(transcriptionStageMs)) audioDurationSeconds=\(Self.formatDurationSeconds(processedCaptureResult.duration)) transcriptChars=\(trimmedTranscript.count) rewriteEnabled=\(pipeline.rewriteService != nil) detectedLanguage=\(transcriptionResult.languageCode ?? "unknown")"
+                "DictationStage transcriptionMs=\(Self.formatMilliseconds(transcriptionStageMs)) audioDurationSeconds=\(Self.formatDurationSeconds(processedCaptureResult.duration)) transcriptChars=\(trimmedTranscript.count) rewriteEnabled=\(pipeline.rewriteConfiguration != nil) detectedLanguage=\(transcriptionResult.languageCode ?? "unknown")"
             )
         } catch is CancellationError {
             throw CancellationError()
@@ -268,56 +269,32 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
         do {
             let finalTranscript: String
             var wasRewritten = false
-            let rewriteStartedAt = ProcessInfo.processInfo.systemUptime
-            do {
-                if let rewriteService = pipeline.rewriteService {
-                    let rewriteAudience = pipeline.usesAudienceAwareLocalPrompts ? await audienceProvider() : nil
-                    let appName = await MainActor.run { AppBranchMonitor.shared.currentApp?.localizedName }
-                    try ensureCaptureSessionIsActive(sessionID)
-                    let request = TextRewriteRequest.cleanup(
-                        intermediateTranscript,
-                        audience: rewriteAudience,
-                        preferredSpellings: pipeline.preferredSpellings,
-                        languageCode: transcriptionResult.languageCode ?? pipeline.transcriptionLanguageCode,
-                        appName: appName
-                    )
-                    let rewrittenTranscript = try await rewriteService.rewrite(request)
-                    try ensureCaptureSessionIsActive(sessionID)
-
-                    finalTranscript = rewrittenTranscript
-                    wasRewritten = true
-                    if let rewriteProvider = pipeline.rewriteProvider {
-                        await DictationTranscriptTrace.shared.record(
-                            provider: rewriteProvider,
-                            outcome: .rewritten,
-                            rawTranscript: intermediateTranscript,
-                            finalTranscript: finalTranscript,
-                            languageCode: request.languageCode
-                        )
-                    }
-                    let rewriteStageMs = Self.elapsedMilliseconds(since: rewriteStartedAt)
-                } else {
-                    finalTranscript = intermediateTranscript
-                    logger.info(
-                        "DictationStage rewriteSkipped inputChars=\(intermediateTranscript.count)"
-                    )
-                }
-            } catch is CancellationError {
-                throw CancellationError()
-            } catch {
+            if let configuration = pipeline.rewriteConfiguration {
+                let rewriteAudience = pipeline.usesAudienceAwareLocalPrompts ? await audienceProvider() : nil
+                let appName = await MainActor.run { AppBranchMonitor.shared.currentApp?.localizedName }
                 try ensureCaptureSessionIsActive(sessionID)
-                logger.error("Rewrite failed: \(error.localizedDescription). Falling back to raw transcript.")
-                if let rewriteProvider = pipeline.rewriteProvider {
-                    await DictationTranscriptTrace.shared.record(
-                        provider: rewriteProvider,
-                        outcome: .fallbackAfterRewriteFailure,
-                        rawTranscript: intermediateTranscript,
-                        finalTranscript: intermediateTranscript,
-                        languageCode: transcriptionResult.languageCode ?? pipeline.transcriptionLanguageCode,
-                        errorDescription: error.localizedDescription
-                    )
-                }
+                let request = TextRewriteRequest.cleanup(
+                    intermediateTranscript,
+                    audience: rewriteAudience,
+                    preferredSpellings: pipeline.preferredSpellings,
+                    languageCode: transcriptionResult.languageCode ?? pipeline.transcriptionLanguageCode,
+                    appName: appName
+                )
+                let outcome = await pipeline.rewriteExecutor.execute(configuration: configuration, request: request)
+                try ensureCaptureSessionIsActive(sessionID)
+                await DictationLatencyProbe.shared.record(
+                    .rewriteCompleted, note: "durationMs=\(outcome.durationMs) didRewrite=\(outcome.didRewrite)")
+                if outcome.error is CancellationError { throw CancellationError() }
+                finalTranscript = outcome.text
+                wasRewritten = outcome.didRewrite
+                await DictationTranscriptTrace.shared.record(
+                    provider: outcome.provider,
+                    outcome: outcome.didRewrite ? .rewritten : .fallbackAfterRewriteFailure,
+                    rawTranscript: intermediateTranscript, finalTranscript: finalTranscript,
+                    languageCode: request.languageCode, errorDescription: outcome.error?.localizedDescription)
+            } else {
                 finalTranscript = intermediateTranscript
+                logger.info("DictationStage rewriteSkipped inputChars=\(intermediateTranscript.count)")
             }
 
             let trimmedFinalTranscript = finalTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -338,7 +315,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
             let totalProcessingMs = Self.elapsedMilliseconds(since: processingStartedAt)
             logger.info(
-                "DictationSummary totalProcessingMs=\(Self.formatMilliseconds(totalProcessingMs)) audioDurationSeconds=\(Self.formatDurationSeconds(processedCaptureResult.duration)) finalTextChars=\(trimmedTranscript.count) rewriteEnabled=\(pipeline.rewriteService != nil)"
+                "DictationSummary totalProcessingMs=\(Self.formatMilliseconds(totalProcessingMs)) audioDurationSeconds=\(Self.formatDurationSeconds(processedCaptureResult.duration)) finalTextChars=\(trimmedTranscript.count) rewriteEnabled=\(pipeline.rewriteConfiguration != nil)"
             )
 
             if pipeline.recordsNoHotwordTranscript {
@@ -443,7 +420,7 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
 
     private func startRewritePrewarm(using pipeline: DictationPipeline) {
         rewritePrewarmTask?.cancel()
-        guard let rewriteService = pipeline.rewriteService else {
+        guard let configuration = pipeline.rewriteConfiguration else {
             rewritePrewarmTask = nil
             return
         }
@@ -454,8 +431,9 @@ actor ConfigurableSpeechService: SpeechService, AudioLevelSource {
             try? await Task.sleep(for: .seconds(1))
             guard !Task.isCancelled else { return }
 
-            await rewriteService.prewarm(
-                .cleanup(
+            await pipeline.rewriteExecutor.prewarm(
+                configuration: configuration,
+                request: .cleanup(
                     "",
                     audience: rewriteAudience,
                     preferredSpellings: pipeline.preferredSpellings,

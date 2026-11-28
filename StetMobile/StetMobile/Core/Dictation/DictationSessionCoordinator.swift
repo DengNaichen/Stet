@@ -689,10 +689,9 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
                 }
             }
 
-            let rewriteStartedAt = ProcessInfo.processInfo.systemUptime
             let outcome = await self.postProcessor.processWithOutcome(text)
             if var draft = self.timingDraft, draft.sessionId == sessionId {
-                draft.rewriteMs = Self.elapsedMilliseconds(since: rewriteStartedAt)
+                draft.rewriteMs = outcome.durationMs
                 self.timingDraft = draft
             }
             guard self.isCurrent(lifecycle: lifecycle),

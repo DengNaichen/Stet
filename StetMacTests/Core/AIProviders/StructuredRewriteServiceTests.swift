@@ -29,6 +29,7 @@ struct StructuredRewriteServiceTests {
         let service = GoogleRewriteService(
             apiKey: "test-key",
             model: "gemini-test",
+            thinkingLevel: .low,
             session: session
         )
 
@@ -82,6 +83,7 @@ struct StructuredRewriteServiceTests {
         let service = GoogleRewriteService(
             apiKey: "test-key",
             model: "gemini-test",
+            thinkingLevel: .low,
             session: session
         )
 

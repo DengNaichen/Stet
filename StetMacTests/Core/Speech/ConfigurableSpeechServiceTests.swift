@@ -878,7 +878,7 @@ struct ConfigurableSpeechServiceTests {
         #expect(result.wasRewritten)
     }
 
-    @Test func byokGroqToGroqUsesSingleProviderForBothRemoteSteps() async throws {
+    @Test func retiredGroqRewriteProviderPreservesLocalTranscript() async throws {
         let audioFileURL = makeAudioFileURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
 
@@ -900,12 +900,10 @@ struct ConfigurableSpeechServiceTests {
 
         try await service.startRecording()
         let result = try await service.stopRecording()
-        let request = try #require(await rewrite.recordedRequests().first)
-
+        #expect(await rewrite.recordedRequests().isEmpty)
         #expect(result.rawText == "groq transcript")
-        #expect(result.text == "groq rewrite")
-        #expect(result.wasRewritten)
-        #expect(request.text == "groq transcript")
+        #expect(result.text == result.rawText)
+        #expect(!result.wasRewritten)
         #expect(await direct.callCount() == 1)
     }
 

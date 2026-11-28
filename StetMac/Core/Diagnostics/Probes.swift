@@ -166,6 +166,7 @@ actor DictationLatencyProbe {
         case recordingFinished = "recording_finished"
         case transcriptionStarted = "transcription_started"
         case transcriptionCompleted = "transcription_completed"
+        case rewriteCompleted = "rewrite_completed"
         case transcriptionFailed = "transcription_failed"
         case systemWriteCompleted = "system_write_completed"
         case systemWriteSkipped = "system_write_skipped"

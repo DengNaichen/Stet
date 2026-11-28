@@ -1,3 +1,4 @@
+import StetAI
 #if os(macOS)
     import Foundation
     import StetCore
@@ -5,7 +6,7 @@
     extension MacAppModel {
         convenience init(
             compatibilityStore: AppCompatibilityStore? = nil,
-            rewriteModelCatalog: RewriteModelCatalogSource? = nil
+            rewriteModelCatalog: RewriteModelCatalogSource = RewriteModelCatalogSource(.bundled)
         ) {
             let settingsStore = DictationSettingsStore(
                 defaults: .standard, secretStore: SharedKeychainSecretStore.macOS(),

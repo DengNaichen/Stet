@@ -9,7 +9,7 @@ import subprocess
 
 
 COMPATIBILITY = "StetMac/Resources/app-compatibility.json"
-REWRITE_MODELS = "StetMac/Resources/rewrite-models.json"
+REWRITE_MODELS = "Packages/StetEngine/Sources/StetAI/Resources/rewrite-models.json"
 MACOS_ROOTS = ("StetMac/", "StetMacTests/", "StetMacUITests/", "StetVisuals/")
 IOS_SWIFT_ROOTS = (
     "StetMobile/StetKeyboard/", "StetMobile/StetLiveActivity/",

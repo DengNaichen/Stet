@@ -24,14 +24,14 @@
                         Picker("", selection: $viewModel.unifiedProvider) {
                             ForEach(MacOpenAISettingsViewModel.UnifiedAIProvider.allCases) { provider in
                                 Group {
-                                    if provider.isDisabled {
+                                    if viewModel.isDisabled(provider) {
                                         Text("\(Text(LocalizedStringKey(provider.displayName))) (Unavailable)")
                                     } else {
                                         Text(LocalizedStringKey(provider.displayName))
                                     }
                                 }
                                 .tag(provider)
-                                .disabled(provider.isDisabled)
+                                .disabled(viewModel.isDisabled(provider))
                             }
                         }
                         .labelsHidden()

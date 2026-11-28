@@ -9,6 +9,24 @@
     @MainActor
     @Suite("Mac OpenAI Settings View Model", .serialized)
     struct MacOpenAISettingsViewModelTests {
+        @Test func providerAvailabilityUsesInjectedCatalog() throws {
+            let baseline = RewriteModelCatalog.bundled
+            let qwen = try #require(baseline.provider(.qwen))
+            let enabled = RewriteProviderCatalog(
+                id: qwen.id, enabled: true, defaultModelID: qwen.defaultModelID, models: qwen.models)
+            let customCatalog = RewriteModelCatalog(
+                schemaVersion: 1, revision: baseline.revision,
+                providers: [enabled])
+            let catalog = RewriteModelCatalogStore(bundledData: try JSONEncoder().encode(customCatalog))
+            let settings = DictationSettingsStore(
+                defaults: TestSupport.makeUserDefaults(), secretStore: TestSecretStore(),
+                rewriteModelCatalog: catalog.source)
+            let viewModel = MacOpenAISettingsViewModel(settingsStore: settings, catalogStore: catalog)
+            #expect(viewModel.isDisabled(.openAI))
+            #expect(!viewModel.isDisabled(.qwen))
+            viewModel.unifiedProvider = .qwen
+            #expect(viewModel.selectedModelID == qwen.defaultModelID)
+        }
 
         @Test func verificationDoesNotSaveDraftOrOverwriteExistingKey() async throws {
             let secretStore = TestSecretStore()
@@ -241,7 +259,7 @@
             viewModel.selectedThinkingLevel = .high
             viewModel.unifiedProvider = .openAI
             #expect(viewModel.selectedThinkingLevel == .high)
-            #expect(store.loadRewriteThinkingLevel(for: .google, modelID: "gemini-3.8-flash") == .high)
+            #expect(store.preferredThinkingLevel(for: .google, modelID: "gemini-3.8-flash") == .high)
         }
 
         @Test func loadRespectsStoredRewriteDisabledValue() {

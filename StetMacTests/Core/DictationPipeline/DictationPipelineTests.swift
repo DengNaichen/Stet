@@ -1,6 +1,6 @@
 import Foundation
 import os
-import StetAI
+@testable import StetAI
 import StetCore
 import StetRewrite
 import Testing
@@ -17,9 +17,9 @@ private func makeSnapshot(
     transcriptionProvider: DictationProvider = .openAI,
     rewriteProvider: DictationProvider = .openAI,
     rewriteProviderConfiguration: RewriteProviderConfiguration? =
-        DictationProviderConfigurationResolver.rewriteConfiguration(
+        DictationProviderConfigurationResolver.transportConfiguration(
             provider: .openAI,
-            apiKey: "sk-test",
+            apiKey: "sk-test", model: "protocol-test",
         ),
     rewriteEnabled: Bool = false,
     personalDictionary: [String] = [],
@@ -83,9 +83,9 @@ struct LogicPrimitiveTests {
         let snapshot = makeSnapshot(
             transcriptionProvider: .groq,
             rewriteProvider: .openAI,
-            rewriteProviderConfiguration: DictationProviderConfigurationResolver.rewriteConfiguration(
+            rewriteProviderConfiguration: DictationProviderConfigurationResolver.transportConfiguration(
                 provider: .openAI,
-                apiKey: "sk-test",
+                apiKey: "sk-test", model: "protocol-test",
             ),
             rewriteEnabled: true
         )
@@ -122,9 +122,9 @@ struct LogicPrimitiveTests {
         let snapshot = makeSnapshot(
             transcriptionProvider: .openAI,
             rewriteProvider: .groq,
-            rewriteProviderConfiguration: DictationProviderConfigurationResolver.rewriteConfiguration(
+            rewriteProviderConfiguration: DictationProviderConfigurationResolver.transportConfiguration(
                 provider: .groq,
-                apiKey: "gsk-test",
+                apiKey: "gsk-test", model: "protocol-test",
             ),
             rewriteEnabled: true
         )
@@ -140,9 +140,9 @@ struct LogicPrimitiveTests {
     @Test func dictationExecutionRouteResolverAllowsAppleIntelligenceRewriteWithoutAPIKey() async throws {
         let snapshot = makeSnapshot(
             rewriteProvider: .appleIntelligence,
-            rewriteProviderConfiguration: DictationProviderConfigurationResolver.rewriteConfiguration(
+            rewriteProviderConfiguration: DictationProviderConfigurationResolver.transportConfiguration(
                 provider: .appleIntelligence,
-                apiKey: "",
+                apiKey: "", model: "protocol-test",
             ),
             rewriteEnabled: true
         )
@@ -165,18 +165,22 @@ struct LogicPrimitiveTests {
                 return RecordingRewriteService()
             }
         )
-        _ = try await factory.makePipeline(from: makeSnapshot(rewriteEnabled: true))
+        let first = try await factory.makePipeline(from: makeSnapshot(rewriteEnabled: true))
+        await first.rewriteExecutor.prewarm(
+            configuration: try #require(first.rewriteConfiguration), request: .cleanup(""))
         let copy = factory
-        _ = try await copy.makePipeline(
+        let second = try await copy.makePipeline(
             from: makeSnapshot(
                 rewriteProvider: .deepSeek,
-                rewriteProviderConfiguration: DictationProviderConfigurationResolver.rewriteConfiguration(
+                rewriteProviderConfiguration: DictationProviderConfigurationResolver.transportConfiguration(
                     provider: .deepSeek,
-                    apiKey: "different-test-key"
+                    apiKey: "different-test-key", model: "protocol-test"
                 ),
                 rewriteEnabled: true
             )
         )
+        _ = await second.rewriteExecutor.execute(
+            configuration: try #require(second.rewriteConfiguration), request: .cleanup("hello"))
         let calls = captured.withLock { $0 }
         #expect(calls.count == 2)
         #expect(calls[0].0 === calls[1].0)
@@ -186,15 +190,13 @@ struct LogicPrimitiveTests {
 
     @Test func makePipelineSelectsDirectService() async throws {
         let local = RecordingTranscriptionService(result: "direct")
-        var capturedRewriteConfiguration: RewriteProviderConfiguration?
         let audioFileURL = try makeTemporaryWavURL()
         defer { try? FileManager.default.removeItem(at: audioFileURL) }
         let factory = DictationPipelineFactory(
             makeLocalTranscriptionService: {
                 local
             },
-            makeRewriteService: { configuration, _ in
-                capturedRewriteConfiguration = configuration
+            makeRewriteService: { _, _ in
                 return RecordingRewriteService()
             }
         )
@@ -221,28 +223,26 @@ struct LogicPrimitiveTests {
         #expect(pipeline.usesAudienceAwareLocalPrompts == true)
         #expect(await local.callCount == 1)
         #expect(await local.capturedPrompt?.contains("OpenAI, Groq") == true)
-        #expect(capturedRewriteConfiguration?.provider == .openAI)
+        #expect(pipeline.rewriteConfiguration?.provider == .openAI)
     }
 
     @Test func makePipelineUsesConfiguredLanguageModeForTranscriptionAndCleanup() async throws {
         let local = RecordingTranscriptionService(result: "mixed transcript")
         let rewrite = RecordingRewriteService()
-        var capturedRewriteConfiguration: RewriteProviderConfiguration?
         let factory = DictationPipelineFactory(
             makeLocalTranscriptionService: {
                 local
             },
-            makeRewriteService: { configuration, _ in
-                capturedRewriteConfiguration = configuration
+            makeRewriteService: { _, _ in
                 return rewrite
             }
         )
         let snapshot = makeSnapshot(
             transcriptionProvider: .groq,
             rewriteProvider: .openAI,
-            rewriteProviderConfiguration: DictationProviderConfigurationResolver.rewriteConfiguration(
+            rewriteProviderConfiguration: DictationProviderConfigurationResolver.transportConfiguration(
                 provider: .openAI,
-                apiKey: "sk-test",
+                apiKey: "sk-test", model: "protocol-test",
             ),
             rewriteEnabled: true
         )
@@ -256,9 +256,10 @@ struct LogicPrimitiveTests {
             prompt: nil,
             audioDurationSeconds: 1
         )
-        if let rewriteService = pipeline.rewriteService {
-            _ = try await rewriteService.rewrite(
-                .cleanup(
+        if let configuration = pipeline.rewriteConfiguration {
+            _ = await pipeline.rewriteExecutor.execute(
+                configuration: configuration,
+                request: .cleanup(
                     transcript.text,
                     preferredSpellings: pipeline.preferredSpellings,
                     languageCode: transcript.languageCode ?? pipeline.transcriptionLanguageCode
@@ -269,7 +270,7 @@ struct LogicPrimitiveTests {
         #expect(transcript.text == "mixed transcript")
         #expect(pipeline.transcriptionLanguageCode == "en")
         #expect(pipeline.usesAudienceAwareLocalPrompts == true)
-        #expect(capturedRewriteConfiguration?.provider == .openAI)
+        #expect(pipeline.rewriteConfiguration?.provider == .openAI)
     }
 
     @Test func cloudRewritePromptBuilderBuildsHumanCleanupPrompt() {
@@ -391,19 +392,18 @@ struct LogicPrimitiveTests {
     }
 
     @Test func livePipelineFactoryKeepsRewriteProviderSwitcherAtBackendLevel() {
-        let factory = DictationPipelineFactory.live()
         let session = URLSession(configuration: .ephemeral)
-        let openAIService = factory.makeRewriteService(
-            DictationProviderConfigurationResolver.rewriteConfiguration(
+        let openAIService = DictationPipelineFactory.makeLiveRewriteService(
+            DictationProviderConfigurationResolver.transportConfiguration(
                 provider: .openAI,
-                apiKey: "sk-test"
+                apiKey: "sk-test", model: "protocol-test"
             ),
             session
         )
-        let appleService = factory.makeRewriteService(
-            DictationProviderConfigurationResolver.rewriteConfiguration(
+        let appleService = DictationPipelineFactory.makeLiveRewriteService(
+            DictationProviderConfigurationResolver.transportConfiguration(
                 provider: .appleIntelligence,
-                apiKey: ""
+                apiKey: "", model: "protocol-test"
             ),
             session
         )

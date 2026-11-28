@@ -5,7 +5,7 @@ struct SenseVoiceView: View {
     @ObservedObject var viewModel: SenseVoiceViewModel
     @ObservedObject private var timingStore = DictationTimingStore.shared
     var languageLabel: String?
-    var speechAssetStatus: SpeechAssetStatus = .installed
+    var speechAssetStatus: AppleSpeechAssetStatus = .installed
     var isRewriteEnabled: Bool = false
     var onOpenSettings: (() -> Void)?
 
@@ -253,7 +253,7 @@ struct SenseVoiceView: View {
                     .buttonBorderShape(.capsule)
                     .controlSize(.regular)
 
-                    if !speechAssetStatus.isReady, let onOpenSettings {
+                    if !speechAssetStatus.isInstalled, let onOpenSettings {
                         Button("Speech Settings") {
                             onOpenSettings()
                         }
@@ -474,7 +474,7 @@ struct SenseVoiceView: View {
     }
 
     private var emptyStateGuidance: String {
-        if !speechAssetStatus.isReady {
+        if !speechAssetStatus.isInstalled {
             return "Download the on-device speech model in Settings, or tap Retry after granting microphone access."
         }
         return "Check microphone permission in iOS Settings and tap Retry."

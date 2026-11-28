@@ -2,11 +2,11 @@ import Combine
 import Foundation
 import StetAI
 import StetCore
-import StetRewrite
 
 /// iOS-local preference storage paired with the shared iCloud Keychain secret store for AI rewrite.
 @MainActor
 final class RewriteSettingsStore: ObservableObject {
+    let catalogStore: RewriteModelCatalogStore
     private let defaults: UserDefaults
     private let secretStore: any DictationSecretStore
 
@@ -27,8 +27,33 @@ final class RewriteSettingsStore: ObservableObject {
         didSet { defaults.set(selectedProvider.rawValue, forKey: Keys.selectedProvider) }
     }
 
-    @Published var selectedModel: RewriteModel {
-        didSet { defaults.set(selectedModel.rawValue, forKey: Keys.selectedModel) }
+    private var modelKey: String { "\(Keys.selectedModel).\(selectedProvider.rawValue)" }
+
+    var selectedModelID: String {
+        catalogStore.catalog.resolvedModelID(for: selectedProvider, preferredID: defaults.string(forKey: modelKey))
+            ?? ""
+    }
+
+    func selectModel(_ id: String) {
+        guard catalogStore.catalog.model(for: selectedProvider, modelID: id) != nil else { return }
+        objectWillChange.send()
+        defaults.set(id, forKey: modelKey)
+    }
+
+    private var thinkingKey: String { "rewrite.thinkingLevel.\(selectedProvider.rawValue).\(selectedModelID)" }
+    var thinkingLevel: RewriteThinkingLevel? {
+        catalogStore.catalog.resolvedThinkingLevel(
+            for: selectedProvider, modelID: selectedModelID,
+            preferredLevel: defaults.string(forKey: thinkingKey).flatMap(RewriteThinkingLevel.init(rawValue:)))
+    }
+
+    func selectThinkingLevel(_ level: RewriteThinkingLevel) {
+        guard
+            catalogStore.catalog.availableThinkingLevels(for: selectedProvider, modelID: selectedModelID).contains(
+                level)
+        else { return }
+        objectWillChange.send()
+        defaults.set(level.rawValue, forKey: thinkingKey)
     }
 
     @Published var customBaseURL: String {
@@ -47,8 +72,10 @@ final class RewriteSettingsStore: ObservableObject {
 
     init(
         defaults: UserDefaults = .standard,
-        secretStore: any DictationSecretStore = SharedKeychainSecretStore.iOS()
+        secretStore: any DictationSecretStore = SharedKeychainSecretStore.iOS(),
+        catalogStore: RewriteModelCatalogStore? = nil
     ) {
+        self.catalogStore = catalogStore ?? .shared
         self.defaults = defaults
         self.secretStore = secretStore
         self.isRewriteEnabled = defaults.bool(forKey: Keys.rewriteEnabled)
@@ -64,13 +91,10 @@ final class RewriteSettingsStore: ObservableObject {
         }
         self.selectedProvider = provider
 
-        if let raw = defaults.string(forKey: Keys.selectedModel),
-            let model = RewriteModel(rawValue: raw),
-            RewriteModel.availableModels(for: provider).contains(model)
-        {
-            self.selectedModel = model
-        } else {
-            self.selectedModel = RewriteModel.default(for: provider)
+        if let legacy = defaults.string(forKey: Keys.selectedModel) {
+            let key = "\(Keys.selectedModel).\(provider.rawValue)"
+            if defaults.object(forKey: key) == nil { defaults.set(legacy, forKey: key) }
+            defaults.removeObject(forKey: Keys.selectedModel)
         }
 
         self.customBaseURL = defaults.string(forKey: Keys.customBaseURL) ?? ""
@@ -108,71 +132,11 @@ final class RewriteSettingsStore: ObservableObject {
         }
     }
 
-    // MARK: - Service Factory
-
-    /// Build a `TextRewriteService` if rewrite is enabled and the selected provider is ready.
-    func makeRewriteServiceIfEnabled() -> (any TextRewriteService)? {
-        guard isRewriteEnabled else { return nil }
-
-        if selectedProvider == .custom {
-            guard let baseURL = try? OpenAICompatibleBaseURL.normalize(customBaseURL) else { return nil }
-            let modelID = customModelID.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !modelID.isEmpty else { return nil }
-            let config = DictationProviderConfigurationResolver.rewriteConfiguration(
-                provider: .custom,
-                apiKey: loadAPIKey(for: .custom) ?? "",
-                customModel: modelID,
-                baseURL: baseURL
-            )
-            return OpenAIRewriteService(configuration: config, session: .shared)
-        }
-
-        guard let apiKey = loadAPIKey(for: selectedProvider), !apiKey.isEmpty else { return nil }
-
-        let config = DictationProviderConfigurationResolver.rewriteConfiguration(
-            provider: selectedProvider,
-            apiKey: apiKey,
-            customModel: resolvedModelID(for: selectedProvider, selectedModel: selectedModel),
-            thinkingLevel: defaultThinkingLevel(for: selectedProvider)
-        )
-
-        switch config.backend {
-        case .remote:
-            return OpenAIRewriteService(configuration: config, session: .shared)
-        case .anthropic(let key):
-            return AnthropicRewriteService(apiKey: key, model: config.model)
-        case .google(let key):
-            return GoogleRewriteService(
-                apiKey: key,
-                model: config.model,
-                thinkingLevel: config.thinkingLevel
-            )
-        case .appleIntelligence:
-            return nil  // Not available on iOS through this path
-        }
-    }
-
-    private func resolvedModelID(for provider: DictationProvider, selectedModel: RewriteModel) -> String {
-        switch provider {
-        case .deepSeek where selectedModel == .deepseekV4Flash:
-            return "deepseek-flash"
-        case .google where selectedModel == .gemini37Flash:
-            return "gemini-3.8-flash"
-        default:
-            return selectedModel.rawValue
-        }
-    }
-
-    private func defaultThinkingLevel(for provider: DictationProvider) -> RewriteThinkingLevel? {
-        switch provider {
-        case .deepSeek:
-            return .off
-        case .openAI:
-            return .minimal
-        case .google:
-            return .low
-        default:
-            return nil
-        }
+    func configurationIfEnabled() -> RewriteProviderConfiguration? {
+        guard isRewriteEnabled, selectedProvider != .appleIntelligence else { return nil }
+        return DictationProviderConfigurationResolver.resolve(
+            provider: selectedProvider, apiKey: loadAPIKey(for: selectedProvider) ?? "",
+            preferredModelID: selectedModelID, preferredThinkingLevel: thinkingLevel,
+            customBaseURL: customBaseURL, customModelID: customModelID, catalog: catalogStore.catalog)
     }
 }

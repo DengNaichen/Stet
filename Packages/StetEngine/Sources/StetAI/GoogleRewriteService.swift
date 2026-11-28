@@ -13,8 +13,8 @@ public struct GoogleRewriteService: TextRewriteService {
     public nonisolated init(
         apiKey: String,
         model: String,
-        thinkingLevel: RewriteThinkingLevel? = .low,
-        session: URLSession = .shared
+        thinkingLevel: RewriteThinkingLevel?,
+        session: URLSession
     ) {
         self.apiKey = apiKey
         self.model = model
@@ -143,10 +143,9 @@ private struct GoogleGenerationConfig: Encodable {
     let thinkingConfig: ThinkingConfig?
 
     init(thinkingLevel: RewriteThinkingLevel?) {
-        switch thinkingLevel {
-        case .low, .medium, .high:
-            thinkingConfig = ThinkingConfig(thinkingLevel: thinkingLevel?.rawValue ?? "medium")
-        default:
+        if let thinkingLevel, [.low, .medium, .high].contains(thinkingLevel) {
+            thinkingConfig = ThinkingConfig(thinkingLevel: thinkingLevel.rawValue)
+        } else {
             thinkingConfig = nil
         }
     }

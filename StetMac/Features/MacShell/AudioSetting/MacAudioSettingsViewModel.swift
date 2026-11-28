@@ -29,7 +29,7 @@
         @Published private(set) var isFunASRNanoDownloading = false
         @Published private(set) var funASRNanoErrorMessage: String?
 
-        @Published private(set) var appleSpeechAssetState: AppleSpeechAssetState = .unavailable
+        @Published private(set) var appleSpeechAssetState: AppleSpeechAssetStatus = .unavailable
 
         @Published private(set) var speakerProfiles: [SpeakerProfile] = []
         @Published var enrollmentName = ""

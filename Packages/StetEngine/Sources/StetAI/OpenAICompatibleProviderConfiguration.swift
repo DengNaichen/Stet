@@ -182,91 +182,47 @@ public struct RewriteProviderConfiguration: Sendable, Equatable {
     }
 }
 
-public enum DictationProviderDefaults {
-    public nonisolated static func rewriteModel(for provider: DictationProvider) -> String {
-        switch provider {
-        case .openAI: return "gpt-5.6-luna"
-        case .google: return "gemini-3.7-flash"
-        case .anthropic: return "claude-haiku-4-5"
-        case .appleIntelligence: return "apple-intelligence-refine"
-        case .groq: return "openai/gpt-oss-20b"
-        case .deepSeek: return "deepseek-v4-flash"
-        case .qwen: return "qwen3.5-flash"
-        case .glm: return "glm-4.7-flash"
-        case .doubao: return "doubao-seed-2-0-mini-260428"
-        case .custom: return ""
-        }
-    }
-
-    public nonisolated static func availableRewriteModels(for provider: DictationProvider) -> [String] {
-        return [rewriteModel(for: provider)]
-    }
-}
-
 public enum DictationProviderConfigurationResolver {
-    public nonisolated static func rewriteConfiguration(
+    public static func resolve(
+        provider: DictationProvider, apiKey: String, preferredModelID: String?,
+        preferredThinkingLevel: RewriteThinkingLevel?, customBaseURL: String, customModelID: String,
+        catalog: RewriteModelCatalog = .bundled
+    ) -> RewriteProviderConfiguration? {
+        if provider == .appleIntelligence {
+            return RewriteProviderConfiguration(
+                provider: provider, model: "apple-intelligence-refine", backend: .appleIntelligence)
+        }
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if provider == .custom {
+            let id = customModelID.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !id.isEmpty, let url = try? OpenAICompatibleBaseURL.normalize(customBaseURL) else { return nil }
+            return transportConfiguration(provider: provider, apiKey: key, model: id, baseURL: url)
+        }
+        guard !key.isEmpty, let id = catalog.resolvedModelID(for: provider, preferredID: preferredModelID)
+        else { return nil }
+        return transportConfiguration(
+            provider: provider, apiKey: key, model: id,
+            thinkingLevel: catalog.resolvedThinkingLevel(
+                for: provider, modelID: id, preferredLevel: preferredThinkingLevel))
+    }
+
+    nonisolated static func transportConfiguration(
         provider: DictationProvider,
         apiKey: String,
-        organizationID: String? = nil,
-        projectID: String? = nil,
-        customModel: String? = nil,
+        model: String,
         baseURL: URL? = nil,
         thinkingLevel: RewriteThinkingLevel? = nil
     ) -> RewriteProviderConfiguration {
-        let model = customModel ?? DictationProviderDefaults.rewriteModel(for: provider)
-        let resolvedThinkingLevel = thinkingLevel
+        let backend: RewriteExecutionBackend
         switch provider {
-        case .openAI, .groq, .deepSeek, .qwen, .glm, .doubao:
-            return RewriteProviderConfiguration(
-                provider: provider,
-                model: model,
-                backend: .remote(
-                    OpenAICompatibleProviderEndpointConfiguration(
-                        provider: provider,
-                        apiKey: apiKey,
-                        organizationID: organizationID,
-                        projectID: projectID
-                    )
-                ),
-                thinkingLevel: resolvedThinkingLevel
-            )
-        case .custom:
-            guard let baseURL else {
-                preconditionFailure("Custom rewrite configuration requires a base URL.")
-            }
-            return RewriteProviderConfiguration(
-                provider: provider,
-                model: model,
-                backend: .remote(
-                    OpenAICompatibleProviderEndpointConfiguration(
-                        provider: provider,
-                        apiKey: apiKey,
-                        baseURL: baseURL
-                    )
-                ),
-                thinkingLevel: resolvedThinkingLevel
-            )
-        case .google:
-            return RewriteProviderConfiguration(
-                provider: provider,
-                model: model,
-                backend: .google(apiKey: apiKey),
-                thinkingLevel: resolvedThinkingLevel
-            )
-        case .anthropic:
-            return RewriteProviderConfiguration(
-                provider: provider,
-                model: model,
-                backend: .anthropic(apiKey: apiKey),
-                thinkingLevel: resolvedThinkingLevel
-            )
-        case .appleIntelligence:
-            return RewriteProviderConfiguration(
-                provider: provider,
-                model: model,
-                backend: .appleIntelligence,
-                thinkingLevel: resolvedThinkingLevel
-            )
+        case .appleIntelligence: backend = .appleIntelligence
+        case .google: backend = .google(apiKey: apiKey)
+        case .anthropic: backend = .anthropic(apiKey: apiKey)
+        case .openAI, .groq, .deepSeek, .qwen, .glm, .doubao, .custom:
+            backend = .remote(
+                OpenAICompatibleProviderEndpointConfiguration(provider: provider, apiKey: apiKey, baseURL: baseURL))
         }
+        return RewriteProviderConfiguration(
+            provider: provider, model: model, backend: backend, thinkingLevel: thinkingLevel)
     }
 }
