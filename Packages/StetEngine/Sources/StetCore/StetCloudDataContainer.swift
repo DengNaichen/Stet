@@ -14,7 +14,7 @@ public final class StetCloudDataContainer: @unchecked Sendable {
 
     private init() {
         do {
-            modelContainer = try Self.makePersistentContainer()
+            modelContainer = try Self.isRunningTests ? Self.makeInMemoryContainer() : Self.makePersistentContainer()
             initializationError = nil
         } catch {
             modelContainer = nil
@@ -65,8 +65,12 @@ public final class StetCloudDataContainer: @unchecked Sendable {
         return container
     }
 
+    private static var isRunningTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
     private static var canUseCloudKit: Bool {
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+        if isRunningTests {
             return false
         }
         #if os(macOS)

@@ -715,6 +715,7 @@
 				OTHER_SWIFT_FLAGS = "$(inherited) -Xfrontend -disable-availability-checking";
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetMobile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STET_ICLOUD_CONTAINER_ENVIRONMENT = Development;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -758,6 +759,7 @@
 				OTHER_SWIFT_FLAGS = "$(inherited) -Xfrontend -disable-availability-checking";
 				PRODUCT_BUNDLE_IDENTIFIER = NaichengDeng.StetMobile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STET_ICLOUD_CONTAINER_ENVIRONMENT = Production;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
