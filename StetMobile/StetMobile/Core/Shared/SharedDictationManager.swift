@@ -362,10 +362,19 @@ class SharedDictationManager {
     }
 
     private func blocksForeignClaimUnlocked(_ session: DictationSession) -> Bool {
+        let age = Date().timeIntervalSince(session.updatedAt)
+        let appAlive = mainAppAlive(within: 2.0)
+
         switch session.state {
-        case .requestStart, .launching, .warming, .recording, .requestStop, .transcribing:
+        case .requestStart, .launching, .warming, .requestStop, .transcribing:
+            if !appAlive && age > 10.0 { return false }
+            if age > 25.0 { return false }
+            return true
+        case .recording:
+            if !appAlive && age > 10.0 { return false }
             return true
         case .ready:
+            if age > 60.0 { return false }
             if session.origin == .keyboard { return true }
             return session.origin == nil
                 && defaults?.string(forKey: pendingKey) == session.sessionId
