@@ -45,6 +45,7 @@
                     .padding(.top, MacUI.LinearMetrics.contentTopPadding)
                     .padding(.bottom, MacUI.LinearMetrics.contentBottomPadding)
                 }
+                .macNativeTopScrollEdgeEffect()
                 .macSettingsScrollIndicator()
             }
             .macNativeNavigationChrome(title: "Appearance")
