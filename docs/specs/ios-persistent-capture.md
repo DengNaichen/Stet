@@ -5,7 +5,7 @@
 **输入**：定义 Stet iOS 主 App 怎样在后台保持麦克风随时可用，以便键盘发起听写时立即开始；包括采集的准备、帧门、单消费者、内置麦克风优先、路由变化与中断后的恢复，以及常驻期间的 Live Activity。替代 010 iOS 常驻采集中仍适用的部分。
 
 **范围**：iOS（主 App 与 Live Activity 扩展）。macOS 的输入设备选择与录音行为不受本 spec 影响。
-**边界**：本 spec 拥有主 App 内音频采集资源的生命周期、输入路由策略、恢复规则、音频送往转写服务前的缓冲规则，以及表示“麦克风常驻”的 Live Activity。键盘与主 App 之间的交接、插入文本、返回引导、主 App 内的听写入口，以及 iOS 麦克风权限和“完全访问”见[iOS 键盘听写](ios-keyboard-dictation.md) spec；转写服务的选择、凭据与模型准备见[转写引擎与模型准备](transcription-engines.md) spec；转写后的改写见[改写执行](rewrite-execution.md) spec。
+**边界**：本 spec 拥有主 App 内音频采集资源的生命周期、输入路由策略、恢复规则、音频送往转写服务前的缓冲规则，以及表示“麦克风常驻”的 Live Activity。键盘与主 App 之间的交接、插入文本、返回引导、主 App 内的听写入口，以及 iOS 麦克风权限和“完全访问”见[iOS 键盘听写](ios-keyboard-dictation.md) spec；转写引擎与语言模型准备见[转写引擎与模型准备](transcription-engines.md) spec；转写后的改写见[改写执行](rewrite-execution.md) spec。
 
 ## 术语
 
@@ -60,7 +60,7 @@
 
 **验收场景**：
 
-1. **Given** 首次启动，**When** 权限和服务配置都满足，**Then** 常驻采集开始，Stet 进入就绪，并显示一个 Live Activity。
+1. **Given** 首次启动，**When** 麦克风权限和本地语言模型都已就绪，**Then** 常驻采集开始，Stet 进入就绪，并显示一个 Live Activity。
 2. **Given** 已有 Stet 的 Live Activity，**When** Stet 再次进入就绪，**Then** 复用现有的那一个，多余的立即结束。
 3. **Given** 进入失败状态，**When** 失败发生，**Then** 结束所有 Stet 的 Live Activity。
 4. **Given** 用户在系统中关闭了 Stet 的实时活动，**When** Stet 进入就绪，**Then** 不显示 Live Activity，听写不受影响。
@@ -81,19 +81,18 @@
 
 ### 边界情况
 
-- 开始听写时，与转写服务的连接建立之前的音频不会被录入；帧门在连接建立后才打开。
-- 网络慢导致待发送音频积压超过 5 秒：本次听写以失败结束，不悄悄丢弃中间音频。
-- 停止后 15 秒内没有收到转写服务的结束确认：本次听写以失败结束。
-- 开始听写的连接过程中 App 被系统挂起：连接在后台任务时限到达时关闭，本次听写失败。
+- 开始听写时，本地分析器先准备输入序列，再打开帧门。
+- 音频帧或分析器输入积压超过队列容量时，本次听写以失败结束。
+- 停止听写后，分析器读完剩余音频并发布最终结果。
 - 第二个消费者试图在已有消费者时打开帧门：被拒绝。
-- 服务凭据缺失或无效：不开始常驻采集，进入失败状态。
+- 语言不受支持或模型安装失败时，听写进入失败状态。
 - 只有类别变化、覆盖设置、路由配置变化这三类路由通知不触发恢复。
 
 ## 需求 *(必填)*
 
 ### 生命周期
 
-- **FR-001**：主 App 启动后必须依次完成：麦克风权限（规则见[iOS 键盘听写](ios-keyboard-dictation.md) spec）、转写服务配置校验（见[转写引擎与模型准备](transcription-engines.md) spec）、常驻采集准备；全部成功才进入就绪。任一步失败进入失败状态。
+- **FR-001**：主 App 启动后依次确认麦克风权限、准备所选语言的[转写模型](transcription-engines.md)，再准备常驻采集。全部成功后进入就绪。
 - **FR-002**：就绪后音频引擎持续运行，不因没有听写而停止。开始和停止听写只开关帧门，不重建音频引擎。
 - **FR-003**：主 App 必须声明后台音频能力，使常驻采集在 App 退到后台后继续运行。
 - **FR-004**：主 App 回到前台时：处于失败状态则从 FR-001 第一步重新准备；处于空闲则重新准备采集并回到就绪；有听写进行中则不做处理。
@@ -104,9 +103,9 @@
 - **FR-006**：常驻采集输出 16 kHz 单声道浮点音频帧，每帧附带归一化到 0–1 的音量。
 - **FR-007**：同一时刻最多只有一个消费者；已有消费者时再次打开帧门必须失败。
 - **FR-008**：帧门关闭时不得把任何音频帧交给转写服务。
-- **FR-009**：开始听写时先与转写服务建立会话，成功后才打开帧门；建立会话期间申请后台执行时间，时限到达即放弃本次连接。
-- **FR-010**：送往转写服务前音频转为 16 位 PCM 并分包排队；排队上限为约 5 秒音频，超出即判定本次听写失败。
-- **FR-011**：停止听写时关闭帧门，送出剩余音频并请求结束；15 秒内未收到结束确认即判定失败。
+- **FR-009**：开始听写时先建立 Apple Speech 分析会话，再打开帧门。
+- **FR-010**：采集帧转换成分析器协商的音频格式后按顺序送入。队列溢出时本次听写失败。
+- **FR-011**：停止听写时关闭帧门、处理已排队的音频并结束分析。最终结果等分析器确认文本后发布。
 - **FR-012**：听写进行中的实时音量必须提供给键盘扩展用于显示；规则的使用方见[iOS 键盘听写](ios-keyboard-dictation.md) spec。
 
 ### 输入路由
@@ -156,20 +155,16 @@
 ## 待产品确认
 
 1. **AirPods 与“不抢麦”是否为硬性要求**（对应 index 同名事项）：当前用内置麦克风优先策略并以两分钟不回切为目标，但未在真机验收。可选：确认为硬性要求并纳入发布验收；降为尽力而为。
-2. **iOS 转写在云端而非本机**：当前 iOS 唯一的转写服务是阿里云 FunASR 实时服务，音频实时上传；而麦克风用途说明写的是“私密的本机转写”。可选：改为本机模型；保留云端并修正用途说明与隐私说明。（服务选择归[转写引擎与模型准备](transcription-engines.md) spec，此处只确认常驻采集是否需要配合本机模型的准备流程。）
-3. **常驻期间麦克风持续开启**：就绪后音频引擎一直运行，系统会持续显示麦克风使用指示。可选：保持；空闲一段时间后停止常驻并在下次听写时重新唤起。
-4. **听写中断即失败**：音频中断结束或媒体服务重置时，进行中的听写直接失败，已录的部分丢弃。可选：保留已转写部分并插入；保持失败。
-5. **配置补全后不自动重试**：服务凭据缺失导致失败后，用户在设置里填好凭据，要等 App 下次回到前台才重新准备。可选：保存凭据后立即重新准备；保持现状。
+2. **常驻期间麦克风持续开启**：就绪后音频引擎一直运行，系统会持续显示麦克风使用指示。可选：保持；空闲一段时间后停止常驻并在下次听写时重新唤起。
+3. **听写中断即失败**：音频中断结束或媒体服务重置时，进行中的听写直接失败，已录的部分丢弃。可选：保留已转写部分并插入；保持失败。
 
 ## 与当前实现的已知差异（非规范，供评审）
 
-以下只记录 2026-11-07（基线 `b327f54`）核对时的代码状态，不代表产品决定。
+相关实现如下。
 
-- 生产组合只构造“内置麦克风优先”并注入唯一引擎 FunASR Realtime（[StetMobileApp](../../StetMobile/StetMobile/App/StetMobileApp.swift) 的 `StetMobileComposition`）；策略、帧门、恢复合并见 [ASRAudioCapture](../../Packages/StetEngine/Sources/StetASR/ASRAudioCapture.swift)。
-- iOS 没有本地模型：转写通过 WebSocket 连到阿里云（[FunASRSettingsStore](../../StetMobile/StetMobile/Core/Settings/FunASRSettingsStore.swift) 的 `FunASRConfiguration.endpoint`），启动时还会删除旧的 Whisper 模型目录（[LocalDictationModelManager](../../StetMobile/StetMobile/Core/Settings/LocalDictationModelManager.swift) 的 `RetiredDictationModelCleanup`）。任务说明中的“本地模型准备”在 iOS 当前不存在。
-- 麦克风用途说明为 “Record microphone audio for private, on-device transcription.”（[StetMobile project.pbxproj](../../StetMobile/StetMobile.xcodeproj/project.pbxproj) 的 `INFOPLIST_KEY_NSMicrophoneUsageDescription`），与实际上传云端不符；设置页脚注写明音频发送至阿里云。
-- 启动顺序（权限 → 资源 → 引擎准备，引擎准备会先校验凭据）与中断处理在 [DictationSessionCoordinator](../../StetMobile/StetMobile/Core/Dictation/DictationSessionCoordinator.swift) 的 `bootstrap`、`registerAudioSessionObservers`、`handleAudioSessionInvalidation`；只监听中断“结束”，不处理中断“开始”。
-- 连接先于帧门、5 秒排队上限与 15 秒结束超时见 [FunASRRealtimeEngine](../../StetMobile/StetMobile/Core/Dictation/FunASRRealtimeEngine.swift) 的 `start`、`startFinishTimeout` 与 [FunASRAudioCapture](../../StetMobile/StetMobile/Core/Dictation/FunASRAudioCapture.swift) 的 `FunASRAudioFrameQueue`。
+- 生产组合使用内置麦克风优先策略。帧门、音频格式和分析会话分别由 [ASRAudioCapture](../../Packages/StetEngine/Sources/StetASR/ASRAudioCapture.swift) 与 [AppleSpeechDictationEngine](../../StetMobile/StetMobile/Core/Dictation/AppleSpeechDictationEngine.swift) 管理。
+- [SpeechRecognitionSettingsStore](../../StetMobile/StetMobile/Core/Settings/SpeechRecognitionSettingsStore.swift) 管理语言模型。模型就绪后，[StetMobileApp](../../StetMobile/StetMobile/App/StetMobileApp.swift) 可重新准备听写。
+- 麦克风用途说明见 [StetMobile 项目配置](../../StetMobile/StetMobile.xcodeproj/project.pbxproj) 的 `INFOPLIST_KEY_NSMicrophoneUsageDescription`。
+- [DictationSessionCoordinator](../../StetMobile/StetMobile/Core/Dictation/DictationSessionCoordinator.swift) 负责启动、音频中断结束和媒体服务重置。
 - Live Activity 的复用、去重与结束见 [MicrophoneLiveActivityManager](../../StetMobile/StetMobile/Core/LiveActivity/MicrophoneLiveActivityManager.swift)，显示内容见 [StetMicrophoneLiveActivityWidget](../../StetMobile/StetLiveActivity/StetMicrophoneLiveActivityWidget.swift)；触发点在 [SenseVoiceViewModel](../../StetMobile/StetMobile/Features/Dictation/ViewModels/SenseVoiceViewModel.swift) 的 `.ready` 与 `.failed` 分支。`SenseVoice` 只是遗留类型名，不代表 SenseVoice 引擎仍在。
-- 保存凭据后不会触发重新准备（[RewriteSettingsViewModel](../../StetMobile/StetMobile/Features/Settings/ViewModels/RewriteSettingsViewModel.swift) 的 `saveFunASRAPIKey` 未通知听写协调器），只能等 [StetMobileApp](../../StetMobile/StetMobile/App/StetMobileApp.swift) 在回到前台时调用 `ensureMicAlive`。
 - 旧 010 的 AirPods 两分钟、真机路由变化等成功标准从未在真机验收，当前只有单元测试覆盖策略、帧门与恢复合并。
