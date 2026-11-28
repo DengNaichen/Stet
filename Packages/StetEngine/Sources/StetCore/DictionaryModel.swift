@@ -140,16 +140,21 @@ public final class SyncedDictionaryStore: @unchecked Sendable {
             sources: defaults.dictionary(forKey: provenanceKey) as? [String: String] ?? [:])
         let marker =
             entriesKey == "dictionary.entries" ? "dictionary.kvs.unifiedMergeV1" : entriesKey + ".unifiedMergeV1"
-        if !defaults.bool(forKey: marker), !local.isEmpty || cloudEntries != nil {
-            if !local.isEmpty, cloudEntries == nil || !cloud.isEmpty {
-                let merged = GlossaryEntry.normalized(cloud + local)
-                writeRecords(merged)
+        if cloudEntries != nil {
+            if !defaults.bool(forKey: marker) {
                 defaults.set(true, forKey: marker)
-                return merged
+                if !local.isEmpty, !cloud.isEmpty {
+                    let merged = GlossaryEntry.normalized(cloud + local)
+                    writeRecords(merged)
+                    return merged
+                }
             }
-            defaults.set(true, forKey: marker)
+            defaults.set(cloud.map(\.term), forKey: entriesKey)
+            defaults.set(sources, forKey: provenanceKey)
+            return cloud
         }
-        if cloudEntries != nil || externalChange {
+        if externalChange {
+            defaults.set(true, forKey: marker)
             defaults.set(cloud.map(\.term), forKey: entriesKey)
             defaults.set(sources, forKey: provenanceKey)
             return cloud
@@ -170,6 +175,9 @@ public final class SyncedDictionaryStore: @unchecked Sendable {
     func updateRecords(_ update: ([GlossaryEntry]) -> [GlossaryEntry]) -> [GlossaryEntry] {
         Self.lock.lock()
         let records = GlossaryEntry.normalized(update(readRecords()))
+        let marker =
+            entriesKey == "dictionary.entries" ? "dictionary.kvs.unifiedMergeV1" : entriesKey + ".unifiedMergeV1"
+        defaults.set(true, forKey: marker)
         writeRecords(records)
         Self.lock.unlock()
         // Notify outside the lock; a main-queue observer may read from another thread.

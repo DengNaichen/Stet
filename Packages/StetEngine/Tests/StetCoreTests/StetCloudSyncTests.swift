@@ -49,15 +49,29 @@ struct StetCloudSyncTests {
         #expect(defaults.stringArray(forKey: key) == [])
     }
 
-    @Test func missingCloudDictionaryReceivesLocalCopy() {
+    @Test func missingCloudDictionaryWaitsForCloudBeforeMergingLocalCopy() {
         let name = UUID().uuidString
         let defaults = UserDefaults(suiteName: name)!
         defer { defaults.removePersistentDomain(forName: name) }
         let key = "dictionary.entries"
         let cloud = CloudDictionary()
-        defaults.set(["Local"], forKey: key)
-        _ = SyncedDictionaryStore(defaults: defaults, cloud: cloud, entriesKey: key)
-        #expect(cloud.array(forKey: key) as? [String] == ["Local"])
+        let center = NotificationCenter()
+        defaults.set(["iOSLocal"], forKey: key)
+        let store = SyncedDictionaryStore(defaults: defaults, cloud: cloud, entriesKey: key, notificationCenter: center)
+        // Must NOT overwrite remote KVS while initial async synchronize() has not populated cloud yet.
+        #expect(cloud.array(forKey: key) == nil)
+        #expect(!defaults.bool(forKey: "dictionary.kvs.unifiedMergeV1"))
+        #expect(store.loadEntries() == ["iOSLocal"])
+
+        // When initial cloud data arrives externally, merge Mac cloud entries + iOS local entries without data loss.
+        cloud.set(["MacWord1", "MacWord2"], forKey: key)
+        center.post(
+            name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: cloud,
+            userInfo: [NSUbiquitousKeyValueStoreChangedKeysKey: [key]]
+        )
+        #expect(store.loadEntries() == ["MacWord1", "MacWord2", "iOSLocal"])
+        #expect(cloud.array(forKey: key) as? [String] == ["MacWord1", "MacWord2", "iOSLocal"])
         #expect(defaults.bool(forKey: "dictionary.kvs.unifiedMergeV1"))
     }
 

@@ -7,7 +7,7 @@
 		<string>group.NaichengDeng.StetMobile</string>
 	</array>
 	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
-	<string>$(TeamIdentifierPrefix)NaichengDeng.Stet</string>
+	<string>$(TeamIdentifierPrefix)$(STET_UBIQUITY_KVSTORE_IDENTIFIER)</string>
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(TeamIdentifierPrefix)NaichengDeng.Stet.shared</string>
