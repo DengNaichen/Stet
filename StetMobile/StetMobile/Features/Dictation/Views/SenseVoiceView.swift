@@ -51,57 +51,56 @@ struct SenseVoiceView: View {
     private var headerRow: some View {
         HStack(alignment: .center, spacing: 12) {
             Text("Dictation")
-                .font(.largeTitle.bold())
+                .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.primary)
 
             Spacer(minLength: 8)
 
-            if let languageLabel {
-                Button {
-                    onOpenSettings?()
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(languageLabel)
-                            .font(.subheadline.weight(.medium))
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 10, weight: .semibold))
-                    }
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(Color(.secondarySystemGroupedBackground), in: Capsule())
-                    .overlay(
-                        Capsule()
-                            .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Recognition language \(languageLabel)")
-            }
-
-            Menu {
-                ForEach(MobileDictationVisualTheme.allCases) { theme in
-                    Button {
-                        themeRawValue = theme.rawValue
-                    } label: {
-                        if theme == selectedTheme {
-                            Label(theme.title, systemImage: "checkmark")
-                        } else {
-                            Text(theme.title)
+            GlassEffectContainer(spacing: 8) {
+                HStack(spacing: 8) {
+                    if let languageLabel {
+                        Button {
+                            onOpenSettings?()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(languageLabel)
+                                    .font(.subheadline.weight(.medium))
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 10, weight: .semibold))
+                            }
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 12)
+                            .frame(height: 36)
+                            .contentShape(Capsule())
                         }
+                        .buttonStyle(.plain)
+                        .glassEffect(.regular.interactive(), in: .capsule)
+                        .accessibilityLabel("Recognition language \(languageLabel)")
                     }
+
+                    Menu {
+                        ForEach(MobileDictationVisualTheme.allCases) { theme in
+                            Button {
+                                themeRawValue = theme.rawValue
+                            } label: {
+                                if theme == selectedTheme {
+                                    Label(theme.title, systemImage: "checkmark")
+                                } else {
+                                    Text(theme.title)
+                                }
+                            }
+                        }
+                    } label: {
+                        ThemeOrbSwatch(theme: selectedTheme, size: 24)
+                            .frame(width: 36, height: 36)
+                            .contentShape(Circle())
+                    }
+                    .glassEffect(.regular.interactive(), in: .circle)
+                    .accessibilityLabel("Voice orb theme")
                 }
-            } label: {
-                ThemeOrbSwatch(theme: selectedTheme, size: 28)
-                    .padding(4)
-                    .background(Color(.secondarySystemGroupedBackground), in: Circle())
-                    .overlay(
-                        Circle()
-                            .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
-                    )
             }
-            .accessibilityLabel("Voice orb theme")
         }
+        .frame(minHeight: 40)
     }
 
     private var statusHeaderBar: some View {
