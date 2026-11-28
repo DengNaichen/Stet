@@ -27,10 +27,15 @@
             window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
-            window.isOpaque = false
-            window.backgroundColor = .clear
+            window.isOpaque = true
+            window.backgroundColor = .windowBackgroundColor
             window.isReleasedWhenClosed = false
-            window.setContentSize(NSSize(width: 900, height: 680))
+            window.setContentSize(
+                NSSize(
+                    width: OnboardingMetrics.windowWidth,
+                    height: OnboardingMetrics.windowHeight
+                )
+            )
             window.center()
 
             let controller = NSWindowController(window: window)

@@ -1,6 +1,8 @@
 #if os(macOS)
-    import Combine
+    import AppKit
     import ApplicationServices
+    import Combine
+    import KeyboardShortcuts
     import SwiftUI
 
     final class OnboardingKeyboardMonitor: ObservableObject {
@@ -42,6 +44,23 @@
 
         deinit {
             stop()
+        }
+
+        func isShortcutActive(_ shortcut: KeyboardShortcuts.Shortcut) -> Bool {
+            let modifiersMatch = requiredModifierFlags(for: shortcut.modifiers).allSatisfy {
+                modifierFlags.contains($0)
+            }
+            let keyMatches = pressedKeys.contains(UInt16(shortcut.carbonKeyCode))
+            return modifiersMatch && keyMatches
+        }
+
+        private func requiredModifierFlags(for modifiers: NSEvent.ModifierFlags) -> [CGEventFlags] {
+            var flags: [CGEventFlags] = []
+            if modifiers.contains(.control) { flags.append(.maskControl) }
+            if modifiers.contains(.option) { flags.append(.maskAlternate) }
+            if modifiers.contains(.shift) { flags.append(.maskShift) }
+            if modifiers.contains(.command) { flags.append(.maskCommand) }
+            return flags
         }
 
         private func installEventTap() -> Bool {
@@ -139,180 +158,192 @@
         }
     }
 
-    struct OnboardingKeyboardView: View {
-        @StateObject private var keyboardMonitor = OnboardingKeyboardMonitor()
-        @State private var hintStep = 0
-        private let timer = Timer.publish(every: 0.6, on: .main, in: .common).autoconnect()
+    // MARK: - Dynamic Shortcut Keycaps
 
-        var body: some View {
-            VStack(spacing: 30) {
-                VStack(alignment: .trailing, spacing: 12) {
-                    HStack(spacing: 10) {
-                        KeyCap(
-                            text: "N", subtext: nil, icon: nil, width: 50,
-                            isPressed: keyboardMonitor.pressedKeys.contains(45))
-                        KeyCap(
-                            text: "M", subtext: nil, icon: nil, width: 50,
-                            isPressed: keyboardMonitor.pressedKeys.contains(46))
-                        KeyCap(
-                            text: ",", subtext: nil, icon: nil, width: 50,
-                            isPressed: keyboardMonitor.pressedKeys.contains(43))
-                        KeyCap(
-                            text: ".", subtext: nil, icon: nil, width: 50,
-                            isPressed: keyboardMonitor.pressedKeys.contains(47),
-                            isHinted: hintStep == 2 || hintStep == 3
-                        )
-                        KeyCap(
-                            text: "/", subtext: "?", icon: nil, width: 50,
-                            isPressed: keyboardMonitor.pressedKeys.contains(44))
-                        KeyCap(
-                            text: "⇧", subtext: nil, icon: nil, width: 90,
-                            isPressed: keyboardMonitor.modifierFlags.contains(.maskShift))
-                    }
+    struct OnboardingShortcutKeySpec: Identifiable, Equatable {
+        let id: String
+        let symbol: String
+        let label: String
+        let modifierMask: CGEventFlags?
+        let keyCode: UInt16?
 
-                    HStack(alignment: .bottom, spacing: 10) {
-                        KeyCap(
-                            text: "space", subtext: nil, icon: nil, width: 130,
-                            isPressed: keyboardMonitor.pressedKeys.contains(49))
-                        KeyCap(
-                            text: "command", subtext: "⌘", icon: nil, width: 70,
-                            isPressed: keyboardMonitor.modifierFlags.contains(.maskCommand),
-                            isHinted: hintStep == 1 || hintStep == 2 || hintStep == 3
-                        )
-                        KeyCap(
-                            text: "option", subtext: "⌥", icon: nil, width: 60,
-                            isPressed: keyboardMonitor.modifierFlags.contains(.maskAlternate))
+        static func specs(for shortcut: KeyboardShortcuts.Shortcut) -> [OnboardingShortcutKeySpec] {
+            var items: [OnboardingShortcutKeySpec] = []
+            let modifiers = shortcut.modifiers
 
-                        HStack(alignment: .bottom, spacing: 4) {
-                            KeyCap(
-                                text: "", subtext: nil, icon: "chevron.left", width: 44, height: 23,
-                                isPressed: keyboardMonitor.pressedKeys.contains(123))
-
-                            VStack(spacing: 4) {
-                                KeyCap(
-                                    text: "", subtext: nil, icon: "chevron.up", width: 44,
-                                    height: 23, isPressed: keyboardMonitor.pressedKeys.contains(126)
-                                )
-                                KeyCap(
-                                    text: "", subtext: nil, icon: "chevron.down", width: 44,
-                                    height: 23, isPressed: keyboardMonitor.pressedKeys.contains(125)
-                                )
-                            }
-
-                            KeyCap(
-                                text: "", subtext: nil, icon: "chevron.right", width: 44,
-                                height: 23, isPressed: keyboardMonitor.pressedKeys.contains(124))
-                        }
-                    }
-                }
-
-                Text("When pressed, do you see the button turn black?")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.primary.opacity(0.8))
+            if modifiers.contains(.control) {
+                items.append(.init(id: "ctrl", symbol: "⌃", label: "control", modifierMask: .maskControl, keyCode: nil))
             }
-            .onReceive(timer) { _ in
-                // Animation sequence:
-                // 0: All up
-                // 1: Command down
-                // 2: Command + Dot down
-                // 3: Command + Dot down (staying)
-                // 4: All up
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    hintStep = (hintStep + 1) % 5
-                }
+            if modifiers.contains(.option) {
+                items.append(.init(id: "opt", symbol: "⌥", label: "option", modifierMask: .maskAlternate, keyCode: nil))
             }
-            .onAppear {
-                keyboardMonitor.start()
+            if modifiers.contains(.shift) {
+                items.append(.init(id: "shift", symbol: "⇧", label: "shift", modifierMask: .maskShift, keyCode: nil))
             }
-            .onDisappear {
-                keyboardMonitor.stop()
+            if modifiers.contains(.command) {
+                items.append(.init(id: "cmd", symbol: "⌘", label: "command", modifierMask: .maskCommand, keyCode: nil))
             }
+
+            let modifierSymbols: Set<Character> = ["⌃", "⌥", "⇧", "⌘"]
+            let rawDescription = "\(shortcut)"
+            let mainSymbol = String(rawDescription.filter { !modifierSymbols.contains($0) })
+            let displaySymbol = mainSymbol.isEmpty ? "·" : mainSymbol
+            let displayLabel: String
+            switch displaySymbol {
+            case ".":
+                displayLabel = "period"
+            case "␣", "Space":
+                displayLabel = "space"
+            case "↩", "Return":
+                displayLabel = "return"
+            default:
+                displayLabel = displaySymbol.lowercased()
+            }
+
+            items.append(
+                .init(
+                    id: "key-\(shortcut.carbonKeyCode)",
+                    symbol: displaySymbol == "Space" ? "␣" : displaySymbol,
+                    label: displayLabel,
+                    modifierMask: nil,
+                    keyCode: UInt16(shortcut.carbonKeyCode)
+                )
+            )
+            return items
+        }
+
+        static func formattedString(for shortcut: KeyboardShortcuts.Shortcut?) -> String {
+            guard let shortcut else {
+                return String(localized: "Not set")
+            }
+            return specs(for: shortcut)
+                .map { $0.symbol == "␣" ? "Space" : $0.symbol }
+                .joined(separator: " ")
         }
     }
 
-    private struct KeyCap: View {
-        let text: String
-        let subtext: String?
-        let icon: String?
-        let width: CGFloat
-        var height: CGFloat = 50
-        let isPressed: Bool
-        var isHinted: Bool = false
+    struct OnboardingShortcutKeycapsView: View {
+        let shortcut: KeyboardShortcuts.Shortcut?
+        @ObservedObject var monitor: OnboardingKeyboardMonitor
 
         var body: some View {
-            VStack(spacing: 2) {
-                if let icon {
-                    Image(systemName: icon)
-                        .font(.system(size: 10))
-                        .frame(maxWidth: .infinity, alignment: text.isEmpty ? .center : .leading)
-                        .padding(.leading, text.isEmpty ? 0 : 6)
-                        .padding(.top, 4)
-                }
+            if let shortcut {
+                let specs = OnboardingShortcutKeySpec.specs(for: shortcut)
+                HStack(spacing: 10) {
+                    ForEach(Array(specs.enumerated()), id: \.element.id) { index, spec in
+                        if index > 0 {
+                            Text("+")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(MacUI.LinearSurfaces.mutedInk)
+                        }
 
-                if let subtext {
-                    Text(subtext)
-                        .font(.system(size: 10))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 4)
-                }
-
-                Spacer(minLength: 0)
-
-                if !text.isEmpty {
-                    Text(text)
-                        .font(.system(size: 13, weight: .regular))
-                        .frame(
-                            maxWidth: .infinity,
-                            alignment: icon != nil && !text.isEmpty ? .leading : .center
+                        OnboardingKeyCap(
+                            symbol: spec.symbol,
+                            label: spec.label,
+                            isPressed: isKeyPressed(spec)
                         )
-                        .padding(.leading, icon != nil && !text.isEmpty ? 6 : 0)
-                        .padding(.bottom, 6)
+                    }
                 }
+            } else {
+                Text("No shortcut configured")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(MacUI.Foreground.secondary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(MacUI.LinearSurfaces.elevated)
+                    )
             }
-            .frame(width: width, height: height)
+        }
+
+        private func isKeyPressed(_ spec: OnboardingShortcutKeySpec) -> Bool {
+            if let mask = spec.modifierMask {
+                return monitor.modifierFlags.contains(mask)
+            }
+            if let keyCode = spec.keyCode {
+                return monitor.pressedKeys.contains(keyCode)
+            }
+            return false
+        }
+    }
+
+    private struct OnboardingKeyCap: View {
+        let symbol: String
+        let label: String
+        let isPressed: Bool
+
+        var body: some View {
+            VStack(spacing: 3) {
+                Text(symbol)
+                    .font(.system(size: 18, weight: .medium))
+                    .lineLimit(1)
+
+                Text(label)
+                    .font(.system(size: 10, weight: .medium))
+                    .opacity(0.65)
+                    .lineLimit(1)
+            }
+            .foregroundStyle(
+                isPressed ? OnboardingPalette.primaryButtonForeground : MacUI.Foreground.primary
+            )
+            .padding(.horizontal, 16)
+            .frame(minWidth: 68, minHeight: 60)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(isPressed || isHinted ? Color.black : Color.white)
+                    .fill(
+                        isPressed
+                            ? LinearGradient(
+                                colors: [
+                                    OnboardingPalette.primaryButtonBackground,
+                                    OnboardingPalette.primaryButtonBackground,
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                            : LinearGradient(
+                                colors: [OnboardingPalette.keycapTop, OnboardingPalette.keycapBottom],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(isPressed || isHinted ? Color.clear : Color.black.opacity(0.1), lineWidth: 1)
+                    .strokeBorder(
+                        isPressed ? Color.clear : MacUI.LinearSurfaces.hairlineStrong,
+                        lineWidth: 1
+                    )
             )
-            .foregroundStyle(isPressed || isHinted ? Color.white : Color.black.opacity(0.6))
-            .shadow(color: Color.black.opacity(isPressed || isHinted ? 0 : 0.05), radius: 2, x: 0, y: 1)
-            .animation(.easeInOut(duration: 0.2), value: isPressed || isHinted)
+            .shadow(
+                color: Color.black.opacity(isPressed ? 0 : 0.08),
+                radius: isPressed ? 0 : 4,
+                x: 0,
+                y: isPressed ? 0 : 2
+            )
+            .scaleEffect(isPressed ? 0.965 : 1)
+            .offset(y: isPressed ? 2 : 0)
+            .animation(.easeOut(duration: 0.1), value: isPressed)
         }
     }
 
-    struct OnboardingHotkeyDisplay: View {
-        @StateObject private var keyboardMonitor = OnboardingKeyboardMonitor()
+    struct OnboardingCompactHotkeyBadge: View {
+        let shortcut: KeyboardShortcuts.Shortcut?
 
         var body: some View {
-            VStack(spacing: 12) {
-                Text("Press your hotkey")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 8) {
-                    KeyCap(
-                        text: "command", subtext: "⌘", icon: nil, width: 80,
-                        isPressed: keyboardMonitor.modifierFlags.contains(.maskCommand))
-
-                    Text("+")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.secondary)
-
-                    KeyCap(
-                        text: ".", subtext: nil, icon: nil, width: 50,
-                        isPressed: keyboardMonitor.pressedKeys.contains(47))
-                }
-            }
-            .onAppear {
-                keyboardMonitor.start()
-            }
-            .onDisappear {
-                keyboardMonitor.stop()
-            }
+            Text(verbatim: OnboardingShortcutKeySpec.formattedString(for: shortcut))
+                .font(.system(size: 11.5, weight: .medium, design: .monospaced))
+                .foregroundStyle(MacUI.Foreground.primary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(MacUI.LinearSurfaces.elevated)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(MacUI.LinearSurfaces.hairlineStrong, lineWidth: 1)
+                )
         }
     }
 #endif

@@ -1,4 +1,5 @@
 #if os(macOS)
+    import AppKit
     import SwiftUI
 
     // MARK: - Extensions
@@ -32,185 +33,286 @@
         }
     }
 
-    // MARK: - Shared Surfaces
+    // MARK: - Metrics & Palette
 
-    struct OnboardingGlassCard<Content: View>: View {
-        var cornerRadius: CGFloat = 24
-        var fillOpacity: Double = 0.10
-        var strokeOpacity: Double = 0.16
-        var shadowOpacity: Double = 0.12
-
-        @ViewBuilder let content: () -> Content
-
-        var body: some View {
-            content()
-                .padding(18)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor).opacity(fillOpacity))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(Color.white.opacity(strokeOpacity), lineWidth: 1)
-                )
-                .shadow(color: Color.black.opacity(shadowOpacity), radius: 18, x: 0, y: 10)
-        }
+    enum OnboardingMetrics {
+        static let windowWidth: CGFloat = 600
+        static let windowHeight: CGFloat = 556
+        static let headerHeight: CGFloat = 46
+        static let footerHeight: CGFloat = 62
+        static let contentHorizontalPadding: CGFloat = 36
+        static let footerHorizontalPadding: CGFloat = 28
+        static let buttonHeight: CGFloat = 34
+        static let compactButtonHeight: CGFloat = 28
+        static let buttonCornerRadius: CGFloat = 8
+        static let cardCornerRadius: CGFloat = 11
     }
 
-    struct OnboardingPill: View {
-        let text: LocalizedStringKey
-        var systemImage: String? = nil
-        var tint: Color = .accentColor
+    enum OnboardingPalette {
+        static let primaryButtonBackground = Color(
+            nsColor: MacUI.Palette.adaptive(
+                light: NSColor(srgbRed: 24 / 255, green: 25 / 255, blue: 28 / 255, alpha: 1),
+                dark: NSColor(srgbRed: 242 / 255, green: 243 / 255, blue: 245 / 255, alpha: 1)
+            )
+        )
 
-        var body: some View {
-            HStack(spacing: 6) {
-                if let systemImage {
-                    Image(systemName: systemImage)
-                        .font(.caption2.weight(.semibold))
-                }
+        static let primaryButtonHover = Color(
+            nsColor: MacUI.Palette.adaptive(
+                light: NSColor(srgbRed: 44 / 255, green: 46 / 255, blue: 51 / 255, alpha: 1),
+                dark: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 1)
+            )
+        )
 
-                Text(text)
-                    .font(.caption.weight(.semibold))
+        static let primaryButtonForeground = Color(
+            nsColor: MacUI.Palette.adaptive(
+                light: NSColor.white,
+                dark: NSColor(srgbRed: 20 / 255, green: 21 / 255, blue: 24 / 255, alpha: 1)
+            )
+        )
+
+        static let accentSoft = MacUI.LinearBrand.accent.opacity(0.12)
+        static let accentBorder = MacUI.LinearBrand.accent.opacity(0.32)
+
+        static let keycapTop = Color(
+            nsColor: MacUI.Palette.adaptive(
+                light: NSColor.white,
+                dark: NSColor(srgbRed: 45 / 255, green: 47 / 255, blue: 54 / 255, alpha: 1)
+            )
+        )
+
+        static let keycapBottom = Color(
+            nsColor: MacUI.Palette.adaptive(
+                light: NSColor(srgbRed: 243 / 255, green: 244 / 255, blue: 246 / 255, alpha: 1),
+                dark: NSColor(srgbRed: 35 / 255, green: 37 / 255, blue: 43 / 255, alpha: 1)
+            )
+        )
+
+        static let capsuleSurface = Color(
+            nsColor: MacUI.Palette.adaptive(
+                light: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.90),
+                dark: NSColor(srgbRed: 34 / 255, green: 36 / 255, blue: 42 / 255, alpha: 0.90)
+            )
+        )
+
+        static func themeSwatches(for theme: MacDictationVisualTheme) -> [Color] {
+            switch theme {
+            case .watercolor:
+                return [Color(hex: "#D6F5FA"), Color(hex: "#FEFFFD"), Color(hex: "#06A1F7")]
+            case .blossom:
+                return [Color(hex: "#87B3E2"), Color(hex: "#B7CB5C"), Color(hex: "#E78E92")]
+            case .egg:
+                return [Color(hex: "#5E8DA7"), Color(hex: "#DC9803"), Color(hex: "#CACABF")]
+            case .harbor:
+                return [Color(hex: "#014C69"), Color(hex: "#3A2520"), Color(hex: "#B05E5B")]
+            case .cat:
+                return [Color(hex: "#A22E2E"), Color(hex: "#EEECED"), Color(hex: "#191718")]
+            case .beacon:
+                return [Color(hex: "#EFA50F"), Color(hex: "#0451AD"), Color(hex: "#053447")]
+            case .autumn:
+                return [Color(hex: "#FDC24E"), Color(hex: "#FE4C45"), Color(hex: "#187789")]
             }
-            .foregroundStyle(tint)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(tint.opacity(0.10))
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(tint.opacity(0.22), lineWidth: 1)
-            )
+        }
+
+        static func shortTitle(for theme: MacDictationVisualTheme) -> LocalizedStringKey {
+            switch theme {
+            case .watercolor:
+                return "Watercolor"
+            case .blossom:
+                return "Blossom"
+            case .egg:
+                return "Egg"
+            case .harbor:
+                return "Harbor"
+            case .cat:
+                return "Cat"
+            case .beacon:
+                return "Beacon"
+            case .autumn:
+                return "Autumn"
+            }
         }
     }
 
-    struct OnboardingMetricCard: View {
+    // MARK: - Step Shell Pieces
+
+    struct OnboardingStepHeader: View {
+        let eyebrow: LocalizedStringKey
         let title: LocalizedStringKey
-        private let valueText: Text
-        let systemImage: String
-        var tint: Color
-
-        init(
-            title: LocalizedStringKey,
-            value: LocalizedStringKey,
-            systemImage: String,
-            tint: Color = .accentColor
-        ) {
-            self.title = title
-            self.valueText = Text(value)
-            self.systemImage = systemImage
-            self.tint = tint
-        }
-
-        init(
-            title: LocalizedStringKey,
-            valueText: String,
-            systemImage: String,
-            tint: Color = .accentColor
-        ) {
-            self.title = title
-            self.valueText = Text(verbatim: valueText)
-            self.systemImage = systemImage
-            self.tint = tint
-        }
-
-        var body: some View {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: systemImage)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(tint)
-                    .frame(width: 22, height: 22)
-                    .background(
-                        Circle()
-                            .fill(tint.opacity(0.12))
-                    )
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-
-                    valueText
-                        .font(.subheadline.weight(.semibold))
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 0)
-            }
-        }
-    }
-
-    struct OnboardingStageArtifact: View {
-        private let titleText: Text
         let subtitle: LocalizedStringKey
-        let systemImage: String
-        var tint: Color
-
-        init(
-            title: LocalizedStringKey,
-            subtitle: LocalizedStringKey,
-            systemImage: String,
-            tint: Color = .accentColor
-        ) {
-            self.titleText = Text(title)
-            self.subtitle = subtitle
-            self.systemImage = systemImage
-            self.tint = tint
-        }
-
-        init(
-            titleText: String,
-            subtitle: LocalizedStringKey,
-            systemImage: String,
-            tint: Color = .accentColor
-        ) {
-            self.titleText = Text(verbatim: titleText)
-            self.subtitle = subtitle
-            self.systemImage = systemImage
-            self.tint = tint
-        }
 
         var body: some View {
-            OnboardingGlassCard(
-                cornerRadius: 28, fillOpacity: 0.12, strokeOpacity: 0.18, shadowOpacity: 0.18
-            ) {
-                HStack(alignment: .center, spacing: 16) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [tint.opacity(0.95), tint.opacity(0.35)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 72, height: 72)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(eyebrow)
+                    .font(.system(size: 11, weight: .semibold))
+                    .tracking(0.4)
+                    .textCase(.uppercase)
+                    .foregroundStyle(MacUI.LinearBrand.accent)
 
-                        Image(systemName: systemImage)
-                            .font(.system(size: 28, weight: .semibold))
-                            .foregroundStyle(.white)
+                Text(title)
+                    .font(.system(size: 21, weight: .semibold))
+                    .foregroundStyle(MacUI.Foreground.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(subtitle)
+                    .font(.system(size: 13))
+                    .foregroundStyle(MacUI.Foreground.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    struct OnboardingFooterBar<Leading: View, Trailing: View>: View {
+        @ViewBuilder let leading: () -> Leading
+        @ViewBuilder let trailing: () -> Trailing
+
+        var body: some View {
+            VStack(spacing: 0) {
+                LinearHairlineDivider()
+
+                HStack(spacing: 12) {
+                    leading()
+                    Spacer(minLength: 8)
+                    HStack(spacing: 8) {
+                        trailing()
                     }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        titleText
-                            .font(.headline.weight(.semibold))
-
-                        Text(subtitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    Spacer(minLength: 0)
                 }
+                .padding(.horizontal, OnboardingMetrics.footerHorizontalPadding)
+                .frame(height: OnboardingMetrics.footerHeight)
+                .background(MacUI.LinearSurfaces.detailCanvas)
             }
         }
     }
 
-    // MARK: - Components
+    // MARK: - macOS Native-Scale Buttons
+
+    struct OnboardingPrimaryButton: View {
+        private let label: Text
+        var isEnabled: Bool = true
+        var isLoading: Bool = false
+        let action: () -> Void
+
+        @State private var isHovering = false
+
+        init(
+            _ title: LocalizedStringKey,
+            isEnabled: Bool = true,
+            isLoading: Bool = false,
+            action: @escaping () -> Void
+        ) {
+            self.label = Text(title)
+            self.isEnabled = isEnabled
+            self.isLoading = isLoading
+            self.action = action
+        }
+
+        init(
+            verbatim title: String,
+            isEnabled: Bool = true,
+            isLoading: Bool = false,
+            action: @escaping () -> Void
+        ) {
+            self.label = Text(verbatim: title)
+            self.isEnabled = isEnabled
+            self.isLoading = isLoading
+            self.action = action
+        }
+
+        var body: some View {
+            Button(action: action) {
+                HStack(spacing: 6) {
+                    if isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                            .scaleEffect(0.75)
+                    }
+
+                    label
+                        .font(.system(size: 13, weight: .medium))
+                }
+                .foregroundStyle(OnboardingPalette.primaryButtonForeground)
+                .padding(.horizontal, 14)
+                .frame(height: OnboardingMetrics.buttonHeight)
+                .background(
+                    RoundedRectangle(cornerRadius: OnboardingMetrics.buttonCornerRadius, style: .continuous)
+                        .fill(
+                            isHovering && isEnabled
+                                ? OnboardingPalette.primaryButtonHover
+                                : OnboardingPalette.primaryButtonBackground
+                        )
+                )
+                .shadow(color: Color.black.opacity(0.10), radius: 2, x: 0, y: 1)
+                .contentShape(
+                    RoundedRectangle(cornerRadius: OnboardingMetrics.buttonCornerRadius, style: .continuous)
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(!isEnabled || isLoading)
+            .opacity(isEnabled && !isLoading ? 1 : 0.42)
+            .onHover { isHovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: isHovering)
+        }
+    }
+
+    struct OnboardingSecondaryButton: View {
+        private let label: Text
+        var isCompact: Bool = false
+        var isEnabled: Bool = true
+        let action: () -> Void
+
+        @State private var isHovering = false
+
+        init(
+            _ title: LocalizedStringKey,
+            isCompact: Bool = false,
+            isEnabled: Bool = true,
+            action: @escaping () -> Void
+        ) {
+            self.label = Text(title)
+            self.isCompact = isCompact
+            self.isEnabled = isEnabled
+            self.action = action
+        }
+
+        init(
+            verbatim title: String,
+            isCompact: Bool = false,
+            isEnabled: Bool = true,
+            action: @escaping () -> Void
+        ) {
+            self.label = Text(verbatim: title)
+            self.isCompact = isCompact
+            self.isEnabled = isEnabled
+            self.action = action
+        }
+
+        var body: some View {
+            let cornerRadius: CGFloat = isCompact ? 7 : OnboardingMetrics.buttonCornerRadius
+            let height: CGFloat = isCompact ? OnboardingMetrics.compactButtonHeight : OnboardingMetrics.buttonHeight
+
+            Button(action: action) {
+                label
+                    .font(.system(size: isCompact ? 12 : 13, weight: .medium))
+                    .foregroundStyle(MacUI.Foreground.primary)
+                    .padding(.horizontal, isCompact ? 11 : 14)
+                    .frame(height: height)
+                    .background(
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .fill(isHovering ? MacUI.LinearSurfaces.elevated : MacUI.LinearSurfaces.card)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .strokeBorder(MacUI.LinearSurfaces.hairlineStrong, lineWidth: 1)
+                    )
+                    .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .disabled(!isEnabled)
+            .opacity(isEnabled ? 1 : 0.45)
+            .onHover { isHovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: isHovering)
+        }
+    }
 
     struct OnboardingBackButton: View {
         let action: () -> Void
@@ -218,291 +320,91 @@
 
         var body: some View {
             Button(action: action) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 48, height: 48)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.primary.opacity(isHovering ? 0.10 : 0.06))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1)
-                    )
+                HStack(spacing: 5) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("Back")
+                        .font(.system(size: 13, weight: .medium))
+                }
+                .foregroundStyle(isHovering ? MacUI.Foreground.primary : MacUI.Foreground.secondaryColor)
+                .padding(.horizontal, 10)
+                .frame(height: OnboardingMetrics.buttonHeight)
+                .background(
+                    RoundedRectangle(cornerRadius: OnboardingMetrics.buttonCornerRadius, style: .continuous)
+                        .fill(isHovering ? MacUI.LinearSurfaces.elevated : .clear)
+                )
+                .contentShape(
+                    RoundedRectangle(cornerRadius: OnboardingMetrics.buttonCornerRadius, style: .continuous)
+                )
             }
             .buttonStyle(.plain)
             .onHover { isHovering = $0 }
-            .animation(.easeInOut(duration: 0.12), value: isHovering)
+            .animation(.easeOut(duration: 0.12), value: isHovering)
         }
     }
 
-    struct OnboardingActionButton: View {
-        private let titleText: Text
-        var systemImage: String?
-        var isEnabled: Bool
-        var background: Color
-        var foreground: Color
-        var strokeColor: Color?
-        var minHeight: CGFloat
-        var isCentered: Bool
-        let action: () -> Void
+    struct OnboardingStatusPill: View {
+        private let label: Text
+        var systemImage: String = "checkmark"
+        var tint: Color = MacUI.Foreground.success
 
-        init(
-            title: LocalizedStringKey,
-            systemImage: String? = nil,
-            isEnabled: Bool = true,
-            background: Color = .accentColor,
-            foreground: Color = .white,
-            strokeColor: Color? = nil,
-            minHeight: CGFloat = 50,
-            isCentered: Bool = false,
-            action: @escaping () -> Void
-        ) {
-            self.titleText = Text(title)
+        init(_ title: LocalizedStringKey, systemImage: String = "checkmark", tint: Color = MacUI.Foreground.success) {
+            self.label = Text(title)
             self.systemImage = systemImage
-            self.isEnabled = isEnabled
-            self.background = background
-            self.foreground = foreground
-            self.strokeColor = strokeColor
-            self.minHeight = minHeight
-            self.isCentered = isCentered
-            self.action = action
+            self.tint = tint
         }
 
-        init(
-            titleText: String,
-            systemImage: String? = nil,
-            isEnabled: Bool = true,
-            background: Color = .accentColor,
-            foreground: Color = .white,
-            strokeColor: Color? = nil,
-            minHeight: CGFloat = 50,
-            isCentered: Bool = false,
-            action: @escaping () -> Void
-        ) {
-            self.titleText = Text(verbatim: titleText)
+        init(verbatim title: String, systemImage: String = "checkmark", tint: Color = MacUI.Foreground.success) {
+            self.label = Text(verbatim: title)
             self.systemImage = systemImage
-            self.isEnabled = isEnabled
-            self.background = background
-            self.foreground = foreground
-            self.strokeColor = strokeColor
-            self.minHeight = minHeight
-            self.isCentered = isCentered
-            self.action = action
+            self.tint = tint
         }
 
         var body: some View {
-            Button(action: action) {
-                HStack(spacing: 10) {
-                    if let systemImage {
-                        Image(systemName: systemImage)
-                            .font(.system(size: 14, weight: .semibold))
-                            .frame(width: 18)
-                    }
-
-                    titleText
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-
-                    if !isCentered {
-                        Spacer(minLength: 0)
-                    }
-                }
-                .foregroundStyle(foreground)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 13)
-                .frame(maxWidth: .infinity, minHeight: minHeight, alignment: isCentered ? .center : .leading)
-                .background(background)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(strokeColor ?? .clear, lineWidth: strokeColor == nil ? 0 : 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            HStack(spacing: 5) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 10.5, weight: .bold))
+                label
+                    .font(.system(size: 12, weight: .medium))
             }
-            .buttonStyle(.plain)
-            .disabled(!isEnabled)
-            .opacity(isEnabled ? 1 : 0.55)
-        }
-    }
-
-    /// Microphone level meter for onboarding
-    struct OnboardingMicrophoneLevelMeter: View {
-        let level: Double
-
-        private let barCount = 20
-        private let spacing: CGFloat = 2
-
-        var body: some View {
-            GeometryReader { geometry in
-                HStack(spacing: spacing) {
-                    ForEach(0..<barCount, id: \.self) { index in
-                        OnboardingLevelBar(
-                            isActive: isBarActive(index: index),
-                            height: barHeight(for: index, in: geometry.size.height)
-                        )
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
-
-        private func isBarActive(index: Int) -> Bool {
-            let threshold = Double(index) / Double(barCount)
-            return level >= threshold
-        }
-
-        private func barHeight(for index: Int, in totalHeight: CGFloat) -> CGFloat {
-            let centerIndex = barCount / 2
-            let distanceFromCenter = abs(index - centerIndex)
-            let maxHeight = totalHeight * 0.3
-            let minHeight: CGFloat = 4
-
-            let heightFactor = 1.0 - (Double(distanceFromCenter) / Double(centerIndex)) * 0.5
-            return minHeight + (maxHeight - minHeight) * CGFloat(heightFactor)
-        }
-    }
-
-    private struct OnboardingLevelBar: View {
-        let isActive: Bool
-        let height: CGFloat
-
-        var body: some View {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(isActive ? .green : Color.gray.opacity(0.3))
-                .frame(height: height)
-                .animation(.easeInOut(duration: 0.1), value: isActive)
-        }
-    }
-
-    struct PermissionGateRow<Actions: View>: View {
-        let title: LocalizedStringKey
-        let description: LocalizedStringKey
-        let statusText: String
-        let tint: Color
-        @ViewBuilder let actions: () -> Actions
-
-        var body: some View {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(title)
-                            .font(.headline.weight(.semibold))
-
-                        Text(description)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    MacSettingsStatusBadge(verbatim: statusText, tint: tint)
-                }
-
-                actions()
-            }
-        }
-    }
-
-    // MARK: - Custom Input Controls
-
-    /// Segmented-style picker rendered as pill buttons inside a glass track.
-    struct OnboardingProviderPicker<Item>: View where Item: Hashable & Identifiable {
-        let items: [Item]
-        let displayName: (Item) -> String
-        @Binding var selection: Item
-
-        var body: some View {
-            HStack(spacing: 4) {
-                ForEach(items) { item in
-                    let isSelected = selection == item
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.18)) { selection = item }
-                    } label: {
-                        Text(displayName(item))
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundStyle(isSelected ? .white : .secondary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(isSelected ? Color.accentColor : Color.clear)
-                                    .shadow(
-                                        color: isSelected ? Color.accentColor.opacity(0.28) : .clear,
-                                        radius: 6, x: 0, y: 2
-                                    )
-                            )
-                            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .animation(.easeInOut(duration: 0.18), value: isSelected)
-                }
-            }
-            .padding(4)
+            .foregroundStyle(tint)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
             .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.14))
+                Capsule(style: .continuous)
+                    .fill(tint.opacity(0.11))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1)
+                Capsule(style: .continuous)
+                    .strokeBorder(tint.opacity(0.25), lineWidth: 1)
             )
         }
     }
 
-    /// Glass-style labeled text or secure field matching the onboarding design system.
-    struct OnboardingInputField: View {
-        enum Mode { case text, secure }
-
-        let label: LocalizedStringKey
-        let placeholder: LocalizedStringKey
-        @Binding var text: String
-        var mode: Mode = .text
-        var isMonospaced: Bool = false
-
-        @FocusState private var isFocused: Bool
+    struct OnboardingFeaturePill: View {
+        let title: LocalizedStringKey
+        let systemImage: String
 
         var body: some View {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(label)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(MacUI.LinearBrand.accent)
 
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(
-                            Color(nsColor: .controlBackgroundColor)
-                                .opacity(isFocused ? 0.20 : 0.12))
-
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(
-                            isFocused
-                                ? Color.accentColor.opacity(0.45)
-                                : Color.primary.opacity(0.12),
-                            lineWidth: isFocused ? 1.5 : 1
-                        )
-
-                    Group {
-                        if mode == .secure {
-                            SecureField(placeholder, text: $text)
-                        } else {
-                            TextField(placeholder, text: $text)
-                        }
-                    }
-                    .textFieldStyle(.plain)
-                    .font(
-                        isMonospaced
-                            ? .system(.body, design: .monospaced)
-                            : .body
-                    )
-                    .focused($isFocused)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                }
-                .frame(height: 48)
-                .animation(.easeInOut(duration: 0.15), value: isFocused)
+                Text(title)
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(MacUI.Foreground.secondary)
             }
+            .padding(.horizontal, 11)
+            .padding(.vertical, 6)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(MacUI.LinearSurfaces.card)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(MacUI.LinearSurfaces.hairline, lineWidth: 1)
+            )
         }
     }
-
 #endif
