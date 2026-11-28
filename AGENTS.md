@@ -40,6 +40,13 @@ Do not add model payloads or downloaded runtime frameworks to Git. Release
 scripts and signing config live under [scripts/](scripts); canonical GitHub Actions
 workflows live at repository root [.github/workflows/](.github/workflows) (see [.github/WORKFLOWS.md](.github/WORKFLOWS.md)).
 
+Do not build, launch, or install Release-signed macOS/iOS apps that connect to
+production local stores (`NaichengDeng.Stet`), production iCloud KVS, or
+CloudKit `Production` during development or testing. Keep local development and
+testing strictly in `Debug` (`NaichengDeng.Stet.Debug`, Debug KVS, and CloudKit
+`Development`), and leave Release builds to the explicit release flow (see
+[release](.agents/skills/release/SKILL.md)).
+
 Do not run Git index-writing commands in parallel. Preserve unrelated user
 changes and use small, verifiable commits.
 
