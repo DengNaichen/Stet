@@ -154,24 +154,12 @@ private struct KeyboardThinkingOrbEngine {
         dt rawDT: Double,
         canvasSize: CGSize,
         level: Double?,
-        inkColor: SIMD3<Double>,
-        successColor: SIMD3<Double>,
-        errorColor: SIMD3<Double>,
+        targetColor: SIMD3<Double>,
         reduceMotion: Bool
     ) -> KeyboardThinkingOrbRenderFrame {
         let dt = rawDT.isFinite && rawDT > 0 ? min(rawDT, 0.05) : (1.0 / 60.0)
         elapsedTime += dt
         let t = reduceMotion ? 0.0 : elapsedTime
-
-        let targetColor: SIMD3<Double>
-        switch mode {
-        case .done:
-            targetColor = successColor
-        case .error:
-            targetColor = errorColor
-        default:
-            targetColor = inkColor
-        }
 
         if !hasInitializedColor {
             currentColor = targetColor
@@ -409,9 +397,6 @@ final class KeyboardThinkingOrbCanvasView: UIView {
     private var level: Double?
     private var isActive = false
 
-    private let micBadgeView = UIView()
-    private let micIconView = UIImageView()
-
     override init(frame: CGRect) {
         super.init(frame: frame)
         commonInit()
@@ -432,40 +417,11 @@ final class KeyboardThinkingOrbCanvasView: UIView {
         isUserInteractionEnabled = false
         contentMode = .redraw
 
-        micBadgeView.translatesAutoresizingMaskIntoConstraints = false
-        micBadgeView.isUserInteractionEnabled = false
-        micBadgeView.layer.cornerRadius = 15
-        micBadgeView.layer.shadowColor = UIColor.black.cgColor
-        micBadgeView.layer.shadowOpacity = 0.18
-        micBadgeView.layer.shadowRadius = 6
-        micBadgeView.layer.shadowOffset = CGSize(width: 0, height: 2)
-
-        micIconView.translatesAutoresizingMaskIntoConstraints = false
-        micIconView.image = UIImage(
-            systemName: "mic.fill",
-            withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
-        )
-        micIconView.contentMode = .scaleAspectFit
-        micBadgeView.addSubview(micIconView)
-        addSubview(micBadgeView)
-
-        NSLayoutConstraint.activate([
-            micBadgeView.centerXAnchor.constraint(equalTo: centerXAnchor),
-            micBadgeView.centerYAnchor.constraint(equalTo: centerYAnchor),
-            micBadgeView.widthAnchor.constraint(equalToConstant: 30),
-            micBadgeView.heightAnchor.constraint(equalToConstant: 30),
-            micIconView.centerXAnchor.constraint(equalTo: micBadgeView.centerXAnchor),
-            micIconView.centerYAnchor.constraint(equalTo: micBadgeView.centerYAnchor),
-        ])
-
         registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
-            self.applyBadgeAppearance()
             self.stepAndRedraw(dt: 0.001)
         }
 
         engine.setMode(.idle)
-        applyBadgeAppearance()
-        updateMicBadgeVisibility(animated: false)
     }
 
     override func layoutSubviews() {
@@ -486,15 +442,11 @@ final class KeyboardThinkingOrbCanvasView: UIView {
     }
 
     func configure(mode: KeyboardThinkingOrbMode, level: Double?, isActive: Bool) {
-        let modeChanged = self.mode != mode
         self.mode = mode
         self.level = level
         self.isActive = isActive
 
         engine.setMode(mode)
-        if modeChanged {
-            updateMicBadgeVisibility(animated: window != nil)
-        }
 
         if isActive && window != nil {
             startDisplayLink()
@@ -580,44 +532,38 @@ final class KeyboardThinkingOrbCanvasView: UIView {
 
     private func computeFrame(dt: Double) -> KeyboardThinkingOrbRenderFrame {
         let isDark = traitCollection.userInterfaceStyle == .dark
-        let ink: SIMD3<Double> = isDark ? SIMD3(0.94, 0.94, 0.96) : SIMD3(0.08, 0.08, 0.10)
-        let success: SIMD3<Double> = isDark ? SIMD3(0.24, 0.84, 0.48) : SIMD3(0.05, 0.56, 0.26)
-        let error: SIMD3<Double> = isDark ? SIMD3(1.00, 0.36, 0.34) : SIMD3(0.86, 0.18, 0.18)
+        let targetColor = morandiColor(for: mode, isDark: isDark)
 
         return engine.step(
             dt: dt,
             canvasSize: bounds.size,
             level: level,
-            inkColor: ink,
-            successColor: success,
-            errorColor: error,
+            targetColor: targetColor,
             reduceMotion: UIAccessibility.isReduceMotionEnabled
         )
     }
 
-    private func applyBadgeAppearance() {
-        let isDark = traitCollection.userInterfaceStyle == .dark
-        micBadgeView.backgroundColor =
-            isDark ? UIColor.white.withAlphaComponent(0.92) : UIColor.black.withAlphaComponent(0.86)
-        micIconView.tintColor = isDark ? .black : .white
-    }
-
-    private func updateMicBadgeVisibility(animated: Bool) {
-        let show = mode == .idle
-        let apply = {
-            self.micBadgeView.alpha = show ? 1.0 : 0.0
-            self.micBadgeView.transform = show ? .identity : CGAffineTransform(scaleX: 0.7, y: 0.7)
-        }
-        if animated {
-            UIView.animate(
-                withDuration: 0.26,
-                delay: 0,
-                usingSpringWithDamping: 1.0,
-                initialSpringVelocity: 0,
-                animations: apply
-            )
-        } else {
-            apply()
+    /// Muted Morandi state palette tuned for both Light and Dark iOS keyboard surfaces.
+    private func morandiColor(for mode: KeyboardThinkingOrbMode, isDark: Bool) -> SIMD3<Double> {
+        switch mode {
+        case .idle:
+            // Slate mist
+            return isDark ? SIMD3(0.64, 0.68, 0.73) : SIMD3(0.42, 0.45, 0.49)
+        case .searching:
+            // Warm sand ochre
+            return isDark ? SIMD3(0.84, 0.72, 0.56) : SIMD3(0.73, 0.59, 0.43)
+        case .listening:
+            // Terracotta rose
+            return isDark ? SIMD3(0.86, 0.56, 0.54) : SIMD3(0.76, 0.43, 0.42)
+        case .thinking:
+            // Dusty periwinkle
+            return isDark ? SIMD3(0.63, 0.67, 0.84) : SIMD3(0.46, 0.50, 0.66)
+        case .done:
+            // Sage green
+            return isDark ? SIMD3(0.58, 0.77, 0.66) : SIMD3(0.42, 0.60, 0.50)
+        case .error:
+            // Muted rust
+            return isDark ? SIMD3(0.85, 0.49, 0.46) : SIMD3(0.75, 0.36, 0.34)
         }
     }
 }
