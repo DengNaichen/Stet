@@ -5,6 +5,7 @@ struct DictionaryView: View {
     @StateObject private var viewModel = DictionaryViewModel()
     @FocusState private var isTextFieldFocused: Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.scenePhase) private var scenePhase
 
     private static let recommendedHotwordLimit = 100
 
@@ -26,6 +27,10 @@ struct DictionaryView: View {
                             Text("Guides Apple Speech on-device and Cloud AI Rewrite.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            Label("Synced via iCloud across Mac and iPhone.", systemImage: "icloud")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .padding(.top, 2)
                         }
                     }
                     .padding(.vertical, 2)
@@ -121,6 +126,11 @@ struct DictionaryView: View {
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
                 viewModel.load()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    viewModel.refreshFromCloud()
+                }
             }
         }
     }

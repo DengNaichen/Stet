@@ -7,9 +7,11 @@ import StetCore
 final class RewriteSettingsViewModel: ObservableObject {
     var settingsStore: RewriteSettingsStore
     var speechSettingsStore: SpeechRecognitionSettingsStore
-    private let validationService: ProviderCredentialValidationService
+    private let validationService: any ProviderCredentialValidating
     private let modelProbe: any OpenAICompatibleModelProbing
     private var cancellables: Set<AnyCancellable> = []
+    private var lastLoadedProvider: DictationProvider
+    private var lastLoadedAPIKey: String
 
     @Published var apiKeyInput: String = ""
     @Published private(set) var validationState: ValidationState = .idle
@@ -26,14 +28,19 @@ final class RewriteSettingsViewModel: ObservableObject {
     init(
         settingsStore: RewriteSettingsStore,
         speechSettingsStore: SpeechRecognitionSettingsStore? = nil,
+        validationService: any ProviderCredentialValidating = ProviderCredentialValidationService(),
         modelProbe: (any OpenAICompatibleModelProbing)? = nil
     ) {
         self.settingsStore = settingsStore
         let resolvedSpeechStore = speechSettingsStore ?? SpeechRecognitionSettingsStore()
         self.speechSettingsStore = resolvedSpeechStore
-        self.validationService = ProviderCredentialValidationService()
+        self.validationService = validationService
         self.modelProbe = modelProbe ?? OpenAICompatibleModelProbe()
-        self.apiKeyInput = settingsStore.loadAPIKey(for: settingsStore.selectedProvider) ?? ""
+        let initialProvider = settingsStore.selectedProvider
+        let initialKey = settingsStore.loadAPIKey(for: initialProvider) ?? ""
+        self.lastLoadedProvider = initialProvider
+        self.lastLoadedAPIKey = initialKey
+        self.apiKeyInput = initialKey
 
         settingsStore.objectWillChange
             .sink { [weak self] _ in
@@ -91,14 +98,37 @@ final class RewriteSettingsViewModel: ObservableObject {
         }
     }
 
+    func refreshSyncedAPIKey() {
+        let provider = settingsStore.selectedProvider
+        let syncedKey = settingsStore.loadAPIKey(for: provider) ?? ""
+        let hasUnsavedEdits = provider == lastLoadedProvider && apiKeyInput != lastLoadedAPIKey
+        guard !hasUnsavedEdits else { return }
+        lastLoadedProvider = provider
+        lastLoadedAPIKey = syncedKey
+        if apiKeyInput != syncedKey {
+            apiKeyInput = syncedKey
+        }
+    }
+
     func onProviderChanged() {
-        apiKeyInput = settingsStore.loadAPIKey(for: settingsStore.selectedProvider) ?? ""
-        settingsStore.selectedModel = RewriteModel.default(for: settingsStore.selectedProvider)
+        let provider = settingsStore.selectedProvider
+        let loadedKey = settingsStore.loadAPIKey(for: provider) ?? ""
+        lastLoadedProvider = provider
+        lastLoadedAPIKey = loadedKey
+        apiKeyInput = loadedKey
+        settingsStore.selectedModel = RewriteModel.default(for: provider)
         validationState = .idle
     }
 
     func saveAPIKey() {
-        settingsStore.saveAPIKey(apiKeyInput, for: settingsStore.selectedProvider)
+        do {
+            try persistCurrentAPIKey(for: settingsStore.selectedProvider)
+            if case .failed = validationState {
+                validationState = .idle
+            }
+        } catch {
+            validationState = .failed(keychainSaveErrorMessage(for: error))
+        }
     }
 
     func validateCredential() async {
@@ -107,38 +137,70 @@ final class RewriteSettingsViewModel: ObservableObject {
             return
         }
 
-        guard !apiKeyInput.isEmpty else {
+        let trimmedKey = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty else {
             validationState = .failed("Enter an API key first.")
             return
         }
         validationState = .validating
+        let provider = settingsStore.selectedProvider
         do {
             try await validationService.validateCredential(
-                apiKey: apiKeyInput,
-                provider: settingsStore.selectedProvider
+                apiKey: trimmedKey,
+                provider: provider
             )
-            settingsStore.saveAPIKey(apiKeyInput, for: settingsStore.selectedProvider)
-            validationState = .success
         } catch {
             validationState = .failed("The API key couldn't be validated. Check it and try again.")
+            return
+        }
+
+        do {
+            try persistCurrentAPIKey(for: provider)
+            validationState = .success
+        } catch {
+            validationState = .failed(keychainSaveErrorMessage(for: error))
         }
     }
 
     private func validateCustomEndpoint() async {
         validationState = .validating
+        let models: [String]
         do {
             let url = try OpenAICompatibleBaseURL.normalize(settingsStore.customBaseURL)
-            let models = try await modelProbe.listModels(baseURL: url, apiKey: apiKeyInput)
-            settingsStore.discoveredCustomModels = models
-            settingsStore.saveAPIKey(apiKeyInput, for: .custom)
-            if settingsStore.customModelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                let first = models.first
-            {
-                settingsStore.customModelID = first
-            }
-            validationState = .success
+            models = try await modelProbe.listModels(baseURL: url, apiKey: apiKeyInput)
         } catch {
             validationState = .failed(error.localizedDescription)
+            return
         }
+
+        settingsStore.discoveredCustomModels = models
+        if settingsStore.customModelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            let first = models.first
+        {
+            settingsStore.customModelID = first
+        }
+
+        do {
+            try persistCurrentAPIKey(for: .custom)
+            validationState = .success
+        } catch {
+            validationState = .failed(keychainSaveErrorMessage(for: error))
+        }
+    }
+
+    private func persistCurrentAPIKey(for provider: DictationProvider) throws {
+        try settingsStore.saveAPIKey(apiKeyInput, for: provider)
+        let normalizedKey = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        apiKeyInput = normalizedKey
+        lastLoadedProvider = provider
+        lastLoadedAPIKey = normalizedKey
+    }
+
+    private func keychainSaveErrorMessage(for error: Error) -> String {
+        let detail = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        if detail.isEmpty {
+            return "Could not save the API key to Keychain."
+        }
+        return "Could not save the API key to Keychain: \(detail)"
     }
 }

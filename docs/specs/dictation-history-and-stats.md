@@ -129,8 +129,8 @@
 
 ### 存储与兼容
 
-- **FR-020**：历史与统计各自使用独立的本机存储，位于 Application Support 下按 Bundle ID 分隔的目录，不经 iCloud 同步，不上传。
-- **FR-021**：首次启动新版本时，若新历史存储不存在而旧的共享存储中有历史数据，必须把旧数据完整复制到新存储（包括全部文本阶段），且不修改、不删除旧文件。
+- **FR-020**：历史与统计共享单一 SwiftData 容器（`SyncedData.store`），在具备 iCloud 权限时同步到用户私有 CloudKit 数据库（`iCloud.NaichengDeng.Stet`），无权限或离线时自动回退为本机存储。收到远端变更通知后，macOS 与 iOS 的历史页和统计概览自动刷新。
+- **FR-021**：首次启动新版本时，若存在旧的 `History.store`（或 `default.store`）和 `DictationStats.store`，必须以只读方式将旧记录幂等迁移到 `SyncedData.store`（统计记录生成确定性 UUID 防重复计数），且不修改、不删除旧文件。
 - **FR-022**：缺少新字段的旧记录按“主动来源、处理已完成、开始时间等于记录时间”读取。
 - **FR-023**：被动监听时期的记录（来源为被动）必须保持可读、可显示、可导出，包括录音起止时间、处理状态和说话人片段；被动监听本身已移除，不再产生此类记录。
 - **FR-024**：字数口径曾经变更。升级到当前口径时执行一次重算：用历史文本（优先交付文本，其次改写文本，再次原始转写）按 FR-014 重算，与结束时间相差 3 秒以内的统计会话按最近者匹配；匹配不到的会话保留原字数。重算只执行一次。
@@ -153,7 +153,7 @@
 ## 假设
 
 - 被动监听已移除，不在本 spec 范围内；只保留其旧记录的兼容。
-- 历史与统计只在本机，不设云同步；隐私边界遵循 index 的通用原则。
+- 历史与统计通过用户自己的 iCloud 私有数据库在 Mac 与 iPhone 间同步；不上传到第三方服务器，隐私边界遵循 index 的通用原则。
 - 统计的目标应用与历史的目标应用来自同一次“本次目标应用”快照。
 
 ## 待产品确认
@@ -165,13 +165,12 @@
 5. **字数口径覆盖的文字**：假名、西里尔字母等不计数。可选：按 Unicode 词边界计数；保持“汉字 + 拉丁词”口径。
 6. **搜索与导出范围**：搜索不含交付文本；导出和列表只覆盖最近 300 条。可选：搜索纳入交付文本；导出全部历史。
 7. **无热词对照转写**：每次 Nano 听写都额外跑一次后台转写，结果只在导出里可见，像是诊断用途。可选：保留为默认；改为开发者开关；移除。
-8. **iOS 历史**：iOS 当前不保存任何听写历史。可选：iOS 也保存；明确 iOS 不做历史。
 
 ## 与当前实现的已知差异（非规范，供评审）
 
-以下只记录 2026-11-07（基线 `b327f54`）核对时的代码状态，不代表产品决定。
+以下记录当前实现的关键细节，不代表产品决定。
 
-- 规范正文按当前行为撰写，主要差异集中在“待产品确认”项；下列是需要特别注意的实现细节。
+- 历史与统计由 [StetCloudDataContainer](../../Packages/StetEngine/Sources/StetCore/StetCloudDataContainer.swift)、[DictationHistoryService](../../Packages/StetEngine/Sources/StetCore/DictationHistoryService.swift)、[DictationStatsModel](../../Packages/StetEngine/Sources/StetCore/DictationStatsModel.swift) 和 [LegacyDictationMigration](../../Packages/StetEngine/Sources/StetCore/LegacyDictationMigration.swift) 统一托管；iOS 听写完成后记录历史与统计并在 [HistoryView](../../StetMobile/StetMobile/Features/History/Views/HistoryView.swift) 展示。
 - “未交付”状态在当前代码中没有任何写入方，只在旧被动记录的测试中出现（[HistoryEntry](../../Packages/StetEngine/Sources/StetCore/HistoryEntry.swift) 的 `HistoryEntryStatus`；[DictationHistoryServiceTests](../../Packages/StetEngine/Tests/StetCoreTests/DictationHistoryServiceTests.swift) 的 `legacyPassiveHistoryRemainsReadableAndExportable`）。
 - `finalText` 只在 [MacDictationCaptureCoordinator](../../StetMac/App/Workflows/MacDictationCaptureCoordinator.swift) 的三处“History point C”和 [MacDictationWorkflowController](../../StetMac/App/Workflows/MacDictationWorkflowController.swift) 的 `finalizePendingResultHistory` 写入；粘贴失败后的剪贴板兜底要等“待复制”结束（[MacAppSessionController+Dictation](../../StetMac/App/Workflows/MacAppSessionController+Dictation.swift) 的 `resolvePendingResult`）才定稿。
 - 历史在交付前提交（[DictationViewModel](../../StetMac/Features/Dictation/DictationViewModel.swift) 的 `commitPending` 调用处）；统计同样在交付前写入（[MacDictationWorkflowController](../../StetMac/App/Workflows/MacDictationWorkflowController.swift) 的 `handleCompletedResult`），1 秒门槛在 `stopActiveCapture`。

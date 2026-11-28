@@ -1,5 +1,133 @@
 import AVFoundation
 import Foundation
+import StetCore
+
+@MainActor
+protocol DictationActivityRecording: AnyObject {
+    func recordCompletedSession(
+        rawText: String,
+        llmText: String?,
+        finalText: String,
+        startedAt: Date,
+        completedAt: Date,
+        durationSeconds: Double
+    )
+}
+
+@MainActor
+final class NoOpDictationActivityRecorder: DictationActivityRecording {
+    func recordCompletedSession(
+        rawText _: String,
+        llmText _: String?,
+        finalText _: String,
+        startedAt _: Date,
+        completedAt _: Date,
+        durationSeconds _: Double
+    ) {}
+}
+
+@MainActor
+final class SyncedDictationActivityRecorder: DictationActivityRecording {
+    typealias HistoryRecorder =
+        @MainActor (
+            _ rawText: String,
+            _ llmText: String?,
+            _ finalText: String,
+            _ targetBundleID: String?,
+            _ targetAppName: String?,
+            _ timestamp: Date
+        ) -> Void
+
+    private let recordHistory: HistoryRecorder
+    private let statsModel: DictationStatsModel
+    private let bundleIdentifier: String?
+    private let appName: String
+    private let asyncStatsRecording: Bool
+
+    init(
+        historyService: DictationHistoryService? = nil,
+        statsModel: DictationStatsModel = .shared,
+        bundleIdentifier: String? = Bundle.main.bundleIdentifier,
+        appName: String = "Stet iOS",
+        asyncStatsRecording: Bool = true
+    ) {
+        let resolvedHistoryService = historyService ?? .shared
+        self.recordHistory = { rawText, llmText, finalText, bundleID, targetAppName, timestamp in
+            _ = resolvedHistoryService.recordCompleted(
+                rawText: rawText,
+                llmText: llmText,
+                finalText: finalText,
+                targetBundleID: bundleID,
+                targetAppName: targetAppName,
+                timestamp: timestamp,
+                status: .completed
+            )
+        }
+        self.statsModel = statsModel
+        self.bundleIdentifier = bundleIdentifier
+        self.appName = appName
+        self.asyncStatsRecording = asyncStatsRecording
+    }
+
+    init(
+        recordHistory: @escaping HistoryRecorder,
+        statsModel: DictationStatsModel,
+        bundleIdentifier: String? = Bundle.main.bundleIdentifier,
+        appName: String = "Stet iOS",
+        asyncStatsRecording: Bool = false
+    ) {
+        self.recordHistory = recordHistory
+        self.statsModel = statsModel
+        self.bundleIdentifier = bundleIdentifier
+        self.appName = appName
+        self.asyncStatsRecording = asyncStatsRecording
+    }
+
+    func recordCompletedSession(
+        rawText: String,
+        llmText: String?,
+        finalText: String,
+        startedAt: Date,
+        completedAt: Date,
+        durationSeconds: Double
+    ) {
+        let trimmedRaw = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedFinal = finalText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedRaw.isEmpty, !trimmedFinal.isEmpty else { return }
+
+        let trimmedLLM = llmText?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let recordedLLM = trimmedLLM?.isEmpty == false ? trimmedLLM : nil
+
+        recordHistory(trimmedRaw, recordedLLM, trimmedFinal, bundleIdentifier, appName, completedAt)
+
+        let wordCount = DictationWordCounter.displayUnits(in: trimmedFinal)
+        let normalizedDuration = max(0, durationSeconds)
+        let statsModel = self.statsModel
+        let bundleIdentifier = self.bundleIdentifier
+        let appName = self.appName
+        if asyncStatsRecording {
+            Task.detached(priority: .utility) {
+                statsModel.record(
+                    startedAt: startedAt,
+                    durationSeconds: normalizedDuration,
+                    wordCount: wordCount,
+                    targetBundleID: bundleIdentifier,
+                    targetAppName: appName,
+                    sourcePlatform: "iOS"
+                )
+            }
+        } else {
+            statsModel.record(
+                startedAt: startedAt,
+                durationSeconds: normalizedDuration,
+                wordCount: wordCount,
+                targetBundleID: bundleIdentifier,
+                targetAppName: appName,
+                sourcePlatform: "iOS"
+            )
+        }
+    }
+}
 
 nonisolated struct MobileASREngineFailure: Sendable {
     let sessionId: String?
@@ -65,10 +193,13 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
     private let notificationCenter: NotificationCenter
     private let rewriteHeartbeatInterval: Duration
     private let timingStore: DictationTimingStore
+    private let activityRecorder: any DictationActivityRecording
 
     private struct SessionTimingDraft {
         let sessionId: String
+        var startedAtDate: Date
         var startRequestedAt: TimeInterval
+        var recordingStartedAt: TimeInterval?
         var startMs: Int = 0
         var stopRequestedAt: TimeInterval?
         var localFinalizeMs: Int = 0
@@ -103,7 +234,8 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         commandMonitor: any KeyboardCommandMonitoring,
         notificationCenter: NotificationCenter = .default,
         rewriteHeartbeatInterval: Duration = .seconds(2),
-        timingStore: DictationTimingStore = .shared
+        timingStore: DictationTimingStore? = nil,
+        activityRecorder: (any DictationActivityRecording)? = nil
     ) {
         self.engine = engine
         self.prepareResources = prepareResources
@@ -113,7 +245,8 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         self.commandMonitor = commandMonitor
         self.notificationCenter = notificationCenter
         self.rewriteHeartbeatInterval = rewriteHeartbeatInterval
-        self.timingStore = timingStore
+        self.timingStore = timingStore ?? .shared
+        self.activityRecorder = activityRecorder ?? SyncedDictationActivityRecorder()
         (events, continuation) = AsyncStream.makeStream()
     }
 
@@ -188,6 +321,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         activeSessionId = sessionId
         timingDraft = SessionTimingDraft(
             sessionId: sessionId,
+            startedAtDate: Date(),
             startRequestedAt: ProcessInfo.processInfo.systemUptime
         )
         phase = .starting(sessionId: sessionId)
@@ -465,12 +599,12 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
         guard activeSessionId == sessionId else { return }
 
         guard !text.isEmpty else {
-            complete(sessionId: sessionId, text: text, metrics: metrics)
+            complete(sessionId: sessionId, rawText: text, llmText: nil, text: text, metrics: metrics)
             return
         }
 
         guard postProcessor.isAvailable else {
-            complete(sessionId: sessionId, text: text, metrics: metrics)
+            complete(sessionId: sessionId, rawText: text, llmText: nil, text: text, metrics: metrics)
             return
         }
 
@@ -506,7 +640,7 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             }
 
             let rewriteStartedAt = ProcessInfo.processInfo.systemUptime
-            let processedText = await self.postProcessor.process(text)
+            let outcome = await self.postProcessor.processWithOutcome(text)
             if var draft = self.timingDraft, draft.sessionId == sessionId {
                 draft.rewriteMs = Self.elapsedMilliseconds(since: rewriteStartedAt)
                 self.timingDraft = draft
@@ -516,7 +650,13 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
                 !Task.isCancelled,
                 self.activeSessionId == sessionId
             else { return }
-            self.complete(sessionId: sessionId, text: processedText, metrics: metrics)
+            self.complete(
+                sessionId: sessionId,
+                rawText: text,
+                llmText: outcome.didRewrite ? outcome.text : nil,
+                text: outcome.text,
+                metrics: metrics
+            )
         }
     }
 
@@ -541,6 +681,8 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
 
     private func complete(
         sessionId: String,
+        rawText: String,
+        llmText: String?,
         text: String,
         metrics: ASRMetrics?
     ) {
@@ -556,12 +698,48 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             return
         }
 
+        let completedAt = Date()
+        let activeDraft = timingDraft?.sessionId == sessionId ? timingDraft : nil
+        let startedAt = activeDraft?.startedAtDate ?? completedAt
+        let durationSeconds = resolvedDurationSeconds(
+            metrics: metrics,
+            draft: activeDraft,
+            startedAt: startedAt,
+            completedAt: completedAt
+        )
+
         recordCompletedTiming(sessionId: sessionId, metrics: metrics)
         activeSessionId = nil
         timingDraft = nil
         phase = .idle
         continuation.yield(.completed(sessionId: sessionId, text: text, metrics: metrics))
         commandMonitor.pollNow(force: true)
+
+        activityRecorder.recordCompletedSession(
+            rawText: rawText,
+            llmText: llmText,
+            finalText: text,
+            startedAt: startedAt,
+            completedAt: completedAt,
+            durationSeconds: durationSeconds
+        )
+    }
+
+    private func resolvedDurationSeconds(
+        metrics: ASRMetrics?,
+        draft: SessionTimingDraft?,
+        startedAt: Date,
+        completedAt: Date
+    ) -> Double {
+        if let audioDuration = metrics?.audioDuration, audioDuration > 0 {
+            return audioDuration
+        }
+        if let draft {
+            let startUptime = draft.recordingStartedAt ?? draft.startRequestedAt
+            let endUptime = draft.stopRequestedAt ?? ProcessInfo.processInfo.systemUptime
+            return max(0, endUptime - startUptime)
+        }
+        return max(0, completedAt.timeIntervalSince(startedAt))
     }
 
     private func markStopTimestampIfNeeded(for sessionId: String) {
@@ -667,6 +845,11 @@ final class DictationSessionCoordinator: DictationSessionCoordinating {
             else {
                 resolveChangedSessionAfterStart(sessionId: sessionId)
                 return
+            }
+            if var draft = timingDraft, draft.sessionId == sessionId {
+                draft.startedAtDate = Date()
+                draft.recordingStartedAt = ProcessInfo.processInfo.systemUptime
+                timingDraft = draft
             }
             phase = .recording(sessionId: sessionId)
             continuation.yield(.recording(sessionId: sessionId))

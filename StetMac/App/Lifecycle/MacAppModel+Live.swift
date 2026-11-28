@@ -1,5 +1,6 @@
 #if os(macOS)
     import Foundation
+    import StetCore
 
     extension MacAppModel {
         convenience init(
@@ -7,7 +8,7 @@
             rewriteModelCatalog: RewriteModelCatalogSource? = nil
         ) {
             let settingsStore = DictationSettingsStore(
-                defaults: .standard, secretStore: KeychainSecretStore(),
+                defaults: .standard, secretStore: SharedKeychainSecretStore.macOS(),
                 rewriteModelCatalog: rewriteModelCatalog)
             let captureService = MacAudioCaptureService()
             let liveMeetingPhaseStore = MCPLiveMeetingPhaseStore()

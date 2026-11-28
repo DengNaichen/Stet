@@ -1,15 +1,14 @@
-import Foundation
 import Combine
-import Security
+import Foundation
 import StetAI
 import StetCore
 import StetRewrite
 
-/// iOS-local credential and preference storage for AI rewrite.
-/// Independent from macOS `DictationSettingsStore`.
+/// iOS-local preference storage paired with the shared iCloud Keychain secret store for AI rewrite.
 @MainActor
 final class RewriteSettingsStore: ObservableObject {
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
+    private let secretStore: any DictationSecretStore
 
     private enum Keys {
         static let rewriteEnabled = "rewrite.enabled"
@@ -44,7 +43,14 @@ final class RewriteSettingsStore: ObservableObject {
         didSet { defaults.set(discoveredCustomModels, forKey: Keys.customDiscoveredModels) }
     }
 
-    init() {
+    @Published private(set) var lastKeychainError: String?
+
+    init(
+        defaults: UserDefaults = .standard,
+        secretStore: any DictationSecretStore = SharedKeychainSecretStore.iOS()
+    ) {
+        self.defaults = defaults
+        self.secretStore = secretStore
         self.isRewriteEnabled = defaults.bool(forKey: Keys.rewriteEnabled)
 
         let provider: DictationProvider
@@ -74,43 +80,32 @@ final class RewriteSettingsStore: ObservableObject {
 
     // MARK: - Keychain API Key Storage
 
-    func saveAPIKey(_ key: String, for provider: DictationProvider) {
-        let account = "rewrite.apikey.\(provider.rawValue)"
-        let data = Data(key.utf8)
-
-        // Delete existing
-        let deleteQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: account,
-            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
-        ]
-        SecItemDelete(deleteQuery as CFDictionary)
-
-        guard !key.isEmpty else { return }
-
-        let addQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: account,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-            kSecAttrSynchronizable as String: true,
-        ]
-        SecItemAdd(addQuery as CFDictionary, nil)
+    func saveAPIKey(_ key: String, for provider: DictationProvider) throws {
+        let account = DictationCredentialAccount.apiKey(for: provider)
+        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            if trimmed.isEmpty {
+                try secretStore.deleteString(forAccount: account)
+            } else {
+                try secretStore.saveString(trimmed, forAccount: account)
+            }
+            lastKeychainError = nil
+        } catch {
+            lastKeychainError = error.localizedDescription
+            throw error
+        }
     }
 
     func loadAPIKey(for provider: DictationProvider) -> String? {
-        let account = "rewrite.apikey.\(provider.rawValue)"
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
-        ]
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        guard status == errSecSuccess, let data = item as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+        let account = DictationCredentialAccount.apiKey(for: provider)
+        do {
+            let value = try secretStore.loadString(forAccount: account)
+            lastKeychainError = nil
+            return value
+        } catch {
+            lastKeychainError = error.localizedDescription
+            return nil
+        }
     }
 
     // MARK: - Service Factory

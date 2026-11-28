@@ -19,6 +19,9 @@ struct RewriteSettingsView: View {
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
+            .onAppear {
+                viewModel.refreshSyncedAPIKey()
+            }
             .task {
                 await viewModel.refreshSpeechAssetStatus()
             }
@@ -186,7 +189,7 @@ struct RewriteSettingsView: View {
                     }
                 }
 
-                Section("API Key") {
+                Section {
                     SecureField(
                         viewModel.settingsStore.selectedProvider.apiKeyPlaceholder,
                         text: $viewModel.apiKeyInput
@@ -211,6 +214,10 @@ struct RewriteSettingsView: View {
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
+                } header: {
+                    Text("API Key")
+                } footer: {
+                    Text("Synced automatically across your devices via iCloud Keychain.")
                 }
             }
         }

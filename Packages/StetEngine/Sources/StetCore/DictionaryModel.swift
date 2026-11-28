@@ -53,22 +53,40 @@ private final class DictionaryDefaultsStore: @unchecked Sendable {
     }
 }
 
+protocol DictionaryCloudStore: AnyObject {
+    func array(forKey key: String) -> [Any]?
+    func dictionary(forKey key: String) -> [String: Any]?
+    func set(_ value: Any?, forKey key: String)
+    @discardableResult func synchronize() -> Bool
+}
+
+extension NSUbiquitousKeyValueStore: DictionaryCloudStore {}
+
 public final class SyncedDictionaryStore: @unchecked Sendable {
     private static let lock = NSRecursiveLock()
     private let defaults: UserDefaults
-    private let cloudStore: NSUbiquitousKeyValueStore
+    private let cloudStore: any DictionaryCloudStore
     private let entriesKey: String
     private let provenanceKey: String
     private let notificationCenter: NotificationCenter
     private let changeNotification: Notification.Name
-    private let cloudObserver: NSObjectProtocol
+    private var cloudObserver: NSObjectProtocol?
 
-    public init(
+    public convenience init(
         defaults: UserDefaults = .standard,
         cloudStore: NSUbiquitousKeyValueStore = .default,
         entriesKey: String = "dictionary.entries",
         notificationCenter: NotificationCenter = .default,
         changeNotification: Notification.Name = .dictionaryDidSync
+    ) {
+        self.init(
+            defaults: defaults, cloud: cloudStore, entriesKey: entriesKey,
+            notificationCenter: notificationCenter, changeNotification: changeNotification)
+    }
+
+    init(
+        defaults: UserDefaults, cloud cloudStore: any DictionaryCloudStore, entriesKey: String,
+        notificationCenter: NotificationCenter = .default, changeNotification: Notification.Name = .dictionaryDidSync
     ) {
         self.defaults = defaults
         self.cloudStore = cloudStore
@@ -81,28 +99,28 @@ public final class SyncedDictionaryStore: @unchecked Sendable {
             forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
             object: cloudStore,
             queue: nil
-        ) { [defaults, cloudStore, entriesKey, provenanceKey, notificationCenter, changeNotification] notification in
-            if let keys = notification.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String],
-                !keys.contains(entriesKey), !keys.contains(provenanceKey)
-            {
-                return
-            }
-            Self.lock.lock()
-            let sources = cloudStore.dictionary(forKey: provenanceKey) as? [String: String] ?? [:]
-            let records = Self.decodeRecords(cloudStore.array(forKey: entriesKey) ?? [], sources: sources)
-            defaults.set(records.map(\.term), forKey: entriesKey)
-            defaults.set(sources, forKey: provenanceKey)
-            Self.lock.unlock()
-            notificationCenter.post(
-                name: changeNotification, object: nil, userInfo: ["entries": records.map(\.term)]
-            )
+        ) { [weak self] notification in
+            self?.receiveCloudChange(notification)
         }
 
         cloudStore.synchronize()
+        _ = loadRecords()
     }
 
     deinit {
-        notificationCenter.removeObserver(cloudObserver)
+        if let cloudObserver { notificationCenter.removeObserver(cloudObserver) }
+    }
+
+    private func receiveCloudChange(_ notification: Notification) {
+        if let keys = notification.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String],
+            !keys.contains(entriesKey), !keys.contains(provenanceKey)
+        {
+            return
+        }
+        Self.lock.lock()
+        let records = readRecords(externalChange: true)
+        Self.lock.unlock()
+        notificationCenter.post(name: changeNotification, object: nil, userInfo: ["entries": records.map(\.term)])
     }
 
     public func loadEntries() -> [String] { loadRecords().map(\.term) }
@@ -113,18 +131,30 @@ public final class SyncedDictionaryStore: @unchecked Sendable {
         return readRecords()
     }
 
-    private func readRecords() -> [GlossaryEntry] {
-        // An explicitly empty cloud array is a synced deletion, not a cache miss.
-        if let cloudEntries = cloudStore.array(forKey: entriesKey) {
-            let sources = cloudStore.dictionary(forKey: provenanceKey) as? [String: String] ?? [:]
-            let records = Self.decodeRecords(cloudEntries, sources: sources)
-            defaults.set(records.map(\.term), forKey: entriesKey)
-            defaults.set(sources, forKey: provenanceKey)
-            return records
-        }
-        return Self.decodeRecords(
+    private func readRecords(externalChange: Bool = false) -> [GlossaryEntry] {
+        let cloudEntries = cloudStore.array(forKey: entriesKey)
+        let sources = cloudStore.dictionary(forKey: provenanceKey) as? [String: String] ?? [:]
+        let cloud = Self.decodeRecords(cloudEntries ?? [], sources: sources)
+        let local = Self.decodeRecords(
             defaults.array(forKey: entriesKey) ?? [],
             sources: defaults.dictionary(forKey: provenanceKey) as? [String: String] ?? [:])
+        let marker =
+            entriesKey == "dictionary.entries" ? "dictionary.kvs.unifiedMergeV1" : entriesKey + ".unifiedMergeV1"
+        if !defaults.bool(forKey: marker), !local.isEmpty || cloudEntries != nil {
+            if !local.isEmpty, cloudEntries == nil || !cloud.isEmpty {
+                let merged = GlossaryEntry.normalized(cloud + local)
+                writeRecords(merged)
+                defaults.set(true, forKey: marker)
+                return merged
+            }
+            defaults.set(true, forKey: marker)
+        }
+        if cloudEntries != nil || externalChange {
+            defaults.set(cloud.map(\.term), forKey: entriesKey)
+            defaults.set(sources, forKey: provenanceKey)
+            return cloud
+        }
+        return local
     }
 
     public func saveEntries(_ entries: [String]) {
@@ -140,6 +170,16 @@ public final class SyncedDictionaryStore: @unchecked Sendable {
     func updateRecords(_ update: ([GlossaryEntry]) -> [GlossaryEntry]) -> [GlossaryEntry] {
         Self.lock.lock()
         let records = GlossaryEntry.normalized(update(readRecords()))
+        writeRecords(records)
+        Self.lock.unlock()
+        // Notify outside the lock; a main-queue observer may read from another thread.
+        notificationCenter.post(
+            name: changeNotification, object: nil, userInfo: ["entries": records.map(\.term)]
+        )
+        return records
+    }
+
+    private func writeRecords(_ records: [GlossaryEntry]) {
         // Keep the original text-array wire format; provenance is an additive sidecar.
         let sources = Dictionary(uniqueKeysWithValues: records.map { ($0.term, $0.source.rawValue) })
         defaults.set(records.map(\.term), forKey: entriesKey)
@@ -147,12 +187,6 @@ public final class SyncedDictionaryStore: @unchecked Sendable {
         cloudStore.set(sources, forKey: provenanceKey)
         cloudStore.set(records.map(\.term), forKey: entriesKey)
         cloudStore.synchronize()
-        Self.lock.unlock()
-        // Notify outside the lock; a main-queue observer may read from another thread.
-        notificationCenter.post(
-            name: changeNotification, object: nil, userInfo: ["entries": records.map(\.term)]
-        )
-        return records
     }
 
     private static func decodeRecords(_ entries: [Any], sources: [String: String]) -> [GlossaryEntry] {

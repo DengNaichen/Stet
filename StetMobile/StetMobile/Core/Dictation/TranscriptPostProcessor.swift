@@ -1,15 +1,26 @@
 import StetCore
 import StetRewrite
 
+struct TranscriptPostProcessOutcome: Equatable, Sendable {
+    let text: String
+    let didRewrite: Bool
+}
+
 @MainActor
 protocol TranscriptPostProcessing: AnyObject {
     var isAvailable: Bool { get }
     func prewarm()
     func process(_ transcript: String) async -> String
+    func processWithOutcome(_ transcript: String) async -> TranscriptPostProcessOutcome
 }
 
 extension TranscriptPostProcessing {
     func prewarm() {}
+
+    func processWithOutcome(_ transcript: String) async -> TranscriptPostProcessOutcome {
+        let processed = await process(transcript)
+        return TranscriptPostProcessOutcome(text: processed, didRewrite: isAvailable)
+    }
 }
 
 @MainActor
@@ -39,14 +50,22 @@ final class SettingsTranscriptPostProcessor: TranscriptPostProcessing {
     }
 
     func process(_ transcript: String) async -> String {
+        await processWithOutcome(transcript).text
+    }
+
+    func processWithOutcome(_ transcript: String) async -> TranscriptPostProcessOutcome {
         guard let rewriteService = settingsStore.makeRewriteServiceIfEnabled() else {
-            return transcript
+            return TranscriptPostProcessOutcome(text: transcript, didRewrite: false)
         }
 
         let preferredSpellings = dictionary.loadIsEnabled() ? dictionary.loadEntries() : []
-        return
-            (try? await rewriteService.rewrite(
+        do {
+            let rewritten = try await rewriteService.rewrite(
                 .cleanup(transcript, audience: .human, preferredSpellings: preferredSpellings)
-            )) ?? transcript
+            )
+            return TranscriptPostProcessOutcome(text: rewritten, didRewrite: true)
+        } catch {
+            return TranscriptPostProcessOutcome(text: transcript, didRewrite: false)
+        }
     }
 }

@@ -30,6 +30,11 @@ final class DictionaryViewModel: ObservableObject {
         allWords = model.loadEntries()
     }
 
+    func refreshFromCloud() {
+        NSUbiquitousKeyValueStore.default.synchronize()
+        load()
+    }
+
     func addDraftEntries() {
         guard canAddDraftEntries else { return }
         allWords = model.addEntries(from: draft)
