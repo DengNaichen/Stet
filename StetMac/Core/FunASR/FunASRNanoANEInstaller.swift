@@ -107,6 +107,14 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
             progress: progress)
     }
 
+    func updateEnabledRelease(in directory: URL) async throws {
+        guard let previous = release?.replacesManifestSHA256,
+            let receipt = ANEModelReadiness.installed(in: directory),
+            receipt.enabled, receipt.manifestHash == previous
+        else { return }
+        try await download { _ in }
+    }
+
     func prepareInstalled(progress: @escaping ProgressHandler) async throws {
         try begin()
         defer { busy = false }
@@ -118,10 +126,10 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
             progress(.ready)
             return
         }
-        try await prepare(directory.appendingPathComponent(FunASRNanoANEManifest.compiledName), progress)
+        try await prepare(receipt.compiledURL(in: directory), progress)
         try Task.checkCancellation()
         try await waitForIdle(progress: progress) {
-            try ANEModelReadiness.make(manifestHash: receipt.manifestHash).write(in: directory)
+            try receipt.refreshed().write(in: directory)
         }
         await onReady(directory)
         progress(.ready)
@@ -133,7 +141,7 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
         let directory = try directoryProvider()
         guard let receipt = ANEModelReadiness.installed(in: directory) else { progress(.disabled); return }
         try await waitForIdle(progress: progress) {
-            try ANEModelReadiness.make(manifestHash: receipt.manifestHash, enabled: false).write(in: directory)
+            try receipt.refreshed(enabled: false).write(in: directory)
         }
         progress(.disabled)
     }
@@ -183,11 +191,19 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
         _ manifest: FunASRNanoANEManifest, hash: String, source: URL, local: Bool, in directory: URL,
         progress: @escaping ProgressHandler
     ) async throws {
-        if let ready = ANEModelReadiness.read(in: directory) {
-            guard ready.manifestHash == hash else { throw ANEModelInstallError.alreadyInstalled }
+        let previous = ANEModelReadiness.installed(in: directory)
+        if let previous, previous.manifestHash == hash {
+            if ANEModelReadiness.read(in: directory) == nil {
+                try await prepare(previous.compiledURL(in: directory), progress)
+                try await waitForIdle(progress: progress) { try previous.refreshed().write(in: directory) }
+            }
             await onReady(directory)
             progress(.ready)
             return
+        }
+        if let previous, previous.enabled {
+            guard !local, release?.manifestSHA256 == hash, release?.replacesManifestSHA256 == previous.manifestHash
+            else { throw ANEModelInstallError.alreadyInstalled }
         }
         let manager = FileManager.default
         let working = directory.appendingPathComponent(".ane-install/\(hash)", isDirectory: true)
@@ -218,44 +234,23 @@ actor FunASRNanoANEInstaller: ANEModelInstalling {
         let pending = working.appendingPathComponent("pending.mlmodelc", isDirectory: true)
         if manager.fileExists(atPath: pending.path) { try manager.removeItem(at: pending) }
         try manager.copyItem(at: compiled, to: pending)
-        let destination = directory.appendingPathComponent(FunASRNanoANEManifest.compiledName, isDirectory: true)
-        let backup = working.appendingPathComponent("previous-\(UUID().uuidString).mlmodelc", isDirectory: true)
-        let oldReceipt = try? Data(contentsOf: directory.appendingPathComponent(ANEModelReadiness.fileName))
-        var placed = false
+        // Prepare at a stable final path while the previous receipt still selects its model.
+        let receipt = ANEModelReadiness.make(manifestHash: hash, versionedPath: true)
+        let destination = receipt.compiledURL(in: directory)
+        if manager.fileExists(atPath: destination.path) { try manager.removeItem(at: destination) }
+        try manager.moveItem(at: pending, to: destination)
         do {
-            try await waitForIdle(progress: progress) {
-                try ANEModelReadiness.remove(in: directory)
-                if manager.fileExists(atPath: destination.path) { try manager.moveItem(at: destination, to: backup) }
-                do { try manager.moveItem(at: pending, to: destination) } catch {
-                    if manager.fileExists(atPath: backup.path) { try? manager.moveItem(at: backup, to: destination) }
-                    throw error
-                }
-            }
-            placed = true
-            // Warm the final path, not the temporary compiler output: relocation can
-            // invalidate specialization. Until the ready receipt exists, ASR uses CPU.
             try await prepare(destination, progress)
-            try Task.checkCancellation()
             try await waitForIdle(progress: progress) {
-                try ANEModelReadiness.make(manifestHash: hash).write(in: directory)
+                try receipt.write(in: directory)
+                if let previous { try? manager.removeItem(at: previous.compiledURL(in: directory)) }
             }
-            try? manager.removeItem(at: backup)
-            await onReady(directory)
-            progress(.ready)
         } catch {
-            // A previous ready model is never replaced above. While this candidate is
-            // unready, no application ASR can select it, so rollback does not interrupt CPU.
-            if placed {
-                try? ANEModelReadiness.remove(in: directory)
-                try? manager.removeItem(at: destination)
-                if manager.fileExists(atPath: backup.path) { try? manager.moveItem(at: backup, to: destination) }
-            }
-            if let oldReceipt {
-                try? oldReceipt.write(
-                    to: directory.appendingPathComponent(ANEModelReadiness.fileName), options: .atomic)
-            }
+            try? manager.removeItem(at: destination)
             throw error
         }
+        await onReady(directory)
+        progress(.ready)
     }
 
     private func waitForIdle(progress: @escaping ProgressHandler, action: @escaping @Sendable () throws -> Void)

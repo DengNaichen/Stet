@@ -9,9 +9,12 @@ struct FunASRNanoANEInstallerTests {
     @Test func localCandidateWarmsFinalPathBeforePublishingReadiness() async throws {
         let fixture = try ANEInstallFixture()
         defer { fixture.remove() }
+        let manifest = try Data(contentsOf: fixture.candidate.appendingPathComponent("manifest.json"))
+        let receipt = ANEModelReadiness.make(manifestHash: ANEInstallFixture.hash(manifest), versionedPath: true)
+        let destination = receipt.compiledURL(in: fixture.models)
         let recorder = ANEPreparationRecorder()
         let installer = fixture.installer { url, progress in
-            #expect(url == fixture.compiled)
+            #expect(url == destination)
             #expect(ANEModelReadiness.read(in: fixture.models) == nil)
             let files = try fixture.manager.resolvedModelFiles()
             #expect(files.encoder.pathExtension == "gguf")
@@ -19,9 +22,9 @@ struct FunASRNanoANEInstallerTests {
             progress(.preparing(4, 4))
         }
         try await installer.importCandidate(at: fixture.candidate) { _ in }
-        #expect(await recorder.urls == [fixture.compiled])
+        #expect(await recorder.urls == [destination])
         #expect(await installer.status().ready)
-        #expect(try fixture.manager.resolvedModelFiles().encoder == fixture.compiled)
+        #expect(try fixture.manager.resolvedModelFiles().encoder == destination)
         try await installer.importCandidate(at: fixture.candidate) { _ in }
         #expect(await recorder.urls.count == 1)
         #expect(fixture.manager.isModelDownloaded())
@@ -125,14 +128,15 @@ struct FunASRNanoANEInstallerTests {
         #expect(!FileManager.default.fileExists(atPath: fixture.compiled.path))
     }
 
-    @Test func remoteManifestAndFilesUseTheSharedDownloader() async throws {
+    @Test(arguments: [false, true]) func migrateEnabledOfficialModel(failPreparation: Bool) async throws {
         let fixture = try ANEInstallFixture()
         defer { fixture.remove() }
         let data = try Data(contentsOf: fixture.candidate.appendingPathComponent("manifest.json"))
         let release = FunASRNanoANECatalog.Release(
             manifestURL: URL(
                 string: "https://huggingface.co/stet/test/resolve/\(String(repeating: "a", count: 40))/manifest.json")!,
-            manifestSize: Int64(data.count), manifestSHA256: ANEInstallFixture.hash(data))
+            manifestSize: Int64(data.count), manifestSHA256: ANEInstallFixture.hash(data),
+            replacesManifestSHA256: String(repeating: "a", count: 64))
         let downloader = ModelFileDownloader(cache: fixture.root.appendingPathComponent("cache")) { url, staging, _ in
             let source: URL
             if url.lastPathComponent == "manifest.json" {
@@ -148,12 +152,32 @@ struct FunASRNanoANEInstallerTests {
             directoryProvider: { fixture.models }, release: release, downloader: downloader,
             cache: fixture.root.appendingPathComponent("cache"), validateCPU: fixture.validateCPU,
             compile: fixture.compile,
-            prepare: { _, _ in },
+            prepare: { _, _ in
+                #expect(try fixture.manager.resolvedModelFiles().encoder == fixture.compiled)
+                if failPreparation { throw ANEModelInstallError.invalidModel }
+            },
             whenIdle: { action in
                 try action(); return true
             },
             onReady: { _ in })
-        try await installer.download { _ in }
+        try fixture.makePreviousModel()
+        let previous = ANEModelReadiness.make(manifestHash: String(repeating: "a", count: 64))
+        try previous.refreshed(enabled: false).write(in: fixture.models)
+        try await installer.updateEnabledRelease(in: fixture.models)
+        #expect(ANEModelReadiness.installed(in: fixture.models)?.enabled == false)
+        try previous.write(in: fixture.models)
+        if failPreparation {
+            await #expect(throws: ANEModelInstallError.self) {
+                try await installer.updateEnabledRelease(in: fixture.models)
+            }
+            #expect(try fixture.manager.resolvedModelFiles().encoder == fixture.compiled)
+            #expect(ANEModelReadiness.read(in: fixture.models)?.manifestHash == previous.manifestHash)
+            return
+        }
+        try await installer.updateEnabledRelease(in: fixture.models)
+        #expect(ANEModelReadiness.read(in: fixture.models)?.manifestHash == release.manifestSHA256)
+        #expect(!FileManager.default.fileExists(atPath: fixture.compiled.path))
+        try await installer.updateEnabledRelease(in: fixture.models)
         #expect(await installer.status().ready)
     }
 

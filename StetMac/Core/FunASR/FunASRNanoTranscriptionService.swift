@@ -151,10 +151,7 @@
             }
             let key = ResidentKey(directory: standardized, manifestHash: receipt.manifestHash)
             failedResidentKey = nil
-            let compiledURL = standardized.appendingPathComponent(
-                FunASRNanoANEManifest.compiledName,
-                isDirectory: true
-            )
+            let compiledURL = receipt.compiledURL(in: standardized)
             startBackgroundResidentLoadIfNeeded(compiledURL: compiledURL, key: key)
         }
 
@@ -177,10 +174,7 @@
             }
 
             let key = ResidentKey(directory: standardized, manifestHash: receipt.manifestHash)
-            let compiledURL = standardized.appendingPathComponent(
-                FunASRNanoANEManifest.compiledName,
-                isDirectory: true
-            )
+            let compiledURL = receipt.compiledURL(in: standardized)
 
             if let existing = residentEncoder, existing.key == key, residentLoadTask == nil {
                 guard activeModelUses == 0, activeLeaseCount == 0, loadTask == nil else { return }
@@ -266,7 +260,7 @@
             guard files.encoder.pathExtension == "mlmodelc", await engine.encoderBackend() == "ggml-cpu" else { return }
             let directory = files.encoder.deletingLastPathComponent()
             if let receipt = ANEModelReadiness.installed(in: directory) {
-                try? ANEModelReadiness.make(manifestHash: receipt.manifestHash, enabled: false).write(in: directory)
+                try? receipt.refreshed(enabled: false).write(in: directory)
             }
             releaseResidentEncoder()
             if loadedModelFiles == files { loadedModelFiles = Self.cpuModelFiles(from: files) }
@@ -532,10 +526,7 @@
                         loadedModelFiles == loaded
                     {
                         loadedModelFiles = FunASRNanoModelFiles(
-                            encoder: key.directory.appendingPathComponent(
-                                FunASRNanoANEManifest.compiledName,
-                                isDirectory: true
-                            ),
+                            encoder: newEncoder.modelURL,
                             languageModel: loaded.languageModel,
                             voiceActivityDetector: loaded.voiceActivityDetector
                         )

@@ -121,11 +121,10 @@
             }
             #if arch(arm64)
                 if #available(macOS 15, *) {
-                    let coreML = files.encoder.deletingLastPathComponent()
-                        .appendingPathComponent("FunASRNanoANE-v1.mlmodelc", isDirectory: true)
-                    if ANEModelReadiness.read(in: files.encoder.deletingLastPathComponent()) != nil {
+                    let directory = files.encoder.deletingLastPathComponent()
+                    if let receipt = ANEModelReadiness.read(in: directory) {
                         return FunASRNanoModelFiles(
-                            encoder: coreML,
+                            encoder: receipt.compiledURL(in: directory),
                             languageModel: files.languageModel,
                             voiceActivityDetector: files.voiceActivityDetector
                         )
